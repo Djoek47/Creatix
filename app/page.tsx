@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { ArrowRight, Shield, Users, Calendar, DollarSign } from 'lucide-react'
 
 export default function LandingPage() {
@@ -19,7 +19,7 @@ export default function LandingPage() {
       <header className="brand-header sticky top-0 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" priority />
+            <BrandLogo width={32} height={32} className="h-8 w-8" priority />
             <span className="font-title text-lg font-bold brand-gradient-text">
               Circe and Venus
             </span>

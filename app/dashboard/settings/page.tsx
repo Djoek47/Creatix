@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { User, Bell, Shield, CreditCard, Upload } from 'lucide-react'
 import { RevenuePrivacySwitch } from '@/components/settings/revenue-privacy-switch'
+import { BillingActions } from '@/components/settings/billing-actions'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -150,6 +151,22 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Billing & security — Stripe Customer Portal & Checkout */}
+          <Card variant="brand" className="border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Billing & security
+              </CardTitle>
+              <CardDescription>
+                Payment data is secured by Stripe. Manage your subscription, payment method, and invoices below.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BillingActions />
+            </CardContent>
+          </Card>
+
           {/* Notifications Section */}
           <Card variant="brand" className="border-0">
             <CardHeader>
@@ -176,6 +193,11 @@ export default async function SettingsPage() {
                 {
                   label: 'Reputation Alerts',
                   description: 'Get notified about new mentions',
+                  defaultChecked: true,
+                },
+                {
+                  label: 'Billing alerts',
+                  description: 'Invoices, payment failed, and subscription updates',
                   defaultChecked: true,
                 },
                 {

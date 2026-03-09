@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Bell, Shield, MessageSquare, BarChart3, ArrowRight } from 'lucide-react'
+import { Bell, Shield, MessageSquare, BarChart3, CreditCard, ArrowRight } from 'lucide-react'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -73,6 +73,23 @@ export default async function NotificationsPage() {
                 <p className="font-semibold text-foreground">Reputation & mentions</p>
                 <p className="text-sm text-muted-foreground">
                   {mentions && mentions.length > 0 ? `${mentions.length} mention(s) to review` : 'No new mentions'}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </Link>
+
+        <Link href="/dashboard/settings" className="block brand-card p-4 transition hover:shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-3/20 text-chart-3">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Billing & security</p>
+                <p className="text-sm text-muted-foreground">
+                  Manage subscription, payment method, and billing notifications
                 </p>
               </div>
             </div>

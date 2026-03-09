@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2, Link2, CheckCircle2 } from 'lucide-react'
@@ -51,7 +51,7 @@ export default function ConnectPlatformPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-3">
-        <Image src="/logo.png" alt="Circe and Venus" width={48} height={48} className="mx-auto h-12 w-12 rounded-xl object-contain" />
+        <BrandLogo width={48} height={48} className="mx-auto h-12 w-12 rounded-xl" />
         <h2 className="font-title text-3xl font-bold text-foreground">Connect your platform</h2>
         <p className="text-lg text-muted-foreground">
           Choose the platform you want under management. We&apos;ll connect via API and pull your data.

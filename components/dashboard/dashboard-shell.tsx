@@ -30,18 +30,8 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
 
   return (
     <RevenuePrivacyProvider>
-    <div className="min-h-screen brand-bg flex flex-col">
-      <DashboardHeader
-        user={user}
-        profile={profile}
-        onMenuClick={isMobile ? () => setSidebarOpen(true) : undefined}
-      />
-      <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">
-        <div className="max-w-6xl mx-auto">
-          {children}
-        </div>
-      </main>
-      {/* Sidebar: drawer on mobile only (Visual has no sidebar; we keep it for nav) */}
+    <div className="min-h-screen brand-bg flex flex-col md:flex-row">
+      {/* Side: sidebar on desktop; drawer on mobile */}
       <DashboardSidebar
         user={user}
         profile={profile}
@@ -49,6 +39,19 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
         mobileOpen={sidebarOpen}
         onMobileOpenChange={setSidebarOpen}
       />
+      {/* Above: header + main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <DashboardHeader
+          user={user}
+          profile={profile}
+          onMenuClick={isMobile ? () => setSidebarOpen(true) : undefined}
+        />
+        <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">
+          <div className="max-w-6xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
     </RevenuePrivacyProvider>
   )

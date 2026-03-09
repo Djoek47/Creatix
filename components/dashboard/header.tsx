@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/dashboard/brand-logo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Bell, LogOut, User, Settings, Menu, Eye, EyeOff, Shield, Users } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { BrandTitle } from '@/components/dashboard/brand-title'
 import { useRevenuePrivacy } from '@/lib/revenue-privacy-context'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -46,12 +47,12 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
-            <h1 className="font-title text-xl font-bold brand-gradient-text hidden sm:block">
-              Circe and Venus
+            <BrandLogo width={28} height={28} className="h-7 w-7" alt="" />
+            <h1 className="hidden sm:block text-xl">
+              <BrandTitle variant="header" />
             </h1>
           </Link>
-          <div className="flex items-center gap-1 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <Button variant="ghost" size="icon" asChild className="tap-target">
               <Link href="/dashboard/protection" aria-label="Protection">
                 <Shield className="w-5 h-5" />

@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { BrandTitle } from '@/components/dashboard/brand-title'
 import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
@@ -64,11 +65,9 @@ function SidebarContent({
     <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 shrink-0">
-        <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 flex-shrink-0 rounded-lg object-contain" />
+        <BrandLogo width={32} height={32} className="h-8 w-8 flex-shrink-0" />
         {!collapsed && (
-          <span className="font-title text-lg font-bold tracking-tight text-sidebar-foreground">
-            Circe and Venus
-          </span>
+          <BrandTitle variant="sidebar" className="text-lg" />
         )}
       </div>
 
@@ -136,8 +135,9 @@ function SidebarContent({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar tap-target"
+          className="absolute right-0 top-[4.25rem] h-6 w-6 rounded-full border border-sidebar-border bg-sidebar tap-target z-10 -translate-x-1/2"
           onClick={onCollapseToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
             <ChevronRight className="h-3 w-3" />
@@ -187,7 +187,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-all duration-300 shrink-0 animate-glass-shimmer transition-brand',
+        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-all duration-300 shrink-0 animate-glass-shimmer transition-brand pr-1',
         collapsed ? 'w-16' : 'w-64'
       )}
     >

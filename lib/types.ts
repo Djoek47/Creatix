@@ -27,6 +27,7 @@ export interface Profile {
   avatar_url: string | null
   timezone: string
   notification_preferences: NotificationPreferences
+  stripe_customer_id: string | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +37,7 @@ export interface NotificationPreferences {
   leak_alerts: boolean
   reputation_alerts: boolean
   daily_digest: boolean
+  billing_alerts: boolean
 }
 
 export interface Fan {

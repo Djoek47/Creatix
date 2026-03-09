@@ -146,9 +146,9 @@
   body {
     @apply bg-background text-foreground;
   }
-  /* Title font — Playfair Display for headings and brand */
-  h1, h2, h3, .font-title {
-    font-family: var(--font-heading), var(--font-sans);
+  /* Title font — same as logo (Cormorant Garamond) for all headings */
+  h1, h2, h3, .font-title, .font-brand {
+    font-family: var(--font-brand), var(--font-heading), var(--font-sans);
   }
   /* Mobile: safe area insets for notches / home indicator */
   body {

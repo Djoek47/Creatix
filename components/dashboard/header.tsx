@@ -22,9 +22,10 @@ interface HeaderProps {
   user: SupabaseUser
   profile: Profile | null
   onMenuClick?: () => void
+  isMobile?: boolean
 }
 
-export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
+export function DashboardHeader({ user, profile, onMenuClick, isMobile }: HeaderProps) {
   const router = useRouter()
   const { hideRevenue, toggleRevenueVisibility } = useRevenuePrivacy()
 
@@ -39,10 +40,20 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="shrink-0">
+          <div className="relative z-10 shrink-0 flex md:hidden min-w-[44px]">
             {onMenuClick && (
-              <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 tap-target md:hidden" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault()
+                  onMenuClick()
+                }}
+                className="h-11 w-11 min-h-[44px] min-w-[44px] tap-target touch-manipulation"
+                aria-label="Open menu"
+              >
+                <Menu className="h-6 w-6" />
               </Button>
             )}
           </div>

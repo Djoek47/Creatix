@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { BrandLogo } from '@/components/dashboard/brand-logo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Bell, LogOut, User, Settings, Menu, Eye, EyeOff, Shield, Users } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { BrandTitle } from '@/components/dashboard/brand-title'
 import { useRevenuePrivacy } from '@/lib/revenue-privacy-context'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -41,17 +39,13 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="Circe and Venus">
+          <div className="shrink-0">
             {onMenuClick && (
               <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 tap-target md:hidden" aria-label="Open menu">
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            <BrandLogo width={28} height={28} className="h-7 w-7" alt="" />
-            <h1 className="hidden sm:block text-xl">
-              <BrandTitle variant="header" />
-            </h1>
-          </Link>
+          </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <Button variant="ghost" size="icon" asChild className="tap-target">
               <Link href="/dashboard/protection" aria-label="Protection">

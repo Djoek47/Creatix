@@ -40,13 +40,7 @@ export default async function MentionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Reputation Monitor</h2>
-          <p className="text-muted-foreground">
-            Track mentions and sentiment across the web
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Refresh

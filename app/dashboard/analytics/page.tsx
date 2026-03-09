@@ -28,13 +28,6 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Analytics</h2>
-        <p className="text-muted-foreground">
-          Track your performance across all platforms
-        </p>
-      </div>
-
       {/* Overview Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AnalyticsRevenueStat total={analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0} />

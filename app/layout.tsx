@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono, Playfair_Display, Cormorant_Garamond } from 'next/font/google'
+import { Inter, JetBrains_Mono, Playfair_Display, Cinzel } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
@@ -20,8 +20,8 @@ const playfair = Playfair_Display({
   display: 'swap',
 });
 
-const cormorant = Cormorant_Garamond({
-  weight: ['600', '700'],
+const cinzel = Cinzel({
+  weight: '600',
   subsets: ['latin'],
   variable: '--font-brand',
   display: 'swap',
@@ -59,7 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} ${playfair.variable} ${cormorant.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} ${playfair.variable} ${cinzel.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="circe-venus-theme">
           {children}
           <Analytics />

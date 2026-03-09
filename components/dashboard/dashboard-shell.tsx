@@ -6,6 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { RevenuePrivacyProvider } from '@/lib/revenue-privacy-context'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
+import { DashboardPageTitle } from '@/components/dashboard/dashboard-page-title'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 
@@ -48,6 +49,7 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
         />
         <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">
           <div className="max-w-6xl mx-auto">
+            <DashboardPageTitle />
             {children}
           </div>
         </main>

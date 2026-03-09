@@ -146,7 +146,7 @@
   body {
     @apply bg-background text-foreground;
   }
-  /* Title font — same as logo (Cormorant Garamond) for all headings */
+  /* Title font — Cinzel SemiBold for logo and all headings */
   h1, h2, h3, .font-title, .font-brand {
     font-family: var(--font-brand), var(--font-heading), var(--font-sans);
   }

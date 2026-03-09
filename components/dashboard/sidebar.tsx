@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
@@ -42,6 +43,7 @@ const navigation = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
   { name: 'Mentions', href: '/dashboard/mentions', icon: Bell },
+  { name: 'Connect', href: '/dashboard/connect', icon: Link2 },
 ]
 
 const bottomNavigation = [

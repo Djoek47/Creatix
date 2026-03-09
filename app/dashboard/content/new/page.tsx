@@ -55,12 +55,6 @@ export default function NewContentPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Create Content</h2>
-          <p className="text-muted-foreground">
-            Schedule and manage your content
-          </p>
-        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

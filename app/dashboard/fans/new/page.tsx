@@ -42,12 +42,6 @@ export default function NewFanPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Add New Fan</h2>
-          <p className="text-muted-foreground">
-            Manually add a fan profile to your CRM
-          </p>
-        </div>
       </div>
 
       <Card className="max-w-2xl border-border bg-card">

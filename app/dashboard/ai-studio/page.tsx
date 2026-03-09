@@ -22,17 +22,7 @@ export const metadata: Metadata = {
 export default function AIStudioPage() {
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            AI Studio
-          </h1>
-          <p className="text-muted-foreground">
-            AI-powered tools to maximize your content performance and revenue
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Badge variant="outline" className="w-fit bg-primary/10 text-primary border-primary/30">
           <Zap className="h-3 w-3 mr-1" />
           Powered by AI

@@ -38,13 +38,7 @@ export default async function ProtectionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Leak Protection</h2>
-          <p className="text-muted-foreground">
-            Monitor and respond to leaked content
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Scan Now

@@ -23,11 +23,6 @@ export default async function NotificationsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-3">
-        <h2 className="font-title text-3xl font-bold text-foreground">Notifications</h2>
-        <p className="text-lg text-muted-foreground">Alerts, mentions, and unread messages</p>
-      </div>
-
       <div className="space-y-4">
         <Link href="/dashboard/protection" className="block brand-card p-4 transition hover:shadow-lg">
           <div className="flex items-center justify-between">

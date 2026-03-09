@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BrandLogo } from '@/components/dashboard/brand-logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, Link2, CheckCircle2 } from 'lucide-react'
+import { Loader2, Link2, CheckCircle2, RefreshCw, Unplug } from 'lucide-react'
 import type { Platform } from '@/lib/types'
 
 const PLATFORMS: { id: Platform; name: string; description: string }[] = [
@@ -17,14 +16,19 @@ const PLATFORMS: { id: Platform; name: string; description: string }[] = [
 export default function ConnectPlatformPage() {
   const router = useRouter()
   const [connecting, setConnecting] = useState<Platform | null>(null)
+  const [syncing, setSyncing] = useState<Platform | null>(null)
+  const [disconnecting, setDisconnecting] = useState<Platform | null>(null)
   const [connected, setConnected] = useState<Platform[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetch('/api/connect')
+  function refreshConnected() {
+    return fetch('/api/connect')
       .then((r) => r.json())
-      .then((data) => data.platforms && setConnected(data.platforms))
-      .finally(() => setLoading(false))
+      .then((data) => data.platforms && setConnected(data.platforms || []))
+  }
+
+  useEffect(() => {
+    refreshConnected().finally(() => setLoading(false))
   }, [])
 
   async function handleConnect(platform: Platform) {
@@ -34,7 +38,6 @@ export default function ConnectPlatformPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Connection failed')
       setConnected((prev) => [...prev, platform])
-      // Optionally sync data after connect
       await fetch(`/api/connect/${platform}/sync`, { method: 'POST' })
     } catch (e) {
       console.error(e)
@@ -43,21 +46,34 @@ export default function ConnectPlatformPage() {
     }
   }
 
-  function handleContinue() {
-    router.push('/dashboard')
-    router.refresh()
+  async function handleSync(platform: Platform) {
+    setSyncing(platform)
+    try {
+      const res = await fetch(`/api/connect/${platform}/sync`, { method: 'POST' })
+      if (!res.ok) throw new Error('Sync failed')
+      await refreshConnected()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSyncing(null)
+    }
+  }
+
+  async function handleDisconnect(platform: Platform) {
+    setDisconnecting(platform)
+    try {
+      const res = await fetch(`/api/connect/${platform}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Disconnect failed')
+      setConnected((prev) => prev.filter((p) => p !== platform))
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setDisconnecting(null)
+    }
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-3">
-        <BrandLogo width={48} height={48} className="mx-auto h-12 w-12 rounded-xl" />
-        <h2 className="font-title text-3xl font-bold text-foreground">Connect your platform</h2>
-        <p className="text-lg text-muted-foreground">
-          Choose the platform you want under management. We&apos;ll connect via API and pull your data.
-        </p>
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-1">
         {loading ? (
           <div className="flex justify-center py-8">
@@ -66,35 +82,69 @@ export default function ConnectPlatformPage() {
         ) : PLATFORMS.map((platform) => {
           const isConnecting = connecting === platform.id
           const isConnected = connected.includes(platform.id)
+          const isSyncing = syncing === platform.id
+          const isDisconnecting = disconnecting === platform.id
           return (
             <Card key={platform.id} variant="brand" className="overflow-hidden">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle className="font-title text-lg">{platform.name}</CardTitle>
-                  {isConnected ? (
-                    <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-                      <CheckCircle2 className="h-4 w-4" /> Connected
-                    </span>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleConnect(platform.id)}
-                      disabled={!!connecting}
-                      className="brand-button gap-2"
-                    >
-                      {isConnecting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Connecting…
-                        </>
-                      ) : (
-                        <>
-                          <Link2 className="h-4 w-4" />
-                          Connect
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isConnected ? (
+                      <>
+                        <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-4 w-4" /> Connected
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSync(platform.id)}
+                          disabled={!!syncing || !!disconnecting}
+                          className="gap-1.5"
+                        >
+                          {isSyncing ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          )}
+                          Sync
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDisconnect(platform.id)}
+                          disabled={!!syncing || !!disconnecting}
+                          className="gap-1.5 text-muted-foreground hover:text-destructive"
+                        >
+                          {isDisconnecting ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Unplug className="h-3.5 w-3.5" />
+                          )}
+                          Disconnect
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleConnect(platform.id)}
+                        disabled={!!connecting}
+                        className="brand-button gap-2"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Connecting…
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="h-4 w-4" />
+                            Connect
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <CardDescription>{platform.description}</CardDescription>
               </CardHeader>

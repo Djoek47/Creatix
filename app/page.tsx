@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { BrandLogo } from '@/components/dashboard/brand-logo'
-import { ArrowRight, Shield, Users, Calendar, DollarSign } from 'lucide-react'
+import { BrandTitle } from '@/components/dashboard/brand-title'
+import { SiteFooter } from '@/components/marketing/site-footer'
+import { ArrowRight, Shield, Users, Calendar, DollarSign, Link2, BarChart3, Sparkles } from 'lucide-react'
 
 export default function LandingPage() {
   return (
@@ -20,16 +22,17 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             <BrandLogo width={32} height={32} className="h-8 w-8" priority />
-            <span className="font-title text-lg font-bold brand-gradient-text">
-              Circe and Venus
-            </span>
+            <BrandTitle className="text-lg" variant="header" />
           </Link>
           <nav className="hidden items-center gap-8 md:flex">
             <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground">
               Features
             </Link>
+            <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+              About
+            </Link>
             <Link href="/auth/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-              Docs
+              Sign In
             </Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -64,14 +67,14 @@ export default function LandingPage() {
                 OnlyFans • MYM • Fansly
               </div>
 
-              <h1 className="font-title text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
+              <h1 className="font-title text-4xl font-normal tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
                 <span className="brand-gradient-text">Manage Your Creator</span>
                 <br />
                 <span className="text-foreground/90">Empire</span>
               </h1>
 
               <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-                One platform for fans, content, messages, and revenue. Beautiful tools in gold and purple.
+                One platform for fans, content, messages, and revenue. Connect your accounts, manage your community, and grow your business with tools built for creators.
               </p>
 
               <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
@@ -89,15 +92,47 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* How it works */}
+        <section className="border-t border-border py-20">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-4xl text-center">
+              <h2 className="font-title text-3xl font-normal tracking-tight text-foreground md:text-4xl">
+                How it works
+              </h2>
+              <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+                Get started in minutes. Connect your platforms, sync your data, and take control.
+              </p>
+              <div className="mt-16 grid gap-10 sm:grid-cols-3">
+                {[
+                  { step: '1', icon: Link2, title: 'Connect', desc: 'Link your OnlyFans, MYM, and Fansly accounts securely. We sync your fans, content, and earnings in one place.' },
+                  { step: '2', icon: BarChart3, title: 'Manage', desc: 'Use your dashboard to track revenue, segment fans, schedule content, and monitor messages across all platforms.' },
+                  { step: '3', icon: Sparkles, title: 'Grow', desc: 'AI tools, leak protection, and analytics help you protect your brand and grow your creator business.' },
+                ].map((item) => (
+                  <div key={item.step} className="relative brand-card p-6 text-left">
+                    <span className="absolute -top-3 left-6 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
+                      {item.step}
+                    </span>
+                    <div className="mb-4 mt-2 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 text-accent-foreground">
+                      <item.icon className="h-6 w-6" />
+                    </div>
+                    <h3 className="font-title text-xl font-normal text-foreground">{item.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Features — unified brand cards */}
         <section id="features" className="border-t border-border py-20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-6xl">
-              <h2 className="font-title text-center text-3xl font-bold text-foreground md:text-4xl">
+              <h2 className="font-title text-center text-3xl font-normal tracking-tight text-foreground md:text-4xl">
                 Everything you need in <span className="brand-gradient-text">gold & purple</span>
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
-                Built for creators and agencies.
+                Built for creators and agencies. One dashboard for your entire creator business.
               </p>
               <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {[
@@ -110,7 +145,7 @@ export default function LandingPage() {
                     <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${item.color}`}>
                       <item.icon className="h-6 w-6" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">{item.title}</h3>
+                    <h3 className="font-title text-lg font-normal text-foreground">{item.title}</h3>
                     <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
                   </div>
                 ))}
@@ -118,7 +153,34 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* Trust / CTA strip */}
+        <section className="border-t border-border py-16">
+          <div className="container mx-auto px-4 text-center">
+            <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Trusted by creators worldwide
+            </p>
+            <h2 className="font-title mt-4 text-2xl font-normal tracking-tight text-foreground sm:text-3xl">
+              Ready to take control of your creator business?
+            </h2>
+            <p className="mx-auto mt-2 max-w-lg text-muted-foreground">
+              Join Circe and Venus today. Connect your platforms, manage your fans, and grow with confidence.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Button asChild size="lg" className="brand-button h-12 gap-2 px-8">
+                <Link href="/auth/sign-up">
+                  Get Started Free
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="h-12 px-8">
+                <Link href="/about">Learn more</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       </main>
+      <SiteFooter />
     </div>
   )
 }

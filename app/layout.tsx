@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono, Playfair_Display, Cinzel } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { CookieConsentBanner } from '@/components/marketing/cookie-consent-banner'
 import './globals.css'
 
 const inter = Inter({
@@ -21,7 +22,7 @@ const playfair = Playfair_Display({
 });
 
 const cinzel = Cinzel({
-  weight: '600',
+  weight: '400',
   subsets: ['latin'],
   variable: '--font-brand',
   display: 'swap',
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} ${playfair.variable} ${cinzel.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="circe-venus-theme">
           {children}
+          <CookieConsentBanner />
           <Analytics />
         </ThemeProvider>
       </body>

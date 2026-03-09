@@ -72,6 +72,11 @@ export default function ConnectPlatformPage() {
     }
   }
 
+  function handleContinue() {
+    router.push('/dashboard')
+    router.refresh()
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="grid gap-4 sm:grid-cols-1">

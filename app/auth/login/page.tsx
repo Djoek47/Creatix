@@ -102,7 +102,13 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            {"Don't have an account?"}{' '}
+            By signing in you agree to our{' '}
+            <Link href="/terms" className="text-primary hover:underline">Terms</Link>
+            {' '}&{' '}
+            <Link href="/privacy" className="text-primary hover:underline">Privacy</Link>.
+          </div>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
             <Link href="/auth/sign-up" className="font-medium text-primary hover:underline">
               Sign up
             </Link>

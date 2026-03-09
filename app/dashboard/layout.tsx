@@ -14,11 +14,15 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: connections }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('platform_connections').select('id').eq('user_id', user.id).eq('is_connected', true),
+  ])
+  const hasConnectedPlatform = (connections?.length ?? 0) > 0
 
-  return <DashboardShell user={user} profile={profile}>{children}</DashboardShell>
+  return (
+    <DashboardShell user={user} profile={profile} hasConnectedPlatform={hasConnectedPlatform}>
+      {children}
+    </DashboardShell>
+  )
 }

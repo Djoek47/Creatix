@@ -66,7 +66,7 @@ function SidebarContent({
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 shrink-0">
         <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 flex-shrink-0 rounded-lg object-contain" />
         {!collapsed && (
-          <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
+          <span className="font-title text-lg font-bold tracking-tight text-sidebar-foreground">
             Circe and Venus
           </span>
         )}

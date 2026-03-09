@@ -30,7 +30,7 @@ export function RevenueChart({ analytics }: RevenueChartProps) {
     : generateSampleData()
 
   return (
-    <Card className="border-border bg-card">
+    <Card variant="glass" className="border-border">
       <CardHeader>
         <CardTitle>Revenue Overview</CardTitle>
         <CardDescription>Your earnings across all platforms</CardDescription>
@@ -41,8 +41,9 @@ export function RevenueChart({ analytics }: RevenueChartProps) {
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.78 0.14 85)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.78 0.14 85)" stopOpacity={0} />
+                  <stop offset="0%" stopColor="oklch(0.55 0.25 305)" stopOpacity={0.35} />
+                  <stop offset="50%" stopColor="oklch(0.72 0.18 85)" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="oklch(0.78 0.14 85)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.04 285)" />
@@ -73,7 +74,7 @@ export function RevenueChart({ analytics }: RevenueChartProps) {
               <Area
                 type="monotone"
                 dataKey="revenue"
-                stroke="oklch(0.78 0.14 85)"
+                stroke="oklch(0.72 0.16 85)"
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorRevenue)"

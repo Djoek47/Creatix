@@ -28,6 +28,16 @@ interface HeaderProps {
   onMenuClick?: () => void
 }
 
+const navItems: { href: string; label: string }[] = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dashboard/fans', label: 'Fans' },
+  { href: '/dashboard/content', label: 'Content' },
+  { href: '/dashboard/messages', label: 'Messages' },
+  { href: '/dashboard/analytics', label: 'Analytics' },
+  { href: '/dashboard/protection', label: 'Protection' },
+  { href: '/dashboard/mentions', label: 'Mentions' },
+]
+
 const pageNames: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/fans': 'Fan Management',
@@ -37,6 +47,7 @@ const pageNames: Record<string, string> = {
   '/dashboard/protection': 'Leak Protection',
   '/dashboard/mentions': 'Reputation Monitor',
   '/dashboard/settings': 'Settings',
+  '/dashboard/connect': 'Connect platform',
 }
 
 export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
@@ -67,22 +78,41 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
 
   return (
-    <header className="glass-panel animate-glass-shimmer flex h-16 items-center justify-between px-4 sm:px-6 transition-brand">
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+    <header className="glass-panel animate-glass-shimmer flex h-16 items-center justify-between gap-4 px-4 sm:px-6 transition-brand">
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
         {onMenuClick && (
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 shrink-0 tap-target md:hidden" aria-label="Open menu">
+          <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 tap-target md:hidden" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        <Link href="/dashboard" className="flex items-center gap-2 shrink-0 md:mr-2">
-          <Image src="/logo.png" alt="Circe and Venus" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
+        <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="Circe and Venus">
+          <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
         </Link>
-        <h1 className="text-lg sm:text-xl font-semibold truncate">{getPageName()}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Centered nav — reference style with active pill */}
+      <nav className="hidden md:flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors tap-target ${
+                isActive
+                  ? 'bg-foreground text-background shadow-sm animate-gold-purple-bg'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
         {/* Search */}
-        <div className="relative hidden md:block">
+        <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search fans, content..."
@@ -105,10 +135,18 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
         {/* Theme (day/night) */}
         <ThemeToggle />
 
+        {/* Settings — active when on settings */}
+        <Link
+          href="/dashboard/settings"
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-lg tap-target ${pathname.startsWith('/dashboard/settings') ? 'bg-muted' : 'hover:bg-muted/70'}`}
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </Link>
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative h-10 w-10 tap-target">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary animate-gold-purple-bg" />
         </Button>
 
         {/* User Menu */}
@@ -139,12 +177,6 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
               <a href="/dashboard/settings" className="flex cursor-pointer items-center">
                 <User className="mr-2 h-4 w-4" />
                 Profile
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href="/dashboard/settings" className="flex cursor-pointer items-center">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

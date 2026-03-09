@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { RevenuePrivacyProvider } from '@/lib/revenue-privacy-context'
 import { DashboardHeader } from '@/components/dashboard/header'
@@ -11,12 +12,21 @@ import type { Profile } from '@/lib/types'
 interface DashboardShellProps {
   user: User
   profile: Profile | null
+  hasConnectedPlatform?: boolean
   children: React.ReactNode
 }
 
-export function DashboardShell({ user, profile, children }: DashboardShellProps) {
+export function DashboardShell({ user, profile, hasConnectedPlatform = true, children }: DashboardShellProps) {
   const isMobile = useIsMobile()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (hasConnectedPlatform === false && pathname !== '/dashboard/connect') {
+      router.replace('/dashboard/connect')
+    }
+  }, [hasConnectedPlatform, pathname, router])
 
   return (
     <RevenuePrivacyProvider>

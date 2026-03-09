@@ -1,6 +1,19 @@
 // Database Types for Circe and Venus Platform
 
 export type Platform = 'onlyfans' | 'mym' | 'fansly'
+
+export interface PlatformConnection {
+  id: string
+  user_id: string
+  platform: Platform
+  platform_username: string | null
+  access_token: string | null
+  refresh_token: string | null
+  is_connected: boolean
+  last_sync_at: string | null
+  created_at: string
+  updated_at: string
+}
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
 export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 export type ConversationStatus = 'active' | 'pending' | 'archived'

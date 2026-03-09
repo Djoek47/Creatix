@@ -23,7 +23,7 @@ export default function LandingPage() {
         <nav className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" priority />
-            <span className="text-xl font-bold tracking-tight">Circe and Venus</span>
+            <span className="font-title text-xl font-bold tracking-tight">Circe and Venus</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
@@ -59,7 +59,7 @@ export default function LandingPage() {
               Now supporting OnlyFans, MYM, and Fansly
             </div>
             
-            <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl animate-fade-up stagger-1 opacity-0 [animation-fill-mode:forwards]">
+            <h1 className="font-title text-balance text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl animate-fade-up stagger-1 opacity-0 [animation-fill-mode:forwards]">
               Manage Your Creator Empire{' '}
               <span className="text-primary transition-brand">Like a Pro</span>
             </h1>
@@ -111,7 +111,7 @@ export default function LandingPage() {
         <section id="features" className="px-6 py-24">
           <div className="mx-auto max-w-6xl animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:0.15s]">
             <div className="text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              <h2 className="font-title text-3xl font-bold tracking-tight sm:text-4xl">
                 Everything You Need to{' '}
                 <span className="text-primary">Scale</span>
               </h2>
@@ -172,7 +172,7 @@ export default function LandingPage() {
         {/* CTA Section — glass card */}
         <section className="px-6 py-24">
           <div className="glass-card animate-glass-shimmer mx-auto max-w-4xl p-8 text-center sm:p-12 transition-brand opacity-0 animate-fade-up [animation-fill-mode:forwards] [animation-delay:0.25s]">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="font-title text-3xl font-bold tracking-tight sm:text-4xl">
               Ready to Take Control?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
@@ -194,7 +194,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="" width={24} height={24} className="h-6 w-6 rounded-md object-contain" />
-            <span className="font-semibold">Circe and Venus</span>
+            <span className="font-title font-semibold">Circe and Venus</span>
           </div>
           <p className="text-sm text-muted-foreground">
             2026 Circe and Venus. All rights reserved.

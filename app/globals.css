@@ -97,6 +97,7 @@
 @theme inline {
   --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), 'JetBrains Mono', monospace;
+  --font-heading: var(--font-playfair), 'Playfair Display', Georgia, serif;
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
@@ -144,6 +145,10 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Title font — Playfair Display for headings and brand */
+  h1, h2, h3, .font-title {
+    font-family: var(--font-heading), var(--font-sans);
   }
   /* Mobile: safe area insets for notches / home indicator */
   body {
@@ -193,6 +198,33 @@
   }
 }
 
+/* ——— Gold ↔ Purple color animation (primary brand transition) ——— */
+@keyframes gold-to-purple {
+  0%, 100% { color: oklch(0.72 0.16 85); }
+  50% { color: oklch(0.55 0.25 305); }
+}
+@keyframes gold-to-purple-bg {
+  0%, 100% { background-color: oklch(0.78 0.14 85); }
+  50% { background-color: oklch(0.55 0.25 305); }
+}
+@keyframes gold-to-purple-fill {
+  0%, 100% { fill: oklch(0.78 0.14 85); }
+  50% { fill: oklch(0.55 0.25 305); }
+}
+@keyframes gold-to-purple-gradient {
+  0%, 100% {
+    background: linear-gradient(135deg, oklch(0.78 0.14 85 / 0.2) 0%, oklch(0.55 0.25 305 / 0.1) 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, oklch(0.55 0.25 305 / 0.2) 0%, oklch(0.78 0.14 85 / 0.1) 100%);
+  }
+}
+/* Progress bar fill animates gold → purple */
+@keyframes progress-gold-purple {
+  0%, 100% { background-color: oklch(0.78 0.14 85); }
+  50% { background-color: oklch(0.55 0.25 305); }
+}
+
 /* ——— Purple / Gold color transitions & frosted glass animation ——— */
 @keyframes glass-shimmer {
   0%, 100% { opacity: 1; filter: saturate(160%) brightness(1); }
@@ -217,6 +249,18 @@
 
 .animate-glass-shimmer {
   animation: glass-shimmer 8s ease-in-out infinite;
+}
+.animate-gold-purple {
+  animation: gold-to-purple 4s ease-in-out infinite;
+}
+.animate-gold-purple-bg {
+  animation: gold-to-purple-bg 4s ease-in-out infinite;
+}
+.animate-gold-purple-gradient {
+  animation: gold-to-purple-gradient 6s ease-in-out infinite;
+}
+.animate-progress-gold-purple {
+  animation: progress-gold-purple 4s ease-in-out infinite;
 }
 .animate-page-enter {
   animation: page-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -245,6 +289,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-glass-shimmer,
+  .animate-gold-purple,
+  .animate-gold-purple-bg,
+  .animate-gold-purple-gradient,
+  .animate-progress-gold-purple,
   .animate-page-enter,
   .animate-fade-up,
   .animate-scale-in { animation: none; }

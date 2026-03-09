@@ -28,7 +28,7 @@ export default function AuthLayout({
       <div className="flex flex-col flex-1 items-center justify-center px-4 pt-16 pb-8">
         <Link href="/" className="mb-6 flex items-center gap-2 shrink-0 animate-fade-up opacity-0 [animation-fill-mode:forwards]">
           <Image src="/logo.png" alt="Circe and Venus" width={40} height={40} className="h-10 w-10 rounded-xl object-contain" />
-          <span className="text-2xl font-bold tracking-tight">Circe and Venus</span>
+          <span className="font-title text-2xl font-bold tracking-tight">Circe and Venus</span>
         </Link>
         <div className="w-full flex flex-col items-center animate-scale-in opacity-0 [animation-fill-mode:forwards] [animation-delay:0.08s]">
           {children}

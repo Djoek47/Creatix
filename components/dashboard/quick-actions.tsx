@@ -38,7 +38,7 @@ export function QuickActions() {
   ]
 
   return (
-    <Card className="border-border bg-card">
+    <Card variant="glass" className="border-border">
       <CardHeader>
         <CardTitle>Quick Actions</CardTitle>
         <CardDescription>Common tasks at your fingertips</CardDescription>

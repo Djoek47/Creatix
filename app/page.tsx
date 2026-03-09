@@ -56,33 +56,33 @@ export default function LandingPage() {
             {/* Decorative pulsing ring (CSS-only, Hero-section style) */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="h-[320px] w-[320px] rounded-full border-2 border-primary/20 bg-primary/5 blur-xl animate-pulse-ring md:h-[400px] md:w-[400px]" />
-            </div>
-
+          </div>
+          
             <div className="relative space-y-6">
               <div className="flex justify-center">
                 <BrandLogo width={120} height={120} className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32" priority />
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-1.5 text-sm font-medium text-muted-foreground">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-                </span>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
                 OnlyFans • MYM • Fansly
-              </div>
-
+            </div>
+            
               <h1 className="font-title text-4xl font-normal tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
                 <span className="brand-gradient-text">Manage Your Creator</span>
                 <br />
                 <span className="text-foreground/90">Empire</span>
-              </h1>
-
+            </h1>
+            
               <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
                 One platform for fans, content, messages, and revenue. Connect your accounts, manage your community, and grow your business with tools built for creators.
-              </p>
-
+            </p>
+            
               <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
                 <Button asChild size="lg" className="brand-button h-12 gap-2 px-8 text-lg shadow-lg">
-                  <Link href="/auth/sign-up">
+              <Link href="/auth/sign-up">
                     Get Started
                     <ArrowRight className="h-5 w-5" />
                   </Link>
@@ -130,7 +130,7 @@ export default function LandingPage() {
         {/* Features — unified brand cards */}
         <section id="features" className="border-t border-border py-20">
           <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-6xl">
               <h2 className="font-title text-center text-3xl font-normal tracking-tight text-foreground md:text-4xl">
                 Everything you need in <span className="brand-gradient-text">gold & purple</span>
               </h2>
@@ -147,12 +147,12 @@ export default function LandingPage() {
                   <div key={item.title} className="brand-card p-6 transition hover:shadow-lg">
                     <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${item.color}`}>
                       <item.icon className="h-6 w-6" />
-                    </div>
+            </div>
                     <h3 className="font-title text-lg font-normal text-foreground">{item.title}</h3>
                     <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
                   </div>
                 ))}
-              </div>
+                </div>
             </div>
           </div>
         </section>
@@ -171,14 +171,14 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button asChild size="lg" className="brand-button h-12 gap-2 px-8">
-                <Link href="/auth/sign-up">
+              <Link href="/auth/sign-up">
                   Get Started Free
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="h-12 px-8">
                 <Link href="/about">Learn more</Link>
-              </Button>
+                </Button>
             </div>
           </div>
         </section>

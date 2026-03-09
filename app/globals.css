@@ -166,11 +166,7 @@
   }
 }
 
-/* Sheet (mobile menu): ensure panel is visible when open in portrait (iOS can leave it off-screen) */
-[data-slot="sheet-content"][data-state="open"] {
-  transform: translateX(0);
-  visibility: visible;
-}
+
 
 /* ——— iOS / Apple-style glass (2026 glassmorphism) ——— */
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {

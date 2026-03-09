@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Bell, LogOut, User, Settings, Eye, EyeOff, Shield, Users } from 'lucide-react'
+import { Bell, LogOut, User, Settings, Eye, EyeOff, Shield, Users, Menu } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useRevenuePrivacy } from '@/lib/revenue-privacy-context'
 import { createClient } from '@/lib/supabase/client'
@@ -37,11 +37,24 @@ export function DashboardHeader({ user, profile, onMenuClick, isMobile }: Header
   }
 
   return (
-    <header className="brand-header sticky top-0 z-40">
+    <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* Mobile: spacer for menu trigger (trigger in DashboardShell for reliable portrait touch on iOS) */}
-          {isMobile && <div className="w-20 shrink-0 md:hidden" aria-hidden />}
+          {/* Mobile hamburger (single handler: avoids iOS touch+click double toggle) */}
+          {onMenuClick && (
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="md:hidden inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl hover:bg-accent/50 active:opacity-80 touch-manipulation"
+              onPointerUp={(e) => {
+                // iOS Safari can fire touch + click; pointer-up avoids double toggles.
+                e.preventDefault()
+                onMenuClick()
+              }}
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             {/* On mobile: only Notifications, Theme, Profile so the bar doesn't crowd the hamburger/sheet */}
             {!isMobile && (

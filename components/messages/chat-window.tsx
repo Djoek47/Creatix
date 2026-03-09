@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Send, Paperclip, DollarSign, MoreVertical, Star, Ban, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { Conversation, Fan, Message } from '@/lib/types'
 
 interface ConversationWithFan extends Conversation {
@@ -76,7 +77,7 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                 {fan?.tier || 'unknown'}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                ${fan?.total_spent?.toLocaleString() || 0} spent
+                <RevenueAmount value={fan?.total_spent ?? 0} /> spent
               </span>
             </div>
           </div>
@@ -124,10 +125,10 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                 )}
               >
                 <p className="text-sm">{msg.content}</p>
-                {msg.is_ppv && msg.ppv_price && (
+                {msg.is_ppv && msg.ppv_price != null && (
                   <Badge className="mt-2 bg-chart-4/20 text-chart-4">
                     <DollarSign className="mr-1 h-3 w-3" />
-                    PPV ${msg.ppv_price}
+                    PPV <RevenueAmount value={msg.ppv_price} />
                   </Badge>
                 )}
                 <p

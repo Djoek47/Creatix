@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { useRevenuePrivacy, formatRevenue } from '@/lib/revenue-privacy-context'
 import type { AnalyticsSnapshot } from '@/lib/types'
 
 interface AnalyticsChartsProps {
@@ -20,6 +21,7 @@ interface AnalyticsChartsProps {
 }
 
 export function AnalyticsCharts({ analytics }: AnalyticsChartsProps) {
+  const { hideRevenue } = useRevenuePrivacy()
   const chartData = analytics.length > 0 
     ? analytics.slice(0, 14).reverse().map((a) => ({
         date: new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -56,7 +58,7 @@ export function AnalyticsCharts({ analytics }: AnalyticsChartsProps) {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.04 285)" />
                   <XAxis dataKey="date" stroke="oklch(0.65 0 0)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="oklch(0.65 0 0)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                  <YAxis stroke="oklch(0.65 0 0)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatRevenue(value, hideRevenue)} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'oklch(0.15 0.025 280)',
@@ -64,7 +66,7 @@ export function AnalyticsCharts({ analytics }: AnalyticsChartsProps) {
                       borderRadius: '8px',
                       color: 'oklch(0.98 0 0)'
                     }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                    formatter={(value: number) => [formatRevenue(value, hideRevenue), 'Revenue']}
                   />
                   <Area type="monotone" dataKey="revenue" stroke="oklch(0.78 0.14 85)" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>

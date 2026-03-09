@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Image, Video, FileText, Eye, DollarSign } from 'lucide-react'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { Content } from '@/lib/types'
 
 interface TopContentProps {
@@ -46,7 +47,7 @@ export function TopContent({ content }: TopContentProps) {
                     {c.performance_metrics.revenue > 0 && (
                       <Badge variant="outline" className="text-chart-2 border-chart-2/30">
                         <DollarSign className="mr-1 h-3 w-3" />
-                        {c.performance_metrics.revenue}
+                        <RevenueAmount value={c.performance_metrics.revenue} />
                       </Badge>
                     )}
                   </div>

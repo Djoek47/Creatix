@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { Fan } from '@/lib/types'
 
 interface RecentFansProps {
@@ -60,7 +61,7 @@ export function RecentFans({ fans }: RecentFansProps) {
                       {fan.platform.toUpperCase()}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      ${fan.total_spent.toLocaleString()} spent
+                      <RevenueAmount value={fan.total_spent} /> spent
                     </span>
                   </div>
                 </div>

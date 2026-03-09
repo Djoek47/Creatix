@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRevenuePrivacy, formatRevenue } from '@/lib/revenue-privacy-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +62,7 @@ interface RevenueOptimizerProps {
 }
 
 export function RevenueOptimizer({ creatorStats }: RevenueOptimizerProps) {
+  const { hideRevenue } = useRevenuePrivacy()
   const [optimization, setOptimization] = useState<RevenueOptimization | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -136,11 +138,11 @@ export function RevenueOptimizer({ creatorStats }: RevenueOptimizerProps) {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Current Monthly</p>
-                  <p className="text-2xl font-bold">${optimization.revenueProjection.currentMonthlyEstimate.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatRevenue(optimization.revenueProjection.currentMonthlyEstimate, hideRevenue)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Optimized Monthly</p>
-                  <p className="text-2xl font-bold text-green-400">${optimization.revenueProjection.optimizedMonthlyEstimate.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-green-400">{formatRevenue(optimization.revenueProjection.optimizedMonthlyEstimate, hideRevenue)}</p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-primary/20">
@@ -167,9 +169,9 @@ export function RevenueOptimizer({ creatorStats }: RevenueOptimizerProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center">
-                    <p className="text-4xl font-bold text-green-400">${optimization.ppvPricing.recommendedPrice}</p>
+                    <p className="text-4xl font-bold text-green-400">{formatRevenue(optimization.ppvPricing.recommendedPrice, hideRevenue)}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Range: ${optimization.ppvPricing.priceRange.min} - ${optimization.ppvPricing.priceRange.max}
+                      Range: {formatRevenue(optimization.ppvPricing.priceRange.min, hideRevenue)} - {formatRevenue(optimization.ppvPricing.priceRange.max, hideRevenue)}
                     </p>
                   </div>
                   <div className="space-y-2">

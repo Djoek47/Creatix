@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -13,7 +14,6 @@ import {
   Shield,
   Bell,
   Settings,
-  Zap,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -64,9 +64,7 @@ function SidebarContent({
     <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4 shrink-0">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary">
-          <Zap className="h-5 w-5 text-primary-foreground" />
-        </div>
+        <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 flex-shrink-0 rounded-lg object-contain" />
         {!collapsed && (
           <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
             Circe and Venus
@@ -189,7 +187,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-all duration-300 shrink-0',
+        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-all duration-300 shrink-0 animate-glass-shimmer transition-brand',
         collapsed ? 'w-16' : 'w-64'
       )}
     >

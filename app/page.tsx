@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { 
@@ -14,16 +15,14 @@ import {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation — iOS-style glass */}
+      {/* Navigation — iOS-style glass + frosted animation */}
       <header
-        className="glass-panel fixed top-0 left-0 right-0 z-50 rounded-none pt-[env(safe-area-inset-top)]"
+        className="glass-panel animate-glass-shimmer fixed top-0 left-0 right-0 z-50 rounded-none pt-[env(safe-area-inset-top)] transition-brand"
         style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}
       >
         <nav className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" priority />
             <span className="text-xl font-bold tracking-tight">Circe and Venus</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
@@ -45,14 +44,14 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="pt-14 sm:pt-16" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
         <section className="relative overflow-hidden px-4 sm:px-6 py-16 sm:py-24 lg:py-32">
-          {/* Background — vivid for glass effect */}
-          <div className="absolute inset-0 -z-10">
+          {/* Background — vivid for glass effect (purple/gold shift) */}
+          <div className="absolute inset-0 -z-10 transition-brand" aria-hidden>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,oklch(0.78_0.14_85_/_.15),transparent_50%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_60%,oklch(0.55_0.25_305_/_.12),transparent_45%)]" />
           </div>
           
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="glass-card mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm text-muted-foreground border-0">
+          <div className="mx-auto max-w-4xl text-center animate-fade-up">
+            <div className="glass-card animate-glass-shimmer mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm text-muted-foreground border-0">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -60,9 +59,9 @@ export default function LandingPage() {
               Now supporting OnlyFans, MYM, and Fansly
             </div>
             
-            <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl animate-fade-up stagger-1 opacity-0 [animation-fill-mode:forwards]">
               Manage Your Creator Empire{' '}
-              <span className="text-primary">Like a Pro</span>
+              <span className="text-primary transition-brand">Like a Pro</span>
             </h1>
             
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground sm:text-xl">
@@ -90,8 +89,8 @@ export default function LandingPage() {
         </section>
 
         {/* Stats Section — glass strip */}
-        <section className="py-12">
-          <div className="glass-card mx-auto max-w-5xl py-8 px-6 sm:px-10">
+        <section className="py-12 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:0.1s]">
+          <div className="glass-card animate-glass-shimmer mx-auto max-w-5xl py-8 px-6 sm:px-10 transition-brand">
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {[
               { value: '10K+', label: 'Active Creators' },
@@ -110,7 +109,7 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <section id="features" className="px-6 py-24">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-6xl animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:0.15s]">
             <div className="text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Everything You Need to{' '}
@@ -153,10 +152,11 @@ export default function LandingPage() {
                   title: 'Reputation Monitor',
                   description: 'Track mentions and sentiment across social media and review sites.',
                 },
-              ].map((feature) => (
+              ].map((feature, i) => (
                 <div
                   key={feature.title}
-                  className="glass-card group p-6 transition-all hover:border-primary/30"
+                  className="glass-card animate-glass-shimmer group p-6 transition-all hover:border-primary/30 transition-brand opacity-0 animate-fade-up [animation-fill-mode:forwards]"
+                  style={{ animationDelay: `${0.2 + i * 0.05}s` }}
                 >
                   <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
                     <feature.icon className="h-6 w-6" />
@@ -171,7 +171,7 @@ export default function LandingPage() {
 
         {/* CTA Section — glass card */}
         <section className="px-6 py-24">
-          <div className="glass-card mx-auto max-w-4xl p-8 text-center sm:p-12">
+          <div className="glass-card animate-glass-shimmer mx-auto max-w-4xl p-8 text-center sm:p-12 transition-brand opacity-0 animate-fade-up [animation-fill-mode:forwards] [animation-delay:0.25s]">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Ready to Take Control?
             </h2>
@@ -190,12 +190,10 @@ export default function LandingPage() {
       </main>
 
       {/* Footer — glass strip */}
-      <footer className="glass-panel mt-auto px-6 py-12">
+      <footer className="glass-panel animate-glass-shimmer mt-auto px-6 py-12 transition-brand">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <Image src="/logo.png" alt="" width={24} height={24} className="h-6 w-6 rounded-md object-contain" />
             <span className="font-semibold">Circe and Venus</span>
           </div>
           <p className="text-sm text-muted-foreground">

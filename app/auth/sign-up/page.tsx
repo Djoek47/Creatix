@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Zap, ArrowLeft, Loader2, Check } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignUpPage() {
@@ -54,28 +54,9 @@ export default function SignUpPage() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex w-full min-h-screen bg-background">
       {/* Left Side - Form */}
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
-        </div>
-
-        <Link 
-          href="/" 
-          className="absolute left-6 top-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
-
-        <div className="mb-8 flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Zap className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">Circe and Venus</span>
-        </div>
-
         <Card variant="glass" className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create your account</CardTitle>

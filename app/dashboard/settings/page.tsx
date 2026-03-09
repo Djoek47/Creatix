@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { User, Bell, Shield, CreditCard, Upload } from 'lucide-react'
+import { RevenuePrivacySwitch } from '@/components/settings/revenue-privacy-switch'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -131,6 +132,22 @@ export default async function SettingsPage() {
               <div className="flex justify-end">
                 <Button>Save Changes</Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Privacy — revenue visibility */}
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Privacy
+              </CardTitle>
+              <CardDescription>
+                Control visibility of sensitive financial information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RevenuePrivacySwitch />
             </CardContent>
           </Card>
 

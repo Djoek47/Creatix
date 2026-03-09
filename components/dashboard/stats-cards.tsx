@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { DollarSign, Users, MessageSquare, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { DashboardStats } from '@/lib/types'
 
 interface StatsCardsProps {
@@ -13,24 +14,28 @@ export function StatsCards({ stats }: StatsCardsProps) {
   const cards = [
     {
       title: 'Total Revenue',
-      value: `$${stats.totalRevenue.toLocaleString()}`,
+      revenue: true as const,
+      value: stats.totalRevenue,
       change: stats.revenueChange,
       icon: DollarSign,
     },
     {
       title: 'Total Fans',
+      revenue: false as const,
       value: stats.totalFans.toLocaleString(),
       change: stats.fansChange,
       icon: Users,
     },
     {
       title: 'Active Conversations',
+      revenue: false as const,
       value: stats.activeConversations.toLocaleString(),
       change: stats.conversationsChange,
       icon: MessageSquare,
     },
     {
       title: 'Scheduled Content',
+      revenue: false as const,
       value: stats.scheduledContent.toLocaleString(),
       change: stats.contentChange,
       icon: Calendar,
@@ -45,7 +50,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{card.title}</p>
-                <p className="mt-1 text-2xl font-bold">{card.value}</p>
+                <p className="mt-1 text-2xl font-bold">
+                  {card.revenue ? <RevenueAmount value={card.value as number} /> : card.value}
+                </p>
               </div>
               <div className="rounded-lg bg-primary/10 p-3">
                 <card.icon className="h-5 w-5 text-primary" />

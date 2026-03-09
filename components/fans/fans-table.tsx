@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/table'
 import { MoreHorizontal, MessageSquare, Star, Ban, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
 
@@ -119,7 +120,7 @@ export function FansTable({ fans }: FansTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${fan.total_spent.toLocaleString()}
+                  <RevenueAmount value={fan.total_spent} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {fan.last_interaction

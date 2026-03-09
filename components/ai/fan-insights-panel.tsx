@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronRight
 } from 'lucide-react'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 
 interface FanPrediction {
   valueScore: number
@@ -158,7 +159,7 @@ export function FanInsightsPanel({ fanData }: FanInsightsPanelProps) {
                   <DollarSign className="h-3.5 w-3.5" />
                   <span className="text-xs">Lifetime Value</span>
                 </div>
-                <p className="text-lg font-semibold">${prediction.lifetimeValueEstimate}</p>
+                <p className="text-lg font-semibold"><RevenueAmount value={Number(prediction.lifetimeValueEstimate) || 0} /></p>
               </div>
             </div>
 

@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table'
 import { MoreHorizontal, Edit, Copy, Trash2, Image, Video, FileText, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import type { Content } from '@/lib/types'
 
 interface ContentListProps {
@@ -119,7 +120,7 @@ export function ContentList({ content }: ContentListProps) {
                         </span>
                         {c.performance_metrics.revenue > 0 && (
                           <span className="ml-2 text-chart-2">
-                            ${c.performance_metrics.revenue}
+                            <RevenueAmount value={c.performance_metrics.revenue} />
                           </span>
                         )}
                       </div>

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react'
+import { RevenueAmount } from '@/lib/revenue-privacy-context'
 import { ChatAssistant } from './chat-assistant'
 import { FanInsightsPanel } from './fan-insights-panel'
 
@@ -217,7 +218,7 @@ export function AIChatterWorkspace() {
               </Badge>
               <Badge variant="outline" className="text-xs">
                 <DollarSign className="h-3 w-3 mr-0.5" />
-                ${selectedConversation.totalSpent}
+                <RevenueAmount value={selectedConversation.totalSpent} />
               </Badge>
             </div>
           </div>

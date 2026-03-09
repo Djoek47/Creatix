@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AnalyticsCharts } from '@/components/analytics/analytics-charts'
 import { PlatformBreakdown } from '@/components/analytics/platform-breakdown'
 import { TopContent } from '@/components/analytics/top-content'
+import { AnalyticsRevenueStat } from '@/components/dashboard/analytics-revenue-stat'
 
 export default async function AnalyticsPage() {
   const supabase = await createClient()
@@ -36,14 +37,7 @@ export default async function AnalyticsPage() {
 
       {/* Overview Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardDescription>Total Revenue (30d)</CardDescription>
-            <CardTitle className="text-3xl">
-              ${analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0).toLocaleString() || '0'}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+        <AnalyticsRevenueStat total={analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0} />
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardDescription>Total Subscribers</CardDescription>

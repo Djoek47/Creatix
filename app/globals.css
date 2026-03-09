@@ -192,3 +192,60 @@
     background: var(--card);
   }
 }
+
+/* ——— Purple / Gold color transitions & frosted glass animation ——— */
+@keyframes glass-shimmer {
+  0%, 100% { opacity: 1; filter: saturate(160%) brightness(1); }
+  50% { opacity: 0.92; filter: saturate(180%) brightness(1.02); }
+}
+@keyframes color-shift {
+  0%, 100% { --tw-gradient-from: oklch(0.78 0.14 85 / 0.15); --tw-gradient-to: oklch(0.55 0.25 305 / 0.08); }
+  50% { --tw-gradient-from: oklch(0.55 0.25 305 / 0.18); --tw-gradient-to: oklch(0.78 0.14 85 / 0.06); }
+}
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-glass-shimmer {
+  animation: glass-shimmer 8s ease-in-out infinite;
+}
+.animate-page-enter {
+  animation: page-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Stagger children */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* Smooth color transitions (purple ↔ gold) */
+.transition-brand {
+  transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.glass-panel.animate-glass-shimmer,
+.glass-card.animate-glass-shimmer {
+  animation: glass-shimmer 10s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-glass-shimmer,
+  .animate-page-enter,
+  .animate-fade-up,
+  .animate-scale-in { animation: none; }
+}

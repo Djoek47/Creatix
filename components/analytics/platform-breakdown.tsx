@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { useRevenuePrivacy, formatRevenue } from '@/lib/revenue-privacy-context'
 import type { AnalyticsSnapshot } from '@/lib/types'
 
 interface PlatformBreakdownProps {
@@ -9,6 +10,7 @@ interface PlatformBreakdownProps {
 }
 
 export function PlatformBreakdown({ analytics }: PlatformBreakdownProps) {
+  const { hideRevenue } = useRevenuePrivacy()
   // Aggregate by platform
   const platformData = analytics.length > 0
     ? aggregateByPlatform(analytics)
@@ -50,7 +52,7 @@ export function PlatformBreakdown({ analytics }: PlatformBreakdownProps) {
                   borderRadius: '8px',
                   color: 'oklch(0.98 0 0)'
                 }}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                formatter={(value: number) => [formatRevenue(value, hideRevenue), 'Revenue']}
               />
               <Legend />
             </PieChart>
@@ -67,7 +69,7 @@ export function PlatformBreakdown({ analytics }: PlatformBreakdownProps) {
                 <span>{platform.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-medium">${platform.value.toLocaleString()}</span>
+                <span className="font-medium">{formatRevenue(platform.value, hideRevenue)}</span>
                 <span className="text-muted-foreground">
                   ({((platform.value / total) * 100).toFixed(1)}%)
                 </span>

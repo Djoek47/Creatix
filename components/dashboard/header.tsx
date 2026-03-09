@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, Search, LogOut, User, Settings, Menu } from 'lucide-react'
+import { Bell, Search, LogOut, User, Settings, Menu, Eye, EyeOff } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { useRevenuePrivacy } from '@/lib/revenue-privacy-context'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -39,6 +42,7 @@ const pageNames: Record<string, string> = {
 export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { hideRevenue, toggleRevenueVisibility } = useRevenuePrivacy()
 
   const getPageName = () => {
     for (const [path, name] of Object.entries(pageNames)) {
@@ -63,13 +67,16 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
 
   return (
-    <header className="glass-panel flex h-16 items-center justify-between px-4 sm:px-6">
+    <header className="glass-panel animate-glass-shimmer flex h-16 items-center justify-between px-4 sm:px-6 transition-brand">
       <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         {onMenuClick && (
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 shrink-0 tap-target md:hidden" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
         )}
+        <Link href="/dashboard" className="flex items-center gap-2 shrink-0 md:mr-2">
+          <Image src="/logo.png" alt="Circe and Venus" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
+        </Link>
         <h1 className="text-lg sm:text-xl font-semibold truncate">{getPageName()}</h1>
       </div>
 
@@ -82,6 +89,18 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
             className="w-64 bg-input pl-9"
           />
         </div>
+
+        {/* Revenue privacy (hide amounts like crypto wallet) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleRevenueVisibility}
+          className="h-10 w-10 tap-target"
+          aria-label={hideRevenue ? 'Show revenue' : 'Hide revenue'}
+          title={hideRevenue ? 'Show revenue amounts' : 'Hide revenue amounts'}
+        >
+          {hideRevenue ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
+        </Button>
 
         {/* Theme (day/night) */}
         <ThemeToggle />

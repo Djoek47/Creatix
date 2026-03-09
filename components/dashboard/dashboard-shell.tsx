@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { RevenuePrivacyProvider } from '@/lib/revenue-privacy-context'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import type { User } from '@supabase/supabase-js'
@@ -18,6 +19,7 @@ export function DashboardShell({ user, profile, children }: DashboardShellProps)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
+    <RevenuePrivacyProvider>
     <div className="flex h-screen bg-background relative">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--primary)_0.06,transparent_50%)]" aria-hidden />
       <DashboardSidebar
@@ -33,10 +35,11 @@ export function DashboardShell({ user, profile, children }: DashboardShellProps)
           profile={profile}
           onMenuClick={isMobile ? () => setSidebarOpen(true) : undefined}
         />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 animate-page-enter">
           {children}
         </main>
       </div>
     </div>
+    </RevenuePrivacyProvider>
   )
 }

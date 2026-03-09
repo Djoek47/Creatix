@@ -40,17 +40,13 @@ export function DashboardHeader({ user, profile, onMenuClick, isMobile }: Header
     <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* Mobile hamburger (single handler: avoids iOS touch+click double toggle) */}
+          {/* Mobile hamburger (simple click; avoids touch+click double wiring issues) */}
           {onMenuClick && (
             <button
               type="button"
               aria-label="Open menu"
               className="md:hidden inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl hover:bg-accent/50 active:opacity-80 touch-manipulation"
-              onPointerUp={(e) => {
-                // iOS Safari can fire touch + click; pointer-up avoids double toggles.
-                e.preventDefault()
-                onMenuClick()
-              }}
+              onClick={() => onMenuClick()}
             >
               <Menu className="h-6 w-6" />
             </button>

@@ -20,7 +20,6 @@ import {
   Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetClose } from '@/components/ui/sheet'
 import { BrandTitle } from '@/components/dashboard/brand-title'
 import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -162,10 +161,6 @@ export function DashboardSidebar({
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
-  useEffect(() => {
-    if (isMobile && mobileOpen) onMobileOpenChange?.(false)
-  }, [pathname, isMobile, mobileOpen, onMobileOpenChange])
-
   const content = (
     <SidebarContent
       profile={profile}
@@ -176,28 +171,8 @@ export function DashboardSidebar({
     />
   )
 
-  if (isMobile) {
-    return (
-      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent side="left" className="w-72 p-0 gap-0 bg-sidebar/95 backdrop-blur-xl border-sidebar-border">
-          <div className="flex flex-col h-full">
-            {/* Big close target for portrait: tap to close */}
-            <SheetClose asChild>
-              <button
-                type="button"
-                className="flex w-full min-h-[48px] items-center justify-center gap-2 border-b border-sidebar-border px-4 py-3 text-sm font-medium text-sidebar-foreground touch-manipulation active:opacity-80"
-                aria-label="Close menu"
-              >
-                <ChevronLeft className="h-5 w-5" />
-                Close menu
-              </button>
-            </SheetClose>
-            {content}
-          </div>
-        </SheetContent>
-      </Sheet>
-    )
-  }
+  // On mobile we use a dedicated bottom nav instead of a slide-out sidebar.
+  if (isMobile) return null
 
   return (
     <aside

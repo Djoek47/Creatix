@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { RevenuePrivacyProvider } from '@/lib/revenue-privacy-context'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardPageTitle } from '@/components/dashboard/dashboard-page-title'
+import { MobileNav } from '@/components/dashboard/mobile-nav'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 
@@ -19,7 +20,6 @@ interface DashboardShellProps {
 
 export function DashboardShell({ user, profile, hasConnectedPlatform = true, children }: DashboardShellProps) {
   const isMobile = useIsMobile()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -37,23 +37,22 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
         user={user}
         profile={profile}
         isMobile={isMobile}
-        mobileOpen={sidebarOpen}
-        onMobileOpenChange={setSidebarOpen}
       />
       {/* Above: header + main content */}
       <div className="flex-1 flex flex-col min-w-0">
         <DashboardHeader
           user={user}
           profile={profile}
-          onMenuClick={() => setSidebarOpen(true)}
           isMobile={isMobile}
         />
-        <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">
+        <main className="flex-1 container mx-auto px-4 pt-6 pb-24 md:py-8 animate-page-enter">
           <div className="max-w-6xl mx-auto">
             <DashboardPageTitle />
             {children}
           </div>
         </main>
+        {/* Mobile bottom navigation replaces hamburger+drawer */}
+        {isMobile && <MobileNav />}
       </div>
     </div>
     </RevenuePrivacyProvider>

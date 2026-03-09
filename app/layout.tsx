@@ -15,26 +15,16 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Circe et Venus - Creator Management Platform',
+  title: 'Circe and Venus - Creator Management Platform',
   description: 'Professional management platform for content creators on OnlyFans, MYM, and Fansly. Manage fans, content, analytics, and more.',
   generator: 'v0.app',
   keywords: ['creator management', 'OnlyFans', 'MYM', 'Fansly', 'content creator', 'fan management'],
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon.png', type: 'image/png', sizes: 'any' },
+      { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
     ],
-    apple: '/apple-icon.png',
+    apple: '/icon.png',
   },
 }
 

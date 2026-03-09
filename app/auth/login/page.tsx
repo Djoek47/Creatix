@@ -41,7 +41,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,oklch(0.78_0.14_85_/_.12),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_80%,oklch(0.55_0.25_305_/_.1),transparent_45%)]" />
       </div>
 
       <Link 
@@ -56,10 +57,10 @@ export default function LoginPage() {
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
           <Zap className="h-6 w-6 text-primary-foreground" />
         </div>
-        <span className="text-2xl font-bold tracking-tight">Circe et Venus</span>
+        <span className="text-2xl font-bold tracking-tight">Circe and Venus</span>
       </div>
 
-      <Card className="w-full max-w-md border-border bg-card">
+      <Card variant="glass" className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>

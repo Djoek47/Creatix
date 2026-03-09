@@ -14,10 +14,10 @@ export default function SignUpSuccessPage() {
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
           <Zap className="h-6 w-6 text-primary-foreground" />
         </div>
-        <span className="text-2xl font-bold tracking-tight">Circe et Venus</span>
+        <span className="text-2xl font-bold tracking-tight">Circe and Venus</span>
       </div>
 
-      <Card className="w-full max-w-md border-border bg-card text-center">
+      <Card variant="glass" className="w-full max-w-md text-center">
         <CardHeader>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Mail className="h-8 w-8 text-primary" />

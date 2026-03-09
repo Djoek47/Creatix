@@ -69,7 +69,7 @@ function SidebarContent({
         </div>
         {!collapsed && (
           <span className="text-lg font-bold tracking-tight text-sidebar-foreground">
-            Circe et Venus
+            Circe and Venus
           </span>
         )}
       </div>
@@ -179,7 +179,7 @@ export function DashboardSidebar({
   if (isMobile) {
     return (
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
-        <SheetContent side="left" className="w-72 p-0 gap-0 bg-sidebar border-sidebar-border">
+        <SheetContent side="left" className="w-72 p-0 gap-0 bg-sidebar/95 backdrop-blur-xl border-sidebar-border">
           <div className="flex flex-col h-full">{content}</div>
         </SheetContent>
       </Sheet>
@@ -189,7 +189,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 shrink-0',
+        'relative hidden md:flex flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-all duration-300 shrink-0',
         collapsed ? 'w-16' : 'w-64'
       )}
     >

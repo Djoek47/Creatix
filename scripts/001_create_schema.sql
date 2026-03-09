@@ -1,4 +1,4 @@
--- Circe et Venus Database Schema
+-- Circe and Venus Database Schema
 -- Creator Management SaaS Platform
 
 -- Enable UUID extension

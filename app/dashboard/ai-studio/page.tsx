@@ -15,7 +15,7 @@ import { RevenueOptimizer } from '@/components/ai/revenue-optimizer'
 import { AIChatterWorkspace } from '@/components/ai/ai-chatter-workspace'
 
 export const metadata: Metadata = {
-  title: 'AI Studio | Circe et Venus',
+  title: 'AI Studio | Circe and Venus',
   description: 'AI-powered tools to boost your content creation and fan engagement',
 }
 

@@ -14,9 +14,9 @@ import {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
+      {/* Navigation — iOS-style glass */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]"
+        className="glass-panel fixed top-0 left-0 right-0 z-50 rounded-none pt-[env(safe-area-inset-top)]"
         style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}
       >
         <nav className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-4">
@@ -24,7 +24,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Circe et Venus</span>
+            <span className="text-xl font-bold tracking-tight">Circe and Venus</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
@@ -45,13 +45,14 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="pt-14 sm:pt-16" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
         <section className="relative overflow-hidden px-4 sm:px-6 py-16 sm:py-24 lg:py-32">
-          {/* Background gradient */}
+          {/* Background — vivid for glass effect */}
           <div className="absolute inset-0 -z-10">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,oklch(0.78_0.14_85_/_.15),transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_60%,oklch(0.55_0.25_305_/_.12),transparent_45%)]" />
           </div>
           
           <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 py-1.5 text-sm text-muted-foreground">
+            <div className="glass-card mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm text-muted-foreground border-0">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -88,9 +89,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="border-y border-border bg-card/50 py-12">
-          <div className="mx-auto grid max-w-5xl grid-cols-2 gap-8 px-6 sm:grid-cols-4">
+        {/* Stats Section — glass strip */}
+        <section className="py-12">
+          <div className="glass-card mx-auto max-w-5xl py-8 px-6 sm:px-10">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {[
               { value: '10K+', label: 'Active Creators' },
               { value: '$50M+', label: 'Revenue Managed' },
@@ -102,6 +104,7 @@ export default function LandingPage() {
                 <div className="mt-1 text-sm text-muted-foreground">{stat.label}</div>
               </div>
             ))}
+          </div>
           </div>
         </section>
 
@@ -153,9 +156,9 @@ export default function LandingPage() {
               ].map((feature) => (
                 <div
                   key={feature.title}
-                  className="group rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:bg-card/80"
+                  className="glass-card group p-6 transition-all hover:border-primary/30"
                 >
-                  <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3 text-primary">
+                  <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
                     <feature.icon className="h-6 w-6" />
                   </div>
                   <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
@@ -166,14 +169,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CTA Section */}
+        {/* CTA Section — glass card */}
         <section className="px-6 py-24">
-          <div className="mx-auto max-w-4xl rounded-2xl border border-border bg-card p-8 text-center sm:p-12">
+          <div className="glass-card mx-auto max-w-4xl p-8 text-center sm:p-12">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Ready to Take Control?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Join thousands of creators who are already using Circe et Venus to grow their business.
+              Join thousands of creators who are already using Circe and Venus to grow their business.
             </p>
             <div className="mt-8">
               <Link href="/auth/sign-up">
@@ -186,17 +189,17 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card/50 px-6 py-12">
+      {/* Footer — glass strip */}
+      <footer className="glass-panel mt-auto px-6 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-semibold">Circe et Venus</span>
+            <span className="font-semibold">Circe and Venus</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            2026 Circe et Venus. All rights reserved.
+            2026 Circe and Venus. All rights reserved.
           </p>
         </div>
       </footer>

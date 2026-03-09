@@ -1,4 +1,4 @@
-// Database Types for Circe et Venus Platform
+// Database Types for Circe and Venus Platform
 
 export type Platform = 'onlyfans' | 'mym' | 'fansly'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'

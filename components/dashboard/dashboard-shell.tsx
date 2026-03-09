@@ -18,7 +18,8 @@ export function DashboardShell({ user, profile, children }: DashboardShellProps)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background relative">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--primary)_0.06,transparent_50%)]" aria-hidden />
       <DashboardSidebar
         user={user}
         profile={profile}

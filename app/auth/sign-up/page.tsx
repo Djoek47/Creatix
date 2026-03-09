@@ -73,10 +73,10 @@ export default function SignUpPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
             <Zap className="h-6 w-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold tracking-tight">Circe et Venus</span>
+          <span className="text-2xl font-bold tracking-tight">Circe and Venus</span>
         </div>
 
-        <Card className="w-full max-w-md border-border bg-card">
+        <Card variant="glass" className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create your account</CardTitle>
             <CardDescription>
@@ -163,7 +163,7 @@ export default function SignUpPage() {
             Everything you need to manage your creator business
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Join thousands of creators who trust Circe et Venus to grow and protect their brand.
+            Join thousands of creators who trust Circe and Venus to grow and protect their brand.
           </p>
           <ul className="mt-8 space-y-4">
             {features.map((feature) => (

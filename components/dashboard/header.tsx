@@ -63,7 +63,7 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 sm:px-6">
+    <header className="glass-panel flex h-16 items-center justify-between px-4 sm:px-6">
       <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         {onMenuClick && (
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 shrink-0 tap-target md:hidden" aria-label="Open menu">

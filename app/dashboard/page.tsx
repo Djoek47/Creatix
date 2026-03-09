@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8">
       <WelcomeSection userName={userName} progress={progress} kpis={kpis} />
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">

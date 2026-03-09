@@ -1,206 +1,145 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { 
-  ArrowRight, 
-  Shield, 
-  MessageSquare, 
-  BarChart3, 
-  Calendar,
-  Users,
-  Zap
-} from 'lucide-react'
+import { ArrowRight, Shield, Users, Calendar, DollarSign } from 'lucide-react'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation — iOS-style glass + frosted animation */}
-      <header
-        className="glass-panel animate-glass-shimmer fixed top-0 left-0 right-0 z-50 rounded-none pt-[env(safe-area-inset-top)] transition-brand"
-        style={{ paddingLeft: 'max(1.5rem, env(safe-area-inset-left))', paddingRight: 'max(1.5rem, env(safe-area-inset-right))' }}
-      >
-        <nav className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-4">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Hero-style background: gold, purple, yellow gradients (no shader lib) */}
+      <div className="fixed inset-0 -z-10 animate-hero-gradient">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-purple-50 to-yellow-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(251,191,36,0.35),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_80%_50%,rgba(147,51,234,0.25),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_20%_80%,rgba(234,179,8,0.2),transparent_50%)]" />
+      </div>
+
+      {/* Header — Hero-section style: logo, nav, login + get started with arrow */}
+      <header className="sticky top-0 z-50 border-b border-amber-200/50 bg-white/70 backdrop-blur-md dark:border-purple-900/30 dark:bg-gray-900/70">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.png" alt="Circe and Venus" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" priority />
-            <span className="font-title text-xl font-bold tracking-tight">Circe and Venus</span>
+            <span className="font-title text-lg font-bold bg-gradient-to-r from-amber-600 via-purple-600 to-amber-500 bg-clip-text text-transparent">
+              Circe and Venus
+            </span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <ThemeToggle />
-            <Link href="/auth/login">
-              <Button variant="ghost" size="sm" className="tap-target min-h-[44px] sm:min-h-0">
-                Sign In
-              </Button>
+          <nav className="hidden items-center gap-8 md:flex">
+            <Link href="#features" className="text-sm font-medium text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-amber-400">
+              Features
             </Link>
-            <Link href="/auth/sign-up">
-              <Button size="sm" className="gap-2 tap-target min-h-[44px] sm:min-h-0 px-4">
-                Get Started <ArrowRight className="h-4 w-4" />
-              </Button>
+            <Link href="/auth/login" className="text-sm font-medium text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-amber-400">
+              Docs
             </Link>
+          </nav>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" asChild className="text-gray-700 hover:text-purple-600 dark:text-gray-200 dark:hover:text-amber-400">
+              <Link href="/auth/login">Login</Link>
+            </Button>
+            <Button asChild className="gap-2 bg-gradient-to-r from-amber-500 via-purple-600 to-amber-500 bg-[length:200%_100%] text-white hover:opacity-95 hover:shadow-lg hover:shadow-purple-500/25">
+              <Link href="/auth/sign-up">
+                Get Started
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
-        </nav>
+        </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="pt-14 sm:pt-16" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
-        <section className="relative overflow-hidden px-4 sm:px-6 py-16 sm:py-24 lg:py-32">
-          {/* Background — vivid for glass effect (purple/gold shift) */}
-          <div className="absolute inset-0 -z-10 transition-brand" aria-hidden>
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,oklch(0.78_0.14_85_/_.15),transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_60%,oklch(0.55_0.25_305_/_.12),transparent_45%)]" />
-          </div>
-          
-          <div className="mx-auto max-w-4xl text-center animate-fade-up">
-            <div className="glass-card animate-glass-shimmer mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm text-muted-foreground border-0">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-              </span>
-              Now supporting OnlyFans, MYM, and Fansly
+      {/* Hero content — badge, headline, description, CTAs + optional pulsing ring */}
+      <main className="relative">
+        <section className="container mx-auto flex min-h-[85vh] flex-col items-center justify-center px-4 py-20 text-center">
+          <div className="relative">
+            {/* Decorative pulsing ring (CSS-only, Hero-section style) */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-[320px] w-[320px] rounded-full border-2 border-amber-400/30 bg-gradient-to-br from-amber-100/40 to-purple-100/40 blur-xl animate-pulse-ring dark:border-purple-500/20 dark:from-purple-950/30 dark:to-amber-950/20 md:h-[400px] md:w-[400px]" />
             </div>
-            
-            <h1 className="font-title text-balance text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl animate-fade-up stagger-1 opacity-0 [animation-fill-mode:forwards]">
-              Manage Your Creator Empire{' '}
-              <span className="text-primary transition-brand">Like a Pro</span>
-            </h1>
-            
-            <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground sm:text-xl">
-              The all-in-one platform for content creators and agencies. 
-              Manage fans, schedule content, track analytics, and protect your brand across all platforms.
-            </p>
-            
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/auth/sign-up">
-                <Button size="lg" className="gap-2 px-8">
-                  Start Free Trial <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="#features">
-                <Button variant="outline" size="lg" className="px-8">
-                  See Features
-                </Button>
-              </Link>
-            </div>
-            
-            <p className="mt-4 text-sm text-muted-foreground">
-              No credit card required. 14-day free trial.
-            </p>
-          </div>
-        </section>
 
-        {/* Stats Section — glass strip */}
-        <section className="py-12 animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:0.1s]">
-          <div className="glass-card animate-glass-shimmer mx-auto max-w-5xl py-8 px-6 sm:px-10 transition-brand">
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-            {[
-              { value: '10K+', label: 'Active Creators' },
-              { value: '$50M+', label: 'Revenue Managed' },
-              { value: '99.9%', label: 'Uptime' },
-              { value: '24/7', label: 'Support' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl font-bold text-primary sm:text-4xl">{stat.value}</div>
-                <div className="mt-1 text-sm text-muted-foreground">{stat.label}</div>
+            <div className="relative space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-50/80 px-4 py-1.5 text-sm font-medium text-amber-800 dark:border-purple-500/30 dark:bg-purple-950/40 dark:text-amber-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                OnlyFans • MYM • Fansly
               </div>
-            ))}
-          </div>
-          </div>
-        </section>
 
-        {/* Features Section */}
-        <section id="features" className="px-6 py-24">
-          <div className="mx-auto max-w-6xl animate-fade-up opacity-0 [animation-fill-mode:forwards] [animation-delay:0.15s]">
-            <div className="text-center">
-              <h2 className="font-title text-3xl font-bold tracking-tight sm:text-4xl">
-                Everything You Need to{' '}
-                <span className="text-primary">Scale</span>
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-                Powerful tools designed specifically for content creators and management agencies.
+              <h1 className="font-title text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-5xl md:text-6xl lg:text-7xl">
+                <span className="bg-gradient-to-r from-amber-500 via-purple-600 to-yellow-500 bg-clip-text text-transparent">
+                  Manage Your Creator
+                </span>
+                <br />
+                <span className="text-gray-800 dark:text-gray-100">Empire</span>
+              </h1>
+
+              <p className="mx-auto max-w-2xl text-lg text-gray-600 dark:text-gray-300 md:text-xl">
+                One platform for fans, content, messages, and revenue. Beautiful tools in gold and purple.
               </p>
-            </div>
-            
-            <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  icon: Users,
-                  title: 'Fan CRM',
-                  description: 'Track every interaction, segment fans by spending, and never miss a high-value conversation.',
-                },
-                {
-                  icon: Calendar,
-                  title: 'Content Scheduler',
-                  description: 'Plan and schedule content across all platforms from a single dashboard.',
-                },
-                {
-                  icon: MessageSquare,
-                  title: 'Smart Messaging',
-                  description: 'AI-powered message suggestions and automated responses for common queries.',
-                },
-                {
-                  icon: BarChart3,
-                  title: 'Analytics Hub',
-                  description: 'Deep insights into revenue, engagement, and fan behavior across platforms.',
-                },
-                {
-                  icon: Shield,
-                  title: 'Leak Protection',
-                  description: 'Real-time monitoring for leaked content with automatic DMCA takedown requests.',
-                },
-                {
-                  icon: Zap,
-                  title: 'Reputation Monitor',
-                  description: 'Track mentions and sentiment across social media and review sites.',
-                },
-              ].map((feature, i) => (
-                <div
-                  key={feature.title}
-                  className="glass-card animate-glass-shimmer group p-6 transition-all hover:border-primary/30 transition-brand opacity-0 animate-fade-up [animation-fill-mode:forwards]"
-                  style={{ animationDelay: `${0.2 + i * 0.05}s` }}
+
+              <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 gap-2 px-8 text-lg bg-gradient-to-r from-amber-500 via-purple-600 to-amber-500 bg-[length:200%_100%] text-white shadow-lg shadow-purple-500/20 hover:opacity-95"
                 >
-                  <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3 text-primary">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </div>
-              ))}
+                  <Link href="/auth/sign-up">
+                    Get Started
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="h-12 border-2 border-purple-300 px-8 text-lg hover:bg-purple-50 hover:border-purple-400 dark:border-purple-600 dark:hover:bg-purple-950/50">
+                  <Link href="/auth/login">Sign In</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* CTA Section — glass card */}
-        <section className="px-6 py-24">
-          <div className="glass-card animate-glass-shimmer mx-auto max-w-4xl p-8 text-center sm:p-12 transition-brand opacity-0 animate-fade-up [animation-fill-mode:forwards] [animation-delay:0.25s]">
-            <h2 className="font-title text-3xl font-bold tracking-tight sm:text-4xl">
-              Ready to Take Control?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Join thousands of creators who are already using Circe and Venus to grow their business.
-            </p>
-            <div className="mt-8">
-              <Link href="/auth/sign-up">
-                <Button size="lg" className="gap-2 px-8">
-                  Start Your Free Trial <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+        {/* Features — gold / purple / yellow card styling */}
+        <section id="features" className="border-t border-amber-200/50 bg-white/50 py-20 dark:border-purple-900/30 dark:bg-gray-900/30">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-6xl">
+              <h2 className="font-title text-center text-3xl font-bold text-gray-900 dark:text-white md:text-4xl">
+                Everything you need in <span className="bg-gradient-to-r from-amber-500 to-purple-600 bg-clip-text text-transparent">gold & purple</span>
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-center text-gray-600 dark:text-gray-400">
+                Built for creators and agencies.
+              </p>
+              <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-amber-200/60 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition hover:shadow-xl hover:shadow-amber-500/10 dark:border-purple-800/40 dark:bg-gray-900/60">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md">
+                    <Users className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fan Management</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">CRM for your subscribers. Segment, tag, and never miss a high-value fan.</p>
+                </div>
+                <div className="rounded-2xl border border-purple-200/60 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition hover:shadow-xl hover:shadow-purple-500/10 dark:border-purple-800/40 dark:bg-gray-900/60">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 text-white shadow-md">
+                    <Calendar className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Calendar</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Schedule and publish across OnlyFans, MYM, and Fansly from one place.</p>
+                </div>
+                <div className="rounded-2xl border border-yellow-200/60 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition hover:shadow-xl hover:shadow-yellow-500/10 dark:border-amber-800/40 dark:bg-gray-900/60">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-md">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue & Analytics</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Track earnings and engagement with privacy controls and insights.</p>
+                </div>
+                <div className="rounded-2xl border border-amber-200/60 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition hover:shadow-xl hover:shadow-purple-500/10 dark:border-purple-800/40 dark:bg-gray-900/60">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 via-purple-600 to-amber-500 text-white shadow-md">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Leak Protection</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Monitor and take down leaked content to protect your brand.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </main>
-
-      {/* Footer — glass strip */}
-      <footer className="glass-panel animate-glass-shimmer mt-auto px-6 py-12 transition-brand">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="" width={24} height={24} className="h-6 w-6 rounded-md object-contain" />
-            <span className="font-title font-semibold">Circe and Venus</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            2026 Circe and Venus. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }

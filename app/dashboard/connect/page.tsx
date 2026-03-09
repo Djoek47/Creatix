@@ -49,13 +49,11 @@ export default function ConnectPlatformPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 py-8">
-      <div className="text-center">
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div className="text-center space-y-3">
         <Image src="/logo.png" alt="Circe and Venus" width={48} height={48} className="mx-auto h-12 w-12 rounded-xl object-contain" />
-        <h1 className="font-title mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-          Connect your platform
-        </h1>
-        <p className="mt-2 text-muted-foreground">
+        <h2 className="text-3xl font-bold text-gray-800">Connect your platform</h2>
+        <p className="text-lg text-gray-600">
           Choose the platform you want under management. We&apos;ll connect via API and pull your data.
         </p>
       </div>
@@ -63,13 +61,13 @@ export default function ConnectPlatformPage() {
       <div className="grid gap-4 sm:grid-cols-1">
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
           </div>
         ) : PLATFORMS.map((platform) => {
           const isConnecting = connecting === platform.id
           const isConnected = connected.includes(platform.id)
           return (
-            <Card key={platform.id} className="border-border bg-card overflow-hidden transition-brand">
+            <Card key={platform.id} variant="visual" className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-title text-lg">{platform.name}</CardTitle>
@@ -105,9 +103,9 @@ export default function ConnectPlatformPage() {
         })}
       </div>
 
-      <Card className="border-primary/20 bg-primary/5">
+      <Card variant="visual" className="border-purple-100 bg-purple-50/50 dark:bg-purple-950/20">
         <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Connecting authorizes Circe and Venus to read your account data (fans, messages, earnings) from the selected platform so we can manage and analyze it. You can disconnect anytime in Settings.
           </p>
         </CardContent>

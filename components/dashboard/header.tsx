@@ -2,9 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,8 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell, Search, LogOut, User, Settings, Menu, Eye, EyeOff } from 'lucide-react'
+import { Bell, LogOut, User, Settings, Menu, Eye, EyeOff, Shield, Users } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useRevenuePrivacy } from '@/lib/revenue-privacy-context'
 import { createClient } from '@/lib/supabase/client'
@@ -28,41 +25,9 @@ interface HeaderProps {
   onMenuClick?: () => void
 }
 
-const navItems: { href: string; label: string }[] = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/dashboard/fans', label: 'Fans' },
-  { href: '/dashboard/content', label: 'Content' },
-  { href: '/dashboard/messages', label: 'Messages' },
-  { href: '/dashboard/analytics', label: 'Analytics' },
-  { href: '/dashboard/protection', label: 'Protection' },
-  { href: '/dashboard/mentions', label: 'Mentions' },
-]
-
-const pageNames: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/dashboard/fans': 'Fan Management',
-  '/dashboard/content': 'Content Calendar',
-  '/dashboard/messages': 'Messages',
-  '/dashboard/analytics': 'Analytics',
-  '/dashboard/protection': 'Leak Protection',
-  '/dashboard/mentions': 'Reputation Monitor',
-  '/dashboard/settings': 'Settings',
-  '/dashboard/connect': 'Connect platform',
-}
-
 export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
-  const pathname = usePathname()
   const router = useRouter()
   const { hideRevenue, toggleRevenueVisibility } = useRevenuePrivacy()
-
-  const getPageName = () => {
-    for (const [path, name] of Object.entries(pageNames)) {
-      if (pathname === path || pathname.startsWith(path + '/')) {
-        return name
-      }
-    }
-    return 'Dashboard'
-  }
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -71,121 +36,72 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
     router.refresh()
   }
 
-  const initials = profile?.full_name
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
-
   return (
-    <header className="glass-panel animate-glass-shimmer flex h-16 items-center justify-between gap-4 px-4 sm:px-6 transition-brand">
-      <div className="flex items-center gap-2 min-w-0 shrink-0">
-        {onMenuClick && (
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 tap-target md:hidden" aria-label="Open menu">
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
-        <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="Circe and Venus">
-          <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
-        </Link>
-      </div>
-
-      {/* Centered nav — reference style with active pill */}
-      <nav className="hidden md:flex items-center gap-1 rounded-full bg-muted/60 px-1 py-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors tap-target ${
-                isActive
-                  ? 'bg-foreground text-background shadow-sm animate-gold-purple-bg'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
-        {/* Search */}
-        <div className="relative hidden lg:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search fans, content..."
-            className="w-64 bg-input pl-9"
-          />
-        </div>
-
-        {/* Revenue privacy (hide amounts like crypto wallet) */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleRevenueVisibility}
-          className="h-10 w-10 tap-target"
-          aria-label={hideRevenue ? 'Show revenue' : 'Hide revenue'}
-          title={hideRevenue ? 'Show revenue amounts' : 'Hide revenue amounts'}
-        >
-          {hideRevenue ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
-        </Button>
-
-        {/* Theme (day/night) */}
-        <ThemeToggle />
-
-        {/* Settings — active when on settings */}
-        <Link
-          href="/dashboard/settings"
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-lg tap-target ${pathname.startsWith('/dashboard/settings') ? 'bg-muted' : 'hover:bg-muted/70'}`}
-          aria-label="Settings"
-        >
-          <Settings className="h-5 w-5" />
-        </Link>
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative h-10 w-10 tap-target">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary animate-gold-purple-bg" />
-        </Button>
-
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full tap-target">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+    <header className="bg-white/80 backdrop-blur border-b border-purple-100 sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="Circe and Venus">
+            {onMenuClick && (
+              <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-10 w-10 tap-target md:hidden" aria-label="Open menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+              Circe and Venus
+            </h1>
+          </Link>
+          <div className="flex items-center gap-1 sm:gap-3">
+            <Button variant="ghost" size="icon" asChild className="tap-target">
+              <Link href="/dashboard/protection" aria-label="Protection">
+                <Shield className="w-5 h-5" />
+              </Link>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {profile?.full_name || 'Creator'}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/dashboard/settings" className="flex cursor-pointer items-center">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <Button variant="ghost" size="icon" asChild className="tap-target">
+              <Link href="/dashboard/fans" aria-label="Fans">
+                <Users className="w-5 h-5" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" className="relative tap-target" asChild>
+              <Link href="/dashboard/notifications" aria-label="Notifications">
+                <Bell className="w-5 h-5" />
+                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-purple-500" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleRevenueVisibility} className="tap-target" aria-label={hideRevenue ? 'Show revenue' : 'Hide revenue'}>
+              {hideRevenue ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </Button>
+            <ThemeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="tap-target">
+                  <User className="w-5 h-5" />
+                  <span className="sr-only">Profile</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{profile?.full_name || 'Creator'}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings" className="flex cursor-pointer items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
       </div>
     </header>
   )

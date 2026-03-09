@@ -30,8 +30,18 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
 
   return (
     <RevenuePrivacyProvider>
-    <div className="flex h-screen bg-background relative">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,var(--primary)_0.06,transparent_50%)]" aria-hidden />
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-teal-50 flex flex-col">
+      <DashboardHeader
+        user={user}
+        profile={profile}
+        onMenuClick={isMobile ? () => setSidebarOpen(true) : undefined}
+      />
+      <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">
+        <div className="max-w-6xl mx-auto">
+          {children}
+        </div>
+      </main>
+      {/* Sidebar: drawer on mobile only (Visual has no sidebar; we keep it for nav) */}
       <DashboardSidebar
         user={user}
         profile={profile}
@@ -39,16 +49,6 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
         mobileOpen={sidebarOpen}
         onMobileOpenChange={setSidebarOpen}
       />
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        <DashboardHeader
-          user={user}
-          profile={profile}
-          onMenuClick={isMobile ? () => setSidebarOpen(true) : undefined}
-        />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 animate-page-enter">
-          {children}
-        </main>
-      </div>
     </div>
     </RevenuePrivacyProvider>
   )

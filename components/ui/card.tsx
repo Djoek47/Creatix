@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-function Card({ className, variant, ...props }: React.ComponentProps<'div'> & { variant?: 'default' | 'glass' | 'visual' }) {
+function Card({ className, variant, ...props }: React.ComponentProps<'div'> & { variant?: 'default' | 'glass' | 'visual' | 'brand' }) {
   return (
     <div
       data-slot="card"
@@ -10,6 +10,7 @@ function Card({ className, variant, ...props }: React.ComponentProps<'div'> & { 
         'text-card-foreground flex flex-col gap-6 border py-6 shadow-sm',
         variant === 'glass' && 'glass-card rounded-2xl border-[var(--glass-border)]',
         variant === 'visual' && 'bg-white/80 backdrop-blur rounded-xl border border-gray-200/80 shadow-sm dark:bg-white/10 dark:border-gray-700/50',
+        variant === 'brand' && 'brand-card rounded-xl border-0',
         (!variant || variant === 'default') && 'bg-card border-border rounded-xl',
         className,
       )}

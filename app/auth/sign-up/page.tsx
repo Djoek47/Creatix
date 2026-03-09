@@ -54,10 +54,9 @@ export default function SignUpPage() {
   ]
 
   return (
-    <div className="flex w-full min-h-screen bg-background">
-      {/* Left Side - Form */}
+    <div className="flex w-full min-h-screen brand-bg">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <Card variant="glass" className="w-full max-w-md">
+        <Card className="brand-card w-full max-w-md border-0 shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create your account</CardTitle>
             <CardDescription>
@@ -115,7 +114,7 @@ export default function SignUpPage() {
                 </p>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="brand-button w-full" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -137,10 +136,9 @@ export default function SignUpPage() {
         </Card>
       </div>
 
-      {/* Right Side - Features */}
-      <div className="hidden flex-1 items-center justify-center border-l border-border bg-card/50 lg:flex">
+      <div className="hidden flex-1 items-center justify-center border-l border-border bg-card/30 lg:flex">
         <div className="max-w-md px-8">
-          <h2 className="text-2xl font-bold tracking-tight">
+          <h2 className="font-title text-2xl font-bold tracking-tight text-foreground">
             Everything you need to manage your creator business
           </h2>
           <p className="mt-4 text-muted-foreground">
@@ -149,10 +147,10 @@ export default function SignUpPage() {
           <ul className="mt-8 space-y-4">
             {features.map((feature) => (
               <li key={feature} className="flex items-center gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
-                  <Check className="h-4 w-4 text-primary" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Check className="h-4 w-4" />
                 </div>
-                <span className="text-sm">{feature}</span>
+                <span className="text-sm text-foreground">{feature}</span>
               </li>
             ))}
           </ul>

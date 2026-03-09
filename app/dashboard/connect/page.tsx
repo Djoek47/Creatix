@@ -52,8 +52,8 @@ export default function ConnectPlatformPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-3">
         <Image src="/logo.png" alt="Circe and Venus" width={48} height={48} className="mx-auto h-12 w-12 rounded-xl object-contain" />
-        <h2 className="text-3xl font-bold text-gray-800">Connect your platform</h2>
-        <p className="text-lg text-gray-600">
+        <h2 className="font-title text-3xl font-bold text-foreground">Connect your platform</h2>
+        <p className="text-lg text-muted-foreground">
           Choose the platform you want under management. We&apos;ll connect via API and pull your data.
         </p>
       </div>
@@ -61,13 +61,13 @@ export default function ConnectPlatformPage() {
       <div className="grid gap-4 sm:grid-cols-1">
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : PLATFORMS.map((platform) => {
           const isConnecting = connecting === platform.id
           const isConnected = connected.includes(platform.id)
           return (
-            <Card key={platform.id} variant="visual" className="overflow-hidden">
+            <Card key={platform.id} variant="brand" className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-title text-lg">{platform.name}</CardTitle>
@@ -80,7 +80,7 @@ export default function ConnectPlatformPage() {
                       size="sm"
                       onClick={() => handleConnect(platform.id)}
                       disabled={!!connecting}
-                      className="gap-2"
+                      className="brand-button gap-2"
                     >
                       {isConnecting ? (
                         <>
@@ -103,16 +103,16 @@ export default function ConnectPlatformPage() {
         })}
       </div>
 
-      <Card variant="visual" className="border-purple-100 bg-purple-50/50 dark:bg-purple-950/20">
+      <Card variant="brand" className="bg-accent/10">
         <CardContent className="pt-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Connecting authorizes Circe and Venus to read your account data (fans, messages, earnings) from the selected platform so we can manage and analyze it. You can disconnect anytime in Settings.
           </p>
         </CardContent>
       </Card>
 
       <div className="flex justify-center">
-        <Button size="lg" onClick={handleContinue} className="gap-2 px-8">
+        <Button size="lg" onClick={handleContinue} className="brand-button gap-2 px-8">
           Continue to dashboard
         </Button>
       </div>

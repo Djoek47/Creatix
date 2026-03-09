@@ -32,7 +32,7 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
   const displayMentions = mentions.length > 0 ? mentions : generateSampleMentions()
 
   return (
-    <Card variant="glass" className="border-border">
+    <Card variant="brand">
       <CardHeader className="pb-2">
         <CardTitle>Alerts & Monitoring</CardTitle>
         <CardDescription>Stay on top of important updates</CardDescription>

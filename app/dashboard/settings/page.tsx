@@ -30,15 +30,14 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+        <h2 className="font-title text-2xl font-bold tracking-tight text-foreground">Settings</h2>
         <p className="text-muted-foreground">
           Manage your account and preferences
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Sidebar Navigation */}
-        <Card className="h-fit border-border bg-card lg:col-span-1">
+        <Card variant="brand" className="h-fit border-0 lg:col-span-1">
           <CardContent className="p-4">
             <nav className="space-y-1">
               {[
@@ -66,7 +65,7 @@ export default async function SettingsPage() {
         {/* Main Content */}
         <div className="space-y-6 lg:col-span-2">
           {/* Profile Section */}
-          <Card className="border-border bg-card">
+          <Card variant="brand" className="border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -136,7 +135,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* Privacy — revenue visibility */}
-          <Card className="border-border bg-card">
+          <Card variant="brand" className="border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -152,7 +151,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* Notifications Section */}
-          <Card className="border-border bg-card">
+          <Card variant="brand" className="border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
@@ -197,7 +196,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* Danger Zone */}
-          <Card className="border-destructive/50 bg-card">
+          <Card variant="brand" className="border-0 border-destructive/30">
             <CardHeader>
               <CardTitle className="text-destructive">Danger Zone</CardTitle>
               <CardDescription>

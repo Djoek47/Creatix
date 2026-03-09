@@ -37,7 +37,7 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="bg-white/80 backdrop-blur border-b border-purple-100 sticky top-0 z-50">
+    <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0" aria-label="Circe and Venus">
@@ -47,7 +47,7 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
               </Button>
             )}
             <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+            <h1 className="font-title text-xl font-bold brand-gradient-text hidden sm:block">
               Circe and Venus
             </h1>
           </Link>
@@ -65,7 +65,7 @@ export function DashboardHeader({ user, profile, onMenuClick }: HeaderProps) {
             <Button variant="ghost" size="icon" className="relative tap-target" asChild>
               <Link href="/dashboard/notifications" aria-label="Notifications">
                 <Bell className="w-5 h-5" />
-                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-purple-500" />
+                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-primary" />
               </Link>
             </Button>
             <Button variant="ghost" size="icon" onClick={toggleRevenueVisibility} className="tap-target" aria-label={hideRevenue ? 'Show revenue' : 'Hide revenue'}>

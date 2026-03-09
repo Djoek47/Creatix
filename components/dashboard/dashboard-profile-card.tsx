@@ -30,7 +30,7 @@ export function DashboardProfileCard({
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden border-border bg-card/90 transition-brand glass-card">
+      <Card variant="brand" className="overflow-hidden">
         <CardContent className="p-0">
           <div className="relative p-6 pb-4">
             <div className="flex flex-col items-center text-center">
@@ -59,7 +59,7 @@ export function DashboardProfileCard({
           return (
             <div
               key={section.id}
-              className="rounded-xl border border-border bg-card/80 overflow-hidden transition-brand"
+              className="brand-card overflow-hidden rounded-xl"
             >
               <button
                 type="button"

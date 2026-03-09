@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      <Card variant="glass" className="w-full max-w-md">
+      <Card className="brand-card w-full max-w-md border-0 shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
@@ -89,7 +89,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="brand-button w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

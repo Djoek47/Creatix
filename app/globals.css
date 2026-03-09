@@ -315,3 +315,56 @@
 .animate-pulse-ring {
   animation: pulse-ring 3s ease-in-out infinite;
 }
+
+/* ——— Unified brand: gold, purple, yellow (one system for entire site) ——— */
+.brand-bg {
+  background: linear-gradient(to bottom right, oklch(0.98 0.02 85), oklch(0.97 0.03 305), oklch(0.98 0.04 95));
+}
+.dark .brand-bg {
+  background: linear-gradient(to bottom right, oklch(0.14 0.03 285), oklch(0.12 0.04 305), oklch(0.13 0.03 85));
+}
+.brand-bg-radial {
+  background: linear-gradient(to bottom right, oklch(0.98 0.02 85), oklch(0.97 0.03 305), oklch(0.98 0.04 95));
+}
+.dark .brand-bg-radial {
+  background: linear-gradient(to bottom right, oklch(0.14 0.03 285), oklch(0.12 0.04 305), oklch(0.13 0.03 85));
+}
+.brand-header {
+  background-color: oklch(1 0 0 / 0.75);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid oklch(0.88 0.04 85 / 0.6);
+}
+.dark .brand-header {
+  background-color: oklch(0.12 0.02 280 / 0.85);
+  border-bottom-color: oklch(0.3 0.08 305 / 0.4);
+}
+.brand-card {
+  background: oklch(1 0 0 / 0.8);
+  backdrop-filter: saturate(160%) blur(16px);
+  -webkit-backdrop-filter: saturate(160%) blur(16px);
+  border: 1px solid oklch(0.9 0.03 85 / 0.7);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 24px -4px oklch(0.2 0.05 285 / 0.08);
+}
+.dark .brand-card {
+  background: oklch(0.16 0.02 280 / 0.8);
+  border-color: oklch(0.28 0.06 305 / 0.4);
+  box-shadow: 0 4px 24px -4px oklch(0 0 0 / 0.35);
+}
+.brand-gradient-text {
+  background: linear-gradient(90deg, oklch(0.72 0.16 85), oklch(0.55 0.25 305), oklch(0.78 0.14 85));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-button {
+  background: linear-gradient(90deg, oklch(0.72 0.16 85), oklch(0.55 0.25 305));
+  color: oklch(0.15 0.02 85);
+}
+.brand-button:hover {
+  filter: brightness(1.05);
+}
+.dark .brand-button {
+  color: oklch(0.98 0 0);
+}

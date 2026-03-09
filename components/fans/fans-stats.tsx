@@ -24,7 +24,7 @@ export function FansStats({ stats }: FansStatsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.title} className="border-border bg-card">
+        <Card key={card.title} variant="brand" className="border-0">
           <CardContent className="flex items-center gap-4 p-4">
             <div className={`rounded-lg p-3 ${card.bgColor}`}>
               <card.icon className={`h-5 w-5 ${card.color}`} />

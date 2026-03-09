@@ -30,7 +30,7 @@ export function RevenueChart({ analytics }: RevenueChartProps) {
     : generateSampleData()
 
   return (
-    <Card variant="glass" className="border-border">
+    <Card variant="brand">
       <CardHeader>
         <CardTitle>Revenue Overview</CardTitle>
         <CardDescription>Your earnings across all platforms</CardDescription>

@@ -30,7 +30,7 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
 
   return (
     <RevenuePrivacyProvider>
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-teal-50 flex flex-col">
+    <div className="min-h-screen brand-bg flex flex-col">
       <DashboardHeader
         user={user}
         profile={profile}

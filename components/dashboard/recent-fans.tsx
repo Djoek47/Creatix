@@ -31,7 +31,7 @@ export function RecentFans({ fans }: RecentFansProps) {
   const displayFans = fans.length > 0 ? fans : generateSampleFans()
 
   return (
-    <Card variant="glass" className="border-border">
+    <Card variant="brand">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Recent Fans</CardTitle>

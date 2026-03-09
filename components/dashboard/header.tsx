@@ -39,7 +39,7 @@ export function DashboardHeader({ user, profile, onMenuClick, isMobile }: Header
   return (
     <header className="brand-header sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-end">
           {/* Mobile hamburger (simple click; avoids touch+click double wiring issues) */}
           {onMenuClick && (
             <button

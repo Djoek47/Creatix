@@ -45,7 +45,7 @@ export function DashboardShell({ user, profile, hasConnectedPlatform = true, chi
         <DashboardHeader
           user={user}
           profile={profile}
-          onMenuClick={() => setSidebarOpen(true)}
+          onMenuClick={() => setSidebarOpen((open) => !open)}
           isMobile={isMobile}
         />
         <main className="flex-1 container mx-auto px-4 py-8 animate-page-enter">

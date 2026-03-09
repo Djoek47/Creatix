@@ -38,29 +38,30 @@ export function DashboardHeader({ user, profile, onMenuClick, isMobile }: Header
 
   return (
     <header className="brand-header sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 md:px-4">
-        <div className="relative flex items-center justify-between">
-          {/* Portrait: fixed-position hamburger so it can't be covered by other icons */}
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          {/* Mobile: fixed top-left so nothing can overlap in portrait (iOS Safari) */}
           {onMenuClick && (
-            <button
-              type="button"
-              onClick={() => onMenuClick()}
-              onTouchEnd={(e) => {
-                e.preventDefault()
-                onMenuClick()
-              }}
-              className="fixed left-0 top-0 z-[60] flex md:hidden h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center touch-manipulation active:opacity-80 md:static md:h-12 md:w-14"
-              style={{
-                paddingLeft: 'max(0px, env(safe-area-inset-left))',
-                paddingTop: 'max(0px, env(safe-area-inset-top))',
-              }}
-              aria-label="Open menu"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => onMenuClick()}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  onMenuClick()
+                }}
+                className="fixed left-0 top-0 z-[60] flex md:hidden h-14 w-14 min-h-[48px] min-w-[48px] items-center justify-center rounded-none hover:bg-accent/50 active:opacity-80 touch-manipulation"
+                style={{
+                  paddingTop: 'env(safe-area-inset-top, 0px)',
+                  paddingLeft: 'env(safe-area-inset-left, 0px)',
+                }}
+                aria-label="Open menu"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <div className="w-14 shrink-0 md:hidden" aria-hidden />
+            </>
           )}
-          {/* Spacer so other icons don't overlap hamburger in portrait */}
-          <div className="w-14 shrink-0 md:hidden" aria-hidden />
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <Button variant="ghost" size="icon" asChild className="tap-target">
               <Link href="/dashboard/protection" aria-label="Protection">

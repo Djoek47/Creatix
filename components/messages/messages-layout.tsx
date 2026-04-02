@@ -2,12 +2,13 @@
 
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
 import { ChatWindow } from './chat-window'
 import { MassMessageDialog } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Sheet,
   SheetContent,
@@ -25,6 +26,7 @@ import {
   PanelLeft,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
+import { cn } from '@/lib/utils'
 
 type MessagesView = 'conversations' | 'insights'
 
@@ -52,6 +54,7 @@ function pickConversationForDeepLink(
 
 function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: MessagesLayoutProps) {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const divinePanel = useDivinePanel()
   const fanIdFromUrl =
     searchParams.get('fanId') ?? searchParams.get('chat') ?? initialFanId ?? undefined
@@ -71,6 +74,21 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const openChatsMenu = useCallback(() => {
+    setConversationMenuOpen(true)
+    if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {
+      window.dispatchEvent(new CustomEvent('messages:open-chats-menu'))
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    const onSidebarExpanded = () => setConversationMenuOpen(false)
+    window.addEventListener('dashboard:left-sidebar-expanded', onSidebarExpanded as EventListener)
+    return () => {
+      window.removeEventListener('dashboard:left-sidebar-expanded', onSidebarExpanded as EventListener)
+    }
+  }, [])
 
   const loadConversations = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true)
@@ -275,7 +293,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
               variant="ghost"
               size="icon"
               className="md:hidden h-10 w-10 flex-shrink-0"
-              onClick={() => setConversationMenuOpen(true)}
+              onClick={openChatsMenu}
               aria-label="Back to conversations"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -286,7 +304,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
               variant="outline"
               size="sm"
               className="h-8 gap-1.5 md:hidden"
-              onClick={() => setConversationMenuOpen(true)}
+              onClick={openChatsMenu}
             >
               <PanelLeft className="h-3.5 w-3.5" />
               Chats
@@ -328,14 +346,13 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
             <>
               <Button
                 variant="outline"
-                size="sm"
-                className="hidden gap-1.5 md:inline-flex"
-                onClick={() => setConversationMenuOpen(true)}
+                size="icon"
+                className="h-10 w-10"
+                onClick={openChatsMenu}
                 aria-label="Open conversations menu"
                 title="Open conversations menu"
               >
                 <PanelLeft className="h-4 w-4" />
-                Chats
               </Button>
               <Button
                 variant="outline"
@@ -363,15 +380,57 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
           <MessageEngagementInsights />
         </div>
       ) : (
-        <div className="flex flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          {selectedConversation && (
+            <div className="rounded-lg border border-border bg-card/80 px-3 py-2">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 border border-border">
+                  <AvatarImage src={selectedConversation.user.avatar} className="object-cover" />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {selectedConversation.user.name?.[0]?.toUpperCase() ||
+                      selectedConversation.user.username?.[0]?.toUpperCase() ||
+                      '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">
+                      {selectedConversation.user.name || selectedConversation.user.username || 'Unknown'}
+                    </p>
+                    <span className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                      selectedConversation.platform === 'onlyfans'
+                        ? 'bg-sky-500/10 text-sky-500'
+                        : 'bg-blue-500/10 text-blue-500',
+                    )}>
+                      <img
+                        src={selectedConversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
+                        alt={selectedConversation.platform}
+                        className="h-3 w-3"
+                      />
+                      {selectedConversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                    </span>
+                    {divinePanel?.focusedFan &&
+                      String(divinePanel.focusedFan.id) === String(selectedConversation.user.id) && (
+                        <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          Divine focused here
+                        </span>
+                      )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">@{selectedConversation.user.username}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex flex-1 min-h-0">
           <ChatWindow
             conversation={selectedConversation}
             userId={userId}
             onMessageSent={() => loadConversations(true)}
-            onOpenConversationMenu={() => setConversationMenuOpen(true)}
+            onOpenConversationMenu={openChatsMenu}
           />
           <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
-            <SheetContent side="left" className="w-full p-0 sm:max-w-md">
+            <SheetContent side="right" className="w-full p-0 sm:max-w-md">
               <SheetHeader className="border-b border-border">
                 <SheetTitle>Messages</SheetTitle>
                 <SheetDescription>
@@ -392,6 +451,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
               </div>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       )}
     </div>

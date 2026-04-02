@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -882,7 +881,7 @@ export function ChatWindow({
     <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card">
       {/* Chat Header */}
       <CardHeader className="flex flex-row items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -895,44 +894,7 @@ export function ChatWindow({
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <Avatar className="h-10 w-10 border border-border">
-            <AvatarImage
-              src={proxyImageUrl(fan.avatar) || fan.avatar}
-              referrerPolicy="no-referrer"
-              className="object-cover"
-            />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {fan.name?.[0]?.toUpperCase() || fan.username?.[0]?.toUpperCase() || '?'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">
-                {fan.name || fan.username || 'Unknown'}
-              </span>
-              {/* Platform badge */}
-              <span className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                conversation.platform === 'onlyfans' 
-                  ? 'bg-sky-500/10 text-sky-500' 
-                  : 'bg-blue-500/10 text-blue-500'
-              )}>
-                <img 
-                  src={conversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
-                  alt={conversation.platform}
-                  className="h-3 w-3"
-                />
-                {conversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-              </span>
-              {divinePanel?.focusedFan &&
-                String(divinePanel.focusedFan.id) === String(conversation.user.id) && (
-                  <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    Divine focused here
-                  </span>
-                )}
-            </div>
-            <span className="text-xs text-muted-foreground">@{fan.username}</span>
-          </div>
+          <span className="text-xs font-medium text-muted-foreground">Thread tools</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1167,7 +1129,7 @@ export function ChatWindow({
             <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
           </div>
           <CollapsibleContent>
-            <div className="max-h-[min(28vh,180px)] space-y-2 overflow-y-auto border-b border-border/50 bg-muted/15 px-3 py-2 sm:max-h-[min(30vh,220px)] sm:px-4">
+            <div className="max-h-[min(36vh,260px)] space-y-2 overflow-y-auto border-b border-border/50 bg-muted/15 px-3 py-2 pb-3 sm:max-h-[min(38vh,300px)] sm:px-4">
               {scanInsights && (
                 <div className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -1397,9 +1359,9 @@ export function ChatWindow({
                   }
                   setMessage(e.target.value)
                 }}
-                rows={2}
+                rows={1}
                 className={cn(
-                  'min-h-[4.5rem] resize-y bg-input pr-10 text-sm leading-relaxed sm:min-h-[5rem] sm:text-sm',
+                  'min-h-[3.25rem] resize-y bg-input pr-10 text-sm leading-relaxed sm:min-h-[3.75rem] sm:text-sm',
                   divineTyping && 'ring-2 ring-primary/45 ring-offset-0',
                 )}
                 disabled={sending || !isOnlyFansConversation}

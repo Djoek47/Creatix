@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { Search, LogOut, User, Settings, Menu, HeartPulse } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -25,7 +25,7 @@ import { StartTourButton } from '@/components/tour/start-tour-button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
-import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
+import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { cn } from '@/lib/utils'
 
 interface HeaderProps {
@@ -55,11 +55,13 @@ const pageNames: Record<string, string> = {
 export function DashboardHeader({ user, profile }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const divinePanel = useDivinePanel()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const wellbeingVoiceClass = useDivineCrownStateClass()
   const onWellBeingPage =
     pathname === '/dashboard/well-being' || pathname.startsWith('/dashboard/well-being/')
+  const showDivinePanelShortcut =
+    Boolean(pathname && !pathname.startsWith('/dashboard/messages') && divinePanel)
 
   useEffect(() => {
     setMounted(true)
@@ -138,6 +140,23 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         {/* Page tutorial */}
         <StartTourButton className="hidden sm:flex" />
 
+        {showDivinePanelShortcut && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="hidden gap-1.5 text-muted-foreground hover:text-foreground sm:inline-flex"
+            onClick={() => {
+              divinePanel?.setPanelCollapsed(false)
+              divinePanel?.setPanelOpen(true)
+            }}
+            title="Open Divine assistant panel"
+          >
+            <Sparkles className="h-4 w-4 text-primary" />
+            Divine
+          </Button>
+        )}
+
         {/* Theme Toggle */}
         <ThemeToggle />
 
@@ -146,15 +165,14 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0" asChild>
           <Link
             href="/dashboard/well-being"
-            title="Well-being (mirrors Divine voice status)"
+            title="Well-being"
             aria-label="Well-being"
             className={cn(
-              'divine-crown-trigger grid size-full place-items-center rounded-full border border-gold/45 p-0 leading-none text-[#1a1200] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
-              wellbeingVoiceClass,
+              'grid size-full place-items-center rounded-full border border-border bg-secondary/45 p-0 leading-none text-primary transition hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               onWellBeingPage && 'ring-2 ring-primary/45 ring-offset-2 ring-offset-card',
             )}
           >
-            <HeartPulse className="pointer-events-none block h-5 w-5 shrink-0" aria-hidden />
+            <HeartPulse className="h-5 w-5 shrink-0" aria-hidden />
           </Link>
         </Button>
 

@@ -71,8 +71,10 @@ export function VoiceControlPopup() {
       >
         <div
           className={cn(
-            'flex h-14 items-center overflow-hidden rounded-full border border-border bg-card/95 shadow-lg backdrop-blur-sm transition-all duration-300',
-            expanded ? 'w-[min(92vw,560px)]' : 'w-14',
+            'flex h-14 items-center overflow-hidden rounded-full transition-all duration-300',
+            expanded
+              ? 'w-[min(92vw,560px)] border border-border bg-card/95 shadow-lg backdrop-blur-sm'
+              : 'w-14 border-0 bg-transparent shadow-none',
           )}
         >
           <div
@@ -150,7 +152,8 @@ export function VoiceControlPopup() {
             type="button"
             onClick={() => { void handleCrownClick() }}
             className={cn(
-              'divine-crown-trigger grid h-14 w-14 shrink-0 place-items-center border-l border-gold/45 p-0 leading-none text-[#1a1200] transition',
+              'divine-crown-trigger grid h-14 w-14 shrink-0 place-items-center p-0 leading-none text-[#1a1200] transition',
+              expanded ? 'rounded-none border-l border-gold/45' : 'rounded-full border border-gold/45 shadow-lg',
               crownStateClass,
               'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
             )}

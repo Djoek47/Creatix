@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
-import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineWorkingLogo } from '@/components/divine/divine-working-logo'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
 import { Button } from '@/components/ui/button'
@@ -11,28 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Crown, Loader2, Copy, ChevronRight, MessageSquare, FileText, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const VOICE_BAR_COUNT = 5
-
-function VoiceWaveIcon({ className }: { className?: string }) {
-  return (
-    <span className={cn('inline-flex items-end gap-0.5', className)} aria-hidden>
-      {Array.from({ length: VOICE_BAR_COUNT }).map((_, i) => (
-        <span
-          key={i}
-          className="w-0.5 rounded-full bg-current animate-divine-voice-bar"
-          style={{
-            height: '0.4em',
-            animationDelay: `${i * 0.1}s`,
-          }}
-        />
-      ))}
-    </span>
-  )
-}
-
 export function DivinePanel() {
   const ctx = useDivinePanel()
-  const voice = useVoiceSession()
   const [profileOpen, setProfileOpen] = useState(false)
   if (!ctx) return null
 
@@ -75,22 +54,7 @@ export function DivinePanel() {
 
   return (
     <>
-      {/* FAB: always visible when collapsed or as toggle when expanded */}
-      <button
-        type="button"
-        onClick={toggle}
-        className={cn(
-          'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary',
-          voice && 'pointer-events-none scale-0 opacity-0',
-          panelOpen && !panelCollapsed && 'scale-0 opacity-0 pointer-events-none'
-        )}
-        aria-label={panelOpen ? 'Close Divine panel' : 'Open Divine'}
-      >
-        <span className="relative flex items-center justify-center">
-          <Crown className="h-6 w-6 text-primary" />
-          <VoiceWaveIcon className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-primary/80" />
-        </span>
-      </button>
+      {/* Floating crown FAB removed: use header “Divine” or sidebar; Messages uses the gold Realtime voice crown only. */}
 
       {/* Slide-in panel */}
       <div

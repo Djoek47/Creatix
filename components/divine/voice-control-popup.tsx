@@ -3,20 +3,17 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
-import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { DivineWorkingLogo } from '@/components/divine/divine-working-logo'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Crown, Mic, PhoneOff, Settings } from 'lucide-react'
+import { Crown, Mic, PhoneOff } from 'lucide-react'
 import { DivineTranscriptStack } from '@/components/divine/divine-transcript-card'
 import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 
 export function VoiceControlPopup() {
   const voice = useVoiceSession()
-  const divine = useDivinePanel()
   const pathname = usePathname()
   const [expanded, setExpanded] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const crownStateClass = useDivineCrownStateClass()
 
   const isActive =
@@ -26,10 +23,7 @@ export function VoiceControlPopup() {
   useEffect(() => {
     if (!voice) return
     if (isActive) setExpanded(true)
-    if (!hasStartedCall) {
-      setExpanded(false)
-      setSettingsOpen(false)
-    }
+    if (!hasStartedCall) setExpanded(false)
   }, [voice, isActive, hasStartedCall])
 
   if (!voice) return null
@@ -55,108 +49,26 @@ export function VoiceControlPopup() {
           ? 'Listening'
           : 'Error'
 
-  const toggleDivine = () => {
-    if (!divine) return
-    if (divine.panelOpen && !divine.panelCollapsed) {
-      divine.setPanelOpen(false)
-      divine.setPanelCollapsed(true)
-      return
-    }
-    divine.setPanelCollapsed(false)
-    divine.setPanelOpen(true)
-  }
-  const isDivineOpen = Boolean(divine?.panelOpen && !divine?.panelCollapsed)
-
   const handleCrownClick = async () => {
     if (status === 'idle') {
       setExpanded(true)
-      setSettingsOpen(false)
       await startVoiceCall()
       return
     }
-    setSettingsOpen(false)
     setExpanded((prev) => !prev)
   }
 
   return (
     <>
       <DivineTranscriptStack />
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
-        {hasStartedCall && !messagesOnlyMode && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen((prev) => !prev)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/45 bg-card/95 text-gold shadow-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-              aria-label="Toggle Divine voice quick settings"
-              title="Divine voice quick settings"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            {settingsOpen && (
-              <div className="absolute bottom-10 right-0 flex min-w-44 flex-col gap-1 rounded-lg border border-border bg-card/95 p-2 shadow-xl backdrop-blur-sm">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="justify-start text-xs"
-                  onClick={() => {
-                    toggleDivine()
-                    setSettingsOpen(false)
-                  }}
-                >
-                  {isDivineOpen ? 'Close Divine panel' : 'Open Divine panel'}
-                </Button>
-                {isActive && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start text-xs"
-                    disabled={!canManualHangup}
-                    title={
-                      canManualHangup
-                        ? 'End voice call'
-                        : 'Wait until Divine asks if you need anything else (or force end below)'
-                    }
-                    onClick={() => {
-                      endVoiceCall()
-                      setSettingsOpen(false)
-                    }}
-                  >
-                    End call
-                  </Button>
-                )}
-                {isActive && !canManualHangup && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="justify-start text-xs text-destructive hover:text-destructive"
-                    onClick={() => {
-                      forceEndVoiceCall()
-                      setSettingsOpen(false)
-                    }}
-                  >
-                    Force end call
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="justify-start text-xs"
-                  onClick={() => {
-                    setExpanded((prev) => !prev)
-                    setSettingsOpen(false)
-                  }}
-                >
-                  {expanded ? 'Collapse voice control' : 'Expand voice control'}
-                </Button>
-              </div>
-            )}
-          </div>
+      {/* Divine voice crown FAB: Messages only (composer zone); not shown on Dashboard or other routes */}
+      {messagesOnlyMode && (
+      <div
+        className={cn(
+          'fixed z-40 flex flex-col items-end gap-2',
+          'bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] right-3 sm:right-5',
         )}
+      >
         <div
           className={cn(
             'flex h-14 items-center overflow-hidden rounded-full border border-border bg-card/95 shadow-lg backdrop-blur-sm transition-all duration-300',
@@ -249,6 +161,7 @@ export function VoiceControlPopup() {
           </button>
         </div>
       </div>
+      )}
     </>
   )
 }

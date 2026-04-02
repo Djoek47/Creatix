@@ -1,11 +1,14 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Copy, X } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 
 export function DivineTranscriptStack() {
+  const pathname = usePathname()
+  const messagesRoute = pathname?.startsWith('/dashboard/messages') === true
   const panel = useDivinePanel()
   const transcript = panel?.divineTranscript
   const remainingMs = panel?.scheduledDmRemainingMs ?? 0
@@ -19,8 +22,11 @@ export function DivineTranscriptStack() {
   return (
     <div
       className={cn(
-        'fixed z-[42] flex flex-col items-end gap-2',
-        'bottom-[5.5rem] right-6 max-w-[min(100vw-2rem,380px)]',
+        'fixed z-[42] flex flex-col items-end gap-2 max-w-[min(100vw-2rem,380px)]',
+        /* Above Divine voice FAB on messages (FAB is lifted for composer) */
+        messagesRoute
+          ? 'bottom-[max(11.25rem,calc(env(safe-area-inset-bottom)+10rem))] right-3 sm:right-5'
+          : 'bottom-[5.5rem] right-6',
       )}
     >
       {showSchedule && (

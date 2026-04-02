@@ -8,7 +8,6 @@ import { ChatWindow } from './chat-window'
 import { MassMessageDialog } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Sheet,
   SheetContent,
@@ -26,7 +25,6 @@ import {
   PanelLeft,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
-import { cn } from '@/lib/utils'
 
 type MessagesView = 'conversations' | 'insights'
 
@@ -381,48 +379,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          {selectedConversation && (
-            <div className="rounded-lg border border-border bg-card/80 px-3 py-2">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 border border-border">
-                  <AvatarImage src={selectedConversation.user.avatar} className="object-cover" />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {selectedConversation.user.name?.[0]?.toUpperCase() ||
-                      selectedConversation.user.username?.[0]?.toUpperCase() ||
-                      '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">
-                      {selectedConversation.user.name || selectedConversation.user.username || 'Unknown'}
-                    </p>
-                    <span className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                      selectedConversation.platform === 'onlyfans'
-                        ? 'bg-sky-500/10 text-sky-500'
-                        : 'bg-blue-500/10 text-blue-500',
-                    )}>
-                      <img
-                        src={selectedConversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
-                        alt={selectedConversation.platform}
-                        className="h-3 w-3"
-                      />
-                      {selectedConversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-                    </span>
-                    {divinePanel?.focusedFan &&
-                      String(divinePanel.focusedFan.id) === String(selectedConversation.user.id) && (
-                        <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          Divine focused here
-                        </span>
-                      )}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">@{selectedConversation.user.username}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-1 min-h-0">
+          <div className="flex min-h-0 flex-1">
           <ChatWindow
             conversation={selectedConversation}
             userId={userId}

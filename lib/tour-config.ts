@@ -54,6 +54,13 @@ const TOURS: Record<string, TourConfig> = {
       { id: 'breakdown', title: 'Breakdown', description: 'See performance by platform (OnlyFans, Fansly) and by content type to optimize your strategy.' },
     ],
   },
+  '/dashboard/well-being': {
+    tourId: 'well-being',
+    steps: [
+      { id: 'overview', title: 'Well-being', description: 'A single view of conversational load from your platforms, your Mimic profile snapshot, and cosmic timing from the calendar.' },
+      { id: 'rhythm', title: 'Cosmic rhythm', description: 'Use the embedded calendar to align posting and rest with lunar phases and daily Circe tips.' },
+    ],
+  },
   '/dashboard/ai-studio': {
     tourId: 'ai-studio',
     steps: [

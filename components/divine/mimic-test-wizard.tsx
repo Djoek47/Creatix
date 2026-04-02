@@ -1,44 +1,33 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { Loader2, Sparkles, CheckCircle2, ChevronDown, RefreshCw } from 'lucide-react'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import {
   type MimicProfileV1,
   DEFAULT_MIMIC_PROFILE,
   parseMimicProfile,
 } from '@/lib/divine/mimic-types'
-
-const STEPS = 4
-
-function splitLines(s: string): string[] {
-  return s
-    .split(/\n+/)
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .slice(0, 40)
-}
+import { cn } from '@/lib/utils'
 
 export function MimicTestWizard() {
   const voiceSession = useVoiceSession()
+  const prevVoiceStatusRef = useRef<string | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [step, setStep] = useState(1)
   const [profile, setProfile] = useState<MimicProfileV1>(DEFAULT_MIMIC_PROFILE)
-  const [tabooInput, setTabooInput] = useState('')
-  const [bannedInput, setBannedInput] = useState('')
-  const [sigInput, setSigInput] = useState('')
-  const [escalateKwInput, setEscalateKwInput] = useState('')
-  const [exemplarPaste, setExemplarPaste] = useState('')
+  const [notesDraft, setNotesDraft] = useState('')
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
-
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -48,29 +37,36 @@ export function MimicTestWizard() {
       const data = (await res.json()) as { mimic_profile?: MimicProfileV1 }
       const p = parseMimicProfile(data.mimic_profile) ?? DEFAULT_MIMIC_PROFILE
       setProfile(p)
-      setExemplarPaste((p.exemplarReplies ?? []).join('\n\n---\n\n'))
+      setNotesDraft(p.notes ?? '')
     } catch {
       setProfile(DEFAULT_MIMIC_PROFILE)
+      setNotesDraft('')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  const persist = async (next: MimicProfileV1, stepsDone?: number[]) => {
+  useEffect(() => {
+    const s = voiceSession?.status
+    const prev = prevVoiceStatusRef.current
+    prevVoiceStatusRef.current = s
+    if (prev === 'connected' && s === 'idle') {
+      void load()
+    }
+  }, [voiceSession?.status, load])
+
+  const persistProfile = async (next: MimicProfileV1) => {
     setSaving(true)
     setSavedMsg(null)
     try {
       const res = await fetch('/api/divine/mimic-profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...next,
-          completedSteps: stepsDone ?? next.completedSteps,
-        }),
+        body: JSON.stringify(next),
       })
       if (!res.ok) throw new Error('save failed')
       const data = (await res.json()) as { mimic_profile?: MimicProfileV1 }
@@ -83,52 +79,21 @@ export function MimicTestWizard() {
     }
   }
 
-  const mergeExemplars = (): string[] => {
-    const blocks = exemplarPaste
-      .split(/\n---\n/g)
-      .map((x) => x.trim())
-      .filter(Boolean)
-    return blocks.slice(0, 5)
-  }
+  const saveNotes = () => void persistProfile({ ...profile, notes: notesDraft })
 
-  const handleNext = async () => {
-    const exemplars = mergeExemplars()
-    let next: MimicProfileV1 = { ...profile, exemplarReplies: exemplars }
-
-    if (step === 2) {
-      next = {
-        ...profile,
-        tabooTopics: splitLines(tabooInput || (profile.tabooTopics ?? []).join('\n')),
-        bannedPhrases: splitLines(bannedInput || (profile.bannedPhrases ?? []).join('\n')),
-        signaturePhrases: splitLines(sigInput || (profile.signaturePhrases ?? []).join('\n')),
-      }
-    }
-    if (step === 3) {
-      next = {
-        ...profile,
-        exemplarReplies: exemplars,
-        escalateOnKeywords: splitLines(escalateKwInput || (profile.escalateOnKeywords ?? []).join('\n')),
-      }
-    }
-
-    setProfile(next)
-    const stepsDone = Array.from(new Set([...(next.completedSteps ?? []), step]))
-    await persist(
-      {
-        ...next,
-        completedSteps: stepsDone,
-      },
-      stepsDone,
-    )
-    setStep((s) => Math.min(STEPS, s + 1))
-  }
-
-  const handleBack = () => setStep((s) => Math.max(1, s - 1))
+  const profileEstablished = Boolean(profile.aiInterviewAt && profile.aiInterviewSummary?.trim())
+  const finalizedAtLabel = profile.aiInterviewAt
+    ? new Date(profile.aiInterviewAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null
+  const transcriptPreview = (profile.interviewTranscript ?? []).slice(-8)
 
   if (loading) {
     return (
       <Card className="divine-card">
-        <CardContent className="py-10 flex justify-center">
+        <CardContent className="flex justify-center py-10">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
@@ -138,36 +103,25 @@ export function MimicTestWizard() {
   return (
     <Card className="divine-card border-primary/20">
       <CardHeader>
-        <CardTitle className="font-serif text-lg flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 font-serif text-lg">
           <Sparkles className="h-5 w-5 text-primary" />
           Mimic Test
         </CardTitle>
         <CardDescription>
-          Train fan-facing reply style, boundaries, and escalation. Divine uses this only for the{' '}
+          Voice interview builds your fan-reply style for Divine. Saved only for the{' '}
           <code className="text-xs">draft_fan_reply</code> tool—default is review before send.
         </CardDescription>
-        <div className="flex gap-1 pt-1">
-          {Array.from({ length: STEPS }, (_, i) => (
-            <Badge
-              key={i}
-              variant={step > i ? 'default' : 'outline'}
-              className="text-[10px]"
-            >
-              {i + 1}
-            </Badge>
-          ))}
-        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
+        <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium">Realtime Mimic interview</p>
+              <p className="text-sm font-medium">Mimic voice interview</p>
               <p className="text-xs text-muted-foreground">
-                Voice-to-voice interrogation that saves answers for DM mimic replies.
+                Speak through the full questionnaire; answers are refined and merged when you finish the call.
               </p>
             </div>
-            <Badge variant="outline" className="text-[10px]">
+            <Badge variant="outline" className="text-[10px] capitalize">
               {voiceSession?.status ?? 'idle'}
             </Badge>
           </div>
@@ -190,7 +144,7 @@ export function MimicTestWizard() {
                 <Sparkles className="h-4 w-4" />
               )}
               <span className="ml-1.5">
-                {voiceSession?.status === 'connected' ? 'Restart Mimic voice' : 'Start Mimic voice'}
+                {voiceSession?.status === 'connected' ? 'Restart interview' : 'Start voice interview'}
               </span>
             </Button>
             <Button
@@ -202,221 +156,86 @@ export function MimicTestWizard() {
             >
               End voice
             </Button>
+            <Button type="button" size="sm" variant="ghost" className="text-muted-foreground" onClick={() => void load()}>
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              Refresh profile
+            </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            The interviewer now covers the full Step 1-4 wizard by voice (policy, style, boundaries, exemplars, escalation, final summary), and saves each answer to your Mimic session.
-          </p>
         </div>
 
-        <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
-          <p className="text-sm font-medium">Realtime Mimic flow is primary</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            On-page question blocks were removed. Use the Realtime Mimic interview for all guided questions.
-          </p>
-        </div>
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Control whether Divine may draft messages that sound like you to fans. This never auto-sends unless you
-              change policy elsewhere.
+        {profileEstablished ? (
+          <div
+            className={cn(
+              'space-y-3 rounded-lg border border-emerald-500/45 bg-emerald-500/[0.08] p-4',
+              'dark:border-emerald-400/35 dark:bg-emerald-500/10',
+            )}
+          >
+            <div className="flex flex-wrap items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="font-semibold text-emerald-900 dark:text-emerald-100">Profile established</p>
+                <p className="text-xs text-emerald-800/90 dark:text-emerald-200/90">
+                  Voice interview was finalized, validated, and saved to your Mimic profile
+                  {finalizedAtLabel ? ` · ${finalizedAtLabel}` : ''}.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-md border border-emerald-600/25 bg-background/60 p-3 dark:border-emerald-400/20">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-200/90">
+                Summary
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-950 dark:text-emerald-50">
+                {profile.aiInterviewSummary}
+              </p>
+            </div>
+            {transcriptPreview.length > 0 && (
+              <Collapsible className="group rounded-md border border-emerald-600/20 bg-background/40 dark:border-emerald-400/15">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium text-emerald-900 hover:bg-emerald-500/10 dark:text-emerald-100">
+                  Saved Q&amp;A ({profile.interviewTranscript?.length ?? 0} turns)
+                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="max-h-64 space-y-2 overflow-y-auto border-t border-emerald-600/15 px-3 py-2 dark:border-emerald-400/10">
+                  {transcriptPreview.map((row, i) => (
+                    <div key={`${i}-${row.q.slice(0, 24)}`} className="text-xs">
+                      <p className="font-medium text-emerald-900 dark:text-emerald-100">Q: {row.q}</p>
+                      <p className="mt-0.5 text-muted-foreground dark:text-emerald-200/80">A: {row.a}</p>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+            <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/75">
+              Need changes? Start the voice interview again and finalize at the end—your profile will be updated.
             </p>
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
-              <div>
-                <Label htmlFor="mimic-consent">Allow fan-facing AI drafts</Label>
-                <p className="text-xs text-muted-foreground">Required for Mimic-based drafts.</p>
-              </div>
-              <Switch
-                id="mimic-consent"
-                checked={!!profile.consentFanFacingDrafts}
-                onCheckedChange={(v) => setProfile((p) => ({ ...p, consentFanFacingDrafts: v }))}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
-              <div>
-                <Label htmlFor="mimic-review">Never send without my review (recommended)</Label>
-                <p className="text-xs text-muted-foreground">Keeps drafts in queue for you to approve.</p>
-              </div>
-              <Switch
-                id="mimic-review"
-                checked={profile.neverSendWithoutReview !== false}
-                onCheckedChange={(v) => setProfile((p) => ({ ...p, neverSendWithoutReview: v }))}
-              />
-            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm text-amber-950 dark:border-amber-400/25 dark:bg-amber-500/10 dark:text-amber-100">
+            <p className="font-medium">No validated profile yet</p>
+            <p className="mt-1 text-xs text-amber-900/85 dark:text-amber-100/80">
+              Complete the Mimic voice call and let the assistant finalize the interview. When successful, a green
+              confirmation and summary will appear here.
+            </p>
           </div>
         )}
 
-        {step === 2 && (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Tone warmth (1–5)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={profile.toneWarmth ?? 3}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, toneWarmth: Math.min(5, Math.max(1, Number(e.target.value) || 3)) }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Flirt ceiling (1–5)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={profile.flirtCeiling ?? 2}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, flirtCeiling: Math.min(5, Math.max(1, Number(e.target.value) || 2)) }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Humor (1–5)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={profile.humorLevel ?? 2}
-                  onChange={(e) =>
-                    setProfile((p) => ({ ...p, humorLevel: Math.min(5, Math.max(1, Number(e.target.value) || 2)) }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Humanization / typos (0–3)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={3}
-                  value={profile.humanizationLevel ?? 1}
-                  onChange={(e) =>
-                    setProfile((p) => ({
-                      ...p,
-                      humanizationLevel: Math.min(3, Math.max(0, Number(e.target.value) || 1)),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Taboo topics (one per line)</Label>
-              <Textarea
-                value={tabooInput || (profile.tabooTopics ?? []).join('\n')}
-                onChange={(e) => setTabooInput(e.target.value)}
-                placeholder="e.g. politics, meetups, minors"
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label>Phrases I never use (one per line)</Label>
-              <Textarea
-                value={bannedInput || (profile.bannedPhrases ?? []).join('\n')}
-                onChange={(e) => setBannedInput(e.target.value)}
-                rows={2}
-              />
-            </div>
-            <div>
-              <Label>Optional signature phrases</Label>
-              <Textarea
-                value={sigInput || (profile.signaturePhrases ?? []).join('\n')}
-                onChange={(e) => setSigInput(e.target.value)}
-                placeholder="Short lines you like to reuse"
-                rows={2}
-              />
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-3">
-            <Label>Paste 3–5 example replies you wrote (separate with a line containing only ---)</Label>
-            <Textarea
-              value={exemplarPaste}
-              onChange={(e) => setExemplarPaste(e.target.value)}
-              rows={10}
-              placeholder={'Hey love! Thanks for subbing…\n---\nThat means so much…'}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">Max 5 blocks; each block is trimmed server-side.</p>
-            <div>
-              <Label>Escalate to human when message contains (one keyword/phrase per line)</Label>
-              <Textarea
-                value={escalateKwInput || (profile.escalateOnKeywords ?? []).join('\n')}
-                onChange={(e) => setEscalateKwInput(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={profile.escalateFirstTimeDm !== false}
-                  onCheckedChange={(v) => setProfile((p) => ({ ...p, escalateFirstTimeDm: v }))}
-                />
-                Escalate first-time DMs
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={profile.escalateWhale !== false}
-                  onCheckedChange={(v) => setProfile((p) => ({ ...p, escalateWhale: v }))}
-                />
-                Escalate whale / high-value
-              </label>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="space-y-3 text-sm">
-            <p className="font-medium">Profile summary</p>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li>
-                Fan-facing drafts:{' '}
-                <strong>{profile.consentFanFacingDrafts ? 'allowed' : 'off'}</strong>; review gate:{' '}
-                <strong>{profile.neverSendWithoutReview !== false ? 'on' : 'off'}</strong>
-              </li>
-              <li>
-                Tone {profile.toneWarmth ?? 3} · Flirt {profile.flirtCeiling ?? 2} · Humor {profile.humorLevel ?? 2} ·
-                Humanization {profile.humanizationLevel ?? 1}
-              </li>
-              <li>Taboo: {(profile.tabooTopics ?? []).join(', ') || '—'}</li>
-              <li>Banned phrases: {(profile.bannedPhrases ?? []).join(', ') || '—'}</li>
-              <li>Exemplar blocks: {mergeExemplars().length}</li>
-              <li>Escalation keywords: {(profile.escalateOnKeywords ?? []).join(', ') || '—'}</li>
-            </ul>
-            <div>
-              <Label>Notes (optional, private)</Label>
-              <Textarea
-                value={profile.notes ?? ''}
-                onChange={(e) => setProfile((p) => ({ ...p, notes: e.target.value }))}
-                rows={3}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-between pt-2">
-          <Button type="button" variant="outline" disabled={step === 1} onClick={handleBack}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          {step < STEPS ? (
-            <Button type="button" onClick={() => void handleNext()} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Next <ChevronRight className="h-4 w-4 ml-1" /></>}
+        <div className="space-y-2 border-t border-border/60 pt-4">
+          <Label htmlFor="mimic-private-notes">Private notes (optional)</Label>
+          <Textarea
+            id="mimic-private-notes"
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            rows={3}
+            placeholder="Only you see this; not sent to fans."
+            className="text-sm"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" variant="outline" disabled={saving} onClick={saveNotes}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save notes
             </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={() => void persist({ ...profile, notes: profile.notes }, profile.completedSteps)}
-              disabled={saving}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-              Save summary
-            </Button>
-          )}
+            {savedMsg && <span className="text-xs text-muted-foreground">{savedMsg}</span>}
+          </div>
         </div>
-        {savedMsg && <p className="text-xs text-muted-foreground">{savedMsg}</p>}
       </CardContent>
     </Card>
   )

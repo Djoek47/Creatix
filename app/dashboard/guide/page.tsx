@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Zap,
   Star,
+  HeartPulse,
 } from 'lucide-react'
 
 export default function GuidePage() {
@@ -42,6 +43,7 @@ export default function GuidePage() {
           <a href="#connecting-platforms" className="text-primary hover:underline">Connecting platforms</a>
           <a href="#onlyfans" className="text-primary hover:underline">OnlyFans (detailed)</a>
           <a href="#dashboard" className="text-primary hover:underline">Dashboard</a>
+          <a href="#well-being" className="text-primary hover:underline">Well-being</a>
           <a href="#ai-guides" className="text-primary hover:underline">AI Guides (Circe & Venus)</a>
           <a href="#circe-daily-tips" className="text-primary hover:underline">Daily tips (Circe)</a>
           <a href="#messages-fans" className="text-primary hover:underline">Messages &amp; Fans</a>
@@ -151,7 +153,14 @@ export default function GuidePage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              The main <Link href="/dashboard" className="text-primary underline hover:no-underline">Dashboard</Link> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio.
+              The main <Link href="/dashboard" className="text-primary underline hover:no-underline">Dashboard</Link> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio. The top bar also includes a Well-being shortcut (heart pulse icon) on every page.
+            </p>
+            <p id="well-being" className="scroll-mt-24">
+              <Link href="/dashboard/well-being" className="inline-flex items-center gap-1 font-medium text-primary underline hover:no-underline">
+                <HeartPulse className="h-4 w-4" />
+                Well-being
+              </Link>{' '}
+              combines conversational load from your connected platforms, your Mimic interview snapshot, and the cosmic calendar so you can see pressure and rhythm in one place.
             </p>
           </CardContent>
         </Card>

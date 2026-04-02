@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Search, LogOut, User, Settings, Menu } from 'lucide-react'
+import Link from 'next/link'
+import { Search, LogOut, User, Settings, Menu, HeartPulse } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -24,6 +25,8 @@ import { StartTourButton } from '@/components/tour/start-tour-button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
+import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
+import { cn } from '@/lib/utils'
 
 interface HeaderProps {
   user: SupabaseUser
@@ -36,6 +39,7 @@ const pageNames: Record<string, string> = {
   '/dashboard/ai-studio': 'AI Oracle Chamber',
   '/dashboard/fans': 'Fan Management',
   '/dashboard/content': 'Cosmic Content Calendar',
+  '/dashboard/well-being': 'Well-being',
   '/dashboard/messages': 'Messages',
   '/dashboard/messages/mass': 'Mass messages',
   '/dashboard/community/circe-daily': 'Circe daily tips',
@@ -53,6 +57,9 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const wellbeingVoiceClass = useDivineCrownStateClass()
+  const onWellBeingPage =
+    pathname === '/dashboard/well-being' || pathname.startsWith('/dashboard/well-being/')
 
   useEffect(() => {
     setMounted(true)
@@ -135,6 +142,21 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         <ThemeToggle />
 
         <DashboardRefreshButton />
+
+        <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0" asChild>
+          <Link
+            href="/dashboard/well-being"
+            title="Well-being (mirrors Divine voice status)"
+            aria-label="Well-being"
+            className={cn(
+              'divine-crown-trigger grid size-full place-items-center rounded-full border border-gold/45 p-0 leading-none text-[#1a1200] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
+              wellbeingVoiceClass,
+              onWellBeingPage && 'ring-2 ring-primary/45 ring-offset-2 ring-offset-card',
+            )}
+          >
+            <HeartPulse className="pointer-events-none block h-5 w-5 shrink-0" aria-hidden />
+          </Link>
+        </Button>
 
         {/* Notifications */}
         <Notifications />

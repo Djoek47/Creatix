@@ -9,11 +9,29 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Crown, Mic, PhoneOff, Settings } from 'lucide-react'
 import { DivineTranscriptStack } from '@/components/divine/divine-transcript-card'
+import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 
 export function VoiceControlPopup() {
   const voice = useVoiceSession()
   const divine = useDivinePanel()
   const pathname = usePathname()
+  const [expanded, setExpanded] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const crownStateClass = useDivineCrownStateClass()
+
+  const isActive =
+    voice?.status === 'connected' || voice?.status === 'connecting'
+  const hasStartedCall = voice ? voice.status !== 'idle' : false
+
+  useEffect(() => {
+    if (!voice) return
+    if (isActive) setExpanded(true)
+    if (!hasStartedCall) {
+      setExpanded(false)
+      setSettingsOpen(false)
+    }
+  }, [voice, isActive, hasStartedCall])
+
   if (!voice) return null
 
   const {
@@ -26,13 +44,8 @@ export function VoiceControlPopup() {
     voiceSurfaceState,
     canManualHangup,
   } = voice
-  const [expanded, setExpanded] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [recentlyEnded, setRecentlyEnded] = useState(false)
   const messagesOnlyMode = pathname?.startsWith('/dashboard/messages') === true
 
-  const isActive = status === 'connected' || status === 'connecting'
-  const hasStartedCall = status !== 'idle'
   const primaryLabel =
     status === 'idle'
       ? 'Idle'
@@ -41,32 +54,6 @@ export function VoiceControlPopup() {
         : status === 'connected'
           ? 'Listening'
           : 'Error'
-  useEffect(() => {
-    if (isActive) setExpanded(true)
-    if (!hasStartedCall) {
-      setExpanded(false)
-      setSettingsOpen(false)
-    }
-  }, [isActive, hasStartedCall])
-
-  useEffect(() => {
-    if (status === 'idle') {
-      setRecentlyEnded(true)
-      const t = window.setTimeout(() => setRecentlyEnded(false), 3500)
-      return () => window.clearTimeout(t)
-    }
-    setRecentlyEnded(false)
-    return
-  }, [status])
-
-  const crownStateClass =
-    status === 'error' || recentlyEnded
-      ? 'divine-crown-ending-red'
-      : status === 'connected' && voiceSurfaceState === 'working'
-        ? 'divine-crown-live-purple'
-        : isActive
-          ? 'divine-crown-live-green'
-          : 'divine-crown-fluctuate'
 
   const toggleDivine = () => {
     if (!divine) return
@@ -251,14 +238,14 @@ export function VoiceControlPopup() {
             type="button"
             onClick={() => { void handleCrownClick() }}
             className={cn(
-              'divine-crown-trigger flex h-14 w-14 shrink-0 items-center justify-center border-l border-gold/45 text-[#1a1200] transition',
+              'divine-crown-trigger grid h-14 w-14 shrink-0 place-items-center border-l border-gold/45 p-0 leading-none text-[#1a1200] transition',
               crownStateClass,
               'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
             )}
             aria-label={status === 'idle' ? 'Start Divine voice call' : expanded ? 'Collapse Divine voice control' : 'Expand Divine voice control'}
             title={status === 'idle' ? 'Start Divine voice call' : expanded ? 'Collapse Divine voice control' : 'Expand Divine voice control'}
           >
-            <Crown className="h-5 w-5" />
+            <Crown className="pointer-events-none block h-5 w-5 shrink-0" aria-hidden />
           </button>
         </div>
       </div>

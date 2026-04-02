@@ -1,5 +1,6 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -13,6 +14,7 @@ export async function addFan(formData: FormData) {
   const { error } = await supabase.from('fans').insert({
     user_id: user.id,
     platform: formData.get('platform') as string,
+    platform_fan_id: `local:${randomUUID()}`,
     username: formData.get('username') as string,
     display_name: formData.get('display_name') as string || null,
     subscription_tier: formData.get('tier') as string || 'new',

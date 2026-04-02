@@ -98,17 +98,8 @@ export function MentionsHeader() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <span className="text-venus">Venus&apos;</span> Watchful Gaze
-          </h2>
-          <p className="max-w-2xl text-muted-foreground">
-            Monitors indexed mentions (search discovery), triages risk, and suggests replies you send yourself—no
-            auto-posting.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             variant="outline"
             size="sm"

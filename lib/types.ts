@@ -1,5 +1,7 @@
 // Database Types for CREATRIX Platform
 
+import type { AudienceBadge } from '@/lib/fans/audience-classification'
+
 export type Platform = 'onlyfans' | 'fansly' | 'manyvids' | 'mym' | 'loyalfans'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
 export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
@@ -55,6 +57,13 @@ export interface NotificationPreferences {
   daily_digest: boolean
 }
 
+/** Populated on fans dashboard for classification column / filters. */
+export type FanAudienceMeta = {
+  isWhaleOrVip: boolean
+  isCreatorLikely: boolean
+  badges: AudienceBadge[]
+}
+
 export interface Fan {
   id: string
   user_id: string
@@ -67,6 +76,9 @@ export interface Fan {
   tier: FanTier
   total_spent: number
   subscription_start: string | null
+  /** Current period end from OnlyFans/Fansly sync (ISO). */
+  subscription_expires_at?: string | null
+  subscription_renews_on?: string | null
   last_interaction: string | null
   notes: string | null
   tags: string[]
@@ -74,6 +86,8 @@ export interface Fan {
   is_blocked: boolean
   created_at: string
   updated_at: string
+  /** Server-derived when loading /dashboard/fans from DB + thread insights. */
+  audience?: FanAudienceMeta
 }
 
 export interface Content {

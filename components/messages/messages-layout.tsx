@@ -65,6 +65,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
     searchParams.get('fanId') ?? searchParams.get('chat') ?? initialFanId ?? undefined
   const platformFromUrl =
     searchParams.get('platform') ?? initialPlatform ?? undefined
+  const chatterDraftOutboxId = searchParams.get('chatterDraft') ?? undefined
   // Prefer explicit voice focus first; fallback to URL deep-link.
   const preferredFanIdRef = useRef<string | undefined>(undefined)
   preferredFanIdRef.current = divinePanel?.focusedFan?.id ?? fanIdFromUrl
@@ -246,6 +247,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
     }
     if (!id) return
     if (threadInsightDebounceRef.current) clearTimeout(threadInsightDebounceRef.current)
+    // Short client debounce batches rapid conversation switches; server still debounces duplicate OF fetches (~90s).
     threadInsightDebounceRef.current = setTimeout(() => {
       void fetch('/api/divine/refresh-thread-insight', {
         method: 'POST',
@@ -253,7 +255,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
         credentials: 'include',
         body: JSON.stringify({ fanId: id, platform }),
       }).catch(() => undefined)
-    }, 25_000)
+    }, 1_200)
     return () => {
       if (threadInsightDebounceRef.current) clearTimeout(threadInsightDebounceRef.current)
     }
@@ -340,13 +342,10 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
             </Button>
           )}
           <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
-              {view === 'insights' ? 'Message insights' : 'Messages'}
-            </h2>
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="text-sm font-medium text-muted-foreground truncate">
               {view === 'insights'
-                ? 'Direct & mass message performance'
-                : `${conversations.length} conversations · OnlyFans & Fansly`}
+                ? 'Insights · direct & mass performance'
+                : `${conversations.length} live threads · OnlyFans & Fansly`}
             </p>
           </div>
         </div>
@@ -459,12 +458,6 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
                         />
                         {selectedConversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
                       </span>
-                      {divinePanel?.focusedFan &&
-                        String(divinePanel.focusedFan.id) === String(selectedConversation.user.id) && (
-                          <span className="inline-flex shrink-0 items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
-                            Divine focused here
-                          </span>
-                        )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
                       @{selectedConversation.user.username}
@@ -500,6 +493,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
             <ChatWindow
               conversation={selectedConversation}
               userId={userId}
+              chatterDraftOutboxId={chatterDraftOutboxId}
               onMessageSent={() => loadConversations(true)}
               onOpenConversationMenu={openChatsMenu}
               onOpenFanProfile={() => setFanProfileOpen(true)}

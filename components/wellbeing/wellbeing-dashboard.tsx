@@ -12,6 +12,7 @@ import {
   Loader2,
   ArrowUpRight,
 } from 'lucide-react'
+import { CreatorMoodPulse } from '@/components/wellbeing/creator-mood-pulse'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -121,20 +122,14 @@ export function WellbeingDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <HeartPulse className="h-6 w-6 text-primary" />
-            Well-being
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Your creator wellness cockpit powered by message pressure, mimic boundaries, and cosmic timing.
-          </p>
-        </div>
-        <Badge variant="outline" className="capitalize">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Badge variant="outline" className="capitalize gap-1.5">
+          <HeartPulse className="h-3.5 w-3.5" aria-hidden />
           State: {wellbeingBand}
         </Badge>
       </div>
+
+      <CreatorMoodPulse />
 
       {loading ? (
         <Card>

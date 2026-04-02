@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getFanNotifySnapshot } from '@/lib/divine/notification-fan-context'
+import type { NotificationBriefingItem } from '@/lib/notification-briefing-types'
 
-export type NotificationBriefingItem = {
-  notification_id: string
-  summary: string
-  suggested_action: string
-  todos: string[]
-}
+export type { NotificationBriefingItem } from '@/lib/notification-briefing-types'
 
 export type NotificationBriefingResponse = {
   script: string

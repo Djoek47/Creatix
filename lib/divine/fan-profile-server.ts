@@ -6,6 +6,11 @@ export type UnifiedFanProfilePayload = {
   fanId: string
   platform: string
   creatorClassification: string | null
+  /** From `fans` row when synced; used for whale/VIP badges. */
+  crm: {
+    totalSpent: number
+    subscriptionTier: string | null
+  } | null
   core: {
     username: string | null
     displayName: string | null
@@ -69,7 +74,7 @@ export async function buildUnifiedFanProfile(
       : Promise.resolve({ data: null }),
     supabase
       .from('fans')
-      .select('creator_classification')
+      .select('creator_classification, total_spent, subscription_tier')
       .eq('user_id', userId)
       .eq('platform', platform)
       .eq('platform_fan_id', fanId)
@@ -138,14 +143,31 @@ export async function buildUnifiedFanProfile(
       : undefined
   const creatorDetector = storedCreatorSignal ?? detectCreatorLikelyFromText(hay)
 
-  const ccRaw = (fanCrm as { creator_classification?: string | null } | null)?.creator_classification
+  const fanRow = fanCrm as {
+    creator_classification?: string | null
+    total_spent?: string | number | null
+    subscription_tier?: string | null
+  } | null
+  const ccRaw = fanRow?.creator_classification
   const creatorClassification =
     typeof ccRaw === 'string' && ccRaw.trim() ? ccRaw.trim().slice(0, 2000) : null
+
+  const crm =
+    fanRow != null
+      ? {
+          totalSpent: Number(fanRow.total_spent) || 0,
+          subscriptionTier:
+            typeof fanRow.subscription_tier === 'string' && fanRow.subscription_tier.trim()
+              ? fanRow.subscription_tier.trim()
+              : null,
+        }
+      : null
 
   return {
     fanId,
     platform,
     creatorClassification,
+    crm,
     core,
     threadInsight,
     aiSummary,

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Moon, Sparkles, ExternalLink } from 'lucide-react'
+import { Sparkles, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,20 +28,13 @@ export default function CirceDailyTipsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-4 pb-14 sm:p-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Moon className="h-8 w-8 text-circe-light" />
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Daily AI tips from Circe</h1>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Short, practical guidance for using Circe et Venus well. One tip is highlighted each day; the full list is
-          always here. For creator-to-creator ideas, see{' '}
-          <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
-            Community
-          </Link>
-          .
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        One highlighted tip each day; full archive below.{' '}
+        <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
+          Community board
+        </Link>
+        .
+      </p>
 
       <Card className="border-circe/35 bg-gradient-to-br from-circe/10 via-card to-card">
         <CardHeader>

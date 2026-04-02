@@ -45,24 +45,24 @@ export function QuickActions() {
   ]
 
   return (
-    <Card className="border-border bg-card">
-      <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
+    <Card className="overflow-hidden border-border/80 bg-card/80 shadow-sm backdrop-blur-sm constellation-bg">
+      <CardHeader className="pb-3">
+        <CardTitle className="font-serif text-lg">Quick actions</CardTitle>
         <CardDescription>Common tasks at your fingertips</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3">
+        <div className="grid gap-2">
           {actions.map((action) => (
             <Link key={action.label} href={action.href}>
               <Button
                 variant="outline"
-                className="h-auto w-full justify-start gap-3 border-border bg-secondary/30 p-4 hover:bg-secondary/50"
+                className="h-auto w-full justify-start gap-3 border-border/60 bg-background/50 p-3.5 transition-colors hover:border-border hover:bg-secondary/40"
               >
-                <div className={`rounded-lg p-2 ${action.color}`}>
+                <div className={`rounded-lg border border-border/40 p-2 ${action.color}`}>
                   <action.icon className="h-4 w-4" />
                 </div>
-                <div className="text-left">
-                  <p className="font-medium">{action.label}</p>
+                <div className="min-w-0 text-left">
+                  <p className="font-medium leading-tight">{action.label}</p>
                   <p className="text-xs text-muted-foreground">{action.description}</p>
                 </div>
               </Button>

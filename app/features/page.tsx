@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ThemedLogo } from '@/components/themed-logo'
+import { PricingModelMarketingSection } from '@/components/marketing/pricing-model-marketing-section'
 import { Badge } from '@/components/ui/badge'
 import { 
   ArrowRight, Moon, Sun, Star, Shield, TrendingUp, 
@@ -390,6 +391,8 @@ export default function FeaturesPage() {
           </div>
         </section>
 
+        <PricingModelMarketingSection />
+
         {/* CTA */}
         <section className="border-t border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-24">
           <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-circe/5 via-card to-amber-500/5 p-8 text-center sm:p-12">
@@ -405,7 +408,8 @@ export default function FeaturesPage() {
               Ready to Experience Divine Features?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Start your 14-day free trial today. No credit card required.
+              Try everything during your trial, then subscribe at the tier that matches your revenue and platform
+              setup.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/auth/sign-up">

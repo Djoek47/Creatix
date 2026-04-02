@@ -5,14 +5,12 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Star,
   PenTool,
   Wand2,
   Sparkles,
-  Zap,
   Lock,
   Music,
   Video,
@@ -88,21 +86,6 @@ export default function AIStudioPage() {
 
   return (
     <div className="min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">AI Studio</h1>
-          <p className="text-muted-foreground">
-            Media vault for Divine, safe photo touch-ups, and the full tools library.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Zap className="h-3 w-3" />
-            AI Studio
-          </Badge>
-        </div>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 sm:flex sm:w-auto sm:gap-1 sm:bg-muted/50 sm:p-1">
           <TabsTrigger value="library" className="gap-2 border border-border bg-card data-[state=active]:border-primary/50 sm:border-0 sm:bg-transparent">
@@ -135,6 +118,12 @@ export default function AIStudioPage() {
               </Button>
               <Button variant="secondary" size="sm" asChild>
                 <Link href="/dashboard/messages">Messages</Link>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/dashboard/ai-studio/chatter">AI Chatter</Link>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/dashboard/ai-studio/gifts">Gift wishlist</Link>
               </Button>
             </CardContent>
           </Card>

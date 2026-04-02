@@ -50,17 +50,28 @@ export function StatsCards({ stats }: StatsCardsProps) {
   ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.title} className="border-border bg-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{card.title}</p>
-                <p className="mt-1 text-2xl font-bold">{card.value}</p>
+    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card, i) => (
+        <Card
+          key={card.title}
+          className="overflow-hidden border-border/80 bg-card/80 shadow-sm backdrop-blur-sm constellation-bg"
+        >
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{card.title}</p>
+                <p className="mt-1 truncate font-serif text-2xl font-semibold tabular-nums tracking-tight">{card.value}</p>
               </div>
-              <div className="rounded-lg bg-primary/10 p-3">
-                <card.icon className="h-5 w-5 text-primary" />
+              <div
+                className={cn(
+                  'shrink-0 rounded-xl border border-border/50 p-3 shadow-inner',
+                  i % 4 === 0 && 'bg-circe/10 text-circe',
+                  i % 4 === 1 && 'bg-gold/10 text-gold',
+                  i % 4 === 2 && 'bg-venus/10 text-venus',
+                  i % 4 === 3 && 'bg-primary/10 text-primary'
+                )}
+              >
+                <card.icon className="h-5 w-5" />
               </div>
             </div>
             {card.change !== null ? (

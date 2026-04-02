@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
+import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -164,7 +166,8 @@ export async function POST(request: NextRequest) {
 
     let synced = 0
     for (const fan of fansData.fans) {
-      const tier = fan.totalSpent >= 500 ? 'vip' : fan.totalSpent >= 100 ? 'whale' : 'regular'
+      const tier = subscriptionTierFromTotalSpent(fan.totalSpent)
+      const sub = subscriptionFieldsFromOnlyFansFan(fan)
       const { error } = await supabase.from('fans').upsert(
         {
         user_id: user.id,
@@ -177,6 +180,10 @@ export async function POST(request: NextRequest) {
         total_spent: fan.totalSpent,
           subscription_tier: tier,
         last_interaction_at: new Date().toISOString(),
+        subscription_expires_at: sub.subscription_expires_at,
+        subscription_renews_on: sub.subscription_renews_on,
+        is_renewing: sub.is_renewing,
+        subscription_status: sub.subscription_status,
         },
         { onConflict: 'user_id,platform,platform_fan_id' }
       )

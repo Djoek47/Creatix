@@ -1320,6 +1320,16 @@ export async function runToolCall(
   const emptyPending: Array<{ type: string; intent_id: string; summary?: string }> = []
   const uiActions: DivineUiAction[] = []
 
+  if (name === 'secretary_next_notification') {
+    return {
+      tool_call_id: tc.id,
+      content:
+        'Advanced to the next notification in the secretary queue. Summarize the next item and wait for the creator before advancing again.',
+      pendingConfirmations: emptyPending,
+      uiActions: [{ type: 'secretary_advance' }],
+    }
+  }
+
   if (name === 'voice_allow_user_hangup') {
     return {
       tool_call_id: tc.id,

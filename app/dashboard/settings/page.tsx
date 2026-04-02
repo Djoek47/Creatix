@@ -249,13 +249,6 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">
-          Manage your account, preferences, and integrations
-        </p>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-4 min-w-0">
         {/* Sidebar Navigation */}
         <Card className="h-fit border-border bg-card lg:col-span-1 min-w-0">

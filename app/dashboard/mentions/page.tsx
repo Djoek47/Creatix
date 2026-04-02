@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bell, ThumbsUp, Minus, ThumbsDown } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { Bell, ThumbsUp, Minus, ThumbsDown, Shield } from 'lucide-react'
 import type { ReputationMention } from '@/lib/types'
 import { MentionsHeader } from '@/components/dashboard/mentions-header'
 import { MentionsListBody } from '@/components/dashboard/mentions-list-body'
@@ -65,6 +67,24 @@ export default async function MentionsPage() {
       <MentionsHeader />
 
       <MentionsConnectBanner />
+
+      <Card className="border-border bg-muted/15">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Shield className="h-4 w-4 text-primary" />
+            Leaks &amp; DMCA
+          </CardTitle>
+          <CardDescription>
+            Mention ingestion here is for reputation. Automated leak search and optional DMCA drafts run under{' '}
+            <span className="text-foreground">Protection</span> via Circe&apos;s Aegis — not from this page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/protection/aegis">Open Circe&apos;s Aegis</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <ReputationIdentityCard
         initialManualHandles={initialManualHandles}

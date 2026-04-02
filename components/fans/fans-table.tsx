@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { MoreHorizontal, MessageSquare, Star, Ban, Eye, Loader2, Sparkles } from 'lucide-react'
+import { MoreHorizontal, MessageSquare, Star, Ban, Eye, Loader2, Sparkles, Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
@@ -48,6 +48,8 @@ interface FansTableProps {
   hasFanPlatformsConnected?: boolean
   loading?: boolean
   liveFilter?: 'active' | 'expired' | 'latest' | 'top'
+  /** Show subscription period end when synced (database / expiring-soon views). */
+  showSubscriptionEnd?: boolean
 }
 
 const tierColors = {
@@ -68,6 +70,7 @@ export function FansTable({
   hasFanPlatformsConnected = false,
   loading = false,
   liveFilter,
+  showSubscriptionEnd = false,
 }: FansTableProps) {
   const [selectedFans, setSelectedFans] = useState<string[]>([])
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -93,7 +96,7 @@ export function FansTable({
       <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">Loading fans from OnlyFans…</p>
+          <p className="text-sm text-muted-foreground">Loading fans…</p>
         </CardContent>
       </Card>
     )
@@ -153,8 +156,10 @@ export function FansTable({
               </TableHead>
               <TableHead>Fan</TableHead>
               <TableHead>Platform</TableHead>
+              <TableHead>Classification</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead className="text-right">Total Spent</TableHead>
+              {showSubscriptionEnd ? <TableHead>Period ends</TableHead> : null}
               <TableHead>Last Active</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -193,9 +198,32 @@ export function FansTable({
                     {fan.platform === 'fansly' && (
                       <img src="/fansly-logo.png" alt="" className="h-4 w-4 object-contain" />
                     )}
-                    <Badge variant="outline" className={cn('text-xs', platformColors[fan.platform] || '')}>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-xs',
+                        platformColors[fan.platform as keyof typeof platformColors] || 'bg-muted text-muted-foreground',
+                      )}
+                    >
                       {fan.platform === 'onlyfans' ? 'OnlyFans' : fan.platform === 'fansly' ? 'Fansly' : fan.platform.toUpperCase()}
                     </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex max-w-[200px] flex-wrap gap-1">
+                    {fan.audience?.badges?.length ? (
+                      fan.audience.badges.map((b) => (
+                        <Badge
+                          key={`${fan.id}-${b.key}`}
+                          variant="outline"
+                          className={cn('whitespace-nowrap text-[10px] font-medium', b.className)}
+                        >
+                          {b.label}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -206,6 +234,13 @@ export function FansTable({
                 <TableCell className="text-right font-medium">
                   ${formatCurrency(fan.total_spent)}
                 </TableCell>
+                {showSubscriptionEnd ? (
+                  <TableCell className="text-muted-foreground text-xs">
+                    {fan.subscription_expires_at
+                      ? formatDate(fan.subscription_expires_at)
+                      : '—'}
+                  </TableCell>
+                ) : null}
                 <TableCell className="text-muted-foreground">
                   {fan.last_interaction ? formatDate(fan.last_interaction) : '—'}
                 </TableCell>
@@ -218,15 +253,30 @@ export function FansTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/fans/${fan.id}`} className="flex items-center">
+                        <Link
+                          href={`/dashboard/messages?fanId=${encodeURIComponent(String(fan.platform_fan_id || fan.id))}&platform=${encodeURIComponent(fan.platform)}`}
+                          className="flex items-center"
+                        >
                           <Eye className="mr-2 h-4 w-4" />
-                          View Profile
+                          Open in Messages
                         </Link>
                       </DropdownMenuItem>
                       {fan.platform === 'onlyfans' && (fan.platform_fan_id || liveFilter) && (
                         <DropdownMenuItem onClick={() => openSummary(fan)}>
                           <Sparkles className="mr-2 h-4 w-4" />
                           AI fan summary
+                        </DropdownMenuItem>
+                      )}
+                      {fan.platform === 'onlyfans' &&
+                        (fan.audience?.isWhaleOrVip || fan.tier === 'whale') && (
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/dashboard/ai-studio/chatter?fanId=${encodeURIComponent(fan.id)}&profile=whale_whisper`}
+                            className="flex items-center"
+                          >
+                            <Crown className="mr-2 h-4 w-4" />
+                            Whale whisper
+                          </Link>
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem>

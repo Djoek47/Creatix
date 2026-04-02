@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
+import { usePathname } from 'next/navigation'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -103,6 +104,8 @@ interface OnlyFansMessage {
 interface ChatWindowProps {
   conversation: OnlyFansConversation | null
   userId: string
+  /** AI Chatter queue/review: outbox row id from `?chatterDraft=` — prefills composer when fan matches. */
+  chatterDraftOutboxId?: string
   onMessageSent?: () => void
   onOpenConversationMenu?: () => void
   /** Open fan profile modal (parent owns modal on Messages page). */
@@ -281,6 +284,7 @@ function ChatPreviewImage({ rawUrl }: { rawUrl: string }) {
 export function ChatWindow({
   conversation,
   userId: _userId,
+  chatterDraftOutboxId,
   onMessageSent,
   onOpenConversationMenu,
   onOpenFanProfile,
@@ -320,19 +324,55 @@ export function ChatWindow({
   const [flirtKeywords, setFlirtKeywords] = useState<string>('')
   const [creatorPronouns, setCreatorPronouns] = useState<string | null>(null)
   const [creatorGenderIdentity, setCreatorGenderIdentity] = useState<string | null>(null)
+  const pathname = usePathname()
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
+  const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
   const [divineMessageIds, setDivineMessageIds] = useState<Set<string>>(() => new Set())
   const [divineTyping, setDivineTyping] = useState(false)
   /** Only used when parent does not supply `onOpenFanProfile` (e.g. DM overlay). */
   const [internalProfileOpen, setInternalProfileOpen] = useState(false)
   const handleSendMessageRef = useRef<() => Promise<void>>(async () => {})
+  const pendingChatterOutboxIdRef = useRef<string | null>(null)
   const messageRef = useRef('')
   messageRef.current = message
   const composerTypeAbortRef = useRef<AbortController | null>(null)
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
+
+  useEffect(() => {
+    pendingChatterOutboxIdRef.current = null
+  }, [chatterDraftOutboxId, conversation?.user.id])
+
+  useEffect(() => {
+    if (!chatterDraftOutboxId || !conversation || conversation.platform !== 'onlyfans') return
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chatterDraftOutboxId)) {
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`/api/ai-chatter/outbox/${chatterDraftOutboxId}`, {
+          credentials: 'include',
+        })
+        if (!res.ok || cancelled) return
+        const j = (await res.json()) as {
+          outbox?: { draft_text?: string; platform_fan_id?: string; status?: string }
+        }
+        const o = j.outbox
+        if (!o || o.status !== 'pending') return
+        if (String(o.platform_fan_id) !== String(conversation.user.id)) return
+        setMessage(o.draft_text ?? '')
+        pendingChatterOutboxIdRef.current = chatterDraftOutboxId
+      } catch {
+        // ignore
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [chatterDraftOutboxId, conversation?.user.id, conversation?.platform])
 
   useEffect(() => {
     const hasAiContent =
@@ -577,6 +617,17 @@ export function ChatWindow({
             suggestedAngles: [],
           }
         )
+        // Persist thread snapshot + profile for fan modal (Scan only hit message-suggestions before).
+        void fetch('/api/divine/refresh-thread-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            fanId: String(conversation.user.id),
+            platform: conversation.platform === 'fansly' ? 'fansly' : 'onlyfans',
+            force: true,
+          }),
+        }).catch(() => undefined)
       } else {
         const texts = (data.suggestions || []).map((s: any) => String(s.text || '')).filter(Boolean)
         if (mode === 'circe') {
@@ -838,11 +889,25 @@ export function ChatWindow({
       void fetch('/api/divine/refresh-thread-insight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           fanId: String(conversation.user.id),
           platform: conversation.platform === 'fansly' ? 'fansly' : 'onlyfans',
+          force: true,
         }),
       }).catch(() => undefined)
+
+      const chatterOutboxId = pendingChatterOutboxIdRef.current
+      if (chatterOutboxId) {
+        pendingChatterOutboxIdRef.current = null
+        void fetch(`/api/ai-chatter/outbox/${chatterOutboxId}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'applied' }),
+        }).catch(() => undefined)
+      }
+
       onMessageSent?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
@@ -882,7 +947,7 @@ export function ChatWindow({
   const fan = conversation.user
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card">
+    <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden border-border bg-card py-0 shadow-sm">
       {/* Chat header: thread tools only — fan identity lives in layout above this card */}
       <CardHeader className="flex flex-row items-center justify-between border-b border-border px-3 py-2.5 sm:px-4">
         <div className="flex items-center gap-2">
@@ -908,24 +973,6 @@ export function ChatWindow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {divinePanel && (
-              <DropdownMenuItem
-                onClick={() => {
-                  const fan = {
-                    id: String(conversation.user.id),
-                    username: conversation.user.username,
-                    name: conversation.user.name,
-                  }
-                  divinePanel.setFocusedFan(fan)
-                  voiceSession?.setFocusedFanForVoice(fan)
-                  divinePanel.setPanelCollapsed(false)
-                  divinePanel.setPanelOpen(true)
-                }}
-              >
-                <Crown className="mr-2 h-4 w-4" />
-                Focus for Divine
-              </DropdownMenuItem>
-            )}
             <DropdownMenuItem asChild>
               <a href="/dashboard/divine-manager" className="flex items-center">
                 <Crown className="mr-2 h-4 w-4" />
@@ -995,14 +1042,18 @@ export function ChatWindow({
         </DropdownMenu>
       </CardHeader>
 
+      {/* Static label so it is never clipped by the scroll region */}
+      <div className="shrink-0 border-b border-border/60 bg-card px-3 py-2 sm:px-4">
+        <p className="text-[11px] font-medium uppercase leading-normal tracking-wide text-muted-foreground">
+          Fan conversation
+        </p>
+      </div>
+
       {/* Messages Area — live thread with the fan */}
       <CardContent
         ref={messagesContainerRef}
         className="min-h-[36vh] flex-1 overflow-y-auto p-3 sm:min-h-[42vh] sm:p-4"
       >
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:mb-3">
-          Fan conversation
-        </p>
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1286,7 +1337,13 @@ export function ChatWindow({
           </div>
         )}
 
-        <div className="space-y-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-3">
+        <div
+          className={cn(
+            'space-y-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-3',
+            /* Fixed Divine crown (~3.5rem) + edge inset — keep mic + send clear */
+            reserveDivineCrownSpace && 'pr-[4.75rem] sm:pr-[5.5rem]',
+          )}
+        >
           <input
             ref={chatFileInputRef}
             type="file"
@@ -1343,7 +1400,7 @@ export function ChatWindow({
               </div>
             </div>
 
-            <div className="relative min-w-0 flex-1">
+            <div className="relative min-w-0 max-w-full flex-1">
               {divineTyping && (
                 <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-primary">
                   <span className="inline-flex gap-0.5">
@@ -1367,7 +1424,7 @@ export function ChatWindow({
                 }}
                 rows={1}
                 className={cn(
-                  'min-h-[3.25rem] resize-y bg-input pr-10 text-sm leading-relaxed sm:min-h-[3.75rem] sm:text-sm',
+                  'min-h-[3.25rem] resize-y bg-input pr-11 text-sm leading-relaxed sm:min-h-[3.75rem] sm:pr-12 sm:text-sm',
                   divineTyping && 'ring-2 ring-primary/45 ring-offset-0',
                 )}
                 disabled={sending || !isOnlyFansConversation}

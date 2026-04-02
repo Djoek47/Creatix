@@ -15,6 +15,11 @@ export function stripHtml(html: string | null | undefined): string {
   
   // Extract href from anchor tags and append URL
   text = text.replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([^<]*)<\/a>/gi, '$2 ($1)')
+
+  // OnlyFans / rich HTML: trailing <o>…</o> wrappers (often a single “O” marker). Remove whole blocks first
+  // so inner text is not left behind when <o> and </o> are stripped separately.
+  text = text.replace(/<o\b[^>]*>[\s\S]*?<\/o>/gi, '')
+  text = text.replace(/<o\b[^>]*\/?>/gi, '')
   
   // Remove all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '')
@@ -36,7 +41,14 @@ export function stripHtml(html: string | null | undefined): string {
   text = text.replace(/[ \t]+/g, ' ')
   text = text.replace(/\n{3,}/g, '\n\n')
   text = text.trim()
-  
+
+  // Remove trailing line(s) that are only the digit 0 (platform/HTML artifact; not "…score is 0" mid-message)
+  const lines = text.split(/\r?\n/)
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '0') {
+    lines.pop()
+  }
+  text = lines.join('\n').trimEnd()
+
   return text
 }
 

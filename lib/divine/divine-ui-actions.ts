@@ -70,6 +70,8 @@ export type DivineUiAction =
   | { type: 'cancel_scheduled_dm' }
   /** Switch active tab in multi-fan DM overlay. */
   | { type: 'switch_overlay_fan'; fanId: string }
+  /** Voice tool: advance notification secretary queue in Divine panel. */
+  | { type: 'secretary_advance' }
 
 export type ApplyDivineUiOptions = {
   onShowDmReplySuggestions?: (payload: DmSuggestionBridgePayload) => void
@@ -89,6 +91,8 @@ export type ApplyDivineUiOptions = {
   onScheduleDmSend?: (payload: { fanId: string; delayMs: number }) => void
   onCancelScheduledDm?: () => void
   onSwitchOverlayFan?: (fanId: string) => void
+  /** Notification secretary walkthrough: advance to next item. */
+  onSecretaryAdvance?: () => void
 }
 
 function capStringList(lines: string[], cap: number, lineMax: number): string[] {
@@ -220,6 +224,9 @@ export function applyDivineUiActions(
     if (a.type === 'switch_overlay_fan' && options?.onSwitchOverlayFan) {
       const fanId = String(a.fanId ?? '').trim()
       if (FAN_ID_RE.test(fanId)) options.onSwitchOverlayFan(fanId)
+    }
+    if (a.type === 'secretary_advance' && options?.onSecretaryAdvance) {
+      options.onSecretaryAdvance()
     }
   }
 }

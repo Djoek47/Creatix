@@ -4,6 +4,7 @@ import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { TourProvider } from '@/components/tour/tour-provider'
+import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
@@ -33,7 +34,7 @@ export default async function DashboardLayout({
       onboardingCompleted={profile?.onboarding_completed || false}
     >
       <TourProvider>
-        {/* VoiceSessionProvider must be inside DivinePanelProvider so voice tools can call applyUiActionsFromTools (router + Messages bridge). */}
+        {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
         <DivinePanelWrapper user={user}>
           <VoiceSessionProvider>
             <div className="flex h-screen bg-background">
@@ -44,7 +45,7 @@ export default async function DashboardLayout({
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <DashboardHeader user={user} profile={profile} />
                 <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
-                  {children}
+                  <DashboardMainShell>{children}</DashboardMainShell>
                 </main>
               </div>
             </div>

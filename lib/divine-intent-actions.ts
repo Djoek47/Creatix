@@ -385,7 +385,8 @@ export async function executeCreateTask(
 // ============ FANS & FOLLOWINGS (OnlyFans API) ============
 
 export type ListFansParams = {
-  filter?: 'all' | 'active' | 'expired' | 'latest' | 'top'
+  filter?: 'all' | 'active' | 'expired' | 'renewing' | 'latest' | 'top' | 'expiring_soon'
+  expiringWithinDays?: number
   limit?: number
   offset?: number
   sort?: 'total' | 'subscriptions' | 'tips' | 'messages' | 'posts' | 'streams'
@@ -397,6 +398,33 @@ export async function listFans(
   params: ListFansParams = {}
 ): Promise<{ success: boolean; summary: string; fans?: unknown[]; total?: number }> {
   const limit = Math.min(params.limit ?? 25, 50)
+
+  if (params.filter === 'expiring_soon') {
+    const days = Math.min(90, Math.max(1, params.expiringWithinDays ?? 14))
+    const now = new Date()
+    const until = new Date(now)
+    until.setUTCDate(until.getUTCDate() + days)
+    const { data, error } = await supabase
+      .from('fans')
+      .select(
+        'id, username, display_name, platform, platform_fan_id, total_spent, subscription_expires_at, subscription_renews_on, subscription_status, is_renewing',
+      )
+      .eq('user_id', userId)
+      .eq('subscription_status', 'active')
+      .not('subscription_expires_at', 'is', null)
+      .gte('subscription_expires_at', now.toISOString())
+      .lte('subscription_expires_at', until.toISOString())
+      .order('subscription_expires_at', { ascending: true })
+      .range(params.offset ?? 0, (params.offset ?? 0) + limit - 1)
+
+    if (error) {
+      return { success: false, summary: error.message }
+    }
+    const list = data ?? []
+    const summary = `Found ${list.length} active fan(s) with subscription ending in the next ${days} day(s) (CRM sync).`
+    return { success: true, summary, fans: list, total: list.length }
+  }
+
   const { data: connection } = await supabase
     .from('platform_connections')
     .select('access_token')
@@ -419,6 +447,9 @@ export async function listFans(
         break
       case 'latest':
         data = await api.getFansLatest({ limit, offset: params.offset })
+        break
+      case 'renewing':
+        data = await api.getFansActive({ limit, offset: params.offset })
         break
       case 'top':
         data = await api.getFansTop({ limit, offset: params.offset, sort: params.sort })

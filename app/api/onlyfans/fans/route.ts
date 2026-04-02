@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,8 +63,14 @@ export async function GET(request: NextRequest) {
         data = await api.getFansActive({ limit, offset })
     }
 
-    const raw = Array.isArray(data?.data) ? data.data : []
-    const fans = raw.map((row: Record<string, unknown>) => ({
+    const raw = (Array.isArray(data?.data) ? data.data : []) as Record<string, unknown>[]
+    const fans = raw.map((row) => {
+      const spent = Number(row.totalSpent) || 0
+      const subTier = subscriptionTierFromTotalSpent(spent)
+      const tier = (subTier === 'vip' ? 'whale' : subTier) as 'whale' | 'regular' | 'new' | 'inactive'
+      const expiresAt = row.expiresAt != null && String(row.expiresAt).trim() ? String(row.expiresAt) : null
+      const renewsOn = row.renewsOn != null && String(row.renewsOn).trim() ? String(row.renewsOn) : null
+      return {
       id: String(row.id ?? ''),
       platform_fan_id: String(row.id ?? ''),
       user_id: String(row.id ?? ''),
@@ -71,9 +78,11 @@ export async function GET(request: NextRequest) {
       platform_username: String(row.username ?? ''),
       display_name: row.name ? String(row.name) : null,
       avatar_url: row.avatar ? String(row.avatar) : null,
-      tier: (Number(row.totalSpent) > 0 ? 'whale' : 'regular') as 'whale' | 'regular' | 'new' | 'inactive',
-      total_spent: Number(row.totalSpent) || 0,
+      tier,
+      total_spent: spent,
       subscription_start: row.subscribedAt ? String(row.subscribedAt) : null,
+      subscription_expires_at: expiresAt,
+      subscription_renews_on: renewsOn,
       last_interaction: null,
       notes: null,
       tags: Array.isArray(row.lists) ? (row.lists as string[]) : [],
@@ -81,7 +90,8 @@ export async function GET(request: NextRequest) {
       is_blocked: false,
       created_at: String(row.subscribedAt ?? new Date().toISOString()),
       updated_at: String(row.expiresAt ?? row.subscribedAt ?? new Date().toISOString()),
-    }))
+    }
+    })
     return NextResponse.json({ fans, total: fans.length })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch fans'

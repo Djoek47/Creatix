@@ -34,7 +34,6 @@ import {
   Leaf,
   Compass,
   Sun,
-  Palette,
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
@@ -44,7 +43,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'caption-generator': Wand2,
   'fantasy-writer': PenTool,
   'content-ideas': Lightbulb,
-  'aesthetic-matcher': Palette,
   'photo-enhancer': Camera,
   'ai-chatter': MessageSquare,
   'mood-detector': Brain,

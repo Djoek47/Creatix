@@ -73,6 +73,7 @@ export async function runAiStudioToolServer(
       return postAi('gift-suggester', {
         fanInfo: a.fanInfo ?? a.message ?? '',
         budget: a.budget ?? a.currentPrice ?? '',
+        useWishlist: a.useWishlist === true,
       }, cookie)
     case 'price-optimizer':
       return postAi('revenue-optimizer', {

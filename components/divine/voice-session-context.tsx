@@ -80,6 +80,10 @@ type VoiceSessionContextValue = {
   startVoiceCall: (opts?: {
     realtimePath?: string
     toolPath?: string
+    /** Merged into every voice-tool POST (e.g. current photo data URL for photo touch-up). */
+    getToolBodyExtras?: () => Record<string, unknown>
+    /** Merged into Realtime session POST JSON (e.g. notification secretary mode). */
+    realtimeBodyExtras?: Record<string, unknown>
   }) => Promise<void>
   endVoiceCall: () => void
   /**
@@ -123,6 +127,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const [userHangupAllowed, setUserHangupAllowed] = useState(false)
   const realtimePathRef = useRef('/api/ai/divine-manager-realtime')
   const toolPathRef = useRef('/api/divine/voice-tool')
+  const getToolBodyExtrasRef = useRef<() => Record<string, unknown>>(() => ({}))
+  const realtimeBodyExtrasRef = useRef<Record<string, unknown>>({})
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -228,6 +234,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       setStatus('idle')
       setError(null)
       setUserHangupAllowed(false)
+      getToolBodyExtrasRef.current = () => ({})
+      realtimeBodyExtrasRef.current = {}
 
       void fetch('/api/divine/voice-memory', {
         method: 'PATCH',
@@ -326,10 +334,19 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     void refreshVoiceHangupPolicy()
   }, [refreshVoiceHangupPolicy])
 
-  const startVoiceCall = useCallback(async (opts?: { realtimePath?: string; toolPath?: string }) => {
+  const startVoiceCall = useCallback(async (opts?: {
+    realtimePath?: string
+    toolPath?: string
+    getToolBodyExtras?: () => Record<string, unknown>
+    /** Merged into POST /api/ai/divine-manager-realtime JSON (e.g. notification secretary mode). */
+    realtimeBodyExtras?: Record<string, unknown>
+  }) => {
     if (status === 'connecting' || status === 'connected') return
     realtimePathRef.current = opts?.realtimePath || '/api/ai/divine-manager-realtime'
     toolPathRef.current = opts?.toolPath || '/api/divine/voice-tool'
+    getToolBodyExtrasRef.current = typeof opts?.getToolBodyExtras === 'function' ? opts.getToolBodyExtras : () => ({})
+    realtimeBodyExtrasRef.current =
+      opts?.realtimeBodyExtras && typeof opts.realtimeBodyExtras === 'object' ? opts.realtimeBodyExtras : {}
     setError(null)
     setUserHangupAllowed(false)
     await refreshVoiceHangupPolicy()
@@ -484,16 +501,29 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
             const abort = new AbortController()
             const abortTimer = setTimeout(() => abort.abort(), VOICE_TOOL_FETCH_TIMEOUT_MS)
             try {
+              const toolExtras = (() => {
+                try {
+                  return getToolBodyExtrasRef.current()
+                } catch {
+                  return {}
+                }
+              })()
               const res = await fetch(toolPathRef.current, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ name, arguments: args }),
+                body: JSON.stringify({ name, arguments: args, ...toolExtras }),
                 signal: abort.signal,
               })
               const data = (await res.json().catch(() => ({}))) as {
                 error?: string
                 content?: string
+                photo_touchup?: {
+                  imageBase64: string
+                  operation: string
+                  explanation?: string
+                  creditsUsed?: number
+                }
                 ui_actions?: { type: string; path?: string; fanId?: string }[]
                 pending_confirmations?: { type: string; intent_id: string; summary?: string }[]
                 /** voice-tool returns a single meta object; some clients use an array */
@@ -502,6 +532,16 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
               if (!res.ok) {
                 const detail = data.error?.trim() || `HTTP ${res.status}`
                 return `Error: Tool failed (${detail}). Say this to the creator and suggest Divine text chat if it keeps happening.`
+              }
+              if (
+                data.photo_touchup &&
+                typeof data.photo_touchup === 'object' &&
+                typeof data.photo_touchup.imageBase64 === 'string' &&
+                typeof window !== 'undefined'
+              ) {
+                window.dispatchEvent(
+                  new CustomEvent('creatix-photo-touchup-voice', { detail: data.photo_touchup }),
+                )
               }
               if (Array.isArray(data.ui_actions) && data.ui_actions.length) {
                 const raw = data.ui_actions as DivineUiAction[]
@@ -662,6 +702,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           sdp: offer.sdp ?? '',
           focusedFan: focusedFanForVoice,
+          ...realtimeBodyExtrasRef.current,
         }),
       })
       if (!res.ok) {

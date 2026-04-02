@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
+import { subscriptionFieldsFromFanslyFan } from '@/lib/fans/subscription-dates'
 
 // POST: Sync Fansly data for a user
 export async function POST(request: NextRequest) {
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
     if (fans.data && fans.data.length > 0) {
       for (const fan of fans.data) {
         const tier = (fan.totalSpent || 0) >= 500 ? 'vip' : (fan.totalSpent || 0) >= 100 ? 'whale' : 'regular'
+        const sub = subscriptionFieldsFromFanslyFan(fan)
         const { error } = await supabase.from('fans').upsert(
           {
             user_id: user.id,
@@ -79,11 +81,12 @@ export async function POST(request: NextRequest) {
             username: fan.username,
             display_name: fan.displayName || fan.username,
             avatar_url: fan.avatar || null,
-            subscription_status: 'active',
+            subscription_status: sub.subscription_status,
             subscription_tier: tier,
             total_spent: fan.totalSpent || 0,
             first_subscribed_at: fan.subscribedAt || null,
             last_interaction_at: new Date().toISOString(),
+            subscription_expires_at: sub.subscription_expires_at,
           },
           { onConflict: 'user_id,platform,platform_fan_id' }
         )

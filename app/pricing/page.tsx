@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { REVENUE_TIERS } from '@/lib/pricing-matrix'
+import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
+import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
 
 export const metadata = {
   title: 'Pricing | Circe et Venus',
@@ -97,13 +99,13 @@ export default function PricingPage() {
               <Sparkles className="h-3 w-3" />
               14-Day Free Trial
             </Badge>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl font-serif">
-              Revenue-based <span className="text-primary">Single</span> & <span className="text-primary">Multi</span>
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Pay based on your monthly creator revenue and whether you use OnlyFans only (Single) or multiple
-              adult platforms (Multi). All paid tiers include full Pro feature access within fair-use limits.
-            </p>
+            <PricingModelHeadline as="h1" />
+            <div className="mx-auto mt-4 max-w-2xl space-y-3 text-lg text-muted-foreground">
+              <PricingModelInlineBlurb />
+              <p className="text-base">
+                All paid tiers include full Pro feature access within fair-use limits.
+              </p>
+            </div>
           </div>
         </section>
 

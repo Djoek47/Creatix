@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ExternalLink, Upload, FileText } from 'lucide-react'
+import { Loader2, ExternalLink, Upload, FileText, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
@@ -184,6 +184,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [proofPaths, setProofPaths] = useState<string[]>([])
   const [isPro, setIsPro] = useState(false)
   const [alertUpdateError, setAlertUpdateError] = useState<string | null>(null)
+  const [aegisEnabled, setAegisEnabled] = useState<boolean | null>(null)
+  const [aegisLastRun, setAegisLastRun] = useState<string | null>(null)
 
   const { handles: identityHandles, contentTitles } = useScanIdentity()
   const [useAllLeakHandles] = useState(false)
@@ -248,6 +250,22 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
     loadSubscription()
   }, [supabase])
+
+  useEffect(() => {
+    const loadAegis = async () => {
+      try {
+        const res = await fetch('/api/circe-aegis/settings')
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return
+        const s = data.settings as { enabled?: boolean; last_leak_scan_at?: string | null }
+        setAegisEnabled(Boolean(s?.enabled))
+        setAegisLastRun(typeof s?.last_leak_scan_at === 'string' ? s.last_leak_scan_at : null)
+      } catch {
+        // table or route may be unavailable until migration
+      }
+    }
+    void loadAegis()
+  }, [])
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -456,6 +474,27 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       <p className="text-xs text-muted-foreground">
         Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.
       </p>
+
+      <div className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-2">
+          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="text-sm">
+            <p className="font-medium text-foreground">Circe&apos;s Aegis</p>
+            <p className="text-xs text-muted-foreground">
+              {aegisEnabled === null
+                ? 'Configure scheduled leak scans and optional DMCA drafts in the hub.'
+                : `Background scans ${aegisEnabled ? 'on' : 'off'}`}
+              {aegisEnabled !== null && aegisLastRun
+                ? ` · Last scheduled run ${new Date(aegisLastRun).toLocaleString()}`
+                : ''}
+              {aegisEnabled === true && !aegisLastRun ? ' · No run logged yet' : ''}
+            </p>
+          </div>
+        </div>
+        <Button variant="secondary" size="sm" className="shrink-0" asChild>
+          <Link href="/dashboard/protection/aegis">Open Aegis hub</Link>
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">

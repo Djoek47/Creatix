@@ -15,6 +15,8 @@ import {
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 import { maybeCreateWhaleTipUrgentTask } from '@/lib/divine/urgent-alerts'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
+import { runAiChatterForInboundMessage } from '@/lib/divine/ai-chatter-worker'
+import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 
 // Configure OnlyFans webhook URL to: https://www.circeetvenus.com/api/onlyfans/webhook
 // During phased cutover, keep https://www.cetv.app/api/onlyfans/webhook active until provider retries are clean.
@@ -167,12 +169,13 @@ async function handleNewSubscription(supabase: SupabaseClient, data: {
     username: data.fan.username,
     display_name: data.fan.name,
     avatar_url: data.fan.avatar,
-    subscribed_at: new Date().toISOString(),
+    first_subscribed_at: new Date().toISOString(),
     subscription_price: data.fan.subscriptionPrice,
     total_spent: data.fan.subscriptionPrice,
-    tier: 'regular',
+    subscription_tier: 'regular',
+    subscription_status: 'active',
     is_renewing: true,
-    last_activity_at: new Date().toISOString(),
+    last_interaction_at: new Date().toISOString(),
   }, {
     onConflict: 'user_id,platform,platform_fan_id'
   })
@@ -210,14 +213,14 @@ async function handleRenewal(supabase: SupabaseClient, data: {
   if (!connection) return
 
   // Update fan's total spent and tier
-  const tier = data.fan.totalSpent >= 500 ? 'vip' : data.fan.totalSpent >= 100 ? 'whale' : 'regular'
+  const tier = subscriptionTierFromTotalSpent(data.fan.totalSpent)
   
   await supabase.from('fans')
     .update({
       total_spent: data.fan.totalSpent,
-      tier,
+      subscription_tier: tier,
       is_renewing: true,
-      last_activity_at: new Date().toISOString(),
+      last_interaction_at: new Date().toISOString(),
     })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.fan.id)
@@ -241,6 +244,9 @@ async function handleExpiration(supabase: SupabaseClient, data: {
     .update({
       is_renewing: false,
       expires_at: new Date().toISOString(),
+      subscription_status: 'expired',
+      subscription_expires_at: null,
+      subscription_renews_on: null,
     })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.fan.id)
@@ -303,7 +309,7 @@ async function handleNewMessage(supabase: SupabaseClient, data: {
     .maybeSingle()
 
   await supabase.from('fans')
-    .update({ last_activity_at: new Date().toISOString() })
+    .update({ last_interaction_at: new Date().toISOString() })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.message.fromUser.id)
 
@@ -378,6 +384,8 @@ async function handleNewMessage(supabase: SupabaseClient, data: {
   const uid = connection.user_id
   const fanId = String(data.message.fromUser.id)
   const latestFanMessageAt = data.message.createdAt || new Date().toISOString()
+  const inboundMsgId = String(data.message.id)
+  const inboundText = data.message.text || ''
   after(async () => {
     try {
       await refreshFanThreadInsight(supabase, uid, fanId, {
@@ -387,6 +395,16 @@ async function handleNewMessage(supabase: SupabaseClient, data: {
       })
     } catch (e) {
       console.warn('[fan_thread_insights webhook]', e)
+    }
+    try {
+      await runAiChatterForInboundMessage(supabase, {
+        userId: uid,
+        platformFanId: fanId,
+        inboundMessageId: inboundMsgId,
+        inboundText,
+      })
+    } catch (e) {
+      console.warn('[ai_chatter webhook]', e)
     }
   })
 }
@@ -501,7 +519,7 @@ async function handleComment(supabase: SupabaseClient, data: {
 
   // Update fan's last activity
   await supabase.from('fans')
-    .update({ last_activity_at: new Date().toISOString() })
+    .update({ last_interaction_at: new Date().toISOString() })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.comment.fromUser.id)
 }
@@ -525,7 +543,7 @@ async function handleLike(supabase: SupabaseClient, data: {
 
   // Update fan's last activity
   await supabase.from('fans')
-    .update({ last_activity_at: new Date().toISOString() })
+    .update({ last_interaction_at: new Date().toISOString() })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.like.fromUser.id)
 }

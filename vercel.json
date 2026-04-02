@@ -67,6 +67,14 @@
     {
       "path": "/api/cron/thread-updates",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-chatter",
+      "schedule": "*/12 * * * *"
+    },
+    {
+      "path": "/api/cron/circe-aegis",
+      "schedule": "0 * * * *"
     }
   ]
 }

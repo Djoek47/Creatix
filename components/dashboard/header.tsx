@@ -25,7 +25,7 @@ import { StartTourButton } from '@/components/tour/start-tour-button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
-import { useDivinePanel } from '@/components/divine/divine-panel-context'
+import { getDashboardPageAriaLabel } from '@/lib/dashboard-page-meta'
 import { cn } from '@/lib/utils'
 
 interface HeaderProps {
@@ -33,49 +33,17 @@ interface HeaderProps {
   profile: Profile | null
 }
 
-const pageNames: Record<string, string> = {
-  '/dashboard': 'Divine Dashboard',
-  '/dashboard/divine-manager': 'Divine Manager',
-  '/dashboard/ai-studio': 'AI Oracle Chamber',
-  '/dashboard/fans': 'Fan Management',
-  '/dashboard/content': 'Cosmic Content Calendar',
-  '/dashboard/well-being': 'Well-being',
-  '/dashboard/messages': 'Messages',
-  '/dashboard/messages/mass': 'Mass messages',
-  '/dashboard/community/circe-daily': 'Circe daily tips',
-  '/dashboard/community': 'Community tips',
-  '/dashboard/social': 'Social',
-  '/dashboard/content-library': 'Content library',
-  '/dashboard/analytics': 'Analytics',
-  '/dashboard/protection': "Circe's Protection",
-  '/dashboard/mentions': "Venus' Watch",
-  '/dashboard/settings': 'Settings',
-}
-
 export function DashboardHeader({ user, profile }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const divinePanel = useDivinePanel()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const onWellBeingPage =
     pathname === '/dashboard/well-being' || pathname.startsWith('/dashboard/well-being/')
-  const showDivinePanelShortcut =
-    Boolean(pathname && !pathname.startsWith('/dashboard/messages') && divinePanel)
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const getPageName = () => {
-    const entries = Object.entries(pageNames).sort((a, b) => b[0].length - a[0].length)
-    for (const [path, name] of entries) {
-      if (pathname === path || pathname.startsWith(path + '/')) {
-        return name
-      }
-    }
-    return 'Dashboard'
-  }
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -113,7 +81,13 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
           </Button>
         )}
         
-        <h1 className="text-lg font-semibold text-foreground dark:text-circe sm:text-xl">{getPageName()}</h1>
+        <span className="sr-only">{getDashboardPageAriaLabel(pathname)}</span>
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-gradient-to-br from-primary/15 to-amber-500/10"
+          aria-hidden
+        >
+          <Sparkles className="h-4 w-4 text-primary" />
+        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
@@ -139,23 +113,6 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
         {/* Page tutorial */}
         <StartTourButton className="hidden sm:flex" />
-
-        {showDivinePanelShortcut && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="hidden gap-1.5 text-muted-foreground hover:text-foreground sm:inline-flex"
-            onClick={() => {
-              divinePanel?.setPanelCollapsed(false)
-              divinePanel?.setPanelOpen(true)
-            }}
-            title="Open Divine assistant panel"
-          >
-            <Sparkles className="h-4 w-4 text-primary" />
-            Divine
-          </Button>
-        )}
 
         {/* Theme Toggle */}
         <ThemeToggle />

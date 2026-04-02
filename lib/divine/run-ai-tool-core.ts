@@ -125,11 +125,11 @@ async function runOpenAITextAttraction(
 export const DIVINE_AI_TOOL_IDS = [
   'standard-of-attraction',
   'caption-generator',
+  'photo-enhancer',
   'viral-predictor',
   'churn-predictor',
   'whale-whisperer',
   'content-ideas',
-  'aesthetic-matcher',
   'mood-detector',
 ] as const
 
@@ -220,6 +220,30 @@ export async function runDivineAiToolServer(
         if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
         return { success: true, result: data }
       }
+      case 'photo-enhancer': {
+        const imageBase64 =
+          typeof params.imageBase64 === 'string'
+            ? params.imageBase64
+            : typeof params.image === 'string'
+              ? params.image
+              : ''
+        const instruction =
+          typeof params.instruction === 'string'
+            ? params.instruction
+            : typeof params.contentDescription === 'string'
+              ? params.contentDescription
+              : typeof params.description === 'string'
+                ? params.description
+                : ''
+        const res = await fetch(`${base}/photo-edit-intent`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ imageBase64, instruction }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
+        return { success: true, result: data }
+      }
       case 'viral-predictor': {
         const payload = {
           contentDescription: params.contentDescription ?? params.description ?? 'New content',
@@ -288,25 +312,11 @@ export async function runDivineAiToolServer(
         if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
         return { success: true, result: data }
       }
-      case 'aesthetic-matcher': {
-        const res = await fetch(`${base}/aesthetic-matcher`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            currentAesthetic:
-              (typeof params.currentAesthetic === 'string' && params.currentAesthetic) ||
-              (typeof params.description === 'string' && params.description) ||
-              (typeof params.contentDescription === 'string' && params.contentDescription) ||
-              '',
-            platform: params.platform ?? 'onlyfans',
-          }),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
-        return { success: true, result: data }
-      }
       case 'mood-detector': {
-        const payload = { message: params.message ?? params.text ?? '' }
+        const payload = {
+          mode: 'fan_message' as const,
+          message: params.message ?? params.text ?? '',
+        }
         const res = await fetch(`${base}/mood-detector`, {
           method: 'POST',
           headers,

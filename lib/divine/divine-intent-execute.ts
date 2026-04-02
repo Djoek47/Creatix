@@ -65,7 +65,8 @@ export interface IntentBody {
   platform?: string
   platforms?: string[]
   segment?: string
-  filter?: 'all' | 'active' | 'expired' | 'renewing' | 'latest' | 'top'
+  filter?: 'all' | 'active' | 'expired' | 'renewing' | 'latest' | 'top' | 'expiring_soon'
+  expiringWithinDays?: number
   price?: number
   mediaIds?: string[]
   period?: string
@@ -202,7 +203,7 @@ export async function executeDivineIntentPost(
         platform: body.platform,
         platforms: body.platforms,
         segment: body.segment,
-        filter: body.filter,
+        filter: body.filter as MassDmParams['filter'],
         price: body.price,
         mediaIds: body.mediaIds,
       }
@@ -269,6 +270,8 @@ export async function executeDivineIntentPost(
     case 'list_fans': {
       const params: ListFansParams = {
         filter: body.filter,
+        expiringWithinDays:
+          typeof body.expiringWithinDays === 'number' ? body.expiringWithinDays : undefined,
         limit: typeof body.limit === 'number' ? body.limit : undefined,
         offset: typeof body.offset === 'number' ? body.offset : undefined,
         sort: body.sort as ListFansParams['sort'],

@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ThemedLogo } from '@/components/themed-logo'
+import { PricingModelMarketingSection } from '@/components/marketing/pricing-model-marketing-section'
+import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
 import { Badge } from '@/components/ui/badge'
 import { 
   ArrowRight, Moon, Sun, Star, Shield, TrendingUp, 
@@ -267,38 +269,7 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        {/* Pricing Preview */}
-        <section className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-24">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Start with a 14-day free trial. No credit card required.
-            </p>
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-xl border border-border p-6">
-                <h3 className="text-lg font-semibold">Starter</h3>
-                <p className="mt-1 text-sm text-muted-foreground">For new creators</p>
-                <p className="mt-4">
-                  <span className="text-3xl font-bold">$29</span>
-                  <span className="text-muted-foreground">/month</span>
-                </p>
-                <Button variant="outline" className="mt-6 w-full">Learn More</Button>
-              </div>
-              <div className="rounded-xl border border-primary/50 bg-primary/5 p-6">
-                <Badge className="mb-2">Most Popular</Badge>
-                <h3 className="text-lg font-semibold">Pro</h3>
-                <p className="mt-1 text-sm text-muted-foreground">For established creators</p>
-                <p className="mt-4">
-                  <span className="text-3xl font-bold">$49</span>
-                  <span className="text-muted-foreground">/month</span>
-                </p>
-                <Button className="mt-6 w-full">Start Free Trial</Button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PricingModelMarketingSection />
 
         {/* CTA */}
         <section className="px-4 py-16 sm:px-6 sm:py-24">
@@ -317,6 +288,7 @@ export default function HowItWorksPage() {
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
               Join thousands of creators who trust divine AI to guide their journey.
             </p>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">{PRICING_MODEL_TRIAL_LINE}</p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/auth/sign-up">
                 <Button size="lg" className="gap-2 bg-primary px-8 text-primary-foreground hover:bg-primary/90">
@@ -344,6 +316,7 @@ export default function HowItWorksPage() {
             <nav className="flex flex-wrap justify-center gap-4 text-sm sm:gap-6">
               <Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link>
               <Link href="/about" className="text-muted-foreground hover:text-foreground">About</Link>
+              <Link href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
               <Link href="/how-it-works" className="text-muted-foreground hover:text-foreground">How It Works</Link>
               <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms</Link>
               <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy</Link>

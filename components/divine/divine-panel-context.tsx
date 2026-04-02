@@ -22,8 +22,26 @@ import {
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
 import { buildDeferredNavigationActions } from '@/lib/divine/deferred-navigation'
 import { formatFanLookupHint, type DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
+import { createClient } from '@/lib/supabase/client'
+import {
+  CRM_NOTIFICATION_ID_RE,
+  type NotificationBriefingItem,
+} from '@/lib/notification-briefing-types'
 
 export type { DivineUiAction, DmSuggestionBridgePayload } from '@/lib/divine/divine-ui-actions'
+
+function formatSecretaryItemBlock(item: NotificationBriefingItem, num: number, total: number): string {
+  const todos = (item.todos ?? []).filter(Boolean).slice(0, 5)
+  const todoLine = todos.length ? `\nSuggested steps:\n${todos.map((t) => `• ${t}`).join('\n')}` : ''
+  return `[${num}/${total}] ${item.summary}\n\nRecommended: ${item.suggested_action}${todoLine}`
+}
+
+export type NotificationSecretarySession = {
+  script: string
+  items: NotificationBriefingItem[]
+  linksById: Record<string, string | undefined>
+  index: number
+}
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
@@ -104,6 +122,18 @@ type DivinePanelContextValue = {
   consumePendingDmSendSource: () => DmSendAttributionSource
   peekPendingDmSendSource: () => DmSendAttributionSource
   clearPendingDmSendSource: () => void
+  /** Notification secretary walkthrough (from bell → Secretary briefing). */
+  secretarySession: NotificationSecretarySession | null
+  openSecretaryFromBriefing: (args: {
+    script: string
+    items: NotificationBriefingItem[]
+    linksById: Record<string, string | undefined>
+  }) => void
+  clearSecretarySession: () => void
+  secretaryAdvance: () => void
+  secretaryMarkCurrentRead: () => Promise<void>
+  secretaryDeleteCurrent: () => Promise<void>
+  secretaryOpenCurrentLink: () => void
 }
 
 const DivinePanelContext = createContext<DivinePanelContextValue | null>(null)
@@ -139,8 +169,10 @@ export function DivinePanelProvider({
   const [scheduledDm, setScheduledDm] = useState<{ fanId: string; endAt: number } | null>(null)
   const [scheduleUiTick, setScheduleUiTick] = useState(0)
   const [divineSendDelayMs, setDivineSendDelayMs] = useState(3000)
+  const [secretarySession, setSecretarySession] = useState<NotificationSecretarySession | null>(null)
 
   const bridgesRef = useRef<Map<string, DivineComposerBridge>>(new Map())
+  const secretaryAdvanceRef = useRef<() => void>(() => {})
   const scheduledEndRef = useRef<number | null>(null)
   const scheduledFanRef = useRef<string | null>(null)
   const dmSendSourceRef = useRef<DmSendAttributionSource>('user')
@@ -209,6 +241,101 @@ export function DivinePanelProvider({
   const clearPendingDmSendSource = useCallback(() => {
     dmSendSourceRef.current = 'user'
   }, [])
+
+  const openSecretaryFromBriefing = useCallback(
+    ({
+      script,
+      items,
+      linksById,
+    }: {
+      script: string
+      items: NotificationBriefingItem[]
+      linksById: Record<string, string | undefined>
+    }) => {
+      if (!items.length) return
+      setSecretarySession({ script, items, linksById, index: 0 })
+      setPanelOpen(true)
+      setPanelCollapsed(false)
+      const first = items[0]
+      const firstBlock = formatSecretaryItemBlock(first, 1, items.length)
+      setChatMessages([
+        { role: 'assistant', content: script },
+        { role: 'assistant', content: firstBlock },
+      ])
+      setDivineTranscript({
+        title: `Notification 1 of ${items.length}`,
+        text: firstBlock,
+      })
+    },
+    [],
+  )
+
+  const clearSecretarySession = useCallback(() => {
+    setSecretarySession(null)
+    setDivineTranscript(null)
+  }, [])
+
+  const secretaryAdvance = useCallback(() => {
+    setSecretarySession((prev) => {
+      if (!prev) return null
+      const nextIndex = prev.index + 1
+      if (nextIndex >= prev.items.length) {
+        setChatMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            content: "That's the full secretary pass for this batch.",
+          },
+        ])
+        setDivineTranscript(null)
+        return null
+      }
+      const it = prev.items[nextIndex]
+      if (!it) return prev
+      const block = formatSecretaryItemBlock(it, nextIndex + 1, prev.items.length)
+      setChatMessages((m) => [...m, { role: 'assistant', content: block }])
+      setDivineTranscript({
+        title: `Notification ${nextIndex + 1} of ${prev.items.length}`,
+        text: block,
+      })
+      return { ...prev, index: nextIndex }
+    })
+  }, [])
+
+  secretaryAdvanceRef.current = secretaryAdvance
+
+  const secretaryMarkCurrentRead = useCallback(async () => {
+    if (!secretarySession) return
+    const id = secretarySession.items[secretarySession.index]?.notification_id?.trim()
+    if (!id || !CRM_NOTIFICATION_ID_RE.test(id)) return
+    const sb = createClient()
+    const { error } = await sb
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', id)
+      .eq('user_id', user.id)
+    if (error) console.error('[secretary] mark read', error)
+  }, [secretarySession, user.id])
+
+  const secretaryDeleteCurrent = useCallback(async () => {
+    if (!secretarySession) return
+    const id = secretarySession.items[secretarySession.index]?.notification_id?.trim()
+    if (!id || !CRM_NOTIFICATION_ID_RE.test(id)) return
+    const sb = createClient()
+    const { error } = await sb.from('notifications').delete().eq('id', id).eq('user_id', user.id)
+    if (error) console.error('[secretary] delete', error)
+    secretaryAdvance()
+  }, [secretarySession, secretaryAdvance])
+
+  const secretaryOpenCurrentLink = useCallback(() => {
+    if (!secretarySession) return
+    const id = secretarySession.items[secretarySession.index]?.notification_id
+    if (!id) return
+    const link = secretarySession.linksById[id]
+    if (link && link.startsWith('/')) {
+      router.push(link)
+    }
+  }, [secretarySession, router])
 
   useEffect(() => {
     void fetch('/api/divine/manager-settings', { credentials: 'include' })
@@ -353,6 +480,9 @@ export function DivinePanelProvider({
         onSwitchOverlayFan: (fanId: string) => {
           setDmOverlayFanIds((prev) => (prev.includes(fanId) ? prev : [...prev, fanId]))
           setDmOverlayActiveFanIdState(fanId)
+        },
+        onSecretaryAdvance: () => {
+          secretaryAdvanceRef.current?.()
         },
       }
 
@@ -536,8 +666,8 @@ export function DivinePanelProvider({
           lookup_meta?: DivineLookupMeta[]
         }
         if (data.error) throw new Error(data.error)
-        if (data.reply) {
-          setChatMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
+        if (data.reply != null && data.reply !== '') {
+          setChatMessages((prev) => [...prev, { role: 'assistant', content: String(data.reply) }])
         }
         applyDivineUiActionsWithBridge(data.ui_actions)
         if (data.lookup_meta?.length) {
@@ -631,6 +761,13 @@ export function DivinePanelProvider({
     consumePendingDmSendSource,
     peekPendingDmSendSource,
     clearPendingDmSendSource,
+    secretarySession,
+    openSecretaryFromBriefing,
+    clearSecretarySession,
+    secretaryAdvance,
+    secretaryMarkCurrentRead,
+    secretaryDeleteCurrent,
+    secretaryOpenCurrentLink,
   }
 
   return (

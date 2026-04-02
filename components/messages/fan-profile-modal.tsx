@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { UnifiedFanProfilePayload } from '@/lib/divine/fan-profile-server'
+import { buildAudienceBadges } from '@/lib/fans/audience-classification'
 import { cn } from '@/lib/utils'
 
 type FanProfileModalProps = {
@@ -102,6 +103,15 @@ export function FanProfileModal({
   const username = data?.core?.username || initialUsername || '—'
   const avatar = data?.core?.avatarUrl || initialAvatar || ''
 
+  const audienceBadges =
+    data && data.creatorDetector
+      ? buildAudienceBadges({
+          totalSpent: data.crm?.totalSpent ?? 0,
+          tier: data.crm?.subscriptionTier || 'regular',
+          creatorLikely: data.creatorDetector.is_creator_likely,
+        })
+      : []
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -135,14 +145,47 @@ export function FanProfileModal({
                 >
                   {platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
                 </span>
-                {data?.creatorDetector?.is_creator_likely && (
-                  <Badge variant="outline" className="text-xs">
-                    Creator signal ({Math.round((data.creatorDetector.confidence || 0) * 100)}%)
+                {audienceBadges.map((b) => (
+                  <Badge key={b.key} variant="outline" className={cn('text-[10px] font-medium', b.className)}>
+                    {b.label}
+                    {b.key === 'creator' && data?.creatorDetector?.confidence != null
+                      ? ` (${Math.round((data.creatorDetector.confidence || 0) * 100)}%)`
+                      : null}
                   </Badge>
-                )}
+                ))}
               </div>
+              {data?.crm != null && (
+                <p className="text-[11px] text-muted-foreground">
+                  Recorded spend: ${Math.round(data.crm.totalSpent)}
+                  {data.crm.subscriptionTier ? ` · synced tier ${data.crm.subscriptionTier}` : ''}
+                </p>
+              )}
             </div>
-            <Button type="button" variant="outline" size="icon" onClick={() => void load()} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              title="Sync stored thread from platform, then reload"
+              onClick={async () => {
+                setError(null)
+                setLoading(true)
+                try {
+                  const sync = await fetch('/api/divine/refresh-thread-insight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ fanId, platform, force: true }),
+                  })
+                  const syncJson = (await sync.json().catch(() => ({}))) as { error?: string }
+                  if (!sync.ok) throw new Error(syncJson.error || 'Could not sync thread')
+                  await load()
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Sync failed')
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+            >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             </Button>
           </div>
@@ -210,15 +253,32 @@ export function FanProfileModal({
           </div>
 
           {data?.creatorDetector && (
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+            <div
+              className={cn(
+                'rounded-md border p-3 text-sm',
+                data.creatorDetector.is_creator_likely
+                  ? 'border-red-500/45 bg-red-500/5 text-red-50/95'
+                  : 'border-emerald-500/45 bg-emerald-500/5 text-emerald-50/95',
+              )}
+            >
               <p className="font-medium">Creator likelihood</p>
-              <p className="mt-1 text-muted-foreground">
+              <p
+                className={cn(
+                  'mt-1 text-sm',
+                  data.creatorDetector.is_creator_likely ? 'text-red-100/90' : 'text-emerald-100/90',
+                )}
+              >
                 {data.creatorDetector.is_creator_likely
                   ? 'Heuristic suggests this fan may also create content or promote a page.'
                   : 'No strong creator-style signals in stored text (heuristic).'}
               </p>
               {data.creatorDetector.rationale_snippets.length > 0 && (
-                <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
+                <ul
+                  className={cn(
+                    'mt-2 list-inside list-disc text-xs',
+                    data.creatorDetector.is_creator_likely ? 'text-red-100/75' : 'text-emerald-100/75',
+                  )}
+                >
                   {data.creatorDetector.rationale_snippets.map((s) => (
                     <li key={s}>{s}</li>
                   ))}
@@ -299,8 +359,8 @@ export function FanProfileModal({
 
           {!loading && data && !data.threadInsight && !data.aiSummary?.summaryJson && (
             <p className="text-sm text-muted-foreground">
-              No stored thread insight or AI summary yet. Open this chat and send a message, or wait for background
-              refresh.
+              No stored thread insight or AI summary yet. Use the refresh button above to sync from the platform, run
+              Scan in Divine AI (that also saves the thread), or send a message in chat.
             </p>
           )}
         </div>

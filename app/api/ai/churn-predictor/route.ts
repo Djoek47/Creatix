@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const { data: fan, error: fanErr } = await supabase
       .from('fans')
       .select(
-        'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes',
+        'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing',
       )
       .eq('id', body.fanId.trim())
       .eq('user_id', user.id)
@@ -68,6 +68,15 @@ export async function POST(req: NextRequest) {
     const firstSub = f.first_subscribed_at ? String(f.first_subscribed_at) : 'unknown'
     const platform = String(f.platform || 'onlyfans')
     const pfid = f.platform_fan_id != null ? String(f.platform_fan_id) : ''
+    const expAt =
+      f.subscription_expires_at != null && String(f.subscription_expires_at).trim()
+        ? String(f.subscription_expires_at)
+        : ''
+    const renOn =
+      f.subscription_renews_on != null && String(f.subscription_renews_on).trim()
+        ? String(f.subscription_renews_on)
+        : ''
+    const renewOn = f.is_renewing === true
 
     fanBlock = [
       `Fan: @${f.username} (${f.display_name || 'no display name'})`,
@@ -78,6 +87,9 @@ export async function POST(req: NextRequest) {
       `Subscription status: ${status}`,
       `First subscribed at: ${firstSub}`,
       `Last interaction at: ${lastAt}`,
+      expAt ? `Subscription period end (CRM sync, UTC): ${expAt}` : '',
+      renOn ? `Next renewal timestamp if provided: ${renOn}` : '',
+      `Auto-renew flag (CRM): ${renewOn ? 'on' : 'off or unknown'}`,
       f.notes ? `Creator notes: ${String(f.notes).slice(0, 500)}` : '',
     ]
       .filter(Boolean)
@@ -111,7 +123,10 @@ export async function POST(req: NextRequest) {
     if (status === 'expired' || status === 'cancelled') {
       renewalBlock = `Fan subscription status is "${status}" — prioritize win-back: what they valued before, soft re-entry, and a clear reason to resubscribe (platform-safe offers only).`
     } else if (status === 'active') {
-      renewalBlock = `Fan is currently active — focus on spend trend vs their baseline, attention before natural renewal windows, and treats that match thread signals (no explicit promises you cannot keep).`
+      const periodHint = expAt
+        ? ` Current period ends at ${expAt} (UTC). ${renewOn ? '' : 'Auto-renew appears off — higher lapse risk if they do not manually renew.'}`
+        : ' No subscription period end in CRM — suggest syncing OnlyFans/Fansly for clearer renewal timing.'
+      renewalBlock = `Fan is currently active — focus on spend trend vs their baseline, attention before natural renewal windows, and treats that match thread signals (no explicit promises you cannot keep).${periodHint}`
     }
   } else {
     fanBlock = body.fanData?.trim() || 'General subscriber (no CRM row selected).'

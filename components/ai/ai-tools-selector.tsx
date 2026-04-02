@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -45,7 +46,6 @@ import {
   TrendingDown,
   Send,
   Heart,
-  Palette,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
@@ -56,6 +56,7 @@ import {
   extractVideoFrameAsDataUrl,
 } from '@/components/ai/caption-media-utils'
 import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
+import { useVoiceSession } from '@/components/divine/voice-session-context'
 
 function formatFantasyCalendarDate(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -97,14 +98,15 @@ const workingTools = [
     credits: 1,
   },
   {
-    id: 'aesthetic-matcher',
-    name: 'Aesthetic Matcher',
-    description: 'Trending styles & brand cohesion',
-    longDescription: 'Describe your current aesthetic; get trending directions, palettes, and editing tips.',
-    icon: Palette,
-    color: 'text-fuchsia-500',
-    bgColor: 'bg-fuchsia-500/10',
-    borderColor: 'border-fuchsia-500/30',
+    id: 'photo-enhancer',
+    name: 'Safe photo touch-up',
+    description: 'AI blur, lighting, emoji — text or voice',
+    longDescription:
+      'Upload a photo, then describe changes in text or voice. AI maps your request to safe blur, brightness, or emoji only (no beautify or inpaint).',
+    icon: Camera,
+    color: 'text-sky-500',
+    bgColor: 'bg-sky-500/10',
+    borderColor: 'border-sky-500/30',
     credits: 1,
   },
   {
@@ -242,21 +244,6 @@ interface ContentIdeasResult {
   seasonalOpportunities: string[]
 }
 
-interface AestheticMatcherResult {
-  content: string
-  currentStyle: string
-  trendingStyles: Array<{
-    name: string
-    description: string
-    compatibility: number
-    examples: string[]
-  }>
-  suggestions: string[]
-  colorPalette: string[]
-  moodKeywords: string[]
-  editingTips: string[]
-}
-
 // Generic AI Result Interface
 interface AIResult {
   content: string
@@ -272,6 +259,13 @@ interface AttractionResult {
   circeTake: string
   strengths: string[]
   improvements: string[]
+}
+
+interface PhotoEditIntentResult {
+  imageBase64: string
+  operation: string
+  explanation: string
+  creditsUsed?: number
 }
 
 type ToolType = typeof workingTools[0] | typeof proTools[0]
@@ -298,6 +292,8 @@ export function AIToolsSelector({
   initialToolId?: string
   backHref?: string
 } = {}) {
+  const voiceSession = useVoiceSession()
+  const photoVoiceImageRef = useRef<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
   const [loading, setLoading] = useState(false)
@@ -361,10 +357,34 @@ export function AIToolsSelector({
   const [campaignGoal, setCampaignGoal] = useState('')
   const [attractionImage, setAttractionImage] = useState<string | null>(null)
   const [captionImageDataUrl, setCaptionImageDataUrl] = useState<string | null>(null)
+  const [photoEditImageDataUrl, setPhotoEditImageDataUrl] = useState<string | null>(null)
+  photoVoiceImageRef.current = photoEditImageDataUrl
+  const [giftUseWishlist, setGiftUseWishlist] = useState(true)
   const [churnFanId, setChurnFanId] = useState<string>('manual')
+  const [churnExpiringOnly, setChurnExpiringOnly] = useState(false)
   const [churnFans, setChurnFans] = useState<
-    { id: string; username: string; display_name: string | null; total_spent: number | null; platform: string }[]
+    {
+      id: string
+      username: string
+      display_name: string | null
+      total_spent: number | null
+      platform: string
+      subscription_expires_at?: string | null
+      subscription_status?: string | null
+    }[]
   >([])
+
+  const churnFansFiltered = useMemo(() => {
+    if (!churnExpiringOnly) return churnFans
+    const now = Date.now()
+    const horizon = now + 14 * 86400000
+    return churnFans.filter((f) => {
+      const raw = f.subscription_expires_at
+      if (!raw) return false
+      const t = new Date(raw).getTime()
+      return !Number.isNaN(t) && t >= now && t <= horizon
+    })
+  }, [churnFans, churnExpiringOnly])
 
   const upcomingCosmicEvents = useMemo(() => getUpcomingCosmicEvents(90), [])
 
@@ -403,13 +423,36 @@ export function AIToolsSelector({
       if (!user) return
       const { data } = await sb
         .from('fans')
-        .select('id, username, display_name, total_spent, platform')
+        .select('id, username, display_name, total_spent, platform, subscription_expires_at, subscription_status')
         .eq('user_id', user.id)
         .order('total_spent', { ascending: false })
         .limit(150)
       setChurnFans((data as typeof churnFans) || [])
     })()
   }, [selectedTool?.id])
+
+  useEffect(() => {
+    if (churnFanId === 'manual') return
+    if (!churnFansFiltered.some((f) => f.id === churnFanId)) {
+      setChurnFanId('manual')
+    }
+  }, [churnFanId, churnFansFiltered])
+
+  useEffect(() => {
+    const onVoicePhoto = (e: Event) => {
+      const d = (e as CustomEvent<PhotoEditIntentResult>).detail
+      if (!d?.imageBase64) return
+      setPhotoEditImageDataUrl(d.imageBase64)
+      setResult({
+        imageBase64: d.imageBase64,
+        operation: d.operation,
+        explanation: d.explanation ?? 'Applied.',
+        creditsUsed: d.creditsUsed,
+      })
+    }
+    window.addEventListener('creatix-photo-touchup-voice', onVoicePhoto as EventListener)
+    return () => window.removeEventListener('creatix-photo-touchup-voice', onVoicePhoto as EventListener)
+  }, [])
 
   useEffect(() => {
     if (selectedTool?.id !== 'fantasy-writer') return
@@ -543,13 +586,13 @@ export function AIToolsSelector({
           })
           break
 
-        case 'aesthetic-matcher':
-          response = await fetch('/api/ai/aesthetic-matcher', {
+        case 'photo-enhancer':
+          response = await fetch('/api/ai/photo-edit-intent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              currentAesthetic: contentDescription.trim(),
-              platform,
+              imageBase64: photoEditImageDataUrl,
+              instruction: contentDescription.trim(),
             }),
           })
           break
@@ -559,6 +602,7 @@ export function AIToolsSelector({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              mode: 'fan_message',
               message: fanMessage,
             }),
           })
@@ -596,6 +640,7 @@ export function AIToolsSelector({
             body: JSON.stringify({
               fanInfo: fanMessage,
               budget: currentPrice,
+              useWishlist: giftUseWishlist,
             }),
           })
           break
@@ -747,10 +792,12 @@ export function AIToolsSelector({
     setNiche('')
     setAttractionImage(null)
     setCaptionImageDataUrl(null)
+    setPhotoEditImageDataUrl(null)
     setChurnFanId('manual')
     setFantasyFanId('')
     setFantasyHolidayEventId('')
     setFantasyContentId('')
+    setGiftUseWishlist(true)
   }
   
   // Render tool-specific input form
@@ -1030,36 +1077,119 @@ export function AIToolsSelector({
           </div>
         )
 
-      case 'aesthetic-matcher':
+      case 'photo-enhancer':
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Platform</Label>
-              <Select value={platform} onValueChange={setPlatform}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                  <SelectItem value="fansly">Fansly</SelectItem>
-                  <SelectItem value="mym">MYM</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Upload photo (JPEG / PNG)</Label>
+              {photoEditImageDataUrl ? (
+                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+                  <img
+                    src={photoEditImageDataUrl}
+                    alt="Photo to edit"
+                    className="max-h-56 w-full object-contain"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="absolute right-2 top-2"
+                    onClick={() => setPhotoEditImageDataUrl(null)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp"
+                  className="cursor-pointer"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    try {
+                      const compressed = await compressImageForVision(file)
+                      setPhotoEditImageDataUrl(compressed)
+                    } catch {
+                      const reader = new FileReader()
+                      reader.onload = () => setPhotoEditImageDataUrl(reader.result as string)
+                      reader.readAsDataURL(file)
+                    }
+                  }}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Say what you want in plain language — e.g. &quot;blur the background more&quot;, &quot;brighter&quot;, &quot;heart emoji top right&quot;. Mic uses voice-to-text (same idea as Mimic interview).
+              </p>
             </div>
+            {voiceSession && (
+              <div className="space-y-2 rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-sky-700 dark:text-sky-300">
+                  <Mic className="h-3.5 w-3.5" />
+                  OpenAI Realtime voice (like Mimic interview)
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Speak naturally; the assistant calls the same safe edit pipeline. Keep this tab open. Results appear below when a tool applies.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={
+                      !photoEditImageDataUrl ||
+                      voiceSession.status === 'connecting' ||
+                      voiceSession.status === 'connected'
+                    }
+                    onClick={() =>
+                      void voiceSession.startVoiceCall({
+                        realtimePath: '/api/ai/photo-touchup-realtime',
+                        toolPath: '/api/ai/photo-touchup-voice-tool',
+                        getToolBodyExtras: () => ({
+                          imageBase64: photoVoiceImageRef.current || '',
+                        }),
+                      })
+                    }
+                  >
+                    {voiceSession.status === 'connecting' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                    <span className="ml-1.5">
+                      {voiceSession.status === 'connected' ? 'Voice active' : 'Start voice session'}
+                    </span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={voiceSession.status !== 'connected'}
+                    onClick={() => voiceSession.endVoiceCall()}
+                  >
+                    End voice
+                  </Button>
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {voiceSession.status}
+                  </Badge>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Your current aesthetic &amp; brand vibe</Label>
+                <Label>How should we touch up this photo?</Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
                   size="sm"
                   variant="ghost"
+                  showTooltip={true}
                 />
               </div>
               <Textarea
-                placeholder="Lighting, color grade, sets, outfits, mood — what you do today and what you want to evolve toward."
+                placeholder="e.g. Soften the whole image for privacy, brighten slightly, add a sparkle emoji near the corner…"
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[120px]"
+                className="min-h-[100px]"
               />
             </div>
           </div>
@@ -1068,6 +1198,13 @@ export function AIToolsSelector({
       case 'mood-detector':
         return (
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              For your own energy check-in (not fan DMs), use{' '}
+              <Link href="/dashboard/well-being" className="text-primary underline">
+                Well-being → Mood pulse
+              </Link>
+              .
+            </p>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Fan Message to Analyze</Label>
@@ -1083,6 +1220,49 @@ export function AIToolsSelector({
                 onChange={(e) => setFanMessage(e.target.value)}
                 className="min-h-[120px]"
               />
+            </div>
+          </div>
+        )
+
+      case 'gift-suggester':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Fan context</Label>
+                <VoiceInputButton
+                  onTranscript={(text) => setFanMessage((prev) => prev + (prev ? ' ' : '') + text)}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+              <Textarea
+                placeholder="Who they are, spend level, interests, recent behavior…"
+                value={fanMessage}
+                onChange={(e) => setFanMessage(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Budget or tier hint (optional)</Label>
+              <Input
+                placeholder="e.g. $50–150, or deluxe"
+                value={currentPrice}
+                onChange={(e) => setCurrentPrice(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center space-x-2 rounded-md border border-border p-3">
+              <Checkbox
+                id="gift-wl"
+                checked={giftUseWishlist}
+                onCheckedChange={(c) => setGiftUseWishlist(c === true)}
+              />
+              <label htmlFor="gift-wl" className="text-sm cursor-pointer">
+                Use my saved wishlist links (title + price){' '}
+                <Link href="/dashboard/ai-studio/gifts" className="text-primary underline">
+                  Manage list
+                </Link>
+              </label>
             </div>
           </div>
         )
@@ -1216,21 +1396,38 @@ export function AIToolsSelector({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Fan from CRM (uses spend + stored thread snapshot)</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="churn-expiring-only"
+                  checked={churnExpiringOnly}
+                  onCheckedChange={(v) => setChurnExpiringOnly(v === true)}
+                />
+                <Label htmlFor="churn-expiring-only" className="text-sm font-normal cursor-pointer">
+                  Only fans with period ending in 14 days (needs sync)
+                </Label>
+              </div>
               <Select value={churnFanId} onValueChange={setChurnFanId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choose fan" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">Manual entry only</SelectItem>
-                  {churnFans.map((f) => (
+                  {churnFansFiltered.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
                       @{f.username}
-                      {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)}{' '}
-                      spend
+                      {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
+                      {f.subscription_expires_at
+                        ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
+                        : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {churnExpiringOnly && churnFansFiltered.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No matches. Sync OnlyFans or Fansly from the Fans page so subscription end dates populate.
+                </p>
+              ) : null}
             </div>
             {churnFanId === 'manual' ? (
               <div className="space-y-2">
@@ -1645,91 +1842,28 @@ export function AIToolsSelector({
     </div>
   )
 
-  const renderAestheticResults = (res: AestheticMatcherResult) => (
+  const renderPhotoEditResults = (res: PhotoEditIntentResult) => (
     <div className="space-y-4 pt-4 border-t border-border">
-      <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 space-y-2">
-        <h4 className="text-xs font-medium text-muted-foreground">Summary</h4>
-        <p className="text-sm whitespace-pre-wrap">{res.content}</p>
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Current read: </span>
-          {res.currentStyle}
-        </p>
+      <p className="text-sm text-muted-foreground">{res.explanation}</p>
+      <Badge variant="outline" className="text-[10px]">
+        {res.operation}
+      </Badge>
+      <div className="relative overflow-hidden rounded-lg border border-border bg-muted/20">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={res.imageBase64} alt="Edited preview" className="max-h-[min(50vh,420px)] w-full object-contain" />
       </div>
-      {res.trendingStyles?.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Trending directions</h4>
-          <div className="space-y-3">
-            {res.trendingStyles.map((s, i) => (
-              <div key={i} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{s.name}</span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {s.compatibility}% fit
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">{s.description}</p>
-                {s.examples?.length > 0 && (
-                  <ul className="text-xs space-y-1 list-disc list-inside">
-                    {s.examples.map((ex, j) => (
-                      <li key={j}>{ex}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {res.colorPalette?.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Palette ideas</h4>
-          <div className="flex flex-wrap gap-2">
-            {res.colorPalette.map((c, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">
-                {c}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-      {res.moodKeywords?.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Mood keywords</h4>
-          <div className="flex flex-wrap gap-2">
-            {res.moodKeywords.map((k, i) => (
-              <Badge key={i} variant="outline" className="text-xs">
-                {k}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-      {res.suggestions?.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Suggestions</h4>
-          <ul className="space-y-1">
-            {res.suggestions.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                {s}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {res.editingTips?.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Editing tips</h4>
-          <ul className="space-y-1">
-            {res.editingTips.map((t, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <ChevronRight className="h-4 w-4 text-fuchsia-500 mt-0.5 shrink-0" />
-                {t}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        onClick={() => {
+          void navigator.clipboard.writeText(res.imageBase64).catch(() => undefined)
+        }}
+      >
+        <Copy className="h-3.5 w-3.5" />
+        Copy data URL
+      </Button>
     </div>
   )
   
@@ -1935,14 +2069,15 @@ export function AIToolsSelector({
           onClick={runTool} 
           disabled={
             loading ||
-            (selectedTool.id === 'aesthetic-matcher' && !contentDescription.trim()) ||
             (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
+            (selectedTool.id === 'photo-enhancer' && (!photoEditImageDataUrl || !contentDescription.trim())) ||
             (selectedTool.id === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
             (selectedTool.id === 'fantasy-writer' &&
               !contentDescription.trim() &&
               !fantasyHolidayEventId &&
               !fantasyFanId &&
-              !fantasyContentId)
+              !fantasyContentId) ||
+            (selectedTool.id === 'gift-suggester' && !fanMessage.trim())
           }
           className="w-full"
         >
@@ -1966,8 +2101,12 @@ export function AIToolsSelector({
               ? renderCaptionResults(result as CaptionResult)
               : selectedTool.id === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
-                : selectedTool.id === 'aesthetic-matcher' && result && typeof result === 'object' && 'trendingStyles' in result
-                  ? renderAestheticResults(result as AestheticMatcherResult)
+                : selectedTool.id === 'photo-enhancer' &&
+                    result &&
+                    typeof result === 'object' &&
+                    'imageBase64' in result &&
+                    'explanation' in result
+                  ? renderPhotoEditResults(result as PhotoEditIntentResult)
                   : renderGenericResults(result as AIResult)}
           </div>
         )}

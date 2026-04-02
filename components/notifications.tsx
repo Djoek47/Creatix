@@ -14,6 +14,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
+import { useDivinePanel } from '@/components/divine/divine-panel-context'
+import { useVoiceSession } from '@/components/divine/voice-session-context'
+import {
+  CRM_NOTIFICATION_ID_RE,
+  type NotificationBriefingItem,
+} from '@/lib/notification-briefing-types'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -75,6 +81,8 @@ function isDivineProductNotification(n: Notification): boolean {
 }
 
 export function Notifications() {
+  const divinePanel = useDivinePanel()
+  const voiceSession = useVoiceSession()
   const [dbNotifications, setDbNotifications] = useState<Notification[]>([])
   const [ofPullNotifications, setOfPullNotifications] = useState<Notification[]>([])
   const [fanslyPullNotifications, setFanslyPullNotifications] = useState<Notification[]>([])
@@ -83,6 +91,7 @@ export function Notifications() {
   const [userId, setUserId] = useState<string | null>(null)
   const [tab, setTab] = useState<'live' | 'divine'>('live')
   const [briefingLoading, setBriefingLoading] = useState(false)
+  /** Inline error / info when secretary cannot run (success opens Divine panel instead). */
   const [briefingText, setBriefingText] = useState<string | null>(null)
   const supabase = createClient()
 
@@ -243,18 +252,85 @@ export function Notifications() {
     setBriefingLoading(true)
     setBriefingText(null)
     try {
+      const unreadUuids = displayed
+        .filter((n) => !n.read && CRM_NOTIFICATION_ID_RE.test(n.id))
+        .map((n) => n.id)
+        .slice(0, 25)
+
+      const pullOnlyUnread = displayed.filter(
+        (n) => !n.read && !CRM_NOTIFICATION_ID_RE.test(n.id),
+      ).length
+
+      if (unreadUuids.length === 0) {
+        setBriefingText(
+          pullOnlyUnread > 0
+            ? 'Secretary briefing uses saved CRM notifications only. Items from platform pull (not yet in your inbox database) cannot be queued for AI walkthrough—handle them in the list above or wait for sync.'
+            : 'No unread saved notifications in this tab.',
+        )
+        return
+      }
+
       const res = await fetch('/api/divine/notification-briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ all_unread: true }),
+        body: JSON.stringify({ notification_ids: unreadUuids }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setBriefingText(json.error || 'Briefing failed')
+        setBriefingText(typeof json.error === 'string' ? json.error : 'Briefing failed')
         return
       }
-      setBriefingText(typeof json.script === 'string' ? json.script : JSON.stringify(json, null, 2))
+      const script = typeof json.script === 'string' ? json.script : ''
+      const items = Array.isArray(json.items)
+        ? (json.items as NotificationBriefingItem[]).filter(
+            (it) => it && typeof it.notification_id === 'string',
+          )
+        : []
+      if (items.length === 0) {
+        setBriefingText(script.trim() || 'No briefing items returned.')
+        return
+      }
+
+      const linksById: Record<string, string | undefined> = {}
+      for (const n of displayed) {
+        if (n.link) linksById[n.id] = n.link
+      }
+
+      setOpen(false)
+      divinePanel?.openSecretaryFromBriefing({ script, items, linksById })
+
+      const lines = items.slice(0, 20).map(
+        (it, i) =>
+          `${i + 1}. [${it.notification_id}] ${it.summary} — ${it.suggested_action}`.slice(0, 400),
+      )
+
+      try {
+        if (!voiceSession) {
+          // no-op
+        } else if (voiceSession.status === 'connected') {
+          await voiceSession.sendBriefingQuestion(
+            `Notification secretary (voice already live). Queued CRM unread:\n${lines.join('\n')}\n\nStart with item 1: summarize, recommend an action. Use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
+          )
+        } else if (voiceSession.status !== 'connecting') {
+          await voiceSession.startVoiceCall({
+            realtimeBodyExtras: {
+              mode: 'notification_secretary',
+              notification_secretary: { lines },
+            },
+          })
+          await new Promise((r) => setTimeout(r, 150))
+          try {
+            await voiceSession.sendBriefingQuestion(
+              `We're walking through ${items.length} unread notifications one by one. Start with the first: summarize it, recommend an action, and use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
+            )
+          } catch {
+            // Data channel may still be opening — panel rail remains usable.
+          }
+        }
+      } catch {
+        // Mic denied or voice start failed — Divine panel secretary rail still works.
+      }
     } catch {
       setBriefingText('Briefing failed')
     } finally {
@@ -397,14 +473,24 @@ export function Notifications() {
                 </Button>
               )}
             </div>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="live" className="flex flex-col gap-0.5 py-2 h-auto">
-                <span>Live</span>
-                <span className="text-[10px] font-normal text-muted-foreground">OF / Fansly · webhooks + pull</span>
+            <TabsList className="!h-auto min-h-0 grid w-full grid-cols-2 gap-1 overflow-visible py-1">
+              <TabsTrigger
+                value="live"
+                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+              >
+                <span className="text-sm font-medium">Live</span>
+                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
+                  OF / Fansly · webhooks + pull
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="divine" className="flex flex-col gap-0.5 py-2 h-auto">
-                <span>Divine</span>
-                <span className="text-[10px] font-normal text-muted-foreground">Leaks · reputation · whales</span>
+              <TabsTrigger
+                value="divine"
+                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+              >
+                <span className="text-sm font-medium">Divine</span>
+                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
+                  Leaks · reputation · whales
+                </span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -461,7 +547,7 @@ export function Notifications() {
 
         {briefingText && (
           <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Briefing</p>
+            <p className="font-medium text-foreground">Secretary</p>
             <p className="mt-1 whitespace-pre-wrap">{briefingText}</p>
           </div>
         )}
@@ -471,7 +557,7 @@ export function Notifications() {
             variant="secondary"
             size="sm"
             className="w-full gap-2"
-            disabled={briefingLoading || !userId}
+            disabled={briefingLoading || !userId || !divinePanel}
             onClick={() => void runBriefing()}
           >
             {briefingLoading ? (
@@ -483,6 +569,9 @@ export function Notifications() {
               </>
             )}
           </Button>
+          <p className="px-1 text-center text-[10px] text-muted-foreground">
+            Opens Divine with a walkthrough. CRM-saved unread only; platform pull rows are listed above separately.
+          </p>
           <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setOpen(false)} asChild>
             <a href="/dashboard/settings">View all settings</a>
           </Button>

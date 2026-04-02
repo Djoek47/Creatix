@@ -26,7 +26,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, ImageIcon, Link2, Save, Sparkles, Wand2 } from 'lucide-react'
+import { Loader2, ImageIcon, Link2, Mic, Save, Sparkles, Wand2 } from 'lucide-react'
+import { VoiceInputButton } from '@/components/voice-input-button'
 import { cn } from '@/lib/utils'
 
 export type VaultContentRow = {
@@ -87,6 +88,8 @@ export function MediaVaultHub() {
   const [touchEmoji, setTouchEmoji] = useState('✨')
   const [touchPreview, setTouchPreview] = useState<string | null>(null)
   const [touchBusy, setTouchBusy] = useState(false)
+  const [touchAiInstruction, setTouchAiInstruction] = useState('')
+  const [touchAiBusy, setTouchAiBusy] = useState(false)
 
   const loadVault = useCallback(async () => {
     setLoading(true)
@@ -160,6 +163,7 @@ export function MediaVaultHub() {
     setDraftSpoiler(r.spoiler_level || 'none')
     setTouchPreview(null)
     setTouchFile(null)
+    setTouchAiInstruction('')
   }
 
   const saveRow = async () => {
@@ -270,6 +274,50 @@ export function MediaVaultHub() {
       console.warn(e)
     } finally {
       setTouchBusy(false)
+    }
+  }
+
+  const getTouchImageDataUrl = async (): Promise<string | null> => {
+    if (touchFile) {
+      return fileToDataUrl(touchFile)
+    }
+    const url = selected?.file_url || selected?.thumbnail_url || selected?.external_preview_url
+    if (!url) return null
+    const r = await fetch(url)
+    const blob = await r.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  const runTouchAi = async () => {
+    const instruction = touchAiInstruction.trim()
+    if (!instruction || !selected) return
+    setTouchAiBusy(true)
+    setTouchPreview(null)
+    try {
+      const imageBase64 = await getTouchImageDataUrl()
+      if (!imageBase64 || !/^data:image\//i.test(imageBase64)) {
+        return
+      }
+      const res = await fetch('/api/ai/photo-edit-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, instruction }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        console.warn(json.error || 'AI touch-up failed')
+        return
+      }
+      setTouchPreview(typeof json.imageBase64 === 'string' ? json.imageBase64 : null)
+    } catch (e) {
+      console.warn(e)
+    } finally {
+      setTouchAiBusy(false)
     }
   }
 
@@ -478,6 +526,43 @@ export function MediaVaultHub() {
                     Photos only: blur, lighting, or emoji overlay. Upload a file if the preview cannot load (CDN
                     blocking).
                   </p>
+                  <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                      <Mic className="h-3.5 w-3.5" />
+                      AI touch-up (text or voice)
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Describe the change — e.g. &quot;blur more for privacy&quot; or &quot;brighter&quot;. Same safe pipeline as AI Studio; no beautify or inpaint.
+                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <Textarea
+                        placeholder="What should we change?"
+                        value={touchAiInstruction}
+                        onChange={(e) => setTouchAiInstruction(e.target.value)}
+                        rows={2}
+                        className="min-h-[60px] text-sm"
+                      />
+                      <VoiceInputButton
+                        onTranscript={(text) =>
+                          setTouchAiInstruction((prev) => prev + (prev ? ' ' : '') + text)
+                        }
+                        size="sm"
+                        variant="ghost"
+                        showTooltip
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="w-full gap-2"
+                      disabled={touchAiBusy || !touchAiInstruction.trim()}
+                      onClick={() => void runTouchAi()}
+                    >
+                      {touchAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      Apply with AI
+                    </Button>
+                  </div>
                   <Select value={touchOp} onValueChange={(v) => setTouchOp(v as typeof touchOp)}>
                     <SelectTrigger>
                       <SelectValue />

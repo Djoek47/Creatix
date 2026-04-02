@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
+import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
+import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -127,7 +129,8 @@ async function syncOnlyFansData(userId: string, accountId: string) {
 
     const fans = fansResult.fans ?? []
     for (const fan of fans) {
-      const tier = fan.totalSpent >= 500 ? 'vip' : fan.totalSpent >= 100 ? 'whale' : 'regular'
+      const tier = subscriptionTierFromTotalSpent(fan.totalSpent)
+      const sub = subscriptionFieldsFromOnlyFansFan(fan)
       await supabase.from('fans').upsert(
         {
           user_id: userId,
@@ -140,6 +143,10 @@ async function syncOnlyFansData(userId: string, accountId: string) {
           total_spent: fan.totalSpent,
           first_subscribed_at: fan.subscribedAt || null,
           last_interaction_at: new Date().toISOString(),
+          subscription_expires_at: sub.subscription_expires_at,
+          subscription_renews_on: sub.subscription_renews_on,
+          is_renewing: sub.is_renewing,
+          subscription_status: sub.subscription_status,
         },
         { onConflict: 'user_id,platform,platform_fan_id' }
       )

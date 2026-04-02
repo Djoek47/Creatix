@@ -132,16 +132,14 @@ export default function MassMessagesPage() {
     <div className="mx-auto max-w-2xl space-y-8 p-4 pb-12 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 gap-1">
+          <Button variant="ghost" size="sm" asChild className="-ml-2 gap-1">
             <Link href="/dashboard/messages">
               <ArrowLeft className="h-4 w-4" />
-              Back to messages
+              Back to inbox
             </Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">Mass messages</h1>
           <p className="text-sm text-muted-foreground">
-            AI segments from your CRM (classifications, tiers, spend). Compose below and send via connected platforms —
-            review filters before send.
+            CRM segments, filters, and send — double-check before broadcast.
           </p>
         </div>
       </div>

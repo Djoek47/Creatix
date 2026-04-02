@@ -144,13 +144,6 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
 
   return (
     <div className="space-y-6 min-w-0">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Social Media Promotion</h2>
-        <p className="text-muted-foreground">
-          Create and share promotional content across your social platforms
-        </p>
-      </div>
-
       <Tabs defaultValue="create" className="space-y-6">
         <TabsList>
           <TabsTrigger value="create" className="gap-2">

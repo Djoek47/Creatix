@@ -107,14 +107,9 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Analytics</h2>
-          <p className="text-muted-foreground">Track your performance across all platforms</p>
-        </div>
-
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-4">
         {/* Platform filters */}
-        <div className="flex flex-col sm:items-end gap-2 flex-wrap">
+        <div className="flex flex-col sm:items-end gap-2 flex-wrap w-full sm:w-auto">
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={showAll} disabled={!hasConnections}>
               All

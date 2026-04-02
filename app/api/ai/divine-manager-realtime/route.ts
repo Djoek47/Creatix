@@ -43,14 +43,25 @@ export async function POST(req: NextRequest) {
 
     let focusedFan: FocusedFan | undefined
     let sdp: string | undefined
+    let notificationSecretaryMode = false
+    let notificationSecretaryLines: string[] = []
     const contentType = req.headers.get('content-type') || ''
     if (contentType.startsWith('application/json')) {
       const body = (await req.json().catch(() => ({}))) as {
         sdp?: string
         focusedFan?: FocusedFan
+        mode?: string
+        notification_secretary?: { lines?: string[] }
       }
       sdp = body.sdp
       focusedFan = body.focusedFan
+      if (body.mode === 'notification_secretary' && Array.isArray(body.notification_secretary?.lines)) {
+        notificationSecretaryMode = true
+        notificationSecretaryLines = body.notification_secretary!.lines!
+          .map((l) => String(l).trim())
+          .filter(Boolean)
+          .slice(0, 24)
+      }
     } else {
       sdp = await req.text()
     }
@@ -138,6 +149,11 @@ export async function POST(req: NextRequest) {
       : '\n\nNo focused fan in the UI: if they ask to read a specific thread, use get_dm_conversations to find fanId or ask them to open Messages and pick a fan first.'
     const platformConnectionLine = `\n\nCreator platform connections (authoritative):\n- OnlyFans: ${connectionSnapshot.onlyfansConnected ? `CONNECTED${connectionSnapshot.onlyfansUsername ? ` (@${connectionSnapshot.onlyfansUsername})` : ''}` : 'NOT CONNECTED'}\n- Fansly: ${connectionSnapshot.fanslyConnected ? `CONNECTED${connectionSnapshot.fanslyUsername ? ` (@${connectionSnapshot.fanslyUsername})` : ''}` : 'NOT CONNECTED'}.\nIf a needed platform is NOT CONNECTED, say clearly those features will not work until reconnection and offer ui_navigate to /dashboard/settings?tab=integrations.`
 
+    const secretaryBlock =
+      notificationSecretaryMode && notificationSecretaryLines.length > 0
+        ? `\n\nNOTIFICATION SECRETARY MODE: Walk the creator through their unread CRM notifications ONE AT A TIME, in the order listed below. For each item: briefly summarize, give one clear recommended action, offer navigation (ui_navigate) or open a fan thread (ui_focus_fan) when relevant. Only after the creator confirms they handled the current item (or clearly says "next" / "skip"), call secretary_next_notification to advance the in-app card. Do not advance without confirmation. You may use list_notifications or mark_notifications_read when helpful. Queue:\n${notificationSecretaryLines.join('\n')}\n`
+        : ''
+
     const instructions = `You are the Divine Manager, a Jarvis-style voice companion for a creator. You speak in real time over voice. Be a calm, confident manager. Never role-play as the creator; never claim to have already sent messages or changed prices. You only describe what you see and what you recommend. Respect boundaries and platform safety. Avoid explicit or illegal content.
 
 Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flirtyLevel ?? 'mild'}. Boundaries: ${(persona.boundaries ?? []).join('; ') || 'none specified'}.
@@ -155,7 +171,7 @@ ${analyticsTotals ? `\n${analyticsTotals}` : ''}
 
 You have access to the creator's analytics: fans, revenue, and platform breakdown; use this when they ask about performance, sales, or growth.
 
-    You can see and act on OnlyFans fans, followings, message engagement, and queue: list_fans (filter: active, expired, latest, top) for who are my fans, top spenders, or expired subs; get_fan_subscription_history for a specific fan's renewals; list_followings for who the creator follows; get_top_message for the best-performing message and its buyers; get_message_engagement (type direct or mass) for how DMs or mass messages performed; publish_queue_item to publish a saved post or saved mass message. Prefer the smallest set of API calls that answers the question: e.g. "who spent the most this month" → list_fans with filter=top; "how did yesterday's mass message do" → get_message_engagement with type=mass; "publish my saved post about the new set" → look up queue then publish_queue_item with that queueId.
+    You can see and act on OnlyFans fans, followings, message engagement, and queue: list_fans (filter: active, expired, latest, top, expiring_soon from CRM sync — optional expiringWithinDays 1–90, default 14) for who are my fans, top spenders, expired subs, or subs ending soon; get_fan_subscription_history for a specific fan's renewals; list_followings for who the creator follows; get_top_message for the best-performing message and its buyers; get_message_engagement (type direct or mass) for how DMs or mass messages performed; publish_queue_item to publish a saved post or saved mass message. Prefer the smallest set of API calls that answers the question: e.g. "who spent the most this month" → list_fans with filter=top; "how did yesterday's mass message do" → get_message_engagement with type=mass; "publish my saved post about the new set" → look up queue then publish_queue_item with that queueId.
 
 When OnlyFans is connected, you have full access to DMs and content: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. get_dm_thread lets you scan and read the full chat with a specific fan. If a DM thread is not found (for example, the fan or conversation was deleted), tell the creator that the thread is no longer available and suggest picking another fan instead of treating it as a generic error. get_reply_suggestions and get_dm_thread_and_suggestions run Scan Thread plus Circe/Venus/Flirt reply lines synchronously (blocking until done). For a long scan while the creator does something else (e.g. open Analytics or ask get_stats), use start_thread_scan_async instead: it queues a background scan, may navigate them to Analytics, and registers tasks in voice memory. Use get_task_status to see pending or completed tasks and navigation. When they want both a background scan and stats, call start_thread_scan_async first, then get_stats; the app will return them to Messages with suggestions when every barrier task finishes—do not claim the scan is done until get_task_status shows the scan task done or the creator sees the in-app handoff. send_message sends a direct message to a specific fan. You can read users by name, scan any thread, and send a DM to that user. list_content shows their content calendar and scheduled posts. For vault sales metadata: list_vault_for_dm lists content ids; get_content_sales_metadata reads one item's saved notes and tags; upsert_content_sales_notes saves after a short structured interview—stay professional, respect their stated boundaries, fan-facing sales angles only. recommend_dm_bundle accepts content_ids to pull saved metadata into bundle pricing.${platformConnectionLine}${focusedFanLine}${voiceMemoryLine}
 
@@ -163,7 +179,7 @@ DM name lookup: Tool output includes spellback ("I heard …") and [divine_looku
 
 Speak in second person ("you"). Keep replies actionable but advisory. Be concise; this is a live conversation. Text chat has the full tool list; voice uses the same server-side tools—if something fails, suggest using Divine text chat for that action.
 
-    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.`
+    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${secretaryBlock}`
 
     const tools = [
       {
@@ -644,14 +660,19 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'list_fans',
         description:
-          'List fans from OnlyFans: active, expired, latest, top spenders, or all. Use when the creator asks who are my fans, top fans, expired fans, or how many subscribers.',
+          'List fans: from OnlyFans API (active, expired, latest, top, all) or from CRM sync (expiring_soon = subscription ending in the next N days). Use for subscriber lists, top spenders, lapsed subs, or retention (“who is about to expire”).',
         parameters: {
           type: 'object',
           properties: {
             filter: {
               type: 'string',
-              enum: ['all', 'active', 'expired', 'latest', 'top'],
-              description: 'active (default), expired, latest, top, or all',
+              enum: ['all', 'active', 'expired', 'latest', 'top', 'expiring_soon'],
+              description:
+                'active (default), expired, latest, top, all, or expiring_soon (CRM; requires synced subscription_expires_at)',
+            },
+            expiringWithinDays: {
+              type: 'number',
+              description: 'With expiring_soon: window in days (1–90, default 14)',
             },
             limit: { type: 'number', description: 'Max items (default 25)' },
             offset: { type: 'number' },
@@ -974,6 +995,16 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
           type: 'object',
           properties: { fanId: { type: 'string' } },
           required: ['fanId'],
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'secretary_next_notification',
+        description:
+          'Notification secretary mode only: after the creator confirms they handled the current CRM notification (or explicitly asks to skip), advance to the next item in the in-app queue. Do not call without confirmation.',
+        parameters: {
+          type: 'object',
+          properties: {},
         },
       },
       {

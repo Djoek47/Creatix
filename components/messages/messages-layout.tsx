@@ -495,7 +495,6 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
               userId={userId}
               chatterDraftOutboxId={chatterDraftOutboxId}
               onMessageSent={() => loadConversations(true)}
-              onOpenConversationMenu={openChatsMenu}
               onOpenFanProfile={() => setFanProfileOpen(true)}
             />
             {isMobile && (

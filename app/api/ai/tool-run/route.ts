@@ -28,12 +28,17 @@ export async function POST(req: NextRequest) {
     const meta = getToolMeta(toolId)
     const toolName = meta?.name ?? toolId
     const toolDesc = meta?.longDescription ?? meta?.description ?? ''
+    const formatHint =
+      toolId === 'video-script-ai'
+        ? `
+Format the script with clear sections: HOOK, BEATS (numbered lines or short paragraphs), optional ON-SCREEN TEXT (bullets), and CTA. Minimize stage directions; write for the creator to read aloud or edit before recording. Respect platform tone (SFW framing where the prompt implies it).`
+        : ''
 
     const { text } = await generateText({
       model: 'openai/gpt-4o-mini',
       system: `You are an expert AI assistant for the creator tool "${toolName}".
 ${toolDesc ? `Tool description: ${toolDesc}` : ''}
-Respond with actionable, helpful output tailored to the creator's request. Be concise but complete. Use plain text or short bullet points where appropriate.`,
+Respond with actionable, helpful output tailored to the creator's request. Be concise but complete. Use plain text or short bullet points where appropriate.${formatHint}`,
       prompt,
     })
 

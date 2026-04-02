@@ -78,7 +78,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hasRunner: true,
   },
   { id: 'voice-cloning', name: 'Voice Cloning', description: 'Clone your voice for responses', longDescription: 'Create an AI clone of your voice to send personalized audio messages at scale.', category: 'premium', isPro: true, credits: 5, hasRunner: true },
-  { id: 'video-script-ai', name: 'Video Script AI', description: 'Generate video scripts', longDescription: 'Create engaging video scripts tailored to your style, including intros, outros, and calls-to-action.', category: 'premium', isPro: true, credits: 3, hasRunner: false },
+  {
+    id: 'video-script-ai',
+    name: 'Video Script AI',
+    description: 'Hooks, beats, and CTAs for video',
+    longDescription:
+      'On web: AI Studio → Video Script AI for hook / beats / CTA scripts. Describe length, platform, and tone in the runner.',
+    category: 'premium',
+    isPro: true,
+    credits: 3,
+    hasRunner: true,
+  },
   { id: 'competitor-analysis', name: 'Competitor Analysis', description: 'AI-powered competitor insights', longDescription: 'Analyze competitor strategies, pricing, and content to stay ahead of the competition.', category: 'premium', isPro: true, credits: 5, hasRunner: false },
   { id: 'circe-oracle', name: "Circe's Oracle", description: 'Deep retention prophecies', longDescription: 'Like the enchantress who foresaw the future, receive prophetic insights on subscriber behavior and loyalty patterns.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   { id: 'circe-transformation', name: "Circe's Transformation", description: 'Transform casual fans into whales', longDescription: 'Just as Circe transformed men, this AI identifies and nurtures casual fans with potential to become high-value supporters.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },

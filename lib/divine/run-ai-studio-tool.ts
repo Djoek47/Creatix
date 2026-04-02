@@ -145,6 +145,24 @@ export async function runAiStudioToolServer(
           ? a.prompt
           : 'Revenue and growth forecast for my creator business.',
       }, cookie)
+    case 'video-script-ai': {
+      const parts = [
+        typeof a.niche === 'string' && a.niche.trim() && `Niche / persona: ${a.niche.trim()}`,
+        a.platform && `Platform: ${String(a.platform)}`,
+        a.scriptLength && `Target length: ${String(a.scriptLength)}`,
+        typeof a.prompt === 'string'
+          ? a.prompt
+          : typeof a.contentDescription === 'string'
+            ? a.contentDescription
+            : typeof a.description === 'string'
+              ? a.description
+              : '',
+      ].filter(Boolean) as string[]
+      const prompt =
+        parts.join('\n').trim() ||
+        'Write a short vertical video script with a strong hook, 3–5 story beats, suggested on-screen text, and a clear CTA for subscribers.'
+      return postAi('tool-run', { toolId: 'video-script-ai', prompt }, cookie)
+    }
     default:
       return { success: false, error: `Unhandled AI Studio tool: ${toolId}` }
   }

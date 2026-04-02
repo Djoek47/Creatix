@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +33,6 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  PanelLeft,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -107,7 +106,6 @@ interface ChatWindowProps {
   /** AI Chatter queue/review: outbox row id from `?chatterDraft=` — prefills composer when fan matches. */
   chatterDraftOutboxId?: string
   onMessageSent?: () => void
-  onOpenConversationMenu?: () => void
   /** Open fan profile modal (parent owns modal on Messages page). */
   onOpenFanProfile?: () => void
 }
@@ -286,7 +284,6 @@ export function ChatWindow({
   userId: _userId,
   chatterDraftOutboxId,
   onMessageSent,
-  onOpenConversationMenu,
   onOpenFanProfile,
 }: ChatWindowProps) {
   const [message, setMessage] = useState('')
@@ -309,10 +306,7 @@ export function ChatWindow({
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const chatFileInputRef = useRef<HTMLInputElement>(null)
   const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  /** After switching threads or initial load, jump to latest message (top-of-thread is wrong default). */
-  const pendingScrollToLatestRef = useRef(false)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Pause OnlyFans message polling after 429 until this timestamp (ms). */
@@ -384,8 +378,11 @@ export function ChatWindow({
     if (hasAiContent) setAiSectionOpen(true)
   }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions])
 
+  /** Scroll the messages pane only — avoids scrollIntoView clipping the top of bubbles. */
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = messagesContainerRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
   }
 
   const scrollContainerToLatest = () => {
@@ -652,11 +649,9 @@ export function ChatWindow({
   useEffect(() => {
     if (!conversation) {
       setMessages([])
-      pendingScrollToLatestRef.current = false
       return
     }
 
-    pendingScrollToLatestRef.current = true
     setMessages([])
     const loadMessages = async () => {
       setLoading(true)
@@ -715,24 +710,9 @@ export function ChatWindow({
     // (or stale memo) cannot retrigger this effect every render (React #185).
   }, [conversation?.user?.id, conversation?.platform])
 
-  // Opened a thread or finished loading: jump to latest before paint (avoids flash at top).
-  useLayoutEffect(() => {
-    if (loading) return
-    if (!pendingScrollToLatestRef.current) return
-    const run = () => {
-      scrollContainerToLatest()
-      pendingScrollToLatestRef.current = false
-    }
-    run()
-    requestAnimationFrame(() => {
-      requestAnimationFrame(run)
-    })
-  }, [messages, loading])
-
   // New messages while staying in the same thread: only follow if already near the bottom.
   useEffect(() => {
     if (loading) return
-    if (pendingScrollToLatestRef.current) return
     if (isNearBottom()) scrollToBottom()
   }, [messages, loading])
 
@@ -948,105 +928,91 @@ export function ChatWindow({
 
   return (
     <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden border-border bg-card py-0 shadow-sm">
-      {/* Chat header: thread tools only — fan identity lives in layout above this card */}
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border px-3 py-2.5 sm:px-4">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            disabled={!onOpenConversationMenu}
-            onClick={onOpenConversationMenu}
-            aria-label="Open conversations menu"
-            title="Open conversations menu"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-xs font-medium text-muted-foreground">Thread tools</span>
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <a href="/dashboard/divine-manager" className="flex items-center">
-                <Crown className="mr-2 h-4 w-4" />
-                Open Divine Manager
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (onOpenFanProfile) onOpenFanProfile()
-                else setInternalProfileOpen(true)
-              }}
-            >
-              <User className="mr-2 h-4 w-4" />
-              View Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              if (conversation.platform !== 'onlyfans') {
-                setError('Fansly thread refresh is not available yet on web messages.')
-                return
-              }
-              setLoading(true)
-              fetch(`/api/onlyfans/messages/${conversation.user.id}`)
-                .then(res => res.json())
-                .then(data => setMessages(data.messages || []))
-                .finally(() => setLoading(false))
-            }}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Messages
-            </DropdownMenuItem>
-            {conversation.platform === 'onlyfans' && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const cid = String(conversation.chatId || conversation.user.id)
-                    await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' })
-                  }}
-                >
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                  Mark as read
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const cid = String(conversation.chatId || conversation.user.id)
-                    await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/unread`, { method: 'POST' })
-                  }}
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Mark as unread
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={async () => {
-                    const cid = String(conversation.chatId || conversation.user.id)
-                    const ok = window.confirm('Delete this chat on OnlyFans? This cannot be undone.')
-                    if (!ok) return
-                    const res = await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}`, { method: 'DELETE' })
-                    if (res.ok) onMessageSent?.()
-                  }}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete chat
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardHeader>
-
-      {/* Static label so it is never clipped by the scroll region */}
+      {/* Label + thread actions (menu only — no separate “Thread tools” bar) */}
       <div className="shrink-0 border-b border-border/60 bg-card px-3 py-2 sm:px-4">
-        <p className="text-[11px] font-medium uppercase leading-normal tracking-wide text-muted-foreground">
-          Fan conversation
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-medium uppercase leading-normal tracking-wide text-muted-foreground">
+            Fan conversation
+          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Thread actions">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <a href="/dashboard/divine-manager" className="flex items-center">
+                  <Crown className="mr-2 h-4 w-4" />
+                  Open Divine Manager
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (onOpenFanProfile) onOpenFanProfile()
+                  else setInternalProfileOpen(true)
+                }}
+              >
+                <User className="mr-2 h-4 w-4" />
+                View Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (conversation.platform !== 'onlyfans') {
+                    setError('Fansly thread refresh is not available yet on web messages.')
+                    return
+                  }
+                  setLoading(true)
+                  fetch(`/api/onlyfans/messages/${conversation.user.id}`)
+                    .then((res) => res.json())
+                    .then((data) => setMessages(normalizeAndSortMessages(data.messages || [])))
+                    .finally(() => setLoading(false))
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Messages
+              </DropdownMenuItem>
+              {conversation.platform === 'onlyfans' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const cid = String(conversation.chatId || conversation.user.id)
+                      await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' })
+                    }}
+                  >
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    Mark as read
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const cid = String(conversation.chatId || conversation.user.id)
+                      await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/unread`, { method: 'POST' })
+                    }}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Mark as unread
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={async () => {
+                      const cid = String(conversation.chatId || conversation.user.id)
+                      const ok = window.confirm('Delete this chat on OnlyFans? This cannot be undone.')
+                      if (!ok) return
+                      const res = await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}`, {
+                        method: 'DELETE',
+                      })
+                      if (res.ok) onMessageSent?.()
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete chat
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Messages Area — live thread with the fan */}
@@ -1158,7 +1124,7 @@ export function ChatWindow({
                 </div>
               )
             })}
-            <div ref={messagesEndRef} />
+            <div className="h-0 shrink-0" aria-hidden />
           </div>
         )}
       </CardContent>

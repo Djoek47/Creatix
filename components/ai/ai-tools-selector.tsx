@@ -46,6 +46,7 @@ import {
   TrendingDown,
   Send,
   Heart,
+  Video,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
@@ -217,6 +218,19 @@ const proTools = [
     credits: 3,
     isPro: true,
   },
+  {
+    id: 'video-script-ai',
+    name: 'Video Script AI',
+    description: 'Hooks, beats, and CTAs for video',
+    longDescription:
+      'Structured scripts for teasers and promos: hook, beats, optional on-screen text, and a fan CTA. Set platform and length below.',
+    icon: Video,
+    color: 'text-violet-500',
+    bgColor: 'bg-violet-500/10',
+    borderColor: 'border-violet-500/30',
+    credits: 3,
+    isPro: true,
+  },
 ]
 
 // Caption Generator Result Interface
@@ -345,6 +359,7 @@ export function AIToolsSelector({
   
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
+  const [videoScriptLength, setVideoScriptLength] = useState('short')
   const [contentDescription, setContentDescription] = useState('')
   const [platform, setPlatform] = useState('onlyfans')
   const [niche, setNiche] = useState('')
@@ -751,7 +766,29 @@ export function AIToolsSelector({
             body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
           })
           break
-          
+
+        case 'video-script-ai': {
+          const scriptPrompt = [
+            niche.trim() && `Niche / persona: ${niche.trim()}`,
+            `Platform: ${platform}`,
+            `Target length: ${videoScriptLength}`,
+            contentDescription.trim(),
+          ]
+            .filter(Boolean)
+            .join('\n')
+          response = await fetch('/api/ai/tool-run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              toolId: selectedTool.id,
+              prompt:
+                scriptPrompt ||
+                'Write a short vertical video script with a strong hook, 3–5 story beats, suggested on-screen text, and a clear CTA for subscribers.',
+            }),
+          })
+          break
+        }
+
         default: {
           response = await fetch('/api/ai/tool-run', {
             method: 'POST',
@@ -797,6 +834,7 @@ export function AIToolsSelector({
     setFantasyFanId('')
     setFantasyHolidayEventId('')
     setFantasyContentId('')
+    setVideoScriptLength('short')
     setGiftUseWishlist(true)
   }
   
@@ -1601,6 +1639,67 @@ export function AIToolsSelector({
           </div>
         )
 
+      case 'video-script-ai':
+        return (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Platform</Label>
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                    <SelectItem value="fansly">Fansly</SelectItem>
+                    <SelectItem value="mym">MYM</SelectItem>
+                    <SelectItem value="tiktok">TikTok / Reels-style</SelectItem>
+                    <SelectItem value="youtube">YouTube-style</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target length</Label>
+                <Select value={videoScriptLength} onValueChange={setVideoScriptLength}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short">Short (~30–60s)</SelectItem>
+                    <SelectItem value="medium">Medium (~2–3 min)</SelectItem>
+                    <SelectItem value="long">Long-form outline</SelectItem>
+                    <SelectItem value="teaser">Ultra-short teaser (~15s)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Niche or persona (optional)</Label>
+              <Input
+                placeholder="e.g., GFE, fitness, cosplay, bratty domme…"
+                value={niche}
+                onChange={(e) => setNiche(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Brief, tone, and talking points</Label>
+                <VoiceInputButton
+                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+              <Textarea
+                placeholder="What’s the video about? Tone (playful, intimate, hype…). Must-say lines, CTA (PPV, tip menu, renew), and anything to avoid. You’ll get sections: hook → beats → CTA — edit before recording."
+                value={contentDescription}
+                onChange={(e) => setContentDescription(e.target.value)}
+                className="min-h-[120px]"
+              />
+            </div>
+          </div>
+        )
+
       case 'venus-attraction':
       case 'venus-cupid':
       case 'venus-garden':
@@ -1996,7 +2095,7 @@ export function AIToolsSelector({
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
                       <p className="text-xs text-muted-foreground">
-                        Get Voice Cloning, Churn Prediction, Mass DM Composer and more
+                        Get Voice Cloning, Video Script AI, Churn Prediction, Mass DM Composer and more
                       </p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">

@@ -28,6 +28,7 @@ export function VoiceControlPopup() {
   } = voice
   const [expanded, setExpanded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [recentlyEnded, setRecentlyEnded] = useState(false)
   const messagesOnlyMode = pathname?.startsWith('/dashboard/messages') === true
 
   const isActive = status === 'connected' || status === 'connecting'
@@ -47,6 +48,25 @@ export function VoiceControlPopup() {
       setSettingsOpen(false)
     }
   }, [isActive, hasStartedCall])
+
+  useEffect(() => {
+    if (status === 'idle') {
+      setRecentlyEnded(true)
+      const t = window.setTimeout(() => setRecentlyEnded(false), 3500)
+      return () => window.clearTimeout(t)
+    }
+    setRecentlyEnded(false)
+    return
+  }, [status])
+
+  const crownStateClass =
+    status === 'error' || recentlyEnded
+      ? 'divine-crown-ending-red'
+      : status === 'connected' && voiceSurfaceState === 'working'
+        ? 'divine-crown-live-purple'
+        : isActive
+          ? 'divine-crown-live-green'
+          : 'divine-crown-fluctuate'
 
   const toggleDivine = () => {
     if (!divine) return
@@ -232,7 +252,7 @@ export function VoiceControlPopup() {
             onClick={() => { void handleCrownClick() }}
             className={cn(
               'divine-crown-trigger flex h-14 w-14 shrink-0 items-center justify-center border-l border-gold/45 text-[#1a1200] transition',
-              isActive ? 'divine-crown-active' : 'divine-crown-fluctuate',
+              crownStateClass,
               'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
             )}
             aria-label={status === 'idle' ? 'Start Divine voice call' : expanded ? 'Collapse Divine voice control' : 'Expand Divine voice control'}

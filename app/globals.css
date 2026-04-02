@@ -320,6 +320,51 @@
   animation: divine-crown-active 1.4s ease-in-out infinite;
 }
 
+@keyframes divine-crown-live-green {
+  0%, 100% {
+    filter: brightness(1.03) saturate(1.12);
+    box-shadow: inset 0 0 0 1px oklch(0.73 0.17 151 / 0.55), 0 0 14px 0 oklch(0.73 0.17 151 / 0.28);
+  }
+  50% {
+    filter: brightness(1.12) saturate(1.18);
+    box-shadow: inset 0 0 0 1px oklch(0.73 0.17 151 / 0.75), 0 0 24px 2px oklch(0.73 0.17 151 / 0.38);
+  }
+}
+
+@keyframes divine-crown-live-purple {
+  0%, 100% {
+    filter: brightness(1.03) saturate(1.12);
+    box-shadow: inset 0 0 0 1px oklch(0.62 0.23 298 / 0.58), 0 0 14px 0 oklch(0.62 0.23 298 / 0.3);
+  }
+  50% {
+    filter: brightness(1.13) saturate(1.2);
+    box-shadow: inset 0 0 0 1px oklch(0.62 0.23 298 / 0.8), 0 0 26px 2px oklch(0.62 0.23 298 / 0.42);
+  }
+}
+
+@keyframes divine-crown-ending-red {
+  0%, 100% {
+    filter: brightness(1.02) saturate(1.08);
+    box-shadow: inset 0 0 0 1px oklch(0.63 0.24 26 / 0.6), 0 0 12px 0 oklch(0.63 0.24 26 / 0.28);
+  }
+  50% {
+    filter: brightness(1.12) saturate(1.16);
+    box-shadow: inset 0 0 0 1px oklch(0.63 0.24 26 / 0.82), 0 0 24px 2px oklch(0.63 0.24 26 / 0.42);
+  }
+}
+
+.divine-crown-live-green {
+  animation: divine-crown-live-green 1.15s ease-in-out infinite;
+}
+
+.divine-crown-live-purple {
+  animation: divine-crown-live-purple 0.95s ease-in-out infinite;
+}
+
+.divine-crown-ending-red {
+  animation: divine-crown-ending-red 0.9s ease-in-out infinite;
+}
+
 /* Mobile responsive utilities */
 @media (max-width: 768px) {
   .mobile-full {

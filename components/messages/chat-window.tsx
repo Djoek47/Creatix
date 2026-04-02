@@ -46,7 +46,6 @@ import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { proxyImageUrl } from '@/lib/proxy-image-url'
 
 interface OnlyFansConversation {
   user: {

@@ -24,6 +24,7 @@ import {
   LucideIcon,
   Library,
   Lightbulb,
+  HeartPulse,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
@@ -58,6 +59,7 @@ const silverNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
   { name: 'Content', href: '/dashboard/content', icon: Calendar },
+  { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { name: 'Social', href: '/dashboard/social', icon: Share2 },
   { name: 'Content library', href: '/dashboard/content-library', icon: Library },

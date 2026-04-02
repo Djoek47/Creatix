@@ -21,6 +21,7 @@ import {
   Library,
   Lightbulb,
   BookOpen,
+  HeartPulse,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
@@ -45,6 +46,7 @@ const silverNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
   { name: 'Content', href: '/dashboard/content', icon: Calendar },
+  { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { name: 'Social', href: '/dashboard/social', icon: Share2 },
   { name: 'Content library', href: '/dashboard/content-library', icon: Library },

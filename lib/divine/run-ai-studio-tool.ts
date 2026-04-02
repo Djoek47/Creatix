@@ -65,6 +65,9 @@ export async function runAiStudioToolServer(
         scenario: a.scenario ?? a.contentDescription ?? a.description ?? '',
         tone: a.tone ?? a.contentType ?? 'romantic',
         platform: a.platform ?? 'onlyfans',
+        calendarEventSummary: typeof a.calendarEventSummary === 'string' ? a.calendarEventSummary : undefined,
+        scheduledContentSummary: typeof a.scheduledContentSummary === 'string' ? a.scheduledContentSummary : undefined,
+        fanProfileSummary: typeof a.fanProfileSummary === 'string' ? a.fanProfileSummary : undefined,
       }, cookie)
     case 'gift-suggester':
       return postAi('gift-suggester', {

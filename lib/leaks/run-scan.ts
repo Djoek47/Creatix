@@ -7,6 +7,7 @@ import { guessSourcePlatform, normalizeUrl } from '@/lib/leaks/url-utils'
 import { enrichWithGrok, type GrokLeakEnrichment } from '@/lib/leaks/grok-enrichment'
 import { verifyLeakPagesWithGrok } from '@/lib/leaks/grok-page-verify'
 import { fetchPageTextExcerpt, pageLikelyMentionsAliases } from '@/lib/leaks/fetch-verify'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export type RunLeakScanParams = {
   userId: string
@@ -119,9 +120,7 @@ export async function runLeakScan(
     .maybeSingle()
   const rawPlanId = (subRow as { plan_id?: string | null })?.plan_id
   const normalizedPlanId = rawPlanId?.toLowerCase() || null
-  const isPro = Boolean(
-    normalizedPlanId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalizedPlanId),
-  )
+  const isPro = Boolean(normalizedPlanId && isPaidPlanId(normalizedPlanId))
 
   const { data: profileRow } = await supabase
     .from('profiles')

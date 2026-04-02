@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const planId = (subscription as any)?.plan_id as string | null | undefined
   const normalizedPlanId = planId?.toLowerCase() || null
-  const isPro = Boolean(normalizedPlanId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalizedPlanId))
+  const isPro = Boolean(normalizedPlanId && isPaidPlanId(normalizedPlanId))
   if (!isPro) {
     return new Response(JSON.stringify({ error: 'Pro subscription required for Mass DM Composer' }), { 
       status: 403,

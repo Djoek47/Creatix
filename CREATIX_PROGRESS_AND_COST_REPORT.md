@@ -255,51 +255,25 @@ Creatix relies on third-party platform APIs so creators can sync data and send m
 
 ### 4.1 Plans we offer
 
-Plans are defined in `lib/products.ts`:
+**Trial** is still `divine-trial` in `lib/products.ts` (free trial, limited credits/storage).
 
-| Plan ID | Name | Price / month | Core features |
-|---------|------|---------------|---------------|
-| `divine-trial` | **Divine Trial** | **$0** (14‑day trial) | 100 AI credits/month, 5GB storage, basic analytics, email support |
-| `venus-pro` | **Venus Pro** | **$49/mo** | Unlimited AI credits, 50GB storage, advanced analytics, Venus growth tools, priority support, custom AI training |
-| `circe-elite` | **Circe Elite** | **$99/mo** | Everything in Venus Pro + unlimited storage, Circe protection suite, advanced leak detection, white‑glove onboarding, dedicated account manager, API access |
-| `divine-duo` | **Divine Duo** | **$199/mo** | Everything in Circe Elite + multi‑account management, team collaboration, custom integrations, revenue analytics, legal support access, priority feature requests |
+**Paid** subscriptions use a single canonical plan id **`cev-paid`** in the database, with **revenue tier** (0–10) and **billing variant** (`single` | `multi`) stored on `subscriptions` (see `scripts/040_subscriptions_billing_tiers.sql`). Dollar amounts and bands live in **`lib/pricing-matrix.ts`** (11 rows × Single vs Multi prices). Legacy Stripe IDs `venus-pro`, `circe-elite`, and `divine-duo` are still recognized for access via `lib/billing/access.ts` until migrated.
 
-Storage and AI credit limits are enforced via `subscriptions` and Stripe webhooks / actions:
+- **Single**: OnlyFans only among adult platform integrations.
+- **Multi**: OnlyFans plus at least one other adult platform (e.g. Fansly, ManyVids), or only non‑OF adult connected — see `lib/billing/platform-variant.ts`. Users on a **Single** paid plan are blocked from connecting a second adult platform until they move to **Multi** (see `components/platform/platform-connector.tsx`).
 
-- `divine-trial`: **100 AI credits**, **5GB** storage.
-- `venus-pro`: **“Unlimited” AI credits**, **50GB** storage.
-- `circe-elite`: **“Unlimited” AI credits**, **unlimited** storage (very high cap).
-- `divine-duo`: **“Unlimited” AI credits**, **unlimited** storage (very high cap).
+Storage and AI credit limits for paid tiers are unified to high caps via `lib/billing/plan-limits.ts` and Stripe upserts.
 
 ### 4.2 Feature access by plan
 
-At the code level, “Pro” is mainly tied to plan IDs `venus-pro`, `circe-elite`, and `divine-duo` (via `PRO_PLANS` in the Stripe webhook and several UI checks). Practically:
+At the code level, **Pro** is gated with **`isPaidPlanId()`** from `lib/billing/access.ts` (includes `cev-paid` and legacy IDs). Practically:
 
-- **All plans (including trial)**:
-  - Core dashboard, analytics overview, content library, fans CRM, messages, social/reputation widgets.
-  - Divine Manager (wizard, console, voice, chat, reset).
-  - AI Studio basics: Circe & Venus chat, many AI tools, cosmic calendar, message suggestions.
-  - Platform connections (OnlyFans/Fansly/Twitter/Instagram/TikTok), DMCA basics, notifications, billing page.
-- **Venus Pro (`venus-pro`)**:
-  - All of the above, with **much higher AI and storage headroom**.
-  - Full **Venus growth tools** (AI lead gen, attraction/optimization tools).
-  - Priority support and custom AI training.
-- **Circe Elite (`circe-elite`)**:
-  - Everything in **Venus Pro**.
-  - Full **Circe protection suite** (leak scanner, DMCA automation, advanced social reputation), tuned for heavier usage.
-  - Advanced leak detection, white‑glove onboarding, dedicated account manager.
-  - **API access** for programmatic control.
-- **Divine Duo (`divine-duo`)**:
-  - Everything in **Circe Elite**.
-  - Multi‑account & team support (agencies, managers).
-  - Custom integrations, deeper revenue analytics, legal support access.
-  - Priority feature requests and higher-touch success.
-
-In practice, **features are available everywhere**, but **how hard you can lean on them** (AI volume, storage, multi‑account use, automation intensity) is governed by the plan.
+- **Trial** (`divine-trial`): limited AI credits and storage; core features with caps.
+- **Paid** (`cev-paid` or legacy Pro IDs): full Pro tool access within fair‑use limits; tier/variant mainly affects **price** and **which adult platforms** may be connected under Single vs Multi.
 
 ### 4.3 Cost comparison: what each plan actually costs you to run
 
-Below is an **approximate “cost to run” vs. price** comparison, using the infrastructure and AI estimates from this report.
+Below is an **approximate “cost to run” vs. price** comparison, using the infrastructure and AI estimates from this report. **Customer prices** are now the **revenue-band matrix** (`lib/pricing-matrix.ts`), not fixed $49/$99/$199 SKUs — treat the following **Venus / Elite / Duo** subsections as **illustrative** variable‑cost examples at a given monthly list price, not current product names.
 
 Assumptions:
 

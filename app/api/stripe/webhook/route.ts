@@ -2,57 +2,68 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
-import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
-
-// Stripe endpoint to register: https://www.circeetvenus.com/api/stripe/webhook
-// During phased cutover, keep https://www.cetv.app/api/stripe/webhook active temporarily.
+import {
+  insertDivineAppNotification,
+  type NotificationInsertClient,
+} from '@/lib/notifications/divine-app-notification'
+import { getPlanLimits } from '@/lib/billing/plan-limits'
+import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
+import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
-const PRO_PLANS = ['venus-pro', 'circe-elite', 'divine-duo']
+function normalizePlanId(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  return isPaidPlanId(raw) ? PAID_PLAN_ID : raw
+}
 
-function getPlanLimits(planId: string) {
-  switch (planId) {
-    case 'venus-pro':
-      return { ai_credits_limit: 999999, storage_limit_mb: 51200 } // 50GB
-    case 'circe-elite':
-      return { ai_credits_limit: 999999, storage_limit_mb: 999999 }
-    case 'divine-duo':
-      return { ai_credits_limit: 999999, storage_limit_mb: 999999 }
-    case 'divine-trial':
-    default:
-      return { ai_credits_limit: 100, storage_limit_mb: 5120 }
+function metaPatch(meta: Record<string, string> | null | undefined) {
+  if (!meta) return {}
+  const billingVariant =
+    meta.billingVariant === 'single' || meta.billingVariant === 'multi' ? meta.billingVariant : null
+  const tierRaw = meta.revenueTier
+  const revenue_tier =
+    typeof tierRaw === 'string' && tierRaw !== '' ? Number.parseInt(tierRaw, 10) : Number.NaN
+  const revenue_band_label =
+    typeof meta.revenueBandLabel === 'string' && meta.revenueBandLabel.length > 0
+      ? meta.revenueBandLabel
+      : null
+  return {
+    billing_variant: billingVariant,
+    revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
+    revenue_band_label,
   }
 }
 
 async function upsertSubscriptionByUserId(
-  supabase: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role client from createClient
+  supabase: any,
   userId: string,
-  patch: Record<string, any>,
+  patch: Record<string, unknown>,
 ) {
   const planId = patch.plan_id as string | undefined
-  await supabase
-    .from('subscriptions')
-    .upsert(
-      {
-        user_id: userId,
-        ...patch,
-        ...(planId ? getPlanLimits(planId) : {}),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' },
-    )
+  await supabase.from('subscriptions').upsert(
+    {
+      user_id: userId,
+      ...patch,
+      ...(planId ? getPlanLimits(planId) : {}),
+      updated_at: new Date().toISOString(),
+    } as any,
+    { onConflict: 'user_id' },
+  )
 }
 
 async function notifyPlanChange(
-  supabase: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   userId: string,
   planId: string | undefined,
 ) {
-  if (!planId || !PRO_PLANS.includes(planId.toLowerCase())) return
-  await insertDivineAppNotification(supabase, userId, {
+  const n = planId?.toLowerCase()
+  if (!n || !isPaidPlanId(n)) return
+  await insertDivineAppNotification(supabase as NotificationInsertClient, userId, {
     type: 'system',
     title: 'Plan upgraded',
     description: 'Your Pro plan is now active. You have full access to Circe & Venus tools.',
@@ -62,20 +73,27 @@ async function notifyPlanChange(
 }
 
 async function upsertSubscriptionByStripeCustomerId(
-  supabase: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   stripeCustomerId: string,
-  patch: Record<string, any>,
+  patch: Record<string, unknown>,
 ) {
-  const { data: existing } = await supabase
+  const { data: existingRow } = await supabase
     .from('subscriptions')
     .select('user_id,current_period_start,last_reset_at,plan_id')
     .eq('stripe_customer_id', stripeCustomerId)
     .maybeSingle()
 
+  const existing = existingRow as {
+    user_id: string
+    current_period_start: string | null
+    plan_id: string | null
+  } | null
+
   if (!existing?.user_id) return
 
   const incomingStart = patch.current_period_start as string | undefined
-  const existingStart = existing.current_period_start as string | null | undefined
+  const existingStart = existing.current_period_start
   const shouldReset =
     typeof incomingStart === 'string' &&
     incomingStart.length > 0 &&
@@ -90,14 +108,14 @@ async function upsertSubscriptionByStripeCustomerId(
       }
     : {}
 
-  const incomingPlanId = (patch.plan_id as string)?.toLowerCase()
-  const wasPro = existing.plan_id && PRO_PLANS.includes(String(existing.plan_id).toLowerCase())
-  const isPro = incomingPlanId && PRO_PLANS.includes(incomingPlanId)
+  const incomingPlanId = (patch.plan_id as string | undefined)?.toLowerCase()
+  const wasPro = existing.plan_id && isPaidPlanId(String(existing.plan_id))
+  const isPro = incomingPlanId && isPaidPlanId(incomingPlanId)
 
   await upsertSubscriptionByUserId(supabase, existing.user_id, { ...patch, ...resetPatch })
 
   if (isPro && !wasPro) {
-    await notifyPlanChange(supabase, existing.user_id, patch.plan_id)
+    await notifyPlanChange(supabase, existing.user_id, patch.plan_id as string | undefined)
   }
 }
 
@@ -128,13 +146,19 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.metadata?.userId
-        const planId = session.metadata?.productId
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
+        const meta = session.metadata as Record<string, string> | undefined
+        const rawPlan = meta?.productId
+        const planId = normalizePlanId(rawPlan)
+        const tierMeta = metaPatch(meta)
 
         if (userId && customerId) {
           await upsertSubscriptionByUserId(supabase, userId, {
             stripe_customer_id: customerId,
             ...(planId ? { plan_id: planId } : {}),
+            ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
+            ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
+            ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
           })
           if (planId) await notifyPlanChange(supabase, userId, planId)
         }
@@ -145,14 +169,24 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription
         const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
-        const planId = sub.metadata?.productId
+        const rawPlan = sub.metadata?.productId
+        const planId = normalizePlanId(rawPlan)
+        const tierMeta = metaPatch(sub.metadata as Record<string, string>)
+        const period = getSubscriptionPeriodSeconds(sub)
 
         await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
           stripe_subscription_id: sub.id,
           ...(planId ? { plan_id: planId } : {}),
+          ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
+          ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
+          ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
           status: sub.status,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          ...(period
+            ? {
+                current_period_start: new Date(period.start * 1000).toISOString(),
+                current_period_end: new Date(period.end * 1000).toISOString(),
+              }
+            : {}),
           cancel_at_period_end: sub.cancel_at_period_end,
         })
         break
@@ -204,4 +238,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, error: message }, { status: 200 })
   }
 }
-

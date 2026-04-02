@@ -1,11 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isPaidPlanId } from '@/lib/billing/access'
 
-/** Plans that unlock Divine Manager full extension (navigation, async heavy jobs, higher limits). */
-export const DIVINE_FULL_PLAN_IDS = ['divine-duo', 'circe-elite', 'venus-pro'] as const
-
-/** Shown when a tool requires Divine full (Duo / Elite / Venus Pro). */
+/** Shown when a tool requires Divine full (paid Pro). */
 export const DIVINE_FULL_UPGRADE_MESSAGE =
-  'That feature requires Divine Duo, Circe Elite, or Venus Pro. Upgrade in Settings → Subscription to unlock full-app navigation and background leak scans.'
+  'That feature requires a paid Circe et Venus plan. Upgrade in Settings → Subscription to unlock full-app navigation and background leak scans.'
 
 export async function isDivineFullAccess(
   supabase: SupabaseClient,
@@ -19,6 +17,6 @@ export async function isDivineFullAccess(
 
   const planId = (subscription as { plan_id?: string | null } | null)?.plan_id
   const normalized = planId?.toLowerCase() || null
-  const ok = Boolean(normalized && DIVINE_FULL_PLAN_IDS.includes(normalized as (typeof DIVINE_FULL_PLAN_IDS)[number]))
+  const ok = Boolean(normalized && isPaidPlanId(normalized))
   return { ok, planId: planId ?? null }
 }

@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 type Props = {
   activeAlerts: LeakAlert[]
@@ -237,8 +238,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           .select('plan_id')
           .eq('user_id', user.id)
           .maybeSingle()
-        const planId = (data as any)?.plan_id
-        if (planId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(planId)) {
+        const planId = (data as { plan_id?: string } | null)?.plan_id
+        if (planId && isPaidPlanId(planId)) {
           setIsPro(true)
         }
       } catch {
@@ -568,8 +569,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           onCheckedChange={(v) => setStrictScan(v === true)}
         />
         <label htmlFor="strict-scan" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-          Strict mode: only keep search results that likely match your content (Grok on Pro plans; keyword match
-          otherwise). Your manually pasted links are always kept.
+          Strict mode: only keep search results that likely match your content (Venus Pro: AI-assisted filtering;
+          keyword match otherwise). Your manually pasted links are always kept.
         </label>
       </div>
 
@@ -632,22 +633,27 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button
-            className="gap-2 bg-circe hover:bg-circe/90"
-            onClick={runScan}
-            disabled={
-              scanLoading ||
-              selectedLeakHandles.size === 0
-            }
-          >
-            {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Invoke Scan
-            {isPro && (
-              <Badge variant="secondary" className="ml-1 text-[10px] bg-purple-500/10 text-circe-light border-circe/40">
-                Grok Pro
-              </Badge>
-            )}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              className="gap-2 bg-circe hover:bg-circe/90"
+              onClick={runScan}
+              disabled={
+                scanLoading ||
+                selectedLeakHandles.size === 0
+              }
+            >
+              {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Invoke Scan
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="border-venus/40 text-venus hover:bg-venus/10"
+            >
+              <Link href="/dashboard/ai-studio/tools/venus-attraction">Open Venus Pro</Link>
+            </Button>
+          </div>
           {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-md">{scanSummary}</p> : null}
         </div>
         <div className="w-full sm:max-w-md">

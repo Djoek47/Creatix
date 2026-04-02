@@ -1,10 +1,9 @@
 import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export const maxDuration = 60
-
-const PRO_PLANS = ['venus-pro', 'circe-elite', 'divine-duo']
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -23,7 +22,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   const planId = (subscription as { plan_id?: string } | null)?.plan_id?.toLowerCase() || null
-  const isPro = Boolean(planId && PRO_PLANS.includes(planId))
+  const isPro = Boolean(planId && isPaidPlanId(planId))
   if (!isPro) {
     return NextResponse.json({ error: 'Pro subscription required for Churn Predictor' }, { status: 403 })
   }

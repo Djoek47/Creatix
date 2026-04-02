@@ -5,6 +5,7 @@ import {
   generateMessageSuggestionsWithOpenAI,
   NormalizedChatMessage,
 } from '@/lib/ai/message-suggestions'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -64,8 +65,7 @@ export async function POST(req: NextRequest) {
 
     const rawPlanId = (subscription as any)?.plan_id as string | null | undefined
     const normalizedPlanId = rawPlanId?.toLowerCase() || null
-    const isPro =
-      !!normalizedPlanId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalizedPlanId)
+    const isPro = !!normalizedPlanId && isPaidPlanId(normalizedPlanId)
 
     const xaiKey = process.env.XAI_API_KEY
     const openaiKey = process.env.OPENAI_API_KEY

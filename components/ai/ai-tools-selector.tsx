@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { isPaidPlanId } from '@/lib/billing/access'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,7 +22,6 @@ import {
   Brain, 
   Target, 
   Lightbulb, 
-  Palette, 
   Flame, 
   MessageSquare,
   Sparkles,
@@ -44,66 +44,21 @@ import {
   Users,
   TrendingDown,
   Send,
-  Heart
+  Heart,
+  Palette,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { getToolMeta } from '@/lib/ai-tools-data'
+import {
+  compressImageForVision,
+  extractVideoFrameAsDataUrl,
+} from '@/components/ai/caption-media-utils'
+import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
 
-/** Resize and compress image to stay under ~800KB (or maxBytes) to avoid 413 on API. Returns data URL (JPEG). */
-function compressImageForUpload(
-  file: File,
-  maxSize = 1024,
-  quality = 0.82,
-  maxBytes = 750 * 1024
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const w = img.naturalWidth
-      const h = img.naturalHeight
-      const scale = Math.min(1, maxSize / Math.max(w, h))
-      const cw = Math.round(w * scale)
-      const ch = Math.round(h * scale)
-      const canvas = document.createElement('canvas')
-      canvas.width = cw
-      canvas.height = ch
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        reject(new Error('Canvas not supported'))
-        return
-      }
-      ctx.drawImage(img, 0, 0, cw, ch)
-      let q = quality
-      const tryExport = (): string | null => {
-        try {
-          return canvas.toDataURL('image/jpeg', q)
-        } catch {
-          return null
-        }
-      }
-      let dataUrl = tryExport()
-      while (dataUrl && dataUrl.length > maxBytes && q > 0.2) {
-        q -= 0.1
-        dataUrl = tryExport()
-      }
-      if (dataUrl) resolve(dataUrl)
-      else reject(new Error('Could not compress image'))
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Failed to load image'))
-    }
-    img.src = url
-  })
-}
-
-/** Tighter compression for vision APIs (e.g. Grok): max ~350KB to avoid 422/413. */
-function compressImageForVision(file: File): Promise<string> {
-  return compressImageForUpload(file, 800, 0.72, 350 * 1024)
+function formatFantasyCalendarDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // Define the non-Pro AI tools that work
@@ -111,8 +66,8 @@ const workingTools = [
   {
     id: 'caption-generator',
     name: 'Caption Generator',
-    description: 'AI-powered captions for any content',
-    longDescription: 'Generate engaging, platform-optimized captions with hashtags, emojis, and calls-to-action tailored to your audience.',
+    description: 'Vision + voice captions for your media',
+    longDescription: 'Upload a photo or video frame, or describe with text or voice. AI sees the image when provided.',
     icon: Wand2,
     color: 'text-pink-500',
     bgColor: 'bg-pink-500/10',
@@ -122,8 +77,8 @@ const workingTools = [
   {
     id: 'fantasy-writer',
     name: 'Fantasy Writer',
-    description: 'Roleplay and story generator',
-    longDescription: 'Create immersive roleplay scenarios, fantasy stories, and personalized narratives that captivate your audience.',
+    description: 'Roleplay tied to calendar & fans',
+    longDescription: 'Use cosmic events, your content calendar, and fan CRM — optional scenario or voice.',
     icon: PenTool,
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
@@ -139,6 +94,17 @@ const workingTools = [
     color: 'text-yellow-500',
     bgColor: 'bg-yellow-500/10',
     borderColor: 'border-yellow-500/30',
+    credits: 1,
+  },
+  {
+    id: 'aesthetic-matcher',
+    name: 'Aesthetic Matcher',
+    description: 'Trending styles & brand cohesion',
+    longDescription: 'Describe your current aesthetic; get trending directions, palettes, and editing tips.',
+    icon: Palette,
+    color: 'text-fuchsia-500',
+    bgColor: 'bg-fuchsia-500/10',
+    borderColor: 'border-fuchsia-500/30',
     credits: 1,
   },
   {
@@ -173,17 +139,6 @@ const workingTools = [
     bgColor: 'bg-orange-500/10',
     borderColor: 'border-orange-500/30',
     credits: 2,
-  },
-  {
-    id: 'aesthetic-matcher',
-    name: 'Aesthetic Matcher',
-    description: 'Match trending visual styles',
-    longDescription: 'Analyze your content aesthetic and get recommendations to align with trending styles while maintaining your unique brand.',
-    icon: Palette,
-    color: 'text-indigo-500',
-    bgColor: 'bg-indigo-500/10',
-    borderColor: 'border-indigo-500/30',
-    credits: 1,
   },
   {
     id: 'gift-suggester',
@@ -287,6 +242,21 @@ interface ContentIdeasResult {
   seasonalOpportunities: string[]
 }
 
+interface AestheticMatcherResult {
+  content: string
+  currentStyle: string
+  trendingStyles: Array<{
+    name: string
+    description: string
+    compatibility: number
+    examples: string[]
+  }>
+  suggestions: string[]
+  colorPalette: string[]
+  moodKeywords: string[]
+  editingTips: string[]
+}
+
 // Generic AI Result Interface
 interface AIResult {
   content: string
@@ -352,7 +322,7 @@ export function AIToolsSelector({
     if (data) {
       const planId = (data as any).plan_id as string | null | undefined
       const normalized = planId?.toLowerCase() || null
-      setIsPro(Boolean(normalized && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalized)))
+      setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
       setAiCreditsUsed(data.ai_credits_used || 0)
       setAiCreditsLimit(data.ai_credits_limit || 100)
     }
@@ -390,10 +360,38 @@ export function AIToolsSelector({
   const [audienceSegment, setAudienceSegment] = useState('all')
   const [campaignGoal, setCampaignGoal] = useState('')
   const [attractionImage, setAttractionImage] = useState<string | null>(null)
+  const [captionImageDataUrl, setCaptionImageDataUrl] = useState<string | null>(null)
   const [churnFanId, setChurnFanId] = useState<string>('manual')
   const [churnFans, setChurnFans] = useState<
     { id: string; username: string; display_name: string | null; total_spent: number | null; platform: string }[]
   >([])
+
+  const upcomingCosmicEvents = useMemo(() => getUpcomingCosmicEvents(90), [])
+
+  const [fantasyFans, setFantasyFans] = useState<
+    {
+      id: string
+      username: string | null
+      platform_username: string | null
+      display_name: string | null
+      total_spent: number | null
+      platform: string
+      notes: string | null
+      tags: unknown
+    }[]
+  >([])
+  const [fantasyScheduledContent, setFantasyScheduledContent] = useState<
+    {
+      id: string
+      title: string
+      description: string | null
+      scheduled_at: string | null
+      status: string
+    }[]
+  >([])
+  const [fantasyFanId, setFantasyFanId] = useState('')
+  const [fantasyHolidayEventId, setFantasyHolidayEventId] = useState('')
+  const [fantasyContentId, setFantasyContentId] = useState('')
 
   useEffect(() => {
     if (selectedTool?.id !== 'churn-predictor') return
@@ -410,6 +408,33 @@ export function AIToolsSelector({
         .order('total_spent', { ascending: false })
         .limit(150)
       setChurnFans((data as typeof churnFans) || [])
+    })()
+  }, [selectedTool?.id])
+
+  useEffect(() => {
+    if (selectedTool?.id !== 'fantasy-writer') return
+    const sb = createClient()
+    void (async () => {
+      const {
+        data: { user },
+      } = await sb.auth.getUser()
+      if (!user) return
+      const [fansRes, contentRes] = await Promise.all([
+        sb
+          .from('fans')
+          .select('id, username, platform_username, display_name, total_spent, platform, notes, tags')
+          .eq('user_id', user.id)
+          .order('total_spent', { ascending: false })
+          .limit(150),
+        sb
+          .from('content')
+          .select('id, title, description, scheduled_at, status')
+          .eq('user_id', user.id)
+          .order('scheduled_at', { ascending: true, nullsFirst: false })
+          .limit(40),
+      ])
+      setFantasyFans((fansRes.data as typeof fantasyFans) || [])
+      setFantasyScheduledContent((contentRes.data as typeof fantasyScheduledContent) || [])
     })()
   }, [selectedTool?.id])
   
@@ -448,11 +473,49 @@ export function AIToolsSelector({
               contentType,
               contentDescription,
               platform,
+              image: captionImageDataUrl || undefined,
             }),
           })
           break
           
-        case 'fantasy-writer':
+        case 'fantasy-writer': {
+          const calendarEventSummary = fantasyHolidayEventId
+            ? (() => {
+                const ev = upcomingCosmicEvents.find((e) => e.id === fantasyHolidayEventId)
+                if (!ev) return undefined
+                return `${ev.holiday.name} (${formatFantasyCalendarDate(ev.date)}, ${ev.holiday.type}). Content angle: ${ev.holiday.contentIdea}`
+              })()
+            : undefined
+
+          const fanProfileSummary = fantasyFanId
+            ? (() => {
+                const f = fantasyFans.find((x) => x.id === fantasyFanId)
+                if (!f) return undefined
+                const handle = f.username || f.platform_username || 'fan'
+                const tags = Array.isArray(f.tags) ? (f.tags as string[]).join(', ') : ''
+                return [
+                  `Fan @${handle} on ${f.platform}`,
+                  f.display_name ? `Display name: ${f.display_name}` : '',
+                  `Approx. lifetime spend: ${f.total_spent ?? 0}`,
+                  f.notes ? `Your notes: ${f.notes}` : '',
+                  tags ? `Tags: ${tags}` : '',
+                ]
+                  .filter(Boolean)
+                  .join('\n')
+              })()
+            : undefined
+
+          const scheduledContentSummary = fantasyContentId
+            ? (() => {
+                const c = fantasyScheduledContent.find((x) => x.id === fantasyContentId)
+                if (!c) return undefined
+                const when = c.scheduled_at
+                  ? formatFantasyCalendarDate(new Date(c.scheduled_at))
+                  : 'not scheduled yet'
+                return `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.${c.description ? ` Notes: ${c.description}` : ''}`
+              })()
+            : undefined
+
           response = await fetch('/api/ai/fantasy-writer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -460,9 +523,13 @@ export function AIToolsSelector({
               scenario: contentDescription,
               tone: contentType,
               platform,
+              calendarEventSummary,
+              fanProfileSummary,
+              scheduledContentSummary,
             }),
           })
           break
+        }
           
         case 'content-ideas':
           response = await fetch('/api/ai/content-ideas', {
@@ -472,6 +539,17 @@ export function AIToolsSelector({
               niche: niche || 'general',
               platform,
               currentTrends: contentDescription,
+            }),
+          })
+          break
+
+        case 'aesthetic-matcher':
+          response = await fetch('/api/ai/aesthetic-matcher', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              currentAesthetic: contentDescription.trim(),
+              platform,
             }),
           })
           break
@@ -506,17 +584,6 @@ export function AIToolsSelector({
             body: JSON.stringify({
               contentDescription,
               contentType,
-              platform,
-            }),
-          })
-          break
-          
-        case 'aesthetic-matcher':
-          response = await fetch('/api/ai/aesthetic-matcher', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              currentAesthetic: contentDescription,
               platform,
             }),
           })
@@ -679,7 +746,11 @@ export function AIToolsSelector({
     setCurrentPrice('')
     setNiche('')
     setAttractionImage(null)
+    setCaptionImageDataUrl(null)
     setChurnFanId('manual')
+    setFantasyFanId('')
+    setFantasyHolidayEventId('')
+    setFantasyContentId('')
   }
   
   // Render tool-specific input form
@@ -721,8 +792,60 @@ export function AIToolsSelector({
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Upload photo or video (AI sees the frame)</Label>
+              {captionImageDataUrl ? (
+                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+                  <img
+                    src={captionImageDataUrl}
+                    alt="Preview for caption"
+                    className="max-h-48 w-full object-contain"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="absolute right-2 top-2"
+                    onClick={() => setCaptionImageDataUrl(null)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/jpg,image/webp,video/mp4,video/quicktime,video/webm"
+                  className="cursor-pointer"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    try {
+                      if (file.type.startsWith('video/')) {
+                        const frame = await extractVideoFrameAsDataUrl(file)
+                        const blob = await fetch(frame).then((r) => r.blob())
+                        const compressed = await compressImageForVision(
+                          new File([blob], 'frame.jpg', { type: 'image/jpeg' }),
+                        )
+                        setCaptionImageDataUrl(compressed)
+                      } else {
+                        const dataUrl = await compressImageForVision(file)
+                        setCaptionImageDataUrl(dataUrl)
+                      }
+                    } catch {
+                      const reader = new FileReader()
+                      reader.onload = () => setCaptionImageDataUrl(reader.result as string)
+                      reader.readAsDataURL(file)
+                    }
+                  }}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                For video we use one representative frame. Add voice or text below for extra context (tone, tease, PPV angle).
+              </p>
+            </div>
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Describe Your Content</Label>
+                <Label>Describe your content (optional if you uploaded media)</Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
                   size="sm"
@@ -731,7 +854,7 @@ export function AIToolsSelector({
                 />
               </div>
               <Textarea 
-                placeholder="Describe your content... e.g., Bedroom mirror selfie in red lingerie, soft lighting..."
+                placeholder="Optional: describe or use the mic to talk through what fans should feel — e.g., playful tease, soft lighting, bedroom mirror..."
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[100px]"
@@ -774,8 +897,85 @@ export function AIToolsSelector({
               </div>
             </div>
             <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Cosmic calendar event (next ~90 days)
+              </Label>
+              <Select
+                value={fantasyHolidayEventId || 'none'}
+                onValueChange={(v) => setFantasyHolidayEventId(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional — tie fantasy to a holiday / event" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {upcomingCosmicEvents.map((ev) => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      {formatFantasyCalendarDate(ev.date)} — {ev.holiday.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Your scheduled content (content calendar)</Label>
+              <Select
+                value={fantasyContentId || 'none'}
+                onValueChange={(v) => setFantasyContentId(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional — match a planned post" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {fantasyScheduledContent.map((row) => (
+                    <SelectItem key={row.id} value={row.id}>
+                      {row.title}
+                      {row.scheduled_at
+                        ? ` · ${formatFantasyCalendarDate(new Date(row.scheduled_at))}`
+                        : ''}{' '}
+                      ({row.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fantasyScheduledContent.length === 0 && (
+                <p className="text-xs text-muted-foreground">No items in your content calendar yet. Add posts under Content.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Fan profile (personalize for one fan)
+              </Label>
+              <Select
+                value={fantasyFanId || 'none'}
+                onValueChange={(v) => setFantasyFanId(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional — fantasy tailored to this fan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {fantasyFans.map((f) => {
+                    const h = f.username || f.platform_username || 'fan'
+                    return (
+                      <SelectItem key={f.id} value={f.id}>
+                        @{h} · {f.platform}
+                        {f.total_spent != null ? ` · ~$${f.total_spent}` : ''}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+              {fantasyFans.length === 0 && (
+                <p className="text-xs text-muted-foreground">No fans synced yet. Connect a platform in Settings.</p>
+              )}
+            </div>
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Scenario or Theme</Label>
+                <Label>Scenario or theme (optional if you picked calendar / fan / scheduled post above)</Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
                   size="sm"
@@ -783,7 +983,7 @@ export function AIToolsSelector({
                 />
               </div>
               <Textarea 
-                placeholder="Describe the scenario... e.g., We meet at a masquerade ball, mysterious strangers..."
+                placeholder="e.g. masquerade strangers, slow burn, exclusive VIP vibe — or leave blank and rely on calendar + fan context."
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[100px]"
@@ -825,6 +1025,41 @@ export function AIToolsSelector({
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[80px]"
+              />
+            </div>
+          </div>
+        )
+
+      case 'aesthetic-matcher':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                  <SelectItem value="fansly">Fansly</SelectItem>
+                  <SelectItem value="mym">MYM</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Your current aesthetic &amp; brand vibe</Label>
+                <VoiceInputButton
+                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+              <Textarea
+                placeholder="Lighting, color grade, sets, outfits, mood — what you do today and what you want to evolve toward."
+                value={contentDescription}
+                onChange={(e) => setContentDescription(e.target.value)}
+                className="min-h-[120px]"
               />
             </div>
           </div>
@@ -1409,6 +1644,94 @@ export function AIToolsSelector({
       )}
     </div>
   )
+
+  const renderAestheticResults = (res: AestheticMatcherResult) => (
+    <div className="space-y-4 pt-4 border-t border-border">
+      <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 space-y-2">
+        <h4 className="text-xs font-medium text-muted-foreground">Summary</h4>
+        <p className="text-sm whitespace-pre-wrap">{res.content}</p>
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Current read: </span>
+          {res.currentStyle}
+        </p>
+      </div>
+      {res.trendingStyles?.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium">Trending directions</h4>
+          <div className="space-y-3">
+            {res.trendingStyles.map((s, i) => (
+              <div key={i} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{s.name}</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {s.compatibility}% fit
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{s.description}</p>
+                {s.examples?.length > 0 && (
+                  <ul className="text-xs space-y-1 list-disc list-inside">
+                    {s.examples.map((ex, j) => (
+                      <li key={j}>{ex}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {res.colorPalette?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Palette ideas</h4>
+          <div className="flex flex-wrap gap-2">
+            {res.colorPalette.map((c, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">
+                {c}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+      {res.moodKeywords?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Mood keywords</h4>
+          <div className="flex flex-wrap gap-2">
+            {res.moodKeywords.map((k, i) => (
+              <Badge key={i} variant="outline" className="text-xs">
+                {k}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+      {res.suggestions?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Suggestions</h4>
+          <ul className="space-y-1">
+            {res.suggestions.map((s, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {res.editingTips?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Editing tips</h4>
+          <ul className="space-y-1">
+            {res.editingTips.map((t, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <ChevronRight className="h-4 w-4 text-fuchsia-500 mt-0.5 shrink-0" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
   
   // Render generic results
   const renderGenericResults = (res: AIResult) => (
@@ -1612,7 +1935,14 @@ export function AIToolsSelector({
           onClick={runTool} 
           disabled={
             loading ||
-            (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage)
+            (selectedTool.id === 'aesthetic-matcher' && !contentDescription.trim()) ||
+            (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
+            (selectedTool.id === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
+            (selectedTool.id === 'fantasy-writer' &&
+              !contentDescription.trim() &&
+              !fantasyHolidayEventId &&
+              !fantasyFanId &&
+              !fantasyContentId)
           }
           className="w-full"
         >
@@ -1636,7 +1966,9 @@ export function AIToolsSelector({
               ? renderCaptionResults(result as CaptionResult)
               : selectedTool.id === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
-                : renderGenericResults(result as AIResult)}
+                : selectedTool.id === 'aesthetic-matcher' && result && typeof result === 'object' && 'trendingStyles' in result
+                  ? renderAestheticResults(result as AestheticMatcherResult)
+                  : renderGenericResults(result as AIResult)}
           </div>
         )}
       </CardContent>

@@ -6,27 +6,34 @@ import {
   EmbeddedCheckoutProvider,
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
-import { startCheckoutSession } from '@/app/actions/stripe'
+import { startCheckoutSession, startPaidSubscriptionCheckout } from '@/app/actions/stripe'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Loader2 } from 'lucide-react'
+import type { BillingVariant } from '@/lib/pricing-matrix'
+import { PAID_PLAN_ID } from '@/lib/billing/access'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface CheckoutProps {
   productId: string
+  /** Required when `productId` is the paid plan slug (`cev-paid`). */
+  billingVariant?: BillingVariant
+  tierIndex?: number
   buttonText?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
   children?: React.ReactNode
 }
 
-export function Checkout({ 
-  productId, 
-  buttonText = 'Subscribe', 
+export function Checkout({
+  productId,
+  billingVariant,
+  tierIndex,
+  buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
-  children 
+  children,
 }: CheckoutProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -34,12 +41,20 @@ export function Checkout({
   const fetchClientSecret = useCallback(async () => {
     setLoading(true)
     try {
-      const secret = await startCheckoutSession(productId)
-      return secret
+      if (productId === PAID_PLAN_ID) {
+        if (billingVariant == null || tierIndex == null) {
+          throw new Error('Choose revenue band and Single or Multi before checkout.')
+        }
+        return await startPaidSubscriptionCheckout({
+          variant: billingVariant,
+          tierIndex,
+        })
+      }
+      return await startCheckoutSession(productId)
     } finally {
       setLoading(false)
     }
-  }, [productId])
+  }, [productId, billingVariant, tierIndex])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -68,11 +83,24 @@ export function Checkout({
   )
 }
 
-export function CheckoutEmbed({ productId }: { productId: string }) {
-  const fetchClientSecret = useCallback(
-    () => startCheckoutSession(productId),
-    [productId]
-  )
+export function CheckoutEmbed({
+  productId,
+  billingVariant,
+  tierIndex,
+}: {
+  productId: string
+  billingVariant?: BillingVariant
+  tierIndex?: number
+}) {
+  const fetchClientSecret = useCallback(() => {
+    if (productId === PAID_PLAN_ID) {
+      if (billingVariant == null || tierIndex == null) {
+        return Promise.reject(new Error('Missing billing options'))
+      }
+      return startPaidSubscriptionCheckout({ variant: billingVariant, tierIndex })
+    }
+    return startCheckoutSession(productId)
+  }, [productId, billingVariant, tierIndex])
 
   return (
     <div id="checkout">

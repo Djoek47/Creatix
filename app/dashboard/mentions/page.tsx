@@ -8,8 +8,7 @@ import { MentionsConnectBanner } from '@/components/dashboard/mentions-connect-b
 import { ReputationBriefingCard } from '@/components/dashboard/reputation-briefing-card'
 import { ReputationIdentityCard } from '@/components/dashboard/reputation-identity-card'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
-
-const PRO_PLANS = ['venus-pro', 'circe-elite', 'divine-duo']
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export default async function MentionsPage() {
   const supabase = await createClient()
@@ -34,7 +33,7 @@ export default async function MentionsPage() {
   ])
 
   const planId = (subscription as { plan_id?: string } | null)?.plan_id?.toLowerCase() || null
-  const isPro = Boolean(planId && PRO_PLANS.includes(planId))
+  const isPro = Boolean(planId && isPaidPlanId(planId))
 
   const briefingJson = (profileRow as { reputation_briefing?: unknown; reputation_briefing_at?: string | null } | null)
     ?.reputation_briefing

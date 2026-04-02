@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 // Real SVG Icons for social platforms
 const InstagramIcon = () => (
@@ -167,8 +168,8 @@ export function SocialReputationWidget() {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const planId = (data as any)?.plan_id
-    if (planId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(planId)) {
+    const planId = (data as { plan_id?: string } | null)?.plan_id
+    if (planId && isPaidPlanId(planId)) {
       setIsPro(true)
     } else {
       setIsPro(false)

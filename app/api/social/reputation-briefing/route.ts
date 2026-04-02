@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
 import { runReputationBriefingCore } from '@/lib/reputation/briefing-server'
-
-const PRO_PLANS = ['venus-pro', 'circe-elite', 'divine-duo']
+import { isPaidPlanId } from '@/lib/billing/access'
 
 function isProPlan(planId: string | null | undefined): boolean {
   const n = planId?.toLowerCase() || null
-  return Boolean(n && PRO_PLANS.includes(n))
+  return Boolean(n && isPaidPlanId(n))
 }
 
 export async function POST(req: NextRequest) {

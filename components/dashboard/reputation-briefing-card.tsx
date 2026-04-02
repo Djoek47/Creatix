@@ -93,7 +93,7 @@ export function ReputationBriefingCard({
             AI reputation briefing
             {isPro && (
               <Badge variant="outline" className="border-venus/40 text-[10px] text-venus">
-                Pro · Grok
+                Venus Pro
               </Badge>
             )}
           </CardTitle>

@@ -27,6 +27,10 @@ import {
   Mic
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
+import {
+  compressImageForVision,
+  extractVideoFrameAsDataUrl,
+} from '@/components/ai/caption-media-utils'
 
 interface Caption {
   text: string
@@ -51,10 +55,11 @@ export function CaptionGenerator() {
   const [result, setResult] = useState<CaptionResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
 
   const generateCaptions = async () => {
-    if (!contentDescription.trim()) return
-    
+    if (!contentDescription.trim() && !mediaPreview) return
+
     setLoading(true)
     try {
       const response = await fetch('/api/ai/caption-generator', {
@@ -64,6 +69,7 @@ export function CaptionGenerator() {
           contentType,
           contentDescription,
           platform,
+          image: mediaPreview || undefined,
         }),
       })
       const data = await response.json()
@@ -101,6 +107,58 @@ export function CaptionGenerator() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label>Photo or video (AI sees the image / a video frame)</Label>
+          {mediaPreview ? (
+            <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
+              <img
+                src={mediaPreview}
+                alt="Media preview for captions"
+                className="max-h-52 w-full object-contain"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="absolute right-2 top-2"
+                onClick={() => setMediaPreview(null)}
+              >
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp,video/mp4,video/quicktime,video/webm"
+              className="cursor-pointer"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                try {
+                  if (file.type.startsWith('video/')) {
+                    const frame = await extractVideoFrameAsDataUrl(file)
+                    const blob = await fetch(frame).then((r) => r.blob())
+                    const compressed = await compressImageForVision(
+                      new File([blob], 'frame.jpg', { type: 'image/jpeg' }),
+                    )
+                    setMediaPreview(compressed)
+                  } else {
+                    setMediaPreview(await compressImageForVision(file))
+                  }
+                } catch {
+                  const reader = new FileReader()
+                  reader.onload = () => setMediaPreview(reader.result as string)
+                  reader.readAsDataURL(file)
+                }
+              }}
+            />
+          )}
+          <p className="text-xs text-muted-foreground">
+            Optional but recommended: we analyze pixels for accurate captions. For video we use one frame. Add voice or text below for extra context.
+          </p>
+        </div>
+
         {/* Input Form */}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
@@ -135,7 +193,7 @@ export function CaptionGenerator() {
             <Label>&nbsp;</Label>
             <Button 
               onClick={generateCaptions} 
-              disabled={loading || !contentDescription.trim()}
+              disabled={loading || (!contentDescription.trim() && !mediaPreview)}
               className="w-full"
             >
               {loading ? (
@@ -155,7 +213,7 @@ export function CaptionGenerator() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="description">Describe Your Content</Label>
+            <Label htmlFor="description">Describe your content (optional if you uploaded media)</Label>
             <VoiceInputButton
               onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
               size="sm"
@@ -165,7 +223,7 @@ export function CaptionGenerator() {
           </div>
           <Textarea 
             id="description"
-            placeholder="Describe or speak about your content... e.g., Bedroom mirror selfie in red lingerie, soft lighting, playful pose..."
+            placeholder="Optional: type or use the mic — e.g. playful tease, soft lighting, what you want fans to feel..."
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[80px]"

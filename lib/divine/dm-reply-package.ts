@@ -14,6 +14,7 @@ import {
   normalizeSortedRawOfMessages,
 } from '@/lib/divine/of-thread-text'
 import { refreshFanThreadInsight, upsertFanThreadInsightSnapshot } from '@/lib/divine/fan-thread-insight'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -168,9 +169,7 @@ export async function fetchDmReplySuggestionsPackage(
     .select('plan_id, ai_credits_used')
     .eq('user_id', userId)
     .maybeSingle()
-  const isPro =
-    !!subscription?.plan_id &&
-    ['venus-pro', 'circe-elite', 'divine-duo'].includes(String(subscription.plan_id).toLowerCase())
+  const isPro = isPaidPlanId(String(subscription?.plan_id ?? ''))
   const xaiKey = process.env.XAI_API_KEY
   const openaiKey = process.env.OPENAI_API_KEY
 

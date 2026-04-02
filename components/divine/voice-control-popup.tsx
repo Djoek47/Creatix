@@ -38,7 +38,8 @@ export function VoiceControlPopup() {
     voiceSurfaceState,
     canManualHangup,
   } = voice
-  const messagesOnlyMode = pathname?.startsWith('/dashboard/messages') === true
+  /** Messages composer sits bottom-right; lift FAB there only. Else default corner. */
+  const messagesRoute = pathname?.startsWith('/dashboard/messages') === true
 
   const primaryLabel =
     status === 'idle'
@@ -61,12 +62,13 @@ export function VoiceControlPopup() {
   return (
     <>
       <DivineTranscriptStack />
-      {/* Divine voice crown FAB: Messages only (composer zone); not shown on Dashboard or other routes */}
-      {messagesOnlyMode && (
+      {/* Yellow Realtime voice crown — site-wide; lifted on Messages so it does not cover Send */}
       <div
         className={cn(
           'fixed z-40 flex flex-col items-end gap-2',
-          'bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] right-3 sm:right-5',
+          messagesRoute
+            ? 'bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] right-3 sm:right-5'
+            : 'bottom-6 right-6',
         )}
       >
         <div
@@ -164,7 +166,6 @@ export function VoiceControlPopup() {
           </button>
         </div>
       </div>
-      )}
     </>
   )
 }

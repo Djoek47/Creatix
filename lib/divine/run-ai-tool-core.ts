@@ -209,6 +209,7 @@ export async function runDivineAiToolServer(
           platform: params.platform ?? 'onlyfans',
           creatorNiche: params.creatorNiche ?? params.niche,
           creatorTone: params.creatorTone,
+          image: typeof params.image === 'string' ? params.image : undefined,
         }
         const res = await fetch(`${base}/caption-generator`, {
           method: 'POST',
@@ -288,14 +289,17 @@ export async function runDivineAiToolServer(
         return { success: true, result: data }
       }
       case 'aesthetic-matcher': {
-        const payload = {
-          currentAesthetic: params.currentAesthetic ?? params.description ?? '',
-          platform: params.platform ?? 'onlyfans',
-        }
         const res = await fetch(`${base}/aesthetic-matcher`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            currentAesthetic:
+              (typeof params.currentAesthetic === 'string' && params.currentAesthetic) ||
+              (typeof params.description === 'string' && params.description) ||
+              (typeof params.contentDescription === 'string' && params.contentDescription) ||
+              '',
+            platform: params.platform ?? 'onlyfans',
+          }),
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }

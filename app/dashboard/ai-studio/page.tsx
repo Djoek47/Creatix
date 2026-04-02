@@ -21,6 +21,7 @@ import {
 import { AIToolsLibrary } from '@/components/ai/ai-tools-library'
 import { MediaVaultHub } from '@/components/ai/media-vault-hub'
 import { createClient } from '@/lib/supabase/client'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export default function AIStudioPage() {
   const searchParams = useSearchParams()
@@ -54,7 +55,7 @@ export default function AIStudioPage() {
           .maybeSingle()
         const rawPlanId = (data as { plan_id?: string } | null)?.plan_id
         const normalizedPlanId = rawPlanId?.toLowerCase() || null
-        if (normalizedPlanId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalizedPlanId)) {
+        if (normalizedPlanId && isPaidPlanId(normalizedPlanId)) {
           setIsPro(true)
         }
       } catch {

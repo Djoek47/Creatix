@@ -44,5 +44,7 @@ When you add a **new public API** or change **auth requirements**, add one line 
 
 ## Recent additions
 
+- `POST app/api/ai/caption-generator` — accepts optional `image` (base64 `data:image/...` URL) for vision captions; text/voice description optional when an image is provided. Video clients should send a single frame as an image.
+- `POST app/api/ai/fantasy-writer` — optional `calendarEventSummary`, `scheduledContentSummary`, `fanProfileSummary` (with `scenario` / `tone` / `platform`); at least one of scenario or any summary must be provided.
 - `POST app/api/ai/mimic-test-realtime` — WebRTC SDP handshake for Realtime Mimic interrogatory voice sessions (intro + adaptive Q/A flow).
 - `POST app/api/divine/voice-tool` — now also supports Mimic voice tools: `mimic_record_answer` (live transcript persistence) and `mimic_finalize_interview` (profile refinement + persist to `divine_manager_settings.mimic_profile`).

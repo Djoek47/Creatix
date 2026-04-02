@@ -30,6 +30,18 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
+import { isPaidPlanId } from '@/lib/billing/access'
+import { multiLaneRequiredAfterConnect } from '@/lib/billing/platform-variant'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface PlatformConnection {
   id: string
@@ -153,6 +165,12 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   const [fansly2FACode, setFansly2FACode] = useState('')
   const [fanslyMaskedEmail, setFanslyMaskedEmail] = useState<string | null>(null)
   const [fanslyLoading, setFanslyLoading] = useState(false)
+  const [billingSub, setBillingSub] = useState<{
+    plan_id: string | null
+    status: string | null
+    billing_variant: string | null
+  } | null>(null)
+  const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
 
   const supabase = createClient()
 
@@ -160,12 +178,19 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const { data } = await supabase
-      .from('platform_connections')
-      .select('*')
-      .eq('user_id', user.id)
+    const [{ data }, { data: subRow }] = await Promise.all([
+      supabase.from('platform_connections').select('*').eq('user_id', user.id),
+      supabase.from('subscriptions').select('plan_id,status,billing_variant').eq('user_id', user.id).maybeSingle(),
+    ])
 
     setConnections(data || [])
+    if (subRow) {
+      setBillingSub({
+        plan_id: subRow.plan_id ?? null,
+        status: subRow.status ?? null,
+        billing_variant: (subRow as { billing_variant?: string | null }).billing_variant ?? null,
+      })
+    }
     setLoading(false)
   }
 
@@ -497,6 +522,20 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     setError(null)
     const platform = PLATFORMS.find(p => p.id === platformId)
     if (platform?.comingSoon) return
+
+    const paid =
+      billingSub &&
+      isPaidPlanId(billingSub.plan_id) &&
+      (billingSub.status === 'active' || billingSub.status === 'trialing')
+    if (
+      paid &&
+      billingSub.billing_variant === 'single' &&
+      multiLaneRequiredAfterConnect(connections, platformId)
+    ) {
+      setMultiUpgradeOpen(true)
+      return
+    }
+
     if (platformId === 'onlyfans') connectOnlyfansWithSdk()
     else if (platformId === 'fansly') openFanslyDialog()
   }
@@ -744,6 +783,24 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           </CardContent>
         </Card>
 
+        <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Multi-platform subscription required</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your subscription is <strong>Single</strong> (OnlyFans-only). Connecting another adult
+                platform requires a <strong>Multi</strong> plan. Upgrade under Billing, then connect again.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Not now</AlertDialogCancel>
+              <Button asChild>
+                <Link href="/dashboard/settings?tab=billing">Open billing</Link>
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <ConnectDialogs
           fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}
           fanslyEmail={fanslyEmail} setFanslyEmail={setFanslyEmail}
@@ -944,6 +1001,24 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           })}
         </div>
       </div>
+
+      <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Multi-platform subscription required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your subscription is <strong>Single</strong> (OnlyFans-only). Connecting another adult
+              platform requires a <strong>Multi</strong> plan. Upgrade under Billing, then connect again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <Button asChild>
+              <Link href="/dashboard/settings?tab=billing">Open billing</Link>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ConnectDialogs
         fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}

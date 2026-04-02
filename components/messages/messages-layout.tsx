@@ -4,10 +4,16 @@ import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
+import { ConversationRail } from './conversation-rail'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { ChatWindow } from './chat-window'
 import { MassMessageDialog } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { FanProfileModal } from '@/components/messages/fan-profile-modal'
+import { cn } from '@/lib/utils'
+import { proxyImageUrl } from '@/lib/proxy-image-url'
 import {
   Sheet,
   SheetContent,
@@ -23,6 +29,7 @@ import {
   MessageSquare,
   Megaphone,
   PanelLeft,
+  User,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 
@@ -72,16 +79,40 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fanProfileOpen, setFanProfileOpen] = useState(false)
+  /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
+  const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
+  const isMobile = useIsMobile()
 
-  const openChatsMenu = useCallback(() => {
-    setConversationMenuOpen(true)
+  const dispatchCollapseDashboardSidebar = useCallback(() => {
     if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {
       window.dispatchEvent(new CustomEvent('messages:open-chats-menu'))
     }
   }, [pathname])
 
+  /** Mobile: open sheet. Desktop: toggle chat rail expand (collapse dashboard when expanding). */
+  const openChatsMenu = useCallback(() => {
+    if (isMobile) {
+      setConversationMenuOpen(true)
+      dispatchCollapseDashboardSidebar()
+    } else {
+      setChatsRailExpanded((prev) => {
+        const next = !prev
+        if (next) dispatchCollapseDashboardSidebar()
+        return next
+      })
+    }
+  }, [isMobile, dispatchCollapseDashboardSidebar])
+
   useEffect(() => {
-    const onSidebarExpanded = () => setConversationMenuOpen(false)
+    setFanProfileOpen(false)
+  }, [selectedConversation?.user.id, selectedConversation?.platform])
+
+  useEffect(() => {
+    const onSidebarExpanded = () => {
+      setConversationMenuOpen(false)
+      setChatsRailExpanded(false)
+    }
     window.addEventListener('dashboard:left-sidebar-expanded', onSidebarExpanded as EventListener)
     return () => {
       window.removeEventListener('dashboard:left-sidebar-expanded', onSidebarExpanded as EventListener)
@@ -379,35 +410,124 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <div className="flex min-h-0 flex-1">
-          <ChatWindow
-            conversation={selectedConversation}
-            userId={userId}
-            onMessageSent={() => loadConversations(true)}
-            onOpenConversationMenu={openChatsMenu}
-          />
-          <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
-            <SheetContent side="right" className="w-full p-0 sm:max-w-md">
-              <SheetHeader className="border-b border-border">
-                <SheetTitle>Messages</SheetTitle>
-                <SheetDescription>
-                  Pick a fan conversation by avatar and name.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="h-[calc(100%-5rem)] p-3">
-                <ConversationList
-                  conversations={conversations}
-                  selectedKey={
-                    selectedConversation ? conversationRowKey(selectedConversation) : undefined
-                  }
-                  onSelect={(conv) => {
-                    setSelectedConversation(conv)
-                    setConversationMenuOpen(false)
-                  }}
-                />
+          {selectedConversation && (
+            <>
+              <div className="rounded-lg border border-border bg-card px-3 py-2.5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-center">
+                  <Avatar className="h-10 w-10 shrink-0 border border-border">
+                    <AvatarImage
+                      src={proxyImageUrl(selectedConversation.user.avatar) || selectedConversation.user.avatar}
+                      alt=""
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {selectedConversation.user.name?.[0]?.toUpperCase() ||
+                        selectedConversation.user.username?.[0]?.toUpperCase() ||
+                        '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setFanProfileOpen(true)}
+                    title="Open fan profile"
+                    aria-label="Open fan profile"
+                  >
+                    <User className="h-4 w-4" />
+                  </Button>
+                  <div className="min-w-0 flex-1 text-center sm:max-w-none sm:flex-none sm:text-left">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
+                      <span className="truncate text-sm font-medium">
+                        {selectedConversation.user.name || selectedConversation.user.username || 'Unknown'}
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                          selectedConversation.platform === 'onlyfans'
+                            ? 'bg-sky-500/10 text-sky-500'
+                            : 'bg-blue-500/10 text-blue-500',
+                        )}
+                      >
+                        <img
+                          src={
+                            selectedConversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'
+                          }
+                          alt={selectedConversation.platform}
+                          className="h-3 w-3"
+                        />
+                        {selectedConversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                      </span>
+                      {divinePanel?.focusedFan &&
+                        String(divinePanel.focusedFan.id) === String(selectedConversation.user.id) && (
+                          <span className="inline-flex shrink-0 items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            Divine focused here
+                          </span>
+                        )}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      @{selectedConversation.user.username}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </SheetContent>
-          </Sheet>
+              <FanProfileModal
+                open={fanProfileOpen}
+                onOpenChange={setFanProfileOpen}
+                fanId={String(selectedConversation.user.id)}
+                platform={selectedConversation.platform === 'onlyfans' ? 'onlyfans' : 'fansly'}
+                initialUsername={selectedConversation.user.username}
+                initialName={selectedConversation.user.name}
+                initialAvatar={selectedConversation.user.avatar}
+              />
+            </>
+          )}
+          <div className="flex min-h-0 flex-1 gap-2">
+            {!isMobile && (
+              <ConversationRail
+                conversations={conversations}
+                selectedKey={
+                  selectedConversation ? conversationRowKey(selectedConversation) : undefined
+                }
+                onSelect={(conv) => setSelectedConversation(conv)}
+                expanded={chatsRailExpanded}
+                onExpandedChange={(expanded) => {
+                  setChatsRailExpanded(expanded)
+                }}
+              />
+            )}
+            <ChatWindow
+              conversation={selectedConversation}
+              userId={userId}
+              onMessageSent={() => loadConversations(true)}
+              onOpenConversationMenu={openChatsMenu}
+              onOpenFanProfile={() => setFanProfileOpen(true)}
+            />
+            {isMobile && (
+              <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
+                <SheetContent side="right" className="w-full p-0 sm:max-w-md">
+                  <SheetHeader className="border-b border-border">
+                    <SheetTitle>Messages</SheetTitle>
+                    <SheetDescription>
+                      Pick a fan conversation by avatar and name.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="h-[calc(100%-5rem)] p-3">
+                    <ConversationList
+                      conversations={conversations}
+                      selectedKey={
+                        selectedConversation ? conversationRowKey(selectedConversation) : undefined
+                      }
+                      onSelect={(conv) => {
+                        setSelectedConversation(conv)
+                        setConversationMenuOpen(false)
+                      }}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
           </div>
         </div>
       )}

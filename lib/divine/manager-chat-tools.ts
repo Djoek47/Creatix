@@ -28,6 +28,7 @@ import {
 } from '@/lib/divine/divine-lookup-meta'
 import { loadDivineDmThread } from '@/lib/divine/divine-dm-thread'
 import { isDivineFullAccess, DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
+import { isPaidPlanId } from '@/lib/billing/access'
 import { draftFanReplyWithMimic } from '@/lib/divine/draft-fan-reply'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
 import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
@@ -163,7 +164,7 @@ async function isProPlanUser(supabase: SupabaseClient, userId: string): Promise<
     .eq('user_id', userId)
     .maybeSingle()
   const pid = String((subscription as { plan_id?: string } | null)?.plan_id ?? '').toLowerCase()
-  return ['venus-pro', 'circe-elite', 'divine-duo'].includes(pid)
+  return isPaidPlanId(pid)
 }
 
 function parseHandlesArg(raw: unknown): string[] {

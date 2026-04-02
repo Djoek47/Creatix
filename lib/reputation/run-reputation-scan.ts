@@ -13,6 +13,7 @@ import {
   type ScanChannel,
 } from '@/lib/reputation/build-queries'
 import { filterHandlesToAllowed, loadMergedHandlesForUser, normalizeScanHandle } from '@/lib/scan-identity'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export type ScanMode = 'wide' | 'social' | 'both'
 
@@ -89,9 +90,7 @@ export async function runReputationScanCore(
 
   const rawPlanId = (subscription as { plan_id?: string } | null)?.plan_id
   const normalizedPlanId = rawPlanId?.toLowerCase() || null
-  const isProPlan = Boolean(
-    normalizedPlanId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(normalizedPlanId),
-  )
+  const isProPlan = Boolean(normalizedPlanId && isPaidPlanId(normalizedPlanId))
 
   const [{ data: platforms }, { data: profileRow }, allowedFromDb] = await Promise.all([
     supabase

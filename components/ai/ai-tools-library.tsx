@@ -18,7 +18,6 @@ import {
   Brain,
   Target,
   Lightbulb,
-  Palette,
   Camera,
   MessageSquare,
   Gift,
@@ -35,9 +34,11 @@ import {
   Leaf,
   Compass,
   Sun,
+  Palette,
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'caption-generator': Wand2,
@@ -108,9 +109,7 @@ export function AIToolsLibrary({ showBackButton = false, compact = false }: AITo
             limit: data.ai_credits_limit ?? 100,
           })
           const planId = (data as { plan_id?: string }).plan_id?.toLowerCase()
-          setIsPro(
-            !!planId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(planId)
-          )
+          setIsPro(!!planId && isPaidPlanId(planId))
         }
       } catch {
         // ignore

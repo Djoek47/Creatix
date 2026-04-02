@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
+import { isPaidPlanId } from '@/lib/billing/access'
 
 export function MentionsHeader() {
   const supabase = createClient()
@@ -27,8 +27,8 @@ export function MentionsHeader() {
         } = await supabase.auth.getUser()
         if (!user) return
         const { data } = await supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).maybeSingle()
-        const planId = (data as any)?.plan_id
-        if (planId && ['venus-pro', 'circe-elite', 'divine-duo'].includes(planId)) {
+        const planId = (data as { plan_id?: string } | null)?.plan_id
+        if (planId && isPaidPlanId(planId)) {
           setIsPro(true)
         }
       } catch {
@@ -109,11 +109,6 @@ export function MentionsHeader() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isPro && (
-            <Badge variant="outline" className="text-[10px] border-venus/40 text-venus">
-              Grok Pro
-            </Badge>
-          )}
           <Button
             variant="outline"
             size="sm"

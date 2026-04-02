@@ -9,7 +9,15 @@ export interface Product {
   mode: 'payment' | 'subscription'
 }
 
-// Pricing plans for Circe et Venus
+/** Shared feature list for paid (revenue-tier) plans — price varies by tier + Single/Multi */
+export const PAID_TIER_FEATURES: readonly string[] = [
+  'Unlimited AI credits',
+  'Full storage allocation',
+  'Advanced analytics & protection',
+  'Priority support',
+]
+
+// Public catalog: trial + reference to paid matrix (see /pricing and Settings → Billing)
 export const PRODUCTS: Product[] = [
   {
     id: 'divine-trial',
@@ -25,59 +33,8 @@ export const PRODUCTS: Product[] = [
     ],
     mode: 'payment',
   },
-  {
-    id: 'venus-pro',
-    name: 'Venus Pro',
-    description: 'For growing creators ready to scale',
-    priceInCents: 4900, // $49/month
-    priceMonthly: 49,
-    features: [
-      'Unlimited AI credits',
-      '50GB storage',
-      'Advanced analytics',
-      'Venus growth tools',
-      'Priority support',
-      'Custom AI training',
-    ],
-    popular: true,
-    mode: 'subscription',
-  },
-  {
-    id: 'circe-elite',
-    name: 'Circe Elite',
-    description: 'Complete protection and automation',
-    priceInCents: 9900, // $99/month
-    priceMonthly: 99,
-    features: [
-      'Everything in Venus Pro',
-      'Unlimited storage',
-      'Circe protection suite',
-      'Advanced leak detection',
-      'White-glove onboarding',
-      'Dedicated account manager',
-      'API access',
-    ],
-    mode: 'subscription',
-  },
-  {
-    id: 'divine-duo',
-    name: 'Divine Duo',
-    description: 'The ultimate creator empire package',
-    priceInCents: 19900, // $199/month
-    priceMonthly: 199,
-    features: [
-      'Everything in Circe Elite',
-      'Multi-account management',
-      'Team collaboration',
-      'Custom integrations',
-      'Revenue analytics',
-      'Legal support access',
-      'Priority feature requests',
-    ],
-    mode: 'subscription',
-  },
 ]
 
 export function getProduct(id: string): Product | undefined {
-  return PRODUCTS.find(p => p.id === id)
+  return PRODUCTS.find((p) => p.id === id)
 }

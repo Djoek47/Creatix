@@ -45,7 +45,6 @@ import { isBoundaryNiche, NICHE_LABELS } from '@/lib/niches'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface OnlyFansConversation {
   user: {
@@ -106,6 +105,8 @@ interface ChatWindowProps {
   userId: string
   onMessageSent?: () => void
   onOpenConversationMenu?: () => void
+  /** Open fan profile modal (parent owns modal on Messages page). */
+  onOpenFanProfile?: () => void
 }
 
 function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>): string[] {
@@ -282,6 +283,7 @@ export function ChatWindow({
   userId: _userId,
   onMessageSent,
   onOpenConversationMenu,
+  onOpenFanProfile,
 }: ChatWindowProps) {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<OnlyFansMessage[]>([])
@@ -320,9 +322,10 @@ export function ChatWindow({
   const [creatorGenderIdentity, setCreatorGenderIdentity] = useState<string | null>(null)
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
-  const [profileOpen, setProfileOpen] = useState(false)
   const [divineMessageIds, setDivineMessageIds] = useState<Set<string>>(() => new Set())
   const [divineTyping, setDivineTyping] = useState(false)
+  /** Only used when parent does not supply `onOpenFanProfile` (e.g. DM overlay). */
+  const [internalProfileOpen, setInternalProfileOpen] = useState(false)
   const handleSendMessageRef = useRef<() => Promise<void>>(async () => {})
   const messageRef = useRef('')
   messageRef.current = message
@@ -880,9 +883,9 @@ export function ChatWindow({
 
   return (
     <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card">
-      {/* Chat Header — thread tools left, fan identity centered, overflow right */}
-      <CardHeader className="flex flex-row items-stretch border-b border-border p-0">
-        <div className="flex shrink-0 items-center gap-2 px-3 py-3 sm:px-4">
+      {/* Chat header: thread tools only — fan identity lives in layout above this card */}
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border px-3 py-2.5 sm:px-4">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -895,63 +898,9 @@ export function ChatWindow({
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <span className="hidden text-xs font-medium text-muted-foreground sm:inline">Thread tools</span>
+          <span className="text-xs font-medium text-muted-foreground">Thread tools</span>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2 py-3">
-          <Avatar className="h-10 w-10 shrink-0 border border-border">
-            <AvatarImage
-              src={proxyImageUrl(fan.avatar) || fan.avatar}
-              alt=""
-              className="object-cover"
-            />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {fan.name?.[0]?.toUpperCase() || fan.username?.[0]?.toUpperCase() || '?'}
-            </AvatarFallback>
-          </Avatar>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => setProfileOpen(true)}
-            title="Open fan profile"
-            aria-label="Open fan profile"
-          >
-            <User className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-1.5">
-              <span className="max-w-[min(100%,12rem)] truncate text-sm font-medium sm:max-w-[20rem]">
-                {fan.name || fan.username || 'Unknown'}
-              </span>
-              <span
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                  conversation.platform === 'onlyfans'
-                    ? 'bg-sky-500/10 text-sky-500'
-                    : 'bg-blue-500/10 text-blue-500',
-                )}
-              >
-                <img
-                  src={conversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
-                  alt={conversation.platform}
-                  className="h-3 w-3"
-                />
-                {conversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-              </span>
-              {divinePanel?.focusedFan &&
-                String(divinePanel.focusedFan.id) === String(fan.id) && (
-                  <span className="inline-flex shrink-0 items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    Divine focused here
-                  </span>
-                )}
-            </div>
-            <p className="truncate text-xs text-muted-foreground">@{fan.username}</p>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center px-2 py-3 sm:px-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
@@ -985,7 +934,8 @@ export function ChatWindow({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                setProfileOpen(true)
+                if (onOpenFanProfile) onOpenFanProfile()
+                else setInternalProfileOpen(true)
               }}
             >
               <User className="mr-2 h-4 w-4" />
@@ -1043,7 +993,6 @@ export function ChatWindow({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        </div>
       </CardHeader>
 
       {/* Messages Area — live thread with the fan */}
@@ -1461,15 +1410,17 @@ export function ChatWindow({
           <p className="text-[10px] text-muted-foreground sm:hidden">Tip: collapse Divine AI above to see more of the thread.</p>
         </div>
       </div>
-      <FanProfileModal
-        open={profileOpen}
-        onOpenChange={setProfileOpen}
-        fanId={String(fan.id)}
-        platform={conversation.platform === 'onlyfans' ? 'onlyfans' : 'fansly'}
-        initialUsername={fan.username}
-        initialName={fan.name}
-        initialAvatar={fan.avatar}
-      />
+      {!onOpenFanProfile && (
+        <FanProfileModal
+          open={internalProfileOpen}
+          onOpenChange={setInternalProfileOpen}
+          fanId={String(fan.id)}
+          platform={conversation.platform === 'onlyfans' ? 'onlyfans' : 'fansly'}
+          initialUsername={fan.username}
+          initialName={fan.name}
+          initialAvatar={fan.avatar}
+        />
+      )}
     </Card>
   )
 }

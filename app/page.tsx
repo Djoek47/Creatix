@@ -490,12 +490,13 @@ export default function LandingPage() {
               <Link href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
               <Link href="/how-it-works" className="text-muted-foreground hover:text-foreground">How It Works</Link>
               <Link href="/about" className="text-muted-foreground hover:text-foreground">About</Link>
-              <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms</Link>
+              <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link>
+              <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms of Service</Link>
             </nav>
           </div>
           <div className="mt-6 border-t border-border/30 pt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              MMXXVI Circe et Venus Inc. All rights reserved. Guided by the stars.
+              © 2026 Circe et Venus Inc. All rights reserved. Guided by the Stars. Protected by Law.
             </p>
           </div>
         </div>

@@ -18,6 +18,7 @@ import { fetchDmReplySuggestionsPackage } from '@/lib/divine/dm-reply-package'
 import type { DivineDmConversationRow } from '@/lib/divine/divine-dm-conversations'
 import { loadDivineDmConversations } from '@/lib/divine/divine-dm-conversations'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
+import { CRM_NOTIFICATION_ID_RE } from '@/lib/notification-briefing-types'
 import {
   appendLookupMetaBlock,
   buildDedupeKey,
@@ -31,6 +32,8 @@ import { isDivineFullAccess, DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/di
 import { isPaidPlanId } from '@/lib/billing/access'
 import { draftFanReplyWithMimic } from '@/lib/divine/draft-fan-reply'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
+import { processPlatformPostCommentById } from '@/lib/commenter/process-comment'
+import { syncOnlyFansPostCommentsForUser } from '@/lib/commenter/sync-post-comments'
 import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
 import { DIVINE_TRANSCRIPT_MAX, normalizeScanForUi } from '@/lib/divine/divine-ui-actions'
 import type { DmReplyPackageResult } from '@/lib/divine/dm-reply-package'
@@ -40,6 +43,7 @@ import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/d
 import { getSettings } from '@/lib/divine-manager'
 import { upsertFanRecentsFromConversations, searchFanRecents } from '@/lib/divine/fan-recents-server'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 
 export const AI_TOOL_NAME_TO_ID: Record<string, string> = {
   analyze_content: 'standard-of-attraction',
@@ -77,6 +81,10 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
   'get_task_status',
   'list_vault_for_dm',
   'get_content_sales_metadata',
+  'list_recent_comment_analyses',
+  'get_comment_reply_suggestions',
+  'refresh_comment_analysis',
+  'sync_commenter_from_posts',
 ])
 
 export type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
@@ -94,6 +102,7 @@ export const ALLOWED_UI_PATHS = new Set<string>([
   '/dashboard/social',
   '/dashboard/settings',
   '/dashboard/guide',
+  '/dashboard/commenter',
 ])
 
 const AI_STUDIO_TOOL_PATH = /^\/dashboard\/ai-studio\/tools\/[a-z0-9][a-z0-9-]{0,79}$/i
@@ -934,6 +943,109 @@ export async function runContextTool(
         )
         .join('\n')
     }
+    if (name === 'list_recent_comment_analyses') {
+      if (!ctx) return 'Context unavailable.'
+      const lim = typeof args.limit === 'number' ? Math.min(Math.max(args.limit, 1), 25) : 12
+      const { data: rows, error } = await ctx.supabase
+        .from('platform_post_comments')
+        .select('id, platform_post_id, fan_username, comment_text, source, received_at, analysis_status')
+        .eq('user_id', ctx.userId)
+        .order('received_at', { ascending: false })
+        .limit(lim)
+      if (error) {
+        return error.message.includes('relation')
+          ? 'Commenter is not installed yet (run DB migration 047_commenter.sql).'
+          : error.message
+      }
+      if (!rows?.length) return 'No stored comments yet. Connect OnlyFans webhooks and/or run sync_commenter_from_posts.'
+      const ids = (rows as { id: string }[]).map((r) => r.id)
+      const { data: anRows } = await ctx.supabase
+        .from('post_comment_analyses')
+        .select('comment_id, analysis_json')
+        .in('comment_id', ids)
+      const byComment = new Map<string, Record<string, unknown>>()
+      for (const a of anRows ?? []) {
+        const cid = (a as { comment_id: string }).comment_id
+        const aj = (a as { analysis_json?: Record<string, unknown> }).analysis_json
+        if (cid && aj && typeof aj === 'object') byComment.set(cid, aj)
+      }
+      return (rows as Array<Record<string, unknown>>)
+        .map((r) => {
+          const aj = byComment.get(String(r.id)) ?? null
+          const safety = aj ? String(aj.safety_level ?? '') : ''
+          const action = aj ? String(aj.recommended_action ?? '') : ''
+          const snippet = String(r.comment_text ?? '').slice(0, 90)
+          return `- id=${r.id} @${r.fan_username ?? '?'} [${r.analysis_status}] post=${r.platform_post_id} safety=${safety || 'n/a'} action=${action || 'n/a'} — "${snippet}${snippet.length >= 90 ? '…' : ''}"`
+        })
+        .join('\n')
+    }
+    if (name === 'get_comment_reply_suggestions') {
+      if (!ctx) return 'Context unavailable.'
+      const commentId = typeof args.commentId === 'string' ? args.commentId.trim() : ''
+      if (!commentId) return 'commentId is required (uuid from list_recent_comment_analyses).'
+      const { data: c, error: cErr } = await ctx.supabase
+        .from('platform_post_comments')
+        .select('id, fan_username, comment_text, analysis_status')
+        .eq('user_id', ctx.userId)
+        .eq('id', commentId)
+        .maybeSingle()
+      if (cErr) return cErr.message
+      if (!c) return 'Comment not found.'
+      const { data: sg, error: sErr } = await ctx.supabase
+        .from('post_comment_reply_suggestions')
+        .select('voice, suggestion_text')
+        .eq('comment_id', commentId)
+      if (sErr) return sErr.message
+      const lines = (sg ?? []).map(
+        (row: { voice?: string; suggestion_text?: string }) =>
+          `[${row.voice}] ${String(row.suggestion_text ?? '').slice(0, 500)}`,
+      )
+      return [
+        `Fan @${(c as { fan_username?: string }).fan_username ?? 'unknown'} commented: "${String((c as { comment_text?: string }).comment_text ?? '').slice(0, 200)}…"`,
+        `Status: ${(c as { analysis_status?: string }).analysis_status}`,
+        'Drafts (copy on Commenter dashboard; purple=Circe, pink=Flirt, black=Professional, gold=Venus, emerald=Best):',
+        lines.length ? lines.join('\n') : 'No suggestions yet — run refresh_comment_analysis.',
+      ].join('\n')
+    }
+    if (name === 'refresh_comment_analysis') {
+      if (!ctx) return 'Context unavailable.'
+      const commentId = typeof args.commentId === 'string' ? args.commentId.trim() : ''
+      if (!commentId) return 'commentId is required.'
+      const { data: own } = await ctx.supabase
+        .from('platform_post_comments')
+        .select('id')
+        .eq('user_id', ctx.userId)
+        .eq('id', commentId)
+        .maybeSingle()
+      if (!own) return 'Comment not found.'
+      await ctx.supabase.from('platform_post_comments').update({ analysis_status: 'pending' }).eq('id', commentId)
+      const r = await processPlatformPostCommentById(ctx.supabase, commentId, {
+        bypassCreatorResourceSkip: true,
+      })
+      if (!r.ok) return `Failed: ${r.error}`
+      return r.skipped
+        ? 'Policy skipped analysis (unexpected after bypass).'
+        : 'Re-analyzed comment; reply drafts and profile signals updated if applicable.'
+    }
+    if (name === 'sync_commenter_from_posts') {
+      if (!ctx) return 'Context unavailable.'
+      const maxPosts = typeof args.maxPosts === 'number' ? Math.min(Math.max(args.maxPosts, 1), 20) : 8
+      const postId = typeof args.postId === 'string' ? args.postId.trim() : undefined
+      const res = await syncOnlyFansPostCommentsForUser(ctx.supabase, ctx.userId, {
+        postId: postId || undefined,
+        maxPosts,
+        runAnalysis: args.runAnalysis !== false,
+      })
+      return [
+        `postsScanned=${res.postsScanned}`,
+        `commentsInserted=${res.commentsInserted}`,
+        `duplicatesSkipped=${res.commentsSkippedDuplicate}`,
+        `analysesRun=${res.analyzeTriggered}`,
+        res.errors.length ? `errors: ${res.errors.slice(0, 3).join('; ')}` : '',
+      ]
+        .filter(Boolean)
+        .join('. ')
+    }
     if (name === 'get_integrations_summary') {
       if (!ctx) return 'Context unavailable.'
       const [snapshot, { data: sp }] = await Promise.all([
@@ -1001,7 +1113,7 @@ export async function runContextTool(
       const { data: rows, error } = await ctx.supabase
         .from('content')
         .select(
-          'id, title, description, content_type, status, scheduled_at, thumbnail_url, file_url, sales_notes, teaser_tags, spoiler_level',
+          'id, title, description, content_type, status, scheduled_at, thumbnail_url, file_url, sales_notes, teaser_tags, spoiler_level, is_nsfw, fan_access_tier',
         )
         .eq('user_id', ctx.userId)
         .order('updated_at', { ascending: false })
@@ -1023,6 +1135,8 @@ export async function runContextTool(
             scheduled_at: c.scheduled_at,
             has_thumb: Boolean(c.thumbnail_url || c.file_url),
             description: typeof c.description === 'string' ? String(c.description).slice(0, 200) : null,
+            is_nsfw: c.is_nsfw,
+            fan_access_tier: c.fan_access_tier,
           }),
         )
         return list.length ? `Vault (Creatix content):\n${list.join('\n')}` : 'No vault items yet.'
@@ -1038,6 +1152,8 @@ export async function runContextTool(
           sales_notes: typeof c.sales_notes === 'string' ? String(c.sales_notes).slice(0, 400) : null,
           teaser_tags: c.teaser_tags,
           spoiler_level: c.spoiler_level,
+          is_nsfw: c.is_nsfw,
+          fan_access_tier: c.fan_access_tier,
         }),
       )
       return list.length ? `Vault for DMs (id, notes, tags):\n${list.join('\n')}` : 'No vault items yet.'
@@ -1049,7 +1165,7 @@ export async function runContextTool(
       const { data: row, error } = await ctx.supabase
         .from('content')
         .select(
-          'id, title, description, content_type, status, scheduled_at, sales_notes, teaser_tags, spoiler_level',
+          'id, title, description, content_type, status, scheduled_at, sales_notes, teaser_tags, spoiler_level, is_nsfw, fan_access_tier',
         )
         .eq('id', contentId)
         .eq('user_id', ctx.userId)
@@ -1085,6 +1201,8 @@ export async function runContextTool(
           typeof r.sales_notes === 'string' ? String(r.sales_notes).slice(0, 2000) : r.sales_notes ?? null,
         teaser_tags: r.teaser_tags ?? null,
         spoiler_level: r.spoiler_level ?? null,
+        is_nsfw: r.is_nsfw ?? null,
+        fan_access_tier: r.fan_access_tier ?? null,
       })
     }
     if (name === 'get_task_status') {
@@ -1330,6 +1448,154 @@ export async function runToolCall(
     }
   }
 
+  if (name === 'notifications_panel') {
+    const openRaw = args.open
+    const open: boolean | undefined =
+      openRaw === false ? false : openRaw === true ? true : undefined
+    const tab = args.tab === 'divine' || args.tab === 'live' ? args.tab : undefined
+    const scrollRaw =
+      typeof args.scrollToId === 'string'
+        ? args.scrollToId
+        : typeof args.scroll_to_id === 'string'
+          ? args.scroll_to_id
+          : ''
+    const scrollToId = scrollRaw.trim() || undefined
+    uiActions.push({
+      type: 'notifications_panel',
+      open,
+      tab,
+      scrollToId: scrollToId ?? undefined,
+    })
+    return {
+      tool_call_id: tc.id,
+      content: 'Updated the in-app notifications menu as requested.',
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
+  if (name === 'creator_task_add') {
+    const title = typeof args.title === 'string' ? args.title.trim() : ''
+    if (!title) {
+      return {
+        tool_call_id: tc.id,
+        content: 'title is required for creator_task_add.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const body = typeof args.body === 'string' ? args.body.trim() : ''
+    const linked =
+      typeof args.linked_notification_id === 'string' ? args.linked_notification_id.trim() : ''
+    const { error } = await supabase.from('creator_protocol_tasks').insert({
+      user_id: userId,
+      title: title.slice(0, 500),
+      body: body ? body.slice(0, 4000) : null,
+      status: 'pending',
+      source: 'divine',
+      linked_notification_id:
+        linked && CRM_NOTIFICATION_ID_RE.test(linked) ? linked : null,
+      metadata: {},
+    })
+    if (error) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not add task: ${error.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    uiActions.push({ type: 'protocol_tasks_refresh' })
+    return {
+      tool_call_id: tc.id,
+      content: 'Added a protocol / daily task for the creator.',
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
+  if (name === 'creator_task_set_status') {
+    const taskId = typeof args.task_id === 'string' ? args.task_id.trim() : ''
+    const statusRaw = typeof args.status === 'string' ? args.status.trim() : ''
+    if (!CRM_NOTIFICATION_ID_RE.test(taskId)) {
+      return {
+        tool_call_id: tc.id,
+        content: 'task_id must be a valid UUID.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    if (!['pending', 'executing', 'done', 'failed'].includes(statusRaw)) {
+      return {
+        tool_call_id: tc.id,
+        content: 'status must be pending, executing, done, or failed.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const { error } = await supabase
+      .from('creator_protocol_tasks')
+      .update({
+        status: statusRaw,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', taskId)
+      .eq('user_id', userId)
+    if (error) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not update task: ${error.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    uiActions.push({ type: 'protocol_tasks_refresh' })
+    return {
+      tool_call_id: tc.id,
+      content: `Task marked as ${statusRaw}.`,
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
+  if (name === 'protocol_complete_for_notification') {
+    const nid = typeof args.notification_id === 'string' ? args.notification_id.trim() : ''
+    if (!CRM_NOTIFICATION_ID_RE.test(nid)) {
+      return {
+        tool_call_id: tc.id,
+        content: 'notification_id must be a CRM notification UUID.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const { error: delErr } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', nid)
+      .eq('user_id', userId)
+    if (delErr) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not remove notification: ${delErr.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    await supabase
+      .from('creator_protocol_tasks')
+      .update({ status: 'done', updated_at: new Date().toISOString() })
+      .eq('linked_notification_id', nid)
+      .eq('user_id', userId)
+    uiActions.push({ type: 'protocol_tasks_refresh' })
+    return {
+      tool_call_id: tc.id,
+      content:
+        'Protocol completed: notification removed from the bell and any linked tasks marked done.',
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
   if (name === 'voice_allow_user_hangup') {
     return {
       tool_call_id: tc.id,
@@ -1429,6 +1695,35 @@ export async function runToolCall(
     const goal = typeof args.goal === 'string' ? args.goal : ''
     const fanContext = typeof args.fan_context === 'string' ? args.fan_context : ''
     let contentRef = typeof args.content_summary === 'string' ? args.content_summary : ''
+    const platformFanId =
+      typeof args.platform_fan_id === 'string' ? args.platform_fan_id.trim() : ''
+    const bundlePlatform = args.platform === 'fansly' ? 'fansly' : 'onlyfans'
+    let fanAccessContext = ''
+    if (platformFanId) {
+      const { data: fanR } = await supabase
+        .from('fans')
+        .select('subscription_account_type, subscription_price, subscription_status')
+        .eq('user_id', userId)
+        .eq('platform', bundlePlatform)
+        .eq('platform_fan_id', platformFanId)
+        .maybeSingle()
+      const fr = fanR as {
+        subscription_account_type?: string | null
+        subscription_price?: string | number | null
+        subscription_status?: string | null
+      } | null
+      if (fr) {
+        const p =
+          fr.subscription_price != null && !Number.isNaN(Number(fr.subscription_price))
+            ? Number(fr.subscription_price)
+            : null
+        fanAccessContext = formatFanCommerceContextForAi({
+          subscriptionAccountType: (fr.subscription_account_type as SubscriptionAccountType) || 'unknown',
+          subscriptionPrice: p,
+          subscriptionStatus: fr.subscription_status,
+        })
+      }
+    }
     const idList = Array.isArray(args.content_ids)
       ? args.content_ids.map((x) => String(x).trim()).filter(Boolean).slice(0, 12)
       : []
@@ -1436,7 +1731,7 @@ export async function runToolCall(
       let rows: Record<string, unknown>[] | null = null
       const q1 = await supabase
         .from('content')
-        .select('id, title, content_type, status, sales_notes, teaser_tags, spoiler_level')
+        .select('id, title, content_type, status, sales_notes, teaser_tags, spoiler_level, is_nsfw, fan_access_tier')
         .eq('user_id', userId)
         .in('id', idList)
       if (!q1.error && q1.data) {
@@ -1461,6 +1756,8 @@ export async function runToolCall(
                 typeof r.sales_notes === 'string' ? String(r.sales_notes).slice(0, 800) : r.sales_notes ?? null,
               teaser_tags: r.teaser_tags ?? null,
               spoiler_level: r.spoiler_level ?? null,
+              is_nsfw: r.is_nsfw ?? null,
+              fan_access_tier: r.fan_access_tier ?? null,
             }),
           )
           .join('\n')
@@ -1474,6 +1771,7 @@ export async function runToolCall(
       {
         goal,
         fan_context: fanContext,
+        fan_access_context: fanAccessContext,
         content_summary: contentRef,
         pricing_style: style,
         pricing_bias: bias,
@@ -1501,10 +1799,17 @@ export async function runToolCall(
       patch.teaser_tags = args.teaser_tags.map((t) => String(t).slice(0, 80)).filter(Boolean).slice(0, 40)
     }
     if (typeof args.spoiler_level === 'string') patch.spoiler_level = args.spoiler_level.slice(0, 32)
+    if (typeof args.is_nsfw === 'boolean') patch.is_nsfw = args.is_nsfw
+    if (typeof args.fan_access_tier === 'string') {
+      const t = args.fan_access_tier.trim()
+      if (['free_feed', 'all_subscribers', 'ppv_or_locked', 'unknown'].includes(t)) {
+        patch.fan_access_tier = t
+      }
+    }
     if (Object.keys(patch).length === 0) {
       return {
         tool_call_id: tc.id,
-        content: 'Provide sales_notes, teaser_tags, and/or spoiler_level.',
+        content: 'Provide sales_notes, teaser_tags, spoiler_level, is_nsfw, and/or fan_access_tier.',
         pendingConfirmations: emptyPending,
         uiActions,
       }

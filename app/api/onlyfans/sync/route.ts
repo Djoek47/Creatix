@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
+import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -180,6 +181,8 @@ export async function POST(request: NextRequest) {
         total_spent: fan.totalSpent,
           subscription_tier: tier,
         last_interaction_at: new Date().toISOString(),
+        subscription_price: fan.subscriptionPrice ?? null,
+        subscription_account_type: subscriptionAccountTypeFromPrice(fan.subscriptionPrice ?? null),
         subscription_expires_at: sub.subscription_expires_at,
         subscription_renews_on: sub.subscription_renews_on,
         is_renewing: sub.is_renewing,

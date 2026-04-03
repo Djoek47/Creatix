@@ -4,6 +4,34 @@
 import { getToolMeta } from '@/lib/ai-tools-data'
 import { runDivineAiToolServer, isDivineAiToolId, type DivineAiToolId } from '@/lib/divine/run-ai-tool-core'
 
+/** Build a prompt for /api/ai/tool-run when no dedicated API mapping exists. */
+function buildGenericToolRunPrompt(a: Record<string, unknown>): string {
+  const lines: string[] = []
+  const push = (label: string, v: unknown) => {
+    if (typeof v === 'string' && v.trim()) lines.push(`${label}: ${v.trim()}`)
+  }
+  push('Request', a.prompt)
+  push('Description', a.description)
+  push('Content', a.contentDescription)
+  push('Message', a.message)
+  push('Text', a.text)
+  push('Context', a.context)
+  push('Scenario', a.scenario)
+  push('Niche', a.niche)
+  if (a.platform != null && String(a.platform).trim()) lines.push(`Platform: ${String(a.platform).trim()}`)
+  push('Goals', a.goals)
+  push('Fan info', a.fanInfo)
+  push('Goal', a.goal)
+  if (typeof a.fanId === 'string' && a.fanId.trim()) lines.push(`fanId: ${a.fanId.trim()}`)
+  push('Budget', a.budget)
+  if (typeof a.competitorTargets === 'string' && a.competitorTargets.trim()) {
+    lines.push(`Competitor targets / handles: ${a.competitorTargets.trim()}`)
+  }
+  if (typeof a.useWishlist === 'boolean') lines.push(`useWishlist: ${a.useWishlist}`)
+  if (typeof a.useWebSearch === 'boolean') lines.push(`useWebSearch: ${a.useWebSearch}`)
+  return lines.join('\n')
+}
+
 function apiBase(): string {
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -55,6 +83,16 @@ export async function runAiStudioToolServer(
   }
   const a = args ?? {}
 
+  if (toolId === 'commenter') {
+    return {
+      success: true,
+      result: {
+        content:
+          'Commenter runs in the web dashboard only: open Dashboard → Commenter (/dashboard/commenter) to sync OnlyFans comments, review AI persona reply drafts (Circe / Venus / Flirt / Professional), and see safety flags. Nothing to execute from this API — use the Commenter page or Divine tools like sync_commenter_from_posts.',
+      },
+    }
+  }
+
   if (isDivineAiToolId(toolId)) {
     return runDivineAiToolServer(toolId as DivineAiToolId, a, cookie)
   }
@@ -86,6 +124,7 @@ export async function runAiStudioToolServer(
       return postAi('dm-bundle-pricing', {
         goal: a.goal ?? '',
         fan_context: a.fan_context ?? a.fanContext ?? '',
+        fan_access_context: a.fan_access_context ?? a.fanAccessContext ?? '',
         content_summary: a.content_summary ?? a.contentSummary ?? '',
         pricing_style: a.pricing_style ?? a.pricingStyle ?? 'balanced',
         pricing_bias: a.pricing_bias ?? a.pricingBias ?? '',
@@ -163,7 +202,29 @@ export async function runAiStudioToolServer(
         'Write a short vertical video script with a strong hook, 3–5 story beats, suggested on-screen text, and a clear CTA for subscribers.'
       return postAi('tool-run', { toolId: 'video-script-ai', prompt }, cookie)
     }
-    default:
-      return { success: false, error: `Unhandled AI Studio tool: ${toolId}` }
+    case 'competitor-analysis':
+      return postAi(
+        'competitor-analysis',
+        {
+          niche: typeof a.niche === 'string' ? a.niche : '',
+          platform: typeof a.platform === 'string' ? a.platform : 'onlyfans',
+          competitorTargets: typeof a.competitorTargets === 'string' ? a.competitorTargets : '',
+          goals:
+            typeof a.prompt === 'string'
+              ? a.prompt
+              : typeof a.contentDescription === 'string'
+                ? a.contentDescription
+                : typeof a.description === 'string'
+                  ? a.description
+                  : '',
+          useWebSearch: a.useWebSearch !== false,
+        },
+        cookie,
+      )
+    default: {
+      const fromArgs = buildGenericToolRunPrompt(a).trim()
+      const fallback = `The creator is using Divine Manager. Help them with "${meta.name}" (${meta.description}). Give concrete, actionable output they can use today.`
+      return postAi('tool-run', { toolId, prompt: fromArgs || fallback }, cookie)
+    }
   }
 }

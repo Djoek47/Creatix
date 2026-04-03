@@ -15,6 +15,7 @@ import {
 } from '@/lib/divine/of-thread-text'
 import { refreshFanThreadInsight, upsertFanThreadInsightSnapshot } from '@/lib/divine/fan-thread-insight'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -88,6 +89,30 @@ export async function fetchDmReplySuggestionsPackage(
     username: body.username ?? fanFromConv?.user?.username ?? 'fan',
     name: body.name ?? fanFromConv?.user?.name ?? null,
   }
+
+  const { data: crmFan } = await supabase
+    .from('fans')
+    .select('subscription_account_type, subscription_price, subscription_status')
+    .eq('user_id', userId)
+    .eq('platform', 'onlyfans')
+    .eq('platform_fan_id', String(fanId))
+    .maybeSingle()
+  const crm = crmFan as {
+    subscription_account_type?: string | null
+    subscription_price?: string | number | null
+    subscription_status?: string | null
+  } | null
+  const fanCommerceContext =
+    crm != null
+      ? formatFanCommerceContextForAi({
+          subscriptionAccountType: (crm.subscription_account_type as SubscriptionAccountType) || 'unknown',
+          subscriptionPrice:
+            crm.subscription_price != null && !Number.isNaN(Number(crm.subscription_price))
+              ? Number(crm.subscription_price)
+              : null,
+          subscriptionStatus: crm.subscription_status,
+        })
+      : undefined
   const rawMessages = (threadRes.messages || []).sort((a: any, b: any) =>
     new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
   )
@@ -162,6 +187,7 @@ export async function fetchDmReplySuggestionsPackage(
     niches,
     boundaries,
     ...(threadSupplement ? { threadSupplement } : {}),
+    ...(fanCommerceContext ? { fanCommerceContext } : {}),
   }
 
   const { data: subscription } = await supabase

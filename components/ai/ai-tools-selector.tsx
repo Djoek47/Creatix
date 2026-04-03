@@ -47,6 +47,8 @@ import {
   Send,
   Heart,
   Video,
+  Eye,
+  ExternalLink,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
@@ -231,6 +233,19 @@ const proTools = [
     credits: 3,
     isPro: true,
   },
+  {
+    id: 'competitor-analysis',
+    name: 'Competitor Analysis',
+    description: 'Positioning vs peers (public signals)',
+    longDescription:
+      'Compare positioning using only what you paste below (public @handles, bios, pricing hints). Get differentiation ideas, content angles, and watch-outs — no scraping or private data.',
+    icon: Eye,
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/30',
+    credits: 5,
+    isPro: true,
+  },
 ]
 
 // Caption Generator Result Interface
@@ -263,6 +278,34 @@ interface AIResult {
   content: string
   suggestions?: string[]
   analysis?: Record<string, unknown>
+}
+
+interface CompetitorInsightResult {
+  executiveSummary: string
+  marketContext: string
+  qualitativeTierNote: string
+  peerArchetypes: Array<{
+    label: string
+    typicalPublicSignals: string
+    ideasToBorrow: string
+  }>
+  differentiationAngles: string[]
+  postingCadenceIdeas: string[]
+  chattingAndDmTips: string[]
+  commentingAndSocialTips: string[]
+  howToUseSources: string
+  caveats: string
+  sources?: Array<{ url: string; title: string }>
+  meta?: {
+    webSearchUsed?: boolean
+    webHitCount?: number
+    libraryRowCount?: number
+    communityTipCount?: number
+    fanCount?: number | null
+    internalCohortPublished?: boolean
+    internalCohortDatasetCreators?: number
+    internalBenchmarkBucketsInPrompt?: number
+  }
 }
 
 // Standard of Attraction result
@@ -360,6 +403,8 @@ export function AIToolsSelector({
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
   const [videoScriptLength, setVideoScriptLength] = useState('short')
+  const [competitorTargets, setCompetitorTargets] = useState('')
+  const [useCompetitorWebSearch, setUseCompetitorWebSearch] = useState(true)
   const [contentDescription, setContentDescription] = useState('')
   const [platform, setPlatform] = useState('onlyfans')
   const [niche, setNiche] = useState('')
@@ -789,6 +834,20 @@ export function AIToolsSelector({
           break
         }
 
+        case 'competitor-analysis':
+          response = await fetch('/api/ai/competitor-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              niche,
+              platform,
+              competitorTargets,
+              goals: contentDescription,
+              useWebSearch: useCompetitorWebSearch,
+            }),
+          })
+          break
+
         default: {
           response = await fetch('/api/ai/tool-run', {
             method: 'POST',
@@ -835,6 +894,8 @@ export function AIToolsSelector({
     setFantasyHolidayEventId('')
     setFantasyContentId('')
     setVideoScriptLength('short')
+    setCompetitorTargets('')
+    setUseCompetitorWebSearch(true)
     setGiftUseWishlist(true)
   }
   
@@ -1639,6 +1700,75 @@ export function AIToolsSelector({
           </div>
         )
 
+      case 'competitor-analysis':
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Use only public marketing signals you already know (bios, free posts, stated prices). Do not use this to harass, stalk, or infer private data.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Your niche</Label>
+                <Input
+                  placeholder="e.g., fitness, cosplay, GFE, domme…"
+                  value={niche}
+                  onChange={(e) => setNiche(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Primary platform</Label>
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                    <SelectItem value="fansly">Fansly</SelectItem>
+                    <SelectItem value="mym">MYM</SelectItem>
+                    <SelectItem value="multi">Multi-platform</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Competitors or peers (public cues)</Label>
+              <Textarea
+                placeholder="@handles, link to public pages, or short notes on how they position (themes, price tier if public, posting cadence you’ve noticed)…"
+                value={competitorTargets}
+                onChange={(e) => setCompetitorTargets(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Your goals &amp; what you want to figure out</Label>
+                <VoiceInputButton
+                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+              <Textarea
+                placeholder="e.g., Stand out on promos without racing to the bottom on PPV · content gaps I could own · how to sound different in DMs…"
+                value={contentDescription}
+                onChange={(e) => setContentDescription(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="competitor-web"
+                checked={useCompetitorWebSearch}
+                onCheckedChange={(v) => setUseCompetitorWebSearch(v === true)}
+              />
+              <label htmlFor="competitor-web" className="text-xs leading-snug text-muted-foreground cursor-pointer">
+                Run live web discovery (Serper) for public guides and articles — adds verifiable source links. Turn off to
+                use only the shared library + Community tips digest.
+              </label>
+            </div>
+          </div>
+        )
+
       case 'video-script-ai':
         return (
           <div className="space-y-4">
@@ -1966,6 +2096,123 @@ export function AIToolsSelector({
     </div>
   )
   
+  const renderCompetitorResults = (res: CompetitorInsightResult) => (
+    <div className="space-y-4 pt-4 border-t border-border text-sm">
+      {res.meta ? (
+        <p className="text-xs text-muted-foreground">
+          Web search: {res.meta.webSearchUsed ? `on (${res.meta.webHitCount ?? 0} hits)` : 'off or unavailable'} ·
+          Library rows: {res.meta.libraryRowCount ?? 0} · Community tips in digest: {res.meta.communityTipCount ?? 0}
+          {res.meta.fanCount != null ? ` · Fans in CRM: ${res.meta.fanCount}` : ''}
+          {res.meta.internalCohortPublished
+            ? ` · Internal cohort: ${res.meta.internalBenchmarkBucketsInPrompt ?? 0} buckets (~${res.meta.internalCohortDatasetCreators ?? 0} creators in dataset)`
+            : ' · Internal cohort: not published yet (aggregate cron needs ≥25 creators with imported fans)'}
+        </p>
+      ) : null}
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</h4>
+        <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3">{res.executiveSummary}</p>
+      </div>
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market context</h4>
+        <p className="whitespace-pre-wrap text-muted-foreground">{res.marketContext}</p>
+      </div>
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tier note (qualitative)</h4>
+        <p className="whitespace-pre-wrap">{res.qualitativeTierNote}</p>
+      </div>
+      {res.peerArchetypes?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Peer archetypes</h4>
+          <ul className="space-y-3">
+            {res.peerArchetypes.map((p, i) => (
+              <li key={i} className="rounded-lg border border-border p-3">
+                <p className="font-medium">{p.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{p.typicalPublicSignals}</p>
+                <p className="mt-2 text-xs">{p.ideasToBorrow}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {res.differentiationAngles?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Differentiation</h4>
+          <ul className="space-y-1">
+            {res.differentiationAngles.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {x}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {res.postingCadenceIdeas?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Posting &amp; cadence</h4>
+          <ul className="space-y-1">
+            {res.postingCadenceIdeas.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {x}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {res.chattingAndDmTips?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chatting &amp; DMs</h4>
+          <ul className="space-y-1">
+            {res.chattingAndDmTips.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {x}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {res.commentingAndSocialTips?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commenting &amp; social</h4>
+          <ul className="space-y-1">
+            {res.commentingAndSocialTips.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {x}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sources</h4>
+        <p className="text-xs text-muted-foreground">{res.howToUseSources}</p>
+        {res.sources && res.sources.length > 0 ? (
+          <ul className="space-y-1.5">
+            {res.sources.map((s) => (
+              <li key={s.url}>
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline break-all"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  {s.title || s.url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground">No URLs this run — enable web search or wait for the weekly library compile.</p>
+        )}
+      </div>
+      <p className="text-xs text-amber-600 dark:text-amber-400">{res.caveats}</p>
+    </div>
+  )
+
   // Render generic results
   const renderGenericResults = (res: AIResult) => (
     <div className="space-y-4 pt-4 border-t border-border">
@@ -2095,7 +2342,7 @@ export function AIToolsSelector({
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
                       <p className="text-xs text-muted-foreground">
-                        Get Voice Cloning, Video Script AI, Churn Prediction, Mass DM Composer and more
+                        Get Voice Cloning, Video Script AI, Competitor Analysis, Churn Prediction, Mass DM Composer and more
                       </p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">
@@ -2176,7 +2423,11 @@ export function AIToolsSelector({
               !fantasyHolidayEventId &&
               !fantasyFanId &&
               !fantasyContentId) ||
-            (selectedTool.id === 'gift-suggester' && !fanMessage.trim())
+            (selectedTool.id === 'gift-suggester' && !fanMessage.trim()) ||
+            (selectedTool.id === 'competitor-analysis' &&
+              !competitorTargets.trim() &&
+              !contentDescription.trim() &&
+              !niche.trim())
           }
           className="w-full"
         >
@@ -2198,6 +2449,11 @@ export function AIToolsSelector({
           <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden rounded-lg border border-border p-3">
             {selectedTool.id === 'caption-generator' && 'captions' in result
               ? renderCaptionResults(result as CaptionResult)
+              : selectedTool.id === 'competitor-analysis' &&
+                  result &&
+                  typeof result === 'object' &&
+                  'executiveSummary' in result
+                ? renderCompetitorResults(result as CompetitorInsightResult)
               : selectedTool.id === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
                 : selectedTool.id === 'photo-enhancer' &&

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -55,6 +56,37 @@ export default function ToolRunnerScreen() {
         <Pressable onPress={() => router.back()}>
           <Text style={styles.link}>Go back</Text>
         </Pressable>
+      </SafeAreaView>
+    )
+  }
+
+  const webBase = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '')
+  const commenterUrl = webBase ? `${webBase}/dashboard/commenter` : ''
+
+  if (toolId === 'commenter') {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{meta.name}</Text>
+          <Text style={styles.desc}>{meta.longDescription}</Text>
+          {commenterUrl ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => {
+                void Linking.openURL(commenterUrl)
+              }}
+            >
+              <Text style={styles.buttonText}>Open in browser</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.error}>
+              Set EXPO_PUBLIC_API_URL to your site origin, then open /dashboard/commenter in a browser.
+            </Text>
+          )}
+          <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+            <Text style={styles.link}>Go back</Text>
+          </Pressable>
+        </ScrollView>
       </SafeAreaView>
     )
   }

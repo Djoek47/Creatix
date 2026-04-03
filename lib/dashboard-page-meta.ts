@@ -9,6 +9,8 @@ export type DashboardPageMeta = {
   /** Primary page title (matches visible <h1> in DashboardRouteHero) */
   title: string
   subtitle: string
+  /** Gold/purple glow mark + spectrum hover (AI Studio routes) */
+  heroVariant?: 'default' | 'ai-tools'
 }
 
 type Entry = { prefix: string; meta: DashboardPageMeta }
@@ -56,11 +58,21 @@ const ENTRIES: Entry[] = [
     },
   },
   {
+    prefix: '/dashboard/ai-studio/tools',
+    meta: {
+      eyebrow: 'Toolkit',
+      title: 'AI tools',
+      subtitle: 'Search, filter, run — credits apply where marked.',
+      heroVariant: 'ai-tools',
+    },
+  },
+  {
     prefix: '/dashboard/ai-studio',
     meta: {
       eyebrow: 'Creation',
-      title: 'Oracle chamber',
-      subtitle: 'Media vault, divine touch-ups, and the full constellation of AI tools — yours to wield.',
+      title: 'AI Studio',
+      subtitle: 'Media vault and the full tool library.',
+      heroVariant: 'ai-tools',
     },
   },
   {

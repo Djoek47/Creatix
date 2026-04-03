@@ -3,6 +3,11 @@
  * Used by Messages bridge, voice, and divine-manager-chat SSE.
  */
 
+import {
+  dispatchNotificationPanelAction,
+  dispatchProtocolTasksRefresh,
+} from '@/lib/dashboard/notification-ui-bridge'
+
 const FAN_ID_RE = /^[a-z0-9_-]{1,64}$/i
 
 /** Max strings per suggestion list; keeps SSE / voice payloads bounded. */
@@ -72,6 +77,15 @@ export type DivineUiAction =
   | { type: 'switch_overlay_fan'; fanId: string }
   /** Voice tool: advance notification secretary queue in Divine panel. */
   | { type: 'secretary_advance' }
+  /** Open/close bell menu, switch tab, scroll to a CRM row (see notification-ui-bridge). */
+  | {
+      type: 'notifications_panel'
+      open?: boolean
+      tab?: 'live' | 'divine'
+      scrollToId?: string | null
+    }
+  /** Refetch creator_protocol_tasks in the dashboard rail. */
+  | { type: 'protocol_tasks_refresh' }
 
 export type ApplyDivineUiOptions = {
   onShowDmReplySuggestions?: (payload: DmSuggestionBridgePayload) => void
@@ -227,6 +241,16 @@ export function applyDivineUiActions(
     }
     if (a.type === 'secretary_advance' && options?.onSecretaryAdvance) {
       options.onSecretaryAdvance()
+    }
+    if (a.type === 'notifications_panel') {
+      dispatchNotificationPanelAction({
+        open: a.open,
+        tab: a.tab,
+        scrollToId: a.scrollToId,
+      })
+    }
+    if (a.type === 'protocol_tasks_refresh') {
+      dispatchProtocolTasksRefresh()
     }
   }
 }

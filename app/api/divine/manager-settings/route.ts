@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       dm_focus_mode: ar.dm_focus_mode === 'overlay' ? 'overlay' : 'navigate',
       divine_send_delay_ms,
       dm_pricing_style,
+      voice_fab_skip_launcher: ar.voice_fab_skip_launcher === true,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to load settings'

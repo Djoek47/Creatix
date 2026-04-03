@@ -510,6 +510,11 @@ class OnlyFansAPI {
     return this.request(`/fans/${fanId}`)
   }
 
+  /** Raw JSON from GET /fans/{id} — may include about/bio fields not modeled on {@link Fan}. */
+  async getFanDetailRaw(fanId: string): Promise<unknown> {
+    return this.request(`/fans/${encodeURIComponent(fanId)}`)
+  }
+
   async searchFans(query: string): Promise<{ fans: Fan[] }> {
     return this.request(`/fans/search?q=${encodeURIComponent(query)}`)
   }
@@ -937,6 +942,88 @@ class OnlyFansAPI {
     if (params?.offset) query.set('offset', params.offset.toString())
     
     return this.request(`/posts?${query.toString()}`)
+  }
+
+  /**
+   * List comments on a post — GET /api/{account}/posts/{post_id}/comments
+   * @see https://docs.onlyfansapi.com/api-reference/post-comments/listPostComments
+   */
+  async getPostComments(
+    postId: string,
+    params?: { limit?: number; offset?: number; sort?: 'asc' | 'desc' },
+  ): Promise<{
+    comments: Array<{
+      id: string
+      text: string
+      createdAt?: string
+      user?: { id?: string; username?: string; name?: string }
+      fromUser?: { id?: string; username?: string; name?: string }
+    }>
+    hasMore?: boolean
+    nextOffset?: number
+  }> {
+    const q = new URLSearchParams()
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.offset != null) q.set('offset', String(params.offset))
+    if (params?.sort) q.set('sort', params.sort)
+    const suffix = q.toString() ? `?${q.toString()}` : ''
+    const raw = await this.request<unknown>(
+      `/posts/${encodeURIComponent(postId)}/comments${suffix}`,
+    )
+    const root = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+    const data = (root.data ?? root) as Record<string, unknown>
+    const list = Array.isArray(data.list)
+      ? data.list
+      : Array.isArray(data.comments)
+        ? data.comments
+        : Array.isArray(root.list)
+          ? (root.list as unknown[])
+          : []
+    const comments = list.map((item: unknown) => {
+      const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+      const u = (row.user ?? row.fromUser) as Record<string, unknown> | undefined
+      const uid = u && typeof u === 'object' ? u : {}
+      return {
+        id: String(row.id ?? row.commentId ?? ''),
+        text: String(row.text ?? row.body ?? ''),
+        createdAt:
+          typeof row.createdAt === 'string'
+            ? row.createdAt
+            : typeof row.created_at === 'string'
+              ? row.created_at
+              : undefined,
+        user:
+          u && typeof u === 'object'
+            ? {
+                id: uid.id != null ? String(uid.id) : undefined,
+                username: typeof uid.username === 'string' ? uid.username : undefined,
+                name: typeof uid.name === 'string' ? uid.name : typeof uid.displayName === 'string' ? uid.displayName : undefined,
+              }
+            : undefined,
+        fromUser:
+          row.fromUser && typeof row.fromUser === 'object'
+            ? {
+                id: (row.fromUser as { id?: unknown }).id != null
+                  ? String((row.fromUser as { id: unknown }).id)
+                  : undefined,
+                username: typeof (row.fromUser as { username?: string }).username === 'string'
+                  ? (row.fromUser as { username: string }).username
+                  : undefined,
+                name: typeof (row.fromUser as { name?: string }).name === 'string'
+                  ? (row.fromUser as { name: string }).name
+                  : undefined,
+              }
+            : undefined,
+      }
+    })
+    const hasMore = typeof data.hasMore === 'boolean' ? data.hasMore : typeof data.has_more === 'boolean' ? data.has_more : undefined
+    const nextOffset =
+      typeof data.nextOffset === 'number'
+        ? data.nextOffset
+        : typeof data.next_offset === 'number'
+          ? data.next_offset
+          : undefined
+    return { comments, hasMore, nextOffset }
   }
 
   async createPost(data: {

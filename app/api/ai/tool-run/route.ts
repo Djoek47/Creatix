@@ -26,6 +26,12 @@ export async function POST(req: NextRequest) {
     }
 
     const meta = getToolMeta(toolId)
+    if (toolId === 'commenter') {
+      return NextResponse.json({
+        content:
+          'Commenter is a full web dashboard experience only. Open Dashboard → Commenter (/dashboard/commenter) in your browser to sync OnlyFans comments, review persona reply drafts, and see safety flags.',
+      })
+    }
     const toolName = meta?.name ?? toolId
     const toolDesc = meta?.longDescription ?? meta?.description ?? ''
     const formatHint =

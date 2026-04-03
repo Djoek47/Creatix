@@ -1,13 +1,25 @@
 # SEO Launch Checklist
 
+## Public vs private (important)
+
+- **Indexed / in sitemap:** Marketing, pricing, features, legal, and auth **entry** pages only. The list lives in `lib/seo-public-paths.ts` and drives both `app/sitemap.ts` and `app/robots.ts` `Allow` rules.
+- **Not for Google (and other crawlers):** Everything under **`/dashboard`** (the signed-in product) and **`/api`**. These are:
+  - **`Disallow`** in `robots.txt`
+  - **Omitted** from `sitemap.xml`
+  - **`noindex, nofollow`** via `metadata.robots` on `app/dashboard/layout.tsx` (so leaked or redirected URLs still signal “do not index”).
+
+Auth pages under `/auth/*` remain in the sitemap as **login/sign-up entry** URLs; they are not dashboard data.
+
 ## Technical SEO
 
 - [ ] `robots.txt` is served and `Host` points to `https://www.circeetvenus.com`
 - [ ] `robots.txt` references `https://www.circeetvenus.com/sitemap.xml`
-- [ ] `sitemap.xml` only emits canonical host URLs
+- [ ] `robots.txt` disallows `/dashboard` and `/api`, and allows only public paths from `seo-public-paths.ts`
+- [ ] `sitemap.xml` only lists public paths (no `/dashboard` routes)
 - [ ] Legal and marketing routes in sitemap are real public paths (`/about`, `/contact`, `/privacy`, `/cookies`, `/terms`)
 - [ ] Root metadata uses canonical `metadataBase`
 - [ ] Organization JSON-LD uses canonical `url` and logo URL
+- [ ] Dashboard responses include `noindex` (verify in View Source or DevTools on a `/dashboard/*` page)
 
 ## Search Console
 
@@ -29,3 +41,47 @@
 - [ ] Remove legacy callback/webhook URLs from provider dashboards
 - [ ] Enable full 301 redirect from `www.cetv.app` to `www.circeetvenus.com`
 - [ ] Re-crawl canonical pages and validate indexing
+
+---
+
+## SEO — do once the whole project is done (final pass)
+
+Run this block **after** feature work is stable and you are ready to treat the site as “launch-complete.” Earlier sections (robots, sitemap, Search Console) can be done sooner; this is the **holistic** polish pass.
+
+### Inventory & config
+
+- [ ] **Sync `lib/seo-public-paths.ts`** with reality: every new **public** marketing/legal route is in the array; nothing under `/dashboard` slipped in.
+- [ ] **Per-page metadata audit:** Each route in `SEO_PUBLIC_PATHS` has accurate `title` and `description` (unique where it matters: `/features`, `/pricing`, `/how-it-works`, legal pages). Prefer `export const metadata` or `generateMetadata` in each `app/**/page.tsx` / `layout.tsx` as needed.
+- [ ] **Canonical URLs:** No stray duplicates (`www` vs apex, `http` vs `https`); `metadataBase` and `alternates.canonical` match production.
+- [ ] **Open Graph & Twitter:** Every important landing page has sensible `openGraph` / `twitter` (title, description); add **`images`** (e.g. 1200×630) for homepage and key funnels so shares don’t look broken.
+
+### Structured data & content
+
+- [ ] **JSON-LD:** Extend beyond Organization if useful (`WebSite` + `SearchAction` only if you add on-site search; `SoftwareApplication` / `Product` only if copy is accurate and maintained).
+- [ ] **On-page copy:** H1 + hierarchy on marketing pages; no keyword stuffing; align with what you want to rank for (creator tools, OnlyFans management, etc.).
+
+### Quality, performance, and crawl hygiene
+
+- [ ] **404 / soft-404:** Custom not-found page; no indexed URLs returning empty or login walls without `noindex` (dashboard already noindexed).
+- [ ] **Internal links:** Footer/header link to all key public pages; no dead links on marketing surfaces.
+- [ ] **Core Web Vitals / Lighthouse:** Run on `/`, `/pricing`, `/features` on **mobile**; fix regressions that hurt LCP/CLS (images, fonts, layout shift).
+- [ ] **Images:** Meaningful `alt` on marketing pages; `next/image` where appropriate.
+
+### Search engines & monitoring (post-launch)
+
+- [ ] **Google Search Console:** Coverage + experience reports clean; fix “Excluded” reasons that shouldn’t apply to public URLs.
+- [ ] **Bing Webmaster Tools** (optional): Submit same sitemap if Bing traffic matters.
+- [ ] **Analytics:** Vercel Analytics / other — confirm only **public** pages are the SEO concern; dashboard traffic is product analytics, not SEO.
+- [ ] **Re-submit sitemap** after large content or route changes.
+
+### Social & brand
+
+- [ ] **Share previews:** Manually test Facebook Sharing Debugger / Twitter Card Validator (or equivalent) for `/` and top landing URLs.
+- [ ] **Favicon / PWA:** `manifest.webmanifest` and icons match current brand; no outdated app name in install prompts.
+
+### Security / trust signals (indirect SEO)
+
+- [ ] **HTTPS** everywhere; HSTS on production if not already via platform.
+- [ ] **Privacy / terms** dates and company name match live site footer.
+
+When every box above is checked, treat **SEO launch** as complete for the whole project (ongoing content and A/B tests are outside this one-time pass).

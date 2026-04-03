@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
@@ -8,6 +9,19 @@ import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
+import { ProtocolTasksProvider } from '@/components/divine/protocol-tasks-context'
+
+/** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
+}
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +50,7 @@ export default async function DashboardLayout({
       <TourProvider>
         {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
         <DivinePanelWrapper user={user}>
+          <ProtocolTasksProvider>
           <VoiceSessionProvider>
             <div className="flex h-screen bg-background">
               {/* Desktop sidebar - hidden on mobile */}
@@ -51,6 +66,7 @@ export default async function DashboardLayout({
             </div>
             <VoiceControlPopup />
           </VoiceSessionProvider>
+          </ProtocolTasksProvider>
         </DivinePanelWrapper>
       </TourProvider>
     </OnboardingProvider>

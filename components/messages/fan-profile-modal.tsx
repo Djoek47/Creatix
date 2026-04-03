@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { UnifiedFanProfilePayload } from '@/lib/divine/fan-profile-server'
@@ -71,6 +72,8 @@ export function FanProfileModal({
   const [data, setData] = useState<UnifiedFanProfilePayload | null>(null)
   const [classificationDraft, setClassificationDraft] = useState('')
   const [savingClass, setSavingClass] = useState(false)
+  const [enrichAboutLoading, setEnrichAboutLoading] = useState(false)
+  const [treatFanSaving, setTreatFanSaving] = useState(false)
 
   const load = useCallback(async () => {
     if (!fanId) return
@@ -158,6 +161,12 @@ export function FanProfileModal({
                 <p className="text-[11px] text-muted-foreground">
                   Recorded spend: ${Math.round(data.crm.totalSpent)}
                   {data.crm.subscriptionTier ? ` · synced tier ${data.crm.subscriptionTier}` : ''}
+                  {data.crm.subscriptionAccountType && data.crm.subscriptionAccountType !== 'unknown'
+                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free-page follower' : 'paid sub'}`
+                    : ''}
+                  {data.crm.subscriptionPrice != null && !Number.isNaN(data.crm.subscriptionPrice)
+                    ? ` (list $${data.crm.subscriptionPrice.toFixed(2)})`
+                    : ''}
                 </p>
               )}
             </div>
@@ -203,7 +212,8 @@ export function FanProfileModal({
               Your label (optional)
             </Label>
             <p className="text-[11px] text-muted-foreground">
-              Private note for notifications and Divine — e.g. &quot;VIP&quot;, &quot;follow up Friday&quot;.
+              Private tags for you and Divine — e.g. fan, whale, VIP, churn risk, fellow creator. Fan-style labels keep
+              automations on even when heuristics guess &quot;creator&quot;.
             </p>
             <div className="flex gap-2">
               <Input
@@ -251,6 +261,112 @@ export function FanProfileModal({
               </Button>
             </div>
           </div>
+
+          {platform === 'onlyfans' && data && (
+            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs font-medium">Platform bio (OnlyFans)</p>
+              <p className="text-[11px] text-muted-foreground">
+                When the API returns their about text, we use it for creator detection. Fetch sparingly (cached ~24h).
+              </p>
+              {data.platformAbout?.trim() ? (
+                <p className="max-h-28 overflow-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                  {data.platformAbout}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">No stored bio yet — fetch from OnlyFans if available.</p>
+              )}
+              {data.platformAboutFetchedAt && (
+                <p className="text-[11px] text-muted-foreground">
+                  Last fetched: {new Date(data.platformAboutFetchedAt).toLocaleString()}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={enrichAboutLoading || loading || !fanId}
+                  onClick={async () => {
+                    setEnrichAboutLoading(true)
+                    setError(null)
+                    try {
+                      const res = await fetch('/api/onlyfans/fans/enrich-about', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ fanId, force: true }),
+                      })
+                      const json = (await res.json().catch(() => ({}))) as { error?: string }
+                      if (!res.ok) throw new Error(json.error || 'Fetch failed')
+                      await load()
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'Enrich failed')
+                    } finally {
+                      setEnrichAboutLoading(false)
+                    }
+                  }}
+                >
+                  {enrichAboutLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Fetching…
+                    </>
+                  ) : (
+                    'Refresh from OnlyFans'
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-start justify-between gap-3 border-t border-border pt-3">
+                <div className="min-w-0 space-y-0.5">
+                  <Label htmlFor="treat-as-fan-auto" className="text-xs font-medium">
+                    Treat as fan for automation
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    When on, AI Chatter and comment analysis run even if they look like a fellow creator.
+                  </p>
+                </div>
+                <Switch
+                  id="treat-as-fan-auto"
+                  checked={data.treatAsFanForAutomation === true}
+                  disabled={treatFanSaving || loading}
+                  onCheckedChange={async (checked) => {
+                    setTreatFanSaving(true)
+                    setError(null)
+                    try {
+                      const res = await fetch('/api/divine/fan-profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          fanId,
+                          platform,
+                          treat_as_fan_for_automation: checked,
+                        }),
+                      })
+                      const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
+                        error?: string
+                      }
+                      if (!res.ok) throw new Error(json.error || 'Update failed')
+                      setData(json)
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'Update failed')
+                    } finally {
+                      setTreatFanSaving(false)
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {data?.skipExpensiveAiForCreatorLikely &&
+            data.creatorDetector?.is_creator_likely &&
+            !data.treatAsFanForAutomation && (
+              <p className="rounded-md border border-amber-500/35 bg-amber-500/10 p-2 text-[11px] text-amber-100/95">
+                Divine is set to skip expensive AI for likely creators. Turn on &quot;Treat as fan for automation&quot;
+                or use a fan-style label (e.g. whale, churn risk) to keep automations for this person.
+              </p>
+            )}
 
           {data?.creatorDetector && (
             <div

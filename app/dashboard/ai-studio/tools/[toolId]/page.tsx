@@ -10,6 +10,9 @@ export default function ToolRunnerPage() {
   const toolId = typeof params?.toolId === 'string' ? params.toolId : ''
 
   useEffect(() => {
+    if (toolId === 'commenter') {
+      router.replace('/dashboard/commenter')
+    }
     if (toolId === 'ai-chatter') {
       router.replace('/dashboard/ai-studio/chatter')
     }
@@ -21,6 +24,9 @@ export default function ToolRunnerPage() {
     }
   }, [toolId, router])
 
+  if (toolId === 'commenter') {
+    return null
+  }
   if (
     toolId === 'ai-chatter' ||
     toolId === 'whale-whisperer' ||

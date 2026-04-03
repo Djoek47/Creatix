@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
 import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
 import { getDivineVoice } from '@/lib/divine-manager'
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
@@ -154,6 +155,8 @@ export async function POST(req: NextRequest) {
         ? `\n\nNOTIFICATION SECRETARY MODE: Walk the creator through their unread CRM notifications ONE AT A TIME, in the order listed below. For each item: briefly summarize, give one clear recommended action, offer navigation (ui_navigate) or open a fan thread (ui_focus_fan) when relevant. Only after the creator confirms they handled the current item (or clearly says "next" / "skip"), call secretary_next_notification to advance the in-app card. Do not advance without confirmation. You may use list_notifications or mark_notifications_read when helpful. Queue:\n${notificationSecretaryLines.join('\n')}\n`
         : ''
 
+    const protocolTasksBlock = `\n\nProtocol rail & bell menu: Use notifications_panel to open or close the notifications popover (open true/false), optional tab live or divine, optional scrollToId with a CRM notification UUID to scroll the list for the creator. Use creator_task_add (title, optional body, optional linked_notification_id) for daily or follow-up items; creator_task_set_status (task_id, status pending|executing|done|failed) updates the floating task list. When a welcome or whale workflow is finished, call protocol_complete_for_notification(notification_id) to remove that CRM notification from the bell and mark linked tasks done.`
+
     const instructions = `You are the Divine Manager, a Jarvis-style voice companion for a creator. You speak in real time over voice. Be a calm, confident manager. Never role-play as the creator; never claim to have already sent messages or changed prices. You only describe what you see and what you recommend. Respect boundaries and platform safety. Avoid explicit or illegal content.
 
 Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flirtyLevel ?? 'mild'}. Boundaries: ${(persona.boundaries ?? []).join('; ') || 'none specified'}.
@@ -179,7 +182,7 @@ DM name lookup: Tool output includes spellback ("I heard …") and [divine_looku
 
 Speak in second person ("you"). Keep replies actionable but advisory. Be concise; this is a live conversation. Text chat has the full tool list; voice uses the same server-side tools—if something fails, suggest using Divine text chat for that action.
 
-    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${secretaryBlock}`
+    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${protocolTasksBlock}${secretaryBlock}`
 
     const tools = [
       {
@@ -471,7 +474,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'get_content_sales_metadata',
         description:
-          'Read one content row: sales_notes, teaser_tags, spoiler_level. Use with list_vault_for_dm ids before or after upsert_content_sales_notes.',
+          'Read one content row: sales_notes, teaser_tags, spoiler_level, is_nsfw, fan_access_tier. Use with list_vault_for_dm ids before or after upsert_content_sales_notes.',
         parameters: {
           type: 'object',
           properties: { content_id: { type: 'string' } },
@@ -482,12 +485,13 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'recommend_dm_bundle',
         description:
-          'DM/PPV bundle price and copy; pass content_ids to load saved vault sales metadata from the DB.',
+          'DM/PPV bundle price and copy; pass content_ids for vault metadata (incl. NSFW/access tier). Pass platform_fan_id for free vs paid follower context.',
         parameters: {
           type: 'object',
           properties: {
             goal: { type: 'string' },
             fan_context: { type: 'string' },
+            platform_fan_id: { type: 'string' },
             content_summary: { type: 'string' },
             content_ids: { type: 'array', items: { type: 'string' } },
             pricing_style: { type: 'string', enum: ['balanced', 'maximize_revenue', 'premium_domme'] },
@@ -500,7 +504,8 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       {
         type: 'function' as const,
         name: 'upsert_content_sales_notes',
-        description: 'Save private sales/teaser metadata on a content row (vault).',
+        description:
+          'Save private sales/teaser metadata on a content row (vault). Set is_nsfw and fan_access_tier for AI-safe framing.',
         parameters: {
           type: 'object',
           properties: {
@@ -508,6 +513,11 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
             sales_notes: { type: 'string' },
             teaser_tags: { type: 'array', items: { type: 'string' } },
             spoiler_level: { type: 'string' },
+            is_nsfw: { type: 'boolean' },
+            fan_access_tier: {
+              type: 'string',
+              enum: ['free_feed', 'all_subscribers', 'ppv_or_locked', 'unknown'],
+            },
           },
           required: ['content_id'],
         },
@@ -914,12 +924,20 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'run_ai_studio_tool',
         description:
-          'Run an AI Studio tool by id (e.g. caption-generator, viral-predictor) with a JSON args object matching that tool’s form fields.',
+          'Run any AI Studio tool by id (same catalog as Dashboard → AI Studio). Pass args with prompt, description, contentDescription, niche, platform, fanId, message, budget, goals, etc. Prefer analyze_content, generate_caption, predict_viral, get_retention_insights, get_whale_advice when they match the request exactly.',
         parameters: {
           type: 'object',
           properties: {
-            toolId: { type: 'string', description: 'Tool id from AI Studio / lib/ai-tools-data' },
-            args: { type: 'object', description: 'Arguments for that tool (e.g. contentDescription, platform)' },
+            toolId: {
+              type: 'string',
+              enum: [...DIVINE_MANAGER_AI_STUDIO_TOOL_IDS],
+              description: 'AI Studio tool id',
+            },
+            args: {
+              type: 'object',
+              description:
+                'Tool-specific fields (e.g. contentDescription, platform, niche, prompt, fanId, scenario, tone)',
+            },
           },
           required: ['toolId', 'args'],
         },
@@ -965,6 +983,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
                 '/dashboard/content',
                 '/dashboard/protection',
                 '/dashboard/mentions',
+                '/dashboard/commenter',
                 '/dashboard/fans',
                 '/dashboard/analytics',
                 '/dashboard/divine-manager',
@@ -1005,6 +1024,58 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         parameters: {
           type: 'object',
           properties: {},
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'notifications_panel',
+        description:
+          'Open or close the header notifications popover, switch Live vs Divine tab, or scroll to a CRM notification row by id so the creator can follow along.',
+        parameters: {
+          type: 'object',
+          properties: {
+            open: { type: 'boolean', description: 'true to open, false to close; omit to leave unchanged' },
+            tab: { type: 'string', enum: ['live', 'divine'], description: 'Which tab to show when open' },
+            scrollToId: { type: 'string', description: 'CRM notification UUID to scroll into view' },
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'creator_task_add',
+        description: 'Add an item to the creator floating protocol / daily task list.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            body: { type: 'string', description: 'Optional detail' },
+            linked_notification_id: { type: 'string', description: 'Optional CRM notification UUID to associate' },
+          },
+          required: ['title'],
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'creator_task_set_status',
+        description: 'Update status on a protocol task by id.',
+        parameters: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string' },
+            status: { type: 'string', enum: ['pending', 'executing', 'done', 'failed'] },
+          },
+          required: ['task_id', 'status'],
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'protocol_complete_for_notification',
+        description:
+          'When a protocol (e.g. welcome DM, whale outreach) is done: delete that CRM notification from the bell and mark linked protocol tasks done.',
+        parameters: {
+          type: 'object',
+          properties: { notification_id: { type: 'string' } },
+          required: ['notification_id'],
         },
       },
       {

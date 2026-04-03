@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     current_price?: number
     /** Pre-built bias line from manager-chat-tools (optional). */
     pricing_bias?: string
+    /** Free vs paid sub, access — merged into prompt for accurate PPV framing. */
+    fan_access_context?: string
   }
 
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
@@ -34,6 +36,8 @@ export async function POST(req: NextRequest) {
   }
 
   const fanContext = typeof body.fan_context === 'string' ? body.fan_context.trim() : ''
+  const fanAccess =
+    typeof body.fan_access_context === 'string' ? body.fan_access_context.trim().slice(0, 2500) : ''
   const contentSummary = typeof body.content_summary === 'string' ? body.content_summary.trim() : ''
   const platform = body.platform === 'fansly' ? 'Fansly' : 'OnlyFans'
   const style = body.pricing_style === 'maximize_revenue' || body.pricing_style === 'premium_domme' ? body.pricing_style : 'balanced'
@@ -53,6 +57,9 @@ export async function POST(req: NextRequest) {
 
   const system = `You help adult-platform creators (${platform}) price and describe paid DM or PPV bundles.
 Follow platform safety: no minors, no non-consent, no illegal content. Practical, fan-facing sales language only.
+Respect fan access: free-page followers may not see paywalled feed posts—position PPV bundles as the unlock path.
+Paid subscribers may already see subscriber-tier feed items; do not imply they already unlocked separate PPV unless context says so.
+If vault items are marked NSFW vs non-explicit, match teaser intensity accordingly.
 Output plain text with clear sections:
 1) Suggested price or range (USD) with one-line rationale
 2) Short DM teaser the creator can paste (editable)
@@ -62,6 +69,7 @@ Keep under 800 words.`
   const userPrompt = `${bias}
 
 Campaign / goal: ${goal}
+Fan subscription / access (CRM): ${fanAccess || '(not provided)'}
 Fan or thread context: ${fanContext || '(none)'}
 Vault or content context: ${contentSummary || '(none)'}
 ${priceLine}`

@@ -35,6 +35,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 1,
     hasRunner: true,
   },
+  {
+    id: 'commenter',
+    name: 'Commenter',
+    description: 'Post comments: CRM signals, personas, safety',
+    longDescription:
+      'Full UI at **Dashboard → Commenter** (/dashboard/commenter). Ingests OnlyFans post/story/stream comments via webhooks and optional API sync. AI scores connotation, enriches fan profiles, drafts Circe (purple), Venus (gold), Flirt (pink), and Professional (neutral) public replies plus a Best pick — review only; copy to OnlyFans yourself. Flags stalking or high-risk comments for Divine notifications. Optional bolder monetization: divine_manager_settings.automation_rules JSON key commenter.sales_intensity to "bold".',
+    category: 'engagement',
+    badge: 'New',
+    credits: 0,
+    hasRunner: true,
+  },
   { id: 'mood-detector', name: 'Mood Detector', description: 'Analyze fan emotional state', longDescription: 'Understand your fans better by analyzing message sentiment to tailor your responses and content.', category: 'engagement', badge: 'New', credits: 1, hasRunner: true },
   {
     id: 'gift-suggester',
@@ -92,7 +103,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 3,
     hasRunner: true,
   },
-  { id: 'competitor-analysis', name: 'Competitor Analysis', description: 'AI-powered competitor insights', longDescription: 'Analyze competitor strategies, pricing, and content to stay ahead of the competition.', category: 'premium', isPro: true, credits: 5, hasRunner: false },
+  {
+    id: 'competitor-analysis',
+    name: 'Competitor Analysis',
+    description: 'Serper + shared best-practice library',
+    longDescription:
+      'Pro-only: blends **anonymized Creatix cohort benchmarks** (CRM fan-count percentiles by platform + niche bucket once you have enough creators), live web discovery (Serper), the shared best-practices library, and Community tips. Returns structured angles plus source links. No paywalled scraping or private competitor metrics.',
+    category: 'premium',
+    isPro: true,
+    credits: 5,
+    hasRunner: true,
+  },
   { id: 'circe-oracle', name: "Circe's Oracle", description: 'Deep retention prophecies', longDescription: 'Like the enchantress who foresaw the future, receive prophetic insights on subscriber behavior and loyalty patterns.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   { id: 'circe-transformation', name: "Circe's Transformation", description: 'Transform casual fans into whales', longDescription: 'Just as Circe transformed men, this AI identifies and nurtures casual fans with potential to become high-value supporters.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   {
@@ -116,6 +137,11 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
 
 export const TOOL_IDS_WITH_RUNNER = new Set(
   ALL_TOOLS_META.filter((t) => t.hasRunner).map((t) => t.id)
+)
+
+/** Ids passed to `run_ai_studio_tool` / `runAiStudioToolServer` (Divine Manager, voice, chat). */
+export const DIVINE_MANAGER_AI_STUDIO_TOOL_IDS: string[] = ALL_TOOLS_META.filter((t) => t.hasRunner).map(
+  (t) => t.id,
 )
 
 export function getToolMeta(id: string): AIToolMeta | undefined {

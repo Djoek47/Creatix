@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 import { detectCreatorLikelyFromText, type CreatorDetectorSignal } from '@/lib/divine/creator-detector'
+import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
+import { policySkipExpensiveAiForCreatorLikely } from '@/lib/divine/creator-resource-policy'
 
 export type UnifiedFanProfilePayload = {
   fanId: string
@@ -10,6 +12,10 @@ export type UnifiedFanProfilePayload = {
   crm: {
     totalSpent: number
     subscriptionTier: string | null
+    /** free | paid | unknown — from list subscription price when synced. */
+    subscriptionAccountType: string | null
+    subscriptionPrice: number | null
+    subscriptionStatus: string | null
   } | null
   core: {
     username: string | null
@@ -36,6 +42,13 @@ export type UnifiedFanProfilePayload = {
     updatedAt: string | null
   } | null
   creatorDetector: CreatorDetectorSignal
+  /** From OnlyFans fan detail API when refreshed. */
+  platformAbout: string | null
+  platformAboutFetchedAt: string | null
+  /** Per-fan: still run AI Chatter / Commenter when heuristics say “likely creator”. */
+  treatAsFanForAutomation: boolean
+  /** Global Divine setting: skip expensive AI for likely creators (default on). */
+  skipExpensiveAiForCreatorLikely: boolean
 }
 
 export async function buildUnifiedFanProfile(
@@ -54,7 +67,7 @@ export async function buildUnifiedFanProfile(
       }
     : null
 
-  const [{ data: ins }, { data: sum }, { data: fanCrm }] = await Promise.all([
+  const [{ data: ins }, { data: sum }, { data: fanCrm }, { data: dmRow }] = await Promise.all([
     supabase
       .from('fan_thread_insights')
       .select(
@@ -74,11 +87,14 @@ export async function buildUnifiedFanProfile(
       : Promise.resolve({ data: null }),
     supabase
       .from('fans')
-      .select('creator_classification, total_spent, subscription_tier')
+      .select(
+        'creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation',
+      )
       .eq('user_id', userId)
       .eq('platform', platform)
       .eq('platform_fan_id', fanId)
       .maybeSingle(),
+    supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', userId).maybeSingle(),
   ])
 
   const insRow = ins as {
@@ -127,7 +143,23 @@ export async function buildUnifiedFanProfile(
       }
     : null
 
+  const platformAbout =
+    typeof (fanCrm as { platform_about?: string | null } | null)?.platform_about === 'string'
+      ? (fanCrm as { platform_about: string }).platform_about.trim().slice(0, 8000) || null
+      : null
+  const platformAboutFetchedAt =
+    typeof (fanCrm as { platform_about_fetched_at?: string | null } | null)?.platform_about_fetched_at ===
+    'string'
+      ? (fanCrm as { platform_about_fetched_at: string }).platform_about_fetched_at
+      : null
+  const treatAsFanForAutomation =
+    (fanCrm as { treat_as_fan_for_automation?: boolean | null } | null)?.treat_as_fan_for_automation === true
+
+  const rules = (dmRow as { automation_rules?: DivineManagerAutomationRules } | null)?.automation_rules
+  const skipExpensiveAiForCreatorLikely = policySkipExpensiveAiForCreatorLikely(rules?.alerts)
+
   const hay = [
+    platformAbout,
     core?.username,
     core?.displayName,
     insRow?.thread_snapshot_text,
@@ -147,6 +179,9 @@ export async function buildUnifiedFanProfile(
     creator_classification?: string | null
     total_spent?: string | number | null
     subscription_tier?: string | null
+    subscription_account_type?: string | null
+    subscription_price?: string | number | null
+    subscription_status?: string | null
   } | null
   const ccRaw = fanRow?.creator_classification
   const creatorClassification =
@@ -160,6 +195,18 @@ export async function buildUnifiedFanProfile(
             typeof fanRow.subscription_tier === 'string' && fanRow.subscription_tier.trim()
               ? fanRow.subscription_tier.trim()
               : null,
+          subscriptionAccountType:
+            typeof fanRow.subscription_account_type === 'string' && fanRow.subscription_account_type.trim()
+              ? fanRow.subscription_account_type.trim()
+              : null,
+          subscriptionPrice:
+            fanRow.subscription_price != null && !Number.isNaN(Number(fanRow.subscription_price))
+              ? Number(fanRow.subscription_price)
+              : null,
+          subscriptionStatus:
+            typeof fanRow.subscription_status === 'string' && fanRow.subscription_status.trim()
+              ? fanRow.subscription_status.trim()
+              : null,
         }
       : null
 
@@ -172,5 +219,9 @@ export async function buildUnifiedFanProfile(
     threadInsight,
     aiSummary,
     creatorDetector,
+    platformAbout,
+    platformAboutFetchedAt,
+    treatAsFanForAutomation,
+    skipExpensiveAiForCreatorLikely,
   }
 }

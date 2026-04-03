@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { FansTable } from '@/components/fans/fans-table'
+import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ import {
   mergeThreadInsightsIntoFan,
   type ThreadInsightBrief,
 } from '@/lib/fans/merge-fan-audience'
-import { Loader2 } from 'lucide-react'
+import { LayoutGrid, Loader2, Table2 } from 'lucide-react'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
@@ -52,6 +53,7 @@ export function FansPageClient({
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkOffset, setBulkOffset] = useState(0)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery')
 
   const insightMap = useMemo(() => insightRowsToMap(threadInsightsBrief), [threadInsightsBrief])
 
@@ -235,13 +237,48 @@ export function FansPageClient({
       </div>
       {bulkMessage && <p className="text-xs text-muted-foreground">{bulkMessage}</p>}
       <FansStats stats={stats} />
-      <FansTable
-        fans={fans}
-        hasFanPlatformsConnected={hasFanPlatformsConnected}
-        loading={filter !== 'database' && loadingLive}
-        liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
-        showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
-      />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>
+        <div className="inline-flex rounded-md border border-border p-0.5">
+          <Button
+            type="button"
+            variant={viewMode === 'gallery' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="gap-1.5 px-3"
+            onClick={() => setViewMode('gallery')}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Gallery
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="gap-1.5 px-3"
+            onClick={() => setViewMode('table')}
+          >
+            <Table2 className="h-4 w-4" />
+            Table
+          </Button>
+        </div>
+      </div>
+      {viewMode === 'gallery' ? (
+        <FansGallery
+          fans={fans}
+          hasFanPlatformsConnected={hasFanPlatformsConnected}
+          loading={filter !== 'database' && loadingLive}
+          liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
+          showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
+        />
+      ) : (
+        <FansTable
+          fans={fans}
+          hasFanPlatformsConnected={hasFanPlatformsConnected}
+          loading={filter !== 'database' && loadingLive}
+          liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
+          showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
+        />
+      )}
     </div>
   )
 }

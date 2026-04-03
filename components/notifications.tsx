@@ -20,6 +20,7 @@ import {
   CRM_NOTIFICATION_ID_RE,
   type NotificationBriefingItem,
 } from '@/lib/notification-briefing-types'
+import { registerNotificationUiHandlers } from '@/lib/dashboard/notification-ui-bridge'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -93,6 +94,8 @@ export function Notifications() {
   const [briefingLoading, setBriefingLoading] = useState(false)
   /** Inline error / info when secretary cannot run (success opens Divine panel instead). */
   const [briefingText, setBriefingText] = useState<string | null>(null)
+  /** Divine voice: scroll this CRM id into view when popover opens. */
+  const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
   const supabase = createClient()
 
   const loadOnlyFansPull = useCallback(async () => {
@@ -212,6 +215,36 @@ export function Notifications() {
     setMounted(true)
     void loadNotifications()
   }, [loadNotifications])
+
+  useEffect(() => {
+    registerNotificationUiHandlers({
+      setOpen: (next) => setOpen(next),
+      setTab: (t) => setTab(t),
+      requestScrollToId: (id) => {
+        setScrollTargetId(id)
+        if (id) setOpen(true)
+      },
+    })
+    return () => registerNotificationUiHandlers(null)
+  }, [])
+
+  useEffect(() => {
+    if (!open || !scrollTargetId) return
+    const id = scrollTargetId
+    const t = window.setTimeout(() => {
+      try {
+        const safe =
+          typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(id) : id.replace(/"/g, '')
+        const el = document.querySelector(`[data-notification-id="${safe}"]`)
+        el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      } catch {
+        const el = document.querySelector(`[data-notification-id="${id}"]`)
+        el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+      setScrollTargetId(null)
+    }, 150)
+    return () => clearTimeout(t)
+  }, [open, scrollTargetId])
 
   useEffect(() => {
     if (!open || !userId) return
@@ -594,6 +627,7 @@ function NotificationRow({
 }) {
   return (
     <div
+      data-notification-id={notification.id}
       className={cn(
         'relative flex gap-3 p-4 transition-colors hover:bg-muted/50',
         !notification.read && 'bg-primary/5',

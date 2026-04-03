@@ -1,23 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 
-// Manual number formatting to avoid hydration mismatch (no Intl dependency)
-function formatCurrency(amount: number): string {
-  const str = Math.round(amount).toString()
-  const parts: string[] = []
-  for (let i = str.length; i > 0; i -= 3) {
-    parts.unshift(str.slice(Math.max(0, i - 3), i))
-  }
-  return parts.join(',')
-}
-
-// Consistent date formatting to avoid hydration mismatch
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
-}
+import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -232,17 +218,17 @@ export function FansTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${formatCurrency(fan.total_spent)}
+                  ${formatFanCurrency(fan.total_spent)}
                 </TableCell>
                 {showSubscriptionEnd ? (
                   <TableCell className="text-muted-foreground text-xs">
                     {fan.subscription_expires_at
-                      ? formatDate(fan.subscription_expires_at)
+                      ? formatFanDateUtc(fan.subscription_expires_at)
                       : '—'}
                   </TableCell>
                 ) : null}
                 <TableCell className="text-muted-foreground">
-                  {fan.last_interaction ? formatDate(fan.last_interaction) : '—'}
+                  {fan.last_interaction ? formatFanDateUtc(fan.last_interaction) : '—'}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

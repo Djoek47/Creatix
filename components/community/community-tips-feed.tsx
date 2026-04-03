@@ -193,6 +193,10 @@ export function CommunityTipsFeed() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium">From the community</h2>
+        <p className="text-xs text-muted-foreground">
+          Approved tips may be summarized anonymously into the shared best-practices library used by Competitor Analysis
+          (no names or IDs attached).
+        </p>
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
             <Loader2 className="h-4 w-4 animate-spin" />

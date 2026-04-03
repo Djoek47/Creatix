@@ -31,7 +31,7 @@ Configure providers to deliver to canonical host first. Keep legacy host active 
 
 ## 4) Cutover sequence
 
-1. Deploy canonical metadata + sitemap + robots.
+1. Deploy canonical metadata + sitemap + robots (`sitemap` / `Allow` = public marketing pages only; `/dashboard` disallowed + `noindex`).
 2. Add canonical callback/webhook URLs in provider dashboards.
 3. Validate OAuth and webhook traffic on canonical host.
 4. Keep legacy host working for overlap period.

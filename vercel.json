@@ -75,6 +75,14 @@
     {
       "path": "/api/cron/circe-aegis",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/compile-best-practices",
+      "schedule": "20 5 * * 0"
+    },
+    {
+      "path": "/api/cron/aggregate-creator-benchmarks",
+      "schedule": "40 5 * * 0"
     }
   ]
 }

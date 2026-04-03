@@ -17,6 +17,15 @@ import { maybeCreateWhaleTipUrgentTask } from '@/lib/divine/urgent-alerts'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
 import { runAiChatterForInboundMessage } from '@/lib/divine/ai-chatter-worker'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
+import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import { inferPostFanAccessFromCommentPayload } from '@/lib/onlyfans/comment-post-access'
+import { buildCommentIdempotencyKey } from '@/lib/commenter/idempotency'
+import { processPlatformPostCommentById } from '@/lib/commenter/process-comment'
+import {
+  spendBucketFromTransactionType,
+  spendBucketFromUserSpentType,
+  type SpendBucket,
+} from '@/lib/onlyfans/spend-bucket'
 
 // Configure OnlyFans webhook URL to: https://www.circeetvenus.com/api/onlyfans/webhook
 // During phased cutover, keep https://www.cetv.app/api/onlyfans/webhook active until provider retries are clean.
@@ -69,15 +78,21 @@ export async function POST(request: NextRequest) {
         break
       
       case 'chat.purchase':
+        await handlePurchase(supabase, event.data, 'message')
+        break
       case 'post.purchase':
-        await handlePurchase(supabase, event.data)
+        await handlePurchase(supabase, event.data, 'post')
         break
       
       // Post/Story/Stream engagement events
       case 'post.comment':
+        await handleComment(supabase, event.data, 'post')
+        break
       case 'story.comment':
+        await handleComment(supabase, event.data, 'story')
+        break
       case 'stream.comment':
-        await handleComment(supabase, event.data)
+        await handleComment(supabase, event.data, 'stream')
         break
       
       case 'post.like':
@@ -171,7 +186,9 @@ async function handleNewSubscription(supabase: SupabaseClient, data: {
     avatar_url: data.fan.avatar,
     first_subscribed_at: new Date().toISOString(),
     subscription_price: data.fan.subscriptionPrice,
+    subscription_account_type: subscriptionAccountTypeFromPrice(data.fan.subscriptionPrice),
     total_spent: data.fan.subscriptionPrice,
+    spend_subscriptions: data.fan.subscriptionPrice,
     subscription_tier: 'regular',
     subscription_status: 'active',
     is_renewing: true,
@@ -426,11 +443,11 @@ async function handleTip(supabase: SupabaseClient, data: {
 
   if (!connection) return
 
-  // Update fan's total spent
-  await supabase.rpc('increment_fan_spending', {
+  await supabase.rpc('increment_fan_spending_categorized', {
     p_user_id: connection.user_id,
     p_fan_id: data.tip.fromUser.id,
     p_amount: data.tip.amount,
+    p_bucket: 'tip',
   })
 
   const prefs = await getPrefsForWebhook(supabase, connection.user_id)
@@ -473,15 +490,19 @@ async function handleTip(supabase: SupabaseClient, data: {
   ).catch(() => undefined)
 }
 
-// Handle purchase (PPV, etc.)
-async function handlePurchase(supabase: SupabaseClient, data: {
-  accountId: string
-  purchase: {
-    amount: number
-    contentId: string
-    fromUser: { id: string; username: string; name: string }
-  }
-}) {
+// Handle purchase (PPV in chat vs feed)
+async function handlePurchase(
+  supabase: SupabaseClient,
+  data: {
+    accountId: string
+    purchase: {
+      amount: number
+      contentId: string
+      fromUser: { id: string; username: string; name: string }
+    }
+  },
+  bucket: Extract<SpendBucket, 'message' | 'post'>,
+) {
   const { data: connection } = await supabase
     .from('platform_connections')
     .select('user_id')
@@ -491,23 +512,28 @@ async function handlePurchase(supabase: SupabaseClient, data: {
 
   if (!connection) return
 
-  // Update fan's total spent
-  await supabase.rpc('increment_fan_spending', {
+  await supabase.rpc('increment_fan_spending_categorized', {
     p_user_id: connection.user_id,
     p_fan_id: data.purchase.fromUser.id,
     p_amount: data.purchase.amount,
+    p_bucket: bucket,
   })
 }
 
 // Handle comment events
-async function handleComment(supabase: SupabaseClient, data: {
-  accountId: string
-  comment: {
-    fromUser: { id: string; username: string; name: string }
-    text: string
-    contentId: string
-  }
-}) {
+async function handleComment(
+  supabase: SupabaseClient,
+  data: {
+    accountId: string
+    comment: {
+      id?: string
+      fromUser: { id: string; username: string; name: string }
+      text: string
+      contentId: string
+    }
+  },
+  source: 'post' | 'story' | 'stream',
+) {
   const { data: connection } = await supabase
     .from('platform_connections')
     .select('user_id')
@@ -522,6 +548,58 @@ async function handleComment(supabase: SupabaseClient, data: {
     .update({ last_interaction_at: new Date().toISOString() })
     .eq('user_id', connection.user_id)
     .eq('platform_fan_id', data.comment.fromUser.id)
+
+  const { post_fan_access_tier } = inferPostFanAccessFromCommentPayload(data)
+
+  const text = data.comment.text ?? ''
+  const idempotency_key = buildCommentIdempotencyKey([
+    'webhook',
+    source,
+    data.accountId,
+    data.comment.contentId,
+    data.comment.fromUser.id,
+    data.comment.id ?? '',
+    text.slice(0, 2000),
+  ])
+
+  const { data: inserted, error: insErr } = await supabase
+    .from('platform_post_comments')
+    .insert({
+      user_id: connection.user_id,
+      platform: 'onlyfans',
+      platform_post_id: String(data.comment.contentId),
+      platform_fan_id: String(data.comment.fromUser.id),
+      fan_username: data.comment.fromUser.username ?? null,
+      fan_display_name: data.comment.fromUser.name ?? null,
+      platform_comment_id: data.comment.id ?? null,
+      idempotency_key,
+      comment_text: text,
+      source,
+      raw_payload: data as unknown as Record<string, unknown>,
+      post_fan_access_tier,
+      fan_may_comment_without_unlock: true,
+      analysis_status: 'pending',
+    })
+    .select('id')
+    .maybeSingle()
+
+  if (insErr) {
+    if (insErr.code !== '23505') {
+      console.warn('[onlyfans webhook comment]', insErr.message)
+    }
+    return
+  }
+
+  const commentRowId = inserted && typeof (inserted as { id?: string }).id === 'string' ? (inserted as { id: string }).id : null
+  if (!commentRowId) return
+
+  after(async () => {
+    try {
+      await processPlatformPostCommentById(supabase, commentRowId)
+    } catch (e) {
+      console.warn('[commenter webhook]', e)
+    }
+  })
 }
 
 // Handle like events
@@ -564,11 +642,12 @@ async function handleUserSpent(supabase: SupabaseClient, data: {
 
   if (!connection) return
 
-  // Update fan's total spent and tier
-  await supabase.rpc('increment_fan_spending', {
+  const bucket = spendBucketFromUserSpentType(data.type)
+  await supabase.rpc('increment_fan_spending_categorized', {
     p_user_id: connection.user_id,
     p_fan_id: data.user.id,
     p_amount: data.amount,
+    p_bucket: bucket,
   })
 
   // Update analytics
@@ -653,11 +732,22 @@ async function handleTransactionNew(supabase: SupabaseClient, data: unknown) {
 
   if (!connection) return
 
+  const typeRaw =
+    typeof d.type === 'string'
+      ? d.type
+      : typeof d.transactionType === 'string'
+        ? d.transactionType
+        : typeof (d.transaction as Record<string, unknown> | undefined)?.type === 'string'
+          ? String((d.transaction as Record<string, unknown>).type)
+          : ''
+  const bucket = spendBucketFromTransactionType(typeRaw)
+
   try {
-    await supabase.rpc('increment_fan_spending', {
+    await supabase.rpc('increment_fan_spending_categorized', {
       p_user_id: connection.user_id,
       p_fan_id: uid,
       p_amount: amount,
+      p_bucket: bucket,
     })
   } catch {
     // ignore rpc errors (e.g. fan row missing)

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
+import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +71,11 @@ export async function GET(request: NextRequest) {
       const tier = (subTier === 'vip' ? 'whale' : subTier) as 'whale' | 'regular' | 'new' | 'inactive'
       const expiresAt = row.expiresAt != null && String(row.expiresAt).trim() ? String(row.expiresAt) : null
       const renewsOn = row.renewsOn != null && String(row.renewsOn).trim() ? String(row.renewsOn) : null
+      const subPriceRaw = row.subscriptionPrice
+      const subscription_price =
+        subPriceRaw != null && subPriceRaw !== '' && Number.isFinite(Number(subPriceRaw))
+          ? Number(subPriceRaw)
+          : null
       return {
       id: String(row.id ?? ''),
       platform_fan_id: String(row.id ?? ''),
@@ -80,6 +86,8 @@ export async function GET(request: NextRequest) {
       avatar_url: row.avatar ? String(row.avatar) : null,
       tier,
       total_spent: spent,
+      subscription_price,
+      subscription_account_type: subscriptionAccountTypeFromPrice(subscription_price),
       subscription_start: row.subscribedAt ? String(row.subscribedAt) : null,
       subscription_expires_at: expiresAt,
       subscription_renews_on: renewsOn,

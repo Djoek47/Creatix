@@ -39,6 +39,17 @@ type ChatResponse = {
   actions?: PendingAction[]
 }
 
+type TodayPlanPayload = {
+  inbox: { notifications_unread: number; divine_notifications_unread: number }
+  protection: { open_leak_alerts: number }
+  calendar: {
+    scheduled_upcoming: Array<{ id: string; title: string | null; scheduled_at: string | null }>
+  }
+  protocol: { open_count: number }
+  suggestions: { items: Array<{ id: string; summary: string; status: string }> }
+  error?: string
+}
+
 export default function DivineManagerScreen() {
   const r = useResponsive()
   const voice = useDivineVoiceSession()
@@ -55,17 +66,27 @@ export default function DivineManagerScreen() {
   const [pendingChatActions, setPendingChatActions] = useState<PendingAction[]>([])
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [dmPreviewLoading, setDmPreviewLoading] = useState(false)
+  const [todayPlan, setTodayPlan] = useState<TodayPlanPayload | null>(null)
 
   const load = useCallback(async () => {
     setError(null)
-    const res = await apiFetch('/api/divine/manager-settings')
-    const json = (await res.json()) as DivineSettings & { error?: string; message?: string }
-    if (!res.ok) {
-      setError(formatApiScreenError(res.status, json.error, json.message))
+    const [settingsRes, planRes] = await Promise.all([
+      apiFetch('/api/divine/manager-settings'),
+      apiFetch('/api/divine/today-plan'),
+    ])
+    const json = (await settingsRes.json()) as DivineSettings & { error?: string; message?: string }
+    if (!settingsRes.ok) {
+      setError(formatApiScreenError(settingsRes.status, json.error, json.message))
       setSettings(null)
-      return
+    } else {
+      setSettings(json)
     }
-    setSettings(json)
+    const planJson = (await planRes.json()) as TodayPlanPayload
+    if (planRes.ok && !planJson.error) {
+      setTodayPlan(planJson)
+    } else {
+      setTodayPlan(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -252,11 +273,33 @@ export default function DivineManagerScreen() {
             <Animated.View entering={FadeIn.duration(motion.durationSlow)}>
               <Text style={[styles.heading, { fontSize: r.scaleFont(22) }]}>Divine Manager</Text>
               <Text style={[styles.sub, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(12) }]}>
-                Text chat and intents use the same APIs as the web dashboard. Voice uses OpenAI Realtime over
-                WebRTC on native builds.
+                Text chat matches the web Divine console; automations live under AI Chatter on the dashboard. Voice
+                uses OpenAI Realtime over WebRTC on native builds.
               </Text>
               {error ? (
                 <Text style={[styles.err, { fontSize: r.scaleFont(14) }]}>{error}</Text>
+              ) : null}
+              {todayPlan ? (
+                <View style={[styles.card, { padding: r.scaleSpace(16), marginBottom: r.scaleSpace(16) }]}>
+                  <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15) }]}>Today&apos;s Plan</Text>
+                  <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
+                    Inbox: {todayPlan.inbox.notifications_unread} unread · {todayPlan.inbox.divine_notifications_unread}{' '}
+                    Divine-tab
+                  </Text>
+                  <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
+                    Protection: {todayPlan.protection.open_leak_alerts} open leak alerts
+                  </Text>
+                  <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
+                    Calendar: {todayPlan.calendar.scheduled_upcoming.length} upcoming scheduled
+                  </Text>
+                  <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
+                    Protocol: {todayPlan.protocol.open_count} open tasks
+                  </Text>
+                  <Text style={[styles.muted, { fontSize: r.scaleFont(12) }]}>
+                    {todayPlan.suggestions.items.length} Divine suggestions in queue — full detail on web Divine
+                    Manager.
+                  </Text>
+                </View>
               ) : null}
               {settings ? (
                 <Animated.View
@@ -392,7 +435,10 @@ export default function DivineManagerScreen() {
                 </View>
               )}
 
-              <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15), marginBottom: 8 }]}>Ask Divine</Text>
+              <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15), marginBottom: 8 }]}>Divine (text)</Text>
+              <Text style={[styles.muted, { fontSize: r.scaleFont(12), marginBottom: r.scaleSpace(10) }]}>
+                Same flow as the web text sheet — pair with AI Chatter on the dashboard for automations.
+              </Text>
             </Animated.View>
           }
           renderItem={({ item }) => (

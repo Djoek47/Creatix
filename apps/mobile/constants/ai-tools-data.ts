@@ -32,6 +32,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 1,
     hasRunner: true,
   },
+  {
+    id: 'commenter',
+    name: 'Commenter',
+    description: 'Post comments: CRM signals, personas, safety',
+    longDescription:
+      'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, and safety flags.',
+    category: 'engagement',
+    badge: 'New',
+    credits: 0,
+    hasRunner: true,
+  },
   { id: 'mood-detector', name: 'Mood Detector', description: 'Analyze fan emotional state', longDescription: 'Understand your fans better by analyzing message sentiment to tailor your responses and content.', category: 'engagement', badge: 'New', credits: 1, hasRunner: true },
   {
     id: 'gift-suggester',
@@ -89,7 +100,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 3,
     hasRunner: true,
   },
-  { id: 'competitor-analysis', name: 'Competitor Analysis', description: 'AI-powered competitor insights', longDescription: 'Analyze competitor strategies, pricing, and content to stay ahead of the competition.', category: 'premium', isPro: true, credits: 5, hasRunner: false },
+  {
+    id: 'competitor-analysis',
+    name: 'Competitor Analysis',
+    description: 'Serper + shared best-practice library',
+    longDescription:
+      'On web (Pro): full run with web sources + shared library. Mobile API: POST /api/ai/competitor-analysis with niche, platform, competitorTargets, goals.',
+    category: 'premium',
+    isPro: true,
+    credits: 5,
+    hasRunner: true,
+  },
   { id: 'circe-oracle', name: "Circe's Oracle", description: 'Deep retention prophecies', longDescription: 'Like the enchantress who foresaw the future, receive prophetic insights on subscriber behavior and loyalty patterns.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   { id: 'circe-transformation', name: "Circe's Transformation", description: 'Transform casual fans into whales', longDescription: 'Just as Circe transformed men, this AI identifies and nurtures casual fans with potential to become high-value supporters.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   {

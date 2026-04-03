@@ -1,10 +1,115 @@
 import { generateTextWithOpenAI } from '@/lib/divine-openai'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getSettings, getTasks, createTask, updateTask, type DivineManagerSettingsRow, type DivineManagerTaskRow } from '@/lib/divine-manager'
+import {
+  getSettings,
+  getTasks,
+  createTask,
+  updateTask,
+  type DivineBackgroundOps,
+  type DivineManagerSettingsRow,
+  type DivineManagerTaskRow,
+} from '@/lib/divine-manager'
 import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
+import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
+
+export type DivineDigestSnapshot = {
+  notifications_unread: number
+  divine_notifications_unread: number
+  open_leak_alerts: number
+  scheduled_posts_count: number
+  protocol_open_tasks: number
+  suggested_manager_tasks: number
+}
+
+async function gatherDigestSnapshot(
+  supabase: SupabaseClient,
+  userId: string,
+  includeLeaks: boolean,
+): Promise<DivineDigestSnapshot> {
+  const leakQ = includeLeaks
+    ? supabase.from('leak_alerts').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'detected')
+    : Promise.resolve({ count: 0 } as { count: number | null })
+
+  const [
+    notifUnread,
+    divineUnread,
+    leaks,
+    scheduledContent,
+    protocolOpen,
+    suggestedTasks,
+  ] = await Promise.all([
+    supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('read', false),
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+      .eq('origin', 'divine_app'),
+    leakQ,
+    supabase.from('content').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'scheduled'),
+    supabase
+      .from('creator_protocol_tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['pending', 'executing']),
+    supabase
+      .from('divine_manager_tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['suggested', 'scheduled']),
+  ])
+
+  return {
+    notifications_unread: notifUnread.count ?? 0,
+    divine_notifications_unread: divineUnread.count ?? 0,
+    open_leak_alerts: includeLeaks ? leaks.count ?? 0 : 0,
+    scheduled_posts_count: scheduledContent.count ?? 0,
+    protocol_open_tasks: protocolOpen.count ?? 0,
+    suggested_manager_tasks: suggestedTasks.count ?? 0,
+  }
+}
+
+function digestIntervalDue(bg: DivineBackgroundOps): boolean {
+  const minH = Math.max(1, Number(bg.min_interval_hours) || 4)
+  const last = bg.last_digest_at ? Date.parse(bg.last_digest_at) : 0
+  if (!last || Number.isNaN(last)) return true
+  return Date.now() - last >= minH * 3600_000
+}
+
+async function patchBackgroundOpsLastDigest(
+  supabase: SupabaseClient,
+  userId: string,
+  settings: DivineManagerSettingsRow,
+  bg: DivineBackgroundOps,
+): Promise<void> {
+  const rules = { ...(settings.automation_rules ?? {}) }
+  const next: DivineBackgroundOps = {
+    ...bg,
+    last_digest_at: new Date().toISOString(),
+  }
+  rules.divine_background_ops = next
+  const { error } = await supabase
+    .from('divine_manager_settings')
+    .update({ automation_rules: rules, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+  if (error) console.warn('[patchBackgroundOpsLastDigest]', error.message)
+}
+
+function formatDigestDescription(snap: DivineDigestSnapshot, summary?: string | null): string {
+  if (summary && summary.trim()) return summary.trim().slice(0, 1900)
+  const parts = [
+    `${snap.notifications_unread} unread in-app notifications`,
+    `${snap.divine_notifications_unread} unread Divine notifications`,
+    `${snap.scheduled_posts_count} scheduled posts`,
+    `${snap.protocol_open_tasks} open protocol tasks`,
+    `${snap.suggested_manager_tasks} manager suggestions in queue`,
+  ]
+  if (snap.open_leak_alerts > 0) parts.push(`${snap.open_leak_alerts} open leak alerts (check Protection)`)
+  return `Divine brief: ${parts.join(' · ')}. Open Divine Manager for Today’s Plan.`
+}
 
 /** Build system prompt for the Divine Manager brain. Preference hints from past approve/skip behavior. */
-function buildSystemPrompt(settings: DivineManagerSettingsRow, preferenceHint: string): string {
+function buildSystemPrompt(settings: DivineManagerSettingsRow, preferenceHint: string, withDigest: boolean): string {
   const persona = settings.persona ?? {}
   const goals = settings.goals ?? {}
   const rules = settings.automation_rules ?? {}
@@ -29,7 +134,13 @@ Return ONLY JSON with a "tasks" array. Each task MUST have:
 - "suggestedText": optional DM or caption text, if applicable
 - "platform": "onlyfans" | "fansly" | null
 - "segment": optional short label like "dormant_high_spend" or "new_subs"
-- "source": e.g. "churn_predictor", "content_ideas", "manager".`
+- "source": e.g. "churn_predictor", "content_ideas", "manager".
+${
+  withDigest
+    ? `
+When a "Creator snapshot" block appears in the user message, also include top-level "digest_summary": string (max 220 chars) — one friendly line for the creator's in-app inbox.`
+    : ''
+}`
 }
 
 /**
@@ -42,6 +153,15 @@ export async function runDivineManagerBrain(
 ): Promise<DivineManagerTaskRow[]> {
   const settings = await getSettings(supabase, userId)
   if (!settings || settings.mode === 'off') return []
+
+  const bg = (settings.automation_rules?.divine_background_ops ?? {}) as DivineBackgroundOps
+  const backgroundEnabled = bg.enabled === true
+  const digestDue = backgroundEnabled && digestIntervalDue(bg)
+  const includeLeaks = bg.include_leaks !== false
+  let snapshot: DivineDigestSnapshot | null = null
+  if (digestDue) {
+    snapshot = await gatherDigestSnapshot(supabase, userId, includeLeaks)
+  }
 
   const recentTasks = await getTasks(supabase, userId, { limit: 15 })
   const recentSummary = recentTasks
@@ -63,8 +183,30 @@ export async function runDivineManagerBrain(
     .map(([type, v]) => `${type}: ${v.approved} approved, ${v.dismissed} dismissed`)
     .join('; ') || ''
 
-  const systemPrompt = buildSystemPrompt(settings, preferenceHint)
-  const userPrompt = `Recent tasks:\n${recentSummary || 'None yet.'}\n\nSuggest the next 1-5 tasks as JSON as described in the system prompt.`
+  const suggestTasks = bg.suggest_tasks !== false
+  const wantDigestNotif = bg.digest_notifications === true
+
+  if (digestDue && snapshot && !suggestTasks && wantDigestNotif) {
+    await insertDivineAppNotification(supabase, userId, {
+      type: 'system',
+      title: 'Divine — daily brief',
+      description: formatDigestDescription(snapshot, null),
+      link: '/dashboard/divine-manager',
+    })
+    await patchBackgroundOpsLastDigest(supabase, userId, settings, bg)
+    return []
+  }
+
+  if (digestDue && snapshot && !suggestTasks && !wantDigestNotif) {
+    await patchBackgroundOpsLastDigest(supabase, userId, settings, bg)
+    return []
+  }
+
+  const systemPrompt = buildSystemPrompt(settings, preferenceHint, Boolean(snapshot))
+  let userPrompt = `Recent tasks:\n${recentSummary || 'None yet.'}\n\nSuggest the next 1-5 tasks as JSON as described in the system prompt.`
+  if (snapshot) {
+    userPrompt += `\n\nCreator snapshot (use for targeted suggestions):\n${JSON.stringify(snapshot)}`
+  }
 
   const { text } = await generateTextWithOpenAI({
     system: systemPrompt,
@@ -75,9 +217,29 @@ export async function runDivineManagerBrain(
   const created: DivineManagerTaskRow[] = []
   try {
     const match = text.match(/\{[\s\S]*\}/)
-    const json = match ? JSON.parse(match[0]) : null
-    const tasks = json?.tasks
-    if (!Array.isArray(tasks) || tasks.length === 0) return created
+    if (!match) return created
+    let json: Record<string, unknown>
+    try {
+      json = JSON.parse(match[0]) as Record<string, unknown>
+    } catch {
+      return created
+    }
+    const digestSummary = typeof json.digest_summary === 'string' ? json.digest_summary : null
+    const tasks = json.tasks
+
+    if (digestDue && snapshot) {
+      if (wantDigestNotif) {
+        await insertDivineAppNotification(supabase, userId, {
+          type: 'system',
+          title: 'Divine — daily brief',
+          description: formatDigestDescription(snapshot, digestSummary),
+          link: '/dashboard/divine-manager',
+        })
+      }
+      await patchBackgroundOpsLastDigest(supabase, userId, settings, bg)
+    }
+
+    if (!suggestTasks || !Array.isArray(tasks) || tasks.length === 0) return created
 
     const rules = settings.automation_rules ?? {}
     const isSemiAuto = settings.mode === 'semi_auto'

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -16,6 +17,7 @@ import {
   type DivineManagerGoals,
   type DivineManagerAutomationRules,
   type DivineManagerTaskRow,
+  type DivineBackgroundOps,
 } from '@/lib/divine-manager'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,6 +38,8 @@ import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
 import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
+import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
+import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
 
 type WizardStep = 1 | 2 | 3 | 4
 
@@ -95,6 +99,15 @@ export default function DivineManagerPage() {
       thread_auto_update_enabled: false,
       thread_auto_update_whale_only: true,
     },
+    voice_fab_skip_launcher: false,
+    divine_background_ops: {
+      enabled: false,
+      suggest_tasks: true,
+      digest_notifications: false,
+      include_leaks: true,
+      min_interval_hours: 4,
+    },
+    divine_onboarding_checklist: {},
   })
   const [selectedMode, setSelectedMode] = useState<DivineManagerMode>('suggest_only')
   const [managerArchetype, setManagerArchetype] = useState<string>('hermes')
@@ -105,9 +118,8 @@ export default function DivineManagerPage() {
   const [voiceLoading, setVoiceLoading] = useState(false)
   const [ongoingCoachEnabled, setOngoingCoachEnabled] = useState(false)
   const [introBriefingPlayed, setIntroBriefingPlayed] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
+  const [textSheetOpen, setTextSheetOpen] = useState(false)
+  const [voiceChangeNote, setVoiceChangeNote] = useState<string | null>(null)
   const [resetting, setResetting] = useState(false)
   const realtimeStatus = voiceSession?.status ?? 'idle'
   const closingPending = voiceSession?.closingPending ?? false
@@ -137,6 +149,13 @@ export default function DivineManagerPage() {
   useEffect(() => {
     const section = searchParams.get('section')
     if (!section) return
+    if (section === 'text' || section === 'chat') {
+      const t = window.setTimeout(() => {
+        setTextSheetOpen(true)
+        window.setTimeout(() => document.getElementById('divine-chat-input')?.focus(), 400)
+      }, 200)
+      return () => clearTimeout(t)
+    }
     if (!['mimic', 'voice', 'tasks', 'alerts'].includes(section)) return
     const id = `divine-section-${section}`
     const t = window.setTimeout(() => {
@@ -209,6 +228,24 @@ export default function DivineManagerPage() {
               merged.dm_pricing_style === 'maximize_revenue' || merged.dm_pricing_style === 'premium_domme'
                 ? merged.dm_pricing_style
                 : 'balanced',
+            voice_fab_skip_launcher: merged.voice_fab_skip_launcher === true,
+            divine_background_ops: (() => {
+              const b = (merged.divine_background_ops ?? {}) as DivineBackgroundOps
+              return {
+                enabled: b.enabled === true,
+                suggest_tasks: b.suggest_tasks !== false,
+                digest_notifications: b.digest_notifications === true,
+                include_leaks: b.include_leaks !== false,
+                min_interval_hours:
+                  typeof b.min_interval_hours === 'number' && !Number.isNaN(b.min_interval_hours)
+                    ? Math.max(1, Math.min(168, Math.floor(b.min_interval_hours)))
+                    : 4,
+                last_digest_at: typeof b.last_digest_at === 'string' ? b.last_digest_at : undefined,
+              }
+            })(),
+            divine_onboarding_checklist: {
+              ...((merged.divine_onboarding_checklist ?? {}) as Record<string, boolean>),
+            },
           })
           setSelectedMode(s.mode)
           setManagerArchetype(s.manager_archetype || 'hermes')
@@ -442,45 +479,26 @@ export default function DivineManagerPage() {
           thread_auto_update_enabled: false,
           thread_auto_update_whale_only: true,
         },
+        voice_fab_skip_launcher: false,
+        divine_background_ops: {
+          enabled: false,
+          suggest_tasks: true,
+          digest_notifications: false,
+          include_leaks: true,
+          min_interval_hours: 4,
+        },
+        divine_onboarding_checklist: {},
       })
       setSelectedMode('suggest_only')
       setManagerArchetype('hermes')
       setNotifyLevel('daily_digest')
       setBetaAcknowledged(false)
       setVoiceScript(null)
-      if (panelCtx) panelCtx.setChatMessages([])
-      else setChatMessages([])
+      panelCtx?.setChatMessages([])
     } catch (e) {
       console.error(e)
     } finally {
       setResetting(false)
-    }
-  }
-
-  const sendChat = async () => {
-    const trimmed = chatInput.trim()
-    if (!trimmed || chatLoading) return
-    const nextMessages = [...chatMessages, { role: 'user' as const, content: trimmed }]
-    setChatMessages(nextMessages)
-    setChatInput('')
-    setChatLoading(true)
-    try {
-      const res = await fetch('/api/ai/divine-manager-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: nextMessages.map(m => ({ role: m.role, content: m.content })),
-        }),
-      })
-      if (!res.ok) throw new Error('Chat request failed')
-      const data = (await res.json()) as { reply?: string; error?: string }
-      if (data.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply! }])
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setChatLoading(false)
     }
   }
 
@@ -527,6 +545,10 @@ export default function DivineManagerPage() {
       resetIdleRef.current = null
     }
   }, [realtimeStatus, endRealtimeVoice])
+
+  useEffect(() => {
+    if (realtimeStatus !== 'connected') setVoiceChangeNote(null)
+  }, [realtimeStatus])
 
   const fetchIntentLog = async () => {
     if (!userId) return
@@ -1104,6 +1126,20 @@ export default function DivineManagerPage() {
                         Strict mode requires Divine to call voice_allow_user_hangup before End unlocks. Use Force end if stuck.
                       </p>
                     </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                      <div>
+                        <p className="font-medium">Start voice instantly from crown</p>
+                        <p className="text-xs text-muted-foreground">
+                          Skip the launcher; first tap on the floating crown begins the call immediately.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={automationRules.voice_fab_skip_launcher === true}
+                        onCheckedChange={(c) =>
+                          setAutomationRules((r) => ({ ...r, voice_fab_skip_launcher: c }))
+                        }
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label>Open fan chat from Divine</Label>
                       <Select
@@ -1233,28 +1269,64 @@ export default function DivineManagerPage() {
   return (
     <div className="divine-page-bg min-h-full">
       <div className="divine-fade-in max-w-4xl mx-auto space-y-10 pb-12 px-4 pt-2">
-        <div className="mb-10">
-          <div className="flex items-center gap-3">
-            <Crown className="h-9 w-9 text-primary divine-shine" />
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-serif text-3xl font-semibold tracking-tight">Divine Manager</h1>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-wide border-primary/40 text-primary">
-                  BETA
-                </Badge>
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Early access</span>
+        <div className="mb-10 space-y-4">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.06] via-card to-purple-500/[0.07] px-5 py-6 shadow-[0_0_40px_-12px_rgba(168,85,247,0.22),0_0_28px_-14px_rgba(251,191,36,0.12)] dark:border-purple-500/20 dark:from-purple-950/35 dark:via-card dark:to-amber-950/20">
+            <div className="constellation-bg pointer-events-none absolute inset-0 opacity-[0.28] dark:opacity-[0.18]" />
+            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 to-purple-600/15 shadow-[0_0_20px_-6px_rgba(168,85,247,0.35)]">
+                  <Crown className="ai-tools-brand-icon h-7 w-7" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="font-serif text-3xl font-semibold tracking-tight">
+                      <span className="ai-tools-wordmark">Divine Manager</span>
+                    </h1>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide border-amber-500/35 text-foreground">
+                      BETA
+                    </Badge>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Early access</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your full-time AI manager — voice, text, tools, and protocol tasks in one orbit.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Archetype: {settings.manager_archetype || 'hermes'} · Use the floating crown for voice (launcher first, unless you enable instant start in Voice Control).
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your full-time AI manager orchestrating growth with Circe and Venus.
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Reserved for creators who run the show. Archetype: {settings.manager_archetype || 'hermes'}
-              </p>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="border-amber-500/25 bg-card/50" asChild>
+              <Link href="/dashboard/ai-studio?tab=tools">AI Studio</Link>
+            </Button>
+            <Button variant="outline" size="sm" className="border-purple-500/20 bg-card/50" asChild>
+              <Link href="/dashboard/commenter">Commenter</Link>
+            </Button>
+            <Button variant="outline" size="sm" className="border-amber-500/20 bg-card/50" asChild>
+              <Link href="/dashboard/protection">Protection</Link>
+            </Button>
+            <Button variant="outline" size="sm" className="border-purple-500/15 bg-card/50" asChild>
+              <Link href="/dashboard/mentions">Mentions</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-border"
+              type="button"
+              onClick={() => setTextSheetOpen(true)}
+            >
+              Text Divine
+            </Button>
           </div>
         </div>
 
-        <div className="h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" aria-hidden />
+        <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent dark:via-purple-500/20" aria-hidden />
+
+        {settings.beta_acknowledged && mode !== 'off' ? (
+          <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
+        ) : null}
 
         <div id="divine-section-mimic" className="scroll-mt-24">
           <MimicTestWizard />
@@ -1671,6 +1743,20 @@ export default function DivineManagerPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex flex-col gap-2 rounded-lg border border-amber-500/15 bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Floating crown</p>
+                <p className="text-xs text-muted-foreground">
+                  Instant start skips the voice launcher (menu with Text Divine / AI Studio links).
+                </p>
+              </div>
+              <Switch
+                checked={automationRules.voice_fab_skip_launcher === true}
+                onCheckedChange={(c) =>
+                  void persistAutomationRules({ ...automationRules, voice_fab_skip_launcher: c })
+                }
+              />
+            </div>
             {realtimeStatus === 'connected' && !panelCtx?.focusedFan?.id && (
               <p className="text-xs text-amber-800 dark:text-amber-200/90 rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-1.5">
                 For DM thread readouts, open Messages and select a fan (or focus one from Divine chat). Otherwise Divine can
@@ -2085,59 +2171,6 @@ export default function DivineManagerPage() {
         </Card>
       )}
 
-      {settings.beta_acknowledged && mode !== 'off' && (
-        <Card className="divine-card">
-          <CardHeader>
-            <CardTitle className="font-serif text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Ask Divine
-            </CardTitle>
-            <CardDescription>
-              Same Divine manager in text mode. Ask about your fans, revenue, or which tasks to prioritize.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="h-48 w-full rounded-md border border-border bg-muted/20 p-2 overflow-y-auto space-y-2 text-sm">
-              {(panelCtx ? panelCtx.chatMessages : chatMessages).length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Ask me about your fans, revenue, or which tasks to prioritize. I’ll answer based on your Divine Manager setup and plan. Same chat stays open in the Divine panel when you switch pages.
-                </p>
-              ) : (
-                (panelCtx ? panelCtx.chatMessages : chatMessages).map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={`max-w-[80%] rounded-lg px-2 py-1 ${
-                      m.role === 'user'
-                        ? 'ml-auto bg-primary text-primary-foreground'
-                        : 'mr-auto bg-muted text-foreground'
-                    }`}
-                  >
-                    {m.content}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Type a question for your manager…"
-                value={panelCtx ? panelCtx.chatInput : chatInput}
-                onChange={(e) => (panelCtx ? panelCtx.setChatInput(e.target.value) : setChatInput(e.target.value))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    ;(panelCtx ? panelCtx.sendChat : sendChat)()
-                  }
-                }}
-                disabled={panelCtx ? panelCtx.chatLoading : chatLoading}
-              />
-              <Button size="sm" disabled={(panelCtx ? panelCtx.chatLoading : chatLoading) || !(panelCtx ? panelCtx.chatInput : chatInput).trim()} onClick={panelCtx ? panelCtx.sendChat : sendChat}>
-                {(panelCtx ? panelCtx.chatLoading : chatLoading) ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Card className="divine-card">
         <CardHeader>
           <CardTitle className="font-serif text-lg flex items-center gap-2">
@@ -2162,6 +2195,11 @@ export default function DivineManagerPage() {
               })
               const s = await getSettings(supabase, userId)
               if (s) setSettings(s)
+              if (realtimeStatus === 'connected') {
+                setVoiceChangeNote(
+                  'Voice updates on your next call. End the call and start again to hear the new voice right away.',
+                )
+              }
             }}
           >
             <SelectTrigger className="max-w-[200px]"><SelectValue placeholder="Marin" /></SelectTrigger>
@@ -2171,6 +2209,105 @@ export default function DivineManagerPage() {
               ))}
             </SelectContent>
           </Select>
+          {voiceChangeNote ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400/90">{voiceChangeNote}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Realtime voice uses this setting when a call starts; it does not hot-swap mid-call.
+            </p>
+          )}
+          <p className="font-medium text-foreground pt-3">Background AI (while you&apos;re away)</p>
+          <p className="text-xs text-muted-foreground pb-1">
+            Server cron refreshes suggestions using your inbox, calendar, protocol, and leaks (no live platform polling).
+            Optional Divine-tab notification on each digest when enabled.
+          </p>
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-foreground">Enriched background runs</span>
+              <Switch
+                checked={(settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.enabled === true}
+                onCheckedChange={(c) => {
+                  const base = { ...(settings.automation_rules ?? {}) } as DivineManagerAutomationRules
+                  const op = { ...((base.divine_background_ops ?? {}) as DivineBackgroundOps) }
+                  base.divine_background_ops = { ...op, enabled: c }
+                  void persistAutomationRules(base)
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-foreground">Suggest new manager tasks from cron</span>
+              <Switch
+                checked={
+                  ((settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.suggest_tasks !== false)
+                }
+                disabled={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.enabled !== true
+                }
+                onCheckedChange={(c) => {
+                  const base = { ...(settings.automation_rules ?? {}) } as DivineManagerAutomationRules
+                  const op = { ...((base.divine_background_ops ?? {}) as DivineBackgroundOps) }
+                  base.divine_background_ops = { ...op, suggest_tasks: c }
+                  void persistAutomationRules(base)
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-foreground">Digest notification (Divine tab)</span>
+              <Switch
+                checked={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.digest_notifications === true
+                }
+                disabled={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.enabled !== true
+                }
+                onCheckedChange={(c) => {
+                  const base = { ...(settings.automation_rules ?? {}) } as DivineManagerAutomationRules
+                  const op = { ...((base.divine_background_ops ?? {}) as DivineBackgroundOps) }
+                  base.divine_background_ops = { ...op, digest_notifications: c }
+                  void persistAutomationRules(base)
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-foreground">Include leak counts in snapshot</span>
+              <Switch
+                checked={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.include_leaks !== false
+                }
+                disabled={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.enabled !== true
+                }
+                onCheckedChange={(c) => {
+                  const base = { ...(settings.automation_rules ?? {}) } as DivineManagerAutomationRules
+                  const op = { ...((base.divine_background_ops ?? {}) as DivineBackgroundOps) }
+                  base.divine_background_ops = { ...op, include_leaks: c }
+                  void persistAutomationRules(base)
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Minimum hours between digest runs</Label>
+              <Input
+                type="number"
+                min={1}
+                max={168}
+                className="max-w-[120px]"
+                disabled={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.enabled !== true
+                }
+                value={
+                  (settings.automation_rules?.divine_background_ops as DivineBackgroundOps | undefined)?.min_interval_hours ?? 4
+                }
+                onChange={(e) => {
+                  const v = Math.max(1, Math.min(168, Math.floor(Number(e.target.value) || 4)))
+                  const base = { ...(settings.automation_rules ?? {}) } as DivineManagerAutomationRules
+                  const op = { ...((base.divine_background_ops ?? {}) as DivineBackgroundOps) }
+                  base.divine_background_ops = { ...op, min_interval_hours: v }
+                  void persistAutomationRules(base)
+                }}
+              />
+            </div>
+          </div>
           <p><span className="font-medium text-foreground">Rules:</span> Auto-post {settings.automation_rules?.autoPostSchedule?.enabled ? 'on' : 'off'}, Welcome DM {settings.automation_rules?.autoWelcomeDm?.enabled ? 'on' : 'off'}, Tip follow-up {settings.automation_rules?.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}</p>
           <p className="font-medium text-foreground pt-2">Voice automation</p>
           <p className="text-xs text-muted-foreground pb-1">What Divine can do by voice without asking you to confirm.</p>
@@ -2224,6 +2361,33 @@ export default function DivineManagerPage() {
               <span className="text-sm">Publish posts</span>
             </div>
           </div>
+          <p className="font-medium text-foreground pt-3">AI spend guard</p>
+          <p className="text-xs text-muted-foreground pb-1">
+            Skip AI Chatter and comment analysis for contacts that look like fellow creators unless you label them as
+            fans or enable &quot;Treat as fan&quot; on their profile.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <Switch
+              checked={settings.automation_rules?.alerts?.skip_expensive_ai_for_creator_likely !== false}
+              onCheckedChange={async (c) => {
+                if (!userId) return
+                const supabase = createClient()
+                await upsertSettings(supabase, userId, {
+                  ...settings,
+                  automation_rules: {
+                    ...settings.automation_rules,
+                    alerts: {
+                      ...settings.automation_rules?.alerts,
+                      skip_expensive_ai_for_creator_likely: c,
+                    },
+                  },
+                })
+                const s = await getSettings(supabase, userId)
+                if (s) setSettings(s)
+              }}
+            />
+            <span className="text-sm">Skip expensive AI for likely creators</span>
+          </div>
         </CardContent>
       </Card>
       {replyContext && (
@@ -2238,6 +2402,7 @@ export default function DivineManagerPage() {
           recommendationReason={replyContext.recommendationReason ?? null}
         />
       )}
+      <DivineTextSheet open={textSheetOpen} onOpenChange={setTextSheetOpen} />
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 // Database Types for CREATRIX Platform
 
 import type { AudienceBadge } from '@/lib/fans/audience-classification'
+import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 
 export type Platform = 'onlyfans' | 'fansly' | 'manyvids' | 'mym' | 'loyalfans'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
@@ -75,6 +76,15 @@ export interface Fan {
   avatar_url: string | null
   tier: FanTier
   total_spent: number
+  /** Listed subscription price from platform when known (USD / period). */
+  subscription_price?: number | null
+  /** Free-page vs paid tier when derivable from price or sync. */
+  subscription_account_type?: SubscriptionAccountType
+  /** Partial revenue breakdown (null = not tracked yet for this row). */
+  spend_subscriptions?: number | null
+  spend_tips?: number | null
+  spend_messages?: number | null
+  spend_posts?: number | null
   subscription_start: string | null
   /** Current period end from OnlyFans/Fansly sync (ISO). */
   subscription_expires_at?: string | null

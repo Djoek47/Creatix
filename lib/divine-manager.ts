@@ -49,6 +49,11 @@ export interface DivineManagerAutomationAlerts {
   tip_notify_min_dollars?: number
   /** If true, DMCA / leak workflows only create drafts until you confirm (default true). */
   dmca_draft_requires_confirmation?: boolean
+  /**
+   * When true (default), skip AI Chatter compose and Commenter AI analysis for contacts that look like
+   * fellow creators unless the fan is marked “treat as fan for automation” or classified as fan/whale/churn/etc.
+   */
+  skip_expensive_ai_for_creator_likely?: boolean
   [key: string]: unknown
 }
 
@@ -69,6 +74,22 @@ export type VoiceHangupPolicy = 'always' | 'after_closing_prompt'
 
 /** How Divine focuses a fan from tools: full Messages route vs floating overlay. */
 export type DmFocusMode = 'navigate' | 'overlay'
+
+/** Background cron: enrich Divine brain with DB snapshot + optional in-app digest notification. */
+export interface DivineBackgroundOps {
+  enabled?: boolean
+  /** When false and enabled, cron skips creating new suggested tasks (digest path still runs when due). Default true. */
+  suggest_tasks?: boolean
+  /** Insert a Creatix Divine-tab notification when a digest run completes. */
+  digest_notifications?: boolean
+  /** Include leak / DMCA alert counts in the snapshot sent to the model. Default true. */
+  include_leaks?: boolean
+  /** Minimum hours between digest runs (snapshot + optional notification). Default 4. */
+  min_interval_hours?: number
+  /** ISO timestamp of last digest run (written by cron). */
+  last_digest_at?: string
+  [key: string]: unknown
+}
 
 export interface DivineManagerAutomationRules {
   autoPostSchedule?: AutomationRule
@@ -95,15 +116,26 @@ export interface DivineManagerAutomationRules {
    * UI labels may use friendlier names (e.g. "greedy", "findom-style").
    */
   dm_pricing_style?: 'balanced' | 'maximize_revenue' | 'premium_domme'
+  /**
+   * When true, tapping the floating crown starts the voice call immediately (legacy behavior).
+   * When false (default), crown opens a launcher with Voice as the primary action.
+   */
+  voice_fab_skip_launcher?: boolean
+  /** Optional onboarding overrides (e.g. user marked "I've set up AI Chatter"). */
+  divine_onboarding_checklist?: Record<string, boolean>
+  divine_background_ops?: DivineBackgroundOps
   [key: string]:
     | AutomationRule
     | DivineManagerVoiceAuto
     | DivineManagerAutomationAlerts
     | DivineManagerAutomationJobs
+    | DivineBackgroundOps
+    | Record<string, boolean>
     | VoiceHangupPolicy
     | DmFocusMode
     | number
     | string
+    | boolean
     | undefined
 }
 
@@ -210,6 +242,7 @@ export function getDivineVoice(stored: string | undefined): DivineVoiceId {
 export interface DivineManagerTaskInsert {
   user_id: string
   type: string
+  category?: string | null
   status?: DivineManagerTaskStatus
   payload?: DivineManagerTaskPayload
   source?: string | null

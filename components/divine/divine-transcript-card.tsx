@@ -25,8 +25,8 @@ export function DivineTranscriptStack() {
         'fixed z-[42] flex flex-col items-end gap-2 max-w-[min(100vw-2rem,380px)]',
         /* Above Divine voice FAB on messages (FAB is lifted for composer) */
         messagesRoute
-          ? 'bottom-[max(11.25rem,calc(env(safe-area-inset-bottom)+10rem))] right-3 sm:right-5'
-          : 'bottom-[5.5rem] right-6',
+          ? 'bottom-[max(15rem,calc(env(safe-area-inset-bottom)+14rem))] right-3 sm:right-5'
+          : 'bottom-[6.5rem] right-6',
       )}
     >
       {showSchedule && (
@@ -42,7 +42,7 @@ export function DivineTranscriptStack() {
         </div>
       )}
       {transcript && (
-        <div className="w-full rounded-lg border border-border bg-card/95 p-3 shadow-lg backdrop-blur-sm">
+        <div className="divine-transcript-shell w-full rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm">
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               {transcript.title ?? 'Divine text'}

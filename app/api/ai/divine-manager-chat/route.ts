@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
 import { isDivineFullAccess } from '@/lib/divine/divine-full-access'
 import {
   runToolCall,
@@ -349,6 +350,63 @@ const CHAT_TOOLS: Array<{
   {
     type: 'function',
     function: {
+      name: 'list_recent_comment_analyses',
+      description:
+        'Commenter: list recent OnlyFans post/story/stream comments stored in Creatix with analysis status and safety hints. Use for “what did fans comment”, “any weird comments”, or before drafting replies.',
+      parameters: {
+        type: 'object',
+        properties: { limit: { type: 'number', description: 'Max rows (default 12, max 25)' } },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_comment_reply_suggestions',
+      description:
+        'Commenter: fetch AI persona reply drafts for one comment id (Circe, Venus, Flirt, Professional, Best). Drafts are review-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          commentId: { type: 'string', description: 'UUID from list_recent_comment_analyses' },
+        },
+        required: ['commentId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'refresh_comment_analysis',
+      description: 'Commenter: re-run AI analysis and regenerate reply drafts for one comment id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          commentId: { type: 'string', description: 'UUID from list_recent_comment_analyses' },
+        },
+        required: ['commentId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sync_commenter_from_posts',
+      description:
+        'Commenter: pull comments from OnlyFans API for recent posts (or one postId) and run analysis. Requires OnlyFans connected.',
+      parameters: {
+        type: 'object',
+        properties: {
+          maxPosts: { type: 'number', description: 'Posts with comments to scan (default 8, max 20)' },
+          postId: { type: 'string', description: 'Optional single post id to sync' },
+          runAnalysis: { type: 'boolean', description: 'Default true: analyze each new comment' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_integrations_summary',
       description:
         'Authoritative OnlyFans/Fansly connection state plus social handles. Call this before fan lookup, DMs, or analytics when connection status is unclear.',
@@ -395,6 +453,7 @@ const CHAT_TOOLS: Array<{
               '/dashboard/content',
               '/dashboard/protection',
               '/dashboard/mentions',
+              '/dashboard/commenter',
               '/dashboard/fans',
               '/dashboard/analytics',
               '/dashboard/divine-manager',
@@ -421,6 +480,66 @@ const CHAT_TOOLS: Array<{
         type: 'object',
         properties: { fanId: { type: 'string' } },
         required: ['fanId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'notifications_panel',
+      description:
+        'Open or close the header notifications popover, switch Live vs Divine tab, or scroll to a CRM notification UUID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          open: { type: 'boolean', description: 'true open, false close; omit to leave as-is' },
+          tab: { type: 'string', enum: ['live', 'divine'] },
+          scrollToId: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'creator_task_add',
+      description: 'Add a protocol / daily task to the floating rail.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          body: { type: 'string' },
+          linked_notification_id: { type: 'string' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'creator_task_set_status',
+      description: 'Set protocol task status by task UUID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          task_id: { type: 'string' },
+          status: { type: 'string', enum: ['pending', 'executing', 'done', 'failed'] },
+        },
+        required: ['task_id', 'status'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'protocol_complete_for_notification',
+      description:
+        'Remove a CRM notification from the bell and mark linked protocol tasks done when a workflow (welcome, whale, etc.) is finished.',
+      parameters: {
+        type: 'object',
+        properties: { notification_id: { type: 'string' } },
+        required: ['notification_id'],
       },
     },
   },
@@ -501,12 +620,16 @@ const CHAT_TOOLS: Array<{
     function: {
       name: 'recommend_dm_bundle',
       description:
-        'Suggest pricing/copy for a PPV or paid DM bundle. Loads saved sales_notes/teaser_tags from Creatix when content_ids are set (from list_vault_for_dm). Respects dm_pricing_style unless overridden.',
+        'Suggest pricing/copy for a PPV or paid DM bundle. Loads saved sales_notes/teaser_tags/NSFW/access tier from Creatix when content_ids are set (from list_vault_for_dm). Pass platform_fan_id (OnlyFans) to inject free vs paid follower context. Respects dm_pricing_style unless overridden.',
       parameters: {
         type: 'object',
         properties: {
           goal: { type: 'string' },
           fan_context: { type: 'string' },
+          platform_fan_id: {
+            type: 'string',
+            description: 'OnlyFans platform fan id — loads subscription free/paid snapshot into the pricing prompt',
+          },
           content_summary: { type: 'string', description: 'Extra free-text context in addition to content_ids' },
           content_ids: {
             type: 'array',
@@ -526,7 +649,7 @@ const CHAT_TOOLS: Array<{
     function: {
       name: 'upsert_content_sales_notes',
       description:
-        'Save private sales/teaser metadata for a Creatix content row (vault) so Divine can recommend it in DMs. Prefer get_content_sales_metadata first to see current values. Ask structured questions; respect creator boundaries.',
+        'Save private sales/teaser metadata for a Creatix content row (vault) so Divine can recommend it in DMs. Set is_nsfw and fan_access_tier so AI knows intensity and whether free followers vs subs typically see it. Prefer get_content_sales_metadata first.',
       parameters: {
         type: 'object',
         properties: {
@@ -534,6 +657,12 @@ const CHAT_TOOLS: Array<{
           sales_notes: { type: 'string' },
           teaser_tags: { type: 'array', items: { type: 'string' } },
           spoiler_level: { type: 'string', description: 'e.g. none, mild, explicit' },
+          is_nsfw: { type: 'boolean', description: 'Explicit/adult material (default true if unsure on adult platforms)' },
+          fan_access_tier: {
+            type: 'string',
+            enum: ['free_feed', 'all_subscribers', 'ppv_or_locked', 'unknown'],
+            description: 'Who can access without extra PPV: free page, all subs feed, or paywalled bundle',
+          },
         },
         required: ['content_id'],
       },
@@ -556,7 +685,7 @@ const CHAT_TOOLS: Array<{
     function: {
       name: 'get_content_sales_metadata',
       description:
-        'Read one Creatix content row by id: title, description snippet, sales_notes, teaser_tags, spoiler_level. Use before/after upsert_content_sales_notes to confirm or refine vault sales metadata.',
+        'Read one Creatix content row by id: title, description snippet, sales_notes, teaser_tags, spoiler_level, is_nsfw, fan_access_tier. Use before/after upsert_content_sales_notes.',
       parameters: {
         type: 'object',
         properties: { content_id: { type: 'string', description: 'UUID from list_vault_for_dm' } },
@@ -865,6 +994,30 @@ const CHAT_TOOLS: Array<{
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'run_ai_studio_tool',
+      description:
+        'Run any AI Studio tool by id (same tools as Dashboard → AI Studio). Use when the creator asks for a capability that matches a library tool and there is no more specific Divine tool (e.g. fantasy-writer, gift-suggester, video-script-ai, competitor-analysis, mass-dm-composer, voice-cloning, Circe/Venus premium tools, content-ideas, mood-detector, leak-scanner / Aegis setup guidance). Prefer generate_caption, predict_viral, get_retention_insights, get_whale_advice, analyze_content when they fit exactly. Args: pass prompt, description, contentDescription, niche, platform, fanId, message, budget, goals, etc. as appropriate for that tool.',
+      parameters: {
+        type: 'object',
+        properties: {
+          toolId: {
+            type: 'string',
+            enum: [...DIVINE_MANAGER_AI_STUDIO_TOOL_IDS],
+            description: 'Tool id from the AI Studio library',
+          },
+          args: {
+            type: 'object',
+            description:
+              'Fields for that tool, e.g. contentDescription, platform, niche, prompt, fanId, message, budget, scenario, tone, goals, competitorTargets',
+          },
+        },
+        required: ['toolId', 'args'],
+      },
+    },
+  },
 ]
 
 export async function POST(req: NextRequest) {
@@ -945,8 +1098,9 @@ You know their tasks, rules, and analytics. Speak as a manager, not as the creat
 Never claim you have already sent messages, changed prices, or executed actions. You may only recommend or suggest actions or rule changes.
 Respect the creator's boundaries, niches, and all platform safety rules.
 Avoid explicit or illegal content entirely. Use clear, practical language.
-You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan. Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
+You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, run_ai_studio_tool (any AI Studio library tool—valid toolId values are listed in that function’s schema; use when no narrower tool fits, e.g. fantasy-writer, gift-suggester, video-script-ai, competitor-analysis, mass-dm-composer, voice-cloning, divine-forecast, mood-detector, content-ideas, leak-scanner, dmca-automator, circe-protection-shield, ai-chatter, pricing-optimizer), get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, list_recent_comment_analyses (Commenter: public post/story/stream comments + safety), get_comment_reply_suggestions (Commenter drafts by persona), refresh_comment_analysis (re-run Commenter AI), sync_commenter_from_posts (pull comments from OnlyFans API), get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), notifications_panel (open/close bell, tab, scrollToId), creator_task_add, creator_task_set_status, protocol_complete_for_notification (remove CRM notification + complete linked tasks), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan. Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
 Fans and engagement: list_fans (filter: active, expired, latest, top, expiring_soon + optional expiringWithinDays for CRM) for "who are my fans", "top spenders", "expired subs", "expiring soon"; get_fan_subscription_history for a fan's renewals; list_followings for who they follow; get_top_message for best-performing message and buyers; get_message_engagement (type direct or mass) for "how did my messages perform"; publish_queue_item to publish a saved post or saved mass message. Route: "who spent the most" → list_fans filter=top; "how did my mass message do" → get_message_engagement type=mass; "publish my saved post" → publish_queue_item.
+Commenter (public comments, not DMs): list_recent_comment_analyses for recent fan comments on posts; sync_commenter_from_posts to backfill from OnlyFans when webhooks missed history; get_comment_reply_suggestions for Circe/Venus/Flirt/Professional/Best draft text (review only—creator copies to OnlyFans); refresh_comment_analysis to regenerate. ui_navigate /dashboard/commenter for the full UI. High-risk comments may already have in-app notifications.
 When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. Prefer get_dm_thread_and_suggestions when they need both thread and reply ideas immediately. Use start_thread_scan_async when the scan should run in the background while they do other things (e.g. Analytics or get_stats); use get_task_status to see whether tasks finished. get_fan_thread_insights returns the stored thread snapshot and merged personality profile (updated in the background after messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. draft_fan_reply drafts a message in the creator's voice (Mimic Test); it does not send—creator reviews first. get_dm_thread lets you scan and read the full chat with a specific fan. get_reply_suggestions runs Scan Thread and returns Circe, Venus, and Flirt reply options; the app opens Messages for that fan and shows the same panels as the in-chat buttons—use openPanel (venus|circe|flirt|scan|all) when they only want one panel (e.g. "Venus reply"). send_message can send immediately or use mode draft/prepare (or prepare_dm) to fill the in-app DM composer for review and optional countdown auto-send per creator settings. list_vault_for_dm lists Creatix vault rows; get_content_sales_metadata reads one row's saved sales fields; recommend_dm_bundle suggests DM/PPV bundle price and copy—pass content_ids to automatically include saved sales_notes/teaser_tags in the analysis; upsert_content_sales_notes saves structured sales/teaser metadata after bounded interview questions (respect flirty level and boundaries—no explicit sexual roleplay with the creator). open_dm_overlay and switch_overlay_fan control the multi-tab floating DM hub. If OnlyFans is disconnected, say clearly that DM/fan tools will not work until they reconnect and offer ui_navigate to /dashboard/settings?tab=integrations.
 
 DM name lookup rules: Tool output begins with spellback ("I heard …") and ends with [divine_lookup_meta:…]. Follow next_step_hint. If resolved is fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, do not claim the chat is already open; ask the creator to confirm or pick a fanId. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn—if unclear, ask a clarifying question first. If resolved is exact, use that fanId for get_dm_thread / send_message.
@@ -984,7 +1138,7 @@ ${analyticsSummary}
 
 You have access to analytics snapshots: fans, revenue, and platform breakdown; use this when they ask about performance, sales, or growth. Be explicit when data is historical vs live platform-linked.
 
-Content library (sales metadata for DMs): When they want to tag or describe vault items for better PPV/DM recommendations, use list_vault_for_dm for ids, then a short structured interview: hook/teaser angle, intended buyer, spoiler_level (none | mild | explicit), CTA, and 3–8 teaser_tags. Keep tone professional and platform-safe; respect their flirty level and boundaries above—do not engage in explicit sexual roleplay with the creator in-app. Summarize fan-facing sales angles only, then save with upsert_content_sales_notes. Use get_content_sales_metadata to read back one row before editing. For bundle pricing, call recommend_dm_bundle with goal plus content_ids from the vault so saved metadata is used automatically.
+Content library (sales metadata for DMs): When they want to tag or describe vault items for better PPV/DM recommendations, use list_vault_for_dm for ids, then a short structured interview: hook/teaser angle, intended buyer, spoiler_level (none | mild | explicit), is_nsfw, fan_access_tier (free_feed | all_subscribers | ppv_or_locked | unknown), CTA, and 3–8 teaser_tags. Keep tone professional and platform-safe; respect their flirty level and boundaries above—do not engage in explicit sexual roleplay with the creator in-app. Summarize fan-facing sales angles only, then save with upsert_content_sales_notes. Use get_content_sales_metadata to read back one row before editing. For bundle pricing, call recommend_dm_bundle with goal, platform_fan_id when known, plus content_ids from the vault so saved metadata and fan free/paid context are used automatically.
 ${platformConnectionContext}${focusedFanLine}`
 
     const history = messages.slice(-6)

@@ -9,6 +9,7 @@ export function DivineWorkingLogo({
   variant,
   phaseHint,
   className,
+  wordmarkClassName,
 }: {
   /** Legacy: when true, treat as working (non-idle) unless `variant` is set. */
   working?: boolean
@@ -17,6 +18,8 @@ export function DivineWorkingLogo({
   /** When working, replaces the default “Divine is working…” line (e.g. tools vs reply). */
   phaseHint?: string | null
   className?: string
+  /** Optional class for the “Divine” label (e.g. ai-tools-wordmark in launcher). */
+  wordmarkClassName?: string
 }) {
   const v: VoiceSurfaceState =
     variant ?? (working ? 'working' : 'idle')
@@ -50,9 +53,10 @@ export function DivineWorkingLogo({
         <span
           className={cn(
             'font-medium',
-            v === 'working' && 'text-purple-600 dark:text-purple-400',
-            v === 'speaking' && 'text-amber-600 dark:text-amber-400',
-            v === 'idle' && 'text-foreground',
+            wordmarkClassName,
+            !wordmarkClassName && v === 'working' && 'text-purple-600 dark:text-purple-400',
+            !wordmarkClassName && v === 'speaking' && 'text-amber-600 dark:text-amber-400',
+            !wordmarkClassName && v === 'idle' && 'text-foreground',
           )}
         >
           Divine

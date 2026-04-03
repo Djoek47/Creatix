@@ -23,7 +23,8 @@ export async function GET(req: Request) {
     .neq('mode', 'off')
 
   const userIds = (rows ?? []).map((r: { user_id: string }) => r.user_id)
-  const results: { userId: string; taskCount: number }[] = []
+  type CronRow = { userId: string; taskCount: number; executed: number; failed: number }
+  const results: CronRow[] = []
 
   for (const userId of userIds) {
     try {
@@ -35,7 +36,7 @@ export async function GET(req: Request) {
         executed: exec.executed,
         failed: exec.failed,
       })
-    } catch (e) {
+    } catch {
       results.push({ userId, taskCount: -1, executed: 0, failed: 0 })
     }
   }

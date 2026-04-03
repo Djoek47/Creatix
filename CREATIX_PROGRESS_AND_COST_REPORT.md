@@ -128,7 +128,7 @@ Creatix is a creator-management platform that combines **retention and protectio
 | Marketing pages | Features, How it works, Pricing | Implemented |
 | Legal | About, Terms, Privacy, Contact, Cookies | Implemented |
 | Metadata | Titles, descriptions, canonical, Open Graph, Twitter | Implemented |
-| robots.txt / sitemap | Config and XML sitemap | Implemented |
+| robots.txt / sitemap | Public paths only; `/dashboard` + `/api` disallowed; dashboard layout `noindex` | Implemented |
 | JSON-LD | Organization (and similar) structured data | Implemented |
 | GSC | Google Search Console verification (env-driven) | Implemented |
 

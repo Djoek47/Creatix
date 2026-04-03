@@ -22,6 +22,7 @@ import {
   Lightbulb,
   BookOpen,
   HeartPulse,
+  MessagesSquare,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
@@ -39,6 +40,7 @@ const circeNavigation = [
 
 const venusNavigation = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
+  { name: 'Commenter', href: '/dashboard/commenter', icon: MessagesSquare },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
 ]
 

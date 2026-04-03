@@ -48,6 +48,8 @@ export type SuggestionRequestContext = {
   messages: NormalizedChatMessage[]
   /** Prepended to the thread preview for the model (e.g. fan AI summary + stored snapshot). */
   threadSupplement?: string
+  /** Free vs paid follower + access expectations for upsell/PPV framing. */
+  fanCommerceContext?: string
   tonePreferences?: string[]
   niches?: string[]
   boundaries?: string[]
@@ -163,6 +165,9 @@ Focus on: ${flavor}
 Always use these pronouns for the creator and never misgender them.`
       : ''
 
+  const commerce =
+    ctx.fanCommerceContext?.trim() ? `Fan subscription / feed access (CRM):\n${ctx.fanCommerceContext.trim()}\n` : ''
+
   const prompt = `${persona}
 
 Platform: ${ctx.platform}
@@ -171,7 +176,7 @@ Fan handle: @${ctx.fan.username || 'fan'}
 ${identityLine}
 
 ${nicheLine}
-${safety}
+${commerce}${safety}
 
 Recent conversation:
 ${conversation}
@@ -295,13 +300,16 @@ Return ONLY JSON:
 Focus on: ${flavor}`
   }
 
+  const commerce =
+    ctx.fanCommerceContext?.trim() ? `Fan subscription / feed access (CRM):\n${ctx.fanCommerceContext.trim()}\n` : ''
+
   const userPrompt = `${persona}
 
 Platform: ${ctx.platform}
 Fan handle: @${ctx.fan.username || 'fan'}
 
 ${nicheLine}
-${safety}
+${commerce}${safety}
 
 Recent conversation:
 ${conversation}

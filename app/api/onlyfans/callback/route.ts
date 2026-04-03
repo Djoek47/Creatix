@@ -4,6 +4,7 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
+import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -141,6 +142,8 @@ async function syncOnlyFansData(userId: string, accountId: string) {
           avatar_url: fan.avatar || null,
           subscription_tier: tier,
           total_spent: fan.totalSpent,
+          subscription_price: fan.subscriptionPrice ?? null,
+          subscription_account_type: subscriptionAccountTypeFromPrice(fan.subscriptionPrice ?? null),
           first_subscribed_at: fan.subscribedAt || null,
           last_interaction_at: new Date().toISOString(),
           subscription_expires_at: sub.subscription_expires_at,

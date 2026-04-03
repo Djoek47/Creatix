@@ -9,6 +9,12 @@ import {
   type AiChatterEngagementProfile,
   type AiChatterSettings,
 } from '@/lib/divine/ai-chatter-types'
+import {
+  policySkipExpensiveAiForCreatorLikely,
+  shouldSkipExpensiveAiForContact,
+} from '@/lib/divine/creator-resource-policy'
+import { formatContentAccessForAiSnippet, parseFanAccessTier } from '@/lib/fans/fan-access-tier'
+import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
 
@@ -69,17 +75,32 @@ async function bumpAiCredits(supabase: SupabaseClient, userId: string): Promise<
 async function loadVaultSnippet(supabase: SupabaseClient, userId: string): Promise<string> {
   const { data } = await supabase
     .from('content')
-    .select('title, sales_notes, teaser_tags')
+    .select('title, content_type, sales_notes, teaser_tags, is_nsfw, fan_access_tier')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .limit(12)
   if (!data?.length) return ''
   return data
-    .map((row: { title?: string; sales_notes?: string | null; teaser_tags?: unknown }) => {
-      const tags = Array.isArray(row.teaser_tags) ? (row.teaser_tags as string[]).slice(0, 4).join(', ') : ''
-      const sales = row.sales_notes?.trim() ? row.sales_notes.trim().slice(0, 200) : ''
-      return `- ${row.title ?? 'Untitled'}${sales ? ` — ${sales}` : ''}${tags ? ` [${tags}]` : ''}`
-    })
+    .map(
+      (row: {
+        title?: string
+        content_type?: string | null
+        sales_notes?: string | null
+        teaser_tags?: unknown
+        is_nsfw?: boolean | null
+        fan_access_tier?: string | null
+      }) => {
+        const tags = Array.isArray(row.teaser_tags) ? (row.teaser_tags as string[]).slice(0, 4).join(', ') : ''
+        const sales = row.sales_notes?.trim() ? row.sales_notes.trim().slice(0, 200) : ''
+        const head = formatContentAccessForAiSnippet({
+          title: row.title ?? 'Untitled',
+          contentType: row.content_type,
+          isNsfw: row.is_nsfw !== false,
+          fanAccessTier: parseFanAccessTier(row.fan_access_tier),
+        })
+        return `- ${head}${sales ? ` — ${sales}` : ''}${tags ? ` [${tags}]` : ''}`
+      },
+    )
     .join('\n')
 }
 
@@ -133,6 +154,8 @@ async function composeChatterMessage(opts: {
   giftWishlistSnippet: string
   whaleNurture: boolean
   engagementProfile: AiChatterEngagementProfile
+  /** Free vs paid follower — avoids wrong assumptions about feed access. */
+  fanCommerceLine?: string
 }): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return { ok: false, error: 'OPENAI_API_KEY is not configured.' }
@@ -159,6 +182,7 @@ Rules:
 - Do not say you are an AI.
 - Humanization: ${human}.
 - ${goal}
+- Respect fan subscription context: free-page followers may not see paywalled feed posts; PPV items in the vault list may still need a separate unlock. Match explicitness to NSFW vs non-explicit vault labels.
 - If vault ideas are listed, you may subtly reference themes that fit the thread; do not invent prices or guarantees.
 - If gift wishlist ideas are listed, you may hint at gratitude or optional gift-style treats only when appropriate; never claim you already purchased anything.`
 
@@ -178,6 +202,7 @@ ${JSON.stringify(
   2,
 )}
 
+${opts.fanCommerceLine ? `Fan subscription / access (CRM):\n${opts.fanCommerceLine.slice(0, 1200)}\n` : ''}
 Recent thread:
 ${opts.thread.slice(0, 8000)}
 
@@ -276,7 +301,9 @@ export async function runAiChatterForInboundMessage(
 
   const { data: fan } = await supabase
     .from('fans')
-    .select('id, is_blocked, username, display_name')
+    .select(
+      'id, is_blocked, username, display_name, platform_about, creator_classification, treat_as_fan_for_automation, subscription_account_type, subscription_price, subscription_status',
+    )
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('platform_fan_id', platformFanId)
@@ -288,7 +315,7 @@ export async function runAiChatterForInboundMessage(
 
   const { data: settingsRow } = await supabase
     .from('divine_manager_settings')
-    .select('mimic_profile')
+    .select('mimic_profile, automation_rules')
     .eq('user_id', userId)
     .maybeSingle()
   const mimic = parseMimicProfile((settingsRow as { mimic_profile?: unknown } | null)?.mimic_profile) ?? {
@@ -344,6 +371,56 @@ export async function runAiChatterForInboundMessage(
     return { ok: true, action: 'skipped', reason: 'no_thread' }
   }
 
+  const dmRules = (settingsRow as { automation_rules?: { alerts?: { skip_expensive_ai_for_creator_likely?: boolean } } } | null)
+    ?.automation_rules
+  const policySkip = policySkipExpensiveAiForCreatorLikely(dmRules?.alerts)
+  const fanRow = fan as {
+    platform_about?: string | null
+    creator_classification?: string | null
+    treat_as_fan_for_automation?: boolean | null
+    username?: string | null
+    display_name?: string | null
+    subscription_account_type?: string | null
+    subscription_price?: string | number | null
+    subscription_status?: string | null
+  } | null
+  const { data: insightSnap } = await supabase
+    .from('fan_thread_insights')
+    .select('thread_snapshot_text')
+    .eq('user_id', userId)
+    .eq('platform', 'onlyfans')
+    .eq('platform_fan_id', platformFanId)
+    .maybeSingle()
+  const snapText =
+    typeof (insightSnap as { thread_snapshot_text?: string | null } | null)?.thread_snapshot_text === 'string'
+      ? (insightSnap as { thread_snapshot_text: string }).thread_snapshot_text
+      : null
+  const threadForPolicy = [pkg.threadPreview, snapText].filter(Boolean).join('\n').slice(0, 8000)
+  const { skip: skipCreatorResource, reason: creatorSkipReason } = shouldSkipExpensiveAiForContact({
+    platformAbout: fanRow?.platform_about ?? null,
+    username: fanRow?.username ?? row.fan_username,
+    displayName: fanRow?.display_name ?? null,
+    threadExcerpt: threadForPolicy || null,
+    treatAsFanForAutomation: fanRow?.treat_as_fan_for_automation === true,
+    creatorClassification: fanRow?.creator_classification ?? null,
+    policySkipWhenLikelyCreator: policySkip,
+  })
+  if (skipCreatorResource) {
+    await supabase
+      .from('ai_chatter_automations')
+      .update({
+        last_processed_message_id: inboundMessageId,
+        last_processed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    await logEvent(supabase, row.id, userId, 'skipped', {
+      reason: 'creator_resource_policy',
+      detail: creatorSkipReason ?? 'creator_likely',
+    })
+    return { ok: true, action: 'skipped', reason: 'creator_resource_policy' }
+  }
+
   const risks = scanRiskFlags(pkg as { scan?: { riskFlags?: string[] } })
   if (risks.length > 0 && settings.notify_on_risk) {
     await insertDivineAppNotification(supabase, userId, {
@@ -393,6 +470,16 @@ export async function runAiChatterForInboundMessage(
   const giftSnippet =
     settings.use_gift_wishlist ? await loadGiftWishlistSnippet(supabase, userId) : ''
 
+  const subP =
+    fanRow?.subscription_price != null && !Number.isNaN(Number(fanRow.subscription_price))
+      ? Number(fanRow.subscription_price)
+      : null
+  const fanCommerceLine = formatFanCommerceContextForAi({
+    subscriptionAccountType: (fanRow?.subscription_account_type as SubscriptionAccountType) || 'unknown',
+    subscriptionPrice: subP,
+    subscriptionStatus: fanRow?.subscription_status,
+  })
+
   const composed = await composeChatterMessage({
     mimic,
     thread: pkg.threadPreview || '',
@@ -401,6 +488,7 @@ export async function runAiChatterForInboundMessage(
     giftWishlistSnippet: giftSnippet,
     whaleNurture: settings.whale_nurture_tone,
     engagementProfile: settings.engagement_profile,
+    fanCommerceLine,
   })
   if (!composed.ok) {
     await logEvent(supabase, row.id, userId, 'error', { error: composed.error })

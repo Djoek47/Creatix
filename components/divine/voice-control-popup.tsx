@@ -6,9 +6,25 @@ import { usePathname } from 'next/navigation'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineWorkingLogo } from '@/components/divine/divine-working-logo'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { Crown, Mic, PhoneOff, MessageSquare, Sparkles, LayoutDashboard } from 'lucide-react'
+import {
+  Crown,
+  Mic,
+  PhoneOff,
+  MessageSquare,
+  Sparkles,
+  LayoutDashboard,
+  ListTodo,
+  MoreHorizontal,
+} from 'lucide-react'
 import { DivineTranscriptStack } from '@/components/divine/divine-transcript-card'
 import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 import { DivineProtocolTaskRail } from '@/components/divine/divine-protocol-task-rail'
@@ -92,10 +108,10 @@ export function VoiceControlPopup() {
   }
 
   const crownClassName = cn(
-    'divine-fab-crown divine-crown-trigger grid h-[4.125rem] w-[4.125rem] min-h-[66px] min-w-[66px] shrink-0 place-items-center p-0 leading-none text-[#1a1200] transition',
-    expanded ? 'rounded-none border-l border-gold/45' : 'rounded-full border border-gold/45 shadow-lg',
+    'divine-fab-crown divine-crown-trigger grid h-[4.125rem] w-[4.125rem] min-h-[66px] min-w-[66px] shrink-0 place-items-center p-0 leading-none transition-colors',
+    expanded ? 'rounded-none border-l border-white/15' : 'rounded-full border border-white/15 shadow-lg',
     crownStateClass,
-    'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-0',
+    'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-0',
   )
 
   const renderCrownButton = () => {
@@ -149,6 +165,21 @@ export function VoiceControlPopup() {
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
+                  <Link
+                    href="/dashboard/divine-manager?section=protocol"
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <ListTodo className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                    Today&apos;s plan &amp; protocol
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
+                  <Link href="/dashboard/divine-manager?section=tasks" onClick={() => setLauncherOpen(false)}>
+                    <ListTodo className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
+                    Manager tasks &amp; suggestions
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
                   <Link href="/dashboard/ai-studio?tab=tools" onClick={() => setLauncherOpen(false)}>
                     <Sparkles className="h-4 w-4 shrink-0 text-purple-500" aria-hidden />
                     AI Studio tools
@@ -163,17 +194,61 @@ export function VoiceControlPopup() {
 
     if (status === 'idle' && skipLauncher) {
       return (
-        <button
-          type="button"
-          onClick={() => {
-            void handleCrownClickInstant()
-          }}
-          className={crownClassName}
-          aria-label="Start Divine voice call"
-          title="Start Divine voice call"
-        >
-          <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
-        </button>
+        <div className="flex shrink-0 items-stretch">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="grid h-[4.125rem] w-11 min-h-[66px] shrink-0 place-items-center rounded-l-full border border-r-0 border-gold/45 bg-card/80 text-muted-foreground backdrop-blur-sm transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                aria-label="Divine shortcuts — plan, tasks, text"
+                title="Plan, tasks, text chat"
+              >
+                <MoreHorizontal className="h-5 w-5" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/divine-manager?section=protocol">
+                  <ListTodo className="mr-2 h-4 w-4 text-amber-500" />
+                  Today&apos;s plan &amp; protocol
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/divine-manager?section=tasks">
+                  <ListTodo className="mr-2 h-4 w-4 text-violet-500" />
+                  Manager tasks &amp; suggestions
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/divine-manager?section=text">
+                  <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                  Text Divine
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/divine-manager">
+                  <LayoutDashboard className="mr-2 h-4 w-4 text-amber-600" />
+                  Divine Manager
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={() => {
+              void handleCrownClickInstant()
+            }}
+            className={cn(
+              crownClassName,
+              'rounded-l-none rounded-r-full border-l-0',
+            )}
+            aria-label="Start Divine voice call"
+            title="Start Divine voice call"
+          >
+            <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
+          </button>
+        </div>
       )
     }
 
@@ -254,21 +329,57 @@ export function VoiceControlPopup() {
                 </Button>
               ) : (
                 <div className="flex flex-col items-end gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    disabled={!canManualHangup}
-                    title={
-                      canManualHangup
-                        ? 'End voice call'
-                        : 'Wait until Divine asks if you need anything else (or force end below)'
-                    }
-                    onClick={endVoiceCall}
-                  >
-                    <PhoneOff className="mr-1 h-3 w-3" />
-                    End
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 shrink-0 p-0"
+                          aria-label="Plan and tasks shortcuts"
+                          title="Today’s plan, protocol, manager tasks"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem asChild>
+                          <Link href="/dashboard/divine-manager?section=protocol">
+                            <ListTodo className="mr-2 h-4 w-4 text-amber-500" />
+                            Today&apos;s plan &amp; protocol
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/dashboard/divine-manager?section=tasks">
+                            <ListTodo className="mr-2 h-4 w-4 text-violet-500" />
+                            Manager tasks &amp; suggestions
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/dashboard/divine-manager?section=text">
+                            <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                            Text Divine
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      disabled={!canManualHangup}
+                      title={
+                        canManualHangup
+                          ? 'End voice call'
+                          : 'Wait until Divine asks if you need anything else (or force end below)'
+                      }
+                      onClick={endVoiceCall}
+                    >
+                      <PhoneOff className="mr-1 h-3 w-3" />
+                      End
+                    </Button>
+                  </div>
                   {!canManualHangup && (
                     <button
                       type="button"

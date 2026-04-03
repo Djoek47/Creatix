@@ -5,9 +5,10 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  type ReactNode,
+    type ReactNode,
 } from 'react'
 import { useDivinePanel, type FocusedFan } from '@/components/divine/divine-panel-context'
 import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
@@ -19,6 +20,8 @@ import type { VoiceHangupPolicy } from '@/lib/divine-manager'
 import {
   DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD,
   DIVINE_VOICE_SILENCE_MS,
+  DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS,
+  DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS,
   DIVINE_VOICE_SILENCE_PROMPT_FINAL,
   DIVINE_VOICE_SILENCE_PROMPT_FIRST,
   isRealtimeUserSpeechEvent,
@@ -113,6 +116,8 @@ type VoiceSessionContextValue = {
   canManualHangup: boolean
   /** End call even when canManualHangup is false (e.g. stuck session). */
   forceEndVoiceCall: () => void
+  /** Last ~30s of the staged silence protocol (47s + 60s) — crown shows rainbow. */
+  silenceProtocolRainbowActive: boolean
 }
 
 const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
@@ -169,6 +174,9 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const silenceFirstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const silenceSecondTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const silenceFailsafeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Start of current user-silence streak (for crown rainbow in final protocol segment). */
+  const silenceWatchdogEpochRef = useRef<number | null>(null)
+  const [silenceProtocolTick, setSilenceProtocolTick] = useState(0)
   const speechEventSeenRef = useRef(false)
   const markUserSpeechRef = useRef<() => void>(() => {})
   const startSilenceWatchdogRef = useRef<() => void>(() => {})
@@ -382,6 +390,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     silenceFailsafeTimerRef.current = null
 
     const gen = silenceGenRef.current
+    silenceWatchdogEpochRef.current = Date.now()
     silenceFirstTimerRef.current = setTimeout(() => {
       silenceFirstTimerRef.current = null
       if (silenceGenRef.current !== gen) return
@@ -873,6 +882,18 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     startSilenceWatchdogRef.current()
   }, [status, scheduleIdleDisconnect])
 
+  useEffect(() => {
+    if (status !== 'connected') {
+      silenceWatchdogEpochRef.current = null
+    }
+  }, [status])
+
+  useEffect(() => {
+    if (status !== 'connected') return
+    const id = setInterval(() => setSilenceProtocolTick((n) => n + 1), 250)
+    return () => clearInterval(id)
+  }, [status])
+
   /**
    * If Realtime never emits speech VAD events, fall back to louder mic energy (steady TV noise
    * often stays below threshold). Does not run once server speech events were seen.
@@ -1040,6 +1061,17 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     endVoiceCall('user_hangup')
   }, [endVoiceCall])
 
+  const silenceProtocolRainbowActive = useMemo(() => {
+    if (status !== 'connected') return false
+    const epoch = silenceWatchdogEpochRef.current
+    if (epoch == null) return false
+    const elapsed = Date.now() - epoch
+    return (
+      elapsed >= DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS - DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS &&
+      elapsed < DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS
+    )
+  }, [status, silenceProtocolTick])
+
   const value: VoiceSessionContextValue = {
     status,
     voiceSurfaceState,
@@ -1058,6 +1090,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     userHangupAllowed,
     canManualHangup,
     forceEndVoiceCall,
+    silenceProtocolRainbowActive,
   }
 
   return (

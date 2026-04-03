@@ -409,7 +409,7 @@ function MessagesLayoutContent({
       : undefined
 
   return (
-    <div className="flex min-h-0 flex-col h-[calc(100dvh-12rem)] max-h-[calc(100dvh-12rem)] sm:h-[calc(100vh-14rem)] sm:max-h-[calc(100vh-14rem)]">
+    <div className="flex h-[calc(100dvh-9.5rem)] max-h-[calc(100dvh-9.5rem)] min-h-0 flex-col sm:h-[calc(100vh-11rem)] sm:max-h-[calc(100vh-11rem)]">
       {/* Header: back on mobile when chat open, title, view toggle, actions */}
       <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2 sm:mb-4">
         <div className="flex items-center gap-2 min-w-0">

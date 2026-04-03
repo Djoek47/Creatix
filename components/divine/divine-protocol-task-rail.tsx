@@ -108,22 +108,62 @@ export function DivineProtocolTaskRail() {
           .order('created_at', { ascending: false })
           .limit(60)
 
-        for (const r of rows ?? []) {
+        const rawRows = rows ?? []
+        for (const r of rawRows) {
           const row = r as { id: string; link?: string | null }
           if (!CRM_NOTIFICATION_ID_RE.test(row.id)) continue
           if (notificationIds.length >= 25) break
           notificationIds.push(row.id)
           if (row.link) linksById[row.id] = row.link
         }
-      }
 
-      if (notificationIds.length === 0) {
-        setBriefingHint(
-          usedTaskLinks
-            ? 'No valid linked notification ids on open tasks. Use unread inbox below, or link a saved notification to a task in Divine.'
-            : 'No unread saved notifications yet. Open the bell (top right) so items sync into your inbox, then try again.',
-        )
-        return
+        if (notificationIds.length === 0) {
+          const skippedNonCrm = rawRows.filter(
+            (r) => !CRM_NOTIFICATION_ID_RE.test((r as { id: string }).id),
+          ).length
+
+          if (rawRows.length > 0 && skippedNonCrm === rawRows.length) {
+            setBriefingHint(
+              'You have unread saved inbox rows, but none use the id format this briefing needs. Open the bell (top right) to review or mark them read.',
+            )
+            return
+          }
+
+          if (rawRows.length === 0) {
+            let pullUnreadApprox = 0
+            try {
+              const [ofRes, fsRes] = await Promise.all([
+                fetch('/api/onlyfans/notifications'),
+                fetch('/api/fansly/notifications'),
+              ])
+              const ofJson = await ofRes.json().catch(() => ({}))
+              const fsJson = await fsRes.json().catch(() => ({}))
+              const ofLen =
+                ofRes.ok && !ofJson.error && Array.isArray(ofJson.notifications)
+                  ? ofJson.notifications.length
+                  : 0
+              const fsLen =
+                fsRes.ok && !fsJson.error && Array.isArray(fsJson.notifications)
+                  ? fsJson.notifications.length
+                  : 0
+              pullUnreadApprox = ofLen + fsLen
+            } catch {
+              pullUnreadApprox = 0
+            }
+
+            if (pullUnreadApprox > 0) {
+              setBriefingHint(
+                'The bell count can include live OnlyFans/Fansly alerts that are not saved inbox rows yet. This briefing only uses saved items — open the bell, check the Live tab, then run briefing there or wait until rows sync into your inbox.',
+              )
+              return
+            }
+          }
+
+          setBriefingHint(
+            'No unread saved notifications yet. Open the bell (top right) so items sync into your inbox, then try again.',
+          )
+          return
+        }
       }
 
       const result = await executeNotificationSecretaryBriefing({
@@ -159,9 +199,18 @@ export function DivineProtocolTaskRail() {
     }
   }, [showEmptyShell])
 
-  /** No open tasks + user collapsed: hide the whole stack (briefing stays on the notifications bell). */
+  /** Empty + collapsed: keep a compact control so protocol/tasks stay reachable next to the crown. */
   if (showEmptyShell && !menuOpen) {
-    return null
+    return (
+      <button
+        type="button"
+        className="divine-protocol-stack-shell flex w-full max-w-[min(92vw,660px)] items-center justify-between gap-2 rounded-lg border border-dashed border-amber-500/25 bg-card/70 px-3 py-2 text-left text-xs backdrop-blur-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
+        onClick={() => setMenuOpen(true)}
+      >
+        <span className="font-medium text-foreground">Protocols &amp; tasks</span>
+        <span className="text-[11px] text-muted-foreground">Show panel</span>
+      </button>
+    )
   }
 
   return (

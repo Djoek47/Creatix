@@ -5,6 +5,7 @@ import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,

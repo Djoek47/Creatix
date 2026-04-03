@@ -9,6 +9,13 @@ export const DIVINE_VOICE_SILENCE_MS = {
   endCallFailsafe: 30_000,
 } as const
 
+/** 47s + 60s — full staged inactivity window before the final mic/end prompt. */
+export const DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS =
+  DIVINE_VOICE_SILENCE_MS.first + DIVINE_VOICE_SILENCE_MS.afterFirst
+
+/** Crown rainbow hint for the last segment of that window (before final prompt). */
+export const DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS = 30_000
+
 /** Mic energy fallback threshold (0–255) when no Realtime speech events are received (reduces TV steady noise). */
 export const DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD = 22
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -981,7 +981,7 @@ export function ChatWindow({
   return (
     <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden border-border bg-card py-0 shadow-sm">
       {/* Label + thread actions (menu only — no separate “Thread tools” bar) */}
-      <div className="shrink-0 border-b border-border/60 bg-card px-3 py-2 sm:px-4">
+      <div className="z-10 shrink-0 border-b border-border/60 bg-card px-3 py-2 sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] font-medium uppercase leading-normal tracking-wide text-muted-foreground">
             Fan conversation
@@ -1067,17 +1067,18 @@ export function ChatWindow({
         </div>
       </div>
 
-      {/* Messages Area — live thread with the fan */}
-      <CardContent
+      {/* Scroll: thread + Divine AI — composer stays pinned below so send/input never clip */}
+      <div
         ref={messagesContainerRef}
-        className="min-h-[36vh] flex-1 overflow-y-auto p-3 sm:min-h-[42vh] sm:p-4"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
       >
+        <div className="p-3 sm:p-4">
         {loading ? (
-          <div className="flex h-full items-center justify-center">
+          <div className="flex min-h-[200px] items-center justify-center sm:min-h-[240px]">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
+          <div className="flex min-h-[200px] flex-col items-center justify-center text-center sm:min-h-[240px]">
             <p className="text-sm text-destructive">{error}</p>
             <Button 
               variant="outline" 
@@ -1101,7 +1102,7 @@ export function ChatWindow({
             </Button>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
+          <div className="flex min-h-[200px] flex-col items-center justify-center text-center sm:min-h-[240px]">
             <p className="text-sm text-muted-foreground">No messages yet</p>
             <p className="text-xs text-muted-foreground">Start the conversation!</p>
           </div>
@@ -1261,32 +1262,32 @@ export function ChatWindow({
             <div className="h-0 shrink-0" aria-hidden />
           </div>
         )}
-      </CardContent>
+        </div>
 
-      {/* Composer stays visible; Divine AI tools collapse on small screens so the thread keeps space */}
-      <div className="flex flex-shrink-0 flex-col border-t border-border bg-card">
-        <Collapsible open={aiSectionOpen} onOpenChange={setAiSectionOpen}>
-          <div className="flex items-center gap-2 border-b border-border/60 px-2 py-1 sm:px-3">
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 min-w-0 flex-1 justify-start gap-2 px-2 text-left text-xs font-medium sm:flex-none"
-              >
-                {aiSectionOpen ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
-                )}
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="truncate">Divine AI — scan & suggestions</span>
-              </Button>
-            </CollapsibleTrigger>
-            <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
-          </div>
-          <CollapsibleContent>
-            <div className="max-h-[min(36vh,260px)] space-y-2 overflow-y-auto border-b border-border/50 bg-muted/15 px-3 py-2 pb-3 sm:max-h-[min(38vh,300px)] sm:px-4">
+        {/* Divine AI scrolls with the thread so the composer below never gets pushed off-screen */}
+        <div className="shrink-0 border-t border-border/70 bg-card/95">
+          <Collapsible open={aiSectionOpen} onOpenChange={setAiSectionOpen}>
+            <div className="flex items-center gap-2 border-b border-border/60 px-2 py-1.5 sm:px-3">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 min-w-0 flex-1 justify-start gap-2 px-2 text-left text-xs font-medium sm:flex-none"
+                >
+                  {aiSectionOpen ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
+                  )}
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="truncate">Divine AI — scan & suggestions</span>
+                </Button>
+              </CollapsibleTrigger>
+              <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
+            </div>
+            <CollapsibleContent>
+              <div className="space-y-2 overflow-y-auto bg-muted/15 px-3 py-2 pb-3 sm:px-4 sm:py-3">
               {scanInsights && (
                 <div className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -1428,9 +1429,13 @@ export function ChatWindow({
                 Only the fan thread above is visible to fans. Scan & suggestions stay in Creatix until you send.
               </p>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      </div>
 
+      {/* Composer + send: fixed to bottom of chat card (always visible) */}
+      <div className="flex flex-shrink-0 flex-col border-t-2 border-border bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
         {error && messages.length > 0 && (
           <div className="border-b border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:px-4">
             {error}
@@ -1441,7 +1446,7 @@ export function ChatWindow({
           className={cn(
             'space-y-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-3',
             /* Fixed Divine crown (~3.5rem) + edge inset — keep mic + send clear */
-            reserveDivineCrownSpace && 'pr-[4.75rem] sm:pr-[5.5rem]',
+            reserveDivineCrownSpace && 'pb-1 pr-[5rem] sm:pr-[6rem]',
           )}
         >
           <input
@@ -1573,7 +1578,9 @@ export function ChatWindow({
           <p className="hidden text-[10px] text-muted-foreground sm:block">
             PPV: set price and/or attach media. Fan only sees the conversation above.
           </p>
-          <p className="text-[10px] text-muted-foreground sm:hidden">Tip: collapse Divine AI above to see more of the thread.</p>
+          <p className="text-[10px] text-muted-foreground sm:hidden">
+            Scroll the thread for older messages; type and send stay fixed here.
+          </p>
         </div>
       </div>
       {!onOpenFanProfile && (

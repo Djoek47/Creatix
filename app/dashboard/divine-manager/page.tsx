@@ -157,7 +157,7 @@ export default function DivineManagerPage() {
       }, 200)
       return () => clearTimeout(t)
     }
-    if (!['mimic', 'voice', 'tasks', 'alerts'].includes(section)) return
+    if (!['mimic', 'voice', 'tasks', 'alerts', 'protocol'].includes(section)) return
     const id = `divine-section-${section}`
     const t = window.setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1356,7 +1356,9 @@ export default function DivineManagerPage() {
         <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent dark:via-purple-500/20" aria-hidden />
 
         {settings.beta_acknowledged && mode !== 'off' ? (
-          <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
+          <div id="divine-section-protocol" className="scroll-mt-24">
+            <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
+          </div>
         ) : null}
 
         <div id="divine-section-mimic" className="scroll-mt-24">

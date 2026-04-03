@@ -16,7 +16,6 @@ import {
 import { refreshFanThreadInsight, upsertFanThreadInsightSnapshot } from '@/lib/divine/fan-thread-insight'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -69,18 +68,17 @@ export async function fetchDmReplySuggestionsPackage(
 
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token, platform_user_id')
+    .select('access_token')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  const accountId = onlyFansPartnerAccountIdFromRow(connection)
-  if (!accountId) {
+  if (!connection?.access_token) {
     return { error: 'OnlyFans not connected' }
   }
 
-  const api = createOnlyFansAPI(accountId)
+  const api = createOnlyFansAPI(connection.access_token)
   const [threadRes, convRes] = await Promise.all([
     api.getMessages(String(fanId), { limit: 80 }),
     api.getConversations({ limit: 60 }),

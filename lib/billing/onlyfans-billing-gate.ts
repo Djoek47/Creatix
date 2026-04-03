@@ -127,17 +127,9 @@ type PlatformConnectionObservedRow = {
   observed_revenue_onlyfans_account_id?: string | null
 } | null
 
-/** Partner API account id: prefer access_token (canonical), else platform_user_id (legacy / alternate rows). */
-function onlyFansAccountIdFromObservedRow(row: PlatformConnectionObservedRow): string | null {
-  if (!row) return null
-  if (row.access_token != null && String(row.access_token).trim() !== '') return String(row.access_token)
-  if (row.platform_user_id != null && String(row.platform_user_id).trim() !== '') return String(row.platform_user_id)
-  return null
-}
-
 export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
-  const id = onlyFansAccountIdFromObservedRow(row)
-  if (!id) return null
+  if (!row?.access_token || String(row.access_token).trim() === '') return null
+  const id = String(row.access_token)
   return {
     partnerAccountId: id,
     observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
@@ -192,7 +184,8 @@ export async function loadAdultPlatformBillingContext(
     supabase.from('subscriptions').select('plan_id,status,revenue_tier').eq('user_id', user.id).maybeSingle(),
   ])
 
-  const onlyfansAccessToken = onlyFansAccountIdFromObservedRow(ofConn)
+  const onlyfansAccessToken =
+    ofConn?.access_token != null && String(ofConn.access_token).trim() !== '' ? String(ofConn.access_token) : null
   const fanslyAccessToken =
     fsConn?.access_token != null && String(fsConn.access_token).trim() !== ''
       ? String(fsConn.access_token)

@@ -4,7 +4,6 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { loadAdultPlatformBillingContext } from '@/lib/billing/onlyfans-billing-gate'
 import { ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 function adultPlatformBillingPayload(
   billingCtx: Awaited<ReturnType<typeof loadAdultPlatformBillingContext>>,
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from('platform_connections')
         .select(
-          'access_token, platform_user_id, platform_username, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id',
+          'access_token, platform_username, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id',
         )
         .eq('user_id', user.id)
         .eq('platform', 'onlyfans')
@@ -45,13 +44,12 @@ export async function GET(request: NextRequest) {
       loadAdultPlatformBillingContext(supabase),
     ])
 
-    const accountIdResolved = onlyFansPartnerAccountIdFromRow(connection)
     const apiKey = process.env.ONLYFANS_API_KEY
     if (!apiKey) {
-      const billing = adultPlatformBillingPayload(billingCtx, !!accountIdResolved)
+      const billing = adultPlatformBillingPayload(billingCtx, !!connection?.access_token)
       return NextResponse.json({
         connected: !!connection,
-        accountId: accountIdResolved ?? undefined,
+        accountId: connection?.access_token ?? undefined,
         username: connection?.platform_username ?? undefined,
         ...billing,
       })
@@ -94,7 +92,7 @@ export async function GET(request: NextRequest) {
     )
 
     const matchingAccount = fullyConnectedAccounts.find(
-      (acc: { id?: string }) => acc.id === accountIdResolved,
+      (acc: { id?: string }) => acc.id === connection.access_token
     )
 
     if (!matchingAccount) {
@@ -129,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       connected: true,
-      accountId: accountIdResolved ?? undefined,
+      accountId: connection.access_token,
       username: displayName,
       ...billing,
     })

@@ -6,7 +6,6 @@ import {
   onlyFansBillingGateResponse,
 } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     // Get the OnlyFans connection
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
@@ -33,13 +32,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (!accountId) {
-      return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
-    }
-
     const api = createOnlyFansAPI()
-    api.setAccountId(accountId)
+    api.setAccountId(connection.access_token)
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')

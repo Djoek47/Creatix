@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { requireOnlyFansApi, jsonOnlyFansError } from '@/lib/onlyfans-api-route'
 
@@ -6,7 +6,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ userListId: string; userId: string }> },
 ) {
-  const supabase = await createRouteHandlerClient(_request)
+  const supabase = await createRouteHandlerClient(request)
   const gate = await requireOnlyFansApi(supabase)
   if (!gate.ok) return gate.response
   const { userListId, userId } = await params

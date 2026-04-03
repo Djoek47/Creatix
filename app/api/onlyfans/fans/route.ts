@@ -9,7 +9,6 @@ import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classificati
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,19 +26,18 @@ export async function GET(request: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (!accountId) {
+    if (!connection?.access_token) {
       return NextResponse.json({ error: 'OnlyFans is not connected' }, { status: 400 })
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(accountId)
+    api.setAccountId(connection.access_token)
 
     const { searchParams } = new URL(request.url)
     const filter = (searchParams.get('filter') || 'active') as 'active' | 'expired' | 'latest' | 'top' | 'all'

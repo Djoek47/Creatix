@@ -6,7 +6,6 @@ import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -54,14 +53,13 @@ export async function POST(request: NextRequest) {
 
     const { data: existingOf } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', userId)
       .eq('platform', 'onlyfans')
       .maybeSingle()
 
-    const existingPartnerId = onlyFansPartnerAccountIdFromRow(existingOf)
     const sameOnlyfansAccount =
-      existingPartnerId != null && String(existingPartnerId) === String(accountId)
+      existingOf?.access_token != null && String(existingOf.access_token) === String(accountId)
     const observedReset = sameOnlyfansAccount
       ? {}
       : {

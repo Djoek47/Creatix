@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /**
  * GET: Proxy download for OnlyFans CDN media.
@@ -34,16 +33,17 @@ export async function GET(req: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (!accountId) {
+    if (!connection?.access_token) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
+
+    const accountId = connection.access_token
     const apiKey = process.env.ONLYFANS_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'OnlyFans API key not configured' }, { status: 500 })

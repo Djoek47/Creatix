@@ -17,7 +17,7 @@ import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-in
 export const metadata = {
   title: 'Pricing | Circe et Venus',
   description:
-    'Revenue-based pricing for creators: Single (OnlyFans-only) or Multi (OnlyFans plus other adult platforms). Start with a 14-day free trial.',
+    'Revenue-based pricing: Focus (one adult platform) or Unified (OnlyFans, Fansly, ManyVids). Start with a 14-day free trial.',
 }
 
 export default function PricingPage() {
@@ -25,16 +25,16 @@ export default function PricingPage() {
     { feature: '14-day free trial', trial: true, paid: true },
     { feature: 'AI credits & storage', trial: 'Limited', paid: 'Unlimited (paid tiers)' },
     { feature: 'OnlyFans connection', trial: true, paid: true },
-    { feature: 'Fansly / ManyVids (when available)', trial: true, paid: 'Multi plan only' },
+    { feature: 'Fansly / ManyVids (when available)', trial: true, paid: 'Unified or matching Focus plan' },
     { feature: 'Leak & reputation tools', trial: 'Limited', paid: true },
     { feature: 'Priority support', trial: false, paid: true },
   ]
 
   const faqs = [
     {
-      question: 'What is Single vs Multi?',
+      question: 'What is Focus vs Unified?',
       answer:
-        'Single is for creators who only use OnlyFans among our adult platform integrations. Multi is for OnlyFans plus at least one other adult platform (e.g. Fansly, ManyVids). Your monthly price depends on both your revenue band and Single vs Multi.',
+        'Focus gives you full Pro tools for one adult platform — OnlyFans, Fansly, or ManyVids — and the monthly price depends on which platform you choose. Unified covers all three in one workspace. Your total also depends on the revenue band you select.',
     },
     {
       question: 'How do revenue bands work?',
@@ -49,7 +49,7 @@ export default function PricingPage() {
     {
       question: 'Can I change plans later?',
       answer:
-        'Yes. Use the in-app billing section to start checkout for a new band or Single/Multi combination. The Stripe customer portal handles payment methods and cancellation; changing tier/variant may use a new checkout session.',
+        'Yes. Use the in-app billing section to start checkout for a new band, Focus platform, or Unified. The Stripe customer portal handles payment methods and cancellation; changing tier or plan may use a new checkout session.',
     },
     {
       question: 'What platforms do you integrate with?',
@@ -119,19 +119,23 @@ export default function PricingPage() {
               </p>
             </div>
             <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-              <table className="w-full min-w-[520px] border-collapse text-sm">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-card/80">
                     <th className="p-4 text-left font-medium font-serif">Monthly revenue</th>
-                    <th className="p-4 text-right font-medium">Single (OnlyFans)</th>
-                    <th className="p-4 text-right font-medium">Multi (OF + platforms)</th>
+                    <th className="p-4 text-right font-medium">Focus OnlyFans</th>
+                    <th className="p-4 text-right font-medium">Focus Fansly</th>
+                    <th className="p-4 text-right font-medium">Focus ManyVids</th>
+                    <th className="p-4 text-right font-medium">Unified</th>
                   </tr>
                 </thead>
                 <tbody>
                   {REVENUE_TIERS.map((row) => (
                     <tr key={row.tierIndex} className="border-b border-border/50 hover:bg-muted/30">
                       <td className="p-4 text-muted-foreground">{row.label}</td>
-                      <td className="p-4 text-right font-medium">${row.singlePriceUsd}</td>
+                      <td className="p-4 text-right font-medium">${row.focusOnlyfansUsd}</td>
+                      <td className="p-4 text-right font-medium">${row.focusFanslyUsd}</td>
+                      <td className="p-4 text-right font-medium">${row.focusManyvidsUsd}</td>
                       <td className="p-4 text-right font-medium">${row.multiPriceUsd}</td>
                     </tr>
                   ))}

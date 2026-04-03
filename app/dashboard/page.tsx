@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     supabase.from('platform_connections').select('*').eq('user_id', user.id).eq('is_connected', true),
     supabase
       .from('subscriptions')
-      .select('plan_id, status, revenue_band_label, billing_variant')
+      .select('plan_id, status, revenue_band_label, billing_variant, billing_focus_platform')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])

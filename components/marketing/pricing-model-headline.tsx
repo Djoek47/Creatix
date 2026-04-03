@@ -8,7 +8,7 @@ type Props = {
   className?: string
 }
 
-/** Matches PRICING_MODEL_HEADLINE with brand emphasis on Single / Multi */
+/** Matches PRICING_MODEL_HEADLINE with brand emphasis on Focus / Unified */
 export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Props) {
   const size =
     Tag === 'h1'
@@ -19,8 +19,8 @@ export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Pro
 
   return (
     <Tag className={cn('font-serif font-semibold tracking-tight', size, className)}>
-      Revenue-based <span className="text-primary">Single</span> &amp;{' '}
-      <span className="text-primary">Multi</span>
+      Revenue-based <span className="text-primary">Focus</span> &amp;{' '}
+      <span className="text-primary">Unified</span>
     </Tag>
   )
 }

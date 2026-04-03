@@ -31,7 +31,7 @@ import { createClient } from '@/lib/supabase/client'
 import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { multiLaneRequiredAfterConnect } from '@/lib/billing/platform-variant'
+import { focusUpgradeRequired } from '@/lib/billing/platform-variant'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -175,6 +175,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     plan_id: string | null
     status: string | null
     billing_variant: string | null
+    billing_focus_platform: string | null
   } | null>(null)
   const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
 
@@ -186,7 +187,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
     const [{ data }, { data: subRow }] = await Promise.all([
       supabase.from('platform_connections').select('*').eq('user_id', user.id),
-      supabase.from('subscriptions').select('plan_id,status,billing_variant').eq('user_id', user.id).maybeSingle(),
+      supabase
+        .from('subscriptions')
+        .select('plan_id,status,billing_variant,billing_focus_platform')
+        .eq('user_id', user.id)
+        .maybeSingle(),
     ])
 
     setConnections(data || [])
@@ -195,7 +200,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         plan_id: subRow.plan_id ?? null,
         status: subRow.status ?? null,
         billing_variant: (subRow as { billing_variant?: string | null }).billing_variant ?? null,
+        billing_focus_platform:
+          (subRow as { billing_focus_platform?: string | null }).billing_focus_platform ?? null,
       })
+    } else {
+      setBillingSub(null)
     }
 
     const ofConnected = (data || []).some((c) => c.platform === 'onlyfans' && c.is_connected)
@@ -564,8 +573,12 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       (billingSub.status === 'active' || billingSub.status === 'trialing')
     if (
       paid &&
-      billingSub.billing_variant === 'single' &&
-      multiLaneRequiredAfterConnect(connections, platformId)
+      focusUpgradeRequired(
+        connections,
+        billingSub.billing_variant,
+        billingSub.billing_focus_platform,
+        platformId,
+      )
     ) {
       setMultiUpgradeOpen(true)
       return
@@ -821,10 +834,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Multi-platform subscription required</AlertDialogTitle>
+              <AlertDialogTitle>Unified plan required</AlertDialogTitle>
               <AlertDialogDescription>
-                Your subscription is <strong>Single</strong> (OnlyFans-only). Connecting another adult
-                platform requires a <strong>Multi</strong> plan. Upgrade under Billing, then connect again.
+                Your subscription is <strong>Focus</strong> (one adult platform). Connecting a different
+                or second adult platform requires a <strong>Unified</strong> plan. Upgrade under Billing,
+                then connect again.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1066,10 +1080,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Multi-platform subscription required</AlertDialogTitle>
+            <AlertDialogTitle>Unified plan required</AlertDialogTitle>
             <AlertDialogDescription>
-              Your subscription is <strong>Single</strong> (OnlyFans-only). Connecting another adult
-              platform requires a <strong>Multi</strong> plan. Upgrade under Billing, then connect again.
+              Your subscription is <strong>Focus</strong> (one adult platform). Connecting a different or
+              second adult platform requires a <strong>Unified</strong> plan. Upgrade under Billing, then
+              connect again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

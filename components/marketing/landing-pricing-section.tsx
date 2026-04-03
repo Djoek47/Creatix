@@ -19,6 +19,7 @@ import {
   getMonthlyPriceUsd,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_TIER_FEATURES } from '@/lib/products'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
@@ -26,8 +27,9 @@ import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-in
 export function LandingPricingSection() {
   const [variant, setVariant] = useState<BillingVariant>('single')
   const [tierIndex, setTierIndex] = useState(4)
+  const [focusPlatform, setFocusPlatform] = useState<AdultBillingPlatform>('onlyfans')
 
-  const price = getMonthlyPriceUsd(variant, tierIndex)
+  const price = getMonthlyPriceUsd(variant, tierIndex, focusPlatform)
   const selectedRow = REVENUE_TIERS.find((t) => t.tierIndex === tierIndex)
 
   return (
@@ -48,8 +50,8 @@ export function LandingPricingSection() {
           {/* Selectors + highlighted price */}
           <div className="flex-1 rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/10 to-card p-6 sm:p-8">
             <p className="text-sm font-medium text-muted-foreground">Your plan</p>
-            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
-              <div className="flex-1 space-y-2">
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="landing-tier" className="text-foreground">
                   Monthly revenue band
                 </Label>
@@ -66,19 +68,39 @@ export function LandingPricingSection() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 sm:min-w-[280px]">
+              <div className="space-y-2">
                 <Label className="text-foreground">Plan type</Label>
                 <Tabs value={variant} onValueChange={(v) => setVariant(v as BillingVariant)}>
                   <TabsList className="grid h-10 w-full grid-cols-2">
                     <TabsTrigger value="single" className="text-xs sm:text-sm">
-                      Single (OnlyFans)
+                      Focus (one platform)
                     </TabsTrigger>
                     <TabsTrigger value="multi" className="text-xs sm:text-sm">
-                      Multi (OF + more)
+                      Unified (all three)
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
+              {variant === 'single' && (
+                <div className="space-y-2">
+                  <Label htmlFor="landing-focus" className="text-foreground">
+                    Focus platform
+                  </Label>
+                  <Select
+                    value={focusPlatform}
+                    onValueChange={(v) => setFocusPlatform(v as AdultBillingPlatform)}
+                  >
+                    <SelectTrigger id="landing-focus" className="w-full bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                      <SelectItem value="fansly">Fansly</SelectItem>
+                      <SelectItem value="manyvids">ManyVids</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div className="mt-8 rounded-xl border border-border/60 bg-background/50 p-6">
@@ -86,7 +108,7 @@ export function LandingPricingSection() {
               <p className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">
                 {selectedRow?.label}
                 <span className="block text-base font-normal text-muted-foreground sm:inline sm:ml-2">
-                  · {variant === 'single' ? 'Single' : 'Multi'}
+                  · {variant === 'single' ? `Focus (${focusPlatform})` : 'Unified'}
                 </span>
               </p>
               <p className="mt-4 flex items-baseline gap-1">
@@ -128,9 +150,11 @@ export function LandingPricingSection() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 border-b border-border bg-card">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium">Revenue tier</th>
-                    <th className="px-3 py-3 text-right font-medium">Single</th>
-                    <th className="px-4 py-3 text-right font-medium">Multi</th>
+                    <th className="px-3 py-3 text-left font-medium">Tier</th>
+                    <th className="px-2 py-3 text-right font-medium">OF</th>
+                    <th className="px-2 py-3 text-right font-medium">FL</th>
+                    <th className="px-2 py-3 text-right font-medium">MV</th>
+                    <th className="px-3 py-3 text-right font-medium">Unified</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,7 +169,7 @@ export function LandingPricingSection() {
                             : 'border-b border-border/40 hover:bg-muted/30'
                         }
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <button
                             type="button"
                             onClick={() => setTierIndex(row.tierIndex)}
@@ -158,14 +182,34 @@ export function LandingPricingSection() {
                           </button>
                         </td>
                         <td
-                          className={`px-3 py-3 text-right tabular-nums ${
-                            active && variant === 'single' ? 'font-bold text-primary' : 'text-muted-foreground'
+                          className={`px-2 py-3 text-right tabular-nums ${
+                            active && variant === 'single' && focusPlatform === 'onlyfans'
+                              ? 'font-bold text-primary'
+                              : 'text-muted-foreground'
                           }`}
                         >
-                          ${row.singlePriceUsd}
+                          ${row.focusOnlyfansUsd}
                         </td>
                         <td
-                          className={`px-4 py-3 text-right tabular-nums ${
+                          className={`px-2 py-3 text-right tabular-nums ${
+                            active && variant === 'single' && focusPlatform === 'fansly'
+                              ? 'font-bold text-primary'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          ${row.focusFanslyUsd}
+                        </td>
+                        <td
+                          className={`px-2 py-3 text-right tabular-nums ${
+                            active && variant === 'single' && focusPlatform === 'manyvids'
+                              ? 'font-bold text-primary'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          ${row.focusManyvidsUsd}
+                        </td>
+                        <td
+                          className={`px-3 py-3 text-right tabular-nums ${
                             active && variant === 'multi' ? 'font-bold text-primary' : 'text-muted-foreground'
                           }`}
                         >

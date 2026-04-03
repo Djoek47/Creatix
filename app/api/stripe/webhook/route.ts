@@ -9,6 +9,7 @@ import {
 import { getPlanLimits } from '@/lib/billing/plan-limits'
 import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
+import { ADULT_BILLING_PLATFORMS } from '@/lib/billing/platform-variant'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -30,10 +31,21 @@ function metaPatch(meta: Record<string, string> | null | undefined) {
     typeof meta.revenueBandLabel === 'string' && meta.revenueBandLabel.length > 0
       ? meta.revenueBandLabel
       : null
+  const fpRaw =
+    typeof meta.focusPlatform === 'string' ? meta.focusPlatform.toLowerCase().trim() : ''
+  const billing_focus_platform =
+    billingVariant === 'single' && fpRaw && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(fpRaw)
+      ? fpRaw
+      : billingVariant === 'multi'
+        ? null
+        : billingVariant === 'single'
+          ? 'onlyfans'
+          : null
   return {
     billing_variant: billingVariant,
     revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
     revenue_band_label,
+    billing_focus_platform,
   }
 }
 
@@ -159,6 +171,11 @@ export async function POST(req: NextRequest) {
             ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
             ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
             ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
+            ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platform != null
+              ? { billing_focus_platform: tierMeta.billing_focus_platform }
+              : tierMeta.billing_variant === 'multi'
+                ? { billing_focus_platform: null }
+                : {}),
           })
           if (planId) await notifyPlanChange(supabase, userId, planId)
         }
@@ -180,6 +197,11 @@ export async function POST(req: NextRequest) {
           ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
           ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
           ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
+          ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platform != null
+            ? { billing_focus_platform: tierMeta.billing_focus_platform }
+            : tierMeta.billing_variant === 'multi'
+              ? { billing_focus_platform: null }
+              : {}),
           status: sub.status,
           ...(period
             ? {

@@ -24,7 +24,6 @@ import {
   Calendar,
   AlertTriangle,
 } from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -33,12 +32,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
+  focusPriceUsd,
+  focusPlatformDisplayName,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
+import { cn } from '@/lib/utils'
 
 interface BillingSectionProps {
   userId?: string
@@ -57,10 +62,21 @@ interface SubscriptionData {
   cancel_at_period_end: boolean
   trial_ends_at?: string | null
   billing_variant?: string | null
+  billing_focus_platform?: string | null
   revenue_tier?: number | null
   revenue_band_label?: string | null
   stripe_customer_id?: string | null
 }
+
+function normalizeFocusPlatform(raw: string | null | undefined): AdultBillingPlatform {
+  if (raw === 'fansly' || raw === 'manyvids' || raw === 'onlyfans') return raw
+  return 'onlyfans'
+}
+
+const FOCUS_RADIO_PLATFORMS: { id: AdultBillingPlatform; badge: string; hint?: string }[] = [
+  { id: 'onlyfans', badge: 'Popular' },
+  { id: 'fansly', badge: 'Growing' },
+]
 
 export function BillingSection({ userId }: BillingSectionProps) {
   const [subscription, setSubscription] = useState<{
@@ -76,7 +92,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [messagesThisMonth, setMessagesThisMonth] = useState<number>(0)
   const [loadingPortal, setLoadingPortal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [checkoutVariant, setCheckoutVariant] = useState<BillingVariant>('single')
+  const [checkoutFocusPlatform, setCheckoutFocusPlatform] = useState<AdultBillingPlatform>('onlyfans')
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
   const supabase = createClient()
 
@@ -91,8 +107,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10) {
         setCheckoutTierIndex(row.revenue_tier)
       }
-      if (row.billing_variant === 'single' || row.billing_variant === 'multi') {
-        setCheckoutVariant(row.billing_variant)
+      {
+        const fp = normalizeFocusPlatform(row.billing_focus_platform)
+        setCheckoutFocusPlatform(fp === 'manyvids' ? 'onlyfans' : fp)
       }
     } else {
       const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
@@ -187,10 +204,24 @@ export function BillingSection({ userId }: BillingSectionProps) {
       subData?.status === 'active' ||
       subData?.status === 'trialing')
 
-  const checkoutPrice = getMonthlyPriceUsd(checkoutVariant, checkoutTierIndex)
+  const tierRow = REVENUE_TIERS.find((t) => t.tierIndex === checkoutTierIndex)
+  const focusCheckoutUsd = tierRow ? focusPriceUsd(tierRow, checkoutFocusPlatform) : 0
+  const unifiedCheckoutUsd = tierRow?.multiPriceUsd ?? 0
+
+  const subscribedMonthlyUsd =
+    paidActive && subData
+      ? getMonthlyPriceUsd(
+          (subData.billing_variant as BillingVariant) || 'single',
+          typeof subData.revenue_tier === 'number' ? subData.revenue_tier : 4,
+          normalizeFocusPlatform(subData.billing_focus_platform),
+        )
+      : null
 
   const currentPlan = subscription?.plan
-    ? { name: subscription.plan, priceMonthly: paidActive ? checkoutPrice : 0 }
+    ? {
+        name: subscription.plan,
+        priceMonthly: paidActive ? subscribedMonthlyUsd ?? 0 : 0,
+      }
     : { name: PRODUCTS.find((p) => p.id === 'divine-trial')?.name || 'Divine Trial', priceMonthly: 0 }
 
   const aiCreditsUsed = subData?.ai_credits_used || 0
@@ -239,7 +270,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
               </div>
               <div className="text-right">
                 <p className="text-3xl font-bold">
-                  {paidActive ? `$${getMonthlyPriceUsd((subData?.billing_variant as BillingVariant) || 'single', subData?.revenue_tier ?? 4)}` : `$${currentPlan?.priceMonthly ?? 0}`}
+                  {paidActive ? `$${subscribedMonthlyUsd ?? 0}` : `$${currentPlan?.priceMonthly ?? 0}`}
                 </p>
                 <p className="text-sm text-muted-foreground">/month</p>
               </div>
@@ -277,15 +308,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       document.getElementById('revenue-pricing')?.scrollIntoView({ behavior: 'smooth' })
                     }
                   >
-                    Choose revenue band & subscribe
+                    Choose plan & subscribe
                   </Button>
                 </>
               )}
             </div>
             {paidActive && (
               <p className="mt-3 text-xs text-muted-foreground">
-                To change revenue band or Single/Multi, use the selector below (new checkout) or cancel and
-                resubscribe. The Stripe portal may not list every price when using dynamic checkout.
+                To change revenue band, Focus platform, or Unified, use checkout below (new session) or
+                cancel and resubscribe. The Stripe portal may not list every dynamic price.
               </p>
             )}
           </div>
@@ -354,87 +385,205 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card id="revenue-pricing" className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Revenue-based pricing</CardTitle>
+          <CardTitle className="font-semibold">Plans & pricing</CardTitle>
           <CardDescription>
-            <strong>Single</strong> covers OnlyFans only. <strong>Multi</strong> is for OnlyFans plus other
-            adult platforms (e.g. Fansly, ManyVids). Pick the band that matches your monthly creator revenue.
+            Pick your <strong>monthly revenue band</strong>, then choose <strong>Focus</strong> (one adult
+            platform) or <strong>Unified</strong> (OnlyFans, Fansly, ManyVids in one workspace). Focus price
+            depends on the platform you select.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="space-y-2 flex-1">
-              <Label>Monthly revenue band</Label>
-              <Select
-                value={String(checkoutTierIndex)}
-                onValueChange={(v) => setCheckoutTierIndex(Number.parseInt(v, 10))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REVENUE_TIERS.map((t) => (
-                    <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Plan type</Label>
-              <Tabs
-                value={checkoutVariant}
-                onValueChange={(v) => setCheckoutVariant(v as BillingVariant)}
-                className="w-full sm:w-[280px]"
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="single">Single (OnlyFans)</TabsTrigger>
-                  <TabsTrigger value="multi">Multi (OF + more)</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+          <div className="space-y-2 max-w-md">
+            <Label>Monthly revenue band</Label>
+            <Select
+              value={String(checkoutTierIndex)}
+              onValueChange={(v) => setCheckoutTierIndex(Number.parseInt(v, 10))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REVENUE_TIERS.map((t) => (
+                  <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="rounded-lg border border-border p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm text-muted-foreground">Your selection</p>
-                <p className="text-lg font-semibold">
-                  {checkoutVariant === 'single' ? 'Single' : 'Multi'} ·{' '}
-                  {REVENUE_TIERS.find((t) => t.tierIndex === checkoutTierIndex)?.label}
-                </p>
+          <div className="grid gap-6 lg:grid-cols-1">
+            {/* Focus */}
+            <div
+              className={cn(
+                'rounded-xl border-2 p-6 shadow-sm',
+                'border-amber-500/35 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-950/15',
+              )}
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                Single platform
+              </p>
+              <h3 className="mt-1 font-serif text-2xl font-semibold text-foreground">Focus plan</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Full tools for one platform of your choice.</p>
+
+              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-amber-800/90 dark:text-amber-300/90">
+                Select your platform
+              </p>
+              <RadioGroup
+                value={checkoutFocusPlatform}
+                onValueChange={(v) => setCheckoutFocusPlatform(v as AdultBillingPlatform)}
+                className="mt-3 gap-2"
+              >
+                {FOCUS_RADIO_PLATFORMS.map(({ id, badge }) => {
+                  const selected = checkoutFocusPlatform === id
+                  return (
+                    <label
+                      key={id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors',
+                        selected
+                          ? 'border-amber-500/70 bg-background/80 ring-1 ring-amber-500/30'
+                          : 'border-border/80 bg-background/40 hover:bg-background/60',
+                      )}
+                    >
+                      <RadioGroupItem value={id} id={`focus-${id}`} />
+                      <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">{focusPlatformDisplayName(id)}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {badge}
+                        </Badge>
+                      </div>
+                    </label>
+                  )
+                })}
+              </RadioGroup>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="mt-2 flex cursor-not-allowed items-center gap-3 rounded-lg border border-dashed border-border/80 p-3 opacity-60">
+                    <div className="flex size-4 shrink-0 rounded-full border border-muted-foreground/40" />
+                    <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium text-muted-foreground">{focusPlatformDisplayName('manyvids')}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        Coming soon
+                      </Badge>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  ManyVids connect is not available yet. Pricing is listed for when it ships; subscribe to
+                  Focus on OnlyFans or Fansly today.
+                </TooltipContent>
+              </Tooltip>
+
+              <p className="mt-4 text-2xl font-bold text-foreground">
+                ${focusCheckoutUsd}
+                <span className="text-base font-normal text-muted-foreground">/mo</span>
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {PAID_TIER_FEATURES.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6">
+                <Checkout
+                  productId={PAID_PLAN_ID}
+                  billingVariant="single"
+                  tierIndex={checkoutTierIndex}
+                  focusPlatform={checkoutFocusPlatform}
+                  buttonText={
+                    paidActive
+                      ? `Checkout Focus — $${focusCheckoutUsd}/mo`
+                      : `Subscribe — Focus — $${focusCheckoutUsd}/mo`
+                  }
+                  buttonVariant="default"
+                  buttonClassName="w-full border-2 border-amber-600/50 bg-transparent text-amber-900 hover:bg-amber-500/10 dark:border-amber-500/50 dark:text-amber-100"
+                />
               </div>
-              <p className="text-3xl font-bold">${checkoutPrice}/mo</p>
             </div>
-            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-              {PAID_TIER_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6">
-              <Checkout
-                productId={PAID_PLAN_ID}
-                billingVariant={checkoutVariant}
-                tierIndex={checkoutTierIndex}
-                buttonText={
-                  paidActive ? `Checkout new price — $${checkoutPrice}/mo` : `Subscribe — $${checkoutPrice}/mo`
-                }
-                buttonVariant="default"
-                buttonClassName="w-full sm:w-auto"
-              />
+
+            {/* Unified */}
+            <div
+              className={cn(
+                'relative rounded-xl border-2 p-6 pt-8 shadow-md',
+                'border-amber-500/40 bg-zinc-950 text-zinc-100 dark:bg-zinc-950',
+              )}
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="border-amber-500/60 bg-amber-600/90 px-3 text-xs font-semibold text-white">
+                  Best value
+                </Badge>
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Multi-platform</p>
+              <h3 className="mt-1 font-serif text-2xl font-semibold text-white">Unified plan</h3>
+              <p className="mt-1 text-sm text-zinc-400">All platforms managed in one workspace.</p>
+
+              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-zinc-500">Included platforms</p>
+              <div className="mt-2 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
+                <div className="flex -space-x-2">
+                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#00AFF0] text-[10px] font-bold text-white">
+                    OF
+                  </span>
+                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#009FFF] text-[10px] font-bold text-white">
+                    FL
+                  </span>
+                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#E91E63] text-[10px] font-bold text-white">
+                    MV
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-amber-200">All three platforms</p>
+                  <p className="text-xs text-zinc-500">OnlyFans · Fansly · ManyVids</p>
+                </div>
+                <div
+                  className="flex size-8 shrink-0 items-center justify-center rounded border border-amber-500/60 bg-amber-500/20"
+                  aria-hidden
+                >
+                  <Check className="h-4 w-4 text-amber-300" />
+                </div>
+              </div>
+
+              <p className="mt-4 text-2xl font-bold text-white">
+                ${unifiedCheckoutUsd}
+                <span className="text-base font-normal text-zinc-400">/mo</span>
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {PAID_TIER_FEATURES.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6">
+                <Checkout
+                  productId={PAID_PLAN_ID}
+                  billingVariant="multi"
+                  tierIndex={checkoutTierIndex}
+                  buttonText={
+                    paidActive
+                      ? `Checkout Unified — $${unifiedCheckoutUsd}/mo`
+                      : `Subscribe — Unified — $${unifiedCheckoutUsd}/mo`
+                  }
+                  buttonVariant="default"
+                  buttonClassName="w-full bg-amber-600 text-white hover:bg-amber-600/90"
+                />
+              </div>
             </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[480px] text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="p-3 text-left font-medium">Monthly revenue</th>
-                  <th className="p-3 text-right font-medium">Single</th>
-                  <th className="p-3 text-right font-medium">Multi</th>
+                  <th className="p-3 text-right font-medium">Focus OF</th>
+                  <th className="p-3 text-right font-medium">Focus FL</th>
+                  <th className="p-3 text-right font-medium">Focus MV</th>
+                  <th className="p-3 text-right font-medium">Unified</th>
                 </tr>
               </thead>
               <tbody>
@@ -446,8 +595,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     }
                   >
                     <td className="p-3">{row.label}</td>
-                    <td className="p-3 text-right">${row.singlePriceUsd}</td>
-                    <td className="p-3 text-right">${row.multiPriceUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${row.focusOnlyfansUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${row.focusFanslyUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${row.focusManyvidsUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${row.multiPriceUsd}</td>
                   </tr>
                 ))}
               </tbody>

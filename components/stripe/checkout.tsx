@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Loader2 } from 'lucide-react'
 import type { BillingVariant } from '@/lib/pricing-matrix'
+import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -20,6 +21,8 @@ interface CheckoutProps {
   /** Required when `productId` is the paid plan slug (`cev-paid`). */
   billingVariant?: BillingVariant
   tierIndex?: number
+  /** Focus plan only (`single`). Ignored for Unified (`multi`). */
+  focusPlatform?: AdultBillingPlatform | null
   buttonText?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
@@ -30,6 +33,7 @@ export function Checkout({
   productId,
   billingVariant,
   tierIndex,
+  focusPlatform,
   buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
@@ -43,18 +47,19 @@ export function Checkout({
     try {
       if (productId === PAID_PLAN_ID) {
         if (billingVariant == null || tierIndex == null) {
-          throw new Error('Choose revenue band and Single or Multi before checkout.')
+          throw new Error('Choose revenue band and plan type before checkout.')
         }
         return await startPaidSubscriptionCheckout({
           variant: billingVariant,
           tierIndex,
+          focusPlatform: billingVariant === 'single' ? focusPlatform ?? 'onlyfans' : null,
         })
       }
       return await startCheckoutSession(productId)
     } finally {
       setLoading(false)
     }
-  }, [productId, billingVariant, tierIndex])
+  }, [productId, billingVariant, tierIndex, focusPlatform])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -87,20 +92,26 @@ export function CheckoutEmbed({
   productId,
   billingVariant,
   tierIndex,
+  focusPlatform,
 }: {
   productId: string
   billingVariant?: BillingVariant
   tierIndex?: number
+  focusPlatform?: AdultBillingPlatform | null
 }) {
   const fetchClientSecret = useCallback(() => {
     if (productId === PAID_PLAN_ID) {
       if (billingVariant == null || tierIndex == null) {
         return Promise.reject(new Error('Missing billing options'))
       }
-      return startPaidSubscriptionCheckout({ variant: billingVariant, tierIndex })
+      return startPaidSubscriptionCheckout({
+        variant: billingVariant,
+        tierIndex,
+        focusPlatform: billingVariant === 'single' ? focusPlatform ?? 'onlyfans' : null,
+      })
     }
     return startCheckoutSession(productId)
-  }, [productId, billingVariant, tierIndex])
+  }, [productId, billingVariant, tierIndex, focusPlatform])
 
   return (
     <div id="checkout">

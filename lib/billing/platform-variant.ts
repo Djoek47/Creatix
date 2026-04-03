@@ -1,6 +1,5 @@
 /**
- * Single vs Multi is a billing dimension: Single = OnlyFans-only among adult platforms;
- * Multi = OnlyFans plus at least one other adult platform (Fansly, ManyVids), or only non-OF adult connected.
+ * Focus (single) = one chosen adult platform; Unified (multi) = all adult platforms in one workspace.
  */
 
 export const ADULT_BILLING_PLATFORMS = ['onlyfans', 'fansly', 'manyvids'] as const
@@ -23,27 +22,35 @@ export function connectedAdultPlatforms(connections: PlatformConnectionLike[]): 
   return [...set]
 }
 
-/** True when the user’s connected adult platforms match a “Single (OnlyFans-only)” subscription lane. */
-export function isOnlyFansOnlyLane(connections: PlatformConnectionLike[]): boolean {
-  const adult = connectedAdultPlatforms(connections)
-  if (adult.length === 0) return true
-  return adult.length === 1 && adult[0] === 'onlyfans'
+function normalizedFocusPlatform(
+  focusPlatform: AdultBillingPlatform | string | null | undefined,
+): AdultBillingPlatform {
+  const raw = (focusPlatform ?? 'onlyfans').toLowerCase()
+  if ((ADULT_BILLING_PLATFORMS as readonly string[]).includes(raw)) {
+    return raw as AdultBillingPlatform
+  }
+  return 'onlyfans'
 }
 
 /**
- * After the user connects `platformId`, would their adult footprint require a **Multi** subscription?
- * Single lane = OnlyFans only; any Fansly/ManyVids-only or multi-platform combo → Multi.
+ * True if connecting `platformIdToConnect` would violate a paid **Focus** plan (wrong or second adult platform).
+ * Always false for Unified (`multi`) or non-adult platforms.
  */
-export function multiLaneRequiredAfterConnect(
+export function focusUpgradeRequired(
   connections: PlatformConnectionLike[],
-  platformId: string,
+  billingVariant: 'single' | 'multi' | null | undefined,
+  focusPlatform: AdultBillingPlatform | string | null | undefined,
+  platformIdToConnect: string,
 ): boolean {
-  const pid = platformId.toLowerCase()
+  const pid = platformIdToConnect.toLowerCase()
   if (!(ADULT_BILLING_PLATFORMS as readonly string[]).includes(pid)) return false
+  if (billingVariant !== 'single') return false
 
+  const focus = normalizedFocusPlatform(focusPlatform)
   const adult = new Set<string>(connectedAdultPlatforms(connections))
   adult.add(pid)
 
-  const singleLaneOk = adult.size === 1 && adult.has('onlyfans')
-  return !singleLaneOk
+  if (adult.size !== 1) return true
+  const only = [...adult][0]
+  return only !== focus
 }

@@ -916,15 +916,35 @@ body {
   overflow-x: hidden;
 }
 
-/* Draggable dashboard — gaps come from react-grid-layout margin; keep tiles clipped so they don’t paint over neighbors */
+/*
+ * Draggable dashboard (react-grid-layout):
+ * - Items are position:absolute with explicit width/height; inner content must fill that box (flex) or it visually
+ *   “floats” and overlaps the next row. RGL also briefly uses % positioning before mount — measureBeforeMount +
+ *   useCSSTransforms={false} reduces that mismatch.
+ */
 .dashboard-widgets-grid.react-grid-layout .react-grid-item {
+  box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  contain: layout style;
+}
+
+/* Main widget tree is the first child; resize handles are absolutely positioned and stay out of flex flow. */
+.dashboard-widgets-grid.react-grid-layout .react-grid-item > *:first-child {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-height: 100%;
 }
 
 .dashboard-widgets-grid.react-grid-layout .react-grid-item.react-draggable-dragging,
 .dashboard-widgets-grid.react-grid-layout .react-grid-item.react-resizable-resizing {
   z-index: 20;
   overflow: visible;
+  contain: none;
 }
 
 .dashboard-widgets-grid.react-grid-layout .react-grid-item.react-grid-placeholder {

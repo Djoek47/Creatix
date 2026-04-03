@@ -14,7 +14,8 @@
 // Convert string to ArrayBuffer
 function stringToArrayBuffer(str: string): ArrayBuffer {
   const encoder = new TextEncoder()
-  return encoder.encode(str).buffer
+  const u8 = encoder.encode(str)
+  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
 }
 
 // Convert ArrayBuffer to Base64

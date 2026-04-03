@@ -98,7 +98,7 @@ const GridWithWidth = WidthProvider(GridLayout)
 
 function DragStrip({ label }: { label: string }) {
   return (
-    <div className="dashboard-widget-drag mb-2 flex h-9 shrink-0 cursor-grab items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 text-muted-foreground active:cursor-grabbing">
+    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 text-muted-foreground active:cursor-grabbing">
       <GripVertical className="h-4 w-4 shrink-0" aria-hidden />
       <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
     </div>
@@ -107,7 +107,7 @@ function DragStrip({ label }: { label: string }) {
 
 function WidgetShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/35 bg-card/25 p-1 shadow-sm">
+    <div className="box-border flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border border-border/35 bg-card/25 p-2 shadow-sm">
       {children}
     </div>
   )
@@ -287,9 +287,9 @@ export function DashboardWidgetsGrid({
       ),
       quickColumn: (
         <WidgetShell>
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
             <DragStrip label="Platforms & actions" />
-            <div className="min-h-0 flex-1 space-y-4 overflow-auto pr-0.5">
+            <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-auto pr-0.5">
               <PlatformIntegrationWidget compact />
               <QuickActions />
             </div>
@@ -306,9 +306,9 @@ export function DashboardWidgetsGrid({
       ),
       alertsColumn: (
         <WidgetShell>
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
             <DragStrip label="Alerts & OnlyFans" />
-            <div className="min-h-0 flex-1 space-y-4 overflow-auto pr-0.5">
+            <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-auto pr-0.5">
               <AlertsWidget leakAlerts={leakAlerts} mentions={mentions} />
               <OnlyFansNotificationsCard />
             </div>
@@ -415,6 +415,7 @@ export function DashboardWidgetsGrid({
 
       <GridWithWidth
         className="dashboard-widgets-grid -mx-1 min-h-[400px]"
+        measureBeforeMount
         cols={COLS}
         rowHeight={30}
         margin={[18, 18]}
@@ -425,10 +426,10 @@ export function DashboardWidgetsGrid({
         compactType="vertical"
         isDraggable
         isResizable
-        useCSSTransforms
+        useCSSTransforms={false}
       >
         {orderedIds.map((id) => (
-          <div key={id} className="h-full min-h-0">
+          <div key={id} className="dashboard-grid-cell box-border h-full min-h-0 min-w-0">
             {widgetBody[id]}
           </div>
         ))}

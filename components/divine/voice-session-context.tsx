@@ -16,6 +16,13 @@ import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import type { DivineVoiceDisconnectReason } from '@/lib/divine/voice-memory-types'
 import type { VoiceHangupPolicy } from '@/lib/divine-manager'
+import {
+  DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD,
+  DIVINE_VOICE_SILENCE_MS,
+  DIVINE_VOICE_SILENCE_PROMPT_FINAL,
+  DIVINE_VOICE_SILENCE_PROMPT_FIRST,
+  isRealtimeUserSpeechEvent,
+} from '@/lib/divine/voice-silence-prompts'
 
 /** Must stay below `voice-tool` route `maxDuration` so the client fails first with a clear message, not a generic hang. */
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
@@ -153,6 +160,23 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const resumeBriefingSentRef = useRef(false)
   const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('idle')
 
+  const scheduleGracefulEndCallRef = useRef<(() => void) | null>(null)
+  const sendBriefingQuestionRef = useRef<(text: string, opts?: { allowHangupAfterMs?: number }) => Promise<void>>(
+    async () => {},
+  )
+  const statusRef = useRef(status)
+  const silenceGenRef = useRef(0)
+  const silenceFirstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const silenceSecondTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const silenceFailsafeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speechEventSeenRef = useRef(false)
+  const markUserSpeechRef = useRef<() => void>(() => {})
+  const startSilenceWatchdogRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
+
   useEffect(() => {
     const raw = process.env.NEXT_PUBLIC_DIVINE_VOICE_IDLE_MS
     if (raw === undefined || raw === '') {
@@ -204,6 +228,21 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       const hadToolInFlight = toolInFlightRef.current
       const pendingSnap = [...lastPendingConfirmationsRef.current]
       cancelIdleTimer()
+      silenceGenRef.current += 1
+      if (silenceFirstTimerRef.current) {
+        clearTimeout(silenceFirstTimerRef.current)
+        silenceFirstTimerRef.current = null
+      }
+      if (silenceSecondTimerRef.current) {
+        clearTimeout(silenceSecondTimerRef.current)
+        silenceSecondTimerRef.current = null
+      }
+      if (silenceFailsafeTimerRef.current) {
+        clearTimeout(silenceFailsafeTimerRef.current)
+        silenceFailsafeTimerRef.current = null
+      }
+      scheduleGracefulEndCallRef.current = null
+      speechEventSeenRef.current = false
       if (endCallTimeoutRef.current) {
         clearTimeout(endCallTimeoutRef.current)
         endCallTimeoutRef.current = null
@@ -315,6 +354,75 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    sendBriefingQuestionRef.current = sendBriefingQuestion
+  }, [sendBriefingQuestion])
+
+  const runFinalSilenceClose = useCallback(async (genAtStart: number) => {
+    if (silenceGenRef.current !== genAtStart) return
+    try {
+      await sendBriefingQuestionRef.current(DIVINE_VOICE_SILENCE_PROMPT_FINAL)
+    } catch {
+      return
+    }
+    if (silenceGenRef.current !== genAtStart) return
+    silenceFailsafeTimerRef.current = setTimeout(() => {
+      silenceFailsafeTimerRef.current = null
+      if (silenceGenRef.current !== genAtStart) return
+      scheduleGracefulEndCallRef.current?.()
+    }, DIVINE_VOICE_SILENCE_MS.endCallFailsafe)
+  }, [])
+
+  const startSilenceWatchdog = useCallback(() => {
+    if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
+    if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
+    if (silenceFailsafeTimerRef.current) clearTimeout(silenceFailsafeTimerRef.current)
+    silenceFirstTimerRef.current = null
+    silenceSecondTimerRef.current = null
+    silenceFailsafeTimerRef.current = null
+
+    const gen = silenceGenRef.current
+    silenceFirstTimerRef.current = setTimeout(() => {
+      silenceFirstTimerRef.current = null
+      if (silenceGenRef.current !== gen) return
+      if (statusRef.current !== 'connected') return
+      void (async () => {
+        try {
+          await sendBriefingQuestionRef.current(DIVINE_VOICE_SILENCE_PROMPT_FIRST)
+        } catch {
+          return
+        }
+        if (silenceGenRef.current !== gen) return
+        silenceSecondTimerRef.current = setTimeout(() => {
+          silenceSecondTimerRef.current = null
+          if (silenceGenRef.current !== gen) return
+          if (statusRef.current !== 'connected') return
+          void runFinalSilenceClose(gen)
+        }, DIVINE_VOICE_SILENCE_MS.afterFirst)
+      })()
+    }, DIVINE_VOICE_SILENCE_MS.first)
+  }, [runFinalSilenceClose])
+
+  const markUserSpeech = useCallback(() => {
+    silenceGenRef.current += 1
+    if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
+    if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
+    if (silenceFailsafeTimerRef.current) clearTimeout(silenceFailsafeTimerRef.current)
+    silenceFirstTimerRef.current = null
+    silenceSecondTimerRef.current = null
+    silenceFailsafeTimerRef.current = null
+    scheduleIdleDisconnectRef.current()
+    startSilenceWatchdog()
+  }, [startSilenceWatchdog])
+
+  useEffect(() => {
+    markUserSpeechRef.current = markUserSpeech
+  }, [markUserSpeech])
+
+  useEffect(() => {
+    startSilenceWatchdogRef.current = startSilenceWatchdog
+  }, [startSilenceWatchdog])
+
   const refreshVoiceHangupPolicy = useCallback(async () => {
     try {
       const res = await fetch('/api/divine/manager-settings', { credentials: 'include' })
@@ -350,6 +458,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       opts?.realtimeBodyExtras && typeof opts.realtimeBodyExtras === 'object' ? opts.realtimeBodyExtras : {}
     setError(null)
     setUserHangupAllowed(false)
+    speechEventSeenRef.current = false
     await refreshVoiceHangupPolicy()
     setStatus('connecting')
     try {
@@ -436,6 +545,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         }, 50)
       }
 
+      scheduleGracefulEndCallRef.current = scheduleGracefulEndCall
+
       dc.onmessage = async (event) => {
         try {
           const payload = JSON.parse(event.data as string) as {
@@ -449,6 +560,11 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
             response?: {
               output?: Array<{ id?: string; type?: string; name?: string; arguments?: string }>
             }
+          }
+
+          if (isRealtimeUserSpeechEvent(payload)) {
+            speechEventSeenRef.current = true
+            markUserSpeechRef.current()
           }
 
           /**
@@ -750,23 +866,30 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     }
   }, [endVoiceCall, playCue, status, divinePanel, sendBriefingQuestion, refreshVoiceHangupPolicy])
 
-  /** Arm optional idle disconnect when session becomes connected (no-op if NEXT_PUBLIC_DIVINE_VOICE_IDLE_MS unset). */
+  /** Arm optional idle disconnect + staged silence watchdog when connected. */
   useEffect(() => {
     if (status !== 'connected') return
     scheduleIdleDisconnectRef.current()
+    startSilenceWatchdogRef.current()
   }, [status, scheduleIdleDisconnect])
 
-  /** User speech resets the idle timer (only if env enables idle disconnect). */
+  /**
+   * If Realtime never emits speech VAD events, fall back to louder mic energy (steady TV noise
+   * often stays below threshold). Does not run once server speech events were seen.
+   */
   useEffect(() => {
     if (status !== 'connected') return
     const id = setInterval(() => {
+      if (speechEventSeenRef.current) return
       const a = localAnalyserRef.current
       if (!a) return
       const buf = new Uint8Array(a.frequencyBinCount)
       a.getByteFrequencyData(buf)
       let sum = 0
       for (let i = 0; i < buf.length; i++) sum += buf[i]
-      if (sum / buf.length > 10) scheduleIdleDisconnectRef.current()
+      if (sum / buf.length > DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD) {
+        markUserSpeechRef.current()
+      }
     }, 220)
     return () => clearInterval(id)
   }, [status])

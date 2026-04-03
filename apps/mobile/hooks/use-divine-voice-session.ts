@@ -3,6 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import type { MediaStream, RTCPeerConnection } from 'react-native-webrtc'
 import { apiFetch } from '@/lib/api'
+import {
+  DIVINE_VOICE_SILENCE_MS,
+  DIVINE_VOICE_SILENCE_PROMPT_FINAL,
+  DIVINE_VOICE_SILENCE_PROMPT_FIRST,
+  isRealtimeUserSpeechEvent,
+} from '@/lib/divine/voice-silence-prompts'
 
 type PeerConn = InstanceType<typeof RTCPeerConnection>
 type MediaStreamInstance = InstanceType<typeof MediaStream>
@@ -112,6 +118,15 @@ export function useDivineVoiceSession(): DivineVoiceSession {
   const statusRef = useRef(status)
   statusRef.current = status
 
+  const scheduleGracefulEndCallRef = useRef<(() => void) | null>(null)
+  const silenceGenRef = useRef(0)
+  const silenceFirstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const silenceSecondTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const silenceFailsafeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speechEventSeenRef = useRef(false)
+  const markUserSpeechRef = useRef<() => void>(() => {})
+  const startSilenceWatchdogRef = useRef<() => void>(() => {})
+
   const dismissPendingConfirmation = useCallback((intentId: string) => {
     lastPendingConfirmationsRef.current = lastPendingConfirmationsRef.current.filter(
       (p) => p.intent_id !== intentId,
@@ -122,6 +137,21 @@ export function useDivineVoiceSession(): DivineVoiceSession {
   const endVoiceCall = useCallback((reason: VoiceDisconnectReason = 'user_hangup') => {
     const hadToolInFlight = toolInFlightRef.current
     const pendingSnap = [...lastPendingConfirmationsRef.current]
+    silenceGenRef.current += 1
+    if (silenceFirstTimerRef.current) {
+      clearTimeout(silenceFirstTimerRef.current)
+      silenceFirstTimerRef.current = null
+    }
+    if (silenceSecondTimerRef.current) {
+      clearTimeout(silenceSecondTimerRef.current)
+      silenceSecondTimerRef.current = null
+    }
+    if (silenceFailsafeTimerRef.current) {
+      clearTimeout(silenceFailsafeTimerRef.current)
+      silenceFailsafeTimerRef.current = null
+    }
+    scheduleGracefulEndCallRef.current = null
+    speechEventSeenRef.current = false
     if (endCallTimeoutRef.current) {
       clearTimeout(endCallTimeoutRef.current)
       endCallTimeoutRef.current = null
@@ -186,6 +216,74 @@ export function useDivineVoiceSession(): DivineVoiceSession {
     )
   }, [])
 
+  const runFinalSilenceClose = useCallback(async (genAtStart: number) => {
+    if (silenceGenRef.current !== genAtStart) return
+    const dc = oaiDataChannelRef.current
+    if (!dc) return
+    try {
+      await sendBriefingQuestion(DIVINE_VOICE_SILENCE_PROMPT_FINAL, dc)
+    } catch {
+      return
+    }
+    if (silenceGenRef.current !== genAtStart) return
+    silenceFailsafeTimerRef.current = setTimeout(() => {
+      silenceFailsafeTimerRef.current = null
+      if (silenceGenRef.current !== genAtStart) return
+      scheduleGracefulEndCallRef.current?.()
+    }, DIVINE_VOICE_SILENCE_MS.endCallFailsafe)
+  }, [sendBriefingQuestion])
+
+  const startSilenceWatchdog = useCallback(() => {
+    if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
+    if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
+    if (silenceFailsafeTimerRef.current) clearTimeout(silenceFailsafeTimerRef.current)
+    silenceFirstTimerRef.current = null
+    silenceSecondTimerRef.current = null
+    silenceFailsafeTimerRef.current = null
+
+    const gen = silenceGenRef.current
+    silenceFirstTimerRef.current = setTimeout(() => {
+      silenceFirstTimerRef.current = null
+      if (silenceGenRef.current !== gen) return
+      if (statusRef.current !== 'connected') return
+      const dc = oaiDataChannelRef.current
+      if (!dc) return
+      void (async () => {
+        try {
+          await sendBriefingQuestion(DIVINE_VOICE_SILENCE_PROMPT_FIRST, dc)
+        } catch {
+          return
+        }
+        if (silenceGenRef.current !== gen) return
+        silenceSecondTimerRef.current = setTimeout(() => {
+          silenceSecondTimerRef.current = null
+          if (silenceGenRef.current !== gen) return
+          if (statusRef.current !== 'connected') return
+          void runFinalSilenceClose(gen)
+        }, DIVINE_VOICE_SILENCE_MS.afterFirst)
+      })()
+    }, DIVINE_VOICE_SILENCE_MS.first)
+  }, [sendBriefingQuestion, runFinalSilenceClose])
+
+  const markUserSpeech = useCallback(() => {
+    silenceGenRef.current += 1
+    if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
+    if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
+    if (silenceFailsafeTimerRef.current) clearTimeout(silenceFailsafeTimerRef.current)
+    silenceFirstTimerRef.current = null
+    silenceSecondTimerRef.current = null
+    silenceFailsafeTimerRef.current = null
+    startSilenceWatchdog()
+  }, [startSilenceWatchdog])
+
+  useEffect(() => {
+    markUserSpeechRef.current = markUserSpeech
+  }, [markUserSpeech])
+
+  useEffect(() => {
+    startSilenceWatchdogRef.current = startSilenceWatchdog
+  }, [startSilenceWatchdog])
+
   const startVoiceCall = useCallback(
     async (focusedFan?: FocusedFan | null) => {
       if (Platform.OS === 'web') return
@@ -200,6 +298,7 @@ export function useDivineVoiceSession(): DivineVoiceSession {
       }
       if (statusRef.current === 'connecting' || statusRef.current === 'connected') return
       focusedFanRef.current = focusedFan ?? null
+      speechEventSeenRef.current = false
       setError(null)
       setStatus('connecting')
       try {
@@ -219,6 +318,7 @@ export function useDivineVoiceSession(): DivineVoiceSession {
             endVoiceCall('end_call')
           }, 2500)
         }
+        scheduleGracefulEndCallRef.current = scheduleGracefulEndCall
 
         const onDataMessage = async (event: { data?: unknown }) => {
           try {
@@ -233,6 +333,11 @@ export function useDivineVoiceSession(): DivineVoiceSession {
               response?: {
                 output?: Array<{ id?: string; type?: string; name?: string; arguments?: string }>
               }
+            }
+
+            if (isRealtimeUserSpeechEvent(payload)) {
+              speechEventSeenRef.current = true
+              markUserSpeechRef.current()
             }
 
             const finalizeRealtimeToolOutput = (
@@ -497,6 +602,11 @@ export function useDivineVoiceSession(): DivineVoiceSession {
     },
     [endVoiceCall, sendBriefingQuestion],
   )
+
+  useEffect(() => {
+    if (status !== 'connected') return
+    startSilenceWatchdogRef.current()
+  }, [status])
 
   useEffect(() => {
     return () => {

@@ -5,10 +5,17 @@ import { createHmac, randomBytes } from 'crypto'
 const PREFIX = 'cev_live_sk_'
 const KEY_BYTES = 32
 
+/** Server-only signing material. Never use the public anon key for HMAC. Optional dedicated secret for rotation without changing Supabase keys. */
+function getHmacSecret(): string | null {
+  return process.env.USER_API_KEY_HMAC_SECRET?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null
+}
+
 function hashKey(secret: string): string {
-  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    .update(secret)
-    .digest('hex')
+  const key = getHmacSecret()
+  if (!key) {
+    throw new Error('USER_API_KEY_HMAC_SECRET or SUPABASE_SERVICE_ROLE_KEY must be set for API key hashing')
+  }
+  return createHmac('sha256', key).update(secret).digest('hex')
 }
 
 function generateKey(): { fullKey: string; prefix: string; hash: string } {
@@ -20,6 +27,12 @@ function generateKey(): { fullKey: string; prefix: string; hash: string } {
 }
 
 export async function GET(request: NextRequest) {
+  if (!getHmacSecret()) {
+    return NextResponse.json(
+      { error: 'Server misconfigured: set USER_API_KEY_HMAC_SECRET or SUPABASE_SERVICE_ROLE_KEY for API keys.' },
+      { status: 503 },
+    )
+  }
   const supabase = await createRouteHandlerClient(request)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -39,6 +52,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!getHmacSecret()) {
+    return NextResponse.json(
+      { error: 'Server misconfigured: set USER_API_KEY_HMAC_SECRET or SUPABASE_SERVICE_ROLE_KEY for API keys.' },
+      { status: 503 },
+    )
+  }
   const supabase = await createRouteHandlerClient(req)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -48,7 +67,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const name = typeof body.name === 'string' ? body.name.trim() || null : null
 
-  const { fullKey, prefix, hash } = generateKey()
+  let fullKey: string
+  let prefix: string
+  let hash: string
+  try {
+    ;({ fullKey, prefix, hash } = generateKey())
+  } catch {
+    return NextResponse.json({ error: 'API key signing unavailable' }, { status: 503 })
+  }
 
   const { data: row, error } = await supabase
     .from('user_api_keys')

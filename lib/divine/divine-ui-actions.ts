@@ -5,6 +5,7 @@
 
 import {
   dispatchNotificationPanelAction,
+  dispatchNotificationsInboxRefresh,
   dispatchProtocolTasksRefresh,
 } from '@/lib/dashboard/notification-ui-bridge'
 
@@ -86,6 +87,8 @@ export type DivineUiAction =
     }
   /** Refetch creator_protocol_tasks in the dashboard rail. */
   | { type: 'protocol_tasks_refresh' }
+  /** Refetch in-app bell notifications from Supabase (Divine CRM read/remove). */
+  | { type: 'notifications_inbox_refresh' }
 
 export type ApplyDivineUiOptions = {
   onShowDmReplySuggestions?: (payload: DmSuggestionBridgePayload) => void
@@ -251,6 +254,9 @@ export function applyDivineUiActions(
     }
     if (a.type === 'protocol_tasks_refresh') {
       dispatchProtocolTasksRefresh()
+    }
+    if (a.type === 'notifications_inbox_refresh') {
+      dispatchNotificationsInboxRefresh()
     }
   }
 }

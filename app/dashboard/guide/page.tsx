@@ -18,6 +18,9 @@ import {
   Zap,
   Star,
   HeartPulse,
+  Crown,
+  Bell,
+  Mic,
 } from 'lucide-react'
 
 export default function GuidePage() {
@@ -40,10 +43,15 @@ export default function GuidePage() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <a href="#getting-started" className="text-primary hover:underline">Getting started</a>
+          <a href="#divine-manager" className="font-medium text-primary hover:underline">
+            Divine Manager
+          </a>
           <a href="#connecting-platforms" className="text-primary hover:underline">Connecting platforms</a>
           <a href="#onlyfans" className="text-primary hover:underline">OnlyFans (detailed)</a>
           <a href="#dashboard" className="text-primary hover:underline">Dashboard</a>
-          <a href="#well-being" className="text-primary hover:underline">Well-being</a>
+          <a href="#well-being" className="text-primary hover:underline">
+            Well-being &amp; cosmic calendar
+          </a>
           <a href="#ai-guides" className="text-primary hover:underline">AI Guides (Circe & Venus)</a>
           <a href="#circe-daily-tips" className="text-primary hover:underline">Daily tips (Circe)</a>
           <a href="#messages-fans" className="text-primary hover:underline">Messages &amp; Fans</a>
@@ -70,6 +78,164 @@ export default function GuidePage() {
             </p>
             <p>
               After sign-up you&apos;ll see a short tutorial. You can skip it or complete it, and reopen this Guide anytime from the sidebar. The most important step is connecting at least one platform (OnlyFans, Fansly, or MYM) so we can sync your data and give you personalized insights.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Divine Manager */}
+      <section id="divine-manager" className="scroll-mt-24">
+        <Card className="border-amber-500/25 bg-gradient-to-br from-amber-500/[0.06] via-background to-violet-500/[0.06]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+              <Crown className="h-6 w-6 text-amber-500" />
+              Divine Manager — your manager in one orbit
+            </CardTitle>
+            <CardDescription>
+              Voice, text, tools, and daily rhythm in one place. Open anytime from the sidebar (crown icon) or{' '}
+              <Link href="/dashboard/divine-manager" className="text-primary underline hover:no-underline">
+                Divine Manager
+              </Link>
+              .
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 text-sm text-muted-foreground">
+            <p>
+              Think of Divine Manager as a calm operations lead: it sees your tasks, your platforms, and your
+              preferences, then helps you decide what to do next — by voice, by text, or by nudging the right screen
+              open. It does not replace you; it recommends, drafts, and organizes, and you stay in control of what
+              sends or publishes.
+            </p>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 flex items-center gap-2 font-medium text-foreground">
+                <Mic className="h-4 w-4 text-amber-500" />
+                Voice (floating crown)
+              </h4>
+              <p className="mb-2">
+                Tap the <strong>floating crown</strong> to start a live voice session. You can use the launcher (Text
+                Divine, Divine Manager, AI Studio shortcuts) or skip straight into a call if you turn that on in Divine
+                Manager settings. While you speak, Divine can use tools, read your analytics, open Messages, and more —
+                same capabilities as text, tuned for voice.
+              </p>
+              <p className="mb-2">
+                In settings you can choose how <strong>chatty</strong> Divine is: brief answers, balanced, or a bit more
+                expressive — for both voice and text. You can also choose when the <strong>End call</strong> button
+                unlocks (always, or only after Divine asks if you need anything else).
+              </p>
+              <p>
+                Quick entry:{' '}
+                <Link
+                  href="/dashboard/divine-manager?section=voice"
+                  className="text-primary underline hover:no-underline"
+                >
+                  Voice section
+                </Link>
+                .
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 font-medium text-foreground">Text chat</h4>
+              <p className="mb-2">
+                Open the <strong>text sheet</strong> for the same Divine Manager brain when you prefer typing. It shares
+                context with voice and is ideal for longer instructions or pasting links.
+              </p>
+              <p>
+                <Link
+                  href="/dashboard/divine-manager?section=text"
+                  className="text-primary underline hover:no-underline"
+                >
+                  Open with text focus
+                </Link>
+                .
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 font-medium text-foreground">Protocol tasks (floating rail)</h4>
+              <p className="mb-2">
+                Above the crown, the <strong>protocol rail</strong> lists open tasks Divine or you added — follow-ups,
+                welcome flows, whale reminders. The panel is <strong>collapsible</strong> so you can tuck it away when you
+                need a clear screen.
+              </p>
+              <p className="mb-2">
+                <strong>AI briefing (linked)</strong> uses tasks that are tied to saved inbox notifications. If nothing
+                is linked yet, add tasks from Divine or connect them to the right notification when you set them up.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 flex items-center gap-2 font-medium text-foreground">
+                <Bell className="h-4 w-4 text-violet-500" />
+                Bell &amp; notifications
+              </h4>
+              <p className="mb-2">
+                The <strong>Live</strong> tab shows messages, tips, and updates from connected platforms as they
+                arrive. The <strong>Divine</strong> tab gathers leaks, reputation, whales, billing, and Divine Manager
+                actions. You can run a <strong>briefing</strong> from the bell to walk through saved items with Divine
+                (voice or text).
+              </p>
+              <p>
+                Rows that are only a preview from the platform may show as <em>not saved to your inbox yet</em> until
+                they sync.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 font-medium text-foreground">Mimic Test (your voice for fan drafts)</h4>
+              <p className="mb-2">
+                The <strong>Mimic</strong> voice interview captures how you want fans to hear you. That style is used
+                when Divine drafts a <strong>fan-facing line</strong> for you. Nothing sends automatically — you review
+                first.
+              </p>
+              <p>
+                <Link
+                  href="/dashboard/divine-manager?section=mimic"
+                  className="text-primary underline hover:no-underline"
+                >
+                  Mimic section
+                </Link>
+                .
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 font-medium text-foreground">Today plan, tasks &amp; alerts</h4>
+              <p className="mb-2">
+                The <strong>Today plan</strong> and task lists help you see what Divine suggests for the day. Automation
+                rules can create tasks for large tips, respect confirmation for sensitive flows, and more — all
+                configurable on the Divine Manager page.
+              </p>
+              <p>
+                Jump to{' '}
+                <Link
+                  href="/dashboard/divine-manager#divine-section-today-plan"
+                  className="text-primary underline hover:no-underline"
+                >
+                  Today plan
+                </Link>
+                , or open the{' '}
+                <Link
+                  href="/dashboard/divine-manager?section=tasks"
+                  className="text-primary underline hover:no-underline"
+                >
+                  tasks
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/dashboard/divine-manager?section=alerts"
+                  className="text-primary underline hover:no-underline"
+                >
+                  alerts
+                </Link>{' '}
+                sections.
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Tip: Use <strong>Start tour</strong> on the Divine Manager page while you are there for a short step-by-step
+              intro (dialog-based tour).
             </p>
           </CardContent>
         </Card>
@@ -153,14 +319,50 @@ export default function GuidePage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              The main <Link href="/dashboard" className="text-primary underline hover:no-underline">Dashboard</Link> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio. The top bar also includes a Well-being shortcut (heart pulse icon) on every page.
+              The main <Link href="/dashboard" className="text-primary underline hover:no-underline">Dashboard</Link> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: <Link href="/dashboard/divine-manager" className="text-primary underline hover:no-underline">Divine Manager</Link>, Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio. The top bar also includes a Well-being shortcut (heart pulse icon) on every page.
             </p>
-            <p id="well-being" className="scroll-mt-24">
-              <Link href="/dashboard/well-being" className="inline-flex items-center gap-1 font-medium text-primary underline hover:no-underline">
+            <p>
+              <a href="#well-being" className="inline-flex items-center gap-1 font-medium text-primary underline hover:no-underline">
                 <HeartPulse className="h-4 w-4" />
+                Well-being &amp; cosmic calendar
+              </a>{' '}
+              — see the dedicated section below for rhythm, Mimic snapshot, and lunar calendar.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Well-being */}
+      <section id="well-being" className="scroll-mt-24">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HeartPulse className="h-5 w-5 text-primary" />
+              Well-being &amp; cosmic calendar
+            </CardTitle>
+            <CardDescription>Pressure, Mimic snapshot, moon phases, and zodiac — in one gentle view</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              <Link href="/dashboard/well-being" className="font-medium text-primary underline hover:no-underline">
                 Well-being
               </Link>{' '}
-              combines conversational load from your connected platforms, your Mimic interview snapshot, and the cosmic calendar so you can see pressure and rhythm in one place.
+              combines conversational load from your connected platforms, your Mimic interview snapshot, and the cosmic
+              calendar so you can see pressure and rhythm in one place.
+            </p>
+            <p>
+              The <strong>cosmic calendar</strong> opens with a calm hero: a daily affirmation, a large{' '}
+              <strong>moon phase</strong> visual (not just a tiny icon), the current <strong>Western zodiac season</strong>, and the{' '}
+              <strong>Chinese zodiac animal for the lunar year</strong>. You can scroll horizontally through all twelve
+              Western signs and all twelve lunar animals; your current season and year are highlighted.
+            </p>
+            <p>
+              A <strong>moon phase strip</strong> shows each phase of the cycle at a glance; the month grid shows the day
+              number and moon emoji for quick scanning. Tap a day for glow score, moon, and sign details for that date.
+            </p>
+            <p className="text-xs text-muted-foreground/90">
+              Add your birthday in Settings when you want deeper personalized notes (encryption options may apply); the
+              calendar is still uplifting even before that.
             </p>
           </CardContent>
         </Card>

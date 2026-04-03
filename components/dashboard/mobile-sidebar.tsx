@@ -23,6 +23,7 @@ import {
   BookOpen,
   HeartPulse,
   MessagesSquare,
+  Activity,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
@@ -35,6 +36,7 @@ interface MobileSidebarProps {
 
 const circeNavigation = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
 ]
 

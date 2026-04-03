@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getSettings, getTasks, getDivineVoice, DIVINE_VOICES } from '@/lib/divine-manager'
+import { getSettings, getDivineVoice, DIVINE_VOICES } from '@/lib/divine-manager'
 import type { DivineTodayPlanResponse } from '@/lib/divine/today-plan-types'
-import type { DivineManagerTaskRow } from '@/lib/divine-manager'
-
-function taskSummary(t: DivineManagerTaskRow): string {
-  const p = t.payload as { summary?: string }
-  return typeof p?.summary === 'string' && p.summary.trim() ? p.summary : t.type.replace(/_/g, ' ')
-}
+import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
+import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
+import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
+import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,17 +17,19 @@ export async function GET(request: NextRequest) {
 
     const uid = user.id
 
+    await runProtocolPlanRollover(supabase, uid)
+    const today = utcPlanDateString()
+
     const [
       settingsRes,
       notifUnread,
       divineNotifUnread,
       leaks,
       contentRows,
-      protocolRows,
-      protocolOpenCount,
-      managerSuggested,
-      managerScheduled,
+      protocolForDay,
       platformRows,
+      churnSettingsRow,
+      churnHighCount,
     ] = await Promise.all([
       getSettings(supabase, uid),
       supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', uid).eq('read', false),
@@ -49,48 +49,67 @@ export async function GET(request: NextRequest) {
         .limit(8),
       supabase
         .from('creator_protocol_tasks')
-        .select('id, title, status, created_at')
+        .select(
+          'id, title, body, status, metadata, plan_date, priority_tier, sort_order, created_at',
+        )
         .eq('user_id', uid)
-        .in('status', ['pending', 'executing'])
-        .order('created_at', { ascending: false })
-        .limit(12),
+        .eq('plan_date', today)
+        .limit(80),
+      supabase.from('platform_connections').select('id').eq('user_id', uid).eq('is_connected', true).limit(1),
+      supabase.from('circe_churn_settings').select('enabled, last_run_at').eq('user_id', uid).maybeSingle(),
       supabase
-        .from('creator_protocol_tasks')
+        .from('fan_churn_snapshots')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', uid)
-        .in('status', ['pending', 'executing']),
-      getTasks(supabase, uid, { status: 'suggested', limit: 6 }),
-      getTasks(supabase, uid, { status: 'scheduled', limit: 6 }),
-      supabase.from('platform_connections').select('id').eq('user_id', uid).eq('is_connected', true).limit(1),
+        .in('risk_level', ['high', 'critical']),
     ])
 
     const notifications_unread = notifUnread.count ?? 0
     const divine_notifications_unread = divineNotifUnread.count ?? 0
     const open_leak_alerts = leaks.count ?? 0
 
-    const suggestedMerged = [...managerSuggested, ...managerScheduled].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )
-    const uniqueById = new Map<string, DivineManagerTaskRow>()
-    for (const t of suggestedMerged) {
-      if (!uniqueById.has(t.id)) uniqueById.set(t.id, t)
-    }
-    const suggestionItems = Array.from(uniqueById.values())
-      .slice(0, 8)
-      .map((t) => ({
-        id: t.id,
-        type: t.type,
-        status: t.status,
-        summary: taskSummary(t),
-        category: t.category ?? null,
-        created_at: t.created_at,
-      }))
-
     const settings = settingsRes
     const voice = settings?.notification_settings?.voice
     const voiceConfigured = settings != null && typeof voice === 'string' && DIVINE_VOICES.includes(getDivineVoice(voice))
 
-    const protocolOpenTotal = protocolOpenCount.count ?? (protocolRows.data ?? []).length
+    const protocolRows = (protocolForDay.data ?? []) as Pick<
+      CreatorProtocolTaskRow,
+      | 'id'
+      | 'title'
+      | 'body'
+      | 'status'
+      | 'metadata'
+      | 'plan_date'
+      | 'priority_tier'
+      | 'sort_order'
+      | 'created_at'
+    >[]
+
+    const sorted = sortProtocolTasksForPlan(protocolRows)
+
+    const plan_tasks = sorted.map((r) => {
+      const meta =
+        r.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata)
+          ? (r.metadata as Record<string, unknown>)
+          : {}
+      return {
+        id: r.id,
+        title: (r.title as string) ?? 'Task',
+        body: (r.body as string | null) ?? null,
+        status: r.status as string,
+        plan_date: String(r.plan_date ?? today),
+        priority_tier: typeof r.priority_tier === 'number' ? r.priority_tier : 4,
+        sort_order: typeof r.sort_order === 'number' ? r.sort_order : 0,
+        leftover: isLeftoverTask(meta),
+        metadata: meta,
+        created_at: r.created_at as string,
+      }
+    })
+
+    const protocolOpenTotal = plan_tasks.filter((t) => t.status === 'pending' || t.status === 'executing').length
+
+    const churnS = churnSettingsRow.data as { enabled?: boolean; last_run_at?: string | null } | null
+    const churnHigh = churnHighCount.count ?? 0
 
     const body: DivineTodayPlanResponse = {
       inbox: {
@@ -100,6 +119,12 @@ export async function GET(request: NextRequest) {
       protection: {
         open_leak_alerts,
       },
+      retention: {
+        churn_background_enabled: churnS?.enabled === true,
+        last_churn_run_at: typeof churnS?.last_run_at === 'string' ? churnS.last_run_at : null,
+        high_risk_churn_snapshots: churnHigh,
+        hub_path: '/dashboard/retention/churn',
+      },
       calendar: {
         scheduled_upcoming: (contentRows.data ?? []).map((r) => ({
           id: r.id,
@@ -108,18 +133,7 @@ export async function GET(request: NextRequest) {
           scheduled_at: (r.scheduled_at as string | null) ?? null,
         })),
       },
-      protocol: {
-        open_count: protocolOpenTotal,
-        open_tasks: (protocolRows.data ?? []).map((r) => ({
-          id: r.id,
-          title: (r.title as string) ?? 'Task',
-          status: r.status as string,
-          created_at: r.created_at as string,
-        })),
-      },
-      suggestions: {
-        items: suggestionItems,
-      },
+      plan_tasks,
       setup: {
         has_platform_connection: (platformRows.data?.length ?? 0) > 0,
         manager_mode_on: settings != null && settings.mode !== 'off',

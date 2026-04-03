@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useDivinePanel, type FocusedFan } from '@/components/divine/divine-panel-context'
+import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
 import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
 import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
@@ -702,6 +703,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           sdp: offer.sdp ?? '',
           focusedFan: focusedFanForVoice,
+          divine_session_id: getOrCreateDivineSessionId(),
           ...realtimeBodyExtrasRef.current,
         }),
       })

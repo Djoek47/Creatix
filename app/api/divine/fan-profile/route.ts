@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { buildUnifiedFanProfile } from '@/lib/divine/fan-profile-server'
+import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 
 /**
  * GET ?fanId=&platform=onlyfans — aggregated fan core + thread insight + AI summary + creator detector (profile UI).
@@ -80,14 +81,50 @@ export async function PATCH(req: NextRequest) {
     if (classification !== undefined) patch.creator_classification = classification
     if (treatAsFan !== undefined) patch.treat_as_fan_for_automation = treatAsFan
 
-    const { error } = await supabase
+    const { data: existingFan, error: selErr } = await supabase
       .from('fans')
-      .update(patch)
+      .select('id')
       .eq('user_id', user.id)
       .eq('platform', platform)
       .eq('platform_fan_id', fanId)
+      .maybeSingle()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 })
+
+    if (existingFan?.id) {
+      const { error } = await supabase.from('fans').update(patch).eq('id', existingFan.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      const recent = await getFanRecentById(supabase, user.id, fanId, platform)
+      const safeFanKey = fanId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)
+      const username = (recent?.username?.trim() || `fan_${safeFanKey}`).slice(0, 200)
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        platform,
+        platform_fan_id: fanId,
+        username,
+        display_name: recent?.display_name?.slice(0, 200) ?? null,
+        avatar_url: recent?.avatar_url ?? null,
+        ...patch,
+      }
+      const { error: insErr } = await supabase.from('fans').insert(insertPayload)
+      if (insErr) {
+        const isDup =
+          insErr.code === '23505' ||
+          /duplicate key|unique constraint/i.test(insErr.message ?? '')
+        if (isDup) {
+          const { error: upErr } = await supabase
+            .from('fans')
+            .update(patch)
+            .eq('user_id', user.id)
+            .eq('platform', platform)
+            .eq('platform_fan_id', fanId)
+          if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
+        } else {
+          return NextResponse.json({ error: insErr.message }, { status: 500 })
+        }
+      }
+    }
 
     const profile = await buildUnifiedFanProfile(supabase, user.id, fanId, platform)
     return NextResponse.json(profile)

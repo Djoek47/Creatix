@@ -10,8 +10,10 @@ import { ChatWindow } from './chat-window'
 import { MassMessageDialog } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
+import { InboxFiltersBar } from '@/components/messages/inbox-filters-bar'
 import { cn } from '@/lib/utils'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import {
@@ -30,10 +32,18 @@ import {
   Megaphone,
   PanelLeft,
   User,
+  Search,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
+import type {
+  InboxSegment,
+  InboxSort,
+  InboxPlatformFilter,
+} from '@/lib/messages/inbox-crm'
 
 type MessagesView = 'conversations' | 'insights'
+
+const INBOX_LIMIT = 40
 
 interface MessagesLayoutProps {
   userId: string
@@ -41,6 +51,8 @@ interface MessagesLayoutProps {
   initialFanId?: string
   /** From server: `?platform=onlyfans|fansly` when using `chat=`. */
   initialPlatform?: string
+  /** True when OnlyFans or Fansly is connected (Integrations). Empty inbox is not always “not connected”. */
+  hasFanPlatformConnected?: boolean
 }
 
 function pickConversationForDeepLink(
@@ -57,7 +69,12 @@ function pickConversationForDeepLink(
   return sameId[0]
 }
 
-function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: MessagesLayoutProps) {
+function MessagesLayoutContent({
+  userId,
+  initialFanId,
+  initialPlatform,
+  hasFanPlatformConnected = false,
+}: MessagesLayoutProps) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const divinePanel = useDivinePanel()
@@ -84,6 +101,21 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
   const isMobile = useIsMobile()
+
+  const [segment, setSegment] = useState<InboxSegment>('all')
+  const [sort, setSort] = useState<InboxSort>('recent')
+  const [inboxPlatform, setInboxPlatform] = useState<InboxPlatformFilter>('all')
+  const [tag, setTag] = useState('')
+  const [inboxSearch, setInboxSearch] = useState('')
+  const [searchDebounced, setSearchDebounced] = useState('')
+  const [hasMoreInbox, setHasMoreInbox] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const listOffsetRef = useRef(0)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setSearchDebounced(inboxSearch.trim()), 320)
+    return () => window.clearTimeout(t)
+  }, [inboxSearch])
 
   const dispatchCollapseDashboardSidebar = useCallback(() => {
     if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {
@@ -120,90 +152,117 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
     }
   }, [])
 
-  const loadConversations = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true)
-    else setLoading(true)
-    setError(null)
+  const loadInbox = useCallback(
+    async (opts?: { refresh?: boolean; append?: boolean }) => {
+      const append = opts?.append ?? false
+      const refresh = opts?.refresh ?? false
+      if (append) setLoadingMore(true)
+      else if (refresh) setRefreshing(true)
+      else setLoading(true)
+      setError(null)
 
-    try {
-      const [onlyfansRes, fanslyRes] = await Promise.all([
-        fetch('/api/onlyfans/conversations'),
-        fetch('/api/fansly/conversations'),
-      ])
-      const [onlyfansData, fanslyData] = await Promise.all([
-        onlyfansRes.json(),
-        fanslyRes.json(),
-      ])
-
-      const allConversations: Conversation[] = []
-
-      if (onlyfansRes.ok && onlyfansData.conversations) {
-        const ofConversations = onlyfansData.conversations.map((conv: any) => ({
-          ...conv,
-          platform: 'onlyfans' as const,
-          chatId: conv.chatId || conv.user?.id,
-        }))
-        allConversations.push(...ofConversations)
+      if (!append) {
+        listOffsetRef.current = 0
       }
+      const offset = append ? listOffsetRef.current : 0
 
-      if (fanslyRes.ok && fanslyData.conversations?.length) {
-        const fanslyConversations = fanslyData.conversations.map((conv: any) => ({
-          ...conv,
-          platform: 'fansly' as const,
-          chatId: conv.chatId || conv.user?.id,
-        }))
-        allConversations.push(...fanslyConversations)
-      }
-
-      // Sort by most recent message
-      allConversations.sort((a, b) => {
-        const dateA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0
-        const dateB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0
-        return dateB - dateA
-      })
-
-      setConversations(allConversations)
-      setSelectedConversation((prev) => {
-        if (allConversations.length === 0) return null
-        const preferredFanId = preferredFanIdRef.current
-        if (preferredFanId) {
-          const preferred = pickConversationForDeepLink(
-            allConversations,
-            preferredFanId,
-            preferredPlatformRef.current,
-          )
-          if (preferred) return preferred
+      try {
+        const params = new URLSearchParams({
+          limit: String(INBOX_LIMIT),
+          offset: String(offset),
+          segment,
+          sort,
+          platform: inboxPlatform,
+          search: searchDebounced,
+          tag: tag.trim(),
+        })
+        const res = await fetch(`/api/messages/inbox?${params}`, { credentials: 'include' })
+        const data = (await res.json()) as {
+          conversations?: Conversation[]
+          error?: string
+          code?: string
+          message?: string
+          hasMore?: boolean
+          nextOffset?: number
         }
-        if (!prev) return allConversations[0]
-        const stillThere = allConversations.find((c) => String(c.user.id) === String(prev.user.id))
-        return stillThere ?? allConversations[0]
-      })
-      if (allConversations.length > 0) {
-        void fetch('/api/divine/fan-recents', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            rows: allConversations.map((c) => ({
-              fanId: String(c.user.id),
-              username: c.user.username,
-              displayName: c.user.name,
-              platform: c.platform,
-            })),
-          }),
-        }).catch(() => undefined)
+
+        if (!res.ok) {
+          const msg =
+            data.message || data.error || `Failed to load inbox (${res.status})`
+          if (data.code === 'ONLYFANS_SESSION_EXPIRED') {
+            setError(
+              'OnlyFans session expired. Reconnect OnlyFans in Settings to load messages.',
+            )
+          } else {
+            setError(msg)
+          }
+          return
+        }
+
+        const rows = data.conversations ?? []
+        listOffsetRef.current =
+          typeof data.nextOffset === 'number' ? data.nextOffset : offset + rows.length
+        setHasMoreInbox(Boolean(data.hasMore))
+
+        if (append) {
+          setConversations((prev) => [...prev, ...rows])
+        } else {
+          setConversations(rows)
+          setSelectedConversation((prev) => {
+            if (rows.length === 0) return null
+            const preferredFanId = preferredFanIdRef.current
+            if (preferredFanId) {
+              const preferred = pickConversationForDeepLink(
+                rows,
+                preferredFanId,
+                preferredPlatformRef.current,
+              )
+              if (preferred) return preferred
+            }
+            if (!prev) return rows[0]
+            const stillThere = rows.find(
+              (c) =>
+                String(c.user.id) === String(prev.user.id) && c.platform === prev.platform,
+            )
+            return stillThere ?? rows[0]
+          })
+        }
+
+        const recentsPayload = append ? rows : rows
+        if (recentsPayload.length > 0) {
+          void fetch('/api/divine/fan-recents', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rows: recentsPayload.map((c) => ({
+                fanId: String(c.user.id),
+                username: c.user.username,
+                displayName: c.user.name,
+                platform: c.platform,
+              })),
+            }),
+          }).catch(() => undefined)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load conversations')
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+        setLoadingMore(false)
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load conversations')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+    },
+    [segment, sort, inboxPlatform, tag, searchDebounced],
+  )
 
   useEffect(() => {
-    loadConversations()
-  }, [loadConversations])
+    void loadInbox()
+  }, [segment, sort, inboxPlatform, tag, searchDebounced, loadInbox])
+
+  const loadMoreInbox = useCallback(() => {
+    if (loadingMore || !hasMoreInbox) return
+    void loadInbox({ append: true })
+  }, [loadInbox, loadingMore, hasMoreInbox])
 
   // Open the thread for ?fanId= / ?chat= or Divine voice/chat "focus fan"
   useEffect(() => {
@@ -284,7 +343,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
           </div>
           <h3 className="text-lg font-medium">Failed to Load Messages</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">{error}</p>
-          <Button onClick={() => loadConversations()} className="mt-4">
+          <Button onClick={() => void loadInbox()} className="mt-4">
             Try Again
           </Button>
         </div>
@@ -303,9 +362,11 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
           </div>
           <h3 className="text-lg font-medium">No Messages Yet</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Your messages will appear here once fans start messaging you. Connect OnlyFans or Fansly in Settings to see conversations.
+            {hasFanPlatformConnected
+              ? 'Your inbox is empty right now — new threads will show when fans message you. Tap Refresh to pull the latest from the platform, or open a conversation on OnlyFans to seed activity.'
+              : 'Connect OnlyFans or Fansly in Settings → Integrations so Circe can load your conversations here.'}
           </p>
-          <Button onClick={() => loadConversations(true)} className="mt-4" variant="outline">
+          <Button onClick={() => void loadInbox({ refresh: true })} className="mt-4" variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -345,7 +406,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
             <p className="text-sm font-medium text-muted-foreground truncate">
               {view === 'insights'
                 ? 'Insights · direct & mass performance'
-                : `${conversations.length} live threads · OnlyFans & Fansly`}
+                : `${conversations.length} thread${conversations.length === 1 ? '' : 's'} · CRM segments · OnlyFans & Fansly`}
             </p>
           </div>
         </div>
@@ -386,7 +447,7 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
                 variant="outline"
                 size="icon"
                 className="h-10 w-10"
-                onClick={() => loadConversations(true)}
+                onClick={() => void loadInbox({ refresh: true })}
                 disabled={refreshing}
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -488,35 +549,73 @@ function MessagesLayoutContent({ userId, initialFanId, initialPlatform }: Messag
                 onExpandedChange={(expanded) => {
                   setChatsRailExpanded(expanded)
                 }}
+                segment={segment}
+                onSegmentChange={setSegment}
+                sort={sort}
+                onSortChange={setSort}
+                platform={inboxPlatform}
+                onPlatformChange={setInboxPlatform}
+                tag={tag}
+                onTagChange={setTag}
+                searchQuery={inboxSearch}
+                onSearchQueryChange={setInboxSearch}
+                hasMore={hasMoreInbox}
+                loadingMore={loadingMore}
+                onLoadMore={loadMoreInbox}
               />
             )}
             <ChatWindow
               conversation={selectedConversation}
               userId={userId}
               chatterDraftOutboxId={chatterDraftOutboxId}
-              onMessageSent={() => loadConversations(true)}
+              onMessageSent={() => void loadInbox({ refresh: true })}
               onOpenFanProfile={() => setFanProfileOpen(true)}
             />
             {isMobile && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
-                <SheetContent side="right" className="w-full p-0 sm:max-w-md">
-                  <SheetHeader className="border-b border-border">
+                <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">
+                  <SheetHeader className="border-b border-border shrink-0 px-3 pt-4">
                     <SheetTitle>Messages</SheetTitle>
                     <SheetDescription>
-                      Pick a fan conversation by avatar and name.
+                      Segments, search, then pick a thread.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="h-[calc(100%-5rem)] p-3">
-                    <ConversationList
-                      conversations={conversations}
-                      selectedKey={
-                        selectedConversation ? conversationRowKey(selectedConversation) : undefined
-                      }
-                      onSelect={(conv) => {
-                        setSelectedConversation(conv)
-                        setConversationMenuOpen(false)
-                      }}
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 pb-3">
+                    <InboxFiltersBar
+                      segment={segment}
+                      onSegmentChange={setSegment}
+                      sort={sort}
+                      onSortChange={setSort}
+                      platform={inboxPlatform}
+                      onPlatformChange={setInboxPlatform}
+                      tag={tag}
+                      onTagChange={setTag}
+                      className="shrink-0 border-0 pb-0"
                     />
+                    <div className="relative shrink-0">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Search name…"
+                        className="h-9 bg-input pl-8 text-sm"
+                        value={inboxSearch}
+                        onChange={(e) => setInboxSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+                      <ConversationList
+                        conversations={conversations}
+                        selectedKey={
+                          selectedConversation ? conversationRowKey(selectedConversation) : undefined
+                        }
+                        onSelect={(conv) => {
+                          setSelectedConversation(conv)
+                          setConversationMenuOpen(false)
+                        }}
+                        hasMore={hasMoreInbox}
+                        loadingMore={loadingMore}
+                        onLoadMore={loadMoreInbox}
+                      />
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>

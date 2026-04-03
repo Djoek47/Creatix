@@ -20,7 +20,10 @@ import {
   CRM_NOTIFICATION_ID_RE,
   type NotificationBriefingItem,
 } from '@/lib/notification-briefing-types'
-import { registerNotificationUiHandlers } from '@/lib/dashboard/notification-ui-bridge'
+import {
+  NOTIFICATIONS_INBOX_REFRESH_EVENT,
+  registerNotificationUiHandlers,
+} from '@/lib/dashboard/notification-ui-bridge'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -217,6 +220,14 @@ export function Notifications() {
   }, [loadNotifications])
 
   useEffect(() => {
+    const onInboxRefresh = () => {
+      void loadNotifications()
+    }
+    window.addEventListener(NOTIFICATIONS_INBOX_REFRESH_EVENT, onInboxRefresh)
+    return () => window.removeEventListener(NOTIFICATIONS_INBOX_REFRESH_EVENT, onInboxRefresh)
+  }, [loadNotifications])
+
+  useEffect(() => {
     registerNotificationUiHandlers({
       setOpen: (next) => setOpen(next),
       setTab: (t) => setTab(t),
@@ -297,7 +308,7 @@ export function Notifications() {
       if (unreadUuids.length === 0) {
         setBriefingText(
           pullOnlyUnread > 0
-            ? 'Secretary briefing uses saved CRM notifications only. Items from platform pull (not yet in your inbox database) cannot be queued for AI walkthrough—handle them in the list above or wait for sync.'
+            ? 'This walkthrough only uses saved inbox items. Open or clear the rows above first, or wait until they sync into your inbox.'
             : 'No unread saved notifications in this tab.',
         )
         return
@@ -338,12 +349,12 @@ export function Notifications() {
           `${i + 1}. [${it.notification_id}] ${it.summary} — ${it.suggested_action}`.slice(0, 400),
       )
 
-      try {
+        try {
         if (!voiceSession) {
           // no-op
         } else if (voiceSession.status === 'connected') {
           await voiceSession.sendBriefingQuestion(
-            `Notification secretary (voice already live). Queued CRM unread:\n${lines.join('\n')}\n\nStart with item 1: summarize, recommend an action. Use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
+            `Divine notification briefing (voice already live). Queued unread:\n${lines.join('\n')}\n\nStart with item 1: summarize, recommend an action. Use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
           )
         } else if (voiceSession.status !== 'connecting') {
           await voiceSession.startVoiceCall({
@@ -362,7 +373,7 @@ export function Notifications() {
           }
         }
       } catch {
-        // Mic denied or voice start failed — Divine panel secretary rail still works.
+        // Mic denied or voice start failed — Divine panel walkthrough rail still works.
       }
     } catch {
       setBriefingText('Briefing failed')
@@ -437,16 +448,28 @@ export function Notifications() {
       return
     }
 
-    if (userId) {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', userId)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      void loadNotifications()
+      return
+    }
 
-      if (error) {
-        console.error('Error removing notification:', error)
-      }
+    // Prefer: return deleted row so we get 200 + JSON (not 204) and can detect 0 rows (RLS / wrong id).
+    const { data, error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('id')
+
+    if (error) {
+      console.error('Error removing notification:', error)
+      void loadNotifications()
+      return
+    }
+
+    if (!data?.length) {
+      void loadNotifications()
     }
   }
 
@@ -513,7 +536,7 @@ export function Notifications() {
               >
                 <span className="text-sm font-medium">Live</span>
                 <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  OF / Fansly · webhooks + pull
+                  Messages & tips from your platforms
                 </span>
               </TabsTrigger>
               <TabsTrigger
@@ -535,7 +558,8 @@ export function Notifications() {
                   <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">No live notifications</p>
                   <p className="mt-1 px-4 text-xs text-muted-foreground/80">
-                    Platform webhooks (messages, tips) and optional API pull lists. Fansly pull is wired when the upstream feed is available.
+                    New messages, tips, and subscriber activity from your connected accounts show up here as they
+                    arrive.
                   </p>
                 </div>
               ) : (
@@ -580,16 +604,18 @@ export function Notifications() {
 
         {briefingText && (
           <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Secretary</p>
+            <p className="font-medium text-foreground">Divine</p>
             <p className="mt-1 whitespace-pre-wrap">{briefingText}</p>
           </div>
         )}
 
         <div className="flex flex-shrink-0 flex-col gap-1 border-t border-border p-2">
           <Button
-            variant="secondary"
             size="sm"
-            className="w-full gap-2"
+            className={cn(
+              'divine-notification-briefing-btn w-full gap-2 border-0 font-semibold',
+              'disabled:animate-none disabled:opacity-50 disabled:shadow-none',
+            )}
             disabled={briefingLoading || !userId || !divinePanel}
             onClick={() => void runBriefing()}
           >
@@ -597,13 +623,13 @@ export function Notifications() {
               'Briefing…'
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5" />
-                Secretary briefing (unread)
+                <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden />
+                Divine realtime briefing
               </>
             )}
           </Button>
           <p className="px-1 text-center text-[10px] text-muted-foreground">
-            Opens Divine with a walkthrough. CRM-saved unread only; platform pull rows are listed above separately.
+            Opens Divine with voice + panel walkthrough. Uses saved unread in this tab only.
           </p>
           <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setOpen(false)} asChild>
             <a href="/dashboard/settings">View all settings</a>
@@ -679,9 +705,7 @@ function NotificationRow({
           <p className={cn('text-sm', !notification.read && 'font-medium')}>{notification.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{notification.description}</p>
           {notification.origin === 'platform_pull' && (
-            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
-              {notification.platform === 'fansly' ? 'Fansly' : 'OnlyFans'} live · not saved
-            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground/70">Not saved to your inbox yet</p>
           )}
           {isDivineOrigin(notification.origin) && typeof notification.metadata?.kind === 'string' && (
             <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">

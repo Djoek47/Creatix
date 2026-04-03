@@ -8,6 +8,11 @@ import {
 } from '@/lib/divine/manager-chat-tools'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { claimDivineSessionLease } from '@/lib/divine/divine-session-lease'
+import {
+  managerTalkativenessChatSuffix,
+  normalizeManagerTalkativeness,
+} from '@/lib/divine/manager-talkativeness'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -503,13 +508,25 @@ const CHAT_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'creator_task_add',
-      description: 'Add a protocol / daily task to the floating rail.',
+      description:
+        'Add a protocol / daily task to Today’s Plan and the floating rail. Order by priority_tier: 1=notifications (importance) first, 2=DMs/messaging, 3=protection/reputation, 4=content/posting (use suggested_post_window for best visibility hints).',
       parameters: {
         type: 'object',
         properties: {
           title: { type: 'string' },
           body: { type: 'string' },
           linked_notification_id: { type: 'string' },
+          priority_tier: {
+            type: 'integer',
+            description: '1–4: 1 notifications → 2 inbox/DMs → 3 protection → 4 content. Default 4.',
+          },
+          sort_order: { type: 'integer', description: 'Lower runs first within the same tier. Default 0.' },
+          plan_date: { type: 'string', description: 'Optional UTC date YYYY-MM-DD; default today.' },
+          suggested_post_window: {
+            type: 'string',
+            description: 'For tier 4: e.g. best posting time or window for visibility.',
+          },
+          manager_task_id: { type: 'string', description: 'Optional divine_manager_tasks UUID to dedupe.' },
         },
         required: ['title'],
       },
@@ -546,18 +563,62 @@ const CHAT_TOOLS: Array<{
   {
     type: 'function',
     function: {
+      name: 'divine_crm_notifications_mark_read',
+      description:
+        'Mark in-app Divine-tab notifications (saved CRM rows, origin divine_app) as read—clears unread without deleting. Pass notification_ids or all_unread_divine. Not for OnlyFans bell (use list_notifications / mark_notifications_read for platform).',
+      parameters: {
+        type: 'object',
+        properties: {
+          notification_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'CRM UUIDs from the Divine notifications tab',
+          },
+          all_unread_divine: { type: 'boolean', description: 'Mark all unread Divine notifications read' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'divine_crm_notifications_remove',
+      description:
+        'Delete Divine-tab CRM notifications from the bell; marks linked protocol tasks done. Use divine_crm_notifications_mark_read if they only want unread cleared.',
+      parameters: {
+        type: 'object',
+        properties: {
+          notification_ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'CRM UUIDs to remove',
+          },
+        },
+        required: ['notification_ids'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_message',
       description:
-        'Send a direct message to a specific fan, OR draft into the in-app composer only. Use fanId from get_dm_conversations. mode=draft (or prepare) fills the message box and optional countdown auto-send per user settings; mode=send_now (default) sends immediately.',
+        'DEFAULT: loads the DM in the Messages composer with typing animation and optional 3s countdown auto-send (matches how OF expects sends). Use for welcomes and normal DMs. For server-only send without opening the composer (automation/rare), set direct_send: true or mode: send_now or api.',
       parameters: {
         type: 'object',
         properties: {
           fanId: { type: 'string', description: 'Fan ID from conversations list' },
           message: { type: 'string', description: 'Message text to send' },
+          direct_send: {
+            type: 'boolean',
+            description:
+              'If true, send via server API immediately (no composer). Prefer false/omit so the creator sees the draft on the Messages page.',
+          },
           mode: {
             type: 'string',
-            enum: ['send_now', 'draft', 'prepare'],
-            description: 'draft/prepare = composer + optional timer; send_now = send immediately',
+            enum: ['send_now', 'draft', 'prepare', 'api', 'server_direct'],
+            description:
+              'send_now | api | server_direct = immediate server send. draft | prepare = composer only. Omit mode = composer (default).',
           },
           platform: { type: 'string', enum: ['onlyfans', 'fansly'] },
           price: { type: 'number' },
@@ -1034,6 +1095,13 @@ export async function POST(req: NextRequest) {
     const messages = (Array.isArray(body.messages) ? body.messages : []) as ChatMessage[]
     const focusedFan = body.focusedFan as { id?: string; username?: string; name?: string } | undefined
     const stream = body.stream === true
+    const divineSessionId = typeof body.divine_session_id === 'string' ? body.divine_session_id.trim() : ''
+    if (divineSessionId) {
+      const claim = await claimDivineSessionLease(supabase, user.id, divineSessionId)
+      if (!claim.ok) {
+        return NextResponse.json({ error: claim.message }, { status: 403 })
+      }
+    }
     if (!messages.length) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
@@ -1070,6 +1138,7 @@ export async function POST(req: NextRequest) {
 
     const persona = settings.persona || {}
     const rules = settings.automation_rules || {}
+    const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
     const notify = settings.notification_settings || {}
 
     const taskSummary =
@@ -1098,14 +1167,14 @@ You know their tasks, rules, and analytics. Speak as a manager, not as the creat
 Never claim you have already sent messages, changed prices, or executed actions. You may only recommend or suggest actions or rule changes.
 Respect the creator's boundaries, niches, and all platform safety rules.
 Avoid explicit or illegal content entirely. Use clear, practical language.
-You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, run_ai_studio_tool (any AI Studio library tool—valid toolId values are listed in that function’s schema; use when no narrower tool fits, e.g. fantasy-writer, gift-suggester, video-script-ai, competitor-analysis, mass-dm-composer, voice-cloning, divine-forecast, mood-detector, content-ideas, leak-scanner, dmca-automator, circe-protection-shield, ai-chatter, pricing-optimizer), get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, list_recent_comment_analyses (Commenter: public post/story/stream comments + safety), get_comment_reply_suggestions (Commenter drafts by persona), refresh_comment_analysis (re-run Commenter AI), sync_commenter_from_posts (pull comments from OnlyFans API), get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), notifications_panel (open/close bell, tab, scrollToId), creator_task_add, creator_task_set_status, protocol_complete_for_notification (remove CRM notification + complete linked tasks), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan. Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
+You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, run_ai_studio_tool (any AI Studio library tool—valid toolId values are listed in that function’s schema; use when no narrower tool fits, e.g. fantasy-writer, gift-suggester, video-script-ai, competitor-analysis, mass-dm-composer, voice-cloning, divine-forecast, mood-detector, content-ideas, leak-scanner, dmca-automator, circe-protection-shield, ai-chatter, pricing-optimizer), get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, list_recent_comment_analyses (Commenter: public post/story/stream comments + safety), get_comment_reply_suggestions (Commenter drafts by persona), refresh_comment_analysis (re-run Commenter AI), sync_commenter_from_posts (pull comments from OnlyFans API), get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), notifications_panel (open/close bell, tab, scrollToId), creator_task_add (priority_tier 1=notifications 2=DMs 3=protection 4=content; incomplete tasks roll forward as leftovers), creator_task_set_status, protocol_complete_for_notification (remove CRM notification + complete linked tasks), divine_crm_notifications_mark_read (in-app Divine tab: mark read without deleting), divine_crm_notifications_remove (delete Divine-tab CRM rows from bell), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan. Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
 Fans and engagement: list_fans (filter: active, expired, latest, top, expiring_soon + optional expiringWithinDays for CRM) for "who are my fans", "top spenders", "expired subs", "expiring soon"; get_fan_subscription_history for a fan's renewals; list_followings for who they follow; get_top_message for best-performing message and buyers; get_message_engagement (type direct or mass) for "how did my messages perform"; publish_queue_item to publish a saved post or saved mass message. Route: "who spent the most" → list_fans filter=top; "how did my mass message do" → get_message_engagement type=mass; "publish my saved post" → publish_queue_item.
 Commenter (public comments, not DMs): list_recent_comment_analyses for recent fan comments on posts; sync_commenter_from_posts to backfill from OnlyFans when webhooks missed history; get_comment_reply_suggestions for Circe/Venus/Flirt/Professional/Best draft text (review only—creator copies to OnlyFans); refresh_comment_analysis to regenerate. ui_navigate /dashboard/commenter for the full UI. High-risk comments may already have in-app notifications.
-When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. Prefer get_dm_thread_and_suggestions when they need both thread and reply ideas immediately. Use start_thread_scan_async when the scan should run in the background while they do other things (e.g. Analytics or get_stats); use get_task_status to see whether tasks finished. get_fan_thread_insights returns the stored thread snapshot and merged personality profile (updated in the background after messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. draft_fan_reply drafts a message in the creator's voice (Mimic Test); it does not send—creator reviews first. get_dm_thread lets you scan and read the full chat with a specific fan. get_reply_suggestions runs Scan Thread and returns Circe, Venus, and Flirt reply options; the app opens Messages for that fan and shows the same panels as the in-chat buttons—use openPanel (venus|circe|flirt|scan|all) when they only want one panel (e.g. "Venus reply"). send_message can send immediately or use mode draft/prepare (or prepare_dm) to fill the in-app DM composer for review and optional countdown auto-send per creator settings. list_vault_for_dm lists Creatix vault rows; get_content_sales_metadata reads one row's saved sales fields; recommend_dm_bundle suggests DM/PPV bundle price and copy—pass content_ids to automatically include saved sales_notes/teaser_tags in the analysis; upsert_content_sales_notes saves structured sales/teaser metadata after bounded interview questions (respect flirty level and boundaries—no explicit sexual roleplay with the creator). open_dm_overlay and switch_overlay_fan control the multi-tab floating DM hub. If OnlyFans is disconnected, say clearly that DM/fan tools will not work until they reconnect and offer ui_navigate to /dashboard/settings?tab=integrations.
+When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. Prefer get_dm_thread_and_suggestions when they need both thread and reply ideas immediately. Use start_thread_scan_async when the scan should run in the background while they do other things (e.g. Analytics or get_stats); use get_task_status to see whether tasks finished. get_fan_thread_insights returns the stored thread snapshot and merged personality profile (updated in the background after messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. draft_fan_reply drafts a message in the creator's voice (Mimic Test); it does not send—creator reviews first. get_dm_thread lets you scan and read the full chat with a specific fan. get_reply_suggestions runs Scan Thread and returns Circe, Venus, and Flirt reply options; the app opens Messages for that fan and shows the same panels as the in-chat buttons—use openPanel (venus|circe|flirt|scan|all) when they only want one panel (e.g. "Venus reply"). send_message DEFAULT fills the Messages composer with typing animation and optional ~3s countdown auto-send (best for OnlyFans). Use direct_send: true or mode send_now|api only when the creator explicitly wants immediate server send without the composer. prepare_dm is an alias for composer-only. list_vault_for_dm lists Creatix vault rows; get_content_sales_metadata reads one row's saved sales fields; recommend_dm_bundle suggests DM/PPV bundle price and copy—pass content_ids to automatically include saved sales_notes/teaser_tags in the analysis; upsert_content_sales_notes saves structured sales/teaser metadata after bounded interview questions (respect flirty level and boundaries—no explicit sexual roleplay with the creator). open_dm_overlay and switch_overlay_fan control the multi-tab floating DM hub. If OnlyFans is disconnected, say clearly that DM/fan tools will not work until they reconnect and offer ui_navigate to /dashboard/settings?tab=integrations.
 
 DM name lookup rules: Tool output begins with spellback ("I heard …") and ends with [divine_lookup_meta:…]. Follow next_step_hint. If resolved is fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, do not claim the chat is already open; ask the creator to confirm or pick a fanId. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn—if unclear, ask a clarifying question first. If resolved is exact, use that fanId for get_dm_thread / send_message.
 
-Chat behavior (match voice Divine Manager): After any tool runs—including slow or heavy ones (analyze, pricing, publish, fan lists, notifications)—write a clear summary of what came back and what the creator should do next. Do not stop after a bare tool result or a single sentence if the user still needs context. When you have addressed their request, end with a short offer to help further, e.g. "Is there anything else you want me to look at?" Do not imply the conversation is "closed" or that you are hanging up; this is text chat and stays open until they send another message.`
+Chat behavior (match voice Divine Manager): After any tool runs—including slow or heavy ones (analyze, pricing, publish, fan lists, notifications)—write a clear summary of what came back and what the creator should do next. Do not stop after a bare tool result or a single sentence if the user still needs context. When you have addressed their request, end with a short offer to help further, e.g. "Is there anything else you want me to look at?" Do not imply the conversation is "closed" or that you are hanging up; this is text chat and stays open until they send another message.${managerTalkativenessChatSuffix(talkLevel)}`
 
     const focusedFanLine = focusedFan?.id
       ? `\n\nFocused DM fan (from UI): id=${focusedFan.id}, username=${focusedFan.username ?? 'unknown'}, name=${focusedFan.name ?? 'unknown'}.\nIf a focused fan is provided, assume all DM questions refer to this fan unless the creator names someone else. Do not run a broad search first. When using DM tools (get_dm_thread, get_reply_suggestions, send_message), use this fan's id directly unless the creator clearly asks for someone else.`

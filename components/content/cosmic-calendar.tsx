@@ -12,15 +12,10 @@ import { VoiceInputButton } from '@/components/voice-input-button'
 import Link from 'next/link'
 import {
   Moon,
-  Sun,
   Star,
   Sparkles,
   Calendar,
   Heart,
-  Flame,
-  Droplets,
-  Wind,
-  Mountain,
   ChevronLeft,
   ChevronRight,
   MapPin,
@@ -67,6 +62,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { CosmicMoonPhase } from '@/components/content/cosmic-moon-phase'
+import { getChineseZodiacForDate, CHINESE_ZODIAC } from '@/lib/calendar/chinese-zodiac'
+import { cn } from '@/lib/utils'
 
 // Zodiac data with elements and optimal content types
 const zodiacSigns = [
@@ -107,20 +105,6 @@ const locationTypeIcons: Record<string, React.ComponentType<{ className?: string
   studio: Camera,
 }
 
-const elementIcons = {
-  fire: Flame,
-  earth: Mountain,
-  air: Wind,
-  water: Droplets,
-}
-
-const elementColors = {
-  fire: 'text-orange-500',
-  earth: 'text-emerald-500',
-  air: 'text-sky-400',
-  water: 'text-blue-500',
-}
-
 // Calculate current zodiac sign based on date
 function getCurrentZodiac(date: Date) {
   const month = date.getMonth() + 1
@@ -140,15 +124,33 @@ function getCurrentZodiac(date: Date) {
   return zodiacSigns[11]
 }
 
-// Calculate moon phase (simplified)
-function getMoonPhase(date: Date) {
+function getMoonPhaseIndex(date: Date) {
   const knownNewMoon = new Date('2024-01-11')
   const lunarCycle = 29.53
   const daysSinceNew = Math.floor((date.getTime() - knownNewMoon.getTime()) / (1000 * 60 * 60 * 24))
-  const daysIntoPhase = daysSinceNew % lunarCycle
-  const phaseIndex = Math.floor((daysIntoPhase / lunarCycle) * 8) % 8
-  return moonPhases[phaseIndex]
+  const daysIntoPhase = ((daysSinceNew % lunarCycle) + lunarCycle) % lunarCycle
+  return Math.floor((daysIntoPhase / lunarCycle) * 8) % 8
 }
+
+function getMoonPhase(date: Date) {
+  const phaseIndex = getMoonPhaseIndex(date)
+  return { ...moonPhases[phaseIndex], phaseIndex }
+}
+
+const COSMIC_AFFIRMATIONS = [
+  'You are allowed to take up space — your light is not too much.',
+  'Small rituals count: a breath, a stretch, a kind thought toward yourself.',
+  'What you make today can be soft, loud, silly, or sacred — all of it is yours.',
+  'You do not have to earn rest. Stillness is part of the glow-up.',
+  'The right fans will find you; consistency is a love letter to future-you.',
+  'Your body, your pace. Creativity is not a race.',
+  'Let this screen be a door to something that feels good — not a test.',
+  'You are already interesting. The calendar is just icing.',
+  'Joy is a valid business strategy.',
+  'Tonight’s moon remembers everyone who ever looked up and hoped — you’re in good company.',
+  'Dress for the energy you want — even if only the mirror sees it.',
+  'You deserve content that feels like a warm room, not a performance review.',
+]
 
 // Generate calendar days with cosmic data
 function generateCalendarDays(year: number, month: number) {
@@ -168,6 +170,8 @@ function generateCalendarDays(year: number, month: number) {
       date,
       zodiac: getCurrentZodiac(date),
       moonPhase: getMoonPhase(date),
+      moonPhaseIndex: getMoonPhaseIndex(date),
+      chineseZodiac: getChineseZodiacForDate(date),
       holidays,
       isToday: new Date().toDateString() === date.toDateString(),
       cosmicScore: Math.floor(50 + Math.sin(day * 0.5) * 30 + Math.cos(day * 0.3) * 20),
@@ -288,7 +292,12 @@ export function CosmicCalendar() {
   
   const currentZodiac = getCurrentZodiac(new Date())
   const currentMoon = getMoonPhase(new Date())
-  const ElementIcon = elementIcons[currentZodiac.element as keyof typeof elementIcons]
+  const currentChinese = getChineseZodiacForDate(new Date())
+  const today = new Date()
+  const dailyAffirmation =
+    COSMIC_AFFIRMATIONS[
+      (today.getMonth() * 31 + today.getDate() + today.getFullYear()) % COSMIC_AFFIRMATIONS.length
+    ]
   
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                       'July', 'August', 'September', 'October', 'November', 'December']
@@ -409,6 +418,112 @@ export function CosmicCalendar() {
   
   return (
     <div className="space-y-4 sm:space-y-6 min-w-0">
+      {/* Hero: big moon, affirmations, Western + Chinese zodiac */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1a0a2e] via-[#2d1b4e] to-[#0c1222] shadow-[0_24px_64px_-24px_rgba(139,92,246,0.4)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_-30%,rgba(236,72,153,0.22),transparent),radial-gradient(ellipse_50%_45%_at_100%_40%,rgba(147,51,234,0.18),transparent)]" />
+        <div className="pointer-events-none absolute inset-0 cosmic-starfield opacity-75" />
+        <div className="relative px-4 py-8 sm:px-8 sm:py-10 md:py-12">
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-14">
+            <div className="space-y-4 text-center lg:text-left">
+              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-amber-200/80 sm:text-xs">
+                Tonight&apos;s sky · your rhythm
+              </p>
+              <h2 className="font-serif text-3xl font-light leading-[1.15] text-white sm:text-4xl md:text-5xl">
+                Pause here.
+                <span className="mt-1 block bg-gradient-to-r from-pink-200 via-amber-100 to-violet-200 bg-clip-text text-transparent">
+                  You belong in this glow.
+                </span>
+              </h2>
+              <p className="mx-auto max-w-xl text-sm leading-relaxed text-pink-100/90 lg:mx-0 lg:text-base">
+                {dailyAffirmation}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1 lg:justify-start">
+                <Badge className="border-amber-300/35 bg-amber-500/20 text-amber-50">
+                  {currentMoon.icon} {currentMoon.name}
+                </Badge>
+                <Badge className="border-violet-300/35 bg-violet-500/20 text-violet-50">
+                  {currentZodiac.symbol} {currentZodiac.name} season
+                </Badge>
+                <Badge className="border-rose-300/35 bg-rose-500/20 text-rose-50">
+                  {currentChinese.emoji} {currentChinese.han} · Year of the {currentChinese.animal}
+                </Badge>
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center gap-8">
+              <CosmicMoonPhase
+                phaseIndex={currentMoon.phaseIndex}
+                size="xl"
+                label={`${currentMoon.name} · ${currentMoon.energy}`}
+              />
+              <div className="grid w-full max-w-lg grid-cols-2 gap-3 sm:gap-4">
+                <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center backdrop-blur-md sm:px-4">
+                  <span className="text-3xl leading-none sm:text-4xl">{currentZodiac.symbol}</span>
+                  <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/85">
+                    Western
+                  </span>
+                  <span className="mt-1 font-semibold text-white">{currentZodiac.name}</span>
+                  <span className="mt-1 text-[11px] leading-snug text-white/65">{currentZodiac.energy}</span>
+                </div>
+                <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 px-3 py-4 text-center backdrop-blur-md sm:px-4">
+                  <span className="text-3xl leading-none sm:text-4xl">{currentChinese.emoji}</span>
+                  <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/85">
+                    Chinese zodiac
+                  </span>
+                  <span className="mt-1 font-semibold text-white">Year of the {currentChinese.animal}</span>
+                  <span className="mt-1 text-[11px] leading-snug text-white/65">{currentChinese.vibe}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-10 max-w-6xl border-t border-white/10 pt-8">
+            <p className="mb-3 text-center text-[10px] uppercase tracking-[0.22em] text-white/45">Western signs</p>
+            <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20">
+              {zodiacSigns.map((z) => {
+                const isCurrent = z.name === currentZodiac.name
+                return (
+                  <div
+                    key={z.name}
+                    className={cn(
+                      'flex min-w-[4.75rem] flex-col items-center rounded-xl border px-2 py-2.5 text-center transition-all',
+                      isCurrent
+                        ? 'border-amber-300/55 bg-amber-500/25 shadow-[0_0_24px_rgba(251,191,36,0.25)]'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10',
+                    )}
+                  >
+                    <span className="text-xl">{z.symbol}</span>
+                    <span className="mt-1 text-[10px] font-medium text-white/85">{z.name}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="mb-3 mt-8 text-center text-[10px] uppercase tracking-[0.22em] text-white/45">
+              Chinese zodiac (lunar year)
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20">
+              {CHINESE_ZODIAC.map((cz) => {
+                const isCurrent = cz.id === currentChinese.id
+                return (
+                  <div
+                    key={cz.id}
+                    className={cn(
+                      'flex min-w-[4.75rem] flex-col items-center rounded-xl border px-2 py-2.5 text-center transition-all',
+                      isCurrent
+                        ? 'border-rose-300/55 bg-rose-500/25 shadow-[0_0_24px_rgba(244,63,94,0.22)]'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10',
+                    )}
+                  >
+                    <span className="text-xl">{cz.emoji}</span>
+                    <span className="mt-1 text-[10px] font-medium text-white/85">{cz.animal}</span>
+                    <span className="text-[9px] text-white/55">{cz.han}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Activation Status Banner */}
       {!loadingBirthday && (
         <Card className={`relative overflow-hidden transition-all duration-500 ${
@@ -466,16 +581,25 @@ export function CosmicCalendar() {
 
       {/* Tabs for different views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex overflow-x-auto">
-          <TabsTrigger value="calendar" className="gap-1.5 text-xs sm:gap-2 sm:text-sm">
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-500/10 via-background to-amber-500/10 p-1 sm:w-auto sm:inline-flex sm:min-w-0">
+          <TabsTrigger
+            value="calendar"
+            className="gap-1.5 rounded-xl text-xs data-[state=active]:bg-background data-[state=active]:shadow-md sm:gap-2 sm:text-sm"
+          >
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Cosmic</span> Calendar
           </TabsTrigger>
-          <TabsTrigger value="events" className="gap-1.5 text-xs sm:gap-2 sm:text-sm">
+          <TabsTrigger
+            value="events"
+            className="gap-1.5 rounded-xl text-xs data-[state=active]:bg-background data-[state=active]:shadow-md sm:gap-2 sm:text-sm"
+          >
             <PartyPopper className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Holidays &</span> Events
           </TabsTrigger>
-          <TabsTrigger value="locations" className="gap-1.5 text-xs sm:gap-2 sm:text-sm">
+          <TabsTrigger
+            value="locations"
+            className="gap-1.5 rounded-xl text-xs data-[state=active]:bg-background data-[state=active]:shadow-md sm:gap-2 sm:text-sm"
+          >
             <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             Photo Spots
           </TabsTrigger>
@@ -520,66 +644,34 @@ export function CosmicCalendar() {
             </Card>
           )}
 
-          {/* Current Cosmic Energy */}
-          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-            <Card className={`border-venus/30 bg-gradient-to-br from-venus/5 to-transparent ${isActivated ? 'ring-1 ring-venus/20' : ''}`}>
-              <CardHeader className="pb-2 sm:pb-3">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Sun className="h-4 w-4 text-venus sm:h-5 sm:w-5" />
-                  Current Zodiac Season
-                  {isActivated && <Badge variant="outline" className="ml-auto text-xs">Personalized</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-venus/20 text-2xl sm:h-16 sm:w-16 sm:text-3xl ${isActivated ? 'ring-2 ring-venus/50 ring-offset-2 ring-offset-background' : ''}`}>
-                    {currentZodiac.symbol}
+          {/* Month-at-a-glance: lunar phase wheel */}
+          <Card className="overflow-hidden border-violet-500/20 bg-gradient-to-br from-violet-500/5 via-background to-amber-500/5">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
+                <Moon className="h-5 w-5 text-amber-400" />
+                Moon phases this month
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Tap a day on the calendar below — each carries its own moon, season, and a whisper of the lunar year.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-2 sm:px-6">
+              <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-300/30">
+                {moonPhases.map((p, i) => (
+                  <div
+                    key={p.name}
+                    className="flex min-w-[5.5rem] flex-shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border/60 bg-background/80 px-2 py-3 sm:min-w-[6rem]"
+                  >
+                    <CosmicMoonPhase phaseIndex={i} size="md" />
+                    <span className="text-center text-[10px] font-medium leading-tight text-muted-foreground sm:text-xs">
+                      {p.name}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-venus sm:text-xl">{currentZodiac.name}</h3>
-                    <p className="text-xs text-muted-foreground sm:text-sm">{currentZodiac.dates}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <ElementIcon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${elementColors[currentZodiac.element as keyof typeof elementColors]}`} />
-                      <span className="text-xs capitalize sm:text-sm">{currentZodiac.element} sign</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground sm:mt-3 sm:text-sm">
-                  <span className="font-medium text-foreground">Energy:</span> {currentZodiac.energy}
-                </p>
-                {isActivated && (
-                  <p className="mt-2 border-t border-border pt-2 text-xs text-venus">
-                    <Sparkles className="mr-1 inline h-3 w-3" />
-                    Aligned with your birth chart for enhanced insights
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card className="border-circe/30 bg-gradient-to-br from-circe/5 to-transparent">
-              <CardHeader className="pb-2 sm:pb-3">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Moon className="h-4 w-4 text-circe sm:h-5 sm:w-5" />
-                  Moon Phase
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-circe/20 text-2xl sm:h-16 sm:w-16 sm:text-3xl">
-                    {currentMoon.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-circe sm:text-xl">{currentMoon.name}</h3>
-                    <p className="text-xs text-muted-foreground sm:text-sm">{currentMoon.energy}</p>
-                  </div>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground sm:mt-3 sm:text-sm">
-                  <span className="font-medium text-foreground">Content Tip:</span> {currentMoon.contentTip}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Calendar */}
           <Card>
             <CardHeader className="pb-2 sm:pb-4">
@@ -620,7 +712,17 @@ export function CosmicCalendar() {
                         >
                           {day && (
                             <>
-                              <span className={day.isToday ? 'font-bold text-primary' : ''}>{day.day}</span>
+                              <span
+                                className={`text-[10px] sm:text-xs ${day.isToday ? 'font-bold text-primary' : ''}`}
+                              >
+                                {day.day}
+                              </span>
+                              <span
+                                className="mt-0.5 block text-sm leading-none sm:text-base"
+                                title={day.moonPhase.name}
+                              >
+                                {day.moonPhase.icon}
+                              </span>
                               {day.holidays.length > 0 && (
                                 <span className="absolute bottom-0 right-0 text-[8px] sm:text-[10px]">
                                   {day.holidays[0].icon}
@@ -635,7 +737,10 @@ export function CosmicCalendar() {
                           <div className="space-y-1">
                             <p className="font-medium">{monthNames[month]} {day.day}</p>
                             <p className="text-xs">{day.moonPhase.icon} {day.moonPhase.name}</p>
-                            <p className="text-xs">Cosmic Score: {day.cosmicScore}/100</p>
+                            <p className="text-xs">
+                              {day.chineseZodiac.emoji} Lunar year: {day.chineseZodiac.animal} ({day.chineseZodiac.han})
+                            </p>
+                            <p className="text-xs">Glow score: {day.cosmicScore}/100</p>
                             {day.holidays.map((h, i) => (
                               <p key={i} className="text-xs text-venus">{h.icon} {h.name}</p>
                             ))}
@@ -658,17 +763,36 @@ export function CosmicCalendar() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-center">
+                  <CosmicMoonPhase
+                    phaseIndex={selectedDay.moonPhaseIndex}
+                    size="lg"
+                    label={`${selectedDay.moonPhase.name}`}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Zodiac</p>
-                    <p className="text-sm font-semibold sm:text-base">{selectedDay.zodiac.symbol} {selectedDay.zodiac.name}</p>
+                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Western sign</p>
+                    <p className="text-sm font-semibold sm:text-base">
+                      {selectedDay.zodiac.symbol} {selectedDay.zodiac.name}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Moon Phase</p>
-                    <p className="text-sm font-semibold sm:text-base">{selectedDay.moonPhase.icon} {selectedDay.moonPhase.name}</p>
+                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Chinese zodiac year</p>
+                    <p className="text-sm font-semibold sm:text-base">
+                      {selectedDay.chineseZodiac.emoji} {selectedDay.chineseZodiac.animal}{' '}
+                      <span className="text-muted-foreground">({selectedDay.chineseZodiac.han})</span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{selectedDay.chineseZodiac.vibe}</p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Cosmic Score</p>
+                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Moon</p>
+                    <p className="text-sm font-semibold sm:text-base">
+                      {selectedDay.moonPhase.icon} {selectedDay.moonPhase.name}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">Glow score</p>
                     <p className="text-sm font-semibold sm:text-base">{selectedDay.cosmicScore}/100</p>
                   </div>
                 </div>

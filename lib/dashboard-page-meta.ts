@@ -136,7 +136,8 @@ const ENTRIES: Entry[] = [
     meta: {
       eyebrow: 'Insight',
       title: 'Analytics',
-      subtitle: 'Revenue curves, platform pulse, and the story the numbers whisper.',
+      subtitle:
+        'Circe snapshots from your syncs, plus live OnlyFans partner metrics when you are connected — curves, mix, and the story the numbers whisper.',
     },
   },
   {

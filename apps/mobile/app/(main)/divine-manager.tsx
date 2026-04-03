@@ -42,6 +42,12 @@ type ChatResponse = {
 type TodayPlanPayload = {
   inbox: { notifications_unread: number; divine_notifications_unread: number }
   protection: { open_leak_alerts: number }
+  retention?: {
+    churn_background_enabled: boolean
+    last_churn_run_at: string | null
+    high_risk_churn_snapshots: number
+    hub_path: '/dashboard/retention/churn'
+  }
   calendar: {
     scheduled_upcoming: Array<{ id: string; title: string | null; scheduled_at: string | null }>
   }
@@ -288,6 +294,13 @@ export default function DivineManagerScreen() {
                   </Text>
                   <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
                     Protection: {todayPlan.protection.open_leak_alerts} open leak alerts
+                    {todayPlan.retention ? (
+                      <>
+                        {' '}
+                        · Retention: {todayPlan.retention.high_risk_churn_snapshots} high-risk (background{' '}
+                        {todayPlan.retention.churn_background_enabled ? 'on' : 'off'})
+                      </>
+                    ) : null}
                   </Text>
                   <Text style={[styles.line, { fontSize: r.scaleFont(13), marginBottom: r.scaleSpace(6) }]}>
                     Calendar: {todayPlan.calendar.scheduled_upcoming.length} upcoming scheduled

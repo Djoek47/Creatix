@@ -67,7 +67,16 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   { id: 'price-optimizer', name: 'Price Optimizer', description: 'Optimal pricing suggestions', longDescription: 'AI analyzes your engagement data to suggest optimal pricing for subscriptions, PPV, and custom content.', category: 'analytics', credits: 2, hasRunner: true },
   { id: 'dm-bundle-pricing', name: 'DM Bundle Pricing', description: 'PPV / paid DM bundle price and copy', longDescription: 'Used by Divine Manager to suggest bundle pricing and fan-facing teaser copy from your goal, fan context, and vault summary.', category: 'engagement', credits: 1, hasRunner: true },
   { id: 'viral-predictor', name: 'Viral Predictor', description: 'Content success prediction', longDescription: 'Predict which content is most likely to go viral before you post, based on trending patterns and your audience.', category: 'analytics', badge: 'Beta', credits: 2, hasRunner: true },
-  { id: 'churn-predictor', name: 'Churn Predictor', description: 'Retention from CRM + thread context', longDescription: 'Uses spend level, subscription status, optional thread snapshot, and your notes to score churn risk and suggest treats, timing, and win-back copy.', category: 'analytics', credits: 2, hasRunner: true },
+  {
+    id: 'churn-predictor',
+    name: 'Churn Predictor',
+    description: 'Background retention radar + deep dives',
+    longDescription:
+      'Retention hub: scheduled batch digests (expiring + quiet subs) with notifications; manual single-fan runs in AI Studio.',
+    category: 'analytics',
+    credits: 2,
+    hasRunner: true,
+  },
   {
     id: 'leak-scanner',
     name: 'Leak Scanner',

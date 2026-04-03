@@ -121,6 +121,8 @@ export interface DivineManagerAutomationRules {
    * When false (default), crown opens a launcher with Voice as the primary action.
    */
   voice_fab_skip_launcher?: boolean
+  /** Voice + text: brief vs default vs more expressive (default balanced). */
+  manager_talkativeness?: 'low' | 'balanced' | 'high'
   /** Optional onboarding overrides (e.g. user marked "I've set up AI Chatter"). */
   divine_onboarding_checklist?: Record<string, boolean>
   divine_background_ops?: DivineBackgroundOps

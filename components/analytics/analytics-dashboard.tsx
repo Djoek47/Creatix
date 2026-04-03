@@ -10,6 +10,8 @@ import { AnalyticsCharts } from '@/components/analytics/analytics-charts'
 import { PlatformBreakdown } from '@/components/analytics/platform-breakdown'
 import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
+import Link from 'next/link'
+import { Activity, Link2, MessageCircle, Sparkles } from 'lucide-react'
 
 type Connection = {
   platform: string
@@ -46,10 +48,13 @@ export function AnalyticsDashboard({
   analytics,
   connections,
   content,
+  hasOnlyFansConnected,
 }: {
   analytics: AnalyticsSnapshot[]
   connections: Connection[]
   content: Content[]
+  /** True when OnlyFans is connected with a valid session (matches server / API gate). */
+  hasOnlyFansConnected: boolean
 }) {
   const connectedPlatforms = useMemo(
     () => Array.from(new Set((connections || []).map((c) => c.platform))).sort(),
@@ -84,7 +89,6 @@ export function AnalyticsDashboard({
     const churned = filtered.reduce((sum, a) => sum + (a.churned_fans || 0), 0)
     const totalFans = Array.from(latestByPlatform.values()).reduce((sum, a) => sum + (a.total_fans || 0), 0)
 
-    // Average response time: simple mean across latest snapshots that have it
     const responseSamples = Array.from(latestByPlatform.values())
       .map((a) => a.avg_response_time_minutes)
       .filter((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)
@@ -106,9 +110,45 @@ export function AnalyticsDashboard({
   const showNone = () => setSelectedPlatforms([])
 
   return (
-    <div className="space-y-6 min-w-0">
+    <div className="space-y-8 min-w-0">
+      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-circe/[0.03] p-5 sm:p-6">
+        <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-circe/10 blur-2xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2 text-circe">
+              <Activity className="h-5 w-5" />
+              <span className="text-xs font-semibold uppercase tracking-widest">Circe snapshot</span>
+            </div>
+            <h2 className="text-lg font-semibold sm:text-xl">What your synced numbers already tell us</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              These totals come from snapshots we save when you sync and when activity arrives from your connected
+              platforms. They anchor your dashboard charts — even when live numbers are still catching up.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link href="/dashboard/settings?tab=integrations">
+                <Link2 className="h-4 w-4" />
+                Integrations
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-2">
+              <Link href="/dashboard/messages">
+                <MessageCircle className="h-4 w-4" />
+                Messages
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="gap-2 bg-circe text-circe-foreground hover:bg-circe/90">
+              <Link href="/dashboard/retention/churn">
+                <Sparkles className="h-4 w-4" />
+                Churn predictor
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-4">
-        {/* Platform filters */}
         <div className="flex flex-col sm:items-end gap-2 flex-wrap w-full sm:w-auto">
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={showAll} disabled={!hasConnections}>
@@ -120,7 +160,12 @@ export function AnalyticsDashboard({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {connectedPlatforms.map((platform) => {
-              const meta = PLATFORM_META[platform] || { label: platform, logoSrc: '', ring: 'ring-border', bg: 'bg-muted' }
+              const meta = PLATFORM_META[platform] || {
+                label: platform,
+                logoSrc: '',
+                ring: 'ring-border',
+                bg: 'bg-muted',
+              }
               const selected = selectedPlatforms.includes(platform)
               const lastSync = connections.find((c) => c.platform === platform)?.last_sync_at
               return (
@@ -152,66 +197,77 @@ export function AnalyticsDashboard({
         </div>
       </div>
 
-      {/* Overview Stats (filtered) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <Card className="border-border bg-card">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Card className="border-border/80 bg-card/90 lg:col-span-2 xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardDescription>Total Revenue (30d)</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? `$${formatNumber(totals.totalRevenue)}` : '--'}
+            <CardDescription>Total revenue (30d window)</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? `$${formatNumber(totals.totalRevenue)}` : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90">
           <CardHeader className="pb-2">
-            <CardDescription>Total Subscribers</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? formatNumber(totals.totalFans) : '--'}
+            <CardDescription>Subscribers (latest)</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? formatNumber(totals.totalFans) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90">
           <CardHeader className="pb-2">
-            <CardDescription>Messages Received (30d)</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? formatNumber(totals.messagesReceived) : '--'}
+            <CardDescription>Messages in (30d)</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? formatNumber(totals.messagesReceived) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90">
           <CardHeader className="pb-2">
-            <CardDescription>Messages Sent (30d)</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? formatNumber(totals.messagesSent) : '--'}
+            <CardDescription>Messages out (30d)</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? formatNumber(totals.messagesSent) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90">
           <CardHeader className="pb-2">
-            <CardDescription>Net New Fans (30d)</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? formatNumber(totals.newFans - totals.churned) : '--'}
+            <CardDescription>Net new fans (30d)</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? formatNumber(totals.newFans - totals.churned) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90 sm:col-span-2 lg:col-span-2 xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardDescription>Avg Response Time</CardDescription>
-            <CardTitle className="text-3xl">
-              {hasConnections ? `${Math.round(totals.avgResponse)}m` : '--'}
+            <CardDescription>Avg response time</CardDescription>
+            <CardTitle className="text-3xl tabular-nums">
+              {hasConnections ? `${Math.round(totals.avgResponse)}m` : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      {connectedPlatforms.includes('onlyfans') && (
+      {hasOnlyFansConnected ? (
         <OnlyFansApiAnalytics />
+      ) : (
+        <Card className="border-dashed border-border/80 bg-muted/20">
+          <CardHeader className="py-8 sm:py-10">
+            <CardTitle className="text-base font-medium">OnlyFans partner analytics</CardTitle>
+            <CardDescription className="text-sm leading-relaxed max-w-prose">
+              Connect OnlyFans under{' '}
+              <Link href="/dashboard/settings?tab=integrations" className="text-circe underline-offset-4 hover:underline">
+                Settings → Integrations
+              </Link>{' '}
+              to unlock live earnings, forecasts, and transaction intelligence from the partner API. Until then, this
+              section stays hidden so you are not prompted with empty endpoints.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
-      {/* Charts */}
       <AnalyticsCharts analytics={filtered} hasConnections={hasConnections} />
 
-      {/* Bottom Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         <PlatformBreakdown analytics={filtered} />
         <TopContent content={content || []} />
@@ -219,4 +275,3 @@ export function AnalyticsDashboard({
     </div>
   )
 }
-

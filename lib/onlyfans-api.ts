@@ -1350,7 +1350,10 @@ class OnlyFansAPI {
     })
   }
 
-  async analyticsHistoricalPerformance(payload: { time_range?: '3m' | '6m' | '12m' | 'ytd' | 'last-year' }): Promise<unknown> {
+  async analyticsHistoricalPerformance(payload: {
+    account_ids: string[]
+    time_range?: '3m' | '6m' | '12m' | 'ytd' | 'last-year'
+  }): Promise<unknown> {
     return this.requestGlobal('/analytics/summary/historical', {
       method: 'POST',
       body: JSON.stringify(payload ?? {}),

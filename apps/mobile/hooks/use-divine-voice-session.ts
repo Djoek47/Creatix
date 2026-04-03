@@ -455,20 +455,32 @@ export function useDivineVoiceSession(): DivineVoiceSession {
                 status?: string
                 resume_hint?: string
                 action_log?: Array<{ tool: string }>
+                protocol_plan_leftovers?: Array<{ title: string }>
               }
             }
             const m = memJson.memory
             const hasResumeContext =
               m?.resume_hint || (Array.isArray(m?.action_log) && m.action_log.length > 0)
+            const leftovers = m?.protocol_plan_leftovers
+            const hasLeftovers = Array.isArray(leftovers) && leftovers.length > 0
+            const shouldResumeBrief = m?.status === 'in_progress' && hasResumeContext
             if (
-              m?.status === 'in_progress' &&
-              hasResumeContext &&
               !resumeBriefingSentRef.current &&
+              (shouldResumeBrief || hasLeftovers) &&
               oaiDataChannelRef.current
             ) {
               resumeBriefingSentRef.current = true
+              const resumePart = shouldResumeBrief
+                ? `The last voice session ended before everything finished. Resume hint: ${m.resume_hint}. `
+                : ''
+              const leftoverPart = hasLeftovers
+                ? `Open protocol tasks carried from a prior day: ${leftovers!
+                    .map((x) => x.title)
+                    .slice(0, 6)
+                    .join('; ')}. `
+                : ''
               await sendBriefingQuestion(
-                `The last voice session ended before everything finished. Resume hint: ${m.resume_hint}. Ask briefly if they want to continue that or start fresh; if they decline, move on.`,
+                `${resumePart}${leftoverPart}Ask briefly if they want to continue that work or start fresh; if they decline, move on.`,
                 oaiDataChannelRef.current,
               )
             }

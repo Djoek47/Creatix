@@ -11,6 +11,16 @@ export default async function MessagesPage({
 
   if (!user) return null
 
+  const { data: platformRows } = await supabase
+    .from('platform_connections')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_connected', true)
+    .in('platform', ['onlyfans', 'fansly'])
+    .limit(1)
+
+  const hasFanPlatformConnected = (platformRows?.length ?? 0) > 0
+
   const sp = searchParams ? await searchParams : {}
   /** Voice/Divine + notifications use `fanId`; dashboard widgets use `chat` + optional `platform`. */
   const initialFanId = sp.fanId ?? sp.chat
@@ -19,6 +29,7 @@ export default async function MessagesPage({
       userId={user.id}
       initialFanId={initialFanId}
       initialPlatform={sp.platform}
+      hasFanPlatformConnected={hasFanPlatformConnected}
     />
   )
 }

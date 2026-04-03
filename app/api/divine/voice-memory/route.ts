@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import {
   type DivineVoiceMemoryPayload,
+  type ProtocolPlanLeftoverItem,
   VOICE_MEMORY_ACTION_LOG_MAX,
 } from '@/lib/divine/voice-memory-types'
+import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
+import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 
 function mergeMemory(
   prev: DivineVoiceMemoryPayload,
@@ -48,8 +51,42 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    await runProtocolPlanRollover(supabase, user.id)
+    const today = utcPlanDateString()
+
+    const { data: protoRows } = await supabase
+      .from('creator_protocol_tasks')
+      .select('id, title, priority_tier, metadata, status')
+      .eq('user_id', user.id)
+      .eq('plan_date', today)
+      .in('status', ['pending', 'executing'])
+      .limit(30)
+
+    const leftovers: ProtocolPlanLeftoverItem[] = []
+    for (const r of protoRows ?? []) {
+      const meta =
+        r.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata)
+          ? (r.metadata as Record<string, unknown>)
+          : {}
+      if (!isLeftoverTask(meta)) continue
+      leftovers.push({
+        id: r.id as string,
+        title: String(r.title ?? 'Task').slice(0, 300),
+        priority_tier: typeof r.priority_tier === 'number' ? r.priority_tier : 4,
+      })
+    }
+
     const memory = (row?.divine_voice_memory ?? {}) as DivineVoiceMemoryPayload
-    return NextResponse.json({ memory })
+    const memoryWithPlan: DivineVoiceMemoryPayload = {
+      ...memory,
+      ...(leftovers.length
+        ? {
+            protocol_plan_leftovers: leftovers,
+          }
+        : {}),
+    }
+
+    return NextResponse.json({ memory: memoryWithPlan })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to load voice memory'
     return NextResponse.json({ error: msg }, { status: 500 })
@@ -168,7 +205,8 @@ export async function PATCH(req: NextRequest) {
         last_updated_at: new Date().toISOString(),
       }
       if (Object.prototype.hasOwnProperty.call(body, 'resume_hint')) {
-        patch.resume_hint = body.resume_hint === null ? null : body.resume_hint?.slice(0, 800)
+        const rh = body.resume_hint === null ? null : body.resume_hint?.slice(0, 800)
+        ;(patch as { resume_hint?: string | null }).resume_hint = rh
       }
       merged = mergeMemory(prev, patch)
       if (Object.prototype.hasOwnProperty.call(body, 'navigation') && body.navigation === null) {

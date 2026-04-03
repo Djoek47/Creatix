@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { LeakAlert, LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
+import type { LeakAlert, LeakDetectionStatus, LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
+import { LEAK_OUTCOME_OPTIONS } from '@/lib/leaks/leak-detection-status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -136,6 +137,20 @@ function toDatetimeLocalValue(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function detectionOutcomeOptionsFor(alert: LeakAlert) {
+  const cur = alert.status as LeakDetectionStatus
+  const base = LEAK_OUTCOME_OPTIONS
+  if (base.some((o) => o.value === cur)) return base
+  return [
+    {
+      value: cur,
+      label: String(cur).replace(/_/g, ' '),
+      hint: 'Current value',
+    },
+    ...base,
+  ]
 }
 
 function formatNotesLine(notes: string | null): string {
@@ -805,6 +820,26 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   </details>
                 )}
                 <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-end">
+                  <div className="space-y-1 min-w-[220px] max-w-full">
+                    <Label className="text-[10px] text-muted-foreground">Detection outcome</Label>
+                    <Select
+                      value={alert.status}
+                      onValueChange={(v) => {
+                        void patchLeakAlert(alert.id, { status: v as LeakDetectionStatus })
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Set outcome" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[min(320px,70vh)]">
+                        {detectionOutcomeOptionsFor(alert).map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs" title={o.hint}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1 min-w-[160px]">
                     <Label className="text-[10px] text-muted-foreground">Your case status</Label>
                     <Select

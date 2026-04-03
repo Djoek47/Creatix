@@ -32,7 +32,15 @@ export function dispatchNotificationPanelAction(action: NotificationPanelDispatc
 
 export const PROTOCOL_TASKS_REFRESH_EVENT = 'creatix-protocol-tasks-refresh'
 
+export const NOTIFICATIONS_INBOX_REFRESH_EVENT = 'creatix-notifications-inbox-refresh'
+
 export function dispatchProtocolTasksRefresh() {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(PROTOCOL_TASKS_REFRESH_EVENT))
+}
+
+/** Refetch Supabase `notifications` rows in the header bell (after Divine Manager marks read / removes). */
+export function dispatchNotificationsInboxRefresh() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(NOTIFICATIONS_INBOX_REFRESH_EVENT))
 }

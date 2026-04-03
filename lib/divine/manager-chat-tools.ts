@@ -957,7 +957,8 @@ export async function runContextTool(
           ? 'Commenter is not installed yet (run DB migration 047_commenter.sql).'
           : error.message
       }
-      if (!rows?.length) return 'No stored comments yet. Connect OnlyFans webhooks and/or run sync_commenter_from_posts.'
+      if (!rows?.length)
+        return 'No comments yet. Connect OnlyFans in Settings, then open Commenter—comments load automatically when available.'
       const ids = (rows as { id: string }[]).map((r) => r.id)
       const { data: anRows } = await ctx.supabase
         .from('post_comment_analyses')
@@ -1487,6 +1488,30 @@ export async function runToolCall(
     const body = typeof args.body === 'string' ? args.body.trim() : ''
     const linked =
       typeof args.linked_notification_id === 'string' ? args.linked_notification_id.trim() : ''
+    let priorityTier = 4
+    const ptRaw = args.priority_tier
+    if (typeof ptRaw === 'number' && Number.isFinite(ptRaw)) {
+      priorityTier = Math.min(4, Math.max(1, Math.round(ptRaw)))
+    } else if (typeof ptRaw === 'string' && /^\d+$/.test(ptRaw)) {
+      priorityTier = Math.min(4, Math.max(1, parseInt(ptRaw, 10)))
+    }
+    let sortOrder = 0
+    const soRaw = args.sort_order
+    if (typeof soRaw === 'number' && Number.isFinite(soRaw)) {
+      sortOrder = Math.round(soRaw)
+    } else if (typeof soRaw === 'string' && /^-?\d+$/.test(soRaw)) {
+      sortOrder = parseInt(soRaw, 10)
+    }
+    const planDateRaw = typeof args.plan_date === 'string' ? args.plan_date.trim() : ''
+    const planDate =
+      /^\d{4}-\d{2}-\d{2}$/.test(planDateRaw) ? planDateRaw : undefined
+    const suggestedWindow =
+      typeof args.suggested_post_window === 'string' ? args.suggested_post_window.trim().slice(0, 500) : ''
+    const meta: Record<string, unknown> = {}
+    if (suggestedWindow) meta.suggested_post_window = suggestedWindow
+    const mgrId = typeof args.manager_task_id === 'string' ? args.manager_task_id.trim() : ''
+    if (mgrId && CRM_NOTIFICATION_ID_RE.test(mgrId)) meta.manager_task_id = mgrId
+
     const { error } = await supabase.from('creator_protocol_tasks').insert({
       user_id: userId,
       title: title.slice(0, 500),
@@ -1495,7 +1520,10 @@ export async function runToolCall(
       source: 'divine',
       linked_notification_id:
         linked && CRM_NOTIFICATION_ID_RE.test(linked) ? linked : null,
-      metadata: {},
+      metadata: Object.keys(meta).length ? meta : {},
+      priority_tier: priorityTier,
+      sort_order: sortOrder,
+      ...(planDate ? { plan_date: planDate } : {}),
     })
     if (error) {
       return {
@@ -1533,11 +1561,29 @@ export async function runToolCall(
         uiActions,
       }
     }
+    const { data: taskRow } = await supabase
+      .from('creator_protocol_tasks')
+      .select('metadata')
+      .eq('id', taskId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const prevMeta =
+      taskRow?.metadata &&
+      typeof taskRow.metadata === 'object' &&
+      !Array.isArray(taskRow.metadata)
+        ? { ...(taskRow.metadata as Record<string, unknown>) }
+        : {}
+    if (statusRaw === 'done') {
+      delete prevMeta.leftover_from_previous_day
+    }
+
     const { error } = await supabase
       .from('creator_protocol_tasks')
       .update({
         status: statusRaw,
         updated_at: new Date().toISOString(),
+        metadata: prevMeta,
       })
       .eq('id', taskId)
       .eq('user_id', userId)
@@ -1587,10 +1633,148 @@ export async function runToolCall(
       .eq('linked_notification_id', nid)
       .eq('user_id', userId)
     uiActions.push({ type: 'protocol_tasks_refresh' })
+    uiActions.push({ type: 'notifications_inbox_refresh' })
     return {
       tool_call_id: tc.id,
       content:
         'Protocol completed: notification removed from the bell and any linked tasks marked done.',
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
+  if (name === 'divine_crm_notifications_mark_read') {
+    const allUnread = args.all_unread_divine === true
+    const rawIds = Array.isArray(args.notification_ids) ? args.notification_ids : []
+    const ids = rawIds
+      .filter((x): x is string => typeof x === 'string' && CRM_NOTIFICATION_ID_RE.test(x.trim()))
+      .map((s) => s.trim())
+    if (!allUnread && ids.length === 0) {
+      return {
+        tool_call_id: tc.id,
+        content:
+          'Provide notification_ids (CRM UUIDs from the Divine tab) or set all_unread_divine: true to mark every unread Divine notification as read.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    if (allUnread) {
+      const { data: updated, error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', userId)
+        .eq('origin', 'divine_app')
+        .eq('read', false)
+        .select('id')
+      if (error) {
+        return {
+          tool_call_id: tc.id,
+          content: `Could not update notifications: ${error.message}`,
+          pendingConfirmations: emptyPending,
+          uiActions,
+        }
+      }
+      const n = (updated ?? []).length
+      uiActions.push({ type: 'notifications_inbox_refresh' })
+      return {
+        tool_call_id: tc.id,
+        content:
+          n > 0
+            ? `Marked ${n} Divine notification(s) as read.`
+            : 'No unread Divine notifications to mark.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const { data: updated, error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId)
+      .eq('origin', 'divine_app')
+      .in('id', ids)
+      .select('id')
+    if (error) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not update notifications: ${error.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const n = (updated ?? []).length
+    uiActions.push({ type: 'notifications_inbox_refresh' })
+    return {
+      tool_call_id: tc.id,
+      content:
+        n > 0
+          ? `Marked ${n} Divine notification(s) as read.`
+          : 'No matching Divine notifications (check IDs are CRM UUIDs from the Divine tab).',
+      pendingConfirmations: emptyPending,
+      uiActions,
+    }
+  }
+
+  if (name === 'divine_crm_notifications_remove') {
+    const rawIds = Array.isArray(args.notification_ids) ? args.notification_ids : []
+    const ids = rawIds
+      .filter((x): x is string => typeof x === 'string' && CRM_NOTIFICATION_ID_RE.test(x.trim()))
+      .map((s) => s.trim())
+    if (ids.length === 0) {
+      return {
+        tool_call_id: tc.id,
+        content: 'Provide at least one notification_id (CRM UUID from the Divine tab).',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const { data: existing, error: selErr } = await supabase
+      .from('notifications')
+      .select('id')
+      .in('id', ids)
+      .eq('user_id', userId)
+      .eq('origin', 'divine_app')
+    if (selErr) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not look up notifications: ${selErr.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const okIds = (existing ?? []).map((r) => r.id as string).filter(Boolean)
+    if (okIds.length === 0) {
+      return {
+        tool_call_id: tc.id,
+        content:
+          'No matching Divine notifications to remove (IDs must be CRM rows from the Divine tab, origin divine_app).',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    const { error: delErr } = await supabase
+      .from('notifications')
+      .delete()
+      .in('id', okIds)
+      .eq('user_id', userId)
+      .eq('origin', 'divine_app')
+    if (delErr) {
+      return {
+        tool_call_id: tc.id,
+        content: `Could not remove notifications: ${delErr.message}`,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    await supabase
+      .from('creator_protocol_tasks')
+      .update({ status: 'done', updated_at: new Date().toISOString() })
+      .in('linked_notification_id', okIds)
+      .eq('user_id', userId)
+    uiActions.push({ type: 'protocol_tasks_refresh' })
+    uiActions.push({ type: 'notifications_inbox_refresh' })
+    return {
+      tool_call_id: tc.id,
+      content: `Removed ${okIds.length} Divine notification(s) from the bell and marked any linked protocol tasks done.`,
       pendingConfirmations: emptyPending,
       uiActions,
     }
@@ -2013,8 +2197,14 @@ export async function runToolCall(
   }
 
   if (name === 'send_message') {
-    const modeRaw = typeof args.mode === 'string' ? args.mode.toLowerCase() : ''
-    if (modeRaw === 'draft' || modeRaw === 'prepare') {
+    const modeRaw = typeof args.mode === 'string' ? args.mode.toLowerCase().trim() : ''
+    /** Default is composer + typing animation + optional schedule (OnlyFans-friendly). Server API send only when explicit. */
+    const useServerDirect =
+      args.direct_send === true ||
+      modeRaw === 'send_now' ||
+      modeRaw === 'api' ||
+      modeRaw === 'server_direct'
+    if (!useServerDirect) {
       return runPrepareDmUiResult(tc, args, supabase, userId)
     }
     const hasMedia = Array.isArray(args.mediaIds) && args.mediaIds.length > 0

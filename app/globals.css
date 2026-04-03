@@ -365,6 +365,64 @@
   animation: divine-crown-ending-red 0.9s ease-in-out infinite;
 }
 
+/* Notifications bell: Divine realtime briefing — gold ↔ purple rainbow glow */
+@keyframes divine-briefing-gold-purple-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 18px 2px rgba(251, 191, 36, 0.45),
+      0 0 36px 4px rgba(168, 85, 247, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  33% {
+    box-shadow:
+      0 0 22px 4px rgba(192, 132, 252, 0.42),
+      0 0 40px 6px rgba(251, 191, 36, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  66% {
+    box-shadow:
+      0 0 20px 3px rgba(245, 158, 11, 0.48),
+      0 0 34px 5px rgba(147, 51, 234, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+}
+
+@keyframes divine-briefing-gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.divine-notification-briefing-btn {
+  background: linear-gradient(
+    135deg,
+    hsl(43 96% 42%) 0%,
+    hsl(283 70% 44%) 45%,
+    hsl(45 93% 47%) 100%
+  );
+  background-size: 220% 220%;
+  animation:
+    divine-briefing-gold-purple-glow 3.2s ease-in-out infinite,
+    divine-briefing-gradient-shift 5s ease infinite;
+  color: hsl(48 100% 98%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.dark .divine-notification-briefing-btn {
+  background: linear-gradient(
+    135deg,
+    hsl(43 90% 38%) 0%,
+    hsl(283 65% 48%) 45%,
+    hsl(45 88% 52%) 100%
+  );
+  background-size: 220% 220%;
+}
+
 /* Mobile responsive utilities */
 @media (max-width: 768px) {
   .mobile-full {
@@ -472,6 +530,31 @@
   );
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes cosmic-moon-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.cosmic-moon-float {
+  animation: cosmic-moon-float 8s ease-in-out infinite;
+}
+
+.cosmic-starfield {
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 75% 15%, rgba(255, 240, 220, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 45% 80%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 88% 62%, rgba(200, 180, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 30% 55%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 62% 38%, rgba(255, 220, 200, 0.35), transparent);
+  background-size: 100% 100%;
 }
 
 /* Sparkling pen icon animation */

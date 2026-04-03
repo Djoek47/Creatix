@@ -16,6 +16,10 @@ export type UnifiedFanProfilePayload = {
     subscriptionAccountType: string | null
     subscriptionPrice: number | null
     subscriptionStatus: string | null
+    /** ISO first subscription / start when synced. */
+    subscriptionStart: string | null
+    /** Approximate days since subscription start (CRM). */
+    fanTenureDays: number | null
   } | null
   core: {
     username: string | null
@@ -49,6 +53,12 @@ export type UnifiedFanProfilePayload = {
   treatAsFanForAutomation: boolean
   /** Global Divine setting: skip expensive AI for likely creators (default on). */
   skipExpensiveAiForCreatorLikely: boolean
+  /** Latest line from background Churn Predictor (per CRM fan). */
+  churnSnapshot: {
+    riskLevel: string
+    oneLine: string | null
+    updatedAt: string | null
+  } | null
 }
 
 export async function buildUnifiedFanProfile(
@@ -67,7 +77,7 @@ export async function buildUnifiedFanProfile(
       }
     : null
 
-  const [{ data: ins }, { data: sum }, { data: fanCrm }, { data: dmRow }] = await Promise.all([
+  const [{ data: ins }, { data: sum }, { data: fanCrm }, { data: dmRow }, { data: churnSnap }] = await Promise.all([
     supabase
       .from('fan_thread_insights')
       .select(
@@ -88,13 +98,20 @@ export async function buildUnifiedFanProfile(
     supabase
       .from('fans')
       .select(
-        'creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation',
+        'creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at',
       )
       .eq('user_id', userId)
       .eq('platform', platform)
       .eq('platform_fan_id', fanId)
       .maybeSingle(),
     supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', userId).maybeSingle(),
+    supabase
+      .from('fan_churn_snapshots')
+      .select('risk_level, one_line, updated_at')
+      .eq('user_id', userId)
+      .eq('platform', platform)
+      .eq('platform_fan_id', fanId)
+      .maybeSingle(),
   ])
 
   const insRow = ins as {
@@ -187,6 +204,30 @@ export async function buildUnifiedFanProfile(
   const creatorClassification =
     typeof ccRaw === 'string' && ccRaw.trim() ? ccRaw.trim().slice(0, 2000) : null
 
+  const fanRowExt = fanCrm as {
+    first_subscribed_at?: string | null
+    subscription_start?: string | null
+    created_at?: string | null
+  } | null
+
+  const subscriptionStartIso =
+    (typeof fanRowExt?.first_subscribed_at === 'string' && fanRowExt.first_subscribed_at) ||
+    (typeof fanRowExt?.subscription_start === 'string' && fanRowExt.subscription_start) ||
+    null
+
+  let fanTenureDays: number | null = null
+  if (subscriptionStartIso) {
+    const t = new Date(subscriptionStartIso).getTime()
+    if (!Number.isNaN(t)) {
+      fanTenureDays = Math.max(0, Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000)))
+    }
+  } else if (typeof fanRowExt?.created_at === 'string' && fanRowExt.created_at) {
+    const t = new Date(fanRowExt.created_at).getTime()
+    if (!Number.isNaN(t)) {
+      fanTenureDays = Math.max(0, Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000)))
+    }
+  }
+
   const crm =
     fanRow != null
       ? {
@@ -207,6 +248,18 @@ export async function buildUnifiedFanProfile(
             typeof fanRow.subscription_status === 'string' && fanRow.subscription_status.trim()
               ? fanRow.subscription_status.trim()
               : null,
+          subscriptionStart: subscriptionStartIso,
+          fanTenureDays,
+        }
+      : null
+
+  const churnRow = churnSnap as { risk_level?: string; one_line?: string | null; updated_at?: string | null } | null
+  const churnSnapshot =
+    churnRow && typeof churnRow.risk_level === 'string'
+      ? {
+          riskLevel: churnRow.risk_level,
+          oneLine: typeof churnRow.one_line === 'string' ? churnRow.one_line : null,
+          updatedAt: typeof churnRow.updated_at === 'string' ? churnRow.updated_at : null,
         }
       : null
 
@@ -223,5 +276,6 @@ export async function buildUnifiedFanProfile(
     platformAboutFetchedAt,
     treatAsFanForAutomation,
     skipExpensiveAiForCreatorLikely,
+    churnSnapshot,
   }
 }

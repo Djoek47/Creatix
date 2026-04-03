@@ -16,7 +16,12 @@ export default async function FansPage() {
 
   const [{ data: rows }, { data: connections }, { data: analytics }, { data: insightRows }] = await Promise.all([
     supabase.from('fans').select('*').eq('user_id', user.id).order('total_spent', { ascending: false }),
-    supabase.from('platform_connections').select('platform').eq('user_id', user.id).in('platform', ['onlyfans', 'fansly']),
+    supabase
+      .from('platform_connections')
+      .select('platform')
+      .eq('user_id', user.id)
+      .eq('is_connected', true)
+      .in('platform', ['onlyfans', 'fansly']),
     supabase
       .from('analytics_snapshots')
       .select('platform,total_fans,date')

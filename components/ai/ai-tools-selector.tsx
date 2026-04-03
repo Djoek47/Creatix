@@ -60,6 +60,12 @@ import {
 } from '@/components/ai/caption-media-utils'
 import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
+import {
+  fetchCrmFansHybrid,
+  crmFanToChurnRow,
+  crmFanToFantasyRow,
+} from '@/lib/crm/fetch-crm-fans-client'
+import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 
 function formatFantasyCalendarDate(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -472,22 +478,19 @@ export function AIToolsSelector({
   const [fantasyFanId, setFantasyFanId] = useState('')
   const [fantasyHolidayEventId, setFantasyHolidayEventId] = useState('')
   const [fantasyContentId, setFantasyContentId] = useState('')
+  const [crmFansMeta, setCrmFansMeta] = useState<CrmFansResponse['meta'] | null>(null)
 
   useEffect(() => {
     if (selectedTool?.id !== 'churn-predictor') return
-    const sb = createClient()
     void (async () => {
-      const {
-        data: { user },
-      } = await sb.auth.getUser()
-      if (!user) return
-      const { data } = await sb
-        .from('fans')
-        .select('id, username, display_name, total_spent, platform, subscription_expires_at, subscription_status')
-        .eq('user_id', user.id)
-        .order('total_spent', { ascending: false })
-        .limit(150)
-      setChurnFans((data as typeof churnFans) || [])
+      try {
+        const { fans, meta } = await fetchCrmFansHybrid()
+        setCrmFansMeta(meta)
+        setChurnFans(fans.slice(0, 150).map(crmFanToChurnRow))
+      } catch {
+        setCrmFansMeta(null)
+        setChurnFans([])
+      }
     })()
   }, [selectedTool?.id])
 
@@ -522,13 +525,8 @@ export function AIToolsSelector({
         data: { user },
       } = await sb.auth.getUser()
       if (!user) return
-      const [fansRes, contentRes] = await Promise.all([
-        sb
-          .from('fans')
-          .select('id, username, platform_username, display_name, total_spent, platform, notes, tags')
-          .eq('user_id', user.id)
-          .order('total_spent', { ascending: false })
-          .limit(150),
+      const [crm, contentRes] = await Promise.all([
+        fetchCrmFansHybrid().catch(() => null as CrmFansResponse | null),
         sb
           .from('content')
           .select('id, title, description, scheduled_at, status')
@@ -536,7 +534,13 @@ export function AIToolsSelector({
           .order('scheduled_at', { ascending: true, nullsFirst: false })
           .limit(40),
       ])
-      setFantasyFans((fansRes.data as typeof fantasyFans) || [])
+      if (crm) {
+        setCrmFansMeta(crm.meta)
+        setFantasyFans(crm.fans.slice(0, 150).map(crmFanToFantasyRow))
+      } else {
+        setCrmFansMeta(null)
+        setFantasyFans([])
+      }
       setFantasyScheduledContent((contentRes.data as typeof fantasyScheduledContent) || [])
     })()
   }, [selectedTool?.id])
@@ -1115,8 +1119,19 @@ export function AIToolsSelector({
                   })}
                 </SelectContent>
               </Select>
+              {crmFansMeta?.warnings?.length ? (
+                <p className="text-xs text-amber-600 dark:text-amber-500">
+                  {crmFansMeta.warnings.join(' ')}
+                </p>
+              ) : null}
               {fantasyFans.length === 0 && (
-                <p className="text-xs text-muted-foreground">No fans synced yet. Connect a platform in Settings.</p>
+                <p className="text-xs text-muted-foreground">
+                  {crmFansMeta == null
+                    ? 'Could not load fans. Refresh the page or try again.'
+                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
+                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
+                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync subscribers into this list.'}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -1522,6 +1537,20 @@ export function AIToolsSelector({
                   ))}
                 </SelectContent>
               </Select>
+              {crmFansMeta?.warnings?.length ? (
+                <p className="text-xs text-amber-600 dark:text-amber-500">
+                  {crmFansMeta.warnings.join(' ')}
+                </p>
+              ) : null}
+              {!churnExpiringOnly && churnFansFiltered.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {crmFansMeta == null
+                    ? 'Could not load fans. Refresh the page or try again.'
+                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
+                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
+                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync — or pick Manual entry below.'}
+                </p>
+              ) : null}
               {churnExpiringOnly && churnFansFiltered.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   No matches. Sync OnlyFans or Fansly from the Fans page so subscription end dates populate.

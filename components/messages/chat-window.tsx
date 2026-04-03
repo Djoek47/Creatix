@@ -324,6 +324,24 @@ export function ChatWindow({
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
   const [divineMessageIds, setDivineMessageIds] = useState<Set<string>>(() => new Set())
   const [divineTyping, setDivineTyping] = useState(false)
+
+  const divineComposerHighlight = useMemo(() => {
+    if (!conversation) return false
+    const convId = String(conversation.user.id)
+    if (divineTyping) return true
+    const rem = divinePanel?.scheduledDmRemainingMs ?? 0
+    const fid = divinePanel?.scheduledDmFanId
+    if (rem <= 0 || fid == null || String(fid) === '') return false
+    return String(fid) === convId
+  }, [divineTyping, divinePanel?.scheduledDmRemainingMs, divinePanel?.scheduledDmFanId, conversation?.user.id])
+
+  const divineScheduleSeconds = useMemo(() => {
+    if (!conversation || divineTyping || !divinePanel) return null
+    const rem = divinePanel.scheduledDmRemainingMs
+    const fid = divinePanel.scheduledDmFanId
+    if (rem <= 0 || fid == null || String(fid) !== String(conversation.user.id)) return null
+    return Math.max(1, Math.ceil(rem / 1000))
+  }, [conversation, divineTyping, divinePanel?.scheduledDmRemainingMs, divinePanel?.scheduledDmFanId])
   /** Only used when parent does not supply `onOpenFanProfile` (e.g. DM overlay). */
   const [internalProfileOpen, setInternalProfileOpen] = useState(false)
   const handleSendMessageRef = useRef<() => Promise<void>>(async () => {})
@@ -1367,14 +1385,22 @@ export function ChatWindow({
             </div>
 
             <div className="relative min-w-0 max-w-full flex-1">
-              {divineTyping && (
-                <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-primary">
-                  <span className="inline-flex gap-0.5">
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:150ms]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:300ms]" />
-                  </span>
-                  <span className="tracking-tight">Divine is typing…</span>
+              {(divineTyping || divineScheduleSeconds != null) && (
+                <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-amber-200/95 dark:text-amber-300/90">
+                  {divineTyping ? (
+                    <>
+                      <span className="inline-flex gap-0.5">
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:300ms]" />
+                      </span>
+                      <span className="tracking-tight">Divine is typing…</span>
+                    </>
+                  ) : (
+                    <span className="tracking-tight tabular-nums text-violet-200/95 dark:text-violet-300/90">
+                      Sending in {divineScheduleSeconds}s…
+                    </span>
+                  )}
                 </div>
               )}
               <Textarea
@@ -1391,7 +1417,8 @@ export function ChatWindow({
                 rows={1}
                 className={cn(
                   'min-h-[3.25rem] resize-y bg-input pr-11 text-sm leading-relaxed sm:min-h-[3.75rem] sm:pr-12 sm:text-sm',
-                  divineTyping && 'ring-2 ring-primary/45 ring-offset-0',
+                  divineComposerHighlight &&
+                    'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
                 )}
                 disabled={sending || !isOnlyFansConversation}
                 onKeyDown={(e) => {

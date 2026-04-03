@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/select'
 import { MassMessageComposer } from '@/components/messages/mass-message-composer'
 import { createClient } from '@/lib/supabase/client'
+import { fetchCrmFansHybrid } from '@/lib/crm/fetch-crm-fans-client'
+import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
 import { Loader2, Sparkles, ArrowLeft } from 'lucide-react'
 
 type FanRow = {
@@ -70,6 +72,8 @@ export default function MassMessagesPage() {
   const [segments, setSegments] = useState<ApiSegment[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [composerMessage, setComposerMessage] = useState('')
+  const [hasFanPlatformConnected, setHasFanPlatformConnected] = useState(false)
+  const [crmFanWarnings, setCrmFanWarnings] = useState<string[]>([])
 
   useEffect(() => {
     ;(async () => {
@@ -80,12 +84,34 @@ export default function MassMessagesPage() {
         setLoadingFans(false)
         return
       }
-      const { data, error } = await supabase
-        .from('fans')
-        .select('creator_classification, subscription_tier, subscription_status, total_spent, platform')
-        .eq('user_id', user.id)
-        .limit(8000)
-      if (!error && data) setFans((data as FanRow[]) ?? [])
+      const [{ data: conns }, crm] = await Promise.all([
+        supabase
+          .from('platform_connections')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_connected', true)
+          .in('platform', ['onlyfans', 'fansly', 'mym'])
+          .limit(1),
+        fetchCrmFansHybrid().catch(() => null as Awaited<ReturnType<typeof fetchCrmFansHybrid>> | null),
+      ])
+      setHasFanPlatformConnected((conns?.length ?? 0) > 0)
+      if (crm) {
+        setCrmFanWarnings(crm.meta.warnings ?? [])
+        setHasFanPlatformConnected(
+          (conns?.length ?? 0) > 0 || crm.meta.onlyFansConnected || crm.meta.fanslyConnected,
+        )
+        const mapped: FanRow[] = crm.fans.map((f: CrmFanListItem) => ({
+          creator_classification: f.creator_classification ?? null,
+          subscription_tier: f.subscription_tier_raw ?? null,
+          subscription_status: f.subscription_status_raw ?? null,
+          total_spent: f.total_spent,
+          platform: f.platform,
+        }))
+        setFans(mapped)
+      } else {
+        setCrmFanWarnings([])
+        setFans([])
+      }
       setLoadingFans(false)
     })()
   }, [supabase])
@@ -167,7 +193,11 @@ export default function MassMessagesPage() {
           {loadingFans ? (
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           ) : byClassification.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No fans synced for this scope.</p>
+            <p className="text-xs text-muted-foreground">
+              {hasFanPlatformConnected
+                ? 'No fan rows in your CRM for this scope yet. Open Fans and tap Refresh to sync from the platform, or keep messaging — profiles sync in over time.'
+                : 'Connect OnlyFans or Fansly in Settings, then sync fans on the Fans page to use CRM segments here.'}
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {byClassification.map(([label, n]) => (
@@ -178,6 +208,9 @@ export default function MassMessagesPage() {
             </div>
           )}
         </div>
+        {crmFanWarnings.length > 0 ? (
+          <p className="text-xs text-amber-600 dark:text-amber-500">{crmFanWarnings.join(' ')}</p>
+        ) : null}
         <Button type="button" onClick={() => void runSegments()} disabled={loading} className="gap-2">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           Suggest segments (AI)

@@ -35,12 +35,20 @@ export type DivineVoiceNavigation = {
   highlightPanel: 'circe' | 'venus' | 'flirt' | null
 }
 
+export type ProtocolPlanLeftoverItem = {
+  id: string
+  title: string
+  priority_tier: number
+}
+
 export type DivineVoiceMemoryPayload = {
   status?: DivineVoiceMemoryStatus
   disconnect_reason?: DivineVoiceDisconnectReason
   last_updated_at?: string
   action_log?: DivineVoiceMemoryAction[]
   resume_hint?: string
+  /** Ephemeral daily digest: rolled protocol tasks (not persisted in DB merge). */
+  protocol_plan_leftovers?: ProtocolPlanLeftoverItem[]
   pending_confirmations?: Array<{ type: string; intent_id: string; summary?: string }>
   /** Structured multitask state (voice + deferred UI). */
   tasks?: DivineVoiceTask[]

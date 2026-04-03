@@ -26,6 +26,7 @@ import {
   Lightbulb,
   HeartPulse,
   MessagesSquare,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
@@ -46,6 +47,7 @@ interface NavItem {
 // Circe's domain - Retention, Analytics, Protection (Purple)
 const circeNavigation: NavItem[] = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
 ]
 

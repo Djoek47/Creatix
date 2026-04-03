@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   Dialog,
   DialogContent,
@@ -157,6 +158,33 @@ export function FanProfileModal({
                   </Badge>
                 ))}
               </div>
+              {(data?.creatorClassification?.trim() || data?.crm?.fanTenureDays != null) && (
+                <div className="rounded-md border border-violet-500/25 bg-violet-500/5 px-2.5 py-2 text-xs">
+                  {data?.creatorClassification?.trim() ? (
+                    <p className="font-medium text-foreground">
+                      <span className="text-muted-foreground">Your label: </span>
+                      {data.creatorClassification.trim()}
+                    </p>
+                  ) : null}
+                  {data?.crm?.fanTenureDays != null ? (
+                    <p className={cn('text-foreground', data?.creatorClassification?.trim() && 'mt-1')}>
+                      <span className="text-muted-foreground">Fan tenure: </span>
+                      {data.crm.fanTenureDays === 0
+                        ? 'joined today'
+                        : data.crm.fanTenureDays < 14
+                          ? `${data.crm.fanTenureDays} days`
+                          : data.crm.fanTenureDays < 365
+                            ? `${Math.floor(data.crm.fanTenureDays / 7)} weeks`
+                            : `${Math.floor(data.crm.fanTenureDays / 30)} months`}
+                      {data.crm.subscriptionStart ? (
+                        <span className="ml-1.5 text-muted-foreground">
+                          (since {new Date(data.crm.subscriptionStart).toLocaleDateString()})
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
+                </div>
+              )}
               {data?.crm != null && (
                 <p className="text-[11px] text-muted-foreground">
                   Recorded spend: ${Math.round(data.crm.totalSpent)}
@@ -169,6 +197,32 @@ export function FanProfileModal({
                     : ''}
                 </p>
               )}
+              {data?.churnSnapshot ? (
+                <div className="rounded-md border border-amber-500/35 bg-amber-500/5 px-2.5 py-2 text-xs">
+                  <p className="font-medium text-foreground">Churn signal</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    <span className="capitalize text-foreground">{data.churnSnapshot.riskLevel}</span>
+                    {data.churnSnapshot.updatedAt
+                      ? ` · ${new Date(data.churnSnapshot.updatedAt).toLocaleString()}`
+                      : ''}
+                  </p>
+                  {data.churnSnapshot.oneLine ? (
+                    <p className="mt-1 text-[11px] leading-snug text-foreground/90">{data.churnSnapshot.oneLine}</p>
+                  ) : null}
+                  <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[11px]">
+                    <Link href="/dashboard/retention/churn" className="text-violet-600 underline hover:text-violet-500">
+                      Retention hub
+                    </Link>
+                    <span className="text-muted-foreground">·</span>
+                    <Link
+                      href="/dashboard/ai-studio/tools/churn-predictor"
+                      className="text-violet-600 underline hover:text-violet-500"
+                    >
+                      Full churn run (2 credits)
+                    </Link>
+                  </p>
+                </div>
+              ) : null}
             </div>
             <Button
               type="button"

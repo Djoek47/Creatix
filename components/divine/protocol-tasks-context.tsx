@@ -12,6 +12,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
 import { PROTOCOL_TASKS_REFRESH_EVENT } from '@/lib/dashboard/notification-ui-bridge'
+import { utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
+import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
 
 type ProtocolTasksContextValue = {
   tasks: CreatorProtocolTaskRow[]
@@ -39,18 +41,31 @@ export function ProtocolTasksProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true)
     setError(null)
+
+    try {
+      await fetch('/api/divine/protocol-tasks/rollover', {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // rollover is best-effort; still load tasks
+    }
+
+    const today = utcPlanDateString()
     const { data, error: qErr } = await sb
       .from('creator_protocol_tasks')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      .eq('plan_date', today)
+      .in('status', ['pending', 'executing'])
       .limit(80)
 
     if (qErr) {
       setError(qErr.message)
       setTasks([])
     } else {
-      setTasks((data ?? []) as CreatorProtocolTaskRow[])
+      const rows = (data ?? []) as CreatorProtocolTaskRow[]
+      setTasks(sortProtocolTasksForPlan(rows))
     }
     setLoading(false)
   }, [])

@@ -9,6 +9,19 @@ export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 export type ConversationStatus = 'active' | 'pending' | 'archived'
 export type LeakSeverity = 'critical' | 'high' | 'medium' | 'low'
 
+/** Row `leak_alerts.status` — detection / triage (distinct from `user_case_status`). */
+export type LeakDetectionStatus =
+  | 'pending'
+  | 'reviewed'
+  | 'confirmed'
+  | 'ignored'
+  | 'dmca_sent'
+  | 'detected'
+  | 'reviewing'
+  | 'resolved'
+  | 'false_positive'
+  | 'scam'
+
 /** Creator workflow on a leak alert (distinct from detection status) */
 export type LeakUserCaseStatus =
   | 'open'
@@ -149,6 +162,24 @@ export interface Message {
   sent_at: string
 }
 
+export interface DmcaClaim {
+  id: string
+  user_id: string
+  leak_alert_id: string | null
+  infringing_url: string
+  platform: string
+  platform_username: string | null
+  claimant_name: string
+  claimant_email: string
+  status: 'draft' | 'sent' | 'acknowledged' | 'removed' | 'rejected' | 'appealed' | string
+  notice_text: string | null
+  sent_at: string | null
+  response_at: string | null
+  response_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface LeakAlert {
   id: string
   user_id: string
@@ -156,8 +187,8 @@ export interface LeakAlert {
   source_platform: string
   matched_content_id: string | null
   severity: LeakSeverity
-  /** Detection pipeline status (e.g. detected, reviewing, resolved) */
-  status: string
+  /** Detection pipeline status (e.g. detected, reviewing, resolved, scam) */
+  status: LeakDetectionStatus | string
   detected_at: string
   resolved_at: string | null
   notes: string | null

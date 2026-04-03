@@ -100,6 +100,7 @@ export default function DivineManagerPage() {
       thread_auto_update_whale_only: true,
     },
     voice_fab_skip_launcher: false,
+    manager_talkativeness: 'balanced',
     divine_background_ops: {
       enabled: false,
       suggest_tasks: true,
@@ -229,6 +230,10 @@ export default function DivineManagerPage() {
                 ? merged.dm_pricing_style
                 : 'balanced',
             voice_fab_skip_launcher: merged.voice_fab_skip_launcher === true,
+            manager_talkativeness:
+              merged.manager_talkativeness === 'low' || merged.manager_talkativeness === 'high'
+                ? merged.manager_talkativeness
+                : 'balanced',
             divine_background_ops: (() => {
               const b = (merged.divine_background_ops ?? {}) as DivineBackgroundOps
               return {
@@ -480,6 +485,7 @@ export default function DivineManagerPage() {
           thread_auto_update_whale_only: true,
         },
         voice_fab_skip_launcher: false,
+        manager_talkativeness: 'balanced',
         divine_background_ops: {
           enabled: false,
           suggest_tasks: true,
@@ -1126,6 +1132,31 @@ export default function DivineManagerPage() {
                         Strict mode requires Divine to call voice_allow_user_hangup before End unlocks. Use Force end if stuck.
                       </p>
                     </div>
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <Label>How chatty Divine is</Label>
+                      <Select
+                        value={automationRules.manager_talkativeness ?? 'balanced'}
+                        onValueChange={(v) =>
+                          void persistAutomationRules({
+                            ...automationRules,
+                            manager_talkativeness: v as 'low' | 'balanced' | 'high',
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Brief — short answers</SelectItem>
+                          <SelectItem value="balanced">Balanced</SelectItem>
+                          <SelectItem value="high">More expressive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Applies to voice and text. Brief keeps replies tight; More expressive adds warmth and context when
+                        helpful.
+                      </p>
+                    </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
                         <p className="font-medium">Start voice instantly from crown</p>
@@ -1344,7 +1375,7 @@ export default function DivineManagerPage() {
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div>
                 <p className="font-medium">Tasks for large tips</p>
-                <p className="text-xs text-muted-foreground">Create a task when a tip exceeds the minimum (webhook).</p>
+                <p className="text-xs text-muted-foreground">Create a task when a tip exceeds the minimum as it arrives.</p>
               </div>
               <Switch
                 checked={automationRules.alerts?.tasks_for_whale_tips !== false}

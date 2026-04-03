@@ -20,6 +20,8 @@ export default async function AnalyticsPage() {
     .eq('user_id', user.id)
     .eq('is_connected', true)
 
+  const hasOnlyFansConnected = (connections || []).some((c) => c.platform === 'onlyfans')
+
   const { data: analytics } = await supabase
     .from('analytics_snapshots')
     .select('*')
@@ -46,7 +48,7 @@ export default async function AnalyticsPage() {
             variant="outline"
             className="hidden sm:inline-flex border-circe/40 text-circe-light hover:bg-circe/10"
           >
-            <Link href="/dashboard/ai-studio/tools/churn-predictor">
+            <Link href="/dashboard/retention/churn">
               <Moon className="mr-1 h-4 w-4" />
               Churn Predictor
             </Link>
@@ -58,6 +60,7 @@ export default async function AnalyticsPage() {
         analytics={(analytics as any) || []}
         connections={(connections as any) || []}
         content={(content as any) || []}
+        hasOnlyFansConnected={hasOnlyFansConnected}
       />
     </div>
   )

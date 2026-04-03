@@ -108,8 +108,8 @@ export function MimicTestWizard() {
           Mimic Test
         </CardTitle>
         <CardDescription>
-          Voice interview builds your fan-reply style for Divine. Saved only for the{' '}
-          <code className="text-xs">draft_fan_reply</code> tool—default is review before send.
+          Voice interview builds your fan-reply style for Divine. It is only used when Divine drafts a fan-facing line in
+          your voice; by default you review before anything is sent.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -2,13 +2,49 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CalendarDays, CheckCircle2, Circle, Shield, Sparkles, ListTodo, ChevronDown } from 'lucide-react'
+import { Activity, Bell, CalendarDays, CheckCircle2, Circle, Shield, Sparkles, ListTodo, ChevronDown } from 'lucide-react'
 import type { DivineTodayPlanResponse } from '@/lib/divine/today-plan-types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+import { PRIORITY_TIER_LABELS } from '@/lib/creator-protocol-task-types'
+import type { CreatorProtocolPriorityTier } from '@/lib/creator-protocol-task-types'
+
+function TaskPlanRowInner({
+  t,
+  tierLabel,
+}: {
+  t: {
+    title: string
+    body: string | null
+    status: string
+    leftover: boolean
+    metadata: Record<string, unknown>
+  }
+  tierLabel: string
+}) {
+  const sw = t.metadata?.suggested_post_window
+  return (
+    <div className="flex flex-wrap gap-2 items-start">
+      <Badge variant="outline" className="text-[10px] shrink-0">
+        {t.status}
+      </Badge>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+          {tierLabel}
+          {t.leftover ? ' · Leftover' : ''}
+        </p>
+        <p className="font-medium text-foreground">{t.title}</p>
+        {t.body ? <p className="text-muted-foreground mt-0.5 line-clamp-2">{t.body}</p> : null}
+        {typeof sw === 'string' && sw.trim() ? (
+          <p className="text-[10px] text-purple-600/90 mt-1">Visibility: {sw}</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
 
 function StepRow({
   done,
@@ -96,16 +132,16 @@ export function DivineWorkflowTodayPlan({
                   and beta acknowledgement.
                 </li>
                 <li>
-                  <span className="text-foreground font-medium">Morning</span> — scan Today&apos;s Plan: inbox, leaks,
-                  calendar.
+                  <span className="text-foreground font-medium">Morning</span> —                   scan Today&apos;s Plan: inbox, leaks,
+                  retention, calendar.
                 </li>
                 <li>
                   <span className="text-foreground font-medium">Deep work</span> — create content; use the crown for voice
                   or open text chat when you need tools.
                 </li>
                 <li>
-                  <span className="text-foreground font-medium">Afternoon / evening</span> — finish protocol tasks and
-                  manager suggestions; clear Divine notifications if needed.
+                  <span className="text-foreground font-medium">Afternoon / evening</span> — finish Today&apos;s Plan
+                  protocol tasks (tier order); clear Divine notifications if needed.
                 </li>
               </ol>
               <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
@@ -165,7 +201,8 @@ export function DivineWorkflowTodayPlan({
             Today&apos;s Plan
           </CardTitle>
           <CardDescription>
-            One place for inbox, protection, calendar, protocol, and Divine suggestions — then go make content.
+            Inbox, protection, retention, calendar, and one ordered protocol list (notifications → DMs → protection →
+            content). Leftovers from yesterday roll forward until done.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -201,6 +238,22 @@ export function DivineWorkflowTodayPlan({
                     <Link href="/dashboard/protection">Open Protection</Link>
                   </Button>
                 </div>
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-3 space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Activity className="h-4 w-4 text-amber-600" aria-hidden />
+                    Retention
+                  </div>
+                  <p className="text-2xl font-semibold tabular-nums">
+                    {data.retention?.high_risk_churn_snapshots ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    High/critical churn signals in CRM · background{' '}
+                    {data.retention?.churn_background_enabled ? 'on' : 'off'}
+                  </p>
+                  <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                    <Link href={data.retention?.hub_path ?? '/dashboard/retention/churn'}>Retention hub</Link>
+                  </Button>
+                </div>
                 <div className="rounded-lg border border-border p-3 space-y-1 sm:col-span-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <CalendarDays className="h-4 w-4 text-purple-600" aria-hidden />
@@ -225,42 +278,67 @@ export function DivineWorkflowTodayPlan({
                   </Button>
                 </div>
               </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-sm font-medium mb-2">Protocol ({data.protocol.open_count} open)</p>
-                {data.protocol.open_tasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No open protocol tasks. Check the floating rail.</p>
+              <div className="rounded-lg border border-amber-500/15 bg-card/40 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    Today&apos;s Plan — protocol (
+                    {data.plan_tasks.filter((t) => t.status === 'pending' || t.status === 'executing').length} open)
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-[11px] bg-gradient-to-r from-amber-600/85 to-purple-600/85 text-white border-0"
+                    type="button"
+                    onClick={onOpenTextDivine}
+                  >
+                    Run Divine
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Same list as the floating rail. Green when done, gold/purple pulse when executing, amber tint for
+                  leftovers.
+                </p>
+                {data.plan_tasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No tasks for today yet. Ask Divine to build your plan or add items from the rail.
+                  </p>
                 ) : (
-                  <ul className="text-xs space-y-1">
-                    {data.protocol.open_tasks.slice(0, 6).map((t) => (
-                      <li key={t.id} className="flex gap-2">
-                        <Badge variant="outline" className="text-[10px] shrink-0">
-                          {t.status}
-                        </Badge>
-                        <span className="text-muted-foreground">{t.title}</span>
-                      </li>
-                    ))}
+                  <ul className="text-xs space-y-2">
+                    {data.plan_tasks.map((t) => {
+                      const tier = Math.min(4, Math.max(1, t.priority_tier)) as CreatorProtocolPriorityTier
+                      const tierLabel = PRIORITY_TIER_LABELS[tier]
+                      const done = t.status === 'done'
+                      const executing = t.status === 'executing'
+                      const failed = t.status === 'failed'
+                      const leftover = t.leftover && !done && !executing
+                      return (
+                        <li
+                          key={t.id}
+                          className={cn(
+                            'rounded-md border px-2.5 py-2',
+                            done && 'border-emerald-500/50 bg-emerald-500/10',
+                            failed && 'border-red-500/40 bg-red-500/10',
+                            executing &&
+                              'border-transparent bg-gradient-to-r from-violet-500 via-amber-400 to-violet-600 p-px shadow-sm',
+                            leftover && 'border-amber-500/45 bg-amber-500/[0.08]',
+                            !done && !failed && !executing && !leftover && 'border-border bg-card/80',
+                          )}
+                        >
+                          {executing ? (
+                            <div className="rounded-[5px] bg-card/95 px-1.5 py-1.5 -m-px">
+                              <TaskPlanRowInner t={t} tierLabel={tierLabel} />
+                            </div>
+                          ) : (
+                            <TaskPlanRowInner t={t} tierLabel={tierLabel} />
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
-                <Button variant="link" className="h-auto p-0 text-xs mt-2" asChild>
-                  <Link href="/dashboard/divine-manager#divine-section-tasks">Jump to manager tasks</Link>
+                <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                  <Link href="/dashboard/divine-manager#divine-section-today-plan">Divine Manager</Link>
                 </Button>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-sm font-medium mb-2">Divine suggestions</p>
-                {data.suggestions.items.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No suggested or scheduled manager tasks right now.</p>
-                ) : (
-                  <ul className="text-xs space-y-1">
-                    {data.suggestions.items.map((t) => (
-                      <li key={t.id} className="flex flex-wrap gap-2">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {t.status}
-                        </Badge>
-                        <span>{t.summary}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
               <Button variant="outline" size="sm" onClick={() => void load()}>
                 Refresh plan

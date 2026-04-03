@@ -7,10 +7,22 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { ThemedLogo } from '@/components/themed-logo'
 import Link from 'next/link'
-import { 
-  ArrowRight, ArrowLeft, Check, Star, Moon, Sun, 
-  LayoutDashboard, Users, Calendar, MessageSquare, Shield,
-  Sparkles, Link2, Zap, BookOpen
+import {
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Star,
+  Moon,
+  Sun,
+  LayoutDashboard,
+  MessageSquare,
+  Shield,
+  Sparkles,
+  Link2,
+  Zap,
+  BookOpen,
+  Crown,
+  HeartPulse,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -174,6 +186,59 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
       ),
     },
     {
+      id: 'divine-manager',
+      title: 'Divine Manager',
+      description: 'Voice, text, and tasks in one orbit',
+      icon: Crown,
+      iconColor: 'text-amber-500',
+      content: (
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            <strong className="text-foreground">Divine Manager</strong> is your Jarvis-style companion: talk or type,
+            run tools, track protocol tasks above the floating crown, and stay aligned with your bell notifications —
+            without giving up control of what actually sends.
+          </p>
+          <div className="rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-violet-500/5 p-4">
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  <strong className="text-foreground">Voice</strong> — tap the floating crown for live conversation.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  <strong className="text-foreground">Text</strong> — same brain when you prefer typing.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  <strong className="text-foreground">Protocol rail</strong> — follow-ups and briefings, collapsible when
+                  you need space.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  <strong className="text-foreground">Mimic</strong> — teach your fan-facing voice; drafts stay
+                  review-first.
+                </span>
+              </li>
+            </ul>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            Full story:{' '}
+            <Link href="/dashboard/guide#divine-manager" className="text-primary underline hover:no-underline">
+              Guide → Divine Manager
+            </Link>
+            . Open the app from the sidebar crown anytime.
+          </p>
+        </div>
+      ),
+    },
+    {
       id: 'ai-studio',
       title: 'Meet Your AI Guides',
       description: 'Divine intelligence awaits',
@@ -236,13 +301,13 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
       iconColor: 'text-primary',
       content: (
         <div className="space-y-3">
-          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-            <div className="rounded-lg bg-slate-400/10 p-2">
-              <Calendar className="h-5 w-5 text-slate-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+            <div className="rounded-lg bg-amber-500/15 p-2">
+              <Crown className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="font-medium">Content Calendar</p>
-              <p className="text-sm text-muted-foreground">Schedule posts aligned with cosmic energies</p>
+              <p className="font-medium">Divine Manager</p>
+              <p className="text-sm text-muted-foreground">Crown, voice, text, protocols, Mimic</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-border p-3">
@@ -250,17 +315,26 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
               <MessageSquare className="h-5 w-5 text-slate-400" />
             </div>
             <div>
-              <p className="font-medium">AI Chatter</p>
-              <p className="text-sm text-muted-foreground">Automated responses in your voice</p>
+              <p className="font-medium">Messages</p>
+              <p className="text-sm text-muted-foreground">Unified DMs, AI reply lines, fan focus</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-            <div className="rounded-lg bg-slate-400/10 p-2">
-              <Users className="h-5 w-5 text-slate-400" />
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="font-medium">Fan Management</p>
-              <p className="text-sm text-muted-foreground">Track and tier your most valuable fans</p>
+              <p className="font-medium">AI Studio</p>
+              <p className="text-sm text-muted-foreground">Vault, tools, captions, touch-ups</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+            <div className="rounded-lg bg-violet-500/10 p-2">
+              <HeartPulse className="h-5 w-5 text-violet-500" />
+            </div>
+            <div>
+              <p className="font-medium">Well-being</p>
+              <p className="text-sm text-muted-foreground">Load, Mimic snapshot, moon &amp; zodiac calendar</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-border p-3">
@@ -268,8 +342,8 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
               <Shield className="h-5 w-5 text-circe-light" />
             </div>
             <div>
-              <p className="font-medium">Content Protection</p>
-              <p className="text-sm text-muted-foreground">Leak detection and DMCA automation</p>
+              <p className="font-medium">Protection</p>
+              <p className="text-sm text-muted-foreground">Leaks, scans, DMCA support</p>
             </div>
           </div>
         </div>

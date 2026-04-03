@@ -5,6 +5,15 @@ import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
 import { getDivineVoice } from '@/lib/divine-manager'
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { claimDivineSessionLease } from '@/lib/divine/divine-session-lease'
+import {
+  managerTalkativenessRealtimeBlock,
+  normalizeManagerTalkativeness,
+} from '@/lib/divine/manager-talkativeness'
+import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
+import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
+import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
+import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 
 export const maxDuration = 30
 
@@ -44,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     let focusedFan: FocusedFan | undefined
     let sdp: string | undefined
+    let divineSessionId: string | undefined
     let notificationSecretaryMode = false
     let notificationSecretaryLines: string[] = []
     const contentType = req.headers.get('content-type') || ''
@@ -53,9 +63,11 @@ export async function POST(req: NextRequest) {
         focusedFan?: FocusedFan
         mode?: string
         notification_secretary?: { lines?: string[] }
+        divine_session_id?: string
       }
       sdp = body.sdp
       focusedFan = body.focusedFan
+      divineSessionId = typeof body.divine_session_id === 'string' ? body.divine_session_id : undefined
       if (body.mode === 'notification_secretary' && Array.isArray(body.notification_secretary?.lines)) {
         notificationSecretaryMode = true
         notificationSecretaryLines = body.notification_secretary!.lines!
@@ -71,12 +83,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing SDP body' }, { status: 400 })
     }
 
+    const sid = divineSessionId?.trim()
+    if (sid) {
+      const claim = await claimDivineSessionLease(supabase, user.id, sid)
+      if (!claim.ok) {
+        return NextResponse.json({ error: claim.message }, { status: 403 })
+      }
+    }
+
     const { data: settings } = await supabase
       .from('divine_manager_settings')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle()
     const connectionSnapshot = await getPlatformConnectionSnapshot(supabase, user.id)
+
+    await runProtocolPlanRollover(supabase, user.id)
+    const planToday = utcPlanDateString()
+    const { data: protoPlanRows } = await supabase
+      .from('creator_protocol_tasks')
+      .select('title, status, priority_tier, sort_order, metadata, created_at, plan_date')
+      .eq('user_id', user.id)
+      .eq('plan_date', planToday)
+      .limit(40)
+
+    const sortedPlan = sortProtocolTasksForPlan((protoPlanRows ?? []) as CreatorProtocolTaskRow[])
+    const protocolPlanSummary =
+      sortedPlan.length > 0
+        ? sortedPlan
+            .slice(0, 14)
+            .map((t) => {
+              const tier = t.priority_tier ?? 4
+              const lo = isLeftoverTask(t.metadata) ? ' [leftover from prior day]' : ''
+              return `[tier ${tier}] ${t.status}: ${String(t.title).slice(0, 120)}${lo}`
+            })
+            .join('\n')
+        : 'No protocol tasks scheduled for today yet.'
 
     const { data: tasks } = await supabase
       .from('divine_manager_tasks')
@@ -114,6 +156,7 @@ export async function POST(req: NextRequest) {
     const persona = settings?.persona ?? {}
     const goals = settings?.goals ?? {}
     const rules = settings?.automation_rules ?? {}
+    const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
     const notify = settings?.notification_settings ?? {}
     const archetype = settings?.manager_archetype || 'hermes'
     const archetypeFlavor = getArchetypeFlavor(archetype)
@@ -152,10 +195,10 @@ export async function POST(req: NextRequest) {
 
     const secretaryBlock =
       notificationSecretaryMode && notificationSecretaryLines.length > 0
-        ? `\n\nNOTIFICATION SECRETARY MODE: Walk the creator through their unread CRM notifications ONE AT A TIME, in the order listed below. For each item: briefly summarize, give one clear recommended action, offer navigation (ui_navigate) or open a fan thread (ui_focus_fan) when relevant. Only after the creator confirms they handled the current item (or clearly says "next" / "skip"), call secretary_next_notification to advance the in-app card. Do not advance without confirmation. You may use list_notifications or mark_notifications_read when helpful. Queue:\n${notificationSecretaryLines.join('\n')}\n`
+        ? `\n\nNOTIFICATION SECRETARY MODE: Walk the creator through their unread CRM notifications ONE AT A TIME, in the order listed below. For each item: briefly summarize, give one clear recommended action, offer navigation (ui_navigate) or open a fan thread (ui_focus_fan) when relevant. Only after the creator confirms they handled the current item (or clearly says "next" / "skip"), call secretary_next_notification to advance the in-app card. Do not advance without confirmation. To mark in-app Divine tab items as read use divine_crm_notifications_mark_read (notification_ids or all_unread_divine). To remove them from the bell use divine_crm_notifications_remove or protocol_complete_for_notification. list_notifications and mark_notifications_read are OnlyFans platform APIs—not for these CRM rows. Queue:\n${notificationSecretaryLines.join('\n')}\n`
         : ''
 
-    const protocolTasksBlock = `\n\nProtocol rail & bell menu: Use notifications_panel to open or close the notifications popover (open true/false), optional tab live or divine, optional scrollToId with a CRM notification UUID to scroll the list for the creator. Use creator_task_add (title, optional body, optional linked_notification_id) for daily or follow-up items; creator_task_set_status (task_id, status pending|executing|done|failed) updates the floating task list. When a welcome or whale workflow is finished, call protocol_complete_for_notification(notification_id) to remove that CRM notification from the bell and mark linked tasks done.`
+    const protocolTasksBlock = `\n\nToday’s Plan & protocol rail: Same task list as the dashboard. Use notifications_panel to open or close the notifications popover (open true/false), optional tab live or divine, optional scrollToId with a CRM notification UUID. Use creator_task_add with priority_tier: 1=notifications (importance) first, 2=DMs/messaging, 3=protection/reputation, 4=content/posting (optional suggested_post_window for best visibility). Optional plan_date YYYY-MM-DD (UTC). Incomplete tasks from a prior day become leftovers on the next day. creator_task_set_status (task_id, status pending|executing|done|failed) updates the floating list. For in-app Divine-tab CRM notifications: divine_crm_notifications_mark_read marks read (keeps row); divine_crm_notifications_remove or protocol_complete_for_notification removes from the bell and marks linked protocol tasks done.`
 
     const instructions = `You are the Divine Manager, a Jarvis-style voice companion for a creator. You speak in real time over voice. Be a calm, confident manager. Never role-play as the creator; never claim to have already sent messages or changed prices. You only describe what you see and what you recommend. Respect boundaries and platform safety. Avoid explicit or illegal content.
 
@@ -163,10 +206,13 @@ Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flir
 Goals: ${(goals.qualitativeGoals ?? []).join(', ') || 'general growth'}.
 Manager archetype: ${archetype}. ${archetypeFlavor}
 Mode: ${settings?.mode ?? 'suggest_only'}. Notifications: ${notify.level ?? 'daily_digest'}.
-Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.
+Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.${managerTalkativenessRealtimeBlock(talkLevel)}
 
-Recent tasks:
+Manager task queue (legacy suggestions):
 ${taskSummary}
+
+Today’s Plan protocol tasks (tier 1→4 order; leftovers marked):
+${protocolPlanSummary}
 
 Recent analytics (14 days):
 ${analyticsSummary}
@@ -176,7 +222,7 @@ You have access to the creator's analytics: fans, revenue, and platform breakdow
 
     You can see and act on OnlyFans fans, followings, message engagement, and queue: list_fans (filter: active, expired, latest, top, expiring_soon from CRM sync — optional expiringWithinDays 1–90, default 14) for who are my fans, top spenders, expired subs, or subs ending soon; get_fan_subscription_history for a specific fan's renewals; list_followings for who the creator follows; get_top_message for the best-performing message and its buyers; get_message_engagement (type direct or mass) for how DMs or mass messages performed; publish_queue_item to publish a saved post or saved mass message. Prefer the smallest set of API calls that answers the question: e.g. "who spent the most this month" → list_fans with filter=top; "how did yesterday's mass message do" → get_message_engagement with type=mass; "publish my saved post about the new set" → look up queue then publish_queue_item with that queueId.
 
-When OnlyFans is connected, you have full access to DMs and content: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. get_dm_thread lets you scan and read the full chat with a specific fan. If a DM thread is not found (for example, the fan or conversation was deleted), tell the creator that the thread is no longer available and suggest picking another fan instead of treating it as a generic error. get_reply_suggestions and get_dm_thread_and_suggestions run Scan Thread plus Circe/Venus/Flirt reply lines synchronously (blocking until done). For a long scan while the creator does something else (e.g. open Analytics or ask get_stats), use start_thread_scan_async instead: it queues a background scan, may navigate them to Analytics, and registers tasks in voice memory. Use get_task_status to see pending or completed tasks and navigation. When they want both a background scan and stats, call start_thread_scan_async first, then get_stats; the app will return them to Messages with suggestions when every barrier task finishes—do not claim the scan is done until get_task_status shows the scan task done or the creator sees the in-app handoff. send_message sends a direct message to a specific fan. You can read users by name, scan any thread, and send a DM to that user. list_content shows their content calendar and scheduled posts. For vault sales metadata: list_vault_for_dm lists content ids; get_content_sales_metadata reads one item's saved notes and tags; upsert_content_sales_notes saves after a short structured interview—stay professional, respect their stated boundaries, fan-facing sales angles only. recommend_dm_bundle accepts content_ids to pull saved metadata into bundle pricing.${platformConnectionLine}${focusedFanLine}${voiceMemoryLine}
+When OnlyFans is connected, you have full access to DMs and content: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. get_dm_thread lets you scan and read the full chat with a specific fan. If a DM thread is not found (for example, the fan or conversation was deleted), tell the creator that the thread is no longer available and suggest picking another fan instead of treating it as a generic error. get_reply_suggestions and get_dm_thread_and_suggestions run Scan Thread plus Circe/Venus/Flirt reply lines synchronously (blocking until done). For a long scan while the creator does something else (e.g. open Analytics or ask get_stats), use start_thread_scan_async instead: it queues a background scan, may navigate them to Analytics, and registers tasks in voice memory. Use get_task_status to see pending or completed tasks and navigation. When they want both a background scan and stats, call start_thread_scan_async first, then get_stats; the app will return them to Messages with suggestions when every barrier task finishes—do not claim the scan is done until get_task_status shows the scan task done or the creator sees the in-app handoff. send_message defaults to the in-app composer (typing animation + optional countdown)—use for welcomes and normal DMs. Only use direct_send or mode send_now|api for immediate server-side send when the creator asks for that explicitly. list_content shows their content calendar and scheduled posts. For vault sales metadata: list_vault_for_dm lists content ids; get_content_sales_metadata reads one item's saved notes and tags; upsert_content_sales_notes saves after a short structured interview—stay professional, respect their stated boundaries, fan-facing sales angles only. recommend_dm_bundle accepts content_ids to pull saved metadata into bundle pricing.${platformConnectionLine}${focusedFanLine}${voiceMemoryLine}
 
 DM name lookup: Tool output includes spellback ("I heard …") and [divine_lookup_meta:…]. Say the spellback out loud. If the meta says fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, ask the creator to confirm which fan or fanId before continuing—do not insist the chat is already open. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn; ask a clarifying question instead.
 
@@ -401,16 +447,20 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'send_message',
         description:
-          'Send a DM immediately, or draft into the in-app composer (mode draft/prepare) with optional countdown auto-send. Use fanId from get_dm_conversations.',
+          'DEFAULT: composer + typing animation + optional countdown (same as web Messages). Use for welcomes. Server-only send: direct_send true or mode send_now|api|server_direct.',
         parameters: {
           type: 'object',
           properties: {
             fanId: { type: 'string', description: 'Fan id from conversations list' },
             message: { type: 'string', description: 'Message text to send' },
+            direct_send: {
+              type: 'boolean',
+              description: 'True = immediate API send without composer. Omit for normal composer flow.',
+            },
             mode: {
               type: 'string',
-              enum: ['send_now', 'draft', 'prepare'],
-              description: 'draft/prepare = composer + timer; default send_now',
+              enum: ['send_now', 'draft', 'prepare', 'api', 'server_direct'],
+              description: 'send_now|api|server_direct = server send; draft|prepare = composer; omit = composer',
             },
             platform: { type: 'string', enum: ['onlyfans', 'fansly'], description: 'Platform' },
             price: { type: 'number', description: 'Optional PPV price' },
@@ -1043,13 +1093,19 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       {
         type: 'function' as const,
         name: 'creator_task_add',
-        description: 'Add an item to the creator floating protocol / daily task list.',
+        description:
+          'Add to Today’s Plan / floating rail. Tier order: 1 notifications, 2 DMs, 3 protection, 4 content.',
         parameters: {
           type: 'object',
           properties: {
             title: { type: 'string' },
             body: { type: 'string', description: 'Optional detail' },
             linked_notification_id: { type: 'string', description: 'Optional CRM notification UUID to associate' },
+            priority_tier: { type: 'integer', minimum: 1, maximum: 4 },
+            sort_order: { type: 'integer' },
+            plan_date: { type: 'string', description: 'UTC YYYY-MM-DD' },
+            suggested_post_window: { type: 'string', description: 'Tier 4: best time for visibility' },
+            manager_task_id: { type: 'string' },
           },
           required: ['title'],
         },
@@ -1076,6 +1132,43 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
           type: 'object',
           properties: { notification_id: { type: 'string' } },
           required: ['notification_id'],
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'divine_crm_notifications_mark_read',
+        description:
+          'Mark Creatix in-app Divine-tab notifications (Supabase origin divine_app) as read—clears unread styling without deleting. Use notification_ids (CRM UUIDs) or all_unread_divine: true. Not for OnlyFans platform notifications (those use list_notifications / mark_notifications_read).',
+        parameters: {
+          type: 'object',
+          properties: {
+            notification_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'One or more CRM notification UUIDs from the Divine tab',
+            },
+            all_unread_divine: {
+              type: 'boolean',
+              description: 'If true, mark every unread Divine notification as read',
+            },
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        name: 'divine_crm_notifications_remove',
+        description:
+          'Remove Divine-tab CRM notifications from the bell (delete rows). Marks linked protocol tasks done. Prefer divine_crm_notifications_mark_read if they only want to clear unread.',
+        parameters: {
+          type: 'object',
+          properties: {
+            notification_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'CRM notification UUIDs to remove',
+            },
+          },
+          required: ['notification_ids'],
         },
       },
       {

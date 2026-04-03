@@ -7,6 +7,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       | 'posts'
       | 'streams'
 
-    let data: { data?: unknown[] }
+    let data: unknown
     switch (filter) {
       case 'all':
         data = await api.getFansAll({ limit, offset })
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
         data = await api.getFansActive({ limit, offset })
     }
 
-    const raw = (Array.isArray(data?.data) ? data.data : []) as Record<string, unknown>[]
+    const raw = extractOnlyFansFanRows(data) as Record<string, unknown>[]
     const fans = raw.map((row) => {
       const spent = Number(row.totalSpent) || 0
       const subTier = subscriptionTierFromTotalSpent(spent)

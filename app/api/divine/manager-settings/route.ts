@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getSettings } from '@/lib/divine-manager'
+import { normalizeManagerTalkativeness } from '@/lib/divine/manager-talkativeness'
 
 /**
  * GET — subset of Divine Manager settings for voice UI + client overlays (auth cookie).
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       divine_send_delay_ms,
       dm_pricing_style,
       voice_fab_skip_launcher: ar.voice_fab_skip_launcher === true,
+      manager_talkativeness: normalizeManagerTalkativeness(ar.manager_talkativeness),
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to load settings'

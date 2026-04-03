@@ -188,7 +188,9 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                   ? '/dashboard/settings?tab=billing#pricing-plans'
                   : tool.id === 'commenter'
                     ? '/dashboard/commenter'
-                    : `/dashboard/ai-studio/tools/${tool.id}`
+                    : tool.id === 'churn-predictor'
+                      ? '/dashboard/retention/churn'
+                      : `/dashboard/ai-studio/tools/${tool.id}`
               return (
                 <Link key={tool.id} href={href} className="group block">
                   <Card

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles, Wand2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -59,8 +59,8 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
     .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 sm:h-16 sm:px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 items-center gap-2 border-b border-border bg-card px-4 sm:h-16 sm:gap-3 sm:px-6">
+      <div className="flex min-w-0 shrink-0 items-center gap-3">
         {/* Mobile menu button */}
         {mounted ? (
           <Sheet>
@@ -82,15 +82,28 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         )}
         
         <span className="sr-only">{getDashboardPageAriaLabel(pathname)}</span>
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-gradient-to-br from-primary/15 to-amber-500/10"
-          aria-hidden
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 shrink-0 gap-2 rounded-full border-2 border-primary/40 bg-gradient-to-br from-primary/18 via-amber-500/12 to-primary/8 p-0 text-xs font-semibold shadow-sm transition hover:border-primary/55 hover:from-primary/24 hover:via-amber-500/18 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/45 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
+          asChild
+          title="AI Studio — tools library"
         >
-          <Sparkles className="h-4 w-4 text-primary" />
-        </div>
+          <Link
+            href="/dashboard/ai-studio/tools"
+            className="flex items-center justify-center gap-2"
+            aria-label="Open AI Studio tools"
+          >
+            <Wand2 className="h-4 w-4 shrink-0 text-primary sm:hidden" aria-hidden />
+            <Sparkles className="hidden h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 sm:block" aria-hidden />
+            <span className="hidden sm:inline">Tools</span>
+          </Link>
+        </Button>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="min-w-0 flex-1" aria-hidden />
+
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-4">
         {/* Search - hidden on mobile */}
         <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

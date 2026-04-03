@@ -57,8 +57,89 @@ const TOURS: Record<string, TourConfig> = {
   '/dashboard/well-being': {
     tourId: 'well-being',
     steps: [
-      { id: 'overview', title: 'Well-being', description: 'A single view of conversational load from your platforms, your Mimic profile snapshot, and cosmic timing from the calendar.' },
-      { id: 'rhythm', title: 'Cosmic rhythm', description: 'Use the embedded calendar to align posting and rest with lunar phases and daily Circe tips.' },
+      {
+        id: 'overview',
+        title: 'Well-being hub',
+        description:
+          'One screen for how heavy your inboxes feel, how your Mimic interview is shaping up, and a cosmic calendar so you can breathe and plan without juggling five tabs.',
+      },
+      {
+        id: 'mimic-snapshot',
+        title: 'Mimic snapshot',
+        description:
+          'Glance at warmth, humor, and flirt sliders from your Mimic profile. Finish the voice interview in Divine Manager when you want fan-facing drafts to sound unmistakably you.',
+      },
+      {
+        id: 'cosmic-hero',
+        title: 'Cosmic calendar',
+        description:
+          'The calendar opens with affirmations, a large moon phase, Western zodiac season, and the Chinese zodiac year. Scroll the strips of all twelve signs, then open the month grid for day-by-day glow.',
+      },
+      {
+        id: 'rhythm',
+        title: 'Rhythm, not rigor',
+        description:
+          'Use this page as a gentle check-in — not a scorecard. Pair it with Daily tips from Circe in Community when you want habit ideas.',
+      },
+    ],
+  },
+  '/dashboard/divine-manager': {
+    tourId: 'divine-manager',
+    steps: [
+      {
+        id: 'welcome',
+        title: 'Welcome to Divine Manager',
+        description:
+          'This is your operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. If you landed on a deep link, the tour still works — scroll the page as we go.',
+      },
+      {
+        id: 'voice',
+        title: 'Voice with the crown',
+        description:
+          'Tap the floating crown to talk. You can open the launcher first (Text Divine, shortcuts) or skip straight into a call from Divine Manager settings. Divine hears you in real time and can open tools, stats, and fans.',
+      },
+      {
+        id: 'text',
+        title: 'Text when you prefer typing',
+        description:
+          'Open the text sheet for the same manager brain. Great for long prompts, links, or when you cannot speak out loud.',
+      },
+      {
+        id: 'protocol-rail',
+        title: 'Protocol tasks above the crown',
+        description:
+          'The collapsible rail lists open follow-ups and workflows. Collapse it anytime you want a clean screen. Briefings work best when tasks link to items in your saved inbox.',
+      },
+      {
+        id: 'bell',
+        title: 'Bell and Live vs Divine',
+        description:
+          'Notifications split platform activity (Live) from leaks, reputation, billing, and Divine actions (Divine). Run a briefing from the bell to queue saved rows for a walkthrough with Divine.',
+      },
+      {
+        id: 'mimic',
+        title: 'Mimic Test',
+        description:
+          'Complete the voice interview so Divine can draft fan-facing lines in your style. Drafts stay review-first — nothing sends until you say so.',
+      },
+      {
+        id: 'today-plan',
+        title: 'Today plan and tasks',
+        description:
+          'See suggested moves for the day, jump to automation and alerts, and wire large-tip tasks if you use those rules. Anchor links on the page jump straight to Today plan or tasks.',
+      },
+      {
+        id: 'voice-settings',
+        title: 'How Divine sounds',
+        description:
+          'In Voice settings: choose brief, balanced, or more expressive replies; decide when the End call button unlocks; set DM focus and composer timing; optional instant crown start.',
+      },
+      {
+        id: 'guide-link',
+        title: 'Go deeper in the Guide',
+        description:
+          'Help and Guide has a full Divine Manager chapter with deep links and plain-language detail. Revisit anytime from the sidebar.',
+      },
     ],
   },
   '/dashboard/ai-studio': {
@@ -85,7 +166,18 @@ const TOURS: Record<string, TourConfig> = {
   '/dashboard/guide': {
     tourId: 'guide',
     steps: [
-      { id: 'welcome', title: 'Guide', description: 'This page summarizes how Circe et Venus works. Revisit it anytime. Use "Start Tour" on any page for a short walkthrough.' },
+      {
+        id: 'welcome',
+        title: 'Guide',
+        description:
+          'This page summarizes how Circe et Venus works. Revisit it anytime. Use Start Tour in the header on any dashboard page for a short dialog walkthrough.',
+      },
+      {
+        id: 'divine-chapter',
+        title: 'Divine Manager chapter',
+        description:
+          'Jump to the Divine Manager section in the table of contents for voice, text, protocol tasks, Mimic, notifications, and deep links into the app.',
+      },
     ],
   },
   '/dashboard/protection': {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, Copy, Loader2, RefreshCw, Sparkles } from 'lucide-react'
@@ -18,6 +18,12 @@ type AnalysisJson = {
   connotation_tags?: string[]
   engagement_angle?: string
   replies?: { best_rationale?: string }
+}
+
+type CommenterListMeta = {
+  onlyfans_connected: boolean
+  feed_post_count: number | null
+  posts_with_comments: number | null
 }
 
 type ListComment = {
@@ -45,11 +51,60 @@ const VOICE_RING: Record<string, string> = {
 }
 
 const VOICE_LABEL: Record<string, string> = {
-  circe: 'Circe (retention)',
-  venus: 'Venus (growth)',
+  circe: 'Circe',
+  venus: 'Venus',
   flirt: 'Flirt',
   professional: 'Professional',
-  best: 'Best pick',
+  best: 'Best',
+}
+
+function EmptyCommenterMessage({
+  meta,
+  syncing,
+}: {
+  meta: CommenterListMeta | null
+  syncing: boolean
+}) {
+  if (syncing) {
+    return (
+      <p className="flex items-center justify-center gap-2 text-foreground">
+        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+        Fetching comments…
+      </p>
+    )
+  }
+  if (!meta) {
+    return <p>No comments yet.</p>
+  }
+  if (!meta.onlyfans_connected) {
+    return (
+      <div className="space-y-3">
+        <p>Connect OnlyFans to load comments.</p>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/settings">Settings</Link>
+        </Button>
+      </div>
+    )
+  }
+  if (meta.feed_post_count === null && meta.posts_with_comments === null) {
+    return (
+      <p>
+        Couldn&apos;t load your OnlyFans feed. Tap <strong>Sync</strong> to try again.
+      </p>
+    )
+  }
+  if (meta.feed_post_count === 0) {
+    return (
+      <p>
+        You don&apos;t have any posts on OnlyFans yet. Publish a post first—comments will show up here when fans
+        engage.
+      </p>
+    )
+  }
+  if ((meta.posts_with_comments ?? 0) === 0) {
+    return <p>No comments on your posts yet.</p>
+  }
+  return <p>No comments to show yet.</p>
 }
 
 export default function CommenterPage() {
@@ -65,6 +120,8 @@ export default function CommenterPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [meta, setMeta] = useState<CommenterListMeta | null>(null)
+  const autoSyncAttempted = useRef(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,10 +130,53 @@ export default function CommenterPage() {
       const res = await fetch('/api/commenter/list?limit=50')
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Failed to load')
-      setComments(Array.isArray(data.comments) ? data.comments : [])
+      let list = Array.isArray(data.comments) ? data.comments : []
+      let m: CommenterListMeta =
+        (data.meta as CommenterListMeta | undefined) ?? {
+          onlyfans_connected: false,
+          feed_post_count: null,
+          posts_with_comments: null,
+        }
+
+      if (
+        list.length === 0 &&
+        m.onlyfans_connected &&
+        (m.posts_with_comments ?? 0) > 0 &&
+        !autoSyncAttempted.current
+      ) {
+        autoSyncAttempted.current = true
+        setSyncing(true)
+        try {
+          const syncRes = await fetch('/api/commenter/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ maxPosts: 8, runAnalysis: true }),
+          })
+          const syncData = await syncRes.json().catch(() => ({}))
+          if (syncRes.ok) {
+            const ins = Number(syncData.commentsInserted ?? 0)
+            setSyncResult(ins > 0 ? `Added ${ins} comment${ins === 1 ? '' : 's'}.` : 'Up to date.')
+            const res2 = await fetch('/api/commenter/list?limit=50')
+            const data2 = await res2.json().catch(() => ({}))
+            if (res2.ok) {
+              list = Array.isArray(data2.comments) ? data2.comments : []
+              m =
+                (data2.meta as CommenterListMeta | undefined) ?? m
+            }
+          } else {
+            setSyncResult(typeof syncData.error === 'string' ? syncData.error : 'Could not load comments')
+          }
+        } finally {
+          setSyncing(false)
+        }
+      }
+
+      setComments(list)
+      setMeta(m)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Load failed')
       setComments([])
+      setMeta(null)
     } finally {
       setLoading(false)
     }
@@ -106,12 +206,8 @@ export default function CommenterPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Sync failed')
-      setSyncResult(
-        `Inserted ${data.commentsInserted ?? 0}, skipped dupes ${data.commentsSkippedDuplicate ?? 0}, analyses ${data.analyzeTriggered ?? 0}. Posts scanned: ${data.postsScanned ?? 0}.`,
-      )
-      if (data.errors?.length) {
-        setSyncResult((prev) => `${prev} Notes: ${data.errors.slice(0, 2).join('; ')}`)
-      }
+      const ins = Number(data.commentsInserted ?? 0)
+      setSyncResult(ins > 0 ? `Added ${ins} comment${ins === 1 ? '' : 's'}.` : 'Up to date.')
       await load()
     } catch (e) {
       setSyncResult(e instanceof Error ? e.message : 'Sync failed')
@@ -190,15 +286,12 @@ export default function CommenterPage() {
             Commenter
           </h1>
           <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-            Public comments from OnlyFans (webhooks + sync). AI labels tone and risk, enriches fan profiles, and drafts
-            replies—<span className="font-medium text-foreground">you always review and paste on OnlyFans</span>. Colors:
-            purple Circe, gold Venus, pink Flirt, dark neutral Professional, emerald Best. Your own reply is separate
-            below the AI blocks.
+            Fan comments on your posts—draft replies here, then paste on OnlyFans.
           </p>
         </div>
-        <Button className="gap-2 shrink-0" onClick={onSync} disabled={syncing}>
+        <Button className="gap-2 shrink-0" onClick={onSync} disabled={syncing || loading}>
           {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sync from posts
+          Sync
         </Button>
       </div>
 
@@ -211,34 +304,15 @@ export default function CommenterPage() {
         </p>
       )}
 
-      <Card className="border-dashed">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Legend</CardTitle>
-          <CardDescription>
-            AI-generated drafts are grouped by voice. Log what you actually posted in “Your reply” so you can tell your
-            text from AI suggestions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2 text-xs">
-          <Badge className="bg-purple-500/20 text-purple-200 border-purple-500/40">Circe</Badge>
-          <Badge className="bg-amber-500/15 text-amber-100 border-amber-500/40">Venus</Badge>
-          <Badge className="bg-pink-500/20 text-pink-100 border-pink-500/40">Flirt</Badge>
-          <Badge className="bg-zinc-800 text-zinc-100 border-zinc-600">Professional</Badge>
-          <Badge className="bg-emerald-500/15 text-emerald-100 border-emerald-500/40">Best</Badge>
-          <Badge variant="outline">Your reply = non-AI (manual)</Badge>
-        </CardContent>
-      </Card>
-
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
-          Loading comments…
+          Loading…
         </div>
       ) : comments.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground text-sm">
-            No comments stored yet. Ensure OnlyFans webhooks are configured, then use <strong>Sync from posts</strong>{' '}
-            to pull existing comments from the API.
+          <CardContent className="py-12 text-center text-muted-foreground text-sm space-y-3">
+            <EmptyCommenterMessage meta={meta} syncing={syncing} />
           </CardContent>
         </Card>
       ) : (
@@ -312,7 +386,7 @@ export default function CommenterPage() {
                     {sug.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          AI reply drafts
+                          Suggested replies
                         </p>
                         <div className="grid gap-2 sm:grid-cols-1">
                           {sug.map((s) => (
@@ -349,11 +423,11 @@ export default function CommenterPage() {
                     )}
 
                     <div className="space-y-2 border-t border-border pt-3">
-                      <p className="text-xs font-medium text-muted-foreground">Your reply (non-AI, optional)</p>
+                      <p className="text-xs font-medium text-muted-foreground">Your reply</p>
                       <Textarea
                         value={draftVal}
                         onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                        placeholder="Paste or type what you actually posted on OnlyFans…"
+                        placeholder="What you posted on OnlyFans (optional note)"
                         className="min-h-[72px] text-sm"
                       />
                       <div className="flex flex-wrap gap-2">
@@ -375,7 +449,7 @@ export default function CommenterPage() {
                           onClick={() => onReanalyze(c.id)}
                         >
                           {reanalyzeId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Re-run AI
+                          Refresh
                         </Button>
                         <Button type="button" size="sm" variant="ghost" asChild>
                           <Link href={`/dashboard/messages?fanId=${encodeURIComponent(c.platform_fan_id)}`}>

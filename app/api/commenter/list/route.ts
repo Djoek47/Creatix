@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 
 export const maxDuration = 60
+
+export type CommenterListMeta = {
+  onlyfans_connected: boolean
+  /** Only set when the comment list is empty and OnlyFans is connected (from API). */
+  feed_post_count: number | null
+  /** Posts that report at least one comment (OnlyFans API). */
+  posts_with_comments: number | null
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -80,7 +89,37 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ comments })
+    const meta: CommenterListMeta = {
+      onlyfans_connected: false,
+      feed_post_count: null,
+      posts_with_comments: null,
+    }
+
+    if (list.length === 0) {
+      const { data: conn } = await supabase
+        .from('platform_connections')
+        .select('access_token')
+        .eq('user_id', user.id)
+        .eq('platform', 'onlyfans')
+        .eq('is_connected', true)
+        .maybeSingle()
+
+      meta.onlyfans_connected = Boolean(conn?.access_token)
+      if (conn?.access_token) {
+        try {
+          const api = createOnlyFansAPI(conn.access_token)
+          const feed = await api.getPosts({ limit: 25, offset: 0 })
+          const posts = feed.posts ?? []
+          meta.feed_post_count = posts.length
+          meta.posts_with_comments = posts.filter((p: { comments?: number }) => (p.comments ?? 0) > 0).length
+        } catch {
+          meta.feed_post_count = null
+          meta.posts_with_comments = null
+        }
+      }
+    }
+
+    return NextResponse.json({ comments, meta })
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Failed to list comments' },

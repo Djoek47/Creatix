@@ -12,6 +12,7 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
+import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
 import {
   applyDivineUiActions as applyDivineUiActionsBase,
   DIVINE_COMPOSER_MEDIA_MAX,
@@ -114,6 +115,8 @@ type DivinePanelContextValue = {
   dismissDivineTranscript: () => void
   /** ms remaining for scheduled auto-send (0 if none). */
   scheduledDmRemainingMs: number
+  /** Which fanId the countdown applies to (null if none). */
+  scheduledDmFanId: string | null
   cancelScheduledDm: () => void
   /** Default from settings; tools may override per call. */
   divineSendDelayMs: number
@@ -322,8 +325,14 @@ export function DivinePanelProvider({
     const id = secretarySession.items[secretarySession.index]?.notification_id?.trim()
     if (!id || !CRM_NOTIFICATION_ID_RE.test(id)) return
     const sb = createClient()
-    const { error } = await sb.from('notifications').delete().eq('id', id).eq('user_id', user.id)
+    const { data, error } = await sb
+      .from('notifications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('id')
     if (error) console.error('[secretary] delete', error)
+    else if (!data?.length) console.warn('[secretary] delete: no row removed (check id / RLS)')
     secretaryAdvance()
   }, [secretarySession, secretaryAdvance])
 
@@ -582,6 +591,7 @@ export function DivinePanelProvider({
           messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
           focusedFan,
           stream: true,
+          divine_session_id: getOrCreateDivineSessionId(),
         }),
       })
       if (!res.ok) throw new Error('Chat request failed')
@@ -698,6 +708,7 @@ export function DivinePanelProvider({
               content: `Generate a short message I can copy and send. Reply with only the message text, no extra commentary. My request: ${prompt}`,
             },
           ],
+          divine_session_id: getOrCreateDivineSessionId(),
         }),
       })
       if (!res.ok) throw new Error('Generate failed')
@@ -755,6 +766,7 @@ export function DivinePanelProvider({
     divineTranscript,
     dismissDivineTranscript,
     scheduledDmRemainingMs,
+    scheduledDmFanId: scheduledDm?.fanId ?? null,
     cancelScheduledDm,
     divineSendDelayMs,
     registerComposerBridge,

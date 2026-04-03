@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import type { LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
+import { LEAK_ACTIVE_STATUS_SET, LEAK_DETECTION_STATUSES } from '@/lib/leaks/leak-detection-status'
+import type { LeakDetectionStatus, LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
 
 const USER_CASE_STATUSES: LeakUserCaseStatus[] = [
   'open',
@@ -23,6 +24,8 @@ type PatchBody = {
   user_case_status?: LeakUserCaseStatus
   snooze_until?: string | null
   creator_distribution_intent?: LeakDistributionIntent | null
+  /** Row detection status (`leak_alerts.status`). */
+  status?: LeakDetectionStatus
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -77,6 +80,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Invalid creator_distribution_intent' }, { status: 400 })
     } else {
       updates.creator_distribution_intent = body.creator_distribution_intent
+    }
+  }
+
+  if (body.status !== undefined) {
+    if (!LEAK_DETECTION_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: 'Invalid leak detection status' }, { status: 400 })
+    }
+    updates.status = body.status
+    if (!LEAK_ACTIVE_STATUS_SET.has(body.status)) {
+      updates.resolved_at = new Date().toISOString()
+    } else {
+      updates.resolved_at = null
     }
   }
 

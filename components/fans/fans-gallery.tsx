@@ -192,10 +192,12 @@ export function FansGallery({
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium">No Fans Yet</h3>
+          <h3 className="text-lg font-medium">{liveFilter ? 'No fans in this live view' : 'No Fans Yet'}</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             {hasFanPlatformsConnected
-              ? 'OnlyFans or Fansly is connected. Use Refresh to sync your fans, or they’ll appear as subscribers and tips come in.'
+              ? liveFilter
+                ? 'The live OnlyFans list can be empty if the partner returns no rows for this filter, or your session needs a refresh. Open the filter menu and choose “From database” to see fans already synced to Circe, or use Refresh to pull from the platform again.'
+                : 'OnlyFans or Fansly is connected. Use Refresh to sync your fans, or they’ll appear as subscribers and tips come in.'
               : 'Connect OnlyFans or Fansly in Settings to import your fans and start managing your community.'}
           </p>
           {!hasFanPlatformsConnected && (
@@ -383,7 +385,8 @@ export function FansGallery({
                     </div>
                   ) : (
                     <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                      Category breakdown appears as new tips, renewals, and purchases are recorded via webhooks.
+                      Category breakdown appears as new tips, renewals, and purchases show up from your connected
+                      platforms.
                     </p>
                   )}
                 </div>

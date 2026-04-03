@@ -43,9 +43,13 @@ export function FansPageClient({
   analyticsTotalFans = 0,
 }: FansPageClientProps) {
   const router = useRouter()
-  const [filter, setFilter] = useState<FansFilter>(() =>
-    hasOnlyFansConnected ? 'active' : 'database',
-  )
+  // Prefer synced CRM rows when we have them; "Live: Active" can return [] if the partner
+  // payload shape differs or the session is stale — empty live + hidden DB confused creators.
+  const [filter, setFilter] = useState<FansFilter>(() => {
+    if (initialFans.length > 0) return 'database'
+    if (hasOnlyFansConnected) return 'active'
+    return 'database'
+  })
   const [audienceFilter, setAudienceFilter] = useState<AudienceFilter>('all')
   const [liveFans, setLiveFans] = useState<Fan[]>([])
   const [expiringFans, setExpiringFans] = useState<Fan[]>([])
@@ -54,6 +58,7 @@ export function FansPageClient({
   const [bulkOffset, setBulkOffset] = useState(0)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery')
+  const [liveFetchError, setLiveFetchError] = useState<string | null>(null)
 
   const insightMap = useMemo(() => insightRowsToMap(threadInsightsBrief), [threadInsightsBrief])
 
@@ -61,16 +66,19 @@ export function FansPageClient({
     async (f: FansFilter) => {
       if (f === 'database' || f === 'expiring' || !hasOnlyFansConnected) return
       setLoadingLive(true)
+      setLiveFetchError(null)
       try {
         const res = await fetch(`/api/onlyfans/fans?filter=${f}&limit=50`)
-        const data = await res.json()
+        const data = (await res.json().catch(() => ({}))) as { fans?: Fan[]; error?: string }
         if (res.ok && Array.isArray(data.fans)) {
           setLiveFans(data.fans)
         } else {
           setLiveFans([])
+          setLiveFetchError(data.error || `Could not load live fans (${res.status}). Try “From database” or reconnect OnlyFans.`)
         }
       } catch {
         setLiveFans([])
+        setLiveFetchError('Network error loading live fans. Try “From database” or sync again.')
       } finally {
         setLoadingLive(false)
       }
@@ -236,6 +244,11 @@ export function FansPageClient({
         </div>
       </div>
       {bulkMessage && <p className="text-xs text-muted-foreground">{bulkMessage}</p>}
+      {filter !== 'database' && filter !== 'expiring' && liveFetchError && !loadingLive ? (
+        <p className="rounded-lg border border-amber-500/35 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-100/90">
+          {liveFetchError}
+        </p>
+      ) : null}
       <FansStats stats={stats} />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>

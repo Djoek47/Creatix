@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export async function GET(
   request: NextRequest,
@@ -23,18 +24,19 @@ export async function GET(
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    if (!connection?.access_token) {
+    const accountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!accountId) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
 
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 50)

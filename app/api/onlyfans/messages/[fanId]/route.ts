@@ -12,6 +12,7 @@ import {
   upsertOnlyFansDmMessageCache,
 } from '@/lib/messages/of-dm-cache'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 class OnlyFansNotConnectedError extends Error {
   override readonly name = 'OnlyFansNotConnectedError'
@@ -47,18 +48,19 @@ export async function GET(
     const fetchFromOnlyFansAndCache = async () => {
       const { data: connection } = await supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', user.id)
         .eq('platform', 'onlyfans')
         .eq('is_connected', true)
         .maybeSingle()
 
-      if (!connection?.access_token) {
+      const accountId = onlyFansPartnerAccountIdFromRow(connection)
+      if (!accountId) {
         throw new OnlyFansNotConnectedError()
       }
 
       const api = createOnlyFansAPI()
-      api.setAccountId(connection.access_token)
+      api.setAccountId(accountId)
       const result = await api.getMessages(fanId, { limit, before })
       const list = result.messages || []
       await syncOnlyFansDmTailAndMarkRemoved(supabase, user.id, fanId, list)
@@ -108,7 +110,7 @@ export async function GET(
       loadOnlyFansDmMessageCache(supabase, user.id, fanId, cacheReadLimit),
       supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', user.id)
         .eq('platform', 'onlyfans')
         .eq('is_connected', true)
@@ -116,7 +118,7 @@ export async function GET(
     ])
 
     const { messages: cached, newestSyncedAtMs } = cacheResult
-    const connected = Boolean(connResult.data?.access_token)
+    const connected = Boolean(onlyFansPartnerAccountIdFromRow(connResult.data))
 
     if (!connected) {
       if (cached.length > 0) {
@@ -147,16 +149,17 @@ export async function GET(
         try {
           const { data: connection } = await supabase
             .from('platform_connections')
-            .select('access_token')
+            .select('access_token, platform_user_id')
             .eq('user_id', user.id)
             .eq('platform', 'onlyfans')
             .eq('is_connected', true)
             .maybeSingle()
 
-          if (!connection?.access_token) return
+          const bgAccountId = onlyFansPartnerAccountIdFromRow(connection)
+          if (!bgAccountId) return
 
           const api = createOnlyFansAPI()
-          api.setAccountId(connection.access_token)
+          api.setAccountId(bgAccountId)
           const result = await api.getMessages(fanId, { limit })
           await syncOnlyFansDmTailAndMarkRemoved(supabase, user.id, fanId, result.messages || [])
         } catch (e) {
@@ -201,18 +204,19 @@ export async function POST(
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    if (!connection?.access_token) {
+    const postAccountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!postAccountId) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(postAccountId)
 
     const body = await request.json()
     const { text, mediaIds, previews, price } = body

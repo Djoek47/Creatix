@@ -11,6 +11,7 @@ import {
   normalizeSortedRawOfMessages,
 } from '@/lib/divine/of-thread-text'
 import { detectCreatorLikelyFromText } from '@/lib/divine/creator-detector'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export type FanThreadInsightPlatform = 'onlyfans' | 'fansly'
 export type FanThreadRefreshMode = 'manual_scan' | 'thread_update'
@@ -92,17 +93,18 @@ async function fetchThreadSnapshotText(
 
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { error: 'OnlyFans not connected' }
   }
 
-  const api = createOnlyFansAPI(connection.access_token)
+  const api = createOnlyFansAPI(accountId)
   let threadRes: { messages?: unknown[] }
   try {
     threadRes = await api.getMessages(String(fanId), { limit: 80 })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isPaidPlanId, isPaidSubscription, type SubscriptionLike } from '@/lib/billing/access'
 import { tierIndexFromMonthlyRevenue } from '@/lib/pricing-matrix'
+import { fanslyPartnerAccountIdFromRow, onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export type OnlyFansBillingDenialCode = 'SUBSCRIPTION_INACTIVE' | 'REVENUE_TIER_MISMATCH'
 
@@ -128,8 +129,8 @@ type PlatformConnectionObservedRow = {
 } | null
 
 export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
-  if (!row?.access_token || String(row.access_token).trim() === '') return null
-  const id = String(row.access_token)
+  const id = onlyFansPartnerAccountIdFromRow(row)
+  if (!id) return null
   return {
     partnerAccountId: id,
     observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
@@ -139,10 +140,10 @@ export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObserved
 }
 
 export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
-  const id = row?.access_token ?? row?.platform_user_id
-  if (id == null || String(id).trim() === '') return null
+  const id = fanslyPartnerAccountIdFromRow(row)
+  if (!id) return null
   return {
-    partnerAccountId: String(id),
+    partnerAccountId: id,
     observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
     observedRevenueCapturedAt: row.observed_revenue_captured_at ?? null,
     observationScopedPartnerAccountId: row.observed_revenue_onlyfans_account_id ?? null,
@@ -184,14 +185,8 @@ export async function loadAdultPlatformBillingContext(
     supabase.from('subscriptions').select('plan_id,status,revenue_tier').eq('user_id', user.id).maybeSingle(),
   ])
 
-  const onlyfansAccessToken =
-    ofConn?.access_token != null && String(ofConn.access_token).trim() !== '' ? String(ofConn.access_token) : null
-  const fanslyAccessToken =
-    fsConn?.access_token != null && String(fsConn.access_token).trim() !== ''
-      ? String(fsConn.access_token)
-      : fsConn?.platform_user_id != null && String(fsConn.platform_user_id).trim() !== ''
-        ? String(fsConn.platform_user_id)
-        : null
+  const onlyfansAccessToken = onlyFansPartnerAccountIdFromRow(ofConn)
+  const fanslyAccessToken = fanslyPartnerAccountIdFromRow(fsConn)
 
   const denial = evaluateAdultPlatformBillingDenial({
     subscription,

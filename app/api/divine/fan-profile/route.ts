@@ -43,6 +43,7 @@ export async function PATCH(req: NextRequest) {
       platform?: string
       creator_classification?: string | null
       treat_as_fan_for_automation?: boolean
+      audience_profile_override?: string | null
     }
     const fanId = typeof body.fanId === 'string' ? body.fanId.trim() : ''
     if (!fanId) return NextResponse.json({ error: 'fanId required' }, { status: 400 })
@@ -70,9 +71,24 @@ export async function PATCH(req: NextRequest) {
       treatAsFan = body.treat_as_fan_for_automation
     }
 
-    if (classification === undefined && treatAsFan === undefined) {
+    let audienceProfileOverride: string | null | undefined = undefined
+    if (body.audience_profile_override !== undefined) {
+      const v = body.audience_profile_override
+      if (v === null || v === '' || v === 'auto') {
+        audienceProfileOverride = null
+      } else if (v === 'whale' || v === 'creator' || v === 'fan') {
+        audienceProfileOverride = v
+      } else {
+        return NextResponse.json({ error: 'audience_profile_override invalid' }, { status: 400 })
+      }
+    }
+
+    if (classification === undefined && treatAsFan === undefined && audienceProfileOverride === undefined) {
       return NextResponse.json(
-        { error: 'Provide creator_classification and/or treat_as_fan_for_automation' },
+        {
+          error:
+            'Provide creator_classification, treat_as_fan_for_automation, and/or audience_profile_override',
+        },
         { status: 400 },
       )
     }
@@ -80,6 +96,7 @@ export async function PATCH(req: NextRequest) {
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (classification !== undefined) patch.creator_classification = classification
     if (treatAsFan !== undefined) patch.treat_as_fan_for_automation = treatAsFan
+    if (audienceProfileOverride !== undefined) patch.audience_profile_override = audienceProfileOverride
 
     const { data: existingFan, error: selErr } = await supabase
       .from('fans')

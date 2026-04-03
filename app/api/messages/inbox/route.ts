@@ -19,6 +19,7 @@ import {
   adultPlatformBillingGateWhenEitherConnected,
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
 } from '@/lib/onlyfans-api-route'
+import { fanslyPartnerAccountIdFromRow, onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export const maxDuration = 60
 
@@ -117,19 +118,20 @@ export async function GET(request: NextRequest) {
     async function loadOnlyFans(): Promise<RawConv[]> {
       const { data: connection } = await supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', userId)
         .eq('platform', 'onlyfans')
         .eq('is_connected', true)
         .single()
 
-      if (!connection?.access_token) {
+      const ofAccountId = onlyFansPartnerAccountIdFromRow(connection)
+      if (!ofAccountId) {
         errors.push('onlyfans_disconnected')
         return []
       }
 
       const api = createOnlyFansAPI()
-      api.setAccountId(connection.access_token)
+      api.setAccountId(ofAccountId)
       const result = await api.getConversations({ limit, offset })
       const chats = result.conversations || []
       return chats.map(normalizeOfChat).filter((x): x is RawConv => x != null)
@@ -138,18 +140,19 @@ export async function GET(request: NextRequest) {
     async function loadFansly(): Promise<RawConv[]> {
       const { data: connection } = await supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', userId)
         .eq('platform', 'fansly')
         .eq('is_connected', true)
         .single()
 
-      if (!connection?.access_token) {
+      const fsAccountId = fanslyPartnerAccountIdFromRow(connection)
+      if (!fsAccountId) {
         errors.push('fansly_disconnected')
         return []
       }
 
-      const api = createFanslyAPI(connection.access_token)
+      const api = createFanslyAPI(fsAccountId)
       const result = await api.getChats({ limit, offset })
       const chats = result.data || []
       return chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null)
@@ -190,7 +193,7 @@ export async function GET(request: NextRequest) {
       const pool = Math.min(120, Math.max(limit + offset + 20, limit * 2))
       const { data: ofConn } = await supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', userId)
         .eq('platform', 'onlyfans')
         .eq('is_connected', true)
@@ -198,17 +201,18 @@ export async function GET(request: NextRequest) {
 
       const { data: fsConn } = await supabase
         .from('platform_connections')
-        .select('access_token')
+        .select('access_token, platform_user_id')
         .eq('user_id', userId)
         .eq('platform', 'fansly')
         .eq('is_connected', true)
         .single()
 
       const parts: RawConv[] = []
-      if (ofConn?.access_token) {
+      const ofAccountIdAll = onlyFansPartnerAccountIdFromRow(ofConn)
+      if (ofAccountIdAll) {
         try {
           const api = createOnlyFansAPI()
-          api.setAccountId(ofConn.access_token)
+          api.setAccountId(ofAccountIdAll)
           const result = await api.getConversations({ limit: pool, offset: 0 })
           const chats = result.conversations || []
           parts.push(
@@ -231,9 +235,10 @@ export async function GET(request: NextRequest) {
         errors.push('onlyfans_disconnected')
       }
 
-      if (fsConn?.access_token) {
+      const fsAccountIdAll = fanslyPartnerAccountIdFromRow(fsConn)
+      if (fsAccountIdAll) {
         try {
-          const api = createFanslyAPI(fsConn.access_token)
+          const api = createFanslyAPI(fsAccountIdAll)
           const result = await api.getChats({ limit: pool, offset: 0 })
           const chats = result.data || []
           parts.push(

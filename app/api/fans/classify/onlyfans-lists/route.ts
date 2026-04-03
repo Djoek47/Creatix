@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /**
  * GET — OnlyFans user lists for Smart classify list picker (session auth).
@@ -19,18 +20,19 @@ export async function GET(req: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    if (!connection?.access_token) {
+    const accountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!accountId) {
       return NextResponse.json({ error: 'OnlyFans is not connected' }, { status: 400 })
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token as string)
+    api.setAccountId(accountId)
     const raw = await api.listUserLists({ limit: 100, offset: 0 })
 
     const lists: { id: string; name: string }[] = []

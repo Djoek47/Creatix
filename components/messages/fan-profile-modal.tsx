@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Dialog,
@@ -18,7 +18,11 @@ import { Switch } from '@/components/ui/switch'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { UnifiedFanProfilePayload } from '@/lib/divine/fan-profile-server'
-import { buildAudienceBadges } from '@/lib/fans/audience-classification'
+import { audienceMetaWithProfileOverride } from '@/lib/fans/merge-fan-audience'
+import {
+  FanProfileTypeSelect,
+  type AudienceProfileValue,
+} from '@/components/fans/fan-profile-type-select'
 import { cn } from '@/lib/utils'
 
 type FanProfileModalProps = {
@@ -75,6 +79,7 @@ export function FanProfileModal({
   const [savingClass, setSavingClass] = useState(false)
   const [enrichAboutLoading, setEnrichAboutLoading] = useState(false)
   const [treatFanSaving, setTreatFanSaving] = useState(false)
+  const [profileTypeSaving, setProfileTypeSaving] = useState(false)
 
   const load = useCallback(async () => {
     if (!fanId) return
@@ -107,14 +112,16 @@ export function FanProfileModal({
   const username = data?.core?.username || initialUsername || '—'
   const avatar = data?.core?.avatarUrl || initialAvatar || ''
 
-  const audienceBadges =
-    data && data.creatorDetector
-      ? buildAudienceBadges({
-          totalSpent: data.crm?.totalSpent ?? 0,
-          tier: data.crm?.subscriptionTier || 'regular',
-          creatorLikely: data.creatorDetector.is_creator_likely,
-        })
-      : []
+  const audienceBadges = useMemo(() => {
+    if (!data?.creatorDetector) return []
+    const tier = data.crm?.subscriptionTier || 'regular'
+    return audienceMetaWithProfileOverride(
+      data.audienceProfileOverride ?? null,
+      data.crm?.totalSpent ?? 0,
+      tier,
+      data.creatorDetector.is_creator_likely,
+    ).badges
+  }, [data])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,6 +192,43 @@ export function FanProfileModal({
                   ) : null}
                 </div>
               )}
+              <div className="space-y-1.5 rounded-md border border-border bg-muted/25 p-2.5">
+                <Label className="text-[11px] font-medium">CRM profile type</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  Same control as Fans — overrides auto whale / creator signals for this thread.
+                </p>
+                <FanProfileTypeSelect
+                  value={(data?.audienceProfileOverride ?? 'auto') as AudienceProfileValue}
+                  disabled={profileTypeSaving || loading || !fanId}
+                  onChange={async (v) => {
+                    setProfileTypeSaving(true)
+                    setError(null)
+                    try {
+                      const res = await fetch('/api/divine/fan-profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          fanId,
+                          platform,
+                          audience_profile_override: v === 'auto' ? null : v,
+                        }),
+                      })
+                      const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
+                        error?: string
+                      }
+                      if (!res.ok) throw new Error(json.error || 'Failed to save profile type')
+                      setData(json)
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'Save failed')
+                    } finally {
+                      setProfileTypeSaving(false)
+                    }
+                  }}
+                  className="w-full max-w-[260px]"
+                />
+              </div>
+
               {data?.crm != null && (
                 <p className="text-[11px] text-muted-foreground">
                   Recorded spend: ${Math.round(data.crm.totalSpent)}

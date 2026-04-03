@@ -1,19 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { StatsCards } from '@/components/dashboard/stats-cards'
-import { RevenueChart } from '@/components/dashboard/revenue-chart'
-import { RecentFans } from '@/components/dashboard/recent-fans'
-import { QuickActions } from '@/components/dashboard/quick-actions'
-import { AlertsWidget } from '@/components/dashboard/alerts-widget'
-import { PlatformIntegrationWidget } from '@/components/dashboard/platform-integration-widget'
-import { SocialReputationWidget } from '@/components/dashboard/social-reputation-widget'
-import { OnlyFansNotificationsCard } from '@/components/dashboard/onlyfans-notifications-card'
-import { MessageActivity } from '@/components/dashboard/message-activity'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-import { Heart } from 'lucide-react'
 import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardCommandTiles } from '@/components/dashboard/dashboard-command-tiles'
+import { DashboardWidgetsGrid } from '@/components/dashboard/dashboard-widgets-grid'
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
 
 export default async function DashboardPage() {
@@ -106,68 +94,16 @@ export default async function DashboardPage() {
 
       <DashboardCommandTiles />
 
-      {/* Stats Overview */}
-      <StatsCards stats={stats} />
-
-      {/* Standard of Attraction (Pro) */}
-      <Card className="overflow-hidden border-gold/35 bg-gradient-to-r from-gold/[0.08] via-amber-500/[0.04] to-transparent shadow-sm">
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2 font-serif text-lg text-gold md:text-xl">
-              <span className="rounded-lg border border-gold/30 bg-gold/10 p-2">
-                <Heart className="h-5 w-5" aria-hidden />
-              </span>
-              Standard of Attraction
-            </CardTitle>
-            <CardDescription className="max-w-2xl text-sm">
-              Pro-only rating of how commercially attractive your latest photos and videos are, through the eyes of Venus and Circe.
-            </CardDescription>
-          </div>
-          <Button
-            asChild
-            size="sm"
-            className="shrink-0 bg-gradient-to-r from-circe to-venus text-white hover:opacity-90"
-          >
-            <Link href="/dashboard/ai-studio/tools/standard-of-attraction">
-              Open Pro Tool
-            </Link>
-          </Button>
-        </CardHeader>
-      </Card>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-        {/* Revenue Chart - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <RevenueChart analytics={analytics || []} hasConnectedPlatforms={hasConnectedPlatforms} />
-        </div>
-
-        {/* Quick Actions & Platform Integration */}
-        <div className="space-y-4">
-          <PlatformIntegrationWidget compact />
-          <QuickActions />
-        </div>
-      </div>
-
-      {/* Bottom Grid */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-        {/* Message Activity - Active Conversations */}
-        <div className="lg:col-span-1">
-          <MessageActivity />
-        </div>
-
-        {/* Alerts & Mentions */}
-        <div className="space-y-4 lg:col-span-2">
-          <AlertsWidget leakAlerts={leakAlerts || []} mentions={mentions || []} />
-          <OnlyFansNotificationsCard />
-        </div>
-      </div>
-      
-      {/* Recent Fans */}
-      <RecentFans fans={fans || []} totalFans={totalFans} />
-
-      {/* Social Media Reputation */}
-      <SocialReputationWidget />
+      <DashboardWidgetsGrid
+        userId={user.id}
+        stats={stats}
+        analytics={analytics || []}
+        hasConnectedPlatforms={hasConnectedPlatforms}
+        fans={fans || []}
+        totalFans={totalFans}
+        leakAlerts={leakAlerts || []}
+        mentions={mentions || []}
+      />
     </div>
   )
 }

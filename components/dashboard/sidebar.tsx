@@ -27,7 +27,6 @@ import {
   HeartPulse,
   MessagesSquare,
   Activity,
-  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
@@ -55,7 +54,6 @@ const circeNavigation: NavItem[] = [
 // Venus's domain - Growth, Attraction, Reputation (White)
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Classify', href: '/dashboard/fans/classify', icon: Sparkles },
   { name: 'Commenter', href: '/dashboard/commenter', icon: MessagesSquare },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
 ]

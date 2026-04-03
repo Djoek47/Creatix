@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /** OnlyFans engagement APIs often return 403 for non–performer / restricted accounts. */
 function isEngagementAccessForbidden(message: string): boolean {
@@ -36,18 +37,19 @@ export async function GET(request: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    if (!connection?.access_token) {
+    const accountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!accountId) {
       return NextResponse.json({ error: 'OnlyFans is not connected' }, { status: 400 })
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
 
     const { searchParams } = new URL(request.url)
     const type = (searchParams.get('type') || 'direct') as 'direct' | 'mass'

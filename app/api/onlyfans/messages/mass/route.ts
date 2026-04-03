@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 // POST - Send a mass message
 export async function POST(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
@@ -29,8 +30,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
+    const accountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!accountId) {
+      return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
+    }
+
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
 
     const body = await request.json()
     const { text, mediaIds, previews, price, targetLists, userIds } = body as {

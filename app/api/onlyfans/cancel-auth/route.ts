@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 // POST: Cancel OnlyFans auth for current user. Disconnect any OnlyFans API account that
 // belongs to this user except the one we have linked in our DB (so closing the modal
@@ -17,12 +18,12 @@ export async function POST(request: NextRequest) {
     // 1. Load current user's linked OnlyFans account (if any) — we must not delete this one
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
-    const linkedAccountId = connection?.access_token ?? null
+    const linkedAccountId = onlyFansPartnerAccountIdFromRow(connection)
 
     const api = createOnlyFansAPI()
     const accountsResult = await api.listAccounts()

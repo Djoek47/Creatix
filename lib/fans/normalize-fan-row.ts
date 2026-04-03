@@ -44,5 +44,10 @@ export function normalizeFanFromRow(row: Record<string, unknown>): Fan {
     is_blocked: Boolean(row.is_blocked),
     created_at: (row.created_at ?? new Date().toISOString()) as string,
     updated_at: (row.updated_at ?? row.created_at ?? new Date().toISOString()) as string,
+    audience_profile_override: (() => {
+      const v = row.audience_profile_override
+      if (v === 'auto' || v === 'whale' || v === 'creator' || v === 'fan') return v
+      return null
+    })(),
   }
 }

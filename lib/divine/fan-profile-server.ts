@@ -7,6 +7,10 @@ import { policySkipExpensiveAiForCreatorLikely } from '@/lib/divine/creator-reso
 export type UnifiedFanProfilePayload = {
   fanId: string
   platform: string
+  /** Supabase `fans.id` when a CRM row exists (for CRM profile PATCH). */
+  crmFanId: string | null
+  /** Manual CRM profile type; null = auto (spend + insights). */
+  audienceProfileOverride: 'whale' | 'creator' | 'fan' | null
   creatorClassification: string | null
   /** From `fans` row when synced; used for whale/VIP badges. */
   crm: {
@@ -98,7 +102,7 @@ export async function buildUnifiedFanProfile(
     supabase
       .from('fans')
       .select(
-        'creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at',
+        'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at',
       )
       .eq('user_id', userId)
       .eq('platform', platform)
@@ -193,6 +197,8 @@ export async function buildUnifiedFanProfile(
   const creatorDetector = storedCreatorSignal ?? detectCreatorLikelyFromText(hay)
 
   const fanRow = fanCrm as {
+    id?: string
+    audience_profile_override?: string | null
     creator_classification?: string | null
     total_spent?: string | number | null
     subscription_tier?: string | null
@@ -200,6 +206,12 @@ export async function buildUnifiedFanProfile(
     subscription_price?: string | number | null
     subscription_status?: string | null
   } | null
+
+  const crmFanId =
+    fanRow && typeof fanRow.id === 'string' && fanRow.id.trim() ? fanRow.id.trim() : null
+  const apoRaw = fanRow?.audience_profile_override
+  const audienceProfileOverride: 'whale' | 'creator' | 'fan' | null =
+    apoRaw === 'whale' || apoRaw === 'creator' || apoRaw === 'fan' ? apoRaw : null
   const ccRaw = fanRow?.creator_classification
   const creatorClassification =
     typeof ccRaw === 'string' && ccRaw.trim() ? ccRaw.trim().slice(0, 2000) : null
@@ -266,6 +278,8 @@ export async function buildUnifiedFanProfile(
   return {
     fanId,
     platform,
+    crmFanId,
+    audienceProfileOverride,
     creatorClassification,
     crm,
     core,

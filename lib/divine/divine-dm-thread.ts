@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { buildMessageContentForAi, hasMediaInRawMessage } from '@/lib/divine/of-thread-text'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export type DivineDmThreadLine = {
   from: 'creator' | 'fan'
@@ -23,17 +24,18 @@ export async function loadDivineDmThread(
 > {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { ok: false, error: 'OnlyFans not connected' }
   }
 
-  const api = createOnlyFansAPI(connection.access_token)
+  const api = createOnlyFansAPI(accountId)
   const limit = Math.min(Number(messageLimit) || 50, 100)
   let result: { messages?: unknown[] }
   try {

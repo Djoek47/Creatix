@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /** Creator post feed with media — used as "OF library" in AI Studio (metadata-first). */
 export async function GET(req: Request) {
@@ -22,18 +23,19 @@ export async function GET(req: Request) {
 
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', user.id)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return NextResponse.json({ error: 'OnlyFans not connected', posts: [], total: 0 }, { status: 200 })
   }
 
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     const res = await api.getPosts({ limit, offset })
     return NextResponse.json({
       posts: res.posts ?? [],

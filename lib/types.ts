@@ -111,6 +111,10 @@ export interface Fan {
   updated_at: string
   /** Server-derived when loading /dashboard/fans from DB + thread insights. */
   audience?: FanAudienceMeta
+  /**
+   * Optional manual profile type for CRM (badges + filters). `auto` = use spend + thread insights.
+   */
+  audience_profile_override?: 'auto' | 'whale' | 'creator' | 'fan' | null
 }
 
 export interface Content {

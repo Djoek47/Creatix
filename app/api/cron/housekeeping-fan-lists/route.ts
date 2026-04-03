@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { syncFanClassifyForUser } from '@/lib/fan-classify/sync-core'
 import type { FanClassifyConfig } from '@/lib/divine-manager'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export const maxDuration = 300
 
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
 
   const { data: connections, error } = await supabase
     .from('platform_connections')
-    .select('user_id, platform, access_token')
+    .select('user_id, platform, access_token, platform_user_id')
     .eq('is_connected', true)
     .in('platform', ['onlyfans', 'fansly'])
 
@@ -31,8 +32,11 @@ export async function GET(req: Request) {
   const ofTokenByUser = new Map<string, string>()
   for (const row of connections ?? []) {
     const uid = row.user_id as string
-    if (row.platform === 'onlyfans' && row.access_token) {
-      ofTokenByUser.set(uid, String(row.access_token))
+    if (row.platform === 'onlyfans') {
+      const id = onlyFansPartnerAccountIdFromRow(
+        row as { access_token?: string | null; platform_user_id?: string | null },
+      )
+      if (id) ofTokenByUser.set(uid, id)
     }
   }
 

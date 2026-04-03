@@ -9,6 +9,7 @@ import { createTask } from '@/lib/divine-manager'
 import type { DivineManagerSettingsRow } from '@/lib/divine-manager'
 import { formatOnlyFansText } from '@/lib/onlyfans-text'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export type MassDmParams = {
   message: string
@@ -123,7 +124,12 @@ export async function executeMassDm(
         totalSent += result.sent ?? 0
         totalFailed += result.failed ?? 0
       } else if (platform === 'onlyfans') {
-        const api = createOnlyFansAPI(connection.access_token)
+        const ofAccountId = onlyFansPartnerAccountIdFromRow(connection)
+        if (!ofAccountId) {
+          results.onlyfans = { success: false, error: 'OnlyFans not connected' }
+          continue
+        }
+        const api = createOnlyFansAPI(ofAccountId)
         const result = await api.sendMassMessage({
           text: message,
           mediaIds: params.mediaIds,
@@ -243,7 +249,11 @@ export async function executeSendMessage(
       const bad = validateChatMediaIdsForSend(mediaIds)
       if (bad) return { success: false, summary: bad }
 
-      const api = createOnlyFansAPI(connection.access_token)
+      const ofAccountId = onlyFansPartnerAccountIdFromRow(connection)
+      if (!ofAccountId) {
+        return { success: false, summary: 'OnlyFans is not connected.' }
+      }
+      const api = createOnlyFansAPI(ofAccountId)
       await api.sendMessage(String(fanId), {
         text: formatOnlyFansText(trimmed || '', { size: 'default' }),
         price: typeof price === 'number' && price >= 0 ? price : undefined,
@@ -313,7 +323,12 @@ export async function executeContentPublish(
           error: result.success ? undefined : result.message,
         }
       } else if (platform === 'onlyfans') {
-        const api = createOnlyFansAPI(connection.access_token)
+        const ofAccountId = onlyFansPartnerAccountIdFromRow(connection)
+        if (!ofAccountId) {
+          results.onlyfans = { success: false, error: 'OnlyFans not connected' }
+          continue
+        }
+        const api = createOnlyFansAPI(ofAccountId)
         const result = await api.createPost({
           text: content,
           mediaIds: mediaIds?.length ? mediaIds : undefined,
@@ -427,16 +442,17 @@ export async function listFans(
 
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     let data: { data?: unknown[] }
     switch (params.filter ?? 'active') {
       case 'all':
@@ -479,16 +495,17 @@ export async function getFanSubscriptionHistory(
   }
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     const result = await api.getSubscriptionHistory(fanUserId, {
       limit: Math.min(params.limit ?? 20, 50),
       offset: params.offset,
@@ -515,16 +532,17 @@ export async function listFollowings(
   const limit = Math.min(params.limit ?? 25, 50)
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     let data: { data?: unknown[] }
     switch (params.filter ?? 'all') {
       case 'active':
@@ -555,16 +573,17 @@ export async function getTopMessage(
 ): Promise<{ success: boolean; summary: string; message?: unknown; buyers?: unknown[] }> {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     const result = await api.getTopMessage({
       startDate: params.startDate,
       endDate: params.endDate,
@@ -604,16 +623,17 @@ export async function getMessageEngagement(
   const limit = Math.min(params.limit ?? 10, 50)
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     const isMass = params.type === 'mass'
     const list = isMass
       ? await api.getMassMessagesEngagement({ limit, offset: params.offset, startDate: params.startDate, endDate: params.endDate })
@@ -650,16 +670,17 @@ export async function publishQueueItem(
   }
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
-    const api = createOnlyFansAPI(connection.access_token)
+    const api = createOnlyFansAPI(accountId)
     const result = await api.publishQueueItem(queueId)
     if (result.success) {
       return { success: true, summary: 'Queue item published successfully.' }
@@ -679,17 +700,18 @@ export async function getOnlyFansNotificationSummary(
 ): Promise<{ success: boolean; summary: string; counts?: Record<string, unknown>; notifications?: unknown[] }> {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
     const counts = await api.getNotificationCounts()
     const { notifications } = await api.listNotifications({ limit: 25 })
 
@@ -723,17 +745,18 @@ export async function listOnlyFansNotifications(
 ): Promise<{ success: boolean; summary: string; notifications?: unknown[] }> {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
     const limit = Math.min(params?.limit ?? 25, 50)
     const { notifications } = await api.listNotifications({
       limit,
@@ -754,17 +777,18 @@ export async function markOnlyFansNotificationsRead(
 ): Promise<{ success: boolean; summary: string }> {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
   try {
     const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
+    api.setAccountId(accountId)
     await api.markAllNotificationsAsRead()
     return { success: true, summary: 'Marked all OnlyFans notifications as read.' }
   } catch (err) {

@@ -5,6 +5,7 @@ import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
+import { FansArrangementsSection } from '@/components/fans/fans-arrangements-section'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -19,7 +20,9 @@ import {
   mergeThreadInsightsIntoFan,
   type ThreadInsightBrief,
 } from '@/lib/fans/merge-fan-audience'
-import { LayoutGrid, Table2 } from 'lucide-react'
+import type { AudienceProfileValue } from '@/components/fans/fan-profile-type-select'
+import { LayoutGrid, Table2, ChevronDown } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
@@ -30,6 +33,7 @@ interface FansPageClientProps {
   /** Thread insight rows for merging into list views; defaults to none. */
   threadInsightsBrief?: ThreadInsightBrief[]
   hasOnlyFansConnected: boolean
+  hasFanslyConnected?: boolean
   hasFanPlatformsConnected: boolean
   analyticsTotalFans?: number
 }
@@ -38,6 +42,7 @@ export function FansPageClient({
   initialFans,
   threadInsightsBrief = [],
   hasOnlyFansConnected,
+  hasFanslyConnected = false,
   hasFanPlatformsConnected,
   analyticsTotalFans = 0,
 }: FansPageClientProps) {
@@ -55,8 +60,47 @@ export function FansPageClient({
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery')
   const [liveFetchError, setLiveFetchError] = useState<string | null>(null)
+  const [crmFans, setCrmFans] = useState<Fan[]>(initialFans)
+  const [arrangementsOpen, setArrangementsOpen] = useState(false)
 
   const insightMap = useMemo(() => insightRowsToMap(threadInsightsBrief), [threadInsightsBrief])
+
+  useEffect(() => {
+    setCrmFans(initialFans)
+  }, [initialFans])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash === '#arrangements') {
+      setArrangementsOpen(true)
+    }
+  }, [])
+
+  const handleAudienceProfileChange = useCallback(
+    async (fanId: string, value: AudienceProfileValue) => {
+      const res = await fetch(`/api/fans/${encodeURIComponent(fanId)}/audience`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ audience_profile_override: value }),
+      })
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(j.error || 'Could not update profile')
+      }
+      const applyMerged = (f: Fan): Fan => {
+        if (f.id !== fanId) return f
+        const next: Fan = {
+          ...f,
+          audience_profile_override: value === 'auto' ? null : value,
+        }
+        return mergeThreadInsightsIntoFan(next, insightMap)
+      }
+      setCrmFans((prev) => prev.map(applyMerged))
+      setExpiringFans((prev) => prev.map(applyMerged))
+    },
+    [insightMap],
+  )
 
   const fetchLive = useCallback(
     async (f: FansFilter) => {
@@ -110,12 +154,12 @@ export function FansPageClient({
   }, [filter, fetchLive, fetchExpiring])
 
   const mergedFans = useMemo(() => {
-    if (filter === 'database') return initialFans
+    if (filter === 'database') return crmFans
     if (filter === 'expiring') {
       return expiringFans.map((f) => mergeThreadInsightsIntoFan(f, insightMap))
     }
     return liveFans.map((f) => mergeThreadInsightsIntoFan(f, insightMap))
-  }, [filter, initialFans, liveFans, expiringFans, insightMap])
+  }, [filter, crmFans, liveFans, expiringFans, insightMap])
 
   const fans = useMemo(() => {
     if (audienceFilter === 'all') return mergedFans
@@ -127,6 +171,8 @@ export function FansPageClient({
       return true
     })
   }, [mergedFans, audienceFilter])
+
+  const canEditCrmProfile = filter === 'database' || filter === 'expiring'
 
   const derivedTotalFans = Math.max(analyticsTotalFans || 0, mergedFans.length)
   const stats = {
@@ -174,6 +220,29 @@ export function FansPageClient({
         </p>
       ) : null}
       <FansStats stats={stats} />
+
+      <div id="arrangements" className="scroll-mt-4">
+      <Collapsible open={arrangementsOpen} onOpenChange={setArrangementsOpen} className="rounded-xl border border-dashed border-violet-500/25 bg-card/40">
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium hover:bg-muted/30">
+          <span className="flex items-center gap-2">
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${arrangementsOpen ? 'rotate-0' : '-rotate-90'}`}
+              aria-hidden
+            />
+            Arrangements — smart lists &amp; sync
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">Freeloaders, spenders, platform lists</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-border px-4 pb-4 pt-2">
+          <FansArrangementsSection
+            hasOnlyFans={hasOnlyFansConnected}
+            hasFansly={hasFanslyConnected}
+            compact
+          />
+        </CollapsibleContent>
+      </Collapsible>
+      </div>
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>
         <div className="inline-flex rounded-md border border-border p-0.5">
@@ -206,6 +275,7 @@ export function FansPageClient({
           loading={filter !== 'database' && loadingLive}
           liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
           showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
+          onAudienceProfileChange={canEditCrmProfile ? handleAudienceProfileChange : undefined}
         />
       ) : (
         <FansTable
@@ -214,6 +284,7 @@ export function FansPageClient({
           loading={filter !== 'database' && loadingLive}
           liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
           showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
+          onAudienceProfileChange={canEditCrmProfile ? handleAudienceProfileChange : undefined}
         />
       )}
     </div>

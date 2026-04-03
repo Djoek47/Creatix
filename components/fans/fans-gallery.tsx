@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +28,10 @@ import type { Fan } from '@/lib/types'
 import Link from 'next/link'
 import { FanAiSummaryDialog } from '@/components/fans/fan-ai-summary-dialog'
 import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
+import {
+  FanProfileTypeSelect,
+  type AudienceProfileValue,
+} from '@/components/fans/fan-profile-type-select'
 
 interface FansGalleryProps {
   fans: Fan[]
@@ -35,6 +39,7 @@ interface FansGalleryProps {
   loading?: boolean
   liveFilter?: 'active' | 'expired' | 'latest' | 'top'
   showSubscriptionEnd?: boolean
+  onAudienceProfileChange?: (fanId: string, value: AudienceProfileValue) => void | Promise<void>
 }
 
 const tierColors = {
@@ -154,8 +159,23 @@ export function FansGallery({
   loading = false,
   liveFilter,
   showSubscriptionEnd = false,
+  onAudienceProfileChange,
 }: FansGalleryProps) {
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [profilePendingId, setProfilePendingId] = useState<string | null>(null)
+
+  const handleProfileChange = useCallback(
+    async (fanId: string, value: AudienceProfileValue) => {
+      if (!onAudienceProfileChange) return
+      setProfilePendingId(fanId)
+      try {
+        await onAudienceProfileChange(fanId, value)
+      } finally {
+        setProfilePendingId(null)
+      }
+    },
+    [onAudienceProfileChange],
+  )
   const [summaryFanId, setSummaryFanId] = useState<string | null>(null)
   const [summaryLabel, setSummaryLabel] = useState('')
 
@@ -349,6 +369,20 @@ export function FansGallery({
                         {b.label}
                       </Badge>
                     ))}
+                  </div>
+                ) : null}
+
+                {onAudienceProfileChange ? (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      CRM profile
+                    </p>
+                    <FanProfileTypeSelect
+                      value={(fan.audience_profile_override ?? 'auto') as AudienceProfileValue}
+                      disabled={profilePendingId === fan.id}
+                      onChange={(v) => void handleProfileChange(fan.id, v)}
+                      className="w-full"
+                    />
                   </div>
                 ) : null}
 

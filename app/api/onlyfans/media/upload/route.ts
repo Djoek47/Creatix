@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 /**
  * POST: Upload media for OnlyFans DMs / mass messages.
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token')
+      .select('access_token, platform_user_id')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
@@ -40,7 +41,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
-    const api = createOnlyFansAPI(connection.access_token)
+    const accountId = onlyFansPartnerAccountIdFromRow(connection)
+    if (!accountId) {
+      return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
+    }
+
+    const api = createOnlyFansAPI(accountId)
     const contentType = req.headers.get('content-type') || ''
 
     if (contentType.includes('application/json')) {

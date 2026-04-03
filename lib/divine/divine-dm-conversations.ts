@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export type DivineDmConversationRow = {
   fanId: string
@@ -21,13 +22,14 @@ export async function loadDivineDmConversations(
 ): Promise<{ conversations: DivineDmConversationRow[]; message?: string }> {
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, platform_user_id')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  if (!connection?.access_token) {
+  const accountId = onlyFansPartnerAccountIdFromRow(connection)
+  if (!accountId) {
     return { conversations: [], message: 'OnlyFans not connected' }
   }
 
@@ -35,7 +37,7 @@ export async function loadDivineDmConversations(
   const rawQuery = (opts.query ?? '').trim()
   const query = rawQuery.toLowerCase()
 
-  const api = createOnlyFansAPI(connection.access_token)
+  const api = createOnlyFansAPI(accountId)
   const fetchLimit = rawQuery.length > 0 ? Math.min(Math.max(limit, 50), 100) : limit
 
   const result = await api

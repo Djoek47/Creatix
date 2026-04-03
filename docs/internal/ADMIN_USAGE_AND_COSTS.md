@@ -5,6 +5,7 @@ Internal reference for **Creatix** admin telemetry (`/admin`), Supabase tables, 
 ## Authentication model
 
 - **No separate `admin_users` table.** Admins are normal `auth.users` with `public.profiles.role = 'admin'` (allowed by existing `CHECK (role IN ('creator','agency','admin'))`).
+- **Step-by-step (signup fix + promote by email):** see [`SUPABASE_ADMIN_SETUP.md`](./SUPABASE_ADMIN_SETUP.md).
 - Promote someone:
 
   ```sql

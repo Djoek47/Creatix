@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +24,9 @@ import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-in
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { PriceWithSavings } from '@/components/marketing/pricing-table-cells'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
+import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
+import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
+import { getCanonicalUrl } from '@/lib/site-url'
 import { cn } from '@/lib/utils'
 
 function SavingsGlanceCard({
@@ -54,10 +58,37 @@ function SavingsGlanceCard({
   )
 }
 
-export const metadata = {
+const PRICING_DESCRIPTION =
+  'Revenue-based pricing vs OnlyFans base: Fansly −10%, ManyVids −25%; two-platform Focus sums line prices with pair discounts (+5% for Fansly+ManyVids); or Unified for all three. Free interactive calculator and full USD matrix. 14-day free trial.'
+
+export const metadata: Metadata = {
   title: 'Pricing | Circe et Venus',
-  description:
-    'Revenue-based pricing vs OnlyFans base: Fansly −10%, ManyVids −25%; two-platform Focus sums line prices with pair discounts (+5% for Fansly+ManyVids); or Unified for all three. 14-day free trial.',
+  description: PRICING_DESCRIPTION,
+  alternates: { canonical: '/pricing' },
+  openGraph: {
+    title: 'Pricing | Circe et Venus',
+    description: PRICING_DESCRIPTION,
+    url: getCanonicalUrl('/pricing'),
+    type: 'website',
+    siteName: 'Circe et Venus',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pricing | Circe et Venus',
+    description: PRICING_DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
+  keywords: [
+    'creator pricing',
+    'OnlyFans tools pricing',
+    'Fansly pricing',
+    'ManyVids',
+    'revenue-based subscription',
+    'Circe et Venus',
+    'creator SaaS',
+    'Focus plan',
+    'Unified plan',
+  ],
 }
 
 export default function PricingPage() {
@@ -107,10 +138,17 @@ export default function PricingPage() {
       answer:
         'Yes. Use the in-app billing section for a new band, Focus platform set, or Unified. Stripe customer portal handles payment methods and cancellation.',
     },
+    {
+      question: 'Will my subscription band update automatically when my revenue grows?',
+      answer:
+        'Right now you choose your revenue band at checkout and can change it anytime in Settings → Billing. Automatic band reviews (for example, aligning your next bill after revenue crosses a new threshold) are planned; until then, update your band in-app if your business has moved up.',
+    },
   ]
 
   return (
-    <main className="relative z-10 pt-14 sm:pt-16">
+    <>
+      <PricingJsonLd faqs={faqs} />
+      <main className="relative z-10 pt-14 sm:pt-16">
       <section className="relative overflow-hidden px-4 pb-12 pt-10 sm:px-6 sm:pb-20 sm:pt-16">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute left-1/2 top-0 h-[480px] w-full max-w-3xl -translate-x-1/2 rounded-full bg-gradient-to-b from-primary/20 via-circe/15 to-transparent blur-3xl" />
@@ -167,6 +205,12 @@ export default function PricingPage() {
             </MotionStaggerItem>
           </MotionStagger>
         </div>
+      </section>
+
+      <section className="px-4 pb-10 sm:px-6" aria-label="Interactive pricing estimate">
+        <MotionReveal>
+          <PricingPageCalculator />
+        </MotionReveal>
       </section>
 
       <section className="px-4 pb-6 sm:px-6">
@@ -377,5 +421,6 @@ export default function PricingPage() {
         </div>
       </section>
     </main>
+    </>
   )
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { requireOnlyFansApi, jsonOnlyFansError } from '@/lib/onlyfans-api-route'
 
@@ -6,9 +6,22 @@ function isSummaryReady(raw: unknown): boolean {
   if (!raw || typeof raw !== 'object') return false
   const o = raw as Record<string, unknown>
   if (o.status === 'completed' || o.status === 'ready') return true
+  const sd = o.summary_data
+  if (sd && typeof sd === 'object' && !Array.isArray(sd)) {
+    for (const v of Object.values(sd as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim().length > 0) return true
+    }
+  }
   if (o.data && typeof o.data === 'object') {
     const d = o.data as Record<string, unknown>
     if (d.summary || d.preferences) return true
+    const innerSd = d.summary_data
+    if (innerSd && typeof innerSd === 'object' && !Array.isArray(innerSd)) {
+      for (const v of Object.values(innerSd as Record<string, unknown>)) {
+        if (typeof v === 'string' && v.trim().length > 0) return true
+      }
+    }
+    if (d.status === 'completed' || d.status === 'ready') return true
   }
   return Boolean(o.summary || o.preferences)
 }

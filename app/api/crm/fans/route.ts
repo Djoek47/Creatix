@@ -10,6 +10,7 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { normalizeFanFromRow } from '@/lib/fans/normalize-fan-row'
 import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
+import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { fanDedupeKey, fanslyLiveToFan, onlyFansLiveRowToFan } from '@/lib/crm/fan-from-live'
 import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
 import type { Fan } from '@/lib/types'
@@ -75,6 +76,10 @@ export async function GET(request: NextRequest) {
     let liveFanslyAdded = 0
 
     if (mode === 'hybrid') {
+      if (ofToken || fanslyAccountId) {
+        const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
+        if (billingBlock) return billingBlock
+      }
       if (ofToken) {
         try {
           const api = createOnlyFansAPI()

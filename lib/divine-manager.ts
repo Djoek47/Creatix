@@ -141,26 +141,98 @@ export interface DivineManagerAutomationRules {
     | undefined
 }
 
-/** OF user-list housekeeping: optional auto-create + per-segment list overrides. */
-export type HousekeepingSegmentKey = 'whale_spend' | 'active_chatter' | 'cold'
+/** Smart fan classify segments (OnlyFans lists + Fansly CRM tags). Stored in `housekeeping_lists` JSON. */
+export type FanClassifySegmentKey =
+  | 'whale_spend'
+  | 'active_chatter'
+  | 'cold'
+  | 'freeloader_new'
+  | 'freeloader_mature'
+  | 'spenders'
+  | 'subscriber_no_extra'
+  | 'recent_sub_3d'
 
-export interface HousekeepingSegmentRule {
-  segment: HousekeepingSegmentKey
+/** @deprecated use FanClassifySegmentKey */
+export type HousekeepingSegmentKey = FanClassifySegmentKey
+
+export interface FanClassifySegmentRule {
+  segment: FanClassifySegmentKey
+  /** When false, rule is skipped (default true). */
+  enabled?: boolean
   /** OnlyFans user list id (skips name lookup when set). */
   listId?: string
-  /** Display name for auto-create or matching existing list. */
+  /** OnlyFans: display name for auto-create or matching existing list. */
   listName?: string
+  /** Fansly: CRM tag name (defaults per segment if unset). */
+  tagName?: string
   spendMin?: number
   chatDays?: number
   /** For cold segment: max total spend to qualify. */
   coldSpendMax?: number
+  /** Split freeloader tenure (days). Default 45. */
+  freeloader_tenure_days?: number
+  /** Recent subscriber window (days). Default 3. */
+  recent_sub_days?: number
 }
 
-export interface HousekeepingListsConfig {
+/** @deprecated use FanClassifySegmentRule */
+export type HousekeepingSegmentRule = FanClassifySegmentRule
+
+/** Auto-add fans to a list/tag while they have a recent inbound message. */
+export interface FanClassifyActiveChatConfig {
+  enabled?: boolean
+  /** How long after last fan message they stay on the list/tag. Default 30. */
+  window_minutes?: number
+  /** OnlyFans list id. */
+  list_id?: string
+  list_name?: string
+  /** Fansly CRM tag name. */
+  tag_name?: string
+}
+
+export interface FanClassifyConfig {
   enabled?: boolean
   auto_create_lists?: boolean
-  segments?: HousekeepingSegmentRule[]
+  segments?: FanClassifySegmentRule[]
+  active_chat?: FanClassifyActiveChatConfig
   last_sync_at?: string
+}
+
+/** Same JSON as {@link FanClassifyConfig}; column name kept for backwards compatibility. */
+export type HousekeepingListsConfig = FanClassifyConfig
+
+/** Prefix for system-managed Fansly tags created by classify sync. */
+export const FAN_CLASSIFY_MANAGED_TAG_PREFIX = 'Creatix classify — '
+
+export function defaultFanClassifyListName(segment: FanClassifySegmentKey): string {
+  const labels: Record<FanClassifySegmentKey, string> = {
+    whale_spend: 'Whales',
+    active_chatter: 'Active chatters',
+    cold: 'Cold / low engagement',
+    freeloader_new: 'Freeloaders (<45d)',
+    freeloader_mature: 'Freeloaders (45+d)',
+    spenders: 'Spenders',
+    subscriber_no_extra: 'Subscribers, no extra spend',
+    recent_sub_3d: 'Recent subs (3d)',
+  }
+  return `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}${labels[segment]}`
+}
+
+/** Default OnlyFans list / Fansly tag for “active chat” auto-sync. */
+export const FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME = `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}Active chat`
+
+/** Default Smart classify segment toggles for new setups (legacy API segments off). */
+export function defaultSmartClassifySegments(): FanClassifySegmentRule[] {
+  return [
+    { segment: 'freeloader_new', enabled: true },
+    { segment: 'freeloader_mature', enabled: true },
+    { segment: 'spenders', enabled: true },
+    { segment: 'subscriber_no_extra', enabled: true },
+    { segment: 'recent_sub_3d', enabled: true },
+    { segment: 'whale_spend', enabled: false, spendMin: 500 },
+    { segment: 'active_chatter', enabled: false, chatDays: 7 },
+    { segment: 'cold', enabled: false, coldSpendMax: 50, chatDays: 14 },
+  ]
 }
 
 export interface DivineManagerSettingsRow {
@@ -168,7 +240,7 @@ export interface DivineManagerSettingsRow {
   persona: DivineManagerPersona
   goals: DivineManagerGoals
   automation_rules: DivineManagerAutomationRules
-  /** OnlyFans list sync (cron + settings). See lib/housekeeping-fan-lists.ts */
+  /** Smart classify (OnlyFans lists + Fansly tags). JSON column name unchanged. See lib/fan-classify/sync-core.ts */
   housekeeping_lists?: HousekeepingListsConfig
   /** Mimic Test profile (fan-facing draft style). See lib/divine/mimic-types.ts */
   mimic_profile?: unknown

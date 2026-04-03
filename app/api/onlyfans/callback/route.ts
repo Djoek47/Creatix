@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/observed-monthly-revenue'
 import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
@@ -50,18 +51,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { data: existingOf } = await supabase
+      .from('platform_connections')
+      .select('access_token')
+      .eq('user_id', userId)
+      .eq('platform', 'onlyfans')
+      .maybeSingle()
+
+    const sameOnlyfansAccount =
+      existingOf?.access_token != null && String(existingOf.access_token) === String(accountId)
+    const observedReset = sameOnlyfansAccount
+      ? {}
+      : {
+          observed_monthly_revenue_usd: null,
+          observed_revenue_captured_at: null,
+          observed_revenue_onlyfans_account_id: null,
+        }
+
     const { error: dbError } = await supabase
       .from('platform_connections')
-      .upsert({
-        user_id: userId,
-        platform: 'onlyfans',
-        platform_username: username || 'Connected',
-        is_connected: true,
-        access_token: accountId,
-        last_sync_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,platform',
-      })
+      .upsert(
+        {
+          user_id: userId,
+          platform: 'onlyfans',
+          platform_username: username || 'Connected',
+          is_connected: true,
+          access_token: accountId,
+          last_sync_at: new Date().toISOString(),
+          ...observedReset,
+        },
+        {
+          onConflict: 'user_id,platform',
+        },
+      )
 
     if (dbError) {
       if (dbError.code === '23505') {
@@ -76,7 +98,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save connection' }, { status: 500 })
     }
 
-    await syncOnlyFansData(userId, accountId)
+    await syncOnlyFansData(request, userId, accountId)
 
     return NextResponse.json({
       success: true,
@@ -101,15 +123,16 @@ export async function GET(request: NextRequest) {
   return NextResponse.redirect(url)
 }
 
-async function syncOnlyFansData(userId: string, accountId: string) {
+async function syncOnlyFansData(request: NextRequest, userId: string, accountId: string) {
   try {
     const supabase = await createRouteHandlerClient(request)
     const api = createOnlyFansAPI(accountId)
 
-    const [stats, earningsResult, fansResult] = await Promise.all([
+    const [stats, earningsResult, fansResult, chartRes] = await Promise.all([
       api.getStats().catch(() => null),
       api.getEarnings().catch(() => null),
       api.getFans({ status: 'active', limit: 100, sort: 'recent' }).catch(() => ({ fans: [], total: 0 })),
+      api.getEarningsChart({ days: 30 }).catch(() => null),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -153,6 +176,23 @@ async function syncOnlyFansData(userId: string, accountId: string) {
         },
         { onConflict: 'user_id,platform,platform_fan_id' }
       )
+    }
+
+    const observedUsd = observedMonthlyRevenueUsdFromOnlyFansSignals({
+      stats,
+      earnings: earningsResult as { thisMonth?: number; this_day?: number; today?: number } | null,
+      chartPoints: chartRes?.data,
+    })
+    if (observedUsd != null) {
+      await supabase
+        .from('platform_connections')
+        .update({
+          observed_monthly_revenue_usd: observedUsd,
+          observed_revenue_captured_at: new Date().toISOString(),
+          observed_revenue_onlyfans_account_id: accountId,
+        })
+        .eq('user_id', userId)
+        .eq('platform', 'onlyfans')
     }
   } catch (err) {
     console.error('OnlyFans callback sync error:', err)

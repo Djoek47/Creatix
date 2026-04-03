@@ -1,0 +1,217 @@
+import { NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { isPaidPlanId, isPaidSubscription, type SubscriptionLike } from '@/lib/billing/access'
+import { tierIndexFromMonthlyRevenue } from '@/lib/pricing-matrix'
+
+export type OnlyFansBillingDenialCode = 'SUBSCRIPTION_INACTIVE' | 'REVENUE_TIER_MISMATCH'
+
+export type OnlyFansBillingDenial = {
+  code: OnlyFansBillingDenialCode
+  message: string
+  subscribedTier?: number
+  requiredTier?: number
+  observedMonthlyUsd?: number
+}
+
+/** Scoped snapshot for one connected adult platform row (`platform_connections`). */
+export type ScopedPlatformObservation = {
+  partnerAccountId: string
+  observedMonthlyRevenueUsd: number | null | undefined
+  observedRevenueCapturedAt: string | null | undefined
+  /** Partner account id the observation was captured for (column name is historical; used for OF and Fansly). */
+  observationScopedPartnerAccountId: string | null | undefined
+}
+
+function subscribedRevenueTierIndex(row: SubscriptionLike | null | undefined): number {
+  const t = typeof row?.revenue_tier === 'number' ? row.revenue_tier : null
+  if (t == null || !Number.isFinite(t) || t < 0 || t > 10) return 0
+  return t
+}
+
+/**
+ * Paid plan in bad standing: block OnlyFans product APIs (disconnect / billing / sync stay available).
+ */
+export function denialForInactivePaidSubscription(
+  subscription: SubscriptionLike | null | undefined,
+): OnlyFansBillingDenial | null {
+  const planId = subscription?.plan_id
+  if (!isPaidPlanId(planId)) return null
+  const st = (subscription?.status || '').toLowerCase()
+  if (st === 'active' || st === 'trialing') return null
+  return {
+    code: 'SUBSCRIPTION_INACTIVE',
+    message:
+      'Your subscription is not active. Update billing or disconnect connected platforms until your plan is current.',
+  }
+}
+
+/**
+ * Only use stored revenue if it was captured for the same partner account id as currently connected.
+ */
+export function observedScopedRevenueForBilling(args: {
+  currentPartnerAccountId: string
+  observedMonthlyRevenueUsd: number | null | undefined
+  observedRevenueCapturedAt: string | null | undefined
+  observationScopedPartnerAccountId: string | null | undefined
+}): { usd: number | null; capturedAt: string | null } {
+  const stored =
+    args.observationScopedPartnerAccountId != null ? String(args.observationScopedPartnerAccountId).trim() : ''
+  const current = String(args.currentPartnerAccountId).trim()
+  if (!stored || !current || stored !== current) {
+    return { usd: null, capturedAt: null }
+  }
+  return {
+    usd: args.observedMonthlyRevenueUsd != null ? Number(args.observedMonthlyRevenueUsd) : null,
+    capturedAt: args.observedRevenueCapturedAt != null ? String(args.observedRevenueCapturedAt) : null,
+  }
+}
+
+function requiredTierFromScopedObservation(obs: ScopedPlatformObservation | null): number | null {
+  if (!obs) return null
+  const scoped = observedScopedRevenueForBilling({
+    currentPartnerAccountId: obs.partnerAccountId,
+    observedMonthlyRevenueUsd: obs.observedMonthlyRevenueUsd,
+    observedRevenueCapturedAt: obs.observedRevenueCapturedAt,
+    observationScopedPartnerAccountId: obs.observationScopedPartnerAccountId,
+  })
+  if (scoped.capturedAt == null || String(scoped.capturedAt).trim() === '') return null
+  if (scoped.usd == null || !Number.isFinite(Number(scoped.usd))) return null
+  return tierIndexFromMonthlyRevenue(Math.max(0, Number(scoped.usd)))
+}
+
+/**
+ * Subscribed revenue band must cover the highest implied tier across OnlyFans and Fansly (each scoped to its connected account id).
+ */
+export function denialForRevenueTierUndershootMulti(args: {
+  subscription: SubscriptionLike | null | undefined
+  onlyfans: ScopedPlatformObservation | null
+  fansly: ScopedPlatformObservation | null
+}): OnlyFansBillingDenial | null {
+  if (!isPaidSubscription(args.subscription)) return null
+  const ofT = requiredTierFromScopedObservation(args.onlyfans)
+  const fsT = requiredTierFromScopedObservation(args.fansly)
+  const tiers = [ofT, fsT].filter((t): t is number => t != null)
+  if (tiers.length === 0) return null
+  const requiredTier = Math.max(...tiers)
+  const subscribedTier = subscribedRevenueTierIndex(args.subscription)
+  if (subscribedTier >= requiredTier) return null
+  return {
+    code: 'REVENUE_TIER_MISMATCH',
+    message:
+      'Your plan’s revenue band is below what your connected OnlyFans and/or Fansly account(s) are earning. Upgrade your subscription to the matching band, or disconnect those platforms.',
+    subscribedTier,
+    requiredTier,
+  }
+}
+
+export function evaluateAdultPlatformBillingDenial(args: {
+  subscription: SubscriptionLike | null | undefined
+  onlyfans: ScopedPlatformObservation | null
+  fansly: ScopedPlatformObservation | null
+}): OnlyFansBillingDenial | null {
+  return (
+    denialForInactivePaidSubscription(args.subscription) ??
+    denialForRevenueTierUndershootMulti({
+      subscription: args.subscription,
+      onlyfans: args.onlyfans,
+      fansly: args.fansly,
+    })
+  )
+}
+
+type PlatformConnectionObservedRow = {
+  access_token?: string | null
+  platform_user_id?: string | null
+  observed_monthly_revenue_usd?: number | null
+  observed_revenue_captured_at?: string | null
+  observed_revenue_onlyfans_account_id?: string | null
+} | null
+
+export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
+  if (!row?.access_token || String(row.access_token).trim() === '') return null
+  const id = String(row.access_token)
+  return {
+    partnerAccountId: id,
+    observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
+    observedRevenueCapturedAt: row.observed_revenue_captured_at ?? null,
+    observationScopedPartnerAccountId: row.observed_revenue_onlyfans_account_id ?? null,
+  }
+}
+
+export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
+  const id = row?.access_token ?? row?.platform_user_id
+  if (id == null || String(id).trim() === '') return null
+  return {
+    partnerAccountId: String(id),
+    observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
+    observedRevenueCapturedAt: row.observed_revenue_captured_at ?? null,
+    observationScopedPartnerAccountId: row.observed_revenue_onlyfans_account_id ?? null,
+  }
+}
+
+const PLATFORM_OBSERVED_SELECT =
+  'access_token, platform_user_id, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id'
+
+export type AdultPlatformBillingContext = {
+  onlyfansAccessToken: string | null
+  fanslyAccessToken: string | null
+  denial: OnlyFansBillingDenial | null
+}
+
+export async function loadAdultPlatformBillingContext(
+  supabase: SupabaseClient,
+): Promise<AdultPlatformBillingContext | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const [{ data: ofConn }, { data: fsConn }, { data: subscription }] = await Promise.all([
+    supabase
+      .from('platform_connections')
+      .select(PLATFORM_OBSERVED_SELECT)
+      .eq('user_id', user.id)
+      .eq('platform', 'onlyfans')
+      .eq('is_connected', true)
+      .maybeSingle(),
+    supabase
+      .from('platform_connections')
+      .select(PLATFORM_OBSERVED_SELECT)
+      .eq('user_id', user.id)
+      .eq('platform', 'fansly')
+      .eq('is_connected', true)
+      .maybeSingle(),
+    supabase.from('subscriptions').select('plan_id,status,revenue_tier').eq('user_id', user.id).maybeSingle(),
+  ])
+
+  const onlyfansAccessToken =
+    ofConn?.access_token != null && String(ofConn.access_token).trim() !== '' ? String(ofConn.access_token) : null
+  const fanslyAccessToken =
+    fsConn?.access_token != null && String(fsConn.access_token).trim() !== ''
+      ? String(fsConn.access_token)
+      : fsConn?.platform_user_id != null && String(fsConn.platform_user_id).trim() !== ''
+        ? String(fsConn.platform_user_id)
+        : null
+
+  const denial = evaluateAdultPlatformBillingDenial({
+    subscription,
+    onlyfans: scopedObservationFromOnlyFansRow(ofConn),
+    fansly: scopedObservationFromFanslyRow(fsConn),
+  })
+
+  return { onlyfansAccessToken, fanslyAccessToken, denial }
+}
+
+export function onlyFansBillingDenialToResponse(denial: OnlyFansBillingDenial): NextResponse {
+  return NextResponse.json(
+    {
+      error: denial.message,
+      code: 'ONLYFANS_BILLING_BLOCKED',
+      reason: denial.code,
+      ...(denial.subscribedTier !== undefined ? { subscribedRevenueTier: denial.subscribedTier } : {}),
+      ...(denial.requiredTier !== undefined ? { requiredRevenueTier: denial.requiredTier } : {}),
+      ...(denial.observedMonthlyUsd !== undefined ? { observedMonthlyRevenueUsd: denial.observedMonthlyUsd } : {}),
+    },
+    { status: 403 },
+  )
+}

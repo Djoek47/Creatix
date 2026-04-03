@@ -42,10 +42,14 @@ export default function MessageThreadScreen() {
     navigation.setOptions({ title, headerBackTitle: 'Messages' })
   }, [navigation, fanUsername])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { refresh?: boolean }) => {
     if (!fid) return
     setError(null)
-    const res = await apiFetch(`/api/onlyfans/messages/${encodeURIComponent(fid)}?limit=80`)
+    const q = new URLSearchParams({ limit: '100' })
+    if (opts?.refresh) q.set('refresh', '1')
+    const res = await apiFetch(
+      `/api/onlyfans/messages/${encodeURIComponent(fid)}?${q.toString()}`,
+    )
     const json = (await res.json()) as { messages?: Msg[]; error?: string; message?: string }
     if (!res.ok) {
       setError(formatApiScreenError(res.status, json.error, json.message))
@@ -63,7 +67,7 @@ export default function MessageThreadScreen() {
 
   async function onRefresh() {
     setRefreshing(true)
-    await load()
+    await load({ refresh: true })
     setRefreshing(false)
   }
 
@@ -83,7 +87,7 @@ export default function MessageThreadScreen() {
         setDraft(text)
         return
       }
-      await load()
+      await load({ refresh: true })
     } finally {
       setSending(false)
     }

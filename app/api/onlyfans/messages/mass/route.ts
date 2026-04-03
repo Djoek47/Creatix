@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 // POST - Send a mass message
 export async function POST(request: NextRequest) {
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: connection } = await supabase
       .from('platform_connections')

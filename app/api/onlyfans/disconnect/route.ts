@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +44,9 @@ export async function POST(request: NextRequest) {
         is_connected: false,
         access_token: null, // Clear the token
         last_sync_at: new Date().toISOString(),
+        observed_monthly_revenue_usd: null,
+        observed_revenue_captured_at: null,
+        observed_revenue_onlyfans_account_id: null,
       })
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
@@ -50,6 +54,8 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       return NextResponse.json({ error: 'Failed to update database' }, { status: 500 })
     }
+
+    await clearOnlyFansDmMessageCacheForUser(supabase, user.id)
 
     return NextResponse.json({ 
       success: true, 

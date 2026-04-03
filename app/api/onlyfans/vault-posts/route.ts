@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 /** Creator post feed with media — used as "OF library" in AI Studio (metadata-first). */
 export async function GET(req: Request) {
@@ -11,6 +12,9 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const billingBlock = await onlyFansBillingGateResponse(supabase)
+  if (billingBlock) return billingBlock
 
   const { searchParams } = new URL(req.url)
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '40', 10), 1), 80)

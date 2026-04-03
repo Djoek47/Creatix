@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { PricingModelMarketingSection } from '@/components/marketing/pricing-model-marketing-section'
 import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
@@ -322,6 +323,7 @@ export default function HowItWorksPage() {
               <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy</Link>
             </nav>
           </div>
+          <FooterSupportSocial className="mt-6" />
           <div className="mt-6 border-t border-border/30 pt-6 text-center">
             <p className="text-sm text-muted-foreground">
               MMXXVI Circe et Venus Inc. All rights reserved.

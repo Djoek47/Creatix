@@ -20,6 +20,7 @@ export function isPaidPlanId(planId: string | null | undefined): boolean {
 export interface SubscriptionLike {
   plan_id?: string | null
   status?: string | null
+  revenue_tier?: number | null
 }
 
 /** Active paid subscription (including legacy SKUs and trial grandfathering handled elsewhere). */

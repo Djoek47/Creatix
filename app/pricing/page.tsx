@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -273,6 +274,7 @@ export default function PricingPage() {
               </Link>
             </nav>
           </div>
+          <FooterSupportSocial className="mt-6" />
           <div className="mt-6 border-t border-border/30 pt-6 text-center">
             <p className="text-sm text-muted-foreground">MMXXVI Circe et Venus Inc. All rights reserved.</p>
           </div>

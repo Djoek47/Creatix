@@ -138,7 +138,11 @@ export function ConversationRail({
       <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {conversations.length === 0 ? (
           <p className="px-1 py-4 text-center text-xs text-muted-foreground">
-            {searchQuery ? 'No matches' : 'No chats'}
+            {searchQuery.trim()
+              ? 'No matches'
+              : segment !== 'all' || platform !== 'all' || tag.trim()
+                ? 'None match — try All or clear filters'
+                : 'No chats'}
           </p>
         ) : expanded ? (
           <div

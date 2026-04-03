@@ -152,6 +152,12 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  /** From /api/onlyfans/check-connection — which platform(s) billing blocks (OF vs Fansly can differ). */
+  const [adultPlatformBilling, setAdultPlatformBilling] = useState<{
+    message: string
+    onlyFansAccessBlocked: boolean
+    fanslyAccessBlocked: boolean
+  } | null>(null)
 
   // OnlyFans: SDK modal only; overlay blocks app until user completes or cancels
   const [onlyfansSdkInProgress, setOnlyfansSdkInProgress] = useState(false)
@@ -191,6 +197,35 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         billing_variant: (subRow as { billing_variant?: string | null }).billing_variant ?? null,
       })
     }
+
+    const ofConnected = (data || []).some((c) => c.platform === 'onlyfans' && c.is_connected)
+    const fsConnected = (data || []).some((c) => c.platform === 'fansly' && c.is_connected)
+    if (ofConnected || fsConnected) {
+      try {
+        const res = await fetch('/api/onlyfans/check-connection')
+        const j = await res.json().catch(() => ({}))
+        const msg =
+          typeof j.adultPlatformBillingDenial?.message === 'string'
+            ? j.adultPlatformBillingDenial.message
+            : typeof j.onlyFansBillingBlock?.message === 'string'
+              ? j.onlyFansBillingBlock.message
+              : null
+        if (msg && (j.onlyFansAccessBlocked === true || j.fanslyAccessBlocked === true)) {
+          setAdultPlatformBilling({
+            message: msg,
+            onlyFansAccessBlocked: j.onlyFansAccessBlocked === true,
+            fanslyAccessBlocked: j.fanslyAccessBlocked === true,
+          })
+        } else {
+          setAdultPlatformBilling(null)
+        }
+      } catch {
+        setAdultPlatformBilling(null)
+      }
+    } else {
+      setAdultPlatformBilling(null)
+    }
+
     setLoading(false)
   }
 
@@ -902,6 +937,32 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
                   {connected ? (
                     <div className="space-y-3 pt-2">
+                      {platform.id === 'onlyfans' &&
+                      adultPlatformBilling?.onlyFansAccessBlocked ? (
+                        <Alert variant="destructive" className="border-amber-600/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            {adultPlatformBilling.message}{' '}
+                            <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                              Review billing
+                            </Link>
+                            , or disconnect this platform until your plan matches.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
+                      {platform.id === 'fansly' && adultPlatformBilling?.fanslyAccessBlocked ? (
+                        <Alert variant="destructive" className="border-amber-600/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            {adultPlatformBilling.message}{' '}
+                            <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                              Review billing
+                            </Link>
+                            , or disconnect this platform until your plan matches.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
+
                       {/* Connected status bar */}
                       <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/8 px-3 py-2">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">

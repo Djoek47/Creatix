@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -8,10 +8,8 @@ import { cn } from '@/lib/utils'
 import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
-import {
-  CRM_NOTIFICATION_ID_RE,
-  type NotificationBriefingItem,
-} from '@/lib/notification-briefing-types'
+import { CRM_NOTIFICATION_ID_RE } from '@/lib/notification-briefing-types'
+import { executeNotificationSecretaryBriefing } from '@/lib/divine/notification-secretary-briefing-client'
 import { isLeftoverTask, PRIORITY_TIER_LABELS } from '@/lib/creator-protocol-task-types'
 import type { CreatorProtocolPriorityTier } from '@/lib/creator-protocol-task-types'
 import { Sparkles, Loader2, ChevronDown } from 'lucide-react'
@@ -57,89 +55,87 @@ export function DivineProtocolTaskRail() {
   const [briefingLoading, setBriefingLoading] = useState(false)
   const [briefingHint, setBriefingHint] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(true)
+  /** True once this session had at least one open task — used to auto-collapse the empty rail. */
+  const hadOpenTasksRef = useRef(false)
 
   const openTasks = useMemo(
     () => tasks.filter((t) => t.status === 'pending' || t.status === 'executing'),
     [tasks],
   )
 
-  const runBriefingForQueue = useCallback(async () => {
+  /** Same secretary + voice flow as the bell; uses task-linked ids when present, else unread saved inbox rows. */
+  const runBriefingUnified = useCallback(async () => {
     setBriefingLoading(true)
     setBriefingHint(null)
     try {
-      const unreadIds = openTasks
+      if (!divinePanel) {
+        setBriefingHint('Divine is still loading — try again in a moment.')
+        return
+      }
+
+      const fromTasks = openTasks
         .map((t) => t.linked_notification_id)
         .filter((id): id is string => Boolean(id && CRM_NOTIFICATION_ID_RE.test(id)))
-        .slice(0, 25)
 
-      if (unreadIds.length === 0) {
-        setBriefingHint('No open tasks with linked CRM notifications. Add tasks from Divine or link a notification id.')
-        return
-      }
+      let notificationIds: string[] = []
+      let linksById: Record<string, string | undefined> = {}
+      const usedTaskLinks = fromTasks.length > 0
 
-      const res = await fetch('/api/divine/notification-briefing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ notification_ids: unreadIds }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setBriefingHint(typeof json.error === 'string' ? json.error : 'Briefing failed')
-        return
-      }
-      const script = typeof json.script === 'string' ? json.script : ''
-      const items = Array.isArray(json.items)
-        ? (json.items as NotificationBriefingItem[]).filter(
-            (it) => it && typeof it.notification_id === 'string',
-          )
-        : []
-      if (items.length === 0) {
-        setBriefingHint(script.trim() || 'No briefing items returned.')
-        return
-      }
-
-      const linksById: Record<string, string | undefined> = {}
-      const linkIds = [...new Set(items.map((it) => it.notification_id).filter(Boolean))]
-      if (linkIds.length > 0) {
+      if (usedTaskLinks) {
+        notificationIds = [...new Set(fromTasks)].slice(0, 25)
+        if (notificationIds.length > 0) {
+          const sb = createClient()
+          const { data: rows } = await sb.from('notifications').select('id, link').in('id', notificationIds)
+          for (const r of rows ?? []) {
+            const row = r as { id: string; link?: string | null }
+            if (row.link) linksById[row.id] = row.link
+          }
+        }
+      } else {
         const sb = createClient()
-        const { data: rows } = await sb.from('notifications').select('id, link').in('id', linkIds)
+        const {
+          data: { user },
+        } = await sb.auth.getUser()
+        if (!user) {
+          setBriefingHint('Sign in to load notifications.')
+          return
+        }
+        const { data: rows } = await sb
+          .from('notifications')
+          .select('id, link')
+          .eq('user_id', user.id)
+          .eq('read', false)
+          .order('created_at', { ascending: false })
+          .limit(60)
+
         for (const r of rows ?? []) {
           const row = r as { id: string; link?: string | null }
+          if (!CRM_NOTIFICATION_ID_RE.test(row.id)) continue
+          if (notificationIds.length >= 25) break
+          notificationIds.push(row.id)
           if (row.link) linksById[row.id] = row.link
         }
       }
 
-      divinePanel?.openSecretaryFromBriefing({ script, items, linksById })
+      if (notificationIds.length === 0) {
+        setBriefingHint(
+          usedTaskLinks
+            ? 'No valid linked notification ids on open tasks. Use unread inbox below, or link a saved notification to a task in Divine.'
+            : 'No unread saved notifications yet. Open the bell (top right) so items sync into your inbox, then try again.',
+        )
+        return
+      }
 
-      const lines = items.slice(0, 20).map(
-        (it, i) =>
-          `${i + 1}. [${it.notification_id}] ${it.summary} — ${it.suggested_action}`.slice(0, 400),
-      )
+      const result = await executeNotificationSecretaryBriefing({
+        notificationIds,
+        linksById,
+        openSecretaryFromBriefing: divinePanel.openSecretaryFromBriefing,
+        voiceSession,
+        voicePromptStyle: usedTaskLinks ? 'task_queue' : 'inbox',
+      })
 
-      try {
-        if (voiceSession?.status === 'connected') {
-          await voiceSession.sendBriefingQuestion(
-            `Notification secretary (voice live). Task-linked queue:\n${lines.join('\n')}\n\nStart with item 1. Use secretary_next_notification only after the creator confirms. Use notifications_panel to open the bell if needed.`,
-          )
-        } else if (voiceSession && voiceSession.status !== 'connecting') {
-          await voiceSession.startVoiceCall({
-            realtimeBodyExtras: {
-              mode: 'notification_secretary',
-              notification_secretary: { lines },
-            },
-          })
-          await new Promise((r) => setTimeout(r, 150))
-          try {
-            await voiceSession.sendBriefingQuestion(
-              `Walking through ${items.length} task-linked notifications. Start with the first; use secretary_next_notification after confirmation.`,
-            )
-          } catch {
-            // channel may still be opening
-          }
-        }
-      } catch {
-        // voice optional
+      if (!result.ok) {
+        setBriefingHint(result.error)
       }
     } catch {
       setBriefingHint('Briefing failed')
@@ -149,6 +145,24 @@ export function DivineProtocolTaskRail() {
   }, [openTasks, divinePanel, voiceSession])
 
   const showEmptyShell = !openTasks.length && !loading && !error
+
+  useEffect(() => {
+    if (openTasks.length > 0) {
+      hadOpenTasksRef.current = true
+      setMenuOpen(true)
+    }
+  }, [openTasks.length])
+
+  useEffect(() => {
+    if (showEmptyShell && hadOpenTasksRef.current) {
+      setMenuOpen(false)
+    }
+  }, [showEmptyShell])
+
+  /** No open tasks + user collapsed: hide the whole stack (briefing stays on the notifications bell). */
+  if (showEmptyShell && !menuOpen) {
+    return null
+  }
 
   return (
     <div
@@ -196,15 +210,20 @@ export function DivineProtocolTaskRail() {
                 variant="secondary"
                 size="sm"
                 className="h-7 gap-1 text-[11px]"
-                disabled={briefingLoading || !divinePanel}
-                onClick={() => void runBriefingForQueue()}
+                disabled={briefingLoading}
+                onClick={() => void runBriefingUnified()}
               >
                 {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                AI briefing (linked)
+                Divine realtime briefing
               </Button>
               {briefingHint ? (
                 <p className="max-w-[280px] text-[10px] text-muted-foreground">{briefingHint}</p>
-              ) : null}
+              ) : (
+                <p className="max-w-[280px] text-[10px] text-muted-foreground">
+                  Same as the bell: human-style voice + secretary panel. New briefings add protocol tasks linked to each
+                  notification until you mark them handled. Collapse this bar when empty to hide it completely.
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
@@ -223,11 +242,11 @@ export function DivineProtocolTaskRail() {
                   variant="secondary"
                   size="sm"
                   className="h-7 gap-1 text-[10px]"
-                  disabled={briefingLoading || !divinePanel}
-                  onClick={() => void runBriefingForQueue()}
+                  disabled={briefingLoading}
+                  onClick={() => void runBriefingUnified()}
                 >
                   {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                  Briefing
+                  Realtime briefing
                 </Button>
               </div>
               {briefingHint ? (

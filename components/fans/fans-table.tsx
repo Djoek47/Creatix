@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 import { MoreHorizontal, MessageSquare, Star, Ban, Eye, Loader2, Sparkles, Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
 import { FanAiSummaryDialog } from '@/components/fans/fan-ai-summary-dialog'
@@ -101,8 +102,8 @@ export function FansTable({
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             {hasFanPlatformsConnected
               ? liveFilter
-                ? 'The live OnlyFans list can be empty for this filter. Choose “From database” in the filter menu to see synced fans, or Refresh to pull from the platform.'
-                : 'OnlyFans or Fansly is connected. Use the Refresh button above to sync your fans, or they’ll appear as new subscribers and tips come in.'
+                ? 'The live OnlyFans list can be empty for this filter. Choose “From database” in the filter menu to see synced fans, or open Sync → Quick sync to pull from the platform.'
+                : 'OnlyFans or Fansly is connected. Use Sync above (Quick or Full CRM update), or fans appear as subscribers and tips come in.'
               : 'Connect OnlyFans or Fansly in Settings to import your fans and start managing your community.'}
           </p>
           {!hasFanPlatformsConnected && (
@@ -164,7 +165,10 @@ export function FansTable({
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9 shrink-0 border border-border">
-                      <AvatarImage src={fan.avatar_url || undefined} alt="" />
+                      <AvatarImage
+                        src={proxyImageUrl(fan.avatar_url) || fan.avatar_url || undefined}
+                        alt=""
+                      />
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
                         {(fan.display_name || fan.platform_username || '?')[0].toUpperCase()}
                       </AvatarFallback>

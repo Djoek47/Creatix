@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 export const maxDuration = 60
 
@@ -106,6 +107,8 @@ export async function GET(req: NextRequest) {
 
       meta.onlyfans_connected = Boolean(conn?.access_token)
       if (conn?.access_token) {
+        const billingBlock = await onlyFansBillingGateResponse(supabase)
+        if (billingBlock) return billingBlock
         try {
           const api = createOnlyFansAPI(conn.access_token)
           const feed = await api.getPosts({ limit: 25, offset: 0 })

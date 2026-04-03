@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -20,7 +18,7 @@ import {
   mergeThreadInsightsIntoFan,
   type ThreadInsightBrief,
 } from '@/lib/fans/merge-fan-audience'
-import { LayoutGrid, Loader2, Table2 } from 'lucide-react'
+import { LayoutGrid, Table2 } from 'lucide-react'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
@@ -42,7 +40,6 @@ export function FansPageClient({
   hasFanPlatformsConnected,
   analyticsTotalFans = 0,
 }: FansPageClientProps) {
-  const router = useRouter()
   // Prefer synced CRM rows when we have them; "Live: Active" can return [] if the partner
   // payload shape differs or the session is stale — empty live + hidden DB confused creators.
   const [filter, setFilter] = useState<FansFilter>(() => {
@@ -54,9 +51,7 @@ export function FansPageClient({
   const [liveFans, setLiveFans] = useState<Fan[]>([])
   const [expiringFans, setExpiringFans] = useState<Fan[]>([])
   const [loadingLive, setLoadingLive] = useState(false)
-  const [bulkLoading, setBulkLoading] = useState(false)
-  const [bulkOffset, setBulkOffset] = useState(0)
-  const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery')
   const [liveFetchError, setLiveFetchError] = useState<string | null>(null)
 
@@ -140,58 +135,15 @@ export function FansPageClient({
     activeFans: mergedFans.filter((f) => f.tier !== 'inactive').length,
   }
 
-  const runBulkScan = async () => {
-    if (filter !== 'database') {
-      setBulkMessage('Switch to “From database” to scan synced fans in batches.')
-      return
-    }
-    setBulkLoading(true)
-    setBulkMessage(null)
-    try {
-      const res = await fetch('/api/divine/bulk-refresh-thread-insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          batchSize: 15,
-          offset: bulkOffset,
-          platform: 'onlyfans',
-        }),
-      })
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string
-        processed?: number
-        skipped?: number
-        nextOffset?: number | null
-        errors?: string[]
-      }
-      if (!res.ok) throw new Error(data.error || 'Bulk scan failed')
-      const errPart =
-        data.errors?.length && data.errors.length <= 3
-          ? ` Issues: ${data.errors.join('; ')}`
-          : data.errors?.length
-            ? ` (${data.errors.length} errors — check server logs)`
-            : ''
-      setBulkMessage(
-        `Refreshed ${data.processed ?? 0} threads${(data.skipped ?? 0) > 0 ? `, ${data.skipped} skipped` : ''}.${data.nextOffset != null ? ' Click again for the next batch.' : ' No more batches in this pass.'}${errPart}`,
-      )
-      if (data.nextOffset != null) setBulkOffset(data.nextOffset)
-      else setBulkOffset(0)
-      router.refresh()
-    } catch (e) {
-      setBulkMessage(e instanceof Error ? e.message : 'Bulk scan failed')
-    } finally {
-      setBulkLoading(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
       <FansHeader
         filter={filter}
         onFilterChange={setFilter}
         hasOnlyFansConnected={hasOnlyFansConnected}
+        hasFanPlatformsConnected={hasFanPlatformsConnected}
         loadingLive={loadingLive}
+        onSyncStatus={setSyncStatusMessage}
       />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
@@ -211,39 +163,10 @@ export function FansPageClient({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="gap-2"
-            disabled={bulkLoading || !hasFanPlatformsConnected || filter !== 'database'}
-            title={
-              filter !== 'database'
-                ? 'Switch to From database to refresh stored threads in batches'
-                : 'Fetch threads from OnlyFans for the next batch of fans (slow; respects rate limits)'
-            }
-            onClick={() => void runBulkScan()}
-          >
-            {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Scan thread batch (classifications)
-          </Button>
-          {bulkOffset > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setBulkOffset(0)
-                setBulkMessage('Batch offset reset to start.')
-              }}
-            >
-              Reset batch
-            </Button>
-          )}
-        </div>
       </div>
-      {bulkMessage && <p className="text-xs text-muted-foreground">{bulkMessage}</p>}
+      {syncStatusMessage && (
+        <p className="text-xs text-muted-foreground">{syncStatusMessage}</p>
+      )}
       {filter !== 'database' && filter !== 'expiring' && liveFetchError && !loadingLive ? (
         <p className="rounded-lg border border-amber-500/35 bg-amber-500/5 px-3 py-2 text-xs text-amber-900 dark:text-amber-100/90">
           {liveFetchError}

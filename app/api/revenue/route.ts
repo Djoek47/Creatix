@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 
 // GET: Fetch revenue data from all connected platform APIs
 export async function GET(request: NextRequest) {
@@ -44,6 +45,14 @@ export async function GET(request: NextRequest) {
 
     if (!connections || connections.length === 0) {
       return NextResponse.json(result)
+    }
+
+    const hasAdultPlatform = connections.some(
+      (c) => c.platform === 'onlyfans' || c.platform === 'fansly',
+    )
+    if (hasAdultPlatform) {
+      const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
+      if (billingBlock) return billingBlock
     }
 
     // Fetch data from each connected platform

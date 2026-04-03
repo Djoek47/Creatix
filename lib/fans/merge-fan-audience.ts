@@ -4,6 +4,7 @@ import {
   isWhaleOrVipAudience,
   resolveCreatorLikelyFromInsight,
 } from '@/lib/fans/audience-classification'
+import { avatarUrlFromInsightProfileJson } from '@/lib/fans/avatar-from-profile-json'
 
 export type ThreadInsightBrief = {
   platform: string
@@ -40,8 +41,13 @@ export function mergeThreadInsightsIntoFan(
     creatorLikely,
   })
 
+  const insightAvatar = avatarUrlFromInsightProfileJson(insight?.profile_json)
+  const avatar_url =
+    fan.avatar_url && String(fan.avatar_url).trim().length > 0 ? fan.avatar_url : insightAvatar
+
   return {
     ...fan,
+    avatar_url,
     audience: {
       isWhaleOrVip: isWhaleOrVipAudience(fan.total_spent, tierForAudience),
       isCreatorLikely: creatorLikely,

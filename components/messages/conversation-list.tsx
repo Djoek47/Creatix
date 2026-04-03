@@ -58,7 +58,7 @@ export function ConversationList({
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
         {conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <p className="text-sm text-muted-foreground">No conversations match</p>
+            <p className="text-sm text-muted-foreground">None match</p>
             <p className="mt-1 text-xs text-muted-foreground">Adjust segments or search above</p>
           </div>
         ) : (

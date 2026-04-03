@@ -53,6 +53,7 @@ import {
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import { getToolMeta } from '@/lib/ai-tools-data'
 import {
   compressImageForVision,
@@ -64,6 +65,8 @@ import {
   fetchCrmFansHybrid,
   crmFanToChurnRow,
   crmFanToFantasyRow,
+  liveCrmFanToChurnFanData,
+  type ChurnFanPickerRow,
 } from '@/lib/crm/fetch-crm-fans-client'
 import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 
@@ -196,9 +199,9 @@ const proTools = [
     description: 'Identify at-risk fans before they leave',
     longDescription: 'AI analyzes fan behavior to predict churn risk and provides personalized retention strategies.',
     icon: TrendingDown,
-    color: 'text-red-500',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/35',
     credits: 2,
     isPro: true,
   },
@@ -428,17 +431,7 @@ export function AIToolsSelector({
   const [giftUseWishlist, setGiftUseWishlist] = useState(true)
   const [churnFanId, setChurnFanId] = useState<string>('manual')
   const [churnExpiringOnly, setChurnExpiringOnly] = useState(false)
-  const [churnFans, setChurnFans] = useState<
-    {
-      id: string
-      username: string
-      display_name: string | null
-      total_spent: number | null
-      platform: string
-      subscription_expires_at?: string | null
-      subscription_status?: string | null
-    }[]
-  >([])
+  const [churnFans, setChurnFans] = useState<ChurnFanPickerRow[]>([])
 
   const churnFansFiltered = useMemo(() => {
     if (!churnExpiringOnly) return churnFans
@@ -735,24 +728,36 @@ export function AIToolsSelector({
           })
           break
           
-        case 'churn-predictor':
+        case 'churn-predictor': {
+          const selectedChurn = churnFans.find((x) => x.id === churnFanId)
+          const liveOnly =
+            churnFanId !== 'manual' &&
+            selectedChurn &&
+            selectedChurn._source !== 'database'
           response = await fetch('/api/ai/churn-predictor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(
-              churnFanId !== 'manual'
+              liveOnly
                 ? {
-                    fanId: churnFanId,
+                    fanData: liveCrmFanToChurnFanData(selectedChurn),
                     recentActivity: contentDescription || undefined,
                     spendingHistory: fanMessage || undefined,
                   }
-                : {
-                    fanData: fanMessage,
-                    recentActivity: contentDescription || undefined,
-                  },
+                : churnFanId !== 'manual'
+                  ? {
+                      fanId: churnFanId,
+                      recentActivity: contentDescription || undefined,
+                      spendingHistory: fanMessage || undefined,
+                    }
+                  : {
+                      fanData: fanMessage,
+                      recentActivity: contentDescription || undefined,
+                    },
             ),
           })
           break
+        }
           
         case 'mass-dm-composer':
           response = await fetch('/api/ai/mass-dm-composer', {
@@ -1509,7 +1514,11 @@ export function AIToolsSelector({
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Fan from CRM (uses spend + stored thread snapshot)</Label>
+              <Label>Fan from CRM (spend, renewal dates, thread insight, synced DMs)</Label>
+              <p className="text-xs text-muted-foreground">
+                Open <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/messages">Messages</Link>{' '}
+                for a fan so DMs save to your cache — thread text improves this run even without a separate scan.
+              </p>
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="churn-expiring-only"
@@ -1533,6 +1542,7 @@ export function AIToolsSelector({
                       {f.subscription_expires_at
                         ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
                         : ''}
+                      {f._source !== 'database' ? ' · live list' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1553,7 +1563,7 @@ export function AIToolsSelector({
               ) : null}
               {churnExpiringOnly && churnFansFiltered.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No matches. Sync OnlyFans or Fansly from the Fans page so subscription end dates populate.
+                  No matches. On Fans, open Sync → Full CRM update so subscription end dates populate.
                 </p>
               ) : null}
             </div>
@@ -2242,6 +2252,28 @@ export function AIToolsSelector({
     </div>
   )
 
+  const renderChurnResults = (res: AIResult) => (
+    <div className="space-y-3 border-t border-border pt-4">
+      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-violet-300/90 dark:text-violet-200/85">
+        <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        Circe retention readout
+      </p>
+      <div className="rounded-xl border border-violet-500/25 bg-violet-950/25 p-4 dark:bg-violet-950/35">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{res.content}</p>
+      </div>
+      {res.suggestions && res.suggestions.length > 0 && (
+        <ul className="space-y-1 text-sm text-muted-foreground">
+          {res.suggestions.map((suggestion, index) => (
+            <li key={index} className="flex gap-2">
+              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+
   // Render generic results
   const renderGenericResults = (res: AIResult) => (
     <div className="space-y-4 pt-4 border-t border-border">
@@ -2475,7 +2507,14 @@ export function AIToolsSelector({
         
         {/* Results — scrollable on mobile so page doesn't grow unbounded */}
         {result && (
-          <div className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden rounded-lg border border-border p-3">
+          <div
+            className={cn(
+              'w-full self-start overflow-x-hidden rounded-lg border border-border',
+              selectedTool.id === 'churn-predictor'
+                ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto bg-muted/15 p-3'
+                : 'max-h-[min(60vh,400px)] overflow-y-auto p-3',
+            )}
+          >
             {selectedTool.id === 'caption-generator' && 'captions' in result
               ? renderCaptionResults(result as CaptionResult)
               : selectedTool.id === 'competitor-analysis' &&
@@ -2485,13 +2524,15 @@ export function AIToolsSelector({
                 ? renderCompetitorResults(result as CompetitorInsightResult)
               : selectedTool.id === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
-                : selectedTool.id === 'photo-enhancer' &&
+              : selectedTool.id === 'photo-enhancer' &&
                     result &&
                     typeof result === 'object' &&
                     'imageBase64' in result &&
                     'explanation' in result
                   ? renderPhotoEditResults(result as PhotoEditIntentResult)
-                  : renderGenericResults(result as AIResult)}
+              : selectedTool.id === 'churn-predictor'
+                ? renderChurnResults(result as AIResult)
+                : renderGenericResults(result as AIResult)}
           </div>
         )}
       </CardContent>

@@ -28,6 +28,7 @@ import {
   CRM_NOTIFICATION_ID_RE,
   type NotificationBriefingItem,
 } from '@/lib/notification-briefing-types'
+import { dispatchProtocolTasksRefresh } from '@/lib/dashboard/notification-ui-bridge'
 
 export type { DivineUiAction, DmSuggestionBridgePayload } from '@/lib/divine/divine-ui-actions'
 
@@ -318,6 +319,15 @@ export function DivinePanelProvider({
       .eq('id', id)
       .eq('user_id', user.id)
     if (error) console.error('[secretary] mark read', error)
+    else {
+      await sb
+        .from('creator_protocol_tasks')
+        .update({ status: 'done', updated_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .eq('linked_notification_id', id)
+        .in('status', ['pending', 'executing'])
+      dispatchProtocolTasksRefresh()
+    }
   }, [secretarySession, user.id])
 
   const secretaryDeleteCurrent = useCallback(async () => {
@@ -325,6 +335,12 @@ export function DivinePanelProvider({
     const id = secretarySession.items[secretarySession.index]?.notification_id?.trim()
     if (!id || !CRM_NOTIFICATION_ID_RE.test(id)) return
     const sb = createClient()
+    await sb
+      .from('creator_protocol_tasks')
+      .update({ status: 'done', updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('linked_notification_id', id)
+      .in('status', ['pending', 'executing'])
     const { data, error } = await sb
       .from('notifications')
       .delete()
@@ -333,6 +349,7 @@ export function DivinePanelProvider({
       .select('id')
     if (error) console.error('[secretary] delete', error)
     else if (!data?.length) console.warn('[secretary] delete: no row removed (check id / RLS)')
+    dispatchProtocolTasksRefresh()
     secretaryAdvance()
   }, [secretarySession, secretaryAdvance])
 

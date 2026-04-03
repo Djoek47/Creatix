@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import {
+  ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
+  onlyFansBillingGateResponse,
+} from '@/lib/onlyfans-api-route'
+import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +15,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     // Get the OnlyFans connection
     const { data: connection } = await supabase
@@ -49,9 +57,10 @@ export async function GET(request: NextRequest) {
         if (user) {
           await supabase
             .from('platform_connections')
-            .update({ is_connected: false, access_token: null })
+            .update(ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE)
             .eq('user_id', user.id)
             .eq('platform', 'onlyfans')
+          await clearOnlyFansDmMessageCacheForUser(supabase, user.id)
         }
       } catch {
         // best-effort; still return 401

@@ -102,20 +102,42 @@ export async function POST(request: NextRequest) {
 
     // If connection successful
     if (result.success && result.account_id) {
+      const { data: existingFs } = await supabase
+        .from('platform_connections')
+        .select('access_token, platform_user_id')
+        .eq('user_id', user.id)
+        .eq('platform', 'fansly')
+        .maybeSingle()
+
+      const prevId = existingFs?.access_token ?? existingFs?.platform_user_id
+      const sameFanslyAccount =
+        prevId != null && String(prevId) === String(result.account_id)
+      const observedReset = sameFanslyAccount
+        ? {}
+        : {
+            observed_monthly_revenue_usd: null,
+            observed_revenue_captured_at: null,
+            observed_revenue_onlyfans_account_id: null,
+          }
+
       // Store connection in database
       await supabase
         .from('platform_connections')
-        .upsert({
-          user_id: user.id,
-          platform: 'fansly',
-          platform_user_id: result.account_id,
-          platform_username: username.split('@')[0],
-          is_connected: true,
-          access_token: result.account_id,
-          last_sync_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,platform'
-        })
+        .upsert(
+          {
+            user_id: user.id,
+            platform: 'fansly',
+            platform_user_id: result.account_id,
+            platform_username: username.split('@')[0],
+            is_connected: true,
+            access_token: result.account_id,
+            last_sync_at: new Date().toISOString(),
+            ...observedReset,
+          },
+          {
+            onConflict: 'user_id,platform',
+          },
+        )
 
       return NextResponse.json({ 
         success: true, 

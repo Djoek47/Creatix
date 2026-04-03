@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 /** OnlyFans engagement APIs often return 403 for non–performer / restricted accounts. */
 function isEngagementAccessForbidden(message: string): boolean {
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: connection } = await supabase
       .from('platform_connections')

@@ -2,8 +2,26 @@ import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { loadOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
+import { formatThreadTextForAi, normalizeSortedRawOfMessages } from '@/lib/divine/of-thread-text'
 
 export const maxDuration = 60
+
+/** OF payloads often omit isSentByMe; infer from fromUser.id vs platform fan id. */
+function coerceRawMessagesForThreadAi(rawList: unknown[], platformFanId: string): unknown[] {
+  const fanKey = String(platformFanId)
+  return rawList.map((raw) => {
+    if (!raw || typeof raw !== 'object') return raw
+    const m = { ...(raw as Record<string, unknown>) }
+    if (typeof m.isSentByMe !== 'boolean') {
+      const fu =
+        m.fromUser && typeof m.fromUser === 'object' ? (m.fromUser as Record<string, unknown>) : null
+      const fromId = fu?.id
+      m.isSentByMe = String(fromId ?? '') !== fanKey
+    }
+    return m
+  })
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -45,22 +63,52 @@ export async function POST(req: NextRequest) {
   let threadExcerpt = ''
   let profileHint = ''
   let renewalBlock = ''
+  let churnSnapshotBlock = ''
 
   if (body.fanId && typeof body.fanId === 'string') {
-    const { data: fan, error: fanErr } = await supabase
+    const trimmed = body.fanId.trim()
+    const fanSelect =
+      'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing'
+
+    let fan: Record<string, unknown> | null = null
+    const byId = await supabase
       .from('fans')
-      .select(
-        'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing',
-      )
-      .eq('id', body.fanId.trim())
+      .select(fanSelect)
+      .eq('id', trimmed)
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (fanErr || !fan) {
+    if (byId.error) {
+      return NextResponse.json({ error: 'Fan not found' }, { status: 404 })
+    }
+    if (byId.data) {
+      fan = byId.data as Record<string, unknown>
+    } else {
+      const { data: byPfidRows, error: pfidErr } = await supabase
+        .from('fans')
+        .select(fanSelect)
+        .eq('platform_fan_id', trimmed)
+        .eq('user_id', user.id)
+        .order('total_spent', { ascending: false })
+        .limit(1)
+
+      if (pfidErr || !byPfidRows?.length) {
+        return NextResponse.json(
+          {
+            error:
+              'Fan not found in CRM. If they came from the live subscriber list only, pick them again after a Fans sync, or use Manual entry.',
+          },
+          { status: 404 },
+        )
+      }
+      fan = byPfidRows[0] as Record<string, unknown>
+    }
+
+    if (!fan) {
       return NextResponse.json({ error: 'Fan not found' }, { status: 404 })
     }
 
-    const f = fan as Record<string, unknown>
+    const f = fan
     const spent = Number(f.total_spent ?? 0)
     const tier = String(f.subscription_tier || 'regular')
     const status = String(f.subscription_status || 'unknown')
@@ -95,6 +143,28 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join('\n')
 
+    const { data: churnSnap, error: churnSnapErr } = await supabase
+      .from('fan_churn_snapshots')
+      .select('risk_level, one_line, updated_at')
+      .eq('user_id', user.id)
+      .eq('fan_id', String(f.id))
+      .maybeSingle()
+
+    if (churnSnapErr) {
+      console.warn('[churn-predictor] fan_churn_snapshots:', churnSnapErr.message)
+    }
+
+    const cs = churnSnap as Record<string, unknown> | null
+    if (cs) {
+      churnSnapshotBlock = [
+        typeof cs.risk_level === 'string' ? `Latest background churn model level: ${cs.risk_level}` : '',
+        typeof cs.one_line === 'string' && cs.one_line.trim() ? `Model summary: ${cs.one_line.trim()}` : '',
+        typeof cs.updated_at === 'string' ? `(Updated ${cs.updated_at})` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    }
+
     if (pfid) {
       const { data: insight } = await supabase
         .from('fan_thread_insights')
@@ -116,6 +186,26 @@ export async function POST(req: NextRequest) {
           profileHint = JSON.stringify(ins.profile_json).slice(0, 4000)
         } catch {
           profileHint = ''
+        }
+      }
+
+      if (!threadExcerpt.trim() && platform === 'onlyfans') {
+        const { messages: cachedPayloads } = await loadOnlyFansDmMessageCache(
+          supabase,
+          user.id,
+          pfid,
+          100,
+        )
+        if (cachedPayloads.length > 0) {
+          const coerced = coerceRawMessagesForThreadAi(cachedPayloads, pfid)
+          const normalized = normalizeSortedRawOfMessages(coerced)
+          if (normalized.length > 0) {
+            threadExcerpt = formatThreadTextForAi(normalized, {
+              lastN: 50,
+              lineMax: 600,
+              maxTotalChars: 8000,
+            })
+          }
         }
       }
     }
@@ -144,11 +234,19 @@ Principles:
 - Use spend level vs typical "whale" thresholds when data allows; call out when spend is cooling vs their own baseline.
 - Use DM thread excerpts to infer what the fan responds to (attention, exclusivity, specific content angles) without being creepy or explicit.
 - If subscription is expiring, ending, or already lapsed, emphasize timely attention, authentic check-ins, and tasteful "treats" (discounts, bundles, personalized messages) that comply with platform rules.
-- Never instruct harassment, manipulation of minors, or non-consensual behavior. Keep offers legal and platform-appropriate.`,
+- Never instruct harassment, manipulation of minors, or non-consensual behavior. Keep offers legal and platform-appropriate.
+
+Output rules:
+- Write in normal sentence case. Do NOT fill the response with ALL-CAPS placeholders like "UNKNOWN", "INCOMPLETE DATA", or "DATA MISSING" for every section when CRM fields above are present — give your best evidence-based estimate from what you were given.
+- If DM thread text is missing, add one short paragraph on how to gather it (open Messages, run thread scan) then still deliver items 1–7 using CRM + notes only.
+- Never output a fake "matrix" where every line is the same refusal; that helps no one.`,
     prompt: `Analyze churn / retention for this fan.
 
 ## CRM snapshot
 ${fanBlock}
+
+## Background churn snapshot (may be empty)
+${churnSnapshotBlock || '(No prior background churn snapshot for this CRM fan.)'}
 
 ## Spending / activity notes (creator-supplied or inferred)
 ${manualSpend ? `Spending history note: ${manualSpend}` : '(No extra spending narrative provided.)'}
@@ -158,16 +256,16 @@ ${manualRecent ? `Recent behavior note: ${manualRecent}` : ''}
 ${renewalBlock || '(No special renewal flag.)'}
 
 ## Thread / personality context (may be empty)
-${threadExcerpt ? `Thread excerpt (latest stored):\n${threadExcerpt}` : '(No stored thread snapshot — say what is missing and ask creator to open Messages / refresh thread scan.)'}
+${threadExcerpt ? `Thread excerpt (from stored insight and/or synced DM cache):\n${threadExcerpt}` : '(No thread text yet — use CRM only; suggest opening Messages so DMs can sync into cache.)'}
 ${profileHint ? `\nStructured profile hints:\n${profileHint}` : ''}
 
 Respond with:
 1) Churn risk (Low/Medium/High/Critical) + one-line rationale
 2) Baseline spend vs current signals (cooling, steady, heating)
-3) What the thread suggests they crave (themes, not explicit content)
+3) What the thread suggests they crave (themes, not explicit content) — if no thread, infer cautiously from CRM tier/spend/timing
 4) Concrete next 3 actions (timing + channel: DM, post, PPV teaser, etc.)
 5) "Treat" ideas that match their taste (platform-safe)
-6) If expiring/lapsed: win-back sequence (short bullet timeline)
+6) If expiring/lapsed: win-back sequence (short bullet timeline); if active, say "N/A — currently subscribed"
 7) A ready-to-send message draft the creator can edit (warm, not desperate)`,
   })
 

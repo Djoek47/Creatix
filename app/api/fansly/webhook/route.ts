@@ -15,6 +15,7 @@ import {
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 import { maybeCreateWhaleTipUrgentTask } from '@/lib/divine/urgent-alerts'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
+import { activeChatOnInboundFanslyMessage } from '@/lib/fan-classify/active-chat-inbound'
 
 // Fansly Webhook – register URL in Fansly API Console: https://www.circeetvenus.com/api/fansly/webhook
 // During phased cutover, keep https://www.cetv.app/api/fansly/webhook active temporarily.
@@ -344,6 +345,13 @@ async function handleNewMessage(supabase: SupabaseClient, payload: any) {
       })
     } catch (e) {
       console.warn('[fan_thread_insights fansly webhook]', e)
+    }
+    if (fanId) {
+      try {
+        await activeChatOnInboundFanslyMessage(supabase, uid, String(fanId))
+      } catch (e) {
+        console.warn('[active_chat fansly webhook]', e)
+      }
     }
   })
 }

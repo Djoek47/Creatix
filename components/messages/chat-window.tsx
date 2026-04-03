@@ -98,6 +98,11 @@ interface OnlyFansMessage {
   isPaid?: boolean
   isFree?: boolean
   mediaCount?: number
+  /** Merged from Supabase DM cache when the message was removed on OnlyFans but kept locally. */
+  _creatix?: {
+    removedFromPlatformAt?: string | null
+    cachedAt?: string | null
+  }
 }
 
 interface ChatWindowProps {
@@ -108,6 +113,9 @@ interface ChatWindowProps {
   onMessageSent?: () => void
   /** Open fan profile modal (parent owns modal on Messages page). */
   onOpenFanProfile?: () => void
+  /** When no thread is selected (e.g. empty CRM segment), override the default placeholder. */
+  nullConversationTitle?: string
+  nullConversationDescription?: string
 }
 
 function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>): string[] {
@@ -285,6 +293,8 @@ export function ChatWindow({
   chatterDraftOutboxId,
   onMessageSent,
   onOpenFanProfile,
+  nullConversationTitle,
+  nullConversationDescription,
 }: ChatWindowProps) {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<OnlyFansMessage[]>([])
@@ -324,6 +334,7 @@ export function ChatWindow({
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
   const [divineMessageIds, setDivineMessageIds] = useState<Set<string>>(() => new Set())
   const [divineTyping, setDivineTyping] = useState(false)
+  const [purgingCacheIds, setPurgingCacheIds] = useState<Set<string>>(() => new Set())
 
   const divineComposerHighlight = useMemo(() => {
     if (!conversation) return false
@@ -396,32 +407,27 @@ export function ChatWindow({
     if (hasAiContent) setAiSectionOpen(true)
   }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions])
 
-  /** Scroll the messages pane only — avoids scrollIntoView clipping the top of bubbles. */
-  const scrollToBottom = () => {
-    const el = messagesContainerRef.current
-    if (!el) return
-    el.scrollTop = el.scrollHeight
-  }
+  const prevConvIdForScrollRef = useRef<string | undefined>(undefined)
+  const didSnapBottomForConvRef = useRef<string | null>(null)
 
-  const scrollContainerToLatest = () => {
+  /** After send: jump to latest only if the thread overflows (no-op for short threads). */
+  const scrollMessagesListToBottomAfterSend = useCallback(() => {
     const el = messagesContainerRef.current
-    if (!el) return
+    if (!el || el.scrollHeight <= el.clientHeight + 2) return
     el.scrollTop = el.scrollHeight
-  }
-
-  const isNearBottom = () => {
-    const el = messagesContainerRef.current
-    if (!el) return true
-    const thresholdPx = 120
-    return el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx
-  }
+  }, [])
 
   const normalizeAndSortMessages = (list: OnlyFansMessage[]) => {
     const byId = new Map<string, OnlyFansMessage>()
     for (const m of list) {
       const key = String(m.id)
-      // Prefer the newest version if duplicates exist (e.g., read flags/media)
-      byId.set(key, m)
+      const prev = byId.get(key)
+      // Prefer newest platform fields but keep _creatix (removed-on-OF) if the API payload omits it.
+      const next = { ...m }
+      if (!next._creatix && prev?._creatix) {
+        next._creatix = prev._creatix
+      }
+      byId.set(key, next)
     }
     return Array.from(byId.values()).sort((a, b) => {
       const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
@@ -681,7 +687,7 @@ export function ChatWindow({
           setError('Fansly thread view is not available yet on web messages.')
           return
         }
-        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=50`)
+        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
         let data: { error?: string; code?: string; messages?: OnlyFansMessage[] } = {}
         try {
           data = (await res.json()) as typeof data
@@ -728,11 +734,31 @@ export function ChatWindow({
     // (or stale memo) cannot retrigger this effect every render (React #185).
   }, [conversation?.user?.id, conversation?.platform])
 
-  // New messages while staying in the same thread: only follow if already near the bottom.
-  useEffect(() => {
-    if (loading) return
-    if (isNearBottom()) scrollToBottom()
-  }, [messages, loading])
+  // After paint: snap to bottom when opening a long thread; otherwise only follow if near bottom. Skip when the list fits (no overflow).
+  useLayoutEffect(() => {
+    if (!conversation || loading) return
+    const el = messagesContainerRef.current
+    if (!el) return
+    const convId = String(conversation.user.id)
+
+    if (prevConvIdForScrollRef.current !== convId) {
+      prevConvIdForScrollRef.current = convId
+      didSnapBottomForConvRef.current = null
+    }
+
+    if (el.scrollHeight <= el.clientHeight + 2) return
+
+    const thresholdPx = 120
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx
+    const needInitialSnap = didSnapBottomForConvRef.current !== convId
+
+    if (needInitialSnap) {
+      el.scrollTop = el.scrollHeight
+      didSnapBottomForConvRef.current = convId
+    } else if (nearBottom) {
+      el.scrollTop = el.scrollHeight
+    }
+  }, [conversation, loading, messages])
 
   // Poll for new messages (OnlyFans route only). Delay first poll + slower interval to reduce rate-limit bursts with voice navigation + thread refresh.
   useEffect(() => {
@@ -744,7 +770,7 @@ export function ChatWindow({
       if (Date.now() < onlyFansPollBackoffUntilRef.current) return
       setIsPolling(true)
       try {
-        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=50`)
+        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
         let data: { messages?: OnlyFansMessage[]; code?: string } = {}
         try {
           data = (await res.json()) as typeof data
@@ -866,7 +892,7 @@ export function ChatWindow({
       if (data.message) {
         const mid = data.message.id != null ? String(data.message.id) : ''
         setMessages((prev) => normalizeAndSortMessages([...prev, data.message as OnlyFansMessage]))
-        setTimeout(() => scrollToBottom(), 0)
+        requestAnimationFrame(() => scrollMessagesListToBottomAfterSend())
         const source = divinePanel?.consumePendingDmSendSource() ?? 'user'
         if (source !== 'user') {
           if (mid) setDivineMessageIds((prev) => new Set(prev).add(mid))
@@ -923,6 +949,7 @@ export function ChatWindow({
     sending,
     divinePanel,
     onMessageSent,
+    scrollMessagesListToBottomAfterSend,
   ])
 
   useEffect(() => {
@@ -930,13 +957,20 @@ export function ChatWindow({
   }, [handleSendMessage])
 
   if (!conversation) {
+    const title = nullConversationTitle ?? 'Select a conversation'
+    const description = nullConversationDescription
     return (
       <Card className="flex min-h-0 flex-1 items-center justify-center border-border bg-card">
-        <div className="flex flex-col items-center text-center text-muted-foreground">
+        <div className="flex max-w-md flex-col items-center px-4 text-center text-muted-foreground">
           <svg className="mb-4 h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          <p>Select a conversation to start messaging</p>
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          {description ? (
+            <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+          ) : (
+            <p className="mt-1 text-sm">to start messaging</p>
+          )}
         </div>
       </Card>
     )
@@ -981,7 +1015,7 @@ export function ChatWindow({
                     return
                   }
                   setLoading(true)
-                  fetch(`/api/onlyfans/messages/${conversation.user.id}`)
+                  fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
                     .then((res) => res.json())
                     .then((data) => setMessages(normalizeAndSortMessages(data.messages || [])))
                     .finally(() => setLoading(false))
@@ -1056,7 +1090,7 @@ export function ChatWindow({
                 }
                 setError(null)
                 setLoading(true)
-                fetch(`/api/onlyfans/messages/${conversation.user.id}`)
+                fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
                   .then(res => res.json())
                   .then(data => setMessages(normalizeAndSortMessages(data.messages || [])))
                   .catch(e => setError(e.message))
@@ -1074,9 +1108,15 @@ export function ChatWindow({
         ) : (
           <div className="space-y-4">
             {messages.map((msg) => {
-              const isCreator = msg.fromUser.id !== conversation.user.id
+              const fromId = msg.fromUser?.id
+              const isCreator =
+                typeof msg.isSentByMe === 'boolean'
+                  ? msg.isSentByMe
+                  : String(fromId ?? '') !== String(conversation.user.id)
               const isDivineAssisted =
                 isCreator && divineMessageIds.has(String(msg.id))
+              const fanSavedDeletedOnOF =
+                !isCreator && Boolean(msg._creatix?.removedFromPlatformAt)
               return (
                 <div
                   key={msg.id}
@@ -1088,11 +1128,13 @@ export function ChatWindow({
                   <div
                     className={cn(
                       'max-w-[82%] rounded-2xl px-4 py-2',
-                      isDivineAssisted
-                        ? 'border border-violet-400/50 bg-violet-950/35 text-violet-50'
-                        : isCreator
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-secondary-foreground'
+                      fanSavedDeletedOnOF
+                        ? 'border-2 border-red-500/55 bg-red-950/55 text-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] dark:bg-red-950/70'
+                        : isDivineAssisted
+                          ? 'border border-violet-400/50 bg-violet-950/35 text-violet-50'
+                          : isCreator
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-secondary-foreground'
                     )}
                   >
                     {isDivineAssisted && (
@@ -1116,8 +1158,80 @@ export function ChatWindow({
                         ))}
                       </div>
                     )}
-                    {msg.text && <p className="text-sm whitespace-pre-wrap">{stripHtml(msg.text)}</p>}
-                    {msg.price && !msg.isPaid && (
+                    {msg.text && (
+                      <p
+                        className={cn(
+                          'text-sm whitespace-pre-wrap',
+                          fanSavedDeletedOnOF && 'text-red-50',
+                        )}
+                      >
+                        {stripHtml(msg.text)}
+                      </p>
+                    )}
+                    {msg._creatix?.removedFromPlatformAt ? (
+                      <div className="mt-2 space-y-2">
+                        <p
+                          className={cn(
+                            'text-[11px] font-semibold leading-snug',
+                            fanSavedDeletedOnOF
+                              ? 'text-red-200'
+                              : isDivineAssisted
+                                ? 'text-violet-200/80'
+                                : isCreator
+                                  ? 'text-primary-foreground/75'
+                                  : 'text-muted-foreground',
+                          )}
+                        >
+                          {fanSavedDeletedOnOF
+                            ? 'Fan deleted this on OnlyFans — we kept a red copy in your Creatix database.'
+                            : 'Removed on OnlyFans — still in your Creatix history.'}
+                        </p>
+                        {fanSavedDeletedOnOF && conversation.platform === 'onlyfans' ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={purgingCacheIds.has(String(msg.id))}
+                            className="h-8 border-red-400/50 bg-red-950/40 text-xs text-red-100 hover:bg-red-900/50 hover:text-red-50"
+                            onClick={() => {
+                              const mid = String(msg.id)
+                              if (!conversation?.user?.id) return
+                              if (!window.confirm('Remove this saved copy from Creatix? This cannot be undone.')) return
+                              setPurgingCacheIds((prev) => new Set(prev).add(mid))
+                              void fetch(
+                                `/api/onlyfans/messages/${encodeURIComponent(String(conversation.user.id))}/cache/${encodeURIComponent(mid)}`,
+                                { method: 'DELETE', credentials: 'include' },
+                              )
+                                .then(async (res) => {
+                                  if (!res.ok) {
+                                    const j = await res.json().catch(() => ({}))
+                                    throw new Error(typeof j.error === 'string' ? j.error : 'Could not remove')
+                                  }
+                                  setMessages((prev) => prev.filter((m) => String(m.id) !== mid))
+                                })
+                                .catch((err) => {
+                                  setError(err instanceof Error ? err.message : 'Could not remove saved message')
+                                })
+                                .finally(() => {
+                                  setPurgingCacheIds((prev) => {
+                                    const next = new Set(prev)
+                                    next.delete(mid)
+                                    return next
+                                  })
+                                })
+                            }}
+                          >
+                            {purgingCacheIds.has(String(msg.id)) ? (
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            )}
+                            Remove from Creatix
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {msg.price != null && Number(msg.price) > 0 && !msg.isPaid && (
                       <Badge className="mt-2 bg-chart-4/20 text-chart-4">
                         <DollarSign className="mr-1 h-3 w-3" />
                         PPV ${msg.price}
@@ -1126,11 +1240,13 @@ export function ChatWindow({
                     <p
                       className={cn(
                         'mt-1 text-xs',
-                        isDivineAssisted
-                          ? 'text-violet-200/70'
-                          : isCreator
-                            ? 'text-primary-foreground/70'
-                            : 'text-muted-foreground'
+                        fanSavedDeletedOnOF
+                          ? 'text-red-200/75'
+                          : isDivineAssisted
+                            ? 'text-violet-200/70'
+                            : isCreator
+                              ? 'text-primary-foreground/70'
+                              : 'text-muted-foreground'
                       )}
                     >
                       {new Date(msg.createdAt).toLocaleTimeString([], {

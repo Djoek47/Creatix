@@ -681,7 +681,9 @@ export default function SettingsPage() {
             <>
               <PlatformConnector />
 
-              <HousekeepingListsSettings onlyFansConnected={integrations.onlyfans} />
+              <HousekeepingListsSettings
+                fanPlatformConnected={integrations.onlyfans || integrations.fansly}
+              />
 
               <Card className="border-border bg-card">
                 <CardHeader>

@@ -353,7 +353,7 @@ export function MassMessageComposer({
             {listsLoading ? (
               <p className="text-xs text-muted-foreground">Loading lists…</p>
             ) : ofUserLists.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No lists found. Create lists in OnlyFans or via housekeeping.</p>
+              <p className="text-xs text-muted-foreground">No lists found. Create lists in OnlyFans or in Smart classify.</p>
             ) : (
               <div className="max-h-36 space-y-2 overflow-y-auto">
                 {ofUserLists.map((l) => (

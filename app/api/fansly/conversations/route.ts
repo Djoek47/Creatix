@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
+import { fanslyBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await fanslyBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: connection } = await supabase
       .from('platform_connections')

@@ -15,6 +15,7 @@ import {
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 import { maybeCreateWhaleTipUrgentTask } from '@/lib/divine/urgent-alerts'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
+import { activeChatOnInboundOnlyFansMessage } from '@/lib/fan-classify/active-chat-inbound'
 import { runAiChatterForInboundMessage } from '@/lib/divine/ai-chatter-worker'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
@@ -26,6 +27,7 @@ import {
   spendBucketFromUserSpentType,
   type SpendBucket,
 } from '@/lib/onlyfans/spend-bucket'
+import { upsertOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
 
 // Configure OnlyFans webhook URL to: https://www.circeetvenus.com/api/onlyfans/webhook
 // During phased cutover, keep https://www.cetv.app/api/onlyfans/webhook active until provider retries are clean.
@@ -304,6 +306,16 @@ async function handleNewMessage(supabase: SupabaseClient, data: {
 
   if (!connection) return
 
+  await upsertOnlyFansDmMessageCache(supabase, connection.user_id, String(data.message.fromUser.id), [
+    {
+      id: data.message.id,
+      text: data.message.text,
+      createdAt: data.message.createdAt,
+      fromUser: data.message.fromUser,
+      isSentByMe: false,
+    },
+  ])
+
   // Store the message (optional - for message history)
   await supabase.from('messages').insert({
     user_id: connection.user_id,
@@ -422,6 +434,11 @@ async function handleNewMessage(supabase: SupabaseClient, data: {
       })
     } catch (e) {
       console.warn('[ai_chatter webhook]', e)
+    }
+    try {
+      await activeChatOnInboundOnlyFansMessage(supabase, uid, fanId)
+    } catch (e) {
+      console.warn('[active_chat onlyfans webhook]', e)
     }
   })
 }

@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,9 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: connection } = await supabase
       .from('platform_connections')

@@ -8,6 +8,7 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: connection } = await supabase
       .from('platform_connections')

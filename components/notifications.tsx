@@ -16,14 +16,12 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
-import {
-  CRM_NOTIFICATION_ID_RE,
-  type NotificationBriefingItem,
-} from '@/lib/notification-briefing-types'
+import { CRM_NOTIFICATION_ID_RE } from '@/lib/notification-briefing-types'
 import {
   NOTIFICATIONS_INBOX_REFRESH_EVENT,
   registerNotificationUiHandlers,
 } from '@/lib/dashboard/notification-ui-bridge'
+import { executeNotificationSecretaryBriefing } from '@/lib/divine/notification-secretary-briefing-client'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -314,66 +312,26 @@ export function Notifications() {
         return
       }
 
-      const res = await fetch('/api/divine/notification-briefing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ notification_ids: unreadUuids }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setBriefingText(typeof json.error === 'string' ? json.error : 'Briefing failed')
-        return
-      }
-      const script = typeof json.script === 'string' ? json.script : ''
-      const items = Array.isArray(json.items)
-        ? (json.items as NotificationBriefingItem[]).filter(
-            (it) => it && typeof it.notification_id === 'string',
-          )
-        : []
-      if (items.length === 0) {
-        setBriefingText(script.trim() || 'No briefing items returned.')
-        return
-      }
-
       const linksById: Record<string, string | undefined> = {}
       for (const n of displayed) {
         if (n.link) linksById[n.id] = n.link
       }
 
+      if (!divinePanel) {
+        setBriefingText('Divine panel is unavailable — refresh the page and try again.')
+        return
+      }
+
       setOpen(false)
-      divinePanel?.openSecretaryFromBriefing({ script, items, linksById })
-
-      const lines = items.slice(0, 20).map(
-        (it, i) =>
-          `${i + 1}. [${it.notification_id}] ${it.summary} — ${it.suggested_action}`.slice(0, 400),
-      )
-
-        try {
-        if (!voiceSession) {
-          // no-op
-        } else if (voiceSession.status === 'connected') {
-          await voiceSession.sendBriefingQuestion(
-            `Divine notification briefing (voice already live). Queued unread:\n${lines.join('\n')}\n\nStart with item 1: summarize, recommend an action. Use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
-          )
-        } else if (voiceSession.status !== 'connecting') {
-          await voiceSession.startVoiceCall({
-            realtimeBodyExtras: {
-              mode: 'notification_secretary',
-              notification_secretary: { lines },
-            },
-          })
-          await new Promise((r) => setTimeout(r, 150))
-          try {
-            await voiceSession.sendBriefingQuestion(
-              `We're walking through ${items.length} unread notifications one by one. Start with the first: summarize it, recommend an action, and use secretary_next_notification only after the creator confirms they handled it. Use ui_navigate and ui_focus_fan when relevant.`,
-            )
-          } catch {
-            // Data channel may still be opening — panel rail remains usable.
-          }
-        }
-      } catch {
-        // Mic denied or voice start failed — Divine panel walkthrough rail still works.
+      const result = await executeNotificationSecretaryBriefing({
+        notificationIds: unreadUuids,
+        linksById,
+        openSecretaryFromBriefing: divinePanel.openSecretaryFromBriefing,
+        voiceSession,
+        voicePromptStyle: 'inbox',
+      })
+      if (!result.ok) {
+        setBriefingText(result.error)
       }
     } catch {
       setBriefingText('Briefing failed')
@@ -629,7 +587,8 @@ export function Notifications() {
             )}
           </Button>
           <p className="px-1 text-center text-[10px] text-muted-foreground">
-            Opens Divine with voice + panel walkthrough. Uses saved unread in this tab only.
+            Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
+            confirm it is handled. Uses saved unread in this tab only.
           </p>
           <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setOpen(false)} asChild>
             <a href="/dashboard/settings">View all settings</a>

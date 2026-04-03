@@ -9,6 +9,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 
 interface MassMessageRequest {
   message: string
@@ -42,6 +43,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Message text or media and at least one platform are required' 
       }, { status: 400 })
+    }
+
+    if (
+      Array.isArray(platforms) &&
+      (platforms.includes('onlyfans') || platforms.includes('fansly'))
+    ) {
+      const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
+      if (billingBlock) return billingBlock
     }
 
     // Get platform connections

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
-import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
-import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
-import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/observed-monthly-revenue'
+import { upsertOnlyFansFanToCrm } from '@/lib/onlyfans/upsert-crm-fan-row'
+import { ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE } from '@/lib/onlyfans-api-route'
+import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -167,36 +168,40 @@ export async function POST(request: NextRequest) {
 
     let synced = 0
     for (const fan of fansData.fans) {
-      const tier = subscriptionTierFromTotalSpent(fan.totalSpent)
-      const sub = subscriptionFieldsFromOnlyFansFan(fan)
-      const { error } = await supabase.from('fans').upsert(
-        {
-        user_id: user.id,
-        platform: 'onlyfans',
-        platform_fan_id: fan.id,
+      const { ok } = await upsertOnlyFansFanToCrm(supabase, user.id, {
+        id: fan.id,
         username: fan.username,
-        display_name: fan.name,
-          avatar_url: fan.avatar || null,
-          first_subscribed_at: fan.subscribedAt || null,
-        total_spent: fan.totalSpent,
-          subscription_tier: tier,
-        last_interaction_at: new Date().toISOString(),
-        subscription_price: fan.subscriptionPrice ?? null,
-        subscription_account_type: subscriptionAccountTypeFromPrice(fan.subscriptionPrice ?? null),
-        subscription_expires_at: sub.subscription_expires_at,
-        subscription_renews_on: sub.subscription_renews_on,
-        is_renewing: sub.is_renewing,
-        subscription_status: sub.subscription_status,
-        },
-        { onConflict: 'user_id,platform,platform_fan_id' }
-      )
-      if (!error) synced++
+        name: fan.name,
+        avatar: fan.avatar ?? null,
+        subscribedAt: fan.subscribedAt,
+        totalSpent: fan.totalSpent,
+        subscriptionPrice: fan.subscriptionPrice ?? null,
+        expiresAt: fan.expiresAt,
+        renewsOn: fan.renewsOn ?? null,
+        isRenewOn: fan.isRenewOn,
+      })
+      if (ok) synced++
     }
 
-    // Update last sync time
+    const observedUsd = observedMonthlyRevenueUsdFromOnlyFansSignals({
+      stats,
+      earnings: earningsData as { thisMonth?: number; this_day?: number; today?: number },
+      chartPoints: chartData.data,
+    })
+
+    // Update last sync time + observed monthly revenue for billing enforcement
     await supabase
       .from('platform_connections')
-      .update({ last_sync_at: new Date().toISOString() })
+      .update({
+        last_sync_at: new Date().toISOString(),
+        ...(observedUsd != null
+          ? {
+              observed_monthly_revenue_usd: observedUsd,
+              observed_revenue_captured_at: new Date().toISOString(),
+              observed_revenue_onlyfans_account_id: connection.access_token,
+            }
+          : {}),
+      })
       .eq('id', connection.id)
 
     return NextResponse.json({
@@ -219,9 +224,10 @@ export async function POST(request: NextRequest) {
         if (user) {
           await supabase
             .from('platform_connections')
-            .update({ is_connected: false, access_token: null })
+            .update(ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE)
             .eq('user_id', user.id)
             .eq('platform', 'onlyfans')
+          await clearOnlyFansDmMessageCacheForUser(supabase, user.id)
         }
       } catch {
         // best-effort; still return 401

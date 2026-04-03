@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { parseAiChatterSettings } from '@/lib/divine/ai-chatter-types'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
@@ -11,11 +12,14 @@ function isUuid(s: string): boolean {
  */
 export async function GET(_req: NextRequest) {
   try {
-    const supabase = await createRouteHandlerClient(req)
+    const supabase = await createRouteHandlerClient(_req)
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const { data: automations, error: aErr } = await supabase
       .from('ai_chatter_automations')
@@ -54,6 +58,9 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const body = (await req.json().catch(() => ({}))) as {
       fan_id?: string

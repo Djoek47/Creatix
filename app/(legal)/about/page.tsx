@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, Moon, Sun, Star, Shield, TrendingUp, Heart, Sparkles } from 'lucide-react'
+import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -211,11 +212,14 @@ export default function AboutPage() {
 
       {/* Footer */}
       <footer className="border-t border-border py-8">
-        <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-6 px-4 text-sm text-muted-foreground">
-          <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
-          <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
-          <Link href="/cookies" className="hover:text-primary">Cookie Policy</Link>
-          <Link href="/contact" className="hover:text-primary">Contact Us</Link>
+        <div className="mx-auto max-w-4xl px-4">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
+            <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
+            <Link href="/cookies" className="hover:text-primary">Cookie Policy</Link>
+            <Link href="/contact" className="hover:text-primary">Contact Us</Link>
+          </div>
+          <FooterSupportSocial className="mt-4" />
         </div>
       </footer>
     </div>

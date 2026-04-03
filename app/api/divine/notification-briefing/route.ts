@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getFanNotifySnapshot } from '@/lib/divine/notification-fan-context'
-import type { NotificationBriefingItem } from '@/lib/notification-briefing-types'
+import { utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
+import { CRM_NOTIFICATION_ID_RE, type NotificationBriefingItem } from '@/lib/notification-briefing-types'
 
 export type { NotificationBriefingItem } from '@/lib/notification-briefing-types'
 
 export type NotificationBriefingResponse = {
   script: string
   items: NotificationBriefingItem[]
+  /** When `ensure_protocol_tasks` was true: new rows inserted (skips if a pending/executing task already links the notification). */
+  protocol_tasks_created?: number
 }
 
 /**
@@ -25,6 +28,8 @@ export async function POST(req: NextRequest) {
     const body = (await req.json().catch(() => ({}))) as {
       notification_ids?: string[]
       all_unread?: boolean
+      /** Create `creator_protocol_tasks` linked to each briefed notification until the creator marks them done. */
+      ensure_protocol_tasks?: boolean
     }
 
     let query = supabase
@@ -116,8 +121,8 @@ Schema:
 
 Rules:
 - One item per notification id that appears in the input; same order as listed.
-- script: short spoken-style rundown (2–6 sentences total), professional tone.
-- summary: one line per item; suggested_action: one line; todos: 0–3 short imperative tasks each.
+- script: short spoken-style rundown (2–6 sentences total), as if a calm human assistant is about to walk the creator through their queue.
+- summary: one line per item; suggested_action: one line; todos: 0–3 short imperative tasks each (concrete next steps until handled).
 - Do not invent notification ids. Use only ids from brackets [uuid] in the input.
 - Respect boundaries: no minors, no illegal content.
 
@@ -136,9 +141,76 @@ ${contextBlocks.join('\n')}`,
       return NextResponse.json({ error: 'Briefing shape invalid' }, { status: 502 })
     }
 
+    const items = parsed.items.slice(0, 40)
+    const scriptOut = parsed.script.slice(0, 8000)
+
+    let protocol_tasks_created = 0
+    if (body.ensure_protocol_tasks === true && items.length > 0) {
+      const planDate = utcPlanDateString()
+      const rowById = new Map(
+        list.map((n) => {
+          const row = n as { id: string; title?: string }
+          return [row.id, row] as const
+        }),
+      )
+
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i]
+        const nid = String(it?.notification_id ?? '').trim()
+        if (!CRM_NOTIFICATION_ID_RE.test(nid) || !rowById.has(nid)) continue
+
+        const { data: existing } = await supabase
+          .from('creator_protocol_tasks')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('linked_notification_id', nid)
+          .in('status', ['pending', 'executing'])
+          .limit(1)
+
+        if (existing && existing.length > 0) continue
+
+        const summary =
+          typeof it.summary === 'string' && it.summary.trim() ? it.summary.trim().slice(0, 500) : ''
+        const notifRow = rowById.get(nid) as { title?: string } | undefined
+        const title =
+          summary ||
+          (typeof notifRow?.title === 'string' && notifRow.title.trim()
+            ? notifRow.title.trim().slice(0, 500)
+            : 'Notification follow-up')
+
+        const action =
+          typeof it.suggested_action === 'string' && it.suggested_action.trim()
+            ? it.suggested_action.trim()
+            : ''
+        const todoLines = Array.isArray(it.todos)
+          ? it.todos.filter((t): t is string => typeof t === 'string' && t.trim()).slice(0, 5)
+          : []
+        const bodyParts = [
+          action,
+          todoLines.length ? `Steps:\n${todoLines.map((t) => `• ${t}`).join('\n')}` : '',
+        ].filter(Boolean)
+        const taskBody = bodyParts.join('\n\n').slice(0, 4000) || null
+
+        const { error: insErr } = await supabase.from('creator_protocol_tasks').insert({
+          user_id: user.id,
+          title,
+          body: taskBody,
+          status: 'pending',
+          source: 'divine',
+          linked_notification_id: nid,
+          metadata: { from_notification_briefing: true },
+          priority_tier: 1,
+          sort_order: i * 10,
+          plan_date: planDate,
+        })
+        if (!insErr) protocol_tasks_created += 1
+      }
+    }
+
     return NextResponse.json({
-      script: parsed.script.slice(0, 8000),
-      items: parsed.items.slice(0, 40),
+      script: scriptOut,
+      items,
+      ...(body.ensure_protocol_tasks === true ? { protocol_tasks_created } : {}),
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Briefing failed'

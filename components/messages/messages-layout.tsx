@@ -45,6 +45,14 @@ type MessagesView = 'conversations' | 'insights'
 
 const INBOX_LIMIT = 40
 
+const SEGMENT_LABEL: Record<InboxSegment, string> = {
+  all: 'All',
+  unread: 'Unread',
+  whales: 'Whales',
+  creators: 'Creators',
+  fans: 'Fans',
+}
+
 interface MessagesLayoutProps {
   userId: string
   /** From server: `?fanId=` (voice/Divine) or `?chat=` (dashboard links) on first paint. */
@@ -351,32 +359,57 @@ function MessagesLayoutContent({
     )
   }
 
-  if (conversations.length === 0) {
-    return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-4 rounded-full bg-muted p-4">
-            <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium">No Messages Yet</h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {hasFanPlatformConnected
-              ? 'Your inbox is empty right now — new threads will show when fans message you. Tap Refresh to pull the latest from the platform, or open a conversation on OnlyFans to seed activity.'
-              : 'Connect OnlyFans or Fansly in Settings → Integrations so Circe can load your conversations here.'}
-          </p>
-          <Button onClick={() => void loadInbox({ refresh: true })} className="mt-4" variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-    )
-  }
+  const inboxNarrowingActive =
+    segment !== 'all' ||
+    inboxPlatform !== 'all' ||
+    Boolean(tag.trim()) ||
+    Boolean(searchDebounced)
+
+  const conversationsSubtitle =
+    view === 'insights'
+      ? 'Insights · direct & mass performance'
+      : (() => {
+          const n = conversations.length
+          const threadPart = `${n} thread${n === 1 ? '' : 's'}`
+          if (n === 0) {
+            if (!hasFanPlatformConnected) {
+              return `${threadPart} · connect OnlyFans or Fansly`
+            }
+            if (inboxNarrowingActive) {
+              return `${threadPart} · none match this filter`
+            }
+            return `${threadPart} · inbox empty`
+          }
+          if (inboxNarrowingActive) {
+            return `${threadPart} · filtered`
+          }
+          return `${threadPart} · CRM segments · OnlyFans & Fansly`
+        })()
+
+  const emptyInboxChatTitle =
+    conversations.length === 0
+      ? !hasFanPlatformConnected
+        ? 'Connect a platform'
+        : inboxNarrowingActive
+          ? 'No threads match'
+          : 'No messages yet'
+      : undefined
+
+  const emptyInboxChatDescription =
+    conversations.length === 0
+      ? !hasFanPlatformConnected
+        ? 'Connect OnlyFans or Fansly in Settings → Integrations so Circe can load your conversations here.'
+        : inboxNarrowingActive
+          ? segment === 'whales'
+            ? 'None match Whales in this inbox right now. Switch to All or tap Refresh.'
+            : segment !== 'all'
+              ? `None match ${SEGMENT_LABEL[segment]} — try All or tap Refresh.`
+              : 'None match these filters — clear search, tags, or platform, or tap Refresh.'
+          : 'Your inbox is empty — new threads appear when fans message you. Tap Refresh to pull the latest from the platform.'
+      : undefined
 
   return (
-    <div className="flex min-h-0 flex-col h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)] sm:max-h-none">
+    <div className="flex min-h-0 flex-col h-[calc(100dvh-12rem)] max-h-[calc(100dvh-12rem)] sm:h-[calc(100vh-14rem)] sm:max-h-[calc(100vh-14rem)]">
       {/* Header: back on mobile when chat open, title, view toggle, actions */}
       <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2 sm:mb-4">
         <div className="flex items-center gap-2 min-w-0">
@@ -403,11 +436,7 @@ function MessagesLayoutContent({
             </Button>
           )}
           <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground truncate">
-              {view === 'insights'
-                ? 'Insights · direct & mass performance'
-                : `${conversations.length} thread${conversations.length === 1 ? '' : 's'} · CRM segments · OnlyFans & Fansly`}
-            </p>
+            <p className="text-sm font-medium text-muted-foreground truncate">{conversationsSubtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -570,6 +599,8 @@ function MessagesLayoutContent({
               chatterDraftOutboxId={chatterDraftOutboxId}
               onMessageSent={() => void loadInbox({ refresh: true })}
               onOpenFanProfile={() => setFanProfileOpen(true)}
+              nullConversationTitle={emptyInboxChatTitle}
+              nullConversationDescription={emptyInboxChatDescription}
             />
             {isMobile && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>

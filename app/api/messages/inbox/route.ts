@@ -14,6 +14,11 @@ import {
   type InboxSort,
   type InboxPlatformFilter,
 } from '@/lib/messages/inbox-crm'
+import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
+import {
+  adultPlatformBillingGateWhenEitherConnected,
+  ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
+} from '@/lib/onlyfans-api-route'
 
 export const maxDuration = 60
 
@@ -102,6 +107,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || undefined
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
 
+    if (platform === 'onlyfans' || platform === 'fansly' || platform === 'all') {
+      const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
+      if (billingBlock) return billingBlock
+    }
+
     const errors: string[] = []
 
     async function loadOnlyFans(): Promise<RawConv[]> {
@@ -157,9 +167,10 @@ export async function GET(request: NextRequest) {
         if (msg.includes('ONLYFANS_SESSION_EXPIRED')) {
           await supabase
             .from('platform_connections')
-            .update({ is_connected: false, access_token: null })
+            .update(ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE)
             .eq('user_id', userId)
             .eq('platform', 'onlyfans')
+          await clearOnlyFansDmMessageCacheForUser(supabase, userId)
           return NextResponse.json(
             {
               error: 'OnlyFans session expired',
@@ -208,9 +219,10 @@ export async function GET(request: NextRequest) {
           if (msg.includes('ONLYFANS_SESSION_EXPIRED')) {
             await supabase
               .from('platform_connections')
-              .update({ is_connected: false, access_token: null })
+              .update(ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE)
               .eq('user_id', userId)
               .eq('platform', 'onlyfans')
+            await clearOnlyFansDmMessageCacheForUser(supabase, userId)
           } else {
             errors.push('onlyfans_fetch_failed')
           }

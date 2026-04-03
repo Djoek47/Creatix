@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 /**
  * GET: Proxy download for OnlyFans CDN media.
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const cdnUrl = req.nextUrl.searchParams.get('cdnUrl')
     if (!cdnUrl) {

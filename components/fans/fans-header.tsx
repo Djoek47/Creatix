@@ -8,10 +8,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
+import { runOnlyFansFullChatScan } from '@/lib/fans/onlyfans-chat-scan-client'
+import { runAllThreadInsightBatches } from '@/lib/fans/thread-insights-batch-client'
+import { ChevronDown, Loader2, Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import type { FansFilter } from './fans-page-client'
 
@@ -19,31 +22,108 @@ interface FansHeaderProps {
   filter?: FansFilter
   onFilterChange?: (f: FansFilter) => void
   hasOnlyFansConnected?: boolean
+  /** OnlyFans or Fansly — enables quick platform sync. */
+  hasFanPlatformsConnected?: boolean
   loadingLive?: boolean
+  /** Status line below the header (progress / result). */
+  onSyncStatus?: (message: string | null) => void
 }
 
 export function FansHeader({
   filter = 'database',
   onFilterChange,
   hasOnlyFansConnected = false,
+  hasFanPlatformsConnected = false,
   loadingLive = false,
+  onSyncStatus,
 }: FansHeaderProps = {}) {
   const router = useRouter()
-  const [refreshing, setRefreshing] = useState(false)
+  const [syncBusy, setSyncBusy] = useState(false)
 
-  async function handleRefresh() {
-    setRefreshing(true)
+  async function quickPlatformSync(): Promise<void> {
+    const [ofRes, flRes] = await Promise.all([
+      fetch('/api/onlyfans/sync', { method: 'POST' }),
+      fetch('/api/fansly/sync', { method: 'POST' }),
+    ])
+    if (!ofRes.ok && !flRes.ok) {
+      // No connections or both failed — still refresh
+    }
+  }
+
+  async function handleQuickSync() {
+    if (!hasFanPlatformsConnected) {
+      onSyncStatus?.('Connect OnlyFans or Fansly in Settings to sync.')
+      return
+    }
+    setSyncBusy(true)
+    onSyncStatus?.('Syncing subscribers and stats from connected platforms…')
     try {
-      const [ofRes, flRes] = await Promise.all([
-        fetch('/api/onlyfans/sync', { method: 'POST' }),
-        fetch('/api/fansly/sync', { method: 'POST' }),
-      ])
-      if (!ofRes.ok && !flRes.ok) {
-        // If both failed, might be no connections; still refresh to show current data
+      await quickPlatformSync()
+      onSyncStatus?.('Quick sync finished.')
+      router.refresh()
+    } catch {
+      onSyncStatus?.('Quick sync failed — try again or reconnect the platform.')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
+  async function handleFullCrmUpdate() {
+    if (!hasFanPlatformsConnected) {
+      onSyncStatus?.('Connect a platform first.')
+      return
+    }
+    setSyncBusy(true)
+    onSyncStatus?.('Step 1/2: syncing subscribers and stats…')
+    try {
+      await quickPlatformSync()
+      router.refresh()
+      if (!hasOnlyFansConnected) {
+        onSyncStatus?.('Quick sync done. Connect OnlyFans to include all DM threads in CRM.')
+        return
+      }
+      onSyncStatus?.('Step 2/2: walking every OnlyFans DM and saving subscription data to CRM…')
+      const chat = await runOnlyFansFullChatScan((m) => onSyncStatus?.(m))
+      if (chat.error) {
+        onSyncStatus?.(chat.error)
+        return
+      }
+      if (chat.abortedRateLimit) {
+        return
+      }
+      onSyncStatus?.(
+        `Full CRM update done: ${chat.totalSynced} profiles from DMs${chat.totalFailed ? ` (${chat.totalFailed} errors)` : ''}.`,
+      )
+      router.refresh()
+    } catch {
+      onSyncStatus?.('Full CRM update failed.')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
+  async function handleThreadInsightsAll() {
+    if (filter !== 'database') {
+      onSyncStatus?.('Switch the fan list to “From database” first, then run this again.')
+      return
+    }
+    if (!hasOnlyFansConnected) {
+      onSyncStatus?.('Connect OnlyFans to refresh thread insights.')
+      return
+    }
+    setSyncBusy(true)
+    onSyncStatus?.('Refreshing stored thread insights for all CRM fans (may take a while)…')
+    try {
+      const r = await runAllThreadInsightBatches((m) => onSyncStatus?.(m))
+      if (r.error) {
+        onSyncStatus?.(r.error)
+        return
       }
       router.refresh()
+    } catch {
+      onSyncStatus?.('Thread insights refresh failed.')
     } finally {
-      setRefreshing(false)
+      setSyncBusy(false)
     }
   }
 
@@ -59,16 +139,60 @@ export function FansHeader({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            title="Sync fans from OnlyFans & Fansly"
-          >
-            <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-1.5 min-h-[44px] sm:min-h-9"
+                disabled={syncBusy || loadingLive}
+                title="Sync subscribers, all DM threads, or thread insights"
+              >
+                {syncBusy ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 shrink-0" />
+                )}
+                <span className="hidden sm:inline">Sync</span>
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)]">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                One menu — pick how deep to update the CRM
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!hasFanPlatformsConnected || syncBusy}
+                onClick={() => void handleQuickSync()}
+              >
+                <span className="font-medium">Quick sync</span>
+                <span className="block text-xs text-muted-foreground">
+                  Subscribers list + analytics (OnlyFans & Fansly)
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!hasFanPlatformsConnected || syncBusy}
+                onClick={() => void handleFullCrmUpdate()}
+              >
+                <span className="font-medium">Full CRM update</span>
+                <span className="block text-xs text-muted-foreground">
+                  Quick sync, then every OnlyFans DM thread (subs, expiry, spend)
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={
+                  !hasOnlyFansConnected || filter !== 'database' || syncBusy
+                }
+                onClick={() => void handleThreadInsightsAll()}
+              >
+                <span className="font-medium">Thread insights (full pass)</span>
+                <span className="block text-xs text-muted-foreground">
+                  AI thread snapshots for all fans in CRM — use “From database” view
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 min-h-[44px] sm:min-h-0">

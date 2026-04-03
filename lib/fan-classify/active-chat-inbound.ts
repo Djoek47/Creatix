@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import type { FanClassifyConfig } from '@/lib/divine-manager'
 import { FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME } from '@/lib/divine-manager'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 function unwrapListPayload(raw: unknown): { id: string; name?: string }[] {
   if (!raw || typeof raw !== 'object') return []
@@ -60,17 +59,17 @@ export async function activeChatOnInboundOnlyFansMessage(
 
   const { data: conn } = await supabase
     .from('platform_connections')
-    .select('access_token, platform_user_id')
+    .select('access_token')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  const accountId = onlyFansPartnerAccountIdFromRow(conn)
-  if (!accountId) return
+  const token = conn?.access_token as string | undefined
+  if (!token) return
 
   const api = createOnlyFansAPI()
-  api.setAccountId(accountId)
+  api.setAccountId(token)
 
   const wantName = ac.list_name || FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME
   let listId = ac.list_id?.trim() || ''

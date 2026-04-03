@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +15,7 @@ export async function POST(request: NextRequest) {
     // Get the current connection to find the account ID
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id, platform_username')
+      .select('access_token, platform_username')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
@@ -26,12 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No OnlyFans connection found' }, { status: 400 })
     }
 
-    const partnerAccountId = onlyFansPartnerAccountIdFromRow(connection)
     const apiKey = process.env.ONLYFANS_API_KEY
-    if (apiKey && partnerAccountId) {
+    if (apiKey && connection.access_token) {
       // Try to delete from the OnlyFans API
       const api = createOnlyFansAPI()
-      const deleteResult = await api.deleteAccount(partnerAccountId)
+      const deleteResult = await api.deleteAccount(connection.access_token)
       
       if (!deleteResult.success) {
         // Log but don't fail - we still want to disconnect locally

@@ -22,7 +22,7 @@ export async function addFan(formData: FormData) {
   })
 
   if (error) throw error
-  revalidatePath('/dashboard/fans', 'max')
+  revalidatePath('/dashboard/fans', 'page')
 }
 
 export async function updateFan(fanId: string, data: Record<string, unknown>) {
@@ -38,7 +38,7 @@ export async function updateFan(fanId: string, data: Record<string, unknown>) {
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/fans', 'max')
+  revalidatePath('/dashboard/fans', 'page')
 }
 
 export async function deleteFan(fanId: string) {
@@ -54,7 +54,7 @@ export async function deleteFan(fanId: string) {
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/fans', 'max')
+  revalidatePath('/dashboard/fans', 'page')
 }
 
 // Content Actions
@@ -79,7 +79,7 @@ export async function createContent(formData: FormData) {
   })
 
   if (error) throw error
-  revalidatePath('/dashboard/content', 'max')
+  revalidatePath('/dashboard/content', 'page')
 }
 
 export async function updateContent(contentId: string, data: Record<string, unknown>) {
@@ -95,7 +95,7 @@ export async function updateContent(contentId: string, data: Record<string, unkn
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/content', 'max')
+  revalidatePath('/dashboard/content', 'page')
 }
 
 export async function deleteContent(contentId: string) {
@@ -111,7 +111,7 @@ export async function deleteContent(contentId: string) {
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/content', 'max')
+  revalidatePath('/dashboard/content', 'page')
 }
 
 // Message Actions
@@ -141,7 +141,7 @@ export async function sendMessage(conversationId: string, content: string, isPPV
     })
     .eq('id', conversationId)
 
-  revalidatePath('/dashboard/messages', 'max')
+  revalidatePath('/dashboard/messages', 'page')
 }
 
 // Profile Actions
@@ -160,7 +160,7 @@ export async function updateProfile(formData: FormData) {
     .eq('id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/settings', 'max')
+  revalidatePath('/dashboard/settings', 'page')
 }
 
 // Leak Alert Actions
@@ -181,7 +181,7 @@ export async function updateLeakAlertStatus(alertId: string, status: string, not
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/protection', 'max')
+  revalidatePath('/dashboard/protection', 'page')
 }
 
 // Reputation Mention Actions
@@ -198,5 +198,5 @@ export async function markMentionAsRead(mentionId: string) {
     .eq('user_id', user.id)
 
   if (error) throw error
-  revalidatePath('/dashboard/mentions', 'max')
+  revalidatePath('/dashboard/mentions', 'page')
 }

@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { buildCommentIdempotencyKey } from '@/lib/commenter/idempotency'
 import { processPlatformPostCommentById } from '@/lib/commenter/process-comment'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 type LooseSb = SupabaseClient<any, 'public', any, any>
 
@@ -41,19 +40,18 @@ export async function syncOnlyFansPostCommentsForUser(
 
   const { data: connection, error: connErr } = await supabase
     .from('platform_connections')
-    .select('access_token, platform_user_id')
+    .select('access_token')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
 
-  const accountId = onlyFansPartnerAccountIdFromRow(connection)
-  if (connErr || !accountId) {
+  if (connErr || !connection?.access_token) {
     result.errors.push('OnlyFans not connected')
     return result
   }
 
-  const api = createOnlyFansAPI(accountId)
+  const api = createOnlyFansAPI(connection.access_token)
 
   const postIds: string[] = []
   if (opts?.postId) {

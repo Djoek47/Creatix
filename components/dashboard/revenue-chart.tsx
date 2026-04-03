@@ -86,7 +86,8 @@ export function RevenueChart({ analytics, hasConnectedPlatforms = false }: Reven
             </p>
           </div>
         ) : (
-          <div className="h-[300px]">
+          <div className="space-y-3">
+          <div className="h-[280px] sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
@@ -157,6 +158,15 @@ export function RevenueChart({ analytics, hasConnectedPlatforms = false }: Reven
               )}
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+        {hasConnectedPlatforms &&
+          chartData.length > 0 &&
+          chartData.every((d) => (d.total ?? 0) === 0) && (
+            <p className="border-t border-border/60 pt-3 text-center text-xs text-muted-foreground">
+              No revenue in this window yet — numbers appear as your platforms sync. Keep creating; check back after the
+              next sync.
+            </p>
+          )}
         </div>
         )}
       </CardContent>

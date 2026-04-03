@@ -4,7 +4,6 @@ import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { extractAboutFromOnlyFansFanPayload } from '@/lib/onlyfans/extract-fan-about'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export const maxDuration = 60
 
@@ -87,18 +86,17 @@ export async function POST(req: NextRequest) {
 
     const { data: connection, error: connErr } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (connErr || !accountId) {
+    if (connErr || !connection?.access_token) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
-    const api = createOnlyFansAPI(accountId)
+    const api = createOnlyFansAPI(connection.access_token)
     let raw: unknown
     try {
       raw = await api.getFanDetailRaw(fanId)

@@ -915,3 +915,20 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
 }
+
+/* Draggable dashboard — gaps come from react-grid-layout margin; keep tiles clipped so they don’t paint over neighbors */
+.dashboard-widgets-grid.react-grid-layout .react-grid-item {
+  overflow: hidden;
+}
+
+.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-draggable-dragging,
+.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-resizable-resizing {
+  z-index: 20;
+  overflow: visible;
+}
+
+.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-grid-placeholder {
+  background: oklch(0.65 0.16 85 / 0.22);
+  border-radius: 0.75rem;
+  opacity: 1;
+}

@@ -8,3 +8,6 @@ ALTER TABLE public.fans
 
 COMMENT ON COLUMN public.fans.audience_profile_override IS
   'CRM UI: auto = derive from spend + insights; whale = treat as whale/VIP; creator = force creator signal; fan = force typical fan (no creator signal).';
+
+-- Refresh PostgREST schema cache (fixes "Could not find column ... in the schema cache" after DDL).
+NOTIFY pgrst, 'reload schema';

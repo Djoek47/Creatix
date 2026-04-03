@@ -70,7 +70,7 @@ export function formatCreatorOnlyFansPageModelForAi(model: OnlyFansCreatorPageMo
   if (model === 'paid') {
     return `Creator OnlyFans page model: PAID SUBSCRIPTION PAGE. Fans typically pay a recurring subscription; most feed content is included for active subs, with optional PPV add-ons. Prioritize retention, renewals, and subscriber-value language when appropriate. Fan-level CRM data still applies per fan.`
   }
-  return `Creator OnlyFans page model: UNKNOWN (not set or not inferred). Do not assume a free page vs paid sub page; avoid guessing feed access. Use conservative language: offer PPV/unlock paths when discussing exclusive content; do not assume all followers pay a monthly sub.`
+  return `Creator OnlyFans page model: UNKNOWN (not set or not inferred). Do not assume either a free page or a paid subscription page—treat business model as unspecified. Same conservatism as fan-level "unknown" tier: do not assume full feed access; clarify offers as PPV, sub add-ons, or separate unlocks when relevant. Do not imply all followers pay a monthly sub or that the main feed is included for everyone.`
 }
 
 export function shouldApplyApiInferenceForCreatorPageModel(

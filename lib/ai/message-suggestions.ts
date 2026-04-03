@@ -1,5 +1,6 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { logUsageEvent } from '@/lib/usage/server-log'
 
 type Role = 'creator' | 'fan'
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
@@ -61,6 +62,8 @@ export type SuggestionRequestContext = {
   }
   creatorPronouns?: string
   creatorGenderIdentity?: string
+  /** Set for admin usage attribution (dm-reply package / API route). */
+  userId?: string
 }
 
 function buildConversationPreview(ctx: SuggestionRequestContext): string {
@@ -322,13 +325,28 @@ ${conversation}
 
 ${instruction}`
 
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     // Use Vercel AI Gateway model alias (this is what you had working before)
     model: gateway('openai/gpt-4o-mini'),
     temperature: 0.5,
     maxTokens: 800,
     prompt: userPrompt,
   })
+
+  if (ctx.userId) {
+    logUsageEvent({
+      userId: ctx.userId,
+      feature: `message_suggestions/${ctx.mode}`,
+      provider: 'gateway',
+      model: 'openai/gpt-4o-mini',
+      usage: {
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
+        totalTokens: usage?.totalTokens,
+      },
+      metadata: { platform: ctx.platform },
+    })
+  }
 
   try {
     const match = text.match(/\{[\s\S]*\}/)

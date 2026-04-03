@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { logUsageEvent } from '@/lib/usage/server-log'
 import { isPaidPlanId } from '@/lib/billing/access'
 import {
   formatCreatorOnlyFansPageModelForAi,
@@ -55,6 +56,19 @@ export async function POST(req: NextRequest) {
 
   const result = streamText({
     model: 'anthropic/claude-sonnet-4',
+    onFinish: ({ totalUsage }) => {
+      logUsageEvent({
+        userId: user.id,
+        feature: 'api/ai/pricing-optimizer',
+        provider: 'gateway',
+        model: 'anthropic/claude-sonnet-4',
+        usage: {
+          inputTokens: totalUsage?.inputTokens,
+          outputTokens: totalUsage?.outputTokens,
+          totalTokens: totalUsage?.totalTokens,
+        },
+      })
+    },
     system: `You are an expert pricing strategist for content creators. You analyze market data, engagement metrics, and audience behavior to recommend optimal pricing strategies that maximize both revenue and subscriber satisfaction.`,
     prompt: `Analyze pricing for this creator:
 - Content Type: ${contentType || 'Premium content'}

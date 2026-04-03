@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logApiError } from '@/lib/usage/server-log'
 
 // Simple contact endpoint.
 // For production, set RESEND_API_KEY and SUPPORT_CONTACT_EMAIL in your env.
@@ -80,6 +81,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    logApiError({
+      userId: null,
+      route: 'POST /api/contact',
+      httpStatus: 500,
+      message: error instanceof Error ? error.message : 'contact route error',
+      stack: error instanceof Error ? error.stack : null,
+      safeContext: { handler: 'contact' },
+    })
     return NextResponse.json(
       {
         error:

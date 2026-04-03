@@ -20,6 +20,7 @@ import {
   formatCreatorOnlyFansPageModelForAi,
   parseOnlyFansCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { logUsageEvent } from '@/lib/usage/server-log'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -202,6 +203,7 @@ export async function fetchDmReplySuggestionsPackage(
     niches,
     boundaries,
     creatorPageContext,
+    userId,
     ...(threadSupplement ? { threadSupplement } : {}),
     ...(fanCommerceContext ? { fanCommerceContext } : {}),
   }
@@ -274,7 +276,7 @@ export async function fetchDmReplySuggestionsPackage(
       const circeSample = circeSuggestions[0] ? circeSuggestions[0].slice(0, 150) : ''
       const venusSample = venusSuggestions[0] ? venusSuggestions[0].slice(0, 150) : ''
       const flirtSample = flirtSuggestions[0] ? flirtSuggestions[0].slice(0, 150) : ''
-      const { text } = await generateText({
+      const { text, usage } = await generateText({
         model: gateway('openai/gpt-4o-mini'),
         temperature: 0.3,
         maxTokens: 120,
@@ -287,6 +289,17 @@ ${scanSummary}
 Circe reply sample: ${circeSample || 'none'}
 Venus reply sample: ${venusSample || 'none'}
 Flirt reply sample: ${flirtSample || 'none'}`,
+      })
+      logUsageEvent({
+        userId,
+        feature: 'dm_reply_package/persona_pick',
+        provider: 'gateway',
+        model: 'openai/gpt-4o-mini',
+        usage: {
+          inputTokens: usage?.inputTokens,
+          outputTokens: usage?.outputTokens,
+          totalTokens: usage?.totalTokens,
+        },
       })
       const firstLine = (text || '').trim().split('\n')[0]?.toUpperCase() || ''
       if (firstLine.includes('CIRCE')) recommendation = 'circe'

@@ -19,6 +19,7 @@ import {
   formatCreatorOnlyFansPageModelForAi,
   parseOnlyFansCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { logAiUsageEvent } from '@/lib/usage/server-log'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
 
@@ -151,6 +152,7 @@ function scanRiskFlags(pkg: { scan?: { riskFlags?: string[] } | null }): string[
 }
 
 async function composeChatterMessage(opts: {
+  userId: string
   mimic: MimicProfileV1
   thread: string
   scanBits: string
@@ -235,12 +237,50 @@ Write one reply.`
       ],
     }),
   })
-  if (!res.ok) {
-    const t = await res.text().catch(() => '')
-    return { ok: false, error: `Compose failed: ${t.slice(0, 200)}` }
+  type CompletionJson = {
+    id?: string
+    choices?: Array<{ message?: { content?: string } }>
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
   }
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
+
+  const rawText = await res.text().catch(() => '')
+  let data: CompletionJson = {}
+  try {
+    data = JSON.parse(rawText) as CompletionJson
+  } catch {
+    data = {}
+  }
+
+  const inTok = Math.max(0, Math.floor(data.usage?.prompt_tokens ?? 0))
+  const outTok = Math.max(0, Math.floor(data.usage?.completion_tokens ?? 0))
+  const okHttp = res.ok
   const text = data.choices?.[0]?.message?.content?.trim() ?? ''
+  const ok = okHttp && Boolean(text)
+
+  logAiUsageEvent({
+    userId: opts.userId,
+    feature: 'ai_chatter_compose',
+    provider: 'openai',
+    model: OPENAI_MODEL,
+    inputTokens: inTok,
+    outputTokens: outTok,
+    totalTokens:
+      data.usage?.total_tokens != null
+        ? Math.max(0, Math.floor(data.usage.total_tokens))
+        : inTok + outTok,
+    requestId: typeof data.id === 'string' ? data.id : null,
+    success: ok,
+    metadata: ok
+      ? undefined
+      : {
+          http_ok: okHttp,
+          snippet: rawText.slice(0, 500),
+        },
+  })
+
+  if (!okHttp) {
+    return { ok: false, error: `Compose failed: ${rawText.slice(0, 200)}` }
+  }
   if (!text) return { ok: false, error: 'Empty message from model.' }
   return { ok: true, text }
 }
@@ -501,6 +541,7 @@ export async function runAiChatterForInboundMessage(
   )
 
   const composed = await composeChatterMessage({
+    userId,
     mimic,
     thread: pkg.threadPreview || '',
     scanBits,

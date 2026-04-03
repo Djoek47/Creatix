@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       flirtControls: body.flirtControls,
       creatorPronouns: body.creatorPronouns,
       creatorGenderIdentity: body.creatorGenderIdentity,
+      userId: user.id,
     }
 
     let result

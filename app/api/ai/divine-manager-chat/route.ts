@@ -14,12 +14,37 @@ import {
   managerTalkativenessChatSuffix,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { logUsageEvent } from '@/lib/usage/server-log'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
 export const maxDuration = 60
 
 const OPENAI_MODEL = 'gpt-4o-mini'
+
+function logDivineManagerChatUsage(
+  userId: string,
+  phase: 'tool_round' | 'final_round',
+  raw: {
+    id?: string
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+  },
+) {
+  const u = raw.usage
+  if (!u) return
+  logUsageEvent({
+    userId,
+    feature: `divine_manager_chat/${phase}`,
+    provider: 'openai',
+    model: OPENAI_MODEL,
+    usage: {
+      promptTokens: u.prompt_tokens,
+      completionTokens: u.completion_tokens,
+      totalTokens: u.total_tokens,
+    },
+    requestId: typeof raw.id === 'string' ? raw.id : null,
+  })
+}
 
 /** Curated tools for Divine chat: AI tools (run-ai-tool) and intents (intent API). */
 const CHAT_TOOLS: Array<{
@@ -1249,6 +1274,8 @@ ${platformConnectionContext}${focusedFanLine}`
     }
 
     const data = (await res.json()) as {
+      id?: string
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
       choices?: Array<{
         message?: {
           content?: string | null
@@ -1256,6 +1283,7 @@ ${platformConnectionContext}${focusedFanLine}`
         }
       }>
     }
+    logDivineManagerChatUsage(user.id, 'tool_round', data)
     const firstChoice = data.choices?.[0]?.message
     if (!firstChoice) {
       return NextResponse.json({ error: 'No response from model' }, { status: 502 })
@@ -1407,7 +1435,12 @@ ${platformConnectionContext}${focusedFanLine}`
       return NextResponse.json({ error: `OpenAI follow-up error: ${errText.slice(0, 200)}` }, { status: 502 })
     }
 
-    const data2 = (await res2.json()) as { choices?: Array<{ message?: { content?: string | null } }> }
+    const data2 = (await res2.json()) as {
+      id?: string
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+      choices?: Array<{ message?: { content?: string | null } }>
+    }
+    logDivineManagerChatUsage(user.id, 'final_round', data2)
     const finalContent = data2.choices?.[0]?.message?.content ?? ''
     const reply = finalContent.trim()
 

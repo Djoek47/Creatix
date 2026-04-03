@@ -215,6 +215,127 @@
   background-size: 200px 200px;
 }
 
+/* Marketing — aurora + rainbow gold purple atmosphere */
+@keyframes marketing-aurora-shift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(4%, -3%) scale(1.08);
+    opacity: 0.5;
+  }
+}
+
+@keyframes marketing-shimmer-line {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.marketing-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.marketing-aurora::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 55%;
+  height: 70%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    oklch(0.55 0.22 295 / 0.22) 0%,
+    oklch(0.78 0.14 85 / 0.08) 45%,
+    transparent 70%
+  );
+  animation: marketing-aurora-shift 22s ease-in-out infinite;
+}
+
+.marketing-aurora::after {
+  content: '';
+  position: absolute;
+  bottom: -15%;
+  right: -5%;
+  width: 50%;
+  height: 65%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    oklch(0.72 0.18 330 / 0.18) 0%,
+    oklch(0.78 0.14 85 / 0.12) 40%,
+    transparent 68%
+  );
+  animation: marketing-aurora-shift 26s ease-in-out infinite reverse;
+}
+
+.marketing-rainbow-edge {
+  background: linear-gradient(
+    90deg,
+    oklch(0.7 0.2 330),
+    oklch(0.55 0.22 295),
+    oklch(0.78 0.14 85),
+    oklch(0.75 0.15 200),
+    oklch(0.7 0.2 330)
+  );
+  background-size: 200% auto;
+  animation: marketing-shimmer-line 8s linear infinite;
+}
+
+.marketing-glow-ring {
+  box-shadow:
+    0 0 0 1px oklch(0.78 0.14 85 / 0.2),
+    0 0 48px oklch(0.55 0.2 295 / 0.15),
+    0 0 96px oklch(0.78 0.14 85 / 0.08);
+}
+
+.dark .marketing-glow-ring {
+  box-shadow:
+    0 0 0 1px oklch(0.78 0.14 85 / 0.25),
+    0 0 60px oklch(0.55 0.2 295 / 0.22),
+    0 0 120px oklch(0.78 0.14 85 / 0.1);
+}
+
+@keyframes marketing-float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.marketing-float {
+  animation: marketing-float-soft 5s ease-in-out infinite;
+}
+
+@keyframes marketing-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+    filter: blur(12px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(16px);
+  }
+}
+
+.marketing-hero-halo {
+  animation: marketing-pulse-glow 4s ease-in-out infinite;
+}
+
 /* Divine Manager — premium page background (light: subtle cream/gold edge; dark: deep with hint of circe/gold) */
 .divine-page-bg {
   background: radial-gradient(ellipse 120% 80% at 50% 0%, oklch(0.98 0.02 85 / 0.4), var(--background) 50%);

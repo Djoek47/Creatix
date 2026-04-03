@@ -166,3 +166,29 @@ export function tierIndexFromMonthlyRevenue(monthlyRevenueUsd: number): number {
   if (x < 80000) return 9
   return 10
 }
+
+/**
+ * Positive = cheaper than OnlyFans Focus base for that tier (savings %).
+ * Negative = more than OF base (e.g. Unified bundle vs single-platform OF).
+ */
+export function percentVsOnlyFansBase(row: RevenueTierRow, monthlyUsd: number): number {
+  const b = row.focusBaseUsd
+  if (!b) return 0
+  return Math.round((1 - monthlyUsd / b) * 100)
+}
+
+/** Savings % for a two-platform Focus pair vs paying OF base alone (mean pricing). */
+export function percentSavingsTwoPlatformFocus(
+  row: RevenueTierRow,
+  a: AdultBillingPlatform,
+  b: AdultBillingPlatform,
+): number {
+  return percentVsOnlyFansBase(row, twoPlatformFocusUsd(row, a, b))
+}
+
+/** Typical headline savings (exact at most tiers; rounding can vary by $1). */
+export const FOCUS_PLATFORM_SAVINGS_PCT = {
+  onlyfans: 0,
+  fansly: 10,
+  manyvids: 25,
+} as const satisfies Record<AdultBillingPlatform, number>

@@ -199,7 +199,10 @@ export function LandingPricingSection() {
                     const ofP = focusPriceUsd(row, 'onlyfans')
                     const flP = focusFanslyUsd(row)
                     const mvP = focusManyvidsUsd(row)
-                    const twoEx = twoPlatformFocusUsd(row, 'onlyfans', 'fansly')
+                    const twoEx =
+                      sortedSelection.length === 2
+                        ? twoPlatformFocusUsd(row, sortedSelection[0], sortedSelection[1])
+                        : twoPlatformFocusUsd(row, 'onlyfans', 'fansly')
                     const cellClass = (on: boolean) =>
                       cn(
                         'px-2 py-3 text-right tabular-nums',
@@ -207,8 +210,7 @@ export function LandingPricingSection() {
                       )
                     const singleHighlight = (p: AdultBillingPlatform) =>
                       !isUnified && active && sortedSelection.includes(p)
-                    const twoHighlight =
-                      !isUnified && active && sortedSelection.length === 2 && sortedSelection.includes('onlyfans') && sortedSelection.includes('fansly')
+                    const twoHighlight = !isUnified && active && sortedSelection.length === 2
                     return (
                       <tr
                         key={row.tierIndex}

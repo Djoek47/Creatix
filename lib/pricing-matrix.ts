@@ -1,6 +1,6 @@
 /**
  * Revenue-tier pricing (USD): Focus = 1–2 adult platforms (OF base, Fansly −10%, ManyVids −25%);
- * two-platform Focus = mean (default) or max of the two; Unified = multi column unchanged.
+ * two-platform Focus = sum of the two line prices × pair bundle factor; Unified = multi column unchanged.
  */
 
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
@@ -8,10 +8,14 @@ import { sortFocusPlatforms } from '@/lib/billing/platform-variant'
 
 export type BillingVariant = 'single' | 'multi'
 
-/** Set to `'max'` to charge the higher of the two platform prices instead of the rounded mean. */
-export type FocusTwoPlatformPriceMode = 'mean_rounded' | 'max'
-
-export const FOCUS_TWO_PLATFORM_PRICE_MODE: FocusTwoPlatformPriceMode = 'mean_rounded'
+/** Multiplier applied to (P_a + P_b) after each platform’s Focus line price. */
+export function twoPlatformBundleMultiplier(a: AdultBillingPlatform, b: AdultBillingPlatform): number {
+  const s = new Set<AdultBillingPlatform>([a, b])
+  if (s.has('onlyfans') && s.has('fansly')) return 0.9
+  if (s.has('onlyfans') && s.has('manyvids')) return 0.75
+  if (s.has('fansly') && s.has('manyvids')) return 1.05
+  throw new Error('twoPlatformBundleMultiplier: expected two distinct focus platforms')
+}
 
 export interface RevenueTierRow {
   /** 0..10 */
@@ -60,7 +64,7 @@ export function focusPriceUsd(row: RevenueTierRow, platform: AdultBillingPlatfor
   return focusManyvidsUsd(row)
 }
 
-/** Two distinct platforms; order-independent. */
+/** Two distinct platforms; order-independent. Sum of line prices × pair factor, then rounded. */
 export function twoPlatformFocusUsd(
   row: RevenueTierRow,
   a: AdultBillingPlatform,
@@ -68,8 +72,8 @@ export function twoPlatformFocusUsd(
 ): number {
   const p1 = focusPriceUsd(row, a)
   const p2 = focusPriceUsd(row, b)
-  if (FOCUS_TWO_PLATFORM_PRICE_MODE === 'max') return Math.max(p1, p2)
-  return Math.round((p1 + p2) / 2)
+  const mult = twoPlatformBundleMultiplier(a, b)
+  return Math.round((p1 + p2) * mult)
 }
 
 export function focusPlatformDisplayName(platform: AdultBillingPlatform): string {
@@ -177,7 +181,7 @@ export function percentVsOnlyFansBase(row: RevenueTierRow, monthlyUsd: number): 
   return Math.round((1 - monthlyUsd / b) * 100)
 }
 
-/** Savings % for a two-platform Focus pair vs paying OF base alone (mean pricing). */
+/** % vs OnlyFans base for a two-platform Focus pair (positive = cheaper than OF-only). */
 export function percentSavingsTwoPlatformFocus(
   row: RevenueTierRow,
   a: AdultBillingPlatform,

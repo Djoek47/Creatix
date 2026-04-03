@@ -17,7 +17,7 @@ export function PriceWithSavings({ row, usd, baseline }: { row: RevenueTierRow; 
           !isBase && pct < 0 && 'text-amber-300/90',
         )}
       >
-        {isBase ? 'OnlyFans base' : pct > 0 ? `−${pct}% vs OF` : pct < 0 ? `+${-pct}% vs OF · full stack` : '—'}
+        {isBase ? 'OnlyFans base' : pct > 0 ? `−${pct}% vs OF` : pct < 0 ? `+${-pct}% vs OF base` : '—'}
       </span>
     </div>
   )

@@ -23,11 +23,41 @@ import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-in
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { PriceWithSavings } from '@/components/marketing/pricing-table-cells'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
+import { cn } from '@/lib/utils'
+
+function SavingsGlanceCard({
+  label,
+  pct,
+  fixedDiscount,
+}: {
+  label: string
+  pct: number
+  /** When true, always show as a discount (single-platform vs OF). */
+  fixedDiscount?: boolean
+}) {
+  const rounded = Math.round(pct)
+  const asSavings = fixedDiscount === true || rounded > 0
+  const n = Math.abs(rounded)
+  return (
+    <div className="rounded-2xl border border-border/50 bg-background/50 px-4 py-4 text-center">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          'mt-2 font-serif text-3xl font-semibold',
+          asSavings ? 'text-emerald-400/95' : 'text-amber-300/90',
+        )}
+      >
+        {asSavings ? `−${n}%` : `+${n}%`}
+      </p>
+      <p className="mt-1 text-[10px] text-muted-foreground">vs OnlyFans base</p>
+    </div>
+  )
+}
 
 export const metadata = {
   title: 'Pricing | Circe et Venus',
   description:
-    'Revenue-based pricing with savings vs OnlyFans base: Fansly −10%, ManyVids −25%, two-platform Focus blends, or Unified for all three. 14-day free trial.',
+    'Revenue-based pricing vs OnlyFans base: Fansly −10%, ManyVids −25%; two-platform Focus sums line prices with pair discounts (+5% for Fansly+ManyVids); or Unified for all three. 14-day free trial.',
 }
 
 export default function PricingPage() {
@@ -55,7 +85,7 @@ export default function PricingPage() {
     {
       question: 'What is Focus vs Unified?',
       answer:
-        'Focus covers one or two adult platforms (OnlyFans, Fansly, ManyVids). OnlyFans is the price base; Fansly is 10% lower and ManyVids 25% lower at each band. Two platforms use the rounded mean of the two prices (unless configured otherwise). All three platforms bill as Unified at the original multi-platform price for your band.',
+        'Focus covers one or two adult platforms (OnlyFans, Fansly, ManyVids). OnlyFans is the price base; Fansly is 10% lower and ManyVids 25% lower at each band. For two platforms we add those two line prices, then apply: OnlyFans + Fansly → 10% off the sum; OnlyFans + ManyVids → 25% off the sum; Fansly + ManyVids → 5% on top of the sum. All three platforms bill as Unified at the original multi-platform price for your band.',
     },
     {
       question: 'Which single platform is the best discount?',
@@ -65,7 +95,7 @@ export default function PricingPage() {
     {
       question: 'What about two-platform pairs?',
       answer:
-        `Example at the “${sampleTier.label}” band: OnlyFans + Fansly saves about ${ofFlSavings}% vs OF base; OnlyFans + ManyVids about ${ofMvSavings}%; Fansly + ManyVids about ${flMvSavings}% — exact rounding can vary by $1 at some bands.`,
+        `Example at the “${sampleTier.label}” band vs OnlyFans-only: OnlyFans + Fansly is about ${ofFlSavings >= 0 ? `${ofFlSavings}% lower` : `${-ofFlSavings}% higher`}; OnlyFans + ManyVids about ${ofMvSavings >= 0 ? `${ofMvSavings}% lower` : `${-ofMvSavings}% higher`}; Fansly + ManyVids about ${flMvSavings >= 0 ? `${flMvSavings}% lower` : `${-flMvSavings}% higher`} — green “% vs OF” in the matrix means you pay less than OF base; amber means more. Rounding can vary by $1 at some bands.`,
     },
     {
       question: 'How does the 14-day free trial work?',
@@ -108,7 +138,7 @@ export default function PricingPage() {
                 <p className="mt-2 font-serif text-xl font-semibold">1–2 platforms</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Stack discounts: Fansly −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}%, ManyVids −{FOCUS_PLATFORM_SAVINGS_PCT.manyvids}% vs
-                  OnlyFans base. Two picks → blended mean.
+                  OnlyFans base. Two picks → sum of line prices, then pair rule (OF+FL −10%, OF+MV −25%, FL+MV +5%).
                 </p>
               </div>
             </MotionStaggerItem>
@@ -120,8 +150,8 @@ export default function PricingPage() {
                 </div>
                 <p className="mt-2 font-serif text-xl font-semibold">ManyVids −25%</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Deepest per-platform discount vs OF base. Pair it with OF or Fansly and the table shows the exact
-                  blended % for your band.
+                  Deepest per-platform discount vs OF base. Pair it with OF or Fansly and the matrix shows the exact
+                  % vs OF for that bundle at each band.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -145,25 +175,16 @@ export default function PricingPage() {
           <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted-foreground">
             Mid-band “{sampleTier.label}” — your row will show precise numbers for your revenue tier.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { label: 'Fansly vs OF', pct: FOCUS_PLATFORM_SAVINGS_PCT.fansly },
-              { label: 'ManyVids vs OF', pct: FOCUS_PLATFORM_SAVINGS_PCT.manyvids },
-              { label: 'OF + Fansly (mean)', pct: ofFlSavings },
-              { label: 'OF + ManyVids (mean)', pct: ofMvSavings },
-            ].map((x) => (
-              <div
-                key={x.label}
-                className="rounded-2xl border border-border/50 bg-background/50 px-4 py-4 text-center"
-              >
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{x.label}</p>
-                <p className="mt-2 font-serif text-3xl font-semibold text-emerald-400/95">−{x.pct}%</p>
-                <p className="mt-1 text-[10px] text-muted-foreground">vs OnlyFans base</p>
-              </div>
-            ))}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <SavingsGlanceCard label="Fansly vs OF" pct={FOCUS_PLATFORM_SAVINGS_PCT.fansly} fixedDiscount />
+            <SavingsGlanceCard label="ManyVids vs OF" pct={FOCUS_PLATFORM_SAVINGS_PCT.manyvids} fixedDiscount />
+            <SavingsGlanceCard label="OF + Fansly (bundle)" pct={ofFlSavings} />
+            <SavingsGlanceCard label="OF + ManyVids (bundle)" pct={ofMvSavings} />
+            <SavingsGlanceCard label="Fansly + ManyVids (bundle)" pct={flMvSavings} />
           </div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Fansly + ManyVids (two-platform Focus) saves ~{flMvSavings}% vs OF at this band — see the full matrix below.
+            Two-platform bundles can be above OnlyFans-only base; the matrix uses green for cheaper than OF and amber
+            for more. See the full table below.
           </p>
         </MotionReveal>
       </section>

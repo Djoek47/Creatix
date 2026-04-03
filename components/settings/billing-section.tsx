@@ -477,8 +477,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Select 1–2 for Focus. Two-platform price is the average of the two platform prices (switchable
-              to max in code via <code className="text-xs">FOCUS_TWO_PLATFORM_PRICE_MODE</code>).
+              Select 1–2 for Focus. Two-platform price is each platform&apos;s line price added together, then
+              OnlyFans + Fansly −10%, OnlyFans + ManyVids −25%, or Fansly + ManyVids +5% on that sum.
             </p>
           )}
 

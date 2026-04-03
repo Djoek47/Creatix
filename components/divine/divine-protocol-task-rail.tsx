@@ -54,7 +54,7 @@ export function DivineProtocolTaskRail() {
   const voiceSession = useVoiceSession()
   const [briefingLoading, setBriefingLoading] = useState(false)
   const [briefingHint, setBriefingHint] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
   /** True once this session had at least one open task — used to auto-collapse the empty rail. */
   const hadOpenTasksRef = useRef(false)
 
@@ -189,7 +189,6 @@ export function DivineProtocolTaskRail() {
   useEffect(() => {
     if (openTasks.length > 0) {
       hadOpenTasksRef.current = true
-      setMenuOpen(true)
     }
   }, [openTasks.length])
 
@@ -204,7 +203,7 @@ export function DivineProtocolTaskRail() {
     return (
       <button
         type="button"
-        className="divine-protocol-stack-shell flex w-full max-w-[min(92vw,660px)] items-center justify-between gap-2 rounded-lg border border-dashed border-amber-500/25 bg-card/70 px-3 py-2 text-left text-xs backdrop-blur-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
+        className="divine-protocol-stack-shell inline-flex w-fit max-w-[min(92vw,400px)] items-center justify-between gap-2 rounded-lg border border-dashed border-amber-500/25 bg-card/70 px-3 py-2 text-left text-xs backdrop-blur-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
         onClick={() => setMenuOpen(true)}
       >
         <span className="font-medium text-foreground">Protocols &amp; tasks</span>
@@ -216,7 +215,8 @@ export function DivineProtocolTaskRail() {
   return (
     <div
       className={cn(
-        'divine-protocol-stack-shell w-[min(92vw,660px)] overflow-hidden rounded-lg backdrop-blur-sm',
+        'divine-protocol-stack-shell overflow-hidden rounded-lg backdrop-blur-sm',
+        menuOpen && !showEmptyShell ? 'w-[min(92vw,400px)]' : 'w-fit max-w-[min(92vw,400px)]',
         showEmptyShell
           ? 'border border-dashed border-amber-500/20 bg-card/60'
           : 'flex max-h-[min(40vh,320px)] flex-col border border-amber-500/15 bg-card/95 shadow-md',
@@ -227,28 +227,30 @@ export function DivineProtocolTaskRail() {
         onOpenChange={setMenuOpen}
         className={cn(!showEmptyShell && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
       >
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
-          >
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-                menuOpen ? 'rotate-0' : '-rotate-90',
-              )}
-              aria-hidden
-            />
-            <span className="text-xs font-medium">Protocols & tasks</span>
-            {showEmptyShell ? (
-              <span className="text-[11px] text-muted-foreground">— none open</span>
-            ) : openTasks.length > 0 ? (
-              <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">{openTasks.length} open</span>
-            ) : loading ? (
-              <span className="ml-auto text-[10px] text-muted-foreground">Loading…</span>
-            ) : null}
-          </button>
-        </CollapsibleTrigger>
+        <div className="flex justify-end px-2 pt-1">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
+            >
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                  menuOpen ? 'rotate-0' : '-rotate-90',
+                )}
+                aria-hidden
+              />
+              <span className="text-xs font-medium">Protocols & tasks</span>
+              {showEmptyShell ? (
+                <span className="text-[11px] text-muted-foreground">— none open</span>
+              ) : openTasks.length > 0 ? (
+                <span className="text-[10px] text-muted-foreground tabular-nums">{openTasks.length} open</span>
+              ) : loading ? (
+                <span className="text-[10px] text-muted-foreground">Loading…</span>
+              ) : null}
+            </button>
+          </CollapsibleTrigger>
+        </div>
         <CollapsibleContent
           className={cn(!showEmptyShell && 'min-h-0 flex-1 overflow-hidden data-[state=open]:flex data-[state=open]:flex-col')}
         >

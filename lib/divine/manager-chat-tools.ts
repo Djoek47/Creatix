@@ -43,6 +43,7 @@ import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/d
 import { getSettings } from '@/lib/divine-manager'
 import { upsertFanRecentsFromConversations, searchFanRecents } from '@/lib/divine/fan-recents-server'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 
 export const AI_TOOL_NAME_TO_ID: Record<string, string> = {
@@ -1056,9 +1057,12 @@ export async function runContextTool(
       const lines: string[] = []
       lines.push(
         snapshot.onlyfansConnected
-          ? `- onlyfans: CONNECTED${snapshot.onlyfansUsername ? ` (@${snapshot.onlyfansUsername})` : ''}`
+          ? `- onlyfans: CONNECTED${snapshot.onlyfansUsername ? ` (@${snapshot.onlyfansUsername})` : ''} — page model: ${snapshot.onlyfansCreatorPageModel}${snapshot.onlyfansCreatorPageModel === 'unknown' ? ' (set under Integrations for better AI)' : ''}`
           : '- onlyfans: NOT CONNECTED',
       )
+      if (snapshot.onlyfansConnected) {
+        lines.push(`  ${formatCreatorOnlyFansPageModelForAi(snapshot.onlyfansCreatorPageModel).slice(0, 280)}…`)
+      }
       lines.push(
         snapshot.fanslyConnected
           ? `- fansly: CONNECTED${snapshot.fanslyUsername ? ` (@${snapshot.fanslyUsername})` : ''}`

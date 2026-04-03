@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Checkout } from '@/components/stripe/checkout'
 import { PRODUCTS, PAID_TIER_FEATURES } from '@/lib/products'
 import {
@@ -32,16 +33,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
-  focusPriceUsd,
+  focusFanslyUsd,
+  focusManyvidsUsd,
   focusPlatformDisplayName,
+  twoPlatformFocusUsd,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
-import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
+import {
+  ADULT_BILLING_PLATFORMS,
+  sortFocusPlatforms,
+  resolveAllowedFocusPlatforms,
+  type AdultBillingPlatform,
+} from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
 import { cn } from '@/lib/utils'
 
@@ -63,20 +69,17 @@ interface SubscriptionData {
   trial_ends_at?: string | null
   billing_variant?: string | null
   billing_focus_platform?: string | null
+  billing_focus_platforms?: string[] | null
   revenue_tier?: number | null
   revenue_band_label?: string | null
   stripe_customer_id?: string | null
 }
 
-function normalizeFocusPlatform(raw: string | null | undefined): AdultBillingPlatform {
-  if (raw === 'fansly' || raw === 'manyvids' || raw === 'onlyfans') return raw
-  return 'onlyfans'
+const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
+  onlyfans: 'Base',
+  fansly: '−10%',
+  manyvids: '−25%',
 }
-
-const FOCUS_RADIO_PLATFORMS: { id: AdultBillingPlatform; badge: string; hint?: string }[] = [
-  { id: 'onlyfans', badge: 'Popular' },
-  { id: 'fansly', badge: 'Growing' },
-]
 
 export function BillingSection({ userId }: BillingSectionProps) {
   const [subscription, setSubscription] = useState<{
@@ -92,7 +95,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [messagesThisMonth, setMessagesThisMonth] = useState<number>(0)
   const [loadingPortal, setLoadingPortal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [checkoutFocusPlatform, setCheckoutFocusPlatform] = useState<AdultBillingPlatform>('onlyfans')
+  const [platformSelection, setPlatformSelection] = useState<Set<AdultBillingPlatform>>(
+    () => new Set(['onlyfans']),
+  )
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
   const supabase = createClient()
 
@@ -107,9 +112,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10) {
         setCheckoutTierIndex(row.revenue_tier)
       }
-      {
-        const fp = normalizeFocusPlatform(row.billing_focus_platform)
-        setCheckoutFocusPlatform(fp === 'manyvids' ? 'onlyfans' : fp)
+      if (row.billing_variant === 'multi') {
+        setPlatformSelection(new Set(ADULT_BILLING_PLATFORMS))
+      } else if (row.billing_variant === 'single') {
+        const allowed = resolveAllowedFocusPlatforms(row.billing_focus_platforms, row.billing_focus_platform)
+        setPlatformSelection(new Set(allowed))
+      } else {
+        setPlatformSelection(new Set(['onlyfans']))
       }
     } else {
       const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
@@ -196,6 +205,27 @@ export function BillingSection({ userId }: BillingSectionProps) {
     }
   }
 
+  const togglePlatform = (p: AdultBillingPlatform) => {
+    setPlatformSelection((prev) => {
+      const n = new Set(prev)
+      if (n.has(p)) {
+        if (n.size <= 1) return n
+        n.delete(p)
+        return n
+      }
+      n.add(p)
+      return n
+    })
+  }
+
+  const sortedSelection = useMemo(
+    () => sortFocusPlatforms([...platformSelection]),
+    [platformSelection],
+  )
+  const isUnifiedSelection = sortedSelection.length === 3
+  const focusCheckoutList =
+    sortedSelection.length >= 1 && sortedSelection.length <= 2 ? sortedSelection : null
+
   const planId = subscription?.planId || subData?.plan_id
   const paidActive =
     isPaidPlanId(planId) &&
@@ -205,7 +235,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
       subData?.status === 'trialing')
 
   const tierRow = REVENUE_TIERS.find((t) => t.tierIndex === checkoutTierIndex)
-  const focusCheckoutUsd = tierRow ? focusPriceUsd(tierRow, checkoutFocusPlatform) : 0
+  const focusCheckoutUsd =
+    tierRow && focusCheckoutList
+      ? getMonthlyPriceUsd('single', checkoutTierIndex, focusCheckoutList)
+      : 0
   const unifiedCheckoutUsd = tierRow?.multiPriceUsd ?? 0
 
   const subscribedMonthlyUsd =
@@ -213,7 +246,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
       ? getMonthlyPriceUsd(
           (subData.billing_variant as BillingVariant) || 'single',
           typeof subData.revenue_tier === 'number' ? subData.revenue_tier : 4,
-          normalizeFocusPlatform(subData.billing_focus_platform),
+          subData.billing_variant === 'multi'
+            ? undefined
+            : resolveAllowedFocusPlatforms(subData.billing_focus_platforms, subData.billing_focus_platform),
         )
       : null
 
@@ -315,8 +350,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </div>
             {paidActive && (
               <p className="mt-3 text-xs text-muted-foreground">
-                To change revenue band, Focus platform, or Unified, use checkout below (new session) or
-                cancel and resubscribe. The Stripe portal may not list every dynamic price.
+                To change band, Focus platforms, or Unified, use checkout below (new session) or cancel and
+                resubscribe. The Stripe portal may not list every dynamic price.
               </p>
             )}
           </div>
@@ -387,9 +422,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader>
           <CardTitle className="font-semibold">Plans & pricing</CardTitle>
           <CardDescription>
-            Pick your <strong>monthly revenue band</strong>, then choose <strong>Focus</strong> (one adult
-            platform) or <strong>Unified</strong> (OnlyFans, Fansly, ManyVids in one workspace). Focus price
-            depends on the platform you select.
+            Choose your <strong>revenue band</strong>. <strong>Focus</strong> covers 1–2 adult platforms
+            (Fansly 10% below OnlyFans base, ManyVids 25% below). Pick <strong>all three</strong> below to
+            subscribe as <strong>Unified</strong> at the combined workspace price.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -412,69 +447,56 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </Select>
           </div>
 
+          <p className="text-sm font-medium text-foreground">Platforms for this quote</p>
+          <div className="flex flex-wrap gap-4">
+            {ADULT_BILLING_PLATFORMS.map((p) => (
+              <label
+                key={p}
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+                  platformSelection.has(p)
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-border hover:bg-muted/40',
+                )}
+              >
+                <Checkbox
+                  checked={platformSelection.has(p)}
+                  onCheckedChange={() => togglePlatform(p)}
+                  aria-label={focusPlatformDisplayName(p)}
+                />
+                <span className="font-medium">{focusPlatformDisplayName(p)}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {PLATFORM_BADGE[p]}
+                </Badge>
+              </label>
+            ))}
+          </div>
+          {isUnifiedSelection ? (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              All three selected — use <strong>Unified</strong> checkout for this price tier.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select 1–2 for Focus. Two-platform price is the average of the two platform prices (switchable
+              to max in code via <code className="text-xs">FOCUS_TWO_PLATFORM_PRICE_MODE</code>).
+            </p>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-1">
-            {/* Focus */}
             <div
               className={cn(
                 'rounded-xl border-2 p-6 shadow-sm',
                 'border-amber-500/35 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-950/15',
+                isUnifiedSelection && 'opacity-60',
               )}
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
-                Single platform
+                1–2 platforms
               </p>
               <h3 className="mt-1 font-serif text-2xl font-semibold text-foreground">Focus plan</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Full tools for one platform of your choice.</p>
-
-              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-amber-800/90 dark:text-amber-300/90">
-                Select your platform
+              <p className="mt-1 text-sm text-muted-foreground">
+                Full Pro tools for the platforms you selected (up to two).
               </p>
-              <RadioGroup
-                value={checkoutFocusPlatform}
-                onValueChange={(v) => setCheckoutFocusPlatform(v as AdultBillingPlatform)}
-                className="mt-3 gap-2"
-              >
-                {FOCUS_RADIO_PLATFORMS.map(({ id, badge }) => {
-                  const selected = checkoutFocusPlatform === id
-                  return (
-                    <label
-                      key={id}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors',
-                        selected
-                          ? 'border-amber-500/70 bg-background/80 ring-1 ring-amber-500/30'
-                          : 'border-border/80 bg-background/40 hover:bg-background/60',
-                      )}
-                    >
-                      <RadioGroupItem value={id} id={`focus-${id}`} />
-                      <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium">{focusPlatformDisplayName(id)}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {badge}
-                        </Badge>
-                      </div>
-                    </label>
-                  )
-                })}
-              </RadioGroup>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="mt-2 flex cursor-not-allowed items-center gap-3 rounded-lg border border-dashed border-border/80 p-3 opacity-60">
-                    <div className="flex size-4 shrink-0 rounded-full border border-muted-foreground/40" />
-                    <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
-                      <span className="font-medium text-muted-foreground">{focusPlatformDisplayName('manyvids')}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        Coming soon
-                      </Badge>
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs">
-                  ManyVids connect is not available yet. Pricing is listed for when it ships; subscribe to
-                  Focus on OnlyFans or Fansly today.
-                </TooltipContent>
-              </Tooltip>
 
               <p className="mt-4 text-2xl font-bold text-foreground">
                 ${focusCheckoutUsd}
@@ -493,7 +515,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   productId={PAID_PLAN_ID}
                   billingVariant="single"
                   tierIndex={checkoutTierIndex}
-                  focusPlatform={checkoutFocusPlatform}
+                  focusPlatforms={focusCheckoutList ?? undefined}
+                  disabled={!focusCheckoutList}
                   buttonText={
                     paidActive
                       ? `Checkout Focus — $${focusCheckoutUsd}/mo`
@@ -505,24 +528,23 @@ export function BillingSection({ userId }: BillingSectionProps) {
               </div>
             </div>
 
-            {/* Unified */}
             <div
               className={cn(
                 'relative rounded-xl border-2 p-6 pt-8 shadow-md',
                 'border-amber-500/40 bg-zinc-950 text-zinc-100 dark:bg-zinc-950',
+                !isUnifiedSelection && 'ring-1 ring-dashed ring-amber-500/30',
               )}
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <Badge className="border-amber-500/60 bg-amber-600/90 px-3 text-xs font-semibold text-white">
-                  Best value
+                  All three
                 </Badge>
               </div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Multi-platform</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Unified</p>
               <h3 className="mt-1 font-serif text-2xl font-semibold text-white">Unified plan</h3>
-              <p className="mt-1 text-sm text-zinc-400">All platforms managed in one workspace.</p>
+              <p className="mt-1 text-sm text-zinc-400">OnlyFans, Fansly, ManyVids in one workspace.</p>
 
-              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-zinc-500">Included platforms</p>
-              <div className="mt-2 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
+              <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
                 <div className="flex -space-x-2">
                   <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#00AFF0] text-[10px] font-bold text-white">
                     OF
@@ -535,8 +557,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-amber-200">All three platforms</p>
-                  <p className="text-xs text-zinc-500">OnlyFans · Fansly · ManyVids</p>
+                  <p className="font-medium text-amber-200">Full bundle</p>
+                  <p className="text-xs text-zinc-500">Original multi-platform price per band</p>
                 </div>
                 <div
                   className="flex size-8 shrink-0 items-center justify-center rounded border border-amber-500/60 bg-amber-500/20"
@@ -576,13 +598,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="p-3 text-left font-medium">Monthly revenue</th>
-                  <th className="p-3 text-right font-medium">Focus OF</th>
-                  <th className="p-3 text-right font-medium">Focus FL</th>
-                  <th className="p-3 text-right font-medium">Focus MV</th>
+                  <th className="p-3 text-left font-medium">Revenue</th>
+                  <th className="p-3 text-right font-medium">OF base</th>
+                  <th className="p-3 text-right font-medium">Fansly</th>
+                  <th className="p-3 text-right font-medium">ManyVids</th>
+                  <th className="p-3 text-right font-medium">×2 (OF+FL)</th>
                   <th className="p-3 text-right font-medium">Unified</th>
                 </tr>
               </thead>
@@ -595,9 +618,12 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     }
                   >
                     <td className="p-3">{row.label}</td>
-                    <td className="p-3 text-right tabular-nums">${row.focusOnlyfansUsd}</td>
-                    <td className="p-3 text-right tabular-nums">${row.focusFanslyUsd}</td>
-                    <td className="p-3 text-right tabular-nums">${row.focusManyvidsUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${row.focusBaseUsd}</td>
+                    <td className="p-3 text-right tabular-nums">${focusFanslyUsd(row)}</td>
+                    <td className="p-3 text-right tabular-nums">${focusManyvidsUsd(row)}</td>
+                    <td className="p-3 text-right tabular-nums">
+                      ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
+                    </td>
                     <td className="p-3 text-right tabular-nums">${row.multiPriceUsd}</td>
                   </tr>
                 ))}

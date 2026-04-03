@@ -1,6 +1,6 @@
 import { isPaidPlanId, TRIAL_PLAN_ID } from '@/lib/billing/access'
-import { focusPlatformDisplayName } from '@/lib/pricing-matrix'
-import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
+import { focusPlatformsShortLabel } from '@/lib/pricing-matrix'
+import { resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 
 export type SubscriptionRowForPlan = {
   plan_id: string | null
@@ -8,13 +8,7 @@ export type SubscriptionRowForPlan = {
   revenue_band_label?: string | null
   billing_variant?: string | null
   billing_focus_platform?: string | null
-}
-
-function focusLabel(raw: string | null | undefined): string {
-  if (raw === 'onlyfans' || raw === 'fansly' || raw === 'manyvids') {
-    return focusPlatformDisplayName(raw as AdultBillingPlatform)
-  }
-  return 'OnlyFans'
+  billing_focus_platforms?: string[] | null
 }
 
 /** Short label for dashboard hero chip (no PII). */
@@ -31,7 +25,9 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
         row.billing_variant === 'multi'
           ? 'Unified'
           : row.billing_variant === 'single'
-            ? `Focus (${focusLabel(row.billing_focus_platform)})`
+            ? `Focus (${focusPlatformsShortLabel(
+                resolveAllowedFocusPlatforms(row.billing_focus_platforms, row.billing_focus_platform),
+              )})`
             : null
       return variant ? `Pro · ${band} (${variant})` : `Pro · ${band}`
     }

@@ -18,26 +18,27 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 interface CheckoutProps {
   productId: string
-  /** Required when `productId` is the paid plan slug (`cev-paid`). */
   billingVariant?: BillingVariant
   tierIndex?: number
-  /** Focus plan only (`single`). Ignored for Unified (`multi`). */
-  focusPlatform?: AdultBillingPlatform | null
+  /** Focus (`single`): 1–2 platforms; omit for Unified (`multi`). */
+  focusPlatforms?: AdultBillingPlatform[] | null
   buttonText?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
   children?: React.ReactNode
+  disabled?: boolean
 }
 
 export function Checkout({
   productId,
   billingVariant,
   tierIndex,
-  focusPlatform,
+  focusPlatforms,
   buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
   children,
+  disabled = false,
 }: CheckoutProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -52,20 +53,21 @@ export function Checkout({
         return await startPaidSubscriptionCheckout({
           variant: billingVariant,
           tierIndex,
-          focusPlatform: billingVariant === 'single' ? focusPlatform ?? 'onlyfans' : null,
+          focusPlatforms:
+            billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
         })
       }
       return await startCheckoutSession(productId)
     } finally {
       setLoading(false)
     }
-  }, [productId, billingVariant, tierIndex, focusPlatform])
+  }, [productId, billingVariant, tierIndex, focusPlatforms])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children || (
-          <Button variant={buttonVariant} className={buttonClassName}>
+          <Button variant={buttonVariant} className={buttonClassName} disabled={disabled}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {buttonText}
           </Button>
@@ -92,12 +94,12 @@ export function CheckoutEmbed({
   productId,
   billingVariant,
   tierIndex,
-  focusPlatform,
+  focusPlatforms,
 }: {
   productId: string
   billingVariant?: BillingVariant
   tierIndex?: number
-  focusPlatform?: AdultBillingPlatform | null
+  focusPlatforms?: AdultBillingPlatform[] | null
 }) {
   const fetchClientSecret = useCallback(() => {
     if (productId === PAID_PLAN_ID) {
@@ -107,11 +109,12 @@ export function CheckoutEmbed({
       return startPaidSubscriptionCheckout({
         variant: billingVariant,
         tierIndex,
-        focusPlatform: billingVariant === 'single' ? focusPlatform ?? 'onlyfans' : null,
+        focusPlatforms:
+          billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
       })
     }
     return startCheckoutSession(productId)
-  }, [productId, billingVariant, tierIndex, focusPlatform])
+  }, [productId, billingVariant, tierIndex, focusPlatforms])
 
   return (
     <div id="checkout">

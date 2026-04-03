@@ -6,6 +6,10 @@ import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import { subscriptionFieldsFromOnlyFansFan } from '@/lib/fans/subscription-dates'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import {
+  inferCreatorPageModelFromApiPayload,
+  shouldApplyApiInferenceForCreatorPageModel,
+} from '@/lib/onlyfans/creator-page-model'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -128,12 +132,36 @@ async function syncOnlyFansData(request: NextRequest, userId: string, accountId:
     const supabase = await createRouteHandlerClient(request)
     const api = createOnlyFansAPI(accountId)
 
-    const [stats, earningsResult, fansResult, chartRes] = await Promise.all([
+    const { data: pcMeta } = await supabase
+      .from('platform_connections')
+      .select('onlyfans_creator_page_model, onlyfans_creator_page_model_source')
+      .eq('user_id', userId)
+      .eq('platform', 'onlyfans')
+      .maybeSingle()
+
+    const [stats, earningsResult, fansResult, chartRes, accountRaw] = await Promise.all([
       api.getStats().catch(() => null),
       api.getEarnings().catch(() => null),
       api.getFans({ status: 'active', limit: 100, sort: 'recent' }).catch(() => ({ fans: [], total: 0 })),
       api.getEarningsChart({ days: 30 }).catch(() => null),
+      api.getAccount().catch(() => null),
     ])
+
+    const inferred = inferCreatorPageModelFromApiPayload(accountRaw, null)
+    const applyInference = shouldApplyApiInferenceForCreatorPageModel(
+      (pcMeta as { onlyfans_creator_page_model?: string | null } | null)?.onlyfans_creator_page_model,
+      (pcMeta as { onlyfans_creator_page_model_source?: string | null } | null)?.onlyfans_creator_page_model_source,
+    )
+    if (applyInference && inferred != null) {
+      await supabase
+        .from('platform_connections')
+        .update({
+          onlyfans_creator_page_model: inferred,
+          onlyfans_creator_page_model_source: 'api',
+        })
+        .eq('user_id', userId)
+        .eq('platform', 'onlyfans')
+    }
 
     const today = new Date().toISOString().split('T')[0]
     await supabase.from('analytics_snapshots').upsert(

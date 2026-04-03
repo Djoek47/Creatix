@@ -10,14 +10,19 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react'
-import { REVENUE_TIERS } from '@/lib/pricing-matrix'
+import {
+  REVENUE_TIERS,
+  focusFanslyUsd,
+  focusManyvidsUsd,
+  twoPlatformFocusUsd,
+} from '@/lib/pricing-matrix'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
 
 export const metadata = {
   title: 'Pricing | Circe et Venus',
   description:
-    'Revenue-based pricing: Focus (one adult platform) or Unified (OnlyFans, Fansly, ManyVids). Start with a 14-day free trial.',
+    'Revenue-based pricing: Focus for 1–2 adult platforms (OnlyFans base, Fansly −10%, ManyVids −25%) or Unified for all three. 14-day free trial.',
 }
 
 export default function PricingPage() {
@@ -25,7 +30,7 @@ export default function PricingPage() {
     { feature: '14-day free trial', trial: true, paid: true },
     { feature: 'AI credits & storage', trial: 'Limited', paid: 'Unlimited (paid tiers)' },
     { feature: 'OnlyFans connection', trial: true, paid: true },
-    { feature: 'Fansly / ManyVids (when available)', trial: true, paid: 'Unified or matching Focus plan' },
+    { feature: 'Fansly / ManyVids', trial: true, paid: 'Focus (if included) or Unified' },
     { feature: 'Leak & reputation tools', trial: 'Limited', paid: true },
     { feature: 'Priority support', trial: false, paid: true },
   ]
@@ -34,7 +39,7 @@ export default function PricingPage() {
     {
       question: 'What is Focus vs Unified?',
       answer:
-        'Focus gives you full Pro tools for one adult platform — OnlyFans, Fansly, or ManyVids — and the monthly price depends on which platform you choose. Unified covers all three in one workspace. Your total also depends on the revenue band you select.',
+        'Focus covers one or two adult platforms (OnlyFans, Fansly, ManyVids). OnlyFans is the price base; Fansly is 10% lower and ManyVids 25% lower at each band. If you pick two platforms, we charge the rounded average of those two prices (unless configured otherwise). Selecting all three platforms is billed as Unified at the original multi-platform price for your band.',
     },
     {
       question: 'How do revenue bands work?',
@@ -54,7 +59,7 @@ export default function PricingPage() {
     {
       question: 'What platforms do you integrate with?',
       answer:
-        'Adult: OnlyFans, Fansly, ManyVids (roadmap). Social: Instagram, TikTok, X, and more for reputation and growth.',
+        'Adult: OnlyFans, Fansly, ManyVids. Social: Instagram, TikTok, X, and more for reputation and growth.',
     },
   ]
 
@@ -93,54 +98,90 @@ export default function PricingPage() {
         <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-24">
           <div className="absolute inset-0 -z-10">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+            <div className="absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
+            <div className="absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-circe/10 blur-3xl" />
           </div>
 
-          <div className="mx-auto max-w-4xl text-center">
-            <Badge className="mb-4 gap-1">
-              <Sparkles className="h-3 w-3" />
-              14-Day Free Trial
-            </Badge>
-            <PricingModelHeadline as="h1" />
-            <div className="mx-auto mt-4 max-w-2xl space-y-3 text-lg text-muted-foreground">
-              <PricingModelInlineBlurb />
-              <p className="text-base">
-                All paid tiers include full Pro feature access within fair-use limits.
-              </p>
+          <div className="mx-auto max-w-5xl">
+            <div className="text-center">
+              <Badge className="mb-4 gap-1">
+                <Sparkles className="h-3 w-3" />
+                14-Day Free Trial
+              </Badge>
+              <PricingModelHeadline as="h1" />
+              <div className="mx-auto mt-4 max-w-2xl space-y-3 text-lg text-muted-foreground">
+                <PricingModelInlineBlurb />
+                <p className="text-base">
+                  All paid tiers include full Pro feature access within fair-use limits.
+                </p>
+              </div>
+            </div>
+            <div className="mt-12 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-primary/20 bg-card/60 p-5 text-left shadow-sm backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Focus</p>
+                <p className="mt-2 font-serif text-lg font-semibold text-foreground">1–2 platforms</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pick OnlyFans, Fansly, and/or ManyVids — up to two on Focus. Three selections bill as Unified.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/5 to-card p-5 text-left shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                  Savings
+                </p>
+                <p className="mt-2 font-serif text-lg font-semibold text-foreground">Derived from OF base</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Fansly ≈ 10% below base; ManyVids ≈ 25% below. Two-platform Focus uses the mean of the two prices
+                  (rounded).
+                </p>
+              </div>
+              <div className="rounded-2xl border border-circe/25 bg-gradient-to-br from-circe/5 to-card p-5 text-left shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-circe-light">Unified</p>
+                <p className="mt-2 font-serif text-lg font-semibold text-foreground">All three together</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Original multi-platform price per revenue band — unchanged from the classic bundle.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
         <section className="px-4 pb-16 sm:px-6 sm:pb-24">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-6xl">
             <div className="mb-8 text-center">
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl font-serif">Monthly price (USD)</h2>
-              <p className="mt-2 text-muted-foreground text-sm">
+              <h2 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">Monthly price (USD)</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 Excludes taxes. Exact checkout in the app after sign-up.
               </p>
             </div>
-            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-              <table className="w-full min-w-[640px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-card/80">
-                    <th className="p-4 text-left font-medium font-serif">Monthly revenue</th>
-                    <th className="p-4 text-right font-medium">Focus OnlyFans</th>
-                    <th className="p-4 text-right font-medium">Focus Fansly</th>
-                    <th className="p-4 text-right font-medium">Focus ManyVids</th>
-                    <th className="p-4 text-right font-medium">Unified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {REVENUE_TIERS.map((row) => (
-                    <tr key={row.tierIndex} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="p-4 text-muted-foreground">{row.label}</td>
-                      <td className="p-4 text-right font-medium">${row.focusOnlyfansUsd}</td>
-                      <td className="p-4 text-right font-medium">${row.focusFanslyUsd}</td>
-                      <td className="p-4 text-right font-medium">${row.focusManyvidsUsd}</td>
-                      <td className="p-4 text-right font-medium">${row.multiPriceUsd}</td>
+            <div className="-mx-4 overflow-hidden rounded-2xl border border-border bg-card/40 shadow-lg backdrop-blur-sm sm:mx-0">
+              <div className="overflow-x-auto px-4 py-2 sm:px-0 sm:py-0">
+                <table className="w-full min-w-[800px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="p-4 text-left font-medium font-serif">Monthly revenue</th>
+                      <th className="p-4 text-right font-medium">OF base</th>
+                      <th className="p-4 text-right font-medium">Fansly</th>
+                      <th className="p-4 text-right font-medium">ManyVids</th>
+                      <th className="p-4 text-right font-medium">Focus ×2 (OF+FL)</th>
+                      <th className="p-4 text-right font-medium">Unified</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {REVENUE_TIERS.map((row) => (
+                      <tr key={row.tierIndex} className="border-b border-border/50 transition-colors hover:bg-muted/25">
+                        <td className="p-4 text-muted-foreground">{row.label}</td>
+                        <td className="p-4 text-right font-medium tabular-nums">${row.focusBaseUsd}</td>
+                        <td className="p-4 text-right font-medium tabular-nums">${focusFanslyUsd(row)}</td>
+                        <td className="p-4 text-right font-medium tabular-nums">${focusManyvidsUsd(row)}</td>
+                        <td className="p-4 text-right font-medium tabular-nums">
+                          ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
+                        </td>
+                        <td className="p-4 text-right font-semibold tabular-nums text-primary">${row.multiPriceUsd}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/auth/sign-up">

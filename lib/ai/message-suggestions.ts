@@ -50,6 +50,8 @@ export type SuggestionRequestContext = {
   threadSupplement?: string
   /** Free vs paid follower + access expectations for upsell/PPV framing. */
   fanCommerceContext?: string
+  /** Creator OnlyFans page: free vs paid subscription page (not per-fan CRM). */
+  creatorPageContext?: string
   tonePreferences?: string[]
   niches?: string[]
   boundaries?: string[]
@@ -167,6 +169,8 @@ Always use these pronouns for the creator and never misgender them.`
 
   const commerce =
     ctx.fanCommerceContext?.trim() ? `Fan subscription / feed access (CRM):\n${ctx.fanCommerceContext.trim()}\n` : ''
+  const creatorPage =
+    ctx.creatorPageContext?.trim() ? `${ctx.creatorPageContext.trim()}\n` : ''
 
   const prompt = `${persona}
 
@@ -176,7 +180,7 @@ Fan handle: @${ctx.fan.username || 'fan'}
 ${identityLine}
 
 ${nicheLine}
-${commerce}${safety}
+${creatorPage}${commerce}${safety}
 
 Recent conversation:
 ${conversation}
@@ -302,6 +306,8 @@ Focus on: ${flavor}`
 
   const commerce =
     ctx.fanCommerceContext?.trim() ? `Fan subscription / feed access (CRM):\n${ctx.fanCommerceContext.trim()}\n` : ''
+  const creatorPage =
+    ctx.creatorPageContext?.trim() ? `${ctx.creatorPageContext.trim()}\n` : ''
 
   const userPrompt = `${persona}
 
@@ -309,7 +315,7 @@ Platform: ${ctx.platform}
 Fan handle: @${ctx.fan.username || 'fan'}
 
 ${nicheLine}
-${commerce}${safety}
+${creatorPage}${commerce}${safety}
 
 Recent conversation:
 ${conversation}

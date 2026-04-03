@@ -1,8 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { OnlyFansCreatorPageModel } from '@/lib/onlyfans/creator-page-model'
+import { parseOnlyFansCreatorPageModel } from '@/lib/onlyfans/creator-page-model'
 
 export type PlatformConnectionSnapshot = {
   onlyfansConnected: boolean
   onlyfansUsername: string | null
+  /** Creator page: free vs paid sub (not per-fan CRM tier). */
+  onlyfansCreatorPageModel: OnlyFansCreatorPageModel
   fanslyConnected: boolean
   fanslyUsername: string | null
 }
@@ -27,12 +31,13 @@ export async function getPlatformConnectionSnapshot(
 ): Promise<PlatformConnectionSnapshot> {
   const { data } = await supabase
     .from('platform_connections')
-    .select('platform, platform_username, is_connected')
+    .select('platform, platform_username, is_connected, onlyfans_creator_page_model')
     .eq('user_id', userId)
     .in('platform', ['onlyfans', 'fansly'])
 
   let onlyfansConnected = false
   let onlyfansUsername: string | null = null
+  let onlyfansCreatorPageModel: OnlyFansCreatorPageModel = 'unknown'
   let fanslyConnected = false
   let fanslyUsername: string | null = null
 
@@ -44,6 +49,9 @@ export async function getPlatformConnectionSnapshot(
     if (platform === 'onlyfans' && connected) {
       onlyfansConnected = true
       if (username) onlyfansUsername = username
+      onlyfansCreatorPageModel = parseOnlyFansCreatorPageModel(
+        (row as { onlyfans_creator_page_model?: string | null }).onlyfans_creator_page_model,
+      )
     }
     if (platform === 'fansly' && connected) {
       fanslyConnected = true
@@ -54,6 +62,7 @@ export async function getPlatformConnectionSnapshot(
   return {
     onlyfansConnected,
     onlyfansUsername,
+    onlyfansCreatorPageModel,
     fanslyConnected,
     fanslyUsername,
   }

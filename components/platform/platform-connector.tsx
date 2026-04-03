@@ -25,13 +25,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { MoreHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { focusUpgradeRequired } from '@/lib/billing/platform-variant'
+import { focusUpgradeRequired, resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +59,8 @@ interface PlatformConnection {
   is_connected: boolean
   last_sync_at: string | null
   niches?: string[] | null
+  onlyfans_creator_page_model?: string | null
+  onlyfans_creator_page_model_source?: string | null
 }
 
 interface Platform {
@@ -176,10 +185,37 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     status: string | null
     billing_variant: string | null
     billing_focus_platform: string | null
+    billing_focus_platforms: string[] | null
   } | null>(null)
   const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
+  const [savingOfPageModel, setSavingOfPageModel] = useState(false)
 
   const supabase = createClient()
+
+  const saveOnlyFansCreatorPageModel = async (value: 'free' | 'paid' | 'unknown') => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    setSavingOfPageModel(true)
+    setError(null)
+    try {
+      const { error: upErr } = await supabase
+        .from('platform_connections')
+        .update({
+          onlyfans_creator_page_model: value,
+          onlyfans_creator_page_model_source: value === 'unknown' ? null : 'user',
+        })
+        .eq('user_id', user.id)
+        .eq('platform', 'onlyfans')
+      if (upErr) throw new Error(upErr.message)
+      await loadConnections()
+      setSuccess('OnlyFans page type saved for AI & automations.')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save page type')
+    } finally {
+      setSavingOfPageModel(false)
+    }
+  }
 
   const loadConnections = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -189,7 +225,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       supabase.from('platform_connections').select('*').eq('user_id', user.id),
       supabase
         .from('subscriptions')
-        .select('plan_id,status,billing_variant,billing_focus_platform')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
         .eq('user_id', user.id)
         .maybeSingle(),
     ])
@@ -202,6 +238,8 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         billing_variant: (subRow as { billing_variant?: string | null }).billing_variant ?? null,
         billing_focus_platform:
           (subRow as { billing_focus_platform?: string | null }).billing_focus_platform ?? null,
+        billing_focus_platforms:
+          (subRow as { billing_focus_platforms?: string[] | null }).billing_focus_platforms ?? null,
       })
     } else {
       setBillingSub(null)
@@ -575,8 +613,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       paid &&
       focusUpgradeRequired(
         connections,
-        billingSub.billing_variant,
-        billingSub.billing_focus_platform,
+        billingSub.billing_variant as 'single' | 'multi' | null | undefined,
+        resolveAllowedFocusPlatforms(
+          billingSub.billing_focus_platforms,
+          billingSub.billing_focus_platform,
+        ),
         platformId,
       )
     ) {
@@ -836,9 +877,9 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Unified plan required</AlertDialogTitle>
               <AlertDialogDescription>
-                Your subscription is <strong>Focus</strong> (one adult platform). Connecting a different
-                or second adult platform requires a <strong>Unified</strong> plan. Upgrade under Billing,
-                then connect again.
+                Your subscription is <strong>Focus</strong> for the adult platforms you chose (up to two).
+                This connection isn&apos;t included on your plan — upgrade to <strong>Unified</strong> under
+                Billing to cover all three, then connect again.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -951,6 +992,43 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
                   {connected ? (
                     <div className="space-y-3 pt-2">
+                      {platform.id === 'onlyfans' ? (
+                        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <Label className="text-xs font-medium text-muted-foreground">
+                            Your OnlyFans page type
+                          </Label>
+                          <p className="text-[11px] text-muted-foreground leading-snug">
+                            Free page: $0 follow, revenue from PPV, tips, and messages. Paid page: fans pay a
+                            monthly sub; most feed posts are included. This is separate from each fan’s CRM
+                            tier. Divine and AI Chatter use it so replies match how you monetize.
+                            {(connection?.onlyfans_creator_page_model_source === 'api' && connection?.onlyfans_creator_page_model && connection.onlyfans_creator_page_model !== 'unknown') ? (
+                              <span className="block mt-1 text-primary/90">Inferred from API — change below if wrong.</span>
+                            ) : null}
+                          </p>
+                          <Select
+                            value={
+                              connection?.onlyfans_creator_page_model === 'free' ||
+                              connection?.onlyfans_creator_page_model === 'paid'
+                                ? connection.onlyfans_creator_page_model
+                                : 'unknown'
+                            }
+                            onValueChange={(v) =>
+                              saveOnlyFansCreatorPageModel(v as 'free' | 'paid' | 'unknown')
+                            }
+                            disabled={savingOfPageModel}
+                          >
+                            <SelectTrigger className="h-9 text-sm bg-background">
+                              <SelectValue placeholder="Select page type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">Free page (PPV / tips / messages)</SelectItem>
+                              <SelectItem value="paid">Paid subscription page</SelectItem>
+                              <SelectItem value="unknown">Not sure — infer when possible</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : null}
+
                       {platform.id === 'onlyfans' &&
                       adultPlatformBilling?.onlyFansAccessBlocked ? (
                         <Alert variant="destructive" className="border-amber-600/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
@@ -1082,9 +1160,9 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Unified plan required</AlertDialogTitle>
             <AlertDialogDescription>
-              Your subscription is <strong>Focus</strong> (one adult platform). Connecting a different or
-              second adult platform requires a <strong>Unified</strong> plan. Upgrade under Billing, then
-              connect again.
+              Your subscription is <strong>Focus</strong> for the adult platforms you chose (up to two).
+              This connection isn&apos;t included on your plan — upgrade to <strong>Unified</strong> under
+              Billing to cover all three, then connect again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

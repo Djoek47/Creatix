@@ -5,6 +5,7 @@ import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
 import { getDivineVoice } from '@/lib/divine-manager'
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { claimDivineSessionLease } from '@/lib/divine/divine-session-lease'
 import {
   managerTalkativenessRealtimeBlock,
@@ -191,7 +192,11 @@ export async function POST(req: NextRequest) {
     const focusedFanLine = focusedFan?.id
       ? `\n\nFocused DM fan (from UI): id=${focusedFan.id}, username=${focusedFan.username ?? 'unknown'}, name=${focusedFan.name ?? 'unknown'}.\nIf a focused fan is provided, assume all DM questions refer to this fan unless the creator names someone else. Do not run a broad search first. When using DM tools (get_dm_thread, get_reply_suggestions, send_message), use this fan's id directly unless the creator clearly asks for someone else. Prefer this fan over running get_dm_conversations when they are already in this chat.`
       : '\n\nNo focused fan in the UI: if they ask to read a specific thread, use get_dm_conversations to find fanId or ask them to open Messages and pick a fan first.'
-    const platformConnectionLine = `\n\nCreator platform connections (authoritative):\n- OnlyFans: ${connectionSnapshot.onlyfansConnected ? `CONNECTED${connectionSnapshot.onlyfansUsername ? ` (@${connectionSnapshot.onlyfansUsername})` : ''}` : 'NOT CONNECTED'}\n- Fansly: ${connectionSnapshot.fanslyConnected ? `CONNECTED${connectionSnapshot.fanslyUsername ? ` (@${connectionSnapshot.fanslyUsername})` : ''}` : 'NOT CONNECTED'}.\nIf a needed platform is NOT CONNECTED, say clearly those features will not work until reconnection and offer ui_navigate to /dashboard/settings?tab=integrations.`
+    const onlyfansPageVoice =
+      connectionSnapshot.onlyfansConnected
+        ? `\n${formatCreatorOnlyFansPageModelForAi(connectionSnapshot.onlyfansCreatorPageModel)}`
+        : ''
+    const platformConnectionLine = `\n\nCreator platform connections (authoritative):\n- OnlyFans: ${connectionSnapshot.onlyfansConnected ? `CONNECTED${connectionSnapshot.onlyfansUsername ? ` (@${connectionSnapshot.onlyfansUsername})` : ''}` : 'NOT CONNECTED'}\n- Fansly: ${connectionSnapshot.fanslyConnected ? `CONNECTED${connectionSnapshot.fanslyUsername ? ` (@${connectionSnapshot.fanslyUsername})` : ''}` : 'NOT CONNECTED'}.${onlyfansPageVoice}\nIf a needed platform is NOT CONNECTED, say clearly those features will not work until reconnection and offer ui_navigate to /dashboard/settings?tab=integrations.`
 
     const secretaryBlock =
       notificationSecretaryMode && notificationSecretaryLines.length > 0

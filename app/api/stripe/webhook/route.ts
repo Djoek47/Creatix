@@ -9,7 +9,7 @@ import {
 import { getPlanLimits } from '@/lib/billing/plan-limits'
 import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
-import { ADULT_BILLING_PLATFORMS } from '@/lib/billing/platform-variant'
+import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -31,21 +31,31 @@ function metaPatch(meta: Record<string, string> | null | undefined) {
     typeof meta.revenueBandLabel === 'string' && meta.revenueBandLabel.length > 0
       ? meta.revenueBandLabel
       : null
-  const fpRaw =
-    typeof meta.focusPlatform === 'string' ? meta.focusPlatform.toLowerCase().trim() : ''
-  const billing_focus_platform =
-    billingVariant === 'single' && fpRaw && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(fpRaw)
-      ? fpRaw
-      : billingVariant === 'multi'
-        ? null
-        : billingVariant === 'single'
-          ? 'onlyfans'
-          : null
+
+  let billing_focus_platforms: string[] | null = null
+  if (billingVariant === 'single') {
+    const parsedList =
+      typeof meta.focusPlatforms === 'string' ? parseFocusPlatformsFromComma(meta.focusPlatforms) : null
+    if (parsedList && parsedList.length >= 1 && parsedList.length <= 2) {
+      billing_focus_platforms = parsedList
+    } else {
+      const fpRaw = typeof meta.focusPlatform === 'string' ? meta.focusPlatform.toLowerCase().trim() : ''
+      if (fpRaw && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(fpRaw)) {
+        billing_focus_platforms = [fpRaw]
+      } else {
+        billing_focus_platforms = ['onlyfans']
+      }
+    }
+  }
+
+  const billing_focus_platform = billing_focus_platforms?.[0] ?? null
+
   return {
     billing_variant: billingVariant,
     revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
     revenue_band_label,
     billing_focus_platform,
+    billing_focus_platforms,
   }
 }
 
@@ -171,10 +181,13 @@ export async function POST(req: NextRequest) {
             ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
             ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
             ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
-            ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platform != null
-              ? { billing_focus_platform: tierMeta.billing_focus_platform }
+            ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platforms != null
+              ? {
+                  billing_focus_platforms: tierMeta.billing_focus_platforms,
+                  billing_focus_platform: tierMeta.billing_focus_platform,
+                }
               : tierMeta.billing_variant === 'multi'
-                ? { billing_focus_platform: null }
+                ? { billing_focus_platforms: null, billing_focus_platform: null }
                 : {}),
           })
           if (planId) await notifyPlanChange(supabase, userId, planId)
@@ -197,10 +210,13 @@ export async function POST(req: NextRequest) {
           ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
           ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
           ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
-          ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platform != null
-            ? { billing_focus_platform: tierMeta.billing_focus_platform }
+          ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platforms != null
+            ? {
+                billing_focus_platforms: tierMeta.billing_focus_platforms,
+                billing_focus_platform: tierMeta.billing_focus_platform,
+              }
             : tierMeta.billing_variant === 'multi'
-              ? { billing_focus_platform: null }
+              ? { billing_focus_platforms: null, billing_focus_platform: null }
               : {}),
           status: sub.status,
           ...(period

@@ -16,6 +16,10 @@ import {
 import { refreshFanThreadInsight, upsertFanThreadInsightSnapshot } from '@/lib/divine/fan-thread-insight'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import {
+  formatCreatorOnlyFansPageModelForAi,
+  parseOnlyFansCreatorPageModel,
+} from '@/lib/onlyfans/creator-page-model'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -68,7 +72,7 @@ export async function fetchDmReplySuggestionsPackage(
 
   const { data: connection } = await supabase
     .from('platform_connections')
-    .select('access_token')
+    .select('access_token, onlyfans_creator_page_model')
     .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
@@ -84,10 +88,16 @@ export async function fetchDmReplySuggestionsPackage(
     api.getConversations({ limit: 60 }),
   ])
   const fanFromConv = (convRes.conversations || []).find((c: any) => String(c.user?.id) === String(fanId))
+  const fanName = body.name ?? fanFromConv?.user?.name ?? null
   const fan = {
     id: fanId,
     username: body.username ?? fanFromConv?.user?.username ?? 'fan',
-    name: body.name ?? fanFromConv?.user?.name ?? null,
+    name: fanName,
+  }
+  const fanForAi = {
+    id: fanId,
+    username: fan.username,
+    ...(fanName != null && fanName !== '' ? { name: fanName } : {}),
   }
 
   const { data: crmFan } = await supabase
@@ -113,6 +123,11 @@ export async function fetchDmReplySuggestionsPackage(
           subscriptionStatus: crm.subscription_status,
         })
       : undefined
+  const creatorPageContext = formatCreatorOnlyFansPageModelForAi(
+    parseOnlyFansCreatorPageModel(
+      (connection as { onlyfans_creator_page_model?: string | null } | null)?.onlyfans_creator_page_model,
+    ),
+  )
   const rawMessages = (threadRes.messages || []).sort((a: any, b: any) =>
     new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
   )
@@ -182,10 +197,11 @@ export async function fetchDmReplySuggestionsPackage(
 
   const ctxBase = {
     platform: 'onlyfans' as const,
-    fan,
+    fan: fanForAi,
     messages,
     niches,
     boundaries,
+    creatorPageContext,
     ...(threadSupplement ? { threadSupplement } : {}),
     ...(fanCommerceContext ? { fanCommerceContext } : {}),
   }

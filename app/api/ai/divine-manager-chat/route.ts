@@ -8,6 +8,7 @@ import {
 } from '@/lib/divine/manager-chat-tools'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
+import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { claimDivineSessionLease } from '@/lib/divine/divine-session-lease'
 import {
   managerTalkativenessChatSuffix,
@@ -1179,10 +1180,14 @@ Chat behavior (match voice Divine Manager): After any tool runs—including slow
     const focusedFanLine = focusedFan?.id
       ? `\n\nFocused DM fan (from UI): id=${focusedFan.id}, username=${focusedFan.username ?? 'unknown'}, name=${focusedFan.name ?? 'unknown'}.\nIf a focused fan is provided, assume all DM questions refer to this fan unless the creator names someone else. Do not run a broad search first. When using DM tools (get_dm_thread, get_reply_suggestions, send_message), use this fan's id directly unless the creator clearly asks for someone else.`
       : ''
+    const onlyfansPageLine =
+      connectionSnapshot.onlyfansConnected
+        ? `\n${formatCreatorOnlyFansPageModelForAi(connectionSnapshot.onlyfansCreatorPageModel)} On free pages, many followers pay $0 to follow—PPV/messages/tips are normal revenue paths; do not shame non-spenders. On paid pages, assume most active subs pay a recurring fee and see most feed content included. Fan CRM still lists each fan’s own subscription tier separately.\n`
+        : ''
     const platformConnectionContext = `\n\nCreator platform connections (authoritative):
 - OnlyFans: ${connectionSnapshot.onlyfansConnected ? `CONNECTED${connectionSnapshot.onlyfansUsername ? ` (@${connectionSnapshot.onlyfansUsername})` : ''}` : 'NOT CONNECTED'}
 - Fansly: ${connectionSnapshot.fanslyConnected ? `CONNECTED${connectionSnapshot.fanslyUsername ? ` (@${connectionSnapshot.fanslyUsername})` : ''}` : 'NOT CONNECTED'}
-
+${onlyfansPageLine}
 Rules:
 - If OnlyFans is NOT CONNECTED, do not imply fan lookup, DM thread scans, send_message, or other OnlyFans fan tools will work. Say they need to connect first and offer ui_navigate to /dashboard/settings?tab=integrations.
 - If Fansly is NOT CONNECTED, do not imply Fansly actions will work. Offer the same integrations navigation.

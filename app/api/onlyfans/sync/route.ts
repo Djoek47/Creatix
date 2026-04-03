@@ -5,6 +5,10 @@ import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/obs
 import { upsertOnlyFansFanToCrm } from '@/lib/onlyfans/upsert-crm-fan-row'
 import { ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
+import {
+  inferCreatorPageModelFromApiPayload,
+  shouldApplyApiInferenceForCreatorPageModel,
+} from '@/lib/onlyfans/creator-page-model'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -189,11 +193,31 @@ export async function POST(request: NextRequest) {
       chartPoints: chartData.data,
     })
 
+    const connRow = connection as {
+      id: string
+      access_token: string
+      onlyfans_creator_page_model?: string | null
+      onlyfans_creator_page_model_source?: string | null
+    }
+    const inferredModel = inferCreatorPageModelFromApiPayload(accountProfile, userData)
+    const applyInference = shouldApplyApiInferenceForCreatorPageModel(
+      connRow.onlyfans_creator_page_model,
+      connRow.onlyfans_creator_page_model_source,
+    )
+    const creatorPagePatch =
+      applyInference && inferredModel != null
+        ? {
+            onlyfans_creator_page_model: inferredModel,
+            onlyfans_creator_page_model_source: 'api' as const,
+          }
+        : {}
+
     // Update last sync time + observed monthly revenue for billing enforcement
     await supabase
       .from('platform_connections')
       .update({
         last_sync_at: new Date().toISOString(),
+        ...creatorPagePatch,
         ...(observedUsd != null
           ? {
               observed_monthly_revenue_usd: observedUsd,

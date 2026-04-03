@@ -12,11 +12,13 @@ import {
   checkoutProductName,
   getMonthlyPriceCents,
   getTierByIndex,
-  focusPlatformDisplayName,
+  focusPlatformsShortLabel,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
 import {
   ADULT_BILLING_PLATFORMS,
+  parseFocusPlatformsFromComma,
+  sortFocusPlatforms,
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
@@ -33,6 +35,7 @@ type SubscriptionRowUpdate = {
   revenue_tier?: number | null
   revenue_band_label?: string | null
   billing_focus_platform?: string | null
+  billing_focus_platforms?: string[] | null
 }
 
 async function upsertSubscriptionRow(
@@ -141,42 +144,45 @@ function paidCheckoutMetadata(
   userId: string,
   variant: BillingVariant,
   tierIndex: number,
-  focusPlatform: AdultBillingPlatform | null,
+  focusPlatforms: AdultBillingPlatform[] | null,
 ) {
   const row = getTierByIndex(tierIndex)
+  const sorted =
+    variant === 'single' && focusPlatforms?.length
+      ? sortFocusPlatforms(focusPlatforms)
+      : []
+  const focusPlatformsStr = sorted.length ? sorted.join(',') : ''
+  const focusPlatformLegacy = sorted[0] ?? ''
   return {
     productId: PAID_PLAN_ID,
     userId,
     billingVariant: variant,
     revenueTier: String(tierIndex),
     revenueBandLabel: row?.label ?? '',
-    focusPlatform: variant === 'single' && focusPlatform ? focusPlatform : '',
+    focusPlatforms: focusPlatformsStr,
+    focusPlatform: focusPlatformLegacy,
   } as const
 }
 
-function assertValidFocusPlatform(p: string): asserts p is AdultBillingPlatform {
-  if (!(ADULT_BILLING_PLATFORMS as readonly string[]).includes(p)) {
-    throw new Error(`Invalid focus platform: ${p}`)
-  }
-}
-
-/** Revenue-tier monthly subscription (Focus vs Unified × tier index). */
+/** Revenue-tier monthly subscription (Focus 1–2 platforms vs Unified × tier index). */
 export async function startPaidSubscriptionCheckout(params: {
   variant: BillingVariant
   tierIndex: number
-  /** Required for Focus (`single`); ignored for Unified (`multi`). */
-  focusPlatform?: AdultBillingPlatform | null
+  /** Focus (`single`): 1–2 platforms; ignored for Unified (`multi`). */
+  focusPlatforms?: AdultBillingPlatform[] | null
 }) {
-  const { variant, tierIndex, focusPlatform: fpIn } = params
+  const { variant, tierIndex, focusPlatforms: fpIn } = params
   if (tierIndex < 0 || tierIndex >= TIER_COUNT) {
     throw new Error(`Invalid revenue tier: ${tierIndex}`)
   }
 
-  let focusPlatform: AdultBillingPlatform | null = null
+  let focusPlatforms: AdultBillingPlatform[] | null = null
   if (variant === 'single') {
-    const raw = (fpIn ?? 'onlyfans').toLowerCase()
-    assertValidFocusPlatform(raw)
-    focusPlatform = raw
+    const sorted = sortFocusPlatforms(fpIn?.length ? fpIn : ['onlyfans'])
+    if (sorted.length === 0 || sorted.length > 2) {
+      throw new Error('Focus requires 1 or 2 platforms')
+    }
+    focusPlatforms = sorted
   }
 
   const supabase = await createClient()
@@ -188,12 +194,8 @@ export async function startPaidSubscriptionCheckout(params: {
   }
 
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
-  const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatform)
-  const unitAmount = getMonthlyPriceCents(
-    variant,
-    tierIndex,
-    focusPlatform ?? 'onlyfans',
-  )
+  const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms)
+  const unitAmount = getMonthlyPriceCents(variant, tierIndex, focusPlatforms ?? undefined)
 
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
@@ -206,8 +208,8 @@ export async function startPaidSubscriptionCheckout(params: {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: checkoutProductName(variant, tierIndex, focusPlatform ?? 'onlyfans'),
-            description: checkoutProductDescription(variant, tierIndex, focusPlatform ?? 'onlyfans'),
+            name: checkoutProductName(variant, tierIndex, focusPlatforms ?? undefined),
+            description: checkoutProductDescription(variant, tierIndex, focusPlatforms ?? undefined),
           },
           unit_amount: unitAmount,
           recurring: { interval: 'month' },
@@ -310,6 +312,7 @@ function parseStripeSubscriptionMeta(sub: {
   revenue_tier: number | null
   revenue_band_label: string | null
   billing_focus_platform: string | null
+  billing_focus_platforms: string[] | null
 } {
   const m = sub.metadata || {}
   const productId = (m.productId as string | undefined) || undefined
@@ -322,9 +325,24 @@ function parseStripeSubscriptionMeta(sub: {
     typeof m.revenueBandLabel === 'string' && m.revenueBandLabel.length > 0
       ? m.revenueBandLabel
       : null
-  const fpRaw = typeof m.focusPlatform === 'string' ? m.focusPlatform.toLowerCase().trim() : ''
-  const billing_focus_platform =
-    fpRaw && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(fpRaw) ? fpRaw : null
+
+  let billing_focus_platforms: string[] | null = null
+  if (billing_variant === 'single') {
+    const parsedList =
+      typeof m.focusPlatforms === 'string' ? parseFocusPlatformsFromComma(m.focusPlatforms) : null
+    if (parsedList && parsedList.length >= 1 && parsedList.length <= 2) {
+      billing_focus_platforms = parsedList
+    } else {
+      const fpRaw = typeof m.focusPlatform === 'string' ? m.focusPlatform.toLowerCase().trim() : ''
+      if (fpRaw && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(fpRaw)) {
+        billing_focus_platforms = [fpRaw]
+      } else {
+        billing_focus_platforms = ['onlyfans']
+      }
+    }
+  }
+
+  const billing_focus_platform = billing_focus_platforms?.[0] ?? null
 
   return {
     planId: productId,
@@ -332,6 +350,7 @@ function parseStripeSubscriptionMeta(sub: {
     revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
     revenue_band_label,
     billing_focus_platform,
+    billing_focus_platforms,
   }
 }
 
@@ -348,7 +367,7 @@ export async function getSubscriptionStatus() {
   let { data } = await supabase
     .from('subscriptions')
     .select(
-      'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,revenue_tier,revenue_band_label',
+      'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_tier,revenue_band_label',
     )
     .eq('user_id', user.id)
     .maybeSingle()
@@ -401,9 +420,9 @@ export async function getSubscriptionStatus() {
             cancel_at_period_end: stripeSub.cancel_at_period_end,
             billing_variant: parsed.billing_variant,
             billing_focus_platform:
-              parsed.billing_variant === 'single'
-                ? parsed.billing_focus_platform ?? 'onlyfans'
-                : null,
+              parsed.billing_variant === 'single' ? (parsed.billing_focus_platform ?? 'onlyfans') : null,
+            billing_focus_platforms:
+              parsed.billing_variant === 'single' ? parsed.billing_focus_platforms : null,
             revenue_tier: parsed.revenue_tier,
             revenue_band_label: parsed.revenue_band_label,
           })
@@ -419,8 +438,19 @@ export async function getSubscriptionStatus() {
             billing_variant: parsed.billing_variant ?? data.billing_variant,
             billing_focus_platform:
               parsed.billing_variant === 'single'
-                ? (parsed.billing_focus_platform ?? data.billing_focus_platform ?? 'onlyfans')
-                : (parsed.billing_variant === 'multi' ? null : data.billing_focus_platform),
+                ? (parsed.billing_focus_platform ??
+                  (data as { billing_focus_platform?: string | null }).billing_focus_platform ??
+                  'onlyfans')
+                : parsed.billing_variant === 'multi'
+                  ? null
+                  : (data as { billing_focus_platform?: string | null }).billing_focus_platform,
+            billing_focus_platforms:
+              parsed.billing_variant === 'single'
+                ? (parsed.billing_focus_platforms ??
+                  (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms)
+                : parsed.billing_variant === 'multi'
+                  ? null
+                  : (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
             revenue_tier: parsed.revenue_tier ?? data.revenue_tier,
             revenue_band_label: parsed.revenue_band_label ?? data.revenue_band_label,
           } as typeof data
@@ -438,17 +468,16 @@ export async function getSubscriptionStatus() {
     const tierIdx = data.revenue_tier
     const bv = data.billing_variant
     const row = typeof tierIdx === 'number' ? getTierByIndex(tierIdx) : undefined
-    const focus = (data as { billing_focus_platform?: string | null }).billing_focus_platform
+    const fps = (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms
+    const leg = (data as { billing_focus_platform?: string | null }).billing_focus_platform
+    const sorted =
+      fps?.length && fps.length <= 2
+        ? sortFocusPlatforms(fps as AdultBillingPlatform[])
+        : leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)
+          ? [leg as AdultBillingPlatform]
+          : (['onlyfans'] as AdultBillingPlatform[])
     const vlab =
-      bv === 'multi'
-        ? 'Unified'
-        : bv === 'single'
-          ? `Focus (${focusPlatformDisplayName(
-              (focus === 'onlyfans' || focus === 'fansly' || focus === 'manyvids'
-                ? focus
-                : 'onlyfans') as AdultBillingPlatform,
-            )})`
-          : ''
+      bv === 'multi' ? 'Unified' : bv === 'single' ? `Focus (${focusPlatformsShortLabel(sorted)})` : ''
     const band = row?.label || (data.revenue_band_label as string) || ''
     planLabel = [band, vlab].filter(Boolean).join(' · ') || 'Circe et Venus Pro'
   } else {
@@ -467,6 +496,15 @@ export async function getSubscriptionStatus() {
       | AdultBillingPlatform
       | null
       | undefined,
+    billingFocusPlatforms: (() => {
+      const fps = (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms
+      if (fps?.length) return sortFocusPlatforms(fps as AdultBillingPlatform[])
+      const leg = (data as { billing_focus_platform?: string | null }).billing_focus_platform
+      if (leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)) {
+        return [leg as AdultBillingPlatform]
+      }
+      return undefined
+    })(),
     revenueTier: data.revenue_tier as number | null | undefined,
     revenueBandLabel: data.revenue_band_label as string | null | undefined,
   }

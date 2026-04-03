@@ -87,6 +87,8 @@ export function fanMatchesClassifySegment(
   const recentDays = rule.recent_sub_days ?? 3
   const subPrice = num(row.subscription_price)
 
+  // "Freeloader" = zero (or near-zero) spend in CRM — not a moral label. On free OnlyFans pages,
+  // many legitimate followers have $0 sub price; Divine prompts explain creator page model separately.
   const isFreeloaderSpend = (): boolean => {
     if (extra.known) return total <= EPS && extra.sum <= EPS
     return total <= EPS

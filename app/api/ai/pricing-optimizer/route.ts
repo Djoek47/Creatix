@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { isPaidPlanId } from '@/lib/billing/access'
+import {
+  formatCreatorOnlyFansPageModelForAi,
+  parseOnlyFansCreatorPageModel,
+} from '@/lib/onlyfans/creator-page-model'
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -30,6 +34,19 @@ export async function POST(req: NextRequest) {
 
   const { contentType, currentPrice, subscriberCount, engagementRate, niche } = await req.json()
 
+  const { data: ofConn } = await supabase
+    .from('platform_connections')
+    .select('onlyfans_creator_page_model')
+    .eq('user_id', user.id)
+    .eq('platform', 'onlyfans')
+    .eq('is_connected', true)
+    .maybeSingle()
+  const creatorPageHint = formatCreatorOnlyFansPageModelForAi(
+    parseOnlyFansCreatorPageModel(
+      (ofConn as { onlyfans_creator_page_model?: string | null } | null)?.onlyfans_creator_page_model,
+    ),
+  )
+
   // Increment AI credits used
   await supabase
     .from('subscriptions')
@@ -45,6 +62,9 @@ export async function POST(req: NextRequest) {
 - Subscriber Count: ${subscriberCount || 'Unknown'}
 - Engagement Rate: ${engagementRate || 'Unknown'}%
 - Niche: ${niche || 'General'}
+
+Creator context (OnlyFans page model — use to choose PPV-first vs subscription-first advice):
+${creatorPageHint}
 
 Provide:
 1. Optimal price recommendation with reasoning

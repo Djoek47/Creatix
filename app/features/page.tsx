@@ -4,14 +4,42 @@ import { FooterSupportSocial } from '@/components/marketing/footer-support-socia
 import { ThemedLogo } from '@/components/themed-logo'
 import { PricingModelMarketingSection } from '@/components/marketing/pricing-model-marketing-section'
 import { Badge } from '@/components/ui/badge'
-import { 
-  ArrowRight, Moon, Sun, Star, Shield, TrendingUp, 
-  Users, Link2, Calendar, MessageSquare, BarChart3,
-  Sparkles, Check, Zap, Eye, Bell, Brain, Lock,
-  Palette, Clock, Target, Heart, Crown, Wand2,
-  Camera, Gift, Globe, Search, FileText, PieChart,
-  AlertTriangle, UserPlus, MessageCircle, Megaphone
+import {
+  ArrowRight,
+  Moon,
+  Sun,
+  Star,
+  Shield,
+  TrendingUp,
+  Users,
+  Link2,
+  Calendar,
+  BarChart3,
+  Sparkles,
+  Zap,
+  Eye,
+  Bell,
+  Brain,
+  Lock,
+  Palette,
+  Clock,
+  Target,
+  Heart,
+  Crown,
+  Wand2,
+  Camera,
+  Gift,
+  Globe,
+  Search,
+  FileText,
+  PieChart,
+  AlertTriangle,
+  UserPlus,
+  MessageCircle,
+  Megaphone,
+  LayoutGrid,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export const metadata = {
   title: 'Features | Circe et Venus',
@@ -217,65 +245,80 @@ export default function FeaturesPage() {
     },
   ]
 
-  const FeatureSection = ({ 
-    title, 
-    description, 
-    features, 
-    color 
-  }: { 
+  type FeatureItem = (typeof circeFeatures)[number]
+
+  const FeatureSection = ({
+    title,
+    description,
+    features,
+    color,
+    className,
+  }: {
     title: string
     description: string
-    features: typeof circeFeatures
+    features: FeatureItem[]
     color: 'circe' | 'venus' | 'primary'
-  }) => (
-    <div className="mb-16">
-      <div className="mb-8">
-        <h2 className={`text-2xl font-semibold ${
-          color === 'circe' ? 'text-circe-light' : color === 'venus' ? 'text-amber-400' : 'text-primary'
-        }`}>{title}</h2>
-        <p className="mt-2 text-muted-foreground">{description}</p>
-      </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((feature) => (
-          <div
-            key={feature.title}
-            className={`rounded-xl border p-6 transition-all hover:shadow-lg ${
-              color === 'circe' 
-                ? 'border-circe/20 bg-circe/5 hover:border-circe/40' 
-                : color === 'venus'
-                ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40'
-                : 'border-primary/20 bg-primary/5 hover:border-primary/40'
-            }`}
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div className={`inline-flex rounded-lg p-3 ${
-                color === 'circe' 
-                  ? 'bg-circe/20 text-circe-light' 
-                  : color === 'venus'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-primary/20 text-primary'
-              }`}>
-                <feature.icon className="h-6 w-6" />
-              </div>
-              {feature.badge && (
-                <Badge variant="outline" className={`text-xs ${
-                  color === 'circe' 
-                    ? 'border-circe/50 text-circe-light' 
-                    : color === 'venus'
-                    ? 'border-amber-500/50 text-amber-400'
-                    : 'border-primary/50 text-primary'
-                }`}>
-                  {feature.badge}
-                </Badge>
-              )}
-            </div>
-            <h3 className="mb-2 font-semibold">{feature.title}</h3>
-            <p className="text-sm text-muted-foreground">{feature.description}</p>
+    className?: string
+  }) => {
+    const titleClass =
+      color === 'circe' ? 'text-circe-light' : color === 'venus' ? 'text-amber-400' : 'text-primary'
+    const cardBorder =
+      color === 'circe'
+        ? 'border-circe/25 bg-circe/[0.04] hover:border-circe/45 hover:shadow-md hover:shadow-circe/5'
+        : color === 'venus'
+          ? 'border-amber-500/25 bg-amber-500/[0.04] hover:border-amber-500/45 hover:shadow-md hover:shadow-amber-500/10'
+          : 'border-primary/25 bg-primary/[0.04] hover:border-primary/45 hover:shadow-md hover:shadow-primary/10'
+    const iconWrap =
+      color === 'circe'
+        ? 'bg-circe/20 text-circe-light'
+        : color === 'venus'
+          ? 'bg-amber-500/20 text-amber-400'
+          : 'bg-primary/20 text-primary'
+    const badgeClass =
+      color === 'circe'
+        ? 'border-circe/50 text-circe-light'
+        : color === 'venus'
+          ? 'border-amber-500/50 text-amber-400'
+          : 'border-primary/50 text-primary'
+
+    return (
+      <div className={cn('rounded-3xl border border-border/40 bg-card/30 p-6 shadow-sm sm:p-8', className)}>
+        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className={cn('font-serif text-2xl font-semibold tracking-tight sm:text-3xl', titleClass)}>
+              {title}
+            </h2>
+            <p className="mt-2 max-w-prose text-muted-foreground">{description}</p>
           </div>
-        ))}
+          <LayoutGrid className="hidden h-8 w-8 text-muted-foreground/40 sm:block" aria-hidden />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className={cn(
+                'group rounded-2xl border p-5 transition-all duration-200 sm:p-6',
+                cardBorder,
+              )}
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className={cn('inline-flex rounded-xl p-3 ring-1 ring-black/5 dark:ring-white/10', iconWrap)}>
+                  <feature.icon className="h-6 w-6" />
+                </div>
+                {feature.badge && (
+                  <Badge variant="outline" className={cn('text-xs', badgeClass)}>
+                    {feature.badge}
+                  </Badge>
+                )}
+              </div>
+              <h3 className="mb-2 font-semibold tracking-tight">{feature.title}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="min-h-screen min-w-0 overflow-x-hidden bg-background constellation-bg">
@@ -316,83 +359,102 @@ export default function FeaturesPage() {
             <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-amber-500/5 blur-3xl" />
           </div>
           
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="mx-auto max-w-5xl text-center">
             <Badge className="mb-4 gap-1">
               <Sparkles className="h-3 w-3" />
               30+ Divine Features
             </Badge>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Every Tool a <span className="text-primary">Creator</span> Needs
+            <h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
+              Every tool a <span className="text-primary">creator</span> needs
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Explore our complete suite of AI-powered features designed to help you 
-              grow, retain, and protect your creator business.
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              Retention, growth, and AI workflows in one place — priced by revenue band with Focus (1–2 platforms)
+              or Unified when you run the full stack.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Badge variant="outline" className="gap-1 border-circe/50 px-3 py-1">
-                <Moon className="h-3 w-3 text-circe-light" />
-                <span className="text-circe-light">Circe - Retention</span>
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <Badge variant="outline" className="gap-1.5 border-circe/50 px-4 py-1.5">
+                <Moon className="h-3.5 w-3.5 text-circe-light" />
+                <span className="text-circe-light">Circe · Retention</span>
               </Badge>
-              <Badge variant="outline" className="gap-1 border-amber-500/50 px-3 py-1">
-                <Sun className="h-3 w-3 text-amber-400" />
-                <span className="text-amber-400">Venus - Growth</span>
+              <Badge variant="outline" className="gap-1.5 border-amber-500/50 px-4 py-1.5">
+                <Sun className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-amber-400">Venus · Growth</span>
               </Badge>
-              <Badge variant="outline" className="gap-1 border-primary/50 px-3 py-1">
-                <Star className="h-3 w-3 text-primary" />
+              <Badge variant="outline" className="gap-1.5 border-primary/50 px-4 py-1.5">
+                <Star className="h-3.5 w-3.5 text-primary" />
                 <span className="text-primary">AI Studio</span>
               </Badge>
+            </div>
+            <div className="mx-auto mt-12 grid max-w-3xl gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/60 bg-card/50 px-4 py-4 text-center backdrop-blur-sm">
+                <p className="font-serif text-2xl font-semibold text-primary">14 days</p>
+                <p className="text-xs text-muted-foreground">Full trial before you subscribe</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card/50 px-4 py-4 text-center backdrop-blur-sm">
+                <p className="font-serif text-2xl font-semibold text-foreground">11 bands</p>
+                <p className="text-xs text-muted-foreground">Revenue-based monthly pricing</p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card/50 px-4 py-4 text-center backdrop-blur-sm sm:col-span-1">
+                <p className="font-serif text-2xl font-semibold text-foreground">Focus / Unified</p>
+                <p className="text-xs text-muted-foreground">1–2 platforms or all three</p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Features Grid */}
-        <section className="px-4 py-8 sm:px-6 sm:py-12">
-          <div className="mx-auto max-w-6xl">
-            <FeatureSection
-              title="Circe - Retention & Protection"
-              description="The enchantress who keeps your fans captivated and your content safe."
-              features={circeFeatures}
-              color="circe"
-            />
+        <section className="px-4 py-10 sm:px-6 sm:py-16">
+          <div className="mx-auto max-w-6xl space-y-12 sm:space-y-16">
+            <div className="grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
+              <FeatureSection
+                title="Circe — Retention & protection"
+                description="Keep fans engaged and your content safe with monitoring, alerts, and leak response."
+                features={circeFeatures}
+                color="circe"
+              />
+              <FeatureSection
+                title="Venus — Growth & attraction"
+                description="Grow reach and reputation across social and creator platforms from one command center."
+                features={venusFeatures}
+                color="venus"
+              />
+            </div>
 
             <FeatureSection
-              title="Venus - Growth & Attraction"
-              description="The goddess of attraction who draws new admirers to your realm."
-              features={venusFeatures}
-              color="venus"
-            />
-
-            <FeatureSection
-              title="AI Studio Tools"
-              description="Powerful AI tools to create content and engage with fans effortlessly."
+              title="AI Studio"
+              description="Draft, reply, and optimize with models tuned for creator workflows."
               features={aiToolsFeatures}
               color="circe"
             />
 
-            <FeatureSection
-              title="Cosmic Calendar"
-              description="Align your content strategy with celestial energies for optimal timing."
-              features={cosmicFeatures}
-              color="primary"
-            />
+            <div className="grid gap-8 lg:grid-cols-5 lg:gap-10">
+              <div className="lg:col-span-2">
+                <FeatureSection
+                  title="Cosmic calendar"
+                  description="Optional celestial timing layers for campaigns and drops."
+                  features={cosmicFeatures}
+                  color="primary"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <FeatureSection
+                  title="Analytics & insights"
+                  description="Revenue, fans, and engagement in dashboards you can act on."
+                  features={analyticsFeatures}
+                  color="primary"
+                />
+              </div>
+            </div>
 
             <FeatureSection
-              title="Analytics & Insights"
-              description="Deep data analysis to understand your business and optimize growth."
-              features={analyticsFeatures}
-              color="primary"
-            />
-
-            <FeatureSection
-              title="Platform Management"
-              description="Centralized tools to manage your entire creator business."
+              title="Platform management"
+              description="Connections, content library, and automation across the networks you use."
               features={managementFeatures}
               color="primary"
             />
           </div>
         </section>
 
-        <PricingModelMarketingSection />
+        <PricingModelMarketingSection layout="bento" />
 
         {/* CTA */}
         <section className="border-t border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-24">

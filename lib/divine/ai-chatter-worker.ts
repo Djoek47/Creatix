@@ -15,6 +15,10 @@ import {
 } from '@/lib/divine/creator-resource-policy'
 import { formatContentAccessForAiSnippet, parseFanAccessTier } from '@/lib/fans/fan-access-tier'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import {
+  formatCreatorOnlyFansPageModelForAi,
+  parseOnlyFansCreatorPageModel,
+} from '@/lib/onlyfans/creator-page-model'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
 
@@ -156,6 +160,8 @@ async function composeChatterMessage(opts: {
   engagementProfile: AiChatterEngagementProfile
   /** Free vs paid follower — avoids wrong assumptions about feed access. */
   fanCommerceLine?: string
+  /** Creator OnlyFans page model (free vs paid sub page). */
+  creatorPageLine?: string
 }): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return { ok: false, error: 'OPENAI_API_KEY is not configured.' }
@@ -202,6 +208,7 @@ ${JSON.stringify(
   2,
 )}
 
+${opts.creatorPageLine ? `Creator business model (OnlyFans page):\n${opts.creatorPageLine.slice(0, 1200)}\n` : ''}
 ${opts.fanCommerceLine ? `Fan subscription / access (CRM):\n${opts.fanCommerceLine.slice(0, 1200)}\n` : ''}
 Recent thread:
 ${opts.thread.slice(0, 8000)}
@@ -480,6 +487,19 @@ export async function runAiChatterForInboundMessage(
     subscriptionStatus: fanRow?.subscription_status,
   })
 
+  const { data: ofConn } = await supabase
+    .from('platform_connections')
+    .select('onlyfans_creator_page_model')
+    .eq('user_id', userId)
+    .eq('platform', 'onlyfans')
+    .eq('is_connected', true)
+    .maybeSingle()
+  const creatorPageLine = formatCreatorOnlyFansPageModelForAi(
+    parseOnlyFansCreatorPageModel(
+      (ofConn as { onlyfans_creator_page_model?: string | null } | null)?.onlyfans_creator_page_model,
+    ),
+  )
+
   const composed = await composeChatterMessage({
     mimic,
     thread: pkg.threadPreview || '',
@@ -489,6 +509,7 @@ export async function runAiChatterForInboundMessage(
     whaleNurture: settings.whale_nurture_tone,
     engagementProfile: settings.engagement_profile,
     fanCommerceLine,
+    creatorPageLine,
   })
   if (!composed.ok) {
     await logEvent(supabase, row.id, userId, 'error', { error: composed.error })

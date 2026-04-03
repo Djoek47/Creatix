@@ -14,7 +14,6 @@ import {
   onlyFansBillingGateResponse,
 } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 export const maxDuration = 120
 
@@ -49,14 +48,13 @@ export async function POST(request: NextRequest) {
 
     const { data: connection } = await supabase
       .from('platform_connections')
-      .select('access_token, platform_user_id')
+      .select('access_token')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle()
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (!accountId) {
+    if (!connection?.access_token) {
       return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
     }
 
@@ -64,7 +62,7 @@ export async function POST(request: NextRequest) {
     const step = body.step
 
     const api = createOnlyFansAPI()
-    api.setAccountId(accountId)
+    api.setAccountId(connection.access_token)
 
     if (step === 'fetch_page') {
       const conversationOffset = Math.max(0, Number((body as FetchPageBody).conversationOffset) || 0)

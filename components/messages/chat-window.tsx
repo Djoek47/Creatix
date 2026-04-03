@@ -362,9 +362,6 @@ export function ChatWindow({
   const composerTypeAbortRef = useRef<AbortController | null>(null)
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
-  /** True when the thread is scrolled away from the top — show Divine shortcut next to paperclip. */
-  const [threadScrolledFromTop, setThreadScrolledFromTop] = useState(false)
-  const scrollBeforeAiToggleRef = useRef<number | null>(null)
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
 
   useEffect(() => {
@@ -409,47 +406,6 @@ export function ChatWindow({
       (flirtSuggestions && flirtSuggestions.length > 0)
     if (hasAiContent) setAiSectionOpen(true)
   }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions])
-
-  /** Opening Divine AI: scroll to bottom so scan & suggestions are visible; closing restores prior scroll. */
-  useLayoutEffect(() => {
-    const el = messagesContainerRef.current
-    if (!el) return
-    if (aiSectionOpen) {
-      scrollBeforeAiToggleRef.current = el.scrollTop
-      const bump = () => {
-        const box = messagesContainerRef.current
-        if (box) box.scrollTop = box.scrollHeight
-      }
-      requestAnimationFrame(() => requestAnimationFrame(bump))
-      const t = window.setTimeout(bump, 140)
-      return () => window.clearTimeout(t)
-    }
-    if (scrollBeforeAiToggleRef.current != null) {
-      const y = scrollBeforeAiToggleRef.current
-      scrollBeforeAiToggleRef.current = null
-      requestAnimationFrame(() => {
-        const box = messagesContainerRef.current
-        if (box) box.scrollTop = y
-      })
-    }
-  }, [aiSectionOpen])
-
-  /** Track scroll position: shortcut star only when not pinned to top of thread. */
-  useEffect(() => {
-    const el = messagesContainerRef.current
-    if (!el) return
-    const threshold = 48
-    const update = () => setThreadScrolledFromTop(el.scrollTop > threshold)
-    update()
-    el.addEventListener('scroll', update, { passive: true })
-    return () => el.removeEventListener('scroll', update)
-  }, [conversation?.user?.id, loading])
-
-  useLayoutEffect(() => {
-    const el = messagesContainerRef.current
-    if (!el) return
-    setThreadScrolledFromTop(el.scrollTop > 48)
-  }, [messages.length, aiSectionOpen, loading, conversation?.user?.id])
 
   const prevConvIdForScrollRef = useRef<string | undefined>(undefined)
   const didSnapBottomForConvRef = useRef<string | null>(null)
@@ -1324,6 +1280,7 @@ export function ChatWindow({
                   ) : (
                     <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
                   )}
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
                   <span className="truncate">Divine AI — scan & suggestions</span>
                 </Button>
               </CollapsibleTrigger>
@@ -1518,7 +1475,6 @@ export function ChatWindow({
 
           <div className="flex min-w-0 items-end gap-2">
             <div className="flex shrink-0 flex-col gap-1.5">
-              <div className="flex items-end gap-1">
               <Button
                 type="button"
                 variant="outline"
@@ -1534,29 +1490,6 @@ export function ChatWindow({
               >
                 {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
               </Button>
-              {isOnlyFansConversation && threadScrolledFromTop ? (
-                <button
-                  type="button"
-                  className={cn(
-                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-amber-500/45 bg-amber-500/15 text-amber-400 shadow-sm transition-colors',
-                    'hover:bg-amber-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50',
-                  )}
-                  title={aiSectionOpen ? 'Close Divine AI scan & suggestions' : 'Open Divine AI scan & suggestions'}
-                  aria-expanded={aiSectionOpen}
-                  aria-label="Divine AI scan and suggestions"
-                  onClick={() => setAiSectionOpen((o) => !o)}
-                >
-                  <Sparkles className="h-5 w-5" aria-hidden />
-                  <span
-                    className="pointer-events-none absolute bottom-1 left-1/2 flex w-5 -translate-x-1/2 flex-col gap-px"
-                    aria-hidden
-                  >
-                    <span className="h-px w-full rounded-full bg-amber-400" />
-                    <span className="h-px w-full rounded-full bg-amber-400" />
-                  </span>
-                </button>
-              ) : null}
-              </div>
               <div className="flex items-center gap-0.5">
                 <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                 <Input

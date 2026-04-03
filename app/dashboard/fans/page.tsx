@@ -44,7 +44,6 @@ export default async function FansPage() {
   })
   const hasFanPlatformsConnected = (connections?.length ?? 0) > 0
   const hasOnlyFansConnected = connections?.some((c: { platform: string }) => c.platform === 'onlyfans') ?? false
-  const hasFanslyConnected = connections?.some((c: { platform: string }) => c.platform === 'fansly') ?? false
 
   // Mirror dashboard logic: derive total fans from the latest snapshot per platform
   const latestByPlatform = new Map<string, { platform: string; total_fans?: number | null; date: string }>()
@@ -61,7 +60,6 @@ export default async function FansPage() {
       initialFans={fans}
       threadInsightsBrief={(insightRows || []) as ThreadInsightBrief[]}
       hasOnlyFansConnected={hasOnlyFansConnected}
-      hasFanslyConnected={hasFanslyConnected}
       hasFanPlatformsConnected={hasFanPlatformsConnected}
       analyticsTotalFans={analyticsTotalFans}
     />

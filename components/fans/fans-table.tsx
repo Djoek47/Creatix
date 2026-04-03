@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 
 import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
@@ -29,10 +29,6 @@ import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
 import { FanAiSummaryDialog } from '@/components/fans/fan-ai-summary-dialog'
-import {
-  FanProfileTypeSelect,
-  type AudienceProfileValue,
-} from '@/components/fans/fan-profile-type-select'
 
 interface FansTableProps {
   fans: Fan[]
@@ -41,8 +37,6 @@ interface FansTableProps {
   liveFilter?: 'active' | 'expired' | 'latest' | 'top'
   /** Show subscription period end when synced (database / expiring-soon views). */
   showSubscriptionEnd?: boolean
-  /** Override CRM profile type (whale / creator / fan); complements auto classification. */
-  onAudienceProfileChange?: (fanId: string, value: AudienceProfileValue) => void | Promise<void>
 }
 
 const tierColors = {
@@ -64,23 +58,8 @@ export function FansTable({
   loading = false,
   liveFilter,
   showSubscriptionEnd = false,
-  onAudienceProfileChange,
 }: FansTableProps) {
   const [selectedFans, setSelectedFans] = useState<string[]>([])
-  const [profilePendingId, setProfilePendingId] = useState<string | null>(null)
-
-  const handleProfileChange = useCallback(
-    async (fanId: string, value: AudienceProfileValue) => {
-      if (!onAudienceProfileChange) return
-      setProfilePendingId(fanId)
-      try {
-        await onAudienceProfileChange(fanId, value)
-      } finally {
-        setProfilePendingId(null)
-      }
-    },
-    [onAudienceProfileChange],
-  )
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryFanId, setSummaryFanId] = useState<string | null>(null)
   const [summaryLabel, setSummaryLabel] = useState('')
@@ -166,7 +145,7 @@ export function FansTable({
               </TableHead>
               <TableHead>Fan</TableHead>
               <TableHead>Platform</TableHead>
-              <TableHead className="min-w-[200px]">Classification</TableHead>
+              <TableHead>Classification</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead className="text-right">Total Spent</TableHead>
               {showSubscriptionEnd ? <TableHead>Period ends</TableHead> : null}
@@ -223,30 +202,20 @@ export function FansTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex max-w-[240px] flex-col gap-1.5">
-                    <div className="flex flex-wrap gap-1">
-                      {fan.audience?.badges?.length ? (
-                        fan.audience.badges.map((b) => (
-                          <Badge
-                            key={`${fan.id}-${b.key}`}
-                            variant="outline"
-                            className={cn('whitespace-nowrap text-[10px] font-medium', b.className)}
-                          >
-                            {b.label}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </div>
-                    {onAudienceProfileChange ? (
-                      <FanProfileTypeSelect
-                        value={(fan.audience_profile_override ?? 'auto') as AudienceProfileValue}
-                        disabled={profilePendingId === fan.id}
-                        onChange={(v) => void handleProfileChange(fan.id, v)}
-                        className="w-full min-w-[180px]"
-                      />
-                    ) : null}
+                  <div className="flex max-w-[200px] flex-wrap gap-1">
+                    {fan.audience?.badges?.length ? (
+                      fan.audience.badges.map((b) => (
+                        <Badge
+                          key={`${fan.id}-${b.key}`}
+                          variant="outline"
+                          className={cn('whitespace-nowrap text-[10px] font-medium', b.className)}
+                        >
+                          {b.label}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>

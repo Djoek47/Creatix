@@ -5,7 +5,6 @@ import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/obs
 import { upsertOnlyFansFanToCrm } from '@/lib/onlyfans/upsert-crm-fan-row'
 import { ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
-import { onlyFansPartnerAccountIdFromRow } from '@/lib/platform-partner-account-id'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -25,8 +24,7 @@ export async function POST(request: NextRequest) {
       .eq('is_connected', true)
       .single()
 
-    const accountId = onlyFansPartnerAccountIdFromRow(connection)
-    if (!accountId) {
+    if (!connection?.access_token) {
       return NextResponse.json(
         { error: 'No OnlyFans account connected. Please connect your account first.' },
         { status: 400 }
@@ -34,10 +32,10 @@ export async function POST(request: NextRequest) {
     }
 
     const api = createOnlyFansAPI()
-    api.setAccountId(accountId)
+    api.setAccountId(connection.access_token)
 
     const accountsResult = await api.listAccounts()
-    const accountData = accountsResult.accounts?.find((a) => a.id === accountId)
+    const accountData = accountsResult.accounts?.find((a) => a.id === connection.access_token)
     const userData = (accountData as any)?.onlyfans_user_data || {}
 
     let stats = { fans: { total: 0, active: 0, expired: 0, new: 0 }, earnings: { today: 0, thisWeek: 0, thisMonth: 0, total: 0 }, content: { posts: 0, photos: 0, videos: 0 } }
@@ -200,7 +198,7 @@ export async function POST(request: NextRequest) {
           ? {
               observed_monthly_revenue_usd: observedUsd,
               observed_revenue_captured_at: new Date().toISOString(),
-              observed_revenue_onlyfans_account_id: accountId,
+              observed_revenue_onlyfans_account_id: connection.access_token,
             }
           : {}),
       })

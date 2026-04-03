@@ -4,6 +4,74 @@ function sinceDaysIso(days: number): string {
   return new Date(Date.now() - days * 86400000).toISOString()
 }
 
+export type AiProviderBucket = 'openai' | 'gateway' | 'grok' | 'anthropic' | 'serper' | 'google' | 'other'
+
+const PROVIDER_BUCKET_LABEL: Record<AiProviderBucket, string> = {
+  openai: 'OpenAI',
+  gateway: 'AI Gateway',
+  grok: 'xAI / Grok',
+  anthropic: 'Anthropic',
+  serper: 'Serper',
+  google: 'Google',
+  other: 'Other',
+}
+
+export function bucketAiProvider(provider: string): AiProviderBucket {
+  const p = String(provider ?? '')
+    .toLowerCase()
+    .trim()
+  if (!p) return 'other'
+  if (p.includes('serper')) return 'serper'
+  if (p.includes('grok') || p.includes('xai')) return 'grok'
+  if (p.includes('anthropic') || p.includes('claude')) return 'anthropic'
+  if (p.includes('google') || p.includes('gemini')) return 'google'
+  if (p === 'openai' || p.startsWith('openai')) return 'openai'
+  if (p.includes('gateway')) return 'gateway'
+  return 'other'
+}
+
+export function providerBucketDisplayName(key: AiProviderBucket): string {
+  return PROVIDER_BUCKET_LABEL[key]
+}
+
+async function fetchUsageEventsSince(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  sinceIso: string,
+  maxRows = 40_000,
+): Promise<
+  {
+    estimated_usd: number | string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    total_tokens: number | null
+    provider: string
+    user_id: string | null
+  }[]
+> {
+  const pageSize = 1000
+  const out: {
+    estimated_usd: number | string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    total_tokens: number | null
+    provider: string
+    user_id: string | null
+  }[] = []
+  for (let from = 0; from < maxRows; from += pageSize) {
+    const { data, error } = await supabase
+      .from('ai_usage_events')
+      .select('estimated_usd, input_tokens, output_tokens, total_tokens, provider, user_id')
+      .gte('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1)
+    if (error) break
+    const rows = data ?? []
+    out.push(...(rows as typeof out))
+    if (rows.length < pageSize) break
+  }
+  return out
+}
+
 export async function adminOverviewStats() {
   const supabase = createServiceRoleClient()
   const since30 = sinceDaysIso(30)
@@ -42,6 +110,149 @@ export async function adminOverviewStats() {
     errors30d: err30 ?? 0,
     profiles: userCount ?? 0,
   }
+}
+
+export type ProviderSpendRow = {
+  bucket: AiProviderBucket
+  label: string
+  estimated_usd: number
+  tokens: number
+  events: number
+}
+
+export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats>> & {
+  totalTokens30d: number
+  providerRows: ProviderSpendRow[]
+  topUsers: UserUsageRow[]
+  /** Sum of subscriptions.ai_credits_used (in-app “AI credit” meter). */
+  appAiCreditsUsedTotal: number
+  /** Subscriptions rows counted for credits sum. */
+  subscriptionsRowCount: number
+  authUsersTotal: number
+  authSignedInLast7d: number
+  authSignedInLast30d: number
+  /** Sum of (last_sign_in_at − created_at) in hours, users with both set — not wall-clock session time. */
+  aggregateSignInSpanHours: number
+  usageEventsTruncated: boolean
+}
+
+/** Overview metrics + per-user top list, provider buckets, app credits, auth activity. */
+export async function adminOverviewExtended(): Promise<AdminOverviewExtended> {
+  const supabase = createServiceRoleClient()
+  const since30 = sinceDaysIso(30)
+  const since7 = sinceDaysIso(7)
+
+  const [events30, topUsers, subsAgg, authAgg, usage7, err30, profCount] = await Promise.all([
+    fetchUsageEventsSince(supabase, since30),
+    adminUsersUsageSummary(12),
+    supabase.from('subscriptions').select('ai_credits_used'),
+    collectAuthActivityStats(supabase),
+    supabase.from('ai_usage_events').select('estimated_usd').gte('created_at', since7),
+    supabase.from('api_error_logs').select('*', { count: 'exact', head: true }).gte('created_at', since30),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+  ])
+
+  const estimatedUsd30d = events30.reduce((s, r) => s + Number(r.estimated_usd ?? 0), 0)
+  const estimatedUsd7d = (usage7.data ?? []).reduce((s, r) => s + Number((r as { estimated_usd?: number }).estimated_usd ?? 0), 0)
+
+  const usageEventsTruncated = events30.length >= 40_000
+
+  const byBucket = new Map<
+    AiProviderBucket,
+    { usd: number; tokens: number; events: number }
+  >()
+  for (const k of Object.keys(PROVIDER_BUCKET_LABEL) as AiProviderBucket[]) {
+    byBucket.set(k, { usd: 0, tokens: 0, events: 0 })
+  }
+
+  let totalTokens30d = 0
+  for (const row of events30) {
+    const b = bucketAiProvider(row.provider)
+    const agg = byBucket.get(b)!
+    const usd = Number(row.estimated_usd ?? 0)
+    const tt =
+      row.total_tokens != null && Number(row.total_tokens) > 0
+        ? Number(row.total_tokens)
+        : Number(row.input_tokens ?? 0) + Number(row.output_tokens ?? 0)
+    agg.usd += usd
+    agg.tokens += tt
+    agg.events += 1
+    totalTokens30d += tt
+  }
+
+  const providerRows: ProviderSpendRow[] = [...byBucket.entries()]
+    .map(([bucket, v]) => ({
+      bucket,
+      label: providerBucketDisplayName(bucket),
+      estimated_usd: Math.round(v.usd * 1e6) / 1e6,
+      tokens: v.tokens,
+      events: v.events,
+    }))
+    .filter((r) => r.events > 0)
+    .sort((a, b) => b.estimated_usd - a.estimated_usd)
+
+  const subsRows = subsAgg.data ?? []
+  const appAiCreditsUsedTotal = subsRows.reduce(
+    (s, r) => s + Number((r as { ai_credits_used?: number }).ai_credits_used ?? 0),
+    0,
+  )
+
+  return {
+    estimatedUsd30d,
+    estimatedUsd7d,
+    tokens30d: totalTokens30d,
+    errors30d: err30.count ?? 0,
+    profiles: profCount.count ?? 0,
+    totalTokens30d,
+    providerRows,
+    topUsers,
+    appAiCreditsUsedTotal,
+    subscriptionsRowCount: subsRows.length,
+    authUsersTotal: authAgg.total,
+    authSignedInLast7d: authAgg.signedIn7d,
+    authSignedInLast30d: authAgg.signedIn30d,
+    aggregateSignInSpanHours: authAgg.aggregateSignInSpanHours,
+    usageEventsTruncated,
+  }
+}
+
+async function collectAuthActivityStats(supabase: ReturnType<typeof createServiceRoleClient>): Promise<{
+  total: number
+  signedIn7d: number
+  signedIn30d: number
+  aggregateSignInSpanHours: number
+}> {
+  const since7 = new Date(Date.now() - 7 * 86400000)
+  const since30 = new Date(Date.now() - 30 * 86400000)
+  let total = 0
+  let signedIn7d = 0
+  let signedIn30d = 0
+  let aggregateSignInSpanHours = 0
+  try {
+    let page = 1
+    const perPage = 1000
+    while (page <= 100) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage })
+      if (error) break
+      const users = data?.users ?? []
+      if (users.length === 0) break
+      for (const u of users) {
+        total += 1
+        const last = u.last_sign_in_at ? new Date(u.last_sign_in_at) : null
+        const created = u.created_at ? new Date(u.created_at) : null
+        if (last && last >= since30) signedIn30d += 1
+        if (last && last >= since7) signedIn7d += 1
+        if (last && created && last >= created) {
+          aggregateSignInSpanHours += (last.getTime() - created.getTime()) / 3600000
+        }
+      }
+      if (users.length < perPage) break
+      page += 1
+    }
+  } catch {
+    // Auth admin API unavailable or misconfigured
+  }
+  return { total, signedIn7d, signedIn30d, aggregateSignInSpanHours }
 }
 
 export type UserUsageRow = {

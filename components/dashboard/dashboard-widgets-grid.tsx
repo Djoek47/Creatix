@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import { cloneLayout, verticalCompactor } from 'react-grid-layout/core'
@@ -22,6 +22,7 @@ import { MessageActivity } from '@/components/dashboard/message-activity'
 import { DashboardAegisWidget } from '@/components/dashboard/dashboard-aegis-widget'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
+import { pixelsToGridH } from '@/lib/dashboard/grid-metrics'
 
 const STORAGE_LAYOUT = 'circe-dashboard-layout-v1'
 const STORAGE_VISIBLE = 'circe-dashboard-widgets-visible-v1'
@@ -107,7 +108,49 @@ function DragStrip({ label }: { label: string }) {
 
 function WidgetShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="box-border flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border border-border/35 bg-card/25 p-2 shadow-sm">
+    <div className="box-border flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border/35 bg-card/25 p-2 shadow-sm">
+      {children}
+    </div>
+  )
+}
+
+/** Measures natural height and bumps the grid item's `h` so tiles grow with content (no inner scrollbars). */
+function DashboardGridMeasuredItem({
+  id,
+  patchH,
+  children,
+}: {
+  id: string
+  patchH: (widgetId: string, nextH: number) => void
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const patchRef = useRef(patchH)
+  patchRef.current = patchH
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let t: ReturnType<typeof setTimeout> | null = null
+    const measure = () => {
+      const px = el.scrollHeight
+      const nextH = pixelsToGridH(px)
+      patchRef.current(id, nextH)
+    }
+    const ro = new ResizeObserver(() => {
+      if (t) clearTimeout(t)
+      t = setTimeout(measure, 72)
+    })
+    ro.observe(el)
+    measure()
+    return () => {
+      ro.disconnect()
+      if (t) clearTimeout(t)
+    }
+  }, [id])
+
+  return (
+    <div ref={ref} className="dashboard-grid-cell box-border w-full min-w-0">
       {children}
     </div>
   )
@@ -237,12 +280,26 @@ export function DashboardWidgetsGrid({
     [layoutKey, persistVisible],
   )
 
+  const patchItemH = useCallback((widgetId: string, nextH: number) => {
+    setLayout((prev) => {
+      const cur = prev.find((l) => l.i === widgetId)
+      if (!cur) return prev
+      const def = DEFAULT_DASHBOARD_LAYOUT.find((l) => l.i === widgetId)
+      const minH = cur.minH ?? def?.minH ?? 1
+      const maxH = cur.maxH ?? def?.maxH ?? 80
+      const h = Math.max(minH, Math.min(maxH, nextH))
+      if (h === cur.h) return prev
+      const next = prev.map((l) => (l.i === widgetId ? { ...l, h } : l))
+      return verticalCompactor.compact(cloneLayout(next), COLS)
+    })
+  }, [])
+
   const widgetBody = useMemo(() => {
     const map: Record<string, React.ReactNode> = {
       stats: (
         <WidgetShell>
           <DragStrip label="Overview stats" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <StatsCards stats={stats} />
           </div>
         </WidgetShell>
@@ -250,7 +307,7 @@ export function DashboardWidgetsGrid({
       standardAttraction: (
         <WidgetShell>
           <DragStrip label="Standard of Attraction" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <Card className="overflow-hidden border-gold/35 bg-gradient-to-r from-gold/[0.08] via-amber-500/[0.04] to-transparent shadow-sm">
               <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
@@ -280,16 +337,16 @@ export function DashboardWidgetsGrid({
       revenue: (
         <WidgetShell>
           <DragStrip label="Revenue" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <RevenueChart analytics={analytics} hasConnectedPlatforms={hasConnectedPlatforms} />
           </div>
         </WidgetShell>
       ),
       quickColumn: (
         <WidgetShell>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div className="flex w-full min-w-0 flex-col gap-2">
             <DragStrip label="Platforms & actions" />
-            <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-auto pr-0.5">
+            <div className="w-full min-w-0 space-y-4">
               <PlatformIntegrationWidget compact />
               <QuickActions />
             </div>
@@ -299,16 +356,16 @@ export function DashboardWidgetsGrid({
       messageActivity: (
         <WidgetShell>
           <DragStrip label="Conversations" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <MessageActivity />
           </div>
         </WidgetShell>
       ),
       alertsColumn: (
         <WidgetShell>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div className="flex w-full min-w-0 flex-col gap-2">
             <DragStrip label="Alerts & OnlyFans" />
-            <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-auto pr-0.5">
+            <div className="w-full min-w-0 space-y-4">
               <AlertsWidget leakAlerts={leakAlerts} mentions={mentions} />
               <OnlyFansNotificationsCard />
             </div>
@@ -318,7 +375,7 @@ export function DashboardWidgetsGrid({
       recentFans: (
         <WidgetShell>
           <DragStrip label="Recent fans" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <RecentFans fans={fans} totalFans={totalFans} />
           </div>
         </WidgetShell>
@@ -326,7 +383,7 @@ export function DashboardWidgetsGrid({
       socialRep: (
         <WidgetShell>
           <DragStrip label="Social reputation" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <SocialReputationWidget />
           </div>
         </WidgetShell>
@@ -334,7 +391,7 @@ export function DashboardWidgetsGrid({
       aegis: (
         <WidgetShell>
           <DragStrip label="Circe Aegis" />
-          <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+          <div className="w-full min-w-0">
             <DashboardAegisWidget />
           </div>
         </WidgetShell>
@@ -361,8 +418,8 @@ export function DashboardWidgetsGrid({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <p className="mr-auto max-w-xl text-xs text-muted-foreground">
-          Drag the strip on each block to move it. Drag corners to resize. Add or remove sections below. Layout and choices
-          are saved in this browser.
+          Drag the strip on each block to move it. Block height grows with content. Add or remove sections below. Layout
+          and choices are saved in this browser.
         </p>
         <Popover open={customizeOpen} onOpenChange={setCustomizeOpen}>
           <PopoverTrigger asChild>
@@ -425,13 +482,13 @@ export function DashboardWidgetsGrid({
         draggableHandle=".dashboard-widget-drag"
         compactType="vertical"
         isDraggable
-        isResizable
+        isResizable={false}
         useCSSTransforms={false}
       >
         {orderedIds.map((id) => (
-          <div key={id} className="dashboard-grid-cell box-border h-full min-h-0 min-w-0">
+          <DashboardGridMeasuredItem key={id} id={id} patchH={patchItemH}>
             {widgetBody[id]}
-          </div>
+          </DashboardGridMeasuredItem>
         ))}
       </GridWithWidth>
     </div>

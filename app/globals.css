@@ -930,14 +930,13 @@ body {
   contain: layout style;
 }
 
-/* Main widget tree is the first child; resize handles are absolutely positioned and stay out of flex flow. */
+/* Widget wrapper sizes to content; grid row height is updated via ResizeObserver (no inner scrollbars). */
 .dashboard-widgets-grid.react-grid-layout .react-grid-item > *:first-child {
   box-sizing: border-box;
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
+  flex: 0 0 auto;
   width: 100%;
-  max-height: 100%;
+  min-width: 0;
+  align-self: flex-start;
 }
 
 .dashboard-widgets-grid.react-grid-layout .react-grid-item.react-draggable-dragging,

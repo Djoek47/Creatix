@@ -22,8 +22,19 @@ export async function POST(req: NextRequest) {
     const fanId = typeof body.fan_id === 'string' ? body.fan_id.trim() : ''
     if (!fanId) return NextResponse.json({ error: 'fan_id is required' }, { status: 400 })
     const platform = body.platform === 'fansly' ? 'fansly' : 'onlyfans'
+    const raw = typeof body.source === 'string' ? body.source.trim() : ''
     const source =
-      body.source === 'divine_scheduled' ? 'divine_scheduled' : body.source === 'divine' ? 'divine' : 'user'
+      raw === 'divine_scheduled'
+        ? 'divine_scheduled'
+        : raw === 'divine'
+          ? 'divine'
+          : raw === 'circe'
+            ? 'circe'
+            : raw === 'venus'
+              ? 'venus'
+              : raw === 'flirt'
+                ? 'flirt'
+                : 'user'
     const preview =
       typeof body.body_preview === 'string' ? body.body_preview.slice(0, 2000) : ''
     const ofMid =

@@ -50,12 +50,19 @@ function metaPatch(meta: Record<string, string> | null | undefined) {
 
   const billing_focus_platform = billing_focus_platforms?.[0] ?? null
 
+  const seatsRaw = meta?.seats
+  const billing_seats =
+    typeof seatsRaw === 'string' && seatsRaw !== ''
+      ? Math.min(50, Math.max(1, Math.floor(Number.parseInt(seatsRaw, 10))))
+      : null
+
   return {
     billing_variant: billingVariant,
     revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
     revenue_band_label,
     billing_focus_platform,
     billing_focus_platforms,
+    billing_seats,
   }
 }
 
@@ -181,6 +188,7 @@ export async function POST(req: NextRequest) {
             ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
             ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
             ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
+            ...(tierMeta.billing_seats != null ? { billing_seats: tierMeta.billing_seats } : {}),
             ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platforms != null
               ? {
                   billing_focus_platforms: tierMeta.billing_focus_platforms,
@@ -203,6 +211,13 @@ export async function POST(req: NextRequest) {
         const planId = normalizePlanId(rawPlan)
         const tierMeta = metaPatch(sub.metadata as Record<string, string>)
         const period = getSubscriptionPeriodSeconds(sub)
+        const lineQty = sub.items?.data?.[0]?.quantity
+        const resolvedSeats =
+          tierMeta.billing_seats != null
+            ? tierMeta.billing_seats
+            : typeof lineQty === 'number' && lineQty >= 1
+              ? Math.min(50, lineQty)
+              : undefined
 
         await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
           stripe_subscription_id: sub.id,
@@ -210,6 +225,7 @@ export async function POST(req: NextRequest) {
           ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
           ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
           ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
+          ...(resolvedSeats != null ? { billing_seats: resolvedSeats } : {}),
           ...(tierMeta.billing_variant === 'single' && tierMeta.billing_focus_platforms != null
             ? {
                 billing_focus_platforms: tierMeta.billing_focus_platforms,

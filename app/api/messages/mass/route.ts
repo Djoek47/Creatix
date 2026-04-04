@@ -10,6 +10,8 @@ import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
+import { logMessageSendEvent } from '@/lib/usage/log-message-send'
+import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
 
 interface MassMessageRequest {
   message: string
@@ -172,6 +174,16 @@ export async function POST(request: NextRequest) {
     }
 
     const allSuccessful = Object.values(results).every(r => r.success)
+
+    if (totalSent > 0) {
+      logMessageSendEvent({
+        userId: user.id,
+        platform: 'multi',
+        source: 'mass_dm',
+        metadata: { totalSent, totalFailed, platforms: [...platforms] },
+      })
+      bumpSubscriptionMessagesSent(user.id, totalSent)
+    }
 
     return NextResponse.json({
       success: allSuccessful,

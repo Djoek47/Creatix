@@ -62,6 +62,7 @@ export default function ToolRunnerScreen() {
 
   const webBase = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '')
   const commenterUrl = webBase ? `${webBase}/dashboard/commenter` : ''
+  const housekeepingUrl = webBase ? `${webBase}/dashboard/commenter?section=housekeeping` : ''
 
   if (toolId === 'commenter') {
     return (
@@ -81,6 +82,34 @@ export default function ToolRunnerScreen() {
           ) : (
             <Text style={styles.error}>
               Set EXPO_PUBLIC_API_URL to your site origin, then open /dashboard/commenter in a browser.
+            </Text>
+          )}
+          <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+            <Text style={styles.link}>Go back</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
+  if (toolId === 'housekeeping') {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{meta.name}</Text>
+          <Text style={styles.desc}>{meta.longDescription}</Text>
+          {housekeepingUrl ? (
+            <Pressable
+              style={styles.button}
+              onPress={() => {
+                void Linking.openURL(housekeepingUrl)
+              }}
+            >
+              <Text style={styles.buttonText}>Open Housekeeping in browser</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.error}>
+              Set EXPO_PUBLIC_API_URL to your site origin, then open Commenter → Housekeeping in a browser.
             </Text>
           )}
           <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>

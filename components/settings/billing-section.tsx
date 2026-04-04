@@ -37,11 +37,12 @@ import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
   focusFanslyUsd,
-  focusManyvidsUsd,
   focusPlatformDisplayName,
   twoPlatformFocusUsd,
+  MANYVIDS_FOCUS_SINGLE_FLAT_USD,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
 import {
   ADULT_BILLING_PLATFORMS,
   sortFocusPlatforms,
@@ -73,12 +74,13 @@ interface SubscriptionData {
   revenue_tier?: number | null
   revenue_band_label?: string | null
   stripe_customer_id?: string | null
+  billing_seats?: number | null
 }
 
 const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
   onlyfans: 'Base',
-  fansly: '−10%',
-  manyvids: '−25%',
+  fansly: '≤$200',
+  manyvids: 'Solo $39',
 }
 
 export function BillingSection({ userId }: BillingSectionProps) {
@@ -99,6 +101,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
     () => new Set(['onlyfans']),
   )
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
+  const [checkoutSeats, setCheckoutSeats] = useState(DEFAULT_BILLING_SEATS)
   const supabase = createClient()
 
   const loadSubscriptionData = useCallback(async () => {
@@ -112,6 +115,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10) {
         setCheckoutTierIndex(row.revenue_tier)
       }
+      const bs = (row as SubscriptionData).billing_seats
+      if (typeof bs === 'number' && bs >= 1) setCheckoutSeats(Math.min(MAX_BILLING_SEATS, bs))
       if (row.billing_variant === 'multi') {
         setPlatformSelection(new Set(ADULT_BILLING_PLATFORMS))
       } else if (row.billing_variant === 'single') {
@@ -237,9 +242,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const tierRow = REVENUE_TIERS.find((t) => t.tierIndex === checkoutTierIndex)
   const focusCheckoutUsd =
     tierRow && focusCheckoutList
-      ? getMonthlyPriceUsd('single', checkoutTierIndex, focusCheckoutList)
+      ? getMonthlyPriceUsd('single', checkoutTierIndex, focusCheckoutList) * checkoutSeats
       : 0
-  const unifiedCheckoutUsd = tierRow?.multiPriceUsd ?? 0
+  const unifiedCheckoutUsd = (tierRow?.multiPriceUsd ?? 0) * checkoutSeats
+
+  const seatMultiplier =
+    typeof subData?.billing_seats === 'number' && subData.billing_seats >= 1
+      ? subData.billing_seats
+      : DEFAULT_BILLING_SEATS
 
   const subscribedMonthlyUsd =
     paidActive && subData
@@ -249,7 +259,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           subData.billing_variant === 'multi'
             ? undefined
             : resolveAllowedFocusPlatforms(subData.billing_focus_platforms, subData.billing_focus_platform),
-        )
+        ) * seatMultiplier
       : null
 
   const currentPlan = subscription?.plan
@@ -422,29 +432,51 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader>
           <CardTitle className="font-semibold">Plans & pricing</CardTitle>
           <CardDescription>
-            Choose your <strong>revenue band</strong>. <strong>Focus</strong> covers 1–2 adult platforms
-            (Fansly 10% below OnlyFans base, ManyVids 25% below). Pick <strong>all three</strong> below to
-            subscribe as <strong>Unified</strong> at the combined workspace price.
+            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base;
+            Fansly line is 10% below base, <strong>capped at $200/mo</strong>; ManyVids <strong>solo</strong> is{' '}
+            <strong>$39/mo</strong> (any tier). Two-platform pairs use line prices + bundle rules. Pick{' '}
+            <strong>all three</strong> for <strong>Unified</strong>. <strong>Seats</strong> = managers on the
+            same creator account (price × seats).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2 max-w-md">
-            <Label>Monthly revenue band</Label>
-            <Select
-              value={String(checkoutTierIndex)}
-              onValueChange={(v) => setCheckoutTierIndex(Number.parseInt(v, 10))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REVENUE_TIERS.map((t) => (
-                  <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="space-y-2 max-w-md flex-1">
+              <Label>Monthly revenue band</Label>
+              <Select
+                value={String(checkoutTierIndex)}
+                onValueChange={(v) => setCheckoutTierIndex(Number.parseInt(v, 10))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REVENUE_TIERS.map((t) => (
+                    <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 w-full max-w-[12rem]">
+              <Label>Seats (managers)</Label>
+              <Select
+                value={String(checkoutSeats)}
+                onValueChange={(v) => setCheckoutSeats(Math.min(MAX_BILLING_SEATS, Math.max(1, Number.parseInt(v, 10))))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: MAX_BILLING_SEATS }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} seat{n === 1 ? '' : 's'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <p className="text-sm font-medium text-foreground">Platforms for this quote</p>
@@ -516,6 +548,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   billingVariant="single"
                   tierIndex={checkoutTierIndex}
                   focusPlatforms={focusCheckoutList ?? undefined}
+                  seats={checkoutSeats}
                   disabled={!focusCheckoutList}
                   buttonText={
                     paidActive
@@ -585,6 +618,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   productId={PAID_PLAN_ID}
                   billingVariant="multi"
                   tierIndex={checkoutTierIndex}
+                  seats={checkoutSeats}
                   buttonText={
                     paidActive
                       ? `Checkout Unified — $${unifiedCheckoutUsd}/mo`
@@ -620,7 +654,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     <td className="p-3">{row.label}</td>
                     <td className="p-3 text-right tabular-nums">${row.focusBaseUsd}</td>
                     <td className="p-3 text-right tabular-nums">${focusFanslyUsd(row)}</td>
-                    <td className="p-3 text-right tabular-nums">${focusManyvidsUsd(row)}</td>
+                    <td className="p-3 text-right tabular-nums">${MANYVIDS_FOCUS_SINGLE_FLAT_USD}</td>
                     <td className="p-3 text-right tabular-nums">
                       ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
                     </td>

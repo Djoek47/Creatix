@@ -22,6 +22,12 @@ import {
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
+import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
+
+function clampBillingSeats(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_BILLING_SEATS
+  return Math.min(MAX_BILLING_SEATS, Math.max(1, Math.floor(n)))
+}
 
 type SubscriptionRowUpdate = {
   stripe_customer_id?: string | null
@@ -36,6 +42,7 @@ type SubscriptionRowUpdate = {
   revenue_band_label?: string | null
   billing_focus_platform?: string | null
   billing_focus_platforms?: string[] | null
+  billing_seats?: number | null
 }
 
 async function upsertSubscriptionRow(
@@ -145,6 +152,7 @@ function paidCheckoutMetadata(
   variant: BillingVariant,
   tierIndex: number,
   focusPlatforms: AdultBillingPlatform[] | null,
+  seats: number,
 ) {
   const row = getTierByIndex(tierIndex)
   const sorted =
@@ -161,6 +169,7 @@ function paidCheckoutMetadata(
     revenueBandLabel: row?.label ?? '',
     focusPlatforms: focusPlatformsStr,
     focusPlatform: focusPlatformLegacy,
+    seats: String(seats),
   } as const
 }
 
@@ -170,8 +179,11 @@ export async function startPaidSubscriptionCheckout(params: {
   tierIndex: number
   /** Focus (`single`): 1–2 platforms; ignored for Unified (`multi`). */
   focusPlatforms?: AdultBillingPlatform[] | null
+  /** Managers on the same creator account; unit price × seats. */
+  seats?: number
 }) {
   const { variant, tierIndex, focusPlatforms: fpIn } = params
+  const seats = clampBillingSeats(params.seats ?? DEFAULT_BILLING_SEATS)
   if (tierIndex < 0 || tierIndex >= TIER_COUNT) {
     throw new Error(`Invalid revenue tier: ${tierIndex}`)
   }
@@ -194,7 +206,7 @@ export async function startPaidSubscriptionCheckout(params: {
   }
 
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
-  const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms)
+  const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms, seats)
   const unitAmount = getMonthlyPriceCents(variant, tierIndex, focusPlatforms ?? undefined)
 
   const stripe = getStripe()
@@ -214,7 +226,7 @@ export async function startPaidSubscriptionCheckout(params: {
           unit_amount: unitAmount,
           recurring: { interval: 'month' },
         },
-        quantity: 1,
+        quantity: seats,
       },
     ],
     metadata: { ...meta },
@@ -306,6 +318,7 @@ export async function createCustomerPortalSessionForFlow(
 
 function parseStripeSubscriptionMeta(sub: {
   metadata?: Record<string, string> | null
+  items?: Stripe.ApiList<Stripe.SubscriptionItem> | null
 }): {
   planId: string | undefined
   billing_variant: string | null
@@ -313,6 +326,7 @@ function parseStripeSubscriptionMeta(sub: {
   revenue_band_label: string | null
   billing_focus_platform: string | null
   billing_focus_platforms: string[] | null
+  billing_seats: number
 } {
   const m = sub.metadata || {}
   const productId = (m.productId as string | undefined) || undefined
@@ -344,6 +358,12 @@ function parseStripeSubscriptionMeta(sub: {
 
   const billing_focus_platform = billing_focus_platforms?.[0] ?? null
 
+  const qty = sub.items?.data?.[0]?.quantity
+  const metaSeats = typeof m.seats === 'string' && m.seats !== '' ? Number.parseInt(m.seats, 10) : Number.NaN
+  const billing_seats = clampBillingSeats(
+    typeof qty === 'number' && qty >= 1 ? qty : Number.isFinite(metaSeats) ? metaSeats : DEFAULT_BILLING_SEATS,
+  )
+
   return {
     planId: productId,
     billing_variant,
@@ -351,6 +371,7 @@ function parseStripeSubscriptionMeta(sub: {
     revenue_band_label,
     billing_focus_platform,
     billing_focus_platforms,
+    billing_seats,
   }
 }
 
@@ -367,7 +388,7 @@ export async function getSubscriptionStatus() {
   let { data } = await supabase
     .from('subscriptions')
     .select(
-      'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_tier,revenue_band_label',
+      'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_tier,revenue_band_label,billing_seats',
     )
     .eq('user_id', user.id)
     .maybeSingle()
@@ -400,7 +421,10 @@ export async function getSubscriptionStatus() {
         const sub = subs.data[0]
         if (sub) {
           const stripeSub = sub as Stripe.Subscription
-          const parsed = parseStripeSubscriptionMeta(stripeSub)
+          const parsed = parseStripeSubscriptionMeta({
+            metadata: stripeSub.metadata,
+            items: stripeSub.items,
+          })
           const planIdFromMetadata = parsed.planId || data.plan_id
           const normalizedPlan =
             planIdFromMetadata && isPaidPlanId(planIdFromMetadata) ? PAID_PLAN_ID : planIdFromMetadata
@@ -425,6 +449,7 @@ export async function getSubscriptionStatus() {
               parsed.billing_variant === 'single' ? parsed.billing_focus_platforms : null,
             revenue_tier: parsed.revenue_tier,
             revenue_band_label: parsed.revenue_band_label,
+            billing_seats: parsed.billing_seats,
           })
 
           data = {
@@ -453,6 +478,7 @@ export async function getSubscriptionStatus() {
                   : (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
             revenue_tier: parsed.revenue_tier ?? data.revenue_tier,
             revenue_band_label: parsed.revenue_band_label ?? data.revenue_band_label,
+            billing_seats: parsed.billing_seats,
           } as typeof data
         }
       }
@@ -507,5 +533,10 @@ export async function getSubscriptionStatus() {
     })(),
     revenueTier: data.revenue_tier as number | null | undefined,
     revenueBandLabel: data.revenue_band_label as string | null | undefined,
+    billingSeats:
+      typeof (data as { billing_seats?: number }).billing_seats === 'number' &&
+      (data as { billing_seats?: number }).billing_seats! >= 1
+        ? (data as { billing_seats: number }).billing_seats
+        : DEFAULT_BILLING_SEATS,
   }
 }

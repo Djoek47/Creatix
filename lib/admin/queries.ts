@@ -1,4 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getAppCreditUsdEstimate } from '@/lib/admin/credit-usd'
+import { resolveAdminOverviewRange, type AdminOverviewRangeMode } from '@/lib/admin/time-range'
 
 function sinceDaysIso(days: number): string {
   return new Date(Date.now() - days * 86400000).toISOString()
@@ -37,6 +39,7 @@ export function providerBucketDisplayName(key: AiProviderBucket): string {
 async function fetchUsageEventsSince(
   supabase: ReturnType<typeof createServiceRoleClient>,
   sinceIso: string,
+  untilIso?: string,
   maxRows = 40_000,
 ): Promise<
   {
@@ -46,6 +49,7 @@ async function fetchUsageEventsSince(
     total_tokens: number | null
     provider: string
     user_id: string | null
+    feature: string
   }[]
 > {
   const pageSize = 1000
@@ -56,14 +60,17 @@ async function fetchUsageEventsSince(
     total_tokens: number | null
     provider: string
     user_id: string | null
+    feature: string
   }[] = []
   for (let from = 0; from < maxRows; from += pageSize) {
-    const { data, error } = await supabase
+    let q = supabase
       .from('ai_usage_events')
-      .select('estimated_usd, input_tokens, output_tokens, total_tokens, provider, user_id')
+      .select('estimated_usd, input_tokens, output_tokens, total_tokens, provider, user_id, feature')
       .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
-      .range(from, from + pageSize - 1)
+    if (untilIso) {
+      q = q.lte('created_at', untilIso)
+    }
+    const { data, error } = await q.order('created_at', { ascending: false }).range(from, from + pageSize - 1)
     if (error) break
     const rows = data ?? []
     out.push(...(rows as typeof out))
@@ -120,12 +127,41 @@ export type ProviderSpendRow = {
   events: number
 }
 
+/** Grouped by `ai_usage_events.feature` (tool / route slug). */
+export type FeatureSpendRow = {
+  feature: string
+  estimated_usd: number
+  tokens: number
+  events: number
+}
+
+export type FeatureProviderSpendRow = {
+  feature: string
+  bucket: AiProviderBucket
+  label: string
+  estimated_usd: number
+  tokens: number
+  events: number
+}
+
 export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats>> & {
+  /** Selected time window (from URL filter). */
+  rangeTitle: string
+  rangeMode: AdminOverviewRangeMode
+  rangeSinceIso: string
+  rangeUntilIso: string
   totalTokens30d: number
   providerRows: ProviderSpendRow[]
+  /** Rollup by feature (service) — token-based USD from ai_unit_costs. */
+  featureRows: FeatureSpendRow[]
+  /** Feature × provider bucket (top rows by USD for display). */
+  featureProviderRows: FeatureProviderSpendRow[]
   topUsers: UserUsageRow[]
   /** Sum of subscriptions.ai_credits_used (in-app “AI credit” meter). */
   appAiCreditsUsedTotal: number
+  /** USD display equivalent: appAiCreditsUsedTotal × appCreditUsdRate (see ADMIN_APP_CREDIT_USD_ESTIMATE). */
+  appCreditsUsdEquivalent: number
+  appCreditUsdRate: number
   /** Subscriptions rows counted for credits sum. */
   subscriptionsRowCount: number
   authUsersTotal: number
@@ -134,23 +170,74 @@ export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats
   /** Sum of (last_sign_in_at − created_at) in hours, users with both set — not wall-clock session time. */
   aggregateSignInSpanHours: number
   usageEventsTruncated: boolean
+  /** Outbound DMs logged in message_send_events for the window. */
+  messageSendsInWindow: number
+  /** Divine voice surface time (ms) summed across users for UTC days in range. */
+  voiceStateMs: { idle: number; working: number; speaking: number; total: number }
+}
+
+async function countMessageSendsInRange(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  sinceIso: string,
+  untilIso: string,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from('message_send_events')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', sinceIso)
+    .lte('created_at', untilIso)
+  if (error) return 0
+  return count ?? 0
+}
+
+async function sumVoiceStateMsForDayRange(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  dayStart: string,
+  dayEnd: string,
+): Promise<{ idle: number; working: number; speaking: number; total: number }> {
+  const { data, error } = await supabase
+    .from('divine_voice_state_daily')
+    .select('idle_ms, working_ms, speaking_ms')
+    .gte('day_utc', dayStart)
+    .lte('day_utc', dayEnd)
+  if (error || !data?.length) {
+    return { idle: 0, working: 0, speaking: 0, total: 0 }
+  }
+  let idle = 0
+  let working = 0
+  let speaking = 0
+  for (const row of data as { idle_ms?: number; working_ms?: number; speaking_ms?: number }[]) {
+    idle += Number(row.idle_ms ?? 0)
+    working += Number(row.working_ms ?? 0)
+    speaking += Number(row.speaking_ms ?? 0)
+  }
+  return { idle, working, speaking, total: idle + working + speaking }
 }
 
 /** Overview metrics + per-user top list, provider buckets, app credits, auth activity. */
-export async function adminOverviewExtended(): Promise<AdminOverviewExtended> {
+export async function adminOverviewExtended(
+  rangeParams?: { range?: string | null; day?: string | null },
+): Promise<AdminOverviewExtended> {
   const supabase = createServiceRoleClient()
-  const since30 = sinceDaysIso(30)
+  const range = resolveAdminOverviewRange(rangeParams ?? {})
   const since7 = sinceDaysIso(7)
 
-  const [events30, topUsers, subsAgg, authAgg, usage7, err30, profCount] = await Promise.all([
-    fetchUsageEventsSince(supabase, since30),
-    adminUsersUsageSummary(12),
-    supabase.from('subscriptions').select('ai_credits_used'),
-    collectAuthActivityStats(supabase),
-    supabase.from('ai_usage_events').select('estimated_usd').gte('created_at', since7),
-    supabase.from('api_error_logs').select('*', { count: 'exact', head: true }).gte('created_at', since30),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-  ])
+  const [events30, topUsers, subsAgg, authAgg, usage7, errWindow, profCount, messageSendsInWindow, voiceStateMs] =
+    await Promise.all([
+      fetchUsageEventsSince(supabase, range.sinceIso, range.untilIso),
+      adminUsersUsageSummary(12, range.sinceIso, range.untilIso),
+      supabase.from('subscriptions').select('ai_credits_used'),
+      collectAuthActivityStats(supabase),
+      supabase.from('ai_usage_events').select('estimated_usd').gte('created_at', since7),
+      supabase
+        .from('api_error_logs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', range.sinceIso)
+        .lte('created_at', range.untilIso),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      countMessageSendsInRange(supabase, range.sinceIso, range.untilIso),
+      sumVoiceStateMsForDayRange(supabase, range.voiceDayStart, range.voiceDayEnd),
+    ])
 
   const estimatedUsd30d = events30.reduce((s, r) => s + Number(r.estimated_usd ?? 0), 0)
   const estimatedUsd7d = (usage7.data ?? []).reduce((s, r) => s + Number((r as { estimated_usd?: number }).estimated_usd ?? 0), 0)
@@ -191,28 +278,85 @@ export async function adminOverviewExtended(): Promise<AdminOverviewExtended> {
     .filter((r) => r.events > 0)
     .sort((a, b) => b.estimated_usd - a.estimated_usd)
 
+  const byFeature = new Map<string, { usd: number; tokens: number; events: number }>()
+  const byFeatureProvider = new Map<string, { feature: string; bucket: AiProviderBucket; usd: number; tokens: number; events: number }>()
+  for (const row of events30) {
+    const feat = String(row.feature ?? 'unknown').trim() || 'unknown'
+    const tt =
+      row.total_tokens != null && Number(row.total_tokens) > 0
+        ? Number(row.total_tokens)
+        : Number(row.input_tokens ?? 0) + Number(row.output_tokens ?? 0)
+    const usd = Number(row.estimated_usd ?? 0)
+    const curF = byFeature.get(feat) ?? { usd: 0, tokens: 0, events: 0 }
+    curF.usd += usd
+    curF.tokens += tt
+    curF.events += 1
+    byFeature.set(feat, curF)
+
+    const b = bucketAiProvider(row.provider)
+    const fpKey = `${feat}\0${b}`
+    const curFp = byFeatureProvider.get(fpKey) ?? { feature: feat, bucket: b, usd: 0, tokens: 0, events: 0 }
+    curFp.usd += usd
+    curFp.tokens += tt
+    curFp.events += 1
+    byFeatureProvider.set(fpKey, curFp)
+  }
+
+  const featureRows: FeatureSpendRow[] = [...byFeature.entries()]
+    .map(([feature, v]) => ({
+      feature,
+      estimated_usd: Math.round(v.usd * 1e6) / 1e6,
+      tokens: v.tokens,
+      events: v.events,
+    }))
+    .sort((a, b) => b.estimated_usd - a.estimated_usd)
+
+  const featureProviderRows: FeatureProviderSpendRow[] = [...byFeatureProvider.values()]
+    .map((v) => ({
+      feature: v.feature,
+      bucket: v.bucket,
+      label: providerBucketDisplayName(v.bucket),
+      estimated_usd: Math.round(v.usd * 1e6) / 1e6,
+      tokens: v.tokens,
+      events: v.events,
+    }))
+    .sort((a, b) => b.estimated_usd - a.estimated_usd)
+    .slice(0, 40)
+
   const subsRows = subsAgg.data ?? []
   const appAiCreditsUsedTotal = subsRows.reduce(
     (s, r) => s + Number((r as { ai_credits_used?: number }).ai_credits_used ?? 0),
     0,
   )
+  const appCreditUsdRate = getAppCreditUsdEstimate()
+  const appCreditsUsdEquivalent = Math.round(appAiCreditsUsedTotal * appCreditUsdRate * 1e6) / 1e6
 
   return {
     estimatedUsd30d,
     estimatedUsd7d,
     tokens30d: totalTokens30d,
-    errors30d: err30.count ?? 0,
+    errors30d: errWindow.count ?? 0,
     profiles: profCount.count ?? 0,
+    rangeTitle: range.title,
+    rangeMode: range.mode,
+    rangeSinceIso: range.sinceIso,
+    rangeUntilIso: range.untilIso,
     totalTokens30d,
     providerRows,
+    featureRows,
+    featureProviderRows,
     topUsers,
     appAiCreditsUsedTotal,
+    appCreditsUsdEquivalent,
+    appCreditUsdRate,
     subscriptionsRowCount: subsRows.length,
     authUsersTotal: authAgg.total,
     authSignedInLast7d: authAgg.signedIn7d,
     authSignedInLast30d: authAgg.signedIn30d,
     aggregateSignInSpanHours: authAgg.aggregateSignInSpanHours,
     usageEventsTruncated,
+    messageSendsInWindow,
+    voiceStateMs,
   }
 }
 
@@ -264,15 +408,23 @@ export type UserUsageRow = {
   tokens: number
 }
 
-export async function adminUsersUsageSummary(limit = 200): Promise<UserUsageRow[]> {
+export async function adminUsersUsageSummary(
+  limit = 200,
+  sinceIso?: string,
+  untilIso?: string,
+): Promise<UserUsageRow[]> {
   const supabase = createServiceRoleClient()
-  const since = sinceDaysIso(30)
+  const since = sinceIso ?? sinceDaysIso(30)
 
-  const { data: events } = await supabase
+  let q = supabase
     .from('ai_usage_events')
     .select('user_id, estimated_usd, input_tokens, output_tokens')
     .gte('created_at', since)
     .not('user_id', 'is', null)
+  if (untilIso) {
+    q = q.lte('created_at', untilIso)
+  }
+  const { data: events } = await q
 
   const byUser = new Map<string, { usd: number; n: number; tok: number }>()
   for (const row of events ?? []) {
@@ -308,11 +460,75 @@ export async function adminUsersUsageSummary(limit = 200): Promise<UserUsageRow[
   })
 }
 
+async function fetchUserUsageEventsForAggregation(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+  sinceIso: string,
+  maxRows = 50_000,
+): Promise<
+  {
+    feature: string
+    provider: string
+    estimated_usd: number | string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    total_tokens: number | null
+  }[]
+> {
+  const pageSize = 1000
+  const out: {
+    feature: string
+    provider: string
+    estimated_usd: number | string | null
+    input_tokens: number | null
+    output_tokens: number | null
+    total_tokens: number | null
+  }[] = []
+  for (let from = 0; from < maxRows; from += pageSize) {
+    const { data, error } = await supabase
+      .from('ai_usage_events')
+      .select('feature, provider, estimated_usd, input_tokens, output_tokens, total_tokens')
+      .eq('user_id', userId)
+      .gte('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1)
+    if (error) break
+    const rows = data ?? []
+    out.push(...(rows as typeof out))
+    if (rows.length < pageSize) break
+  }
+  return out
+}
+
+export type UserSubscriptionUsageRow = {
+  plan_id: string | null
+  ai_credits_used: number
+  ai_credits_limit: number
+  messages_sent: number
+}
+
+export type UserUsageWebhookRow = {
+  url: string
+  enabled: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
 export async function adminUserDetail(userId: string) {
   const supabase = createServiceRoleClient()
   const since = sinceDaysIso(90)
+  const dayStart90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
+  const todayUtc = new Date().toISOString().slice(0, 10)
 
-  const [{ data: profile }, { data: usage }, { data: errors }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: usage },
+    { data: errors },
+    { data: subscription },
+    aggRows,
+    msgCountRes,
+    { data: voiceDailyRows },
+  ] = await Promise.all([
     supabase.from('profiles').select('id, email, full_name, role, created_at').eq('id', userId).maybeSingle(),
     supabase
       .from('ai_usage_events')
@@ -328,11 +544,128 @@ export async function adminUserDetail(userId: string) {
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(200),
+    supabase
+      .from('subscriptions')
+      .select('plan_id, ai_credits_used, ai_credits_limit, messages_sent')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    fetchUserUsageEventsForAggregation(supabase, userId, since),
+    supabase
+      .from('message_send_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', since),
+    supabase
+      .from('divine_voice_state_daily')
+      .select('idle_ms, working_ms, speaking_ms')
+      .eq('user_id', userId)
+      .gte('day_utc', dayStart90)
+      .lte('day_utc', todayUtc),
   ])
+
+  const webhookRes = await supabase
+    .from('user_usage_webhook_endpoints')
+    .select('url, enabled, created_at, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+  const webhook = webhookRes.error ? null : webhookRes.data
 
   const usageSum = (usage ?? []).reduce((s, r) => s + Number((r as { estimated_usd?: number }).estimated_usd ?? 0), 0)
 
-  return { profile, usage: usage ?? [], errors: errors ?? [], usageSumUsd90d: usageSum }
+  const byFeature = new Map<string, { usd: number; tokens: number; events: number }>()
+  const byBucket = new Map<AiProviderBucket, { usd: number; tokens: number; events: number }>()
+  for (const k of Object.keys(PROVIDER_BUCKET_LABEL) as AiProviderBucket[]) {
+    byBucket.set(k, { usd: 0, tokens: 0, events: 0 })
+  }
+  for (const row of aggRows) {
+    const feat = String(row.feature ?? 'unknown').trim() || 'unknown'
+    const tt =
+      row.total_tokens != null && Number(row.total_tokens) > 0
+        ? Number(row.total_tokens)
+        : Number(row.input_tokens ?? 0) + Number(row.output_tokens ?? 0)
+    const usd = Number(row.estimated_usd ?? 0)
+    const curF = byFeature.get(feat) ?? { usd: 0, tokens: 0, events: 0 }
+    curF.usd += usd
+    curF.tokens += tt
+    curF.events += 1
+    byFeature.set(feat, curF)
+    const b = bucketAiProvider(row.provider)
+    const agg = byBucket.get(b)!
+    agg.usd += usd
+    agg.tokens += tt
+    agg.events += 1
+  }
+
+  const usageByFeature90d: FeatureSpendRow[] = [...byFeature.entries()]
+    .map(([feature, v]) => ({
+      feature,
+      estimated_usd: Math.round(v.usd * 1e6) / 1e6,
+      tokens: v.tokens,
+      events: v.events,
+    }))
+    .sort((a, b) => b.estimated_usd - a.estimated_usd)
+
+  const usageByProvider90d: ProviderSpendRow[] = [...byBucket.entries()]
+    .map(([bucket, v]) => ({
+      bucket,
+      label: providerBucketDisplayName(bucket),
+      estimated_usd: Math.round(v.usd * 1e6) / 1e6,
+      tokens: v.tokens,
+      events: v.events,
+    }))
+    .filter((r) => r.events > 0)
+    .sort((a, b) => b.estimated_usd - a.estimated_usd)
+
+  const sub = subscription as UserSubscriptionUsageRow | null | undefined
+  const wh = webhook as UserUsageWebhookRow | null | undefined
+  const appCreditUsdRate = getAppCreditUsdEstimate()
+  const creditsUsed = Number(sub?.ai_credits_used ?? 0)
+  const appCreditsUsdEquivalent = Math.round(creditsUsed * appCreditUsdRate * 1e6) / 1e6
+
+  let vIdle = 0
+  let vWork = 0
+  let vSpeak = 0
+  for (const r of voiceDailyRows ?? []) {
+    const row = r as { idle_ms?: number; working_ms?: number; speaking_ms?: number }
+    vIdle += Number(row.idle_ms ?? 0)
+    vWork += Number(row.working_ms ?? 0)
+    vSpeak += Number(row.speaking_ms ?? 0)
+  }
+  const voiceState90d = {
+    idle: vIdle,
+    working: vWork,
+    speaking: vSpeak,
+    total: vIdle + vWork + vSpeak,
+  }
+
+  return {
+    profile,
+    usage: usage ?? [],
+    errors: errors ?? [],
+    usageSumUsd90d: usageSum,
+    messageSendEvents90d: msgCountRes.error ? 0 : msgCountRes.count ?? 0,
+    voiceState90d,
+    subscription: sub
+      ? {
+          plan_id: sub.plan_id ?? null,
+          ai_credits_used: creditsUsed,
+          ai_credits_limit: Number(sub.ai_credits_limit ?? 0),
+          messages_sent: Number(sub.messages_sent ?? 0),
+        }
+      : null,
+    usageWebhook: wh
+      ? {
+          url: wh.url,
+          enabled: wh.enabled,
+          created_at: wh.created_at ?? null,
+          updated_at: wh.updated_at ?? null,
+        }
+      : null,
+    usageByFeature90d,
+    usageByProvider90d,
+    appCreditUsdRate,
+    appCreditsUsdEquivalent,
+  }
 }
 
 export async function adminRecentErrors(limit = 100, routeContains?: string) {

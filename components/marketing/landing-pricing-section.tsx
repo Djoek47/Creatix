@@ -18,7 +18,7 @@ import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
   focusFanslyUsd,
-  focusManyvidsUsd,
+  MANYVIDS_FOCUS_SINGLE_FLAT_USD,
   focusPlatformDisplayName,
   focusPlatformsShortLabel,
   focusPriceUsd,
@@ -198,7 +198,7 @@ export function LandingPricingSection() {
                     const active = row.tierIndex === tierIndex
                     const ofP = focusPriceUsd(row, 'onlyfans')
                     const flP = focusFanslyUsd(row)
-                    const mvP = focusManyvidsUsd(row)
+                    const mvP = MANYVIDS_FOCUS_SINGLE_FLAT_USD
                     const twoEx =
                       sortedSelection.length === 2
                         ? twoPlatformFocusUsd(row, sortedSelection[0], sortedSelection[1])

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
   Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff
+  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles
 } from 'lucide-react'
 
 // Social Media Logos
@@ -43,6 +43,12 @@ import { BillingSection } from '@/components/settings/billing-section'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
 import { HousekeepingListsSettings } from '@/components/settings/housekeeping-lists-settings'
+import { getCirceTipCount } from '@/lib/community/circe-daily-tips'
+import {
+  readTipPopupsEnabled,
+  writeTipPopupsEnabled,
+  requestTipPopupPreview,
+} from '@/lib/community/tip-popup-prefs'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'integrations' | 'data' | 'preferences'
@@ -100,6 +106,7 @@ export default function SettingsPage() {
     instagram: false,
     tiktok: false,
   })
+  const [tipPopupsEnabled, setTipPopupsEnabled] = useState(true)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
@@ -111,6 +118,10 @@ export default function SettingsPage() {
       setActiveTab(tabParam as SettingsTab)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    setTipPopupsEnabled(readTipPopupsEnabled())
+  }, [])
 
   useEffect(() => {
     async function loadUser() {
@@ -914,6 +925,45 @@ export default function SettingsPage() {
                       checked={preferences.cosmicGuidance}
                       onCheckedChange={(checked) => setPreferences({...preferences, cosmicGuidance: checked})}
                     />
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Daily tip popups</p>
+                        <Badge variant="outline" className="shrink-0 text-circe-light border-circe/40">
+                          Circe
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Random product tips while you use the dashboard (auto-dismiss after you read). The full numbered list lives on the Community tips page — {getCirceTipCount()} tips total.
+                      </p>
+                    </div>
+                    <Switch
+                      className="shrink-0"
+                      checked={tipPopupsEnabled}
+                      onCheckedChange={(checked) => {
+                        setTipPopupsEnabled(checked)
+                        writeTipPopupsEnabled(checked)
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                      <Link href="/dashboard/community/circe-daily">Open full tips page</Link>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={!tipPopupsEnabled}
+                      onClick={() => requestTipPopupPreview()}
+                    >
+                      Preview a tip
+                    </Button>
                   </div>
                 </div>
               </CardContent>

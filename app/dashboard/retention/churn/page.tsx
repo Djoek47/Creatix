@@ -14,8 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, RadioTower, Sparkles, BarChart3, Bell, ListTodo } from 'lucide-react'
+import { Loader2, RadioTower, Sparkles, BarChart3, Bell, ListTodo, Calendar, ScanLine } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
 
 export default function ChurnPredictorHubPage() {
@@ -36,6 +37,10 @@ export default function ChurnPredictorHubPage() {
   const [creditsPerRun, setCreditsPerRun] = useState(2)
   const [linkMgr, setLinkMgr] = useState(true)
   const [linkProto, setLinkProto] = useState(true)
+  const [teaseFutureContent, setTeaseFutureContent] = useState(true)
+  const [calendarTeaserNotes, setCalendarTeaserNotes] = useState('')
+
+  const [scanning, setScanning] = useState(false)
 
   const [lastRunAt, setLastRunAt] = useState<string | null>(null)
   const [lastError, setLastError] = useState<string | null>(null)
@@ -68,6 +73,8 @@ export default function ChurnPredictorHubPage() {
       setCreditsPerRun(s.credits_per_run ?? 2)
       setLinkMgr(s.link_divine_manager_tasks !== false)
       setLinkProto(s.link_protocol_tasks !== false)
+      setTeaseFutureContent(s.tease_future_content !== false)
+      setCalendarTeaserNotes(s.calendar_teaser_notes?.trim() ? String(s.calendar_teaser_notes) : '')
       setLastRunAt(s.last_run_at)
       setLastError(s.last_run_error)
       setDigest(s.last_digest_markdown ?? null)
@@ -82,6 +89,14 @@ export default function ChurnPredictorHubPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#future-tease') return
+    requestAnimationFrame(() => {
+      document.getElementById('future-tease')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [])
 
   const save = async () => {
     setSaving(true)
@@ -104,6 +119,8 @@ export default function ChurnPredictorHubPage() {
           credits_per_run: creditsPerRun,
           link_divine_manager_tasks: linkMgr,
           link_protocol_tasks: linkProto,
+          tease_future_content: teaseFutureContent,
+          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -120,6 +137,41 @@ export default function ChurnPredictorHubPage() {
       setError('Save failed')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const runScanNow = async () => {
+    setScanning(true)
+    setError(null)
+    try {
+      const saveFirst = await fetch('/api/circe-churn/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tease_future_content: teaseFutureContent,
+          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
+        }),
+      })
+      if (!saveFirst.ok) {
+        const data = await saveFirst.json().catch(() => ({}))
+        setError(typeof data.error === 'string' ? data.error : 'Could not save teaser settings')
+        return
+      }
+      const res = await fetch('/api/circe-churn/run', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 402) {
+        setError(typeof data.error === 'string' ? data.error : 'Insufficient AI credits')
+        return
+      }
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : 'Scan failed')
+        return
+      }
+      await load()
+    } catch {
+      setError('Scan failed')
+    } finally {
+      setScanning(false)
     }
   }
 
@@ -149,12 +201,23 @@ export default function ChurnPredictorHubPage() {
               unlock or gift past PPV), and draft messages—plus Divine notifications when a run completes.
             </p>
           </div>
-          <Button asChild variant="secondary" className="shrink-0 border border-white/10">
-            <Link href="/dashboard/ai-studio/tools/churn-predictor">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Deep dive one fan
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              className="shrink-0 bg-violet-600 text-white hover:bg-violet-500"
+              disabled={scanning}
+              onClick={() => void runScanNow()}
+            >
+              {scanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanLine className="mr-2 h-4 w-4" />}
+              Scan now
+            </Button>
+            <Button asChild variant="secondary" className="shrink-0 border border-white/10">
+              <Link href="/dashboard/ai-studio/tools/churn-predictor">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Deep dive one fan
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -163,6 +226,45 @@ export default function ChurnPredictorHubPage() {
           {error}
         </div>
       ) : null}
+
+      <section id="future-tease">
+        <Card className="border-border border-amber-500/15 bg-amber-500/[0.03]">
+          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+            <div className="rounded-lg bg-amber-500/15 p-2">
+              <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <CardTitle className="text-lg">Future content &amp; calendar teases</CardTitle>
+              <CardDescription>
+                For fans at risk of churning, batch digests can include teaser lines (feed, story, DM) and calendar-style
+                hints — pair with your real schedule so Circe does not invent drops.
+              </CardDescription>
+            </div>
+            <Switch
+              checked={teaseFutureContent}
+              onCheckedChange={setTeaseFutureContent}
+              aria-label="Include future content teasers in digest"
+            />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="cal-notes">Upcoming drops &amp; calendar (optional)</Label>
+              <Textarea
+                id="cal-notes"
+                placeholder="e.g. Fri: themed set · Sun evening live · next week: collab — anything you want teasers to align with"
+                value={calendarTeaserNotes}
+                onChange={(e) => setCalendarTeaserNotes(e.target.value.slice(0, 4000))}
+                className="min-h-[100px] resize-y"
+                disabled={!teaseFutureContent}
+              />
+              <p className="text-xs text-muted-foreground">
+                Saved with <span className="font-medium text-foreground">Save</span> below, or automatically when you
+                press Scan now.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       <Card className="border-border">
         <CardHeader className="flex flex-row items-start gap-3 space-y-0">

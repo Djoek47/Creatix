@@ -164,6 +164,9 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const scheduleIdleDisconnectRef = useRef<() => void>(() => {})
   const resumeBriefingSentRef = useRef(false)
   const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('idle')
+  const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('idle')
+  const telemetryPendingRef = useRef({ idle: 0, working: 0, speaking: 0 })
+  const telemetryTickRef = useRef(0)
 
   const scheduleGracefulEndCallRef = useRef<(() => void) | null>(null)
   const sendBriefingQuestionRef = useRef<(text: string, opts?: { allowHangupAfterMs?: number }) => Promise<void>>(
@@ -184,6 +187,10 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     statusRef.current = status
   }, [status])
+
+  useEffect(() => {
+    voiceSurfaceStateRef.current = voiceSurfaceState
+  }, [voiceSurfaceState])
 
   useEffect(() => {
     const raw = process.env.NEXT_PUBLIC_DIVINE_VOICE_IDLE_MS
@@ -945,6 +952,54 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       else setVoiceSurfaceState('idle')
     }, 140)
     return () => clearInterval(id)
+  }, [status])
+
+  /** Accumulate WebRTC time per voice surface state; POST to /api/divine/voice-telemetry every 10s. */
+  useEffect(() => {
+    if (status !== 'connected') return
+
+    const flush = async () => {
+      const p = telemetryPendingRef.current
+      const idle = p.idle
+      const working = p.working
+      const speaking = p.speaking
+      if (idle + working + speaking < 1) return
+      telemetryPendingRef.current = { idle: 0, working: 0, speaking: 0 }
+      try {
+        await fetch('/api/divine/voice-telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            idle_ms: Math.round(idle),
+            working_ms: Math.round(working),
+            speaking_ms: Math.round(speaking),
+          }),
+        })
+      } catch {
+        // ignore network errors
+      }
+    }
+
+    telemetryTickRef.current = Date.now()
+    const acc = setInterval(() => {
+      const now = Date.now()
+      const d = now - telemetryTickRef.current
+      telemetryTickRef.current = now
+      const surf = voiceSurfaceStateRef.current
+      if (surf === 'idle') telemetryPendingRef.current.idle += d
+      else if (surf === 'working') telemetryPendingRef.current.working += d
+      else if (surf === 'speaking') telemetryPendingRef.current.speaking += d
+    }, 1000)
+    const post = setInterval(() => {
+      void flush()
+    }, 10_000)
+
+    return () => {
+      clearInterval(acc)
+      clearInterval(post)
+      void flush()
+    }
   }, [status])
 
   useEffect(() => {

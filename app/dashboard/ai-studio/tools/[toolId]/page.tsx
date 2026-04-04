@@ -13,23 +13,30 @@ export default function ToolRunnerPage() {
     if (toolId === 'commenter') {
       router.replace('/dashboard/commenter')
     }
+    if (toolId === 'housekeeping') {
+      router.replace('/dashboard/commenter?section=housekeeping')
+    }
     if (toolId === 'ai-chatter') {
       router.replace('/dashboard/ai-studio/chatter')
     }
     if (toolId === 'whale-whisperer') {
       router.replace('/dashboard/ai-studio/chatter?profile=whale_whisper')
     }
+    if (toolId === 'retention-tease') {
+      router.replace('/dashboard/retention/churn#future-tease')
+    }
     if (toolId === 'leak-scanner' || toolId === 'dmca-automator' || toolId === 'circe-protection-shield') {
       router.replace('/dashboard/protection/aegis')
     }
   }, [toolId, router])
 
-  if (toolId === 'commenter') {
+  if (toolId === 'commenter' || toolId === 'housekeeping') {
     return null
   }
   if (
     toolId === 'ai-chatter' ||
     toolId === 'whale-whisperer' ||
+    toolId === 'retention-tease' ||
     toolId === 'leak-scanner' ||
     toolId === 'dmca-automator' ||
     toolId === 'circe-protection-shield'

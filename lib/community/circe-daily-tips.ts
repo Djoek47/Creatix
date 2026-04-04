@@ -110,6 +110,111 @@ export const CIRCE_DAILY_TIPS: CirceDailyTip[] = [
       'Use classification and tiers to decide who gets personal attention vs automation. Divine can suggest, but your business rules stay in charge.',
     link: { label: 'Fans', href: '/dashboard/fans' },
   },
+  {
+    id: 'welcome-sequence',
+    title: 'Script a short welcome arc',
+    body:
+      'New subs decide fast. A 2–3 message welcome (thanks, boundary, one soft CTA) beats a wall of text. Refresh it when your offers change.',
+    link: { label: 'Messages', href: '/dashboard/messages' },
+  },
+  {
+    id: 'ppv-tease',
+    title: 'PPV: tease before you lock',
+    body:
+      'One line of context (“unlock for the full set / angle”) lifts conversion more than a cold price sticker. Match teaser tone to the fan’s thread.',
+    link: { label: 'AI Studio', href: '/dashboard/ai-studio' },
+  },
+  {
+    id: 'one-thread-owner',
+    title: 'One owner per hot thread',
+    body:
+      'When two people reply in the same whale chat, tone drifts. Decide who owns high-value threads and keep handoffs explicit in notes.',
+    link: { label: 'Messages', href: '/dashboard/messages' },
+  },
+  {
+    id: 'quiet-hours',
+    title: 'Respect your quiet hours',
+    body:
+      'Batch sends for your timezone, not theirs. Fans forgive delay more than 3 a.m. pings. Use scheduling where the platform allows.',
+    link: { label: 'Content', href: '/dashboard/content' },
+  },
+  {
+    id: 'analytics-baseline',
+    title: 'Establish a baseline week',
+    body:
+      'Before you chase “more engagement,” log one normal week in Analytics after a clean sync. Compare future changes to that baseline, not vibes.',
+    link: { label: 'Analytics', href: '/dashboard/analytics' },
+  },
+  {
+    id: 'caption-hooks',
+    title: 'First line is the hook',
+    body:
+      'Assume previews truncate. Put curiosity or payoff in the first sentence; move hashtags and disclaimers below the fold.',
+    link: { label: 'Content library', href: '/dashboard/content-library' },
+  },
+  {
+    id: 'refund-boundary',
+    title: 'Refund language, written once',
+    body:
+      'Decide what you refund (chargebacks vs goodwill) and keep a short saved reply. Consistency protects you emotionally and legally.',
+    link: { label: 'Messages', href: '/dashboard/messages' },
+  },
+  {
+    id: 'content-backlog',
+    title: 'Keep a shoot backlog',
+    body:
+      'Maintain a small queue of evergreen clips and photos for slow weeks. Creativity dips; a backlog keeps cadence from collapsing.',
+    link: { label: 'Content', href: '/dashboard/content' },
+  },
+  {
+    id: 'renewal-nudge',
+    title: 'Renewal beats surprise churn',
+    body:
+      'A polite “your renewal is coming” note (where allowed) converts better than post-churn win-back. Pair with a light perk or reminder of value.',
+    link: { label: 'Fans', href: '/dashboard/fans' },
+  },
+  {
+    id: 'platform-voice',
+    title: 'Slightly different voice per platform',
+    body:
+      'Fans expect different energy on Twitter vs DMs. Keep the same boundaries and offers, but tune pacing and slang per surface.',
+    link: { label: 'Mentions', href: '/dashboard/mentions' },
+  },
+  {
+    id: 'screenshot-hygiene',
+    title: 'Watermark sensitive previews',
+    body:
+      'Screenshots leak. For risky previews, subtle watermarks or partial crops slow resale more than trust-building blur alone.',
+    link: { label: 'Protection', href: '/dashboard/protection' },
+  },
+  {
+    id: 'single-variable-test',
+    title: 'Change one variable per test',
+    body:
+      'If you tweak price, caption, and send time together, you learn nothing. A/B one lever, note the date, then iterate.',
+    link: { label: 'Analytics', href: '/dashboard/analytics' },
+  },
+  {
+    id: 'dm-fatigue',
+    title: 'Mass DM fatigue is real',
+    body:
+      'Space broadcasts and segment harder rather than blasting everyone weekly. Higher relevance beats higher frequency for long-term revenue.',
+    link: { label: 'Mass messages', href: '/dashboard/messages/mass' },
+  },
+  {
+    id: 'integration-health',
+    title: 'Green integrations = clean AI',
+    body:
+      'When sync fails, AI tools hallucinate fan state. Make “integrations healthy” part of your weekly checklist, not a panic button.',
+    link: { label: 'Settings', href: '/dashboard/settings?tab=integrations' },
+  },
+  {
+    id: 'notes-to-future-you',
+    title: 'Thread notes are for future you',
+    body:
+      'Jot promises, limits, and inside jokes in fan notes. Next month’s you will not remember that off-hand discount or boundary.',
+    link: { label: 'Messages', href: '/dashboard/messages' },
+  },
 ]
 
 /** Stable index for “today” (UTC day-of-year). */
@@ -123,4 +228,24 @@ export function getCirceTipIndexForToday(): number {
 
 export function getTodayCirceTip(): CirceDailyTip {
   return CIRCE_DAILY_TIPS[getCirceTipIndexForToday()]!
+}
+
+export function getCirceTipCount(): number {
+  return CIRCE_DAILY_TIPS.length
+}
+
+/** Random tip for popups; avoids immediate repeat of `excludeId` when possible. */
+export function pickRandomCirceTip(excludeId?: string | null): CirceDailyTip {
+  const tips = CIRCE_DAILY_TIPS
+  if (tips.length === 0) {
+    throw new Error('CIRCE_DAILY_TIPS is empty')
+  }
+  let tip = tips[Math.floor(Math.random() * tips.length)]!
+  if (excludeId && tips.length > 1) {
+    let guard = 0
+    while (tip.id === excludeId && guard++ < 32) {
+      tip = tips[Math.floor(Math.random() * tips.length)]!
+    }
+  }
+  return tip
 }

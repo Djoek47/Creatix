@@ -19,7 +19,7 @@ import {
   getMonthlyPriceUsd,
   getTierByIndex,
   tierIndexFromMonthlyRevenue,
-  focusPriceUsd,
+  focusPairLineUsd,
   twoPlatformBundleMultiplier,
   focusPlatformDisplayName,
   percentVsOnlyFansBase,
@@ -99,14 +99,19 @@ export function PricingPageCalculator() {
     if (sortedPlatforms.length === 1) {
       const p = sortedPlatforms[0]
       return {
-        lines: [{ label: focusPlatformDisplayName(p), usd: focusPriceUsd(tierRow, p) }],
+        lines: [
+          {
+            label: focusPlatformDisplayName(p),
+            usd: getMonthlyPriceUsd('single', effectiveTier, [p]),
+          },
+        ],
         note: 'Single-platform Focus',
       }
     }
     if (sortedPlatforms.length === 2) {
       const [a, b] = sortedPlatforms
-      const u1 = focusPriceUsd(tierRow, a)
-      const u2 = focusPriceUsd(tierRow, b)
+      const u1 = focusPairLineUsd(tierRow, a)
+      const u2 = focusPairLineUsd(tierRow, b)
       const sum = u1 + u2
       const mult = twoPlatformBundleMultiplier(a, b)
       return {
@@ -120,7 +125,7 @@ export function PricingPageCalculator() {
       }
     }
     return null
-  }, [tierRow, effectiveVariant, sortedPlatforms])
+  }, [tierRow, effectiveVariant, sortedPlatforms, effectiveTier])
 
   return (
     <section

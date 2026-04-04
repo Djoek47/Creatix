@@ -1,6 +1,8 @@
+import { randomUUID } from 'crypto'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { estimateUsdFromTokens, getUnitCostRow } from '@/lib/usage/estimate-cost'
 import { sanitizeSafeContext } from '@/lib/usage/sanitize-context'
+import { dispatchUserUsageWebhook } from '@/lib/usage/usage-webhook-dispatch'
 
 /** Normalized usage from OpenAI, AI SDK, Anthropic, etc. */
 export type UsageObject = {
@@ -76,8 +78,12 @@ export function logAiUsageEvent(opts: {
           ? Math.max(0, Math.floor(opts.totalTokens))
           : inT + outT
       const estimated = estimateUsdFromTokens(inT, outT, row)
+      const id = randomUUID()
+      const createdAt = new Date().toISOString()
+      const uid = opts.userId ?? null
       await supabase.from('ai_usage_events').insert({
-        user_id: opts.userId ?? null,
+        id,
+        user_id: uid,
         feature: opts.feature.slice(0, 200),
         provider: opts.provider.slice(0, 64),
         model: opts.model.slice(0, 200),
@@ -89,6 +95,23 @@ export function logAiUsageEvent(opts: {
         success: opts.success !== false,
         metadata: opts.metadata ?? null,
       })
+      if (uid) {
+        dispatchUserUsageWebhook({
+          type: 'ai.usage',
+          event_id: id,
+          created_at: createdAt,
+          user_id: uid,
+          feature: opts.feature.slice(0, 200),
+          provider: opts.provider.slice(0, 64),
+          model: opts.model.slice(0, 200),
+          input_tokens: inT,
+          output_tokens: outT,
+          total_tokens: totalT,
+          estimated_usd: estimated,
+          request_id: opts.requestId?.slice(0, 128) ?? null,
+          success: opts.success !== false,
+        })
+      }
     } catch (e) {
       console.warn('[logAiUsageEvent]', e instanceof Error ? e.message : e)
     }

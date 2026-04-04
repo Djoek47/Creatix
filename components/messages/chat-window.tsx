@@ -33,6 +33,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  ChevronsDown,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -45,6 +46,81 @@ import { isBoundaryNiche, NICHE_LABELS } from '@/lib/niches'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
+
+/** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
+type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt'
+
+function isDmSendSource(s: string): s is DmSendSource {
+  return (
+    s === 'user' ||
+    s === 'divine' ||
+    s === 'divine_scheduled' ||
+    s === 'circe' ||
+    s === 'venus' ||
+    s === 'flirt'
+  )
+}
+
+function resolveDmSendSource(map: Record<string, DmSendSource>, messageId: string): DmSendSource {
+  return map[messageId] ?? 'user'
+}
+
+function creatorBubbleStyles(source: DmSendSource): {
+  bubble: string
+  timestamp: string
+  badgeLabel: string
+  badgeMuted: string
+  bodyMuted: string
+} {
+  switch (source) {
+    case 'flirt':
+      return {
+        bubble:
+          'border border-pink-400/45 bg-gradient-to-br from-pink-700/95 to-fuchsia-900/80 text-pink-50 shadow-[0_0_0_1px_rgba(244,114,182,0.25)]',
+        timestamp: 'text-pink-100/80',
+        badgeLabel: 'AI-assisted · Flirt',
+        badgeMuted: 'text-pink-200/95',
+        bodyMuted: 'text-pink-200/80',
+      }
+    case 'circe':
+      return {
+        bubble:
+          'border border-violet-400/50 bg-violet-950/45 text-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]',
+        timestamp: 'text-violet-200/70',
+        badgeLabel: 'AI-assisted · Circe',
+        badgeMuted: 'text-violet-200/90',
+        bodyMuted: 'text-violet-200/80',
+      }
+    case 'venus':
+      return {
+        bubble:
+          'border border-amber-400/45 bg-gradient-to-br from-amber-400 to-amber-600 text-amber-950 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]',
+        timestamp: 'text-amber-950/80',
+        badgeLabel: 'AI-assisted · Venus',
+        badgeMuted: 'text-amber-950/90',
+        bodyMuted: 'text-amber-950/85',
+      }
+    case 'divine':
+    case 'divine_scheduled':
+      return {
+        bubble:
+          'border border-violet-400/50 bg-violet-950/35 text-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]',
+        timestamp: 'text-violet-200/70',
+        badgeLabel: 'AI-assisted · Divine',
+        badgeMuted: 'text-violet-200/90',
+        bodyMuted: 'text-violet-200/80',
+      }
+    case 'user':
+    default:
+      return {
+        bubble: 'bg-[#00AFF0] text-white shadow-[0_0_0_1px_rgba(0,175,240,0.35)]',
+        timestamp: 'text-white/75',
+        badgeLabel: '',
+        badgeMuted: '',
+        bodyMuted: 'text-white/80',
+      }
+  }
+}
 
 interface OnlyFansConversation {
   user: {
@@ -332,7 +408,10 @@ export function ChatWindow({
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
-  const [divineMessageIds, setDivineMessageIds] = useState<Set<string>>(() => new Set())
+  /** OnlyFans message id → send attribution (from divine_dm_send_events + optimistic sends). */
+  const [dmSendSourceByMessageId, setDmSendSourceByMessageId] = useState<Record<string, DmSendSource>>({})
+  /** Next send after inserting Circe/Venus/Flirt suggestion (Divine panel wins if set). */
+  const pendingComposerSuggestionRef = useRef<'user' | 'circe' | 'venus' | 'flirt'>('user')
   const [divineTyping, setDivineTyping] = useState(false)
   const [purgingCacheIds, setPurgingCacheIds] = useState<Set<string>>(() => new Set())
 
@@ -367,6 +446,10 @@ export function ChatWindow({
   useEffect(() => {
     pendingChatterOutboxIdRef.current = null
   }, [chatterDraftOutboxId, conversation?.user.id])
+
+  useEffect(() => {
+    pendingComposerSuggestionRef.current = 'user'
+  }, [conversation?.user.id])
 
   useEffect(() => {
     if (!chatterDraftOutboxId || !conversation || conversation.platform !== 'onlyfans') return
@@ -416,6 +499,52 @@ export function ChatWindow({
     if (!el || el.scrollHeight <= el.clientHeight + 2) return
     el.scrollTop = el.scrollHeight
   }, [])
+
+  /** Smooth scroll with duration scaled to distance — “cool” for long threads. */
+  const smoothScrollThreadToBottom = useCallback(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const target = el.scrollHeight - el.clientHeight
+    const start = el.scrollTop
+    const dist = target - start
+    if (dist <= 2) return
+    const durationMs = Math.min(2200, 420 + Math.sqrt(dist) * 2.4)
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / durationMs)
+      const eased = 1 - (1 - p) ** 3
+      el.scrollTop = start + dist * eased
+      if (p < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }, [])
+
+  const [showScrollLatestFab, setShowScrollLatestFab] = useState(false)
+
+  useEffect(() => {
+    const el = messagesContainerRef.current
+    if (!el || loading) {
+      setShowScrollLatestFab(false)
+      return
+    }
+    const thresholdPx = 96
+    const minMessagesForFab = 8
+    const update = () => {
+      const overflow = el.scrollHeight > el.clientHeight + 24
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx
+      setShowScrollLatestFab(
+        messages.length >= minMessagesForFab && overflow && !nearBottom && !loading,
+      )
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null
+    ro?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro?.disconnect()
+    }
+  }, [messages.length, loading, conversation?.user?.id])
 
   const normalizeAndSortMessages = (list: OnlyFansMessage[]) => {
     const byId = new Map<string, OnlyFansMessage>()
@@ -677,6 +806,7 @@ export function ChatWindow({
     }
 
     setMessages([])
+    setDmSendSourceByMessageId({})
     const loadMessages = async () => {
       setLoading(true)
       setError(null)
@@ -714,13 +844,19 @@ export function ChatWindow({
           { credentials: 'include' },
         )
           .then((r) => r.json())
-          .then((j: { events?: Array<{ onlyfans_message_id?: string | null }> }) => {
-            const ids = new Set<string>()
-            for (const e of j.events ?? []) {
-              if (e.onlyfans_message_id) ids.add(String(e.onlyfans_message_id))
-            }
-            if (ids.size) setDivineMessageIds((prev) => new Set([...prev, ...ids]))
-          })
+          .then(
+            (j: {
+              events?: Array<{ onlyfans_message_id?: string | null; source?: string | null }>
+            }) => {
+              const next: Record<string, DmSendSource> = {}
+              for (const e of j.events ?? []) {
+                const mid = e.onlyfans_message_id ? String(e.onlyfans_message_id) : ''
+                const src = typeof e.source === 'string' ? e.source.trim() : ''
+                if (mid && isDmSendSource(src)) next[mid] = src
+              }
+              if (Object.keys(next).length) setDmSendSourceByMessageId((prev) => ({ ...prev, ...next }))
+            },
+          )
           .catch(() => undefined)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load messages')
@@ -880,7 +1016,7 @@ export function ChatWindow({
         body: JSON.stringify(body),
       })
 
-      const data = (await res.json()) as {
+        const data = (await res.json()) as {
         error?: string
         message?: OnlyFansMessage & { id?: string | number }
       }
@@ -893,9 +1029,16 @@ export function ChatWindow({
         const mid = data.message.id != null ? String(data.message.id) : ''
         setMessages((prev) => normalizeAndSortMessages([...prev, data.message as OnlyFansMessage]))
         requestAnimationFrame(() => scrollMessagesListToBottomAfterSend())
-        const source = divinePanel?.consumePendingDmSendSource() ?? 'user'
+        const consumedDivine = divinePanel?.consumePendingDmSendSource() ?? 'user'
+        let source: DmSendSource = 'user'
+        if (consumedDivine !== 'user') {
+          source = consumedDivine
+        } else if (pendingComposerSuggestionRef.current !== 'user') {
+          source = pendingComposerSuggestionRef.current
+          pendingComposerSuggestionRef.current = 'user'
+        }
         if (source !== 'user') {
-          if (mid) setDivineMessageIds((prev) => new Set(prev).add(mid))
+          if (mid) setDmSendSourceByMessageId((prev) => ({ ...prev, [mid]: source }))
           void fetch('/api/divine/dm-send-event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1068,10 +1211,11 @@ export function ChatWindow({
       </div>
 
       {/* Scroll: thread + Divine AI — composer stays pinned below so send/input never clip */}
-      <div
-        ref={messagesContainerRef}
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          ref={messagesContainerRef}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+        >
         <div className="p-3 sm:p-4">
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center sm:min-h-[240px]">
@@ -1114,8 +1258,10 @@ export function ChatWindow({
                 typeof msg.isSentByMe === 'boolean'
                   ? msg.isSentByMe
                   : String(fromId ?? '') !== String(conversation.user.id)
-              const isDivineAssisted =
-                isCreator && divineMessageIds.has(String(msg.id))
+              const mid = String(msg.id)
+              const sendSource = isCreator ? resolveDmSendSource(dmSendSourceByMessageId, mid) : 'user'
+              const isAiAssisted = isCreator && sendSource !== 'user'
+              const creatorStyles = isCreator ? creatorBubbleStyles(sendSource) : null
               const fanSavedDeletedOnOF =
                 !isCreator && Boolean(msg._creatix?.removedFromPlatformAt)
               return (
@@ -1131,19 +1277,22 @@ export function ChatWindow({
                       'max-w-[82%] rounded-2xl px-4 py-2',
                       fanSavedDeletedOnOF
                         ? 'border-2 border-red-500/55 bg-red-950/55 text-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] dark:bg-red-950/70'
-                        : isDivineAssisted
-                          ? 'border border-violet-400/50 bg-violet-950/35 text-violet-50'
-                          : isCreator
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground'
+                        : isCreator && creatorStyles
+                          ? creatorStyles.bubble
+                          : 'bg-secondary text-secondary-foreground'
                     )}
                   >
-                    {isDivineAssisted && (
-                      <p className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-violet-200/90">
+                    {isAiAssisted && creatorStyles?.badgeLabel ? (
+                      <p
+                        className={cn(
+                          'mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide',
+                          creatorStyles.badgeMuted,
+                        )}
+                      >
                         <Sparkles className="h-3 w-3" />
-                        Divine-assisted
+                        {creatorStyles.badgeLabel}
                       </p>
-                    )}
+                    ) : null}
                     {msg.media && msg.media.length > 0 && (
                       <div className="mb-2 space-y-2">
                         {msg.media.map((m) => (
@@ -1176,11 +1325,9 @@ export function ChatWindow({
                             'text-[11px] font-semibold leading-snug',
                             fanSavedDeletedOnOF
                               ? 'text-red-200'
-                              : isDivineAssisted
-                                ? 'text-violet-200/80'
-                                : isCreator
-                                  ? 'text-primary-foreground/75'
-                                  : 'text-muted-foreground',
+                              : isCreator && creatorStyles
+                                ? creatorStyles.bodyMuted
+                                : 'text-muted-foreground',
                           )}
                         >
                           {fanSavedDeletedOnOF
@@ -1243,8 +1390,8 @@ export function ChatWindow({
                         'mt-1 text-xs',
                         fanSavedDeletedOnOF
                           ? 'text-red-200/75'
-                          : isDivineAssisted
-                            ? 'text-violet-200/70'
+                          : isCreator && creatorStyles
+                            ? creatorStyles.timestamp
                             : isCreator
                               ? 'text-primary-foreground/70'
                               : 'text-muted-foreground'
@@ -1262,6 +1409,33 @@ export function ChatWindow({
             <div className="h-0 shrink-0" aria-hidden />
           </div>
         )}
+        </div>
+        </div>
+
+        {showScrollLatestFab && (
+          <button
+            type="button"
+            className={cn(
+              'messages-scroll-latest-fab absolute z-20 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-opacity duration-300 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+              reserveDivineCrownSpace
+                ? 'bottom-3 right-[5.25rem] sm:right-[5.75rem]'
+                : 'bottom-3 right-3',
+            )}
+            aria-label="Scroll to latest messages"
+            title="Scroll to latest messages"
+            onClick={() => smoothScrollThreadToBottom()}
+          >
+            <span
+              className="pointer-events-none absolute inset-[-3px] rounded-full bg-[conic-gradient(from_0deg,#fbbf24,#a855f7,#e9d5ff,#f59e0b,#7c3aed,#d8b4fe,#fbbf24)] opacity-[0.95] motion-reduce:animate-none animate-[spin_14s_linear_infinite]"
+              aria-hidden
+            />
+            <span className="relative z-10 flex h-9 w-9 flex-col items-center justify-center rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-amber-950 shadow-md dark:from-amber-400 dark:via-amber-500 dark:to-amber-600">
+              <Crown className="h-[1.15rem] w-[1.15rem] shrink-0" aria-hidden />
+              <ChevronsDown className="-mt-0.5 h-2.5 w-2.5 opacity-90" aria-hidden />
+            </span>
+          </button>
+        )}
+
         </div>
 
         {/* Divine AI scrolls with the thread so the composer below never gets pushed off-screen */}
@@ -1411,7 +1585,11 @@ export function ChatWindow({
                           type="button"
                           className="w-full rounded border border-border bg-background px-2 py-1.5 text-left text-xs leading-snug hover:border-primary hover:bg-primary/5"
                           onClick={() => {
+                            const panel = activePanel
                             setActivePanel(null)
+                            if (panel === 'circe' || panel === 'venus' || panel === 'flirt') {
+                              pendingComposerSuggestionRef.current = panel
+                            }
                             void applyComposerTextAnimated(text, true, { skipAnimation: false })
                           }}
                         >
@@ -1432,7 +1610,6 @@ export function ChatWindow({
             </CollapsibleContent>
           </Collapsible>
         </div>
-      </div>
 
       {/* Composer + send: fixed to bottom of chat card (always visible) */}
       <div className="flex flex-shrink-0 flex-col border-t-2 border-border bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">

@@ -22,6 +22,7 @@ import {
   Bell,
   Mic,
 } from 'lucide-react'
+import { CreatorIndustryInsights } from '@/components/guide/creator-industry-insights'
 
 export default function GuidePage() {
   return (
@@ -58,6 +59,9 @@ export default function GuidePage() {
           <a href="#content" className="text-primary hover:underline">Content</a>
           <a href="#protection" className="text-primary hover:underline">Protection</a>
           <a href="#settings" className="text-primary hover:underline">Settings</a>
+          <a href="#creator-industry-insights" className="text-primary hover:underline">
+            Industry insights
+          </a>
           <a href="#troubleshooting" className="text-primary hover:underline">Troubleshooting</a>
         </CardContent>
       </Card>
@@ -501,6 +505,8 @@ export default function GuidePage() {
           </CardContent>
         </Card>
       </section>
+
+      <CreatorIndustryInsights />
 
       {/* Troubleshooting */}
       <section id="troubleshooting">

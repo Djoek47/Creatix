@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Check, Copy, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, Copy, ListTree, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -110,6 +110,7 @@ function EmptyCommenterMessage({
 export default function CommenterPage() {
   const searchParams = useSearchParams()
   const highlightId = searchParams.get('highlight')
+  const housekeepingSection = searchParams.get('section') === 'housekeeping'
 
   const [comments, setComments] = useState<ListComment[]>([])
   const [loading, setLoading] = useState(true)
@@ -194,6 +195,15 @@ export default function CommenterPage() {
     }, 400)
     return () => window.clearTimeout(t)
   }, [highlightId, comments.length])
+
+  useEffect(() => {
+    if (!housekeepingSection || typeof document === 'undefined') return
+    if (loading) return
+    const t = window.setTimeout(() => {
+      document.getElementById('commenter-housekeeping')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [housekeepingSection, loading])
 
   const onSync = async () => {
     setSyncing(true)
@@ -281,9 +291,12 @@ export default function CommenterPage() {
               AI Studio
             </Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2">
             <Sparkles className="h-7 w-7 text-amber-500" />
             Commenter
+            <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
+              MVP
+            </Badge>
           </h1>
           <p className="text-muted-foreground mt-1 max-w-xl text-sm">
             Fan comments on your posts—draft replies here, then paste on OnlyFans.
@@ -294,6 +307,39 @@ export default function CommenterPage() {
           Sync
         </Button>
       </div>
+
+      <Card
+        id="commenter-housekeeping"
+        className={cn(
+          'border-border/80 bg-muted/15',
+          housekeepingSection && 'ring-2 ring-amber-500/35',
+        )}
+      >
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2 font-semibold">
+            <ListTree className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden />
+            Housekeeping
+          </CardTitle>
+          <CardDescription>
+            Smart lists: sync OnlyFans user lists and Fansly CRM tags from your CRM rules (
+            <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
+              Fans → Arrangements
+            </Link>
+            ). Server cron keeps segments aligned—use with Commenter so public-comment signals land in the same CRM.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2 pb-4">
+          <Button variant="secondary" size="sm" asChild className="gap-2">
+            <Link href="/dashboard/fans#arrangements">
+              <ListTree className="h-4 w-4" aria-hidden />
+              Open Arrangements
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/settings">Integration settings</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {syncResult && (
         <p className="text-sm text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/30">{syncResult}</p>

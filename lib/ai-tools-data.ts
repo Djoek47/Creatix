@@ -40,9 +40,20 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Commenter',
     description: 'Post comments: CRM signals, personas, safety',
     longDescription:
-      'Full UI at **Dashboard → Commenter** (/dashboard/commenter). Ingests OnlyFans post/story/stream comments via webhooks and optional API sync. AI scores connotation, enriches fan profiles, drafts Circe (purple), Venus (gold), Flirt (pink), and Professional (neutral) public replies plus a Best pick — review only; copy to OnlyFans yourself. Flags stalking or high-risk comments for Divine notifications. Optional bolder monetization: divine_manager_settings.automation_rules JSON key commenter.sales_intensity to "bold".',
+      'Full UI at **Dashboard → Commenter** (/dashboard/commenter). Ingests OnlyFans post/story/stream comments via webhooks and optional API sync. AI scores connotation, enriches fan profiles, drafts Circe (purple), Venus (gold), Flirt (pink), and Professional (neutral) public replies plus a Best pick — review only; copy to OnlyFans yourself. Flags stalking or high-risk comments for Divine notifications. Optional bolder monetization: divine_manager_settings.automation_rules JSON key commenter.sales_intensity to "bold". **Housekeeping** (smart list sync) lives on the same page.',
     category: 'engagement',
-    badge: 'New',
+    badge: 'MVP',
+    credits: 0,
+    hasRunner: true,
+  },
+  {
+    id: 'housekeeping',
+    name: 'Housekeeping',
+    description: 'Smart lists: CRM segments & platform sync',
+    longDescription:
+      'Opens **Dashboard → Commenter** with the **Housekeeping** section: configure OnlyFans user lists and Fansly CRM tags from CRM rules (**Fans → Arrangements** / `divine_manager_settings.housekeeping_lists`). Server cron `housekeeping-fan-lists` keeps lists aligned. Use alongside Commenter to turn post-comment signals into the same CRM.',
+    category: 'engagement',
+    badge: 'MVP',
     credits: 0,
     hasRunner: true,
   },
@@ -76,6 +87,16 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     description: 'Background retention radar + deep dives',
     longDescription:
       'Hub: **Dashboard → Retention** schedules batch churn digests while you are away (expiring subs + quiet actives), sends Divine notifications, and stores the last markdown report. Manual mode in AI Studio still runs a 2-credit single-fan analysis with full CRM + thread context.',
+    category: 'analytics',
+    credits: 2,
+    hasRunner: true,
+  },
+  {
+    id: 'retention-tease',
+    name: 'Retention content tease',
+    description: 'Future-drop & calendar teasers for churn risk',
+    longDescription:
+      'On **Dashboard → Retention**, add optional calendar notes and run a batch digest: Circe suggests feed/story/DM teasers for subscribers at risk, aligned with your upcoming content. Uses the same credits per run as background Churn Predictor.',
     category: 'analytics',
     credits: 2,
     hasRunner: true,

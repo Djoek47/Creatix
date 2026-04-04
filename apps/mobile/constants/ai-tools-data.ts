@@ -37,9 +37,20 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Commenter',
     description: 'Post comments: CRM signals, personas, safety',
     longDescription:
-      'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, and safety flags.',
+      'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, safety flags, and Housekeeping (smart lists).',
     category: 'engagement',
-    badge: 'New',
+    badge: 'MVP',
+    credits: 0,
+    hasRunner: true,
+  },
+  {
+    id: 'housekeeping',
+    name: 'Housekeeping',
+    description: 'Smart lists: CRM segments & platform sync',
+    longDescription:
+      'Web-only: /dashboard/commenter?section=housekeeping or Fans → Arrangements for housekeeping_lists rules.',
+    category: 'engagement',
+    badge: 'MVP',
     credits: 0,
     hasRunner: true,
   },
@@ -73,6 +84,16 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     description: 'Background retention radar + deep dives',
     longDescription:
       'Retention hub: scheduled batch digests (expiring + quiet subs) with notifications; manual single-fan runs in AI Studio.',
+    category: 'analytics',
+    credits: 2,
+    hasRunner: true,
+  },
+  {
+    id: 'retention-tease',
+    name: 'Retention content tease',
+    description: 'Future-drop & calendar teasers for churn risk',
+    longDescription:
+      'On web: Dashboard → Retention — optional calendar notes and batch digest with teaser lines for at-risk fans.',
     category: 'analytics',
     credits: 2,
     hasRunner: true,

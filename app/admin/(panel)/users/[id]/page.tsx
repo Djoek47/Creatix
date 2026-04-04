@@ -8,19 +8,51 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserUsageChart } from '@/components/admin/user-usage-chart'
+import { AdminUserUsageWebhookForm } from '@/components/admin/user-usage-webhook-form'
 import { Badge } from '@/components/ui/badge'
 
 type Props = { params: Promise<{ id: string }> }
 
 export default async function AdminUserDetailPage({ params }: Props) {
   const { id } = await params
-  const [{ profile, usage, errors, usageSumUsd90d }, connections, daily] = await Promise.all([
+  const [
+    {
+      profile,
+      usage,
+      errors,
+      usageSumUsd90d,
+      subscription,
+      usageWebhook,
+      usageByFeature90d,
+      usageByProvider90d,
+      appCreditUsdRate,
+      appCreditsUsdEquivalent,
+      messageSendEvents90d,
+      voiceState90d,
+    },
+    connections,
+    daily,
+  ] = await Promise.all([
     adminUserDetail(id),
     adminUserPlatformConnections(id),
     adminUserUsageDailySeries(id, 30),
   ])
 
   if (!profile) notFound()
+
+  const fmtUsd = (n: number) =>
+    n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 4 })
+
+  const fmtMs = (ms: number) => {
+    if (ms <= 0) return '0s'
+    const s = Math.floor(ms / 1000)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    if (h > 0) return `${h}h ${m}m`
+    if (m > 0) return `${m}m ${sec}s`
+    return `${sec}s`
+  }
 
   const p = profile as {
     id: string
@@ -65,6 +97,84 @@ export default async function AdminUserDetailPage({ params }: Props) {
               })}
             </div>
           </div>
+          {subscription && (
+            <>
+              <div>
+                <span className="text-muted-foreground">Plan</span>
+                <div>{subscription.plan_id ?? '—'}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">App AI credits (used / limit)</span>
+                <div className="tabular-nums">
+                  {subscription.ai_credits_used.toLocaleString()} /{' '}
+                  {subscription.ai_credits_limit >= 999999
+                    ? '∞'
+                    : subscription.ai_credits_limit.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Credits → USD (display)</span>
+                <div className="tabular-nums">
+                  {fmtUsd(appCreditsUsdEquivalent)} @ {fmtUsd(appCreditUsdRate)} / credit
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Messages sent (subscription counter)</span>
+                <div className="tabular-nums">{subscription.messages_sent.toLocaleString()}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Message send events (90d audit)</span>
+                <div className="tabular-nums">{messageSendEvents90d.toLocaleString()}</div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-base">Divine voice time (90d, UTC days)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <span className="text-muted-foreground">Idle</span>
+            <div className="tabular-nums">{fmtMs(voiceState90d.idle)}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Working (tools)</span>
+            <div className="tabular-nums">{fmtMs(voiceState90d.working)}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Speaking (assistant audio)</span>
+            <div className="tabular-nums">{fmtMs(voiceState90d.speaking)}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Total connected (sum of states)</span>
+            <div className="tabular-nums">{fmtMs(voiceState90d.total)}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-base">AI usage webhook (per user)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            OpenAI / xAI do not expose per-creator webhooks on a shared API key. We POST each logged{' '}
+            <code className="text-xs">ai.usage</code> event to your HTTPS URL; optional HMAC in{' '}
+            <code className="text-xs">X-Creatix-Signature: sha256=…</code> when a secret is set.
+          </p>
+          {usageWebhook && (
+            <p className="text-xs">
+              Current: {usageWebhook.enabled ? 'on' : 'off'} ·{' '}
+              <span className="break-all text-foreground">{usageWebhook.url}</span>
+            </p>
+          )}
+          <AdminUserUsageWebhookForm
+            userId={p.id}
+            initial={usageWebhook ? { url: usageWebhook.url, enabled: usageWebhook.enabled } : null}
+          />
         </CardContent>
       </Card>
 
@@ -99,6 +209,76 @@ export default async function AdminUserDetailPage({ params }: Props) {
         </CardContent>
       </Card>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="text-base">By feature (90d)</CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[280px] overflow-auto p-0 sm:p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Feature</TableHead>
+                  <TableHead className="text-right">USD</TableHead>
+                  <TableHead className="text-right">Events</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usageByFeature90d.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-muted-foreground">
+                      No events.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  usageByFeature90d.map((r) => (
+                    <TableRow key={r.feature}>
+                      <TableCell className="max-w-[180px] truncate font-mono text-xs">{r.feature}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmtUsd(r.estimated_usd)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{r.events}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="text-base">By provider (90d)</CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[280px] overflow-auto p-0 sm:p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Provider</TableHead>
+                  <TableHead className="text-right">USD</TableHead>
+                  <TableHead className="text-right">Events</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usageByProvider90d.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-muted-foreground">
+                      No events.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  usageByProvider90d.map((r) => (
+                    <TableRow key={r.bucket}>
+                      <TableCell className="text-xs">{r.label}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmtUsd(r.estimated_usd)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{r.events}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
       <div>
         <h2 className="mb-2 font-medium">Estimated cost by day (30d)</h2>
         <div className="rounded-md border border-border p-4">
@@ -114,6 +294,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
               <TableRow>
                 <TableHead>When</TableHead>
                 <TableHead>Feature</TableHead>
+                <TableHead>Provider</TableHead>
                 <TableHead>Model</TableHead>
                 <TableHead className="text-right">In</TableHead>
                 <TableHead className="text-right">Out</TableHead>
@@ -124,7 +305,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
             <TableBody>
               {usage.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-muted-foreground">
+                  <TableCell colSpan={8} className="text-muted-foreground">
                     No events.
                   </TableCell>
                 </TableRow>
@@ -134,6 +315,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                     id: string
                     created_at: string
                     feature: string
+                    provider: string
                     model: string
                     input_tokens: number
                     output_tokens: number
@@ -150,6 +332,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                         {new Date(u.created_at).toLocaleString()}
                       </TableCell>
                       <TableCell className="max-w-[140px] truncate text-xs">{u.feature}</TableCell>
+                      <TableCell className="max-w-[100px] truncate text-xs">{u.provider}</TableCell>
                       <TableCell className="max-w-[160px] truncate text-xs">{u.model}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{u.input_tokens}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{u.output_tokens}</TableCell>

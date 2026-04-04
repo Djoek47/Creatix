@@ -93,6 +93,16 @@ export async function runAiStudioToolServer(
     }
   }
 
+  if (toolId === 'housekeeping') {
+    return {
+      success: true,
+      result: {
+        content:
+          'Housekeeping (smart list sync) is configured in the web dashboard: open Dashboard → Commenter and use the Housekeeping section, or Fans → Arrangements (/dashboard/fans#arrangements) for `housekeeping_lists` rules. Cron `housekeeping-fan-lists` syncs OnlyFans lists / Fansly tags. No API execution here.',
+      },
+    }
+  }
+
   if (isDivineAiToolId(toolId)) {
     return runDivineAiToolServer(toolId as DivineAiToolId, a, cookie)
   }

@@ -32,6 +32,12 @@ export async function POST(req: NextRequest) {
           'Commenter is a full web dashboard experience only. Open Dashboard → Commenter (/dashboard/commenter) in your browser to sync OnlyFans comments, review persona reply drafts, and see safety flags.',
       })
     }
+    if (toolId === 'housekeeping') {
+      return NextResponse.json({
+        content:
+          'Housekeeping (smart list sync) runs in the web app: open Dashboard → Commenter with ?section=housekeeping or Fans → Arrangements (/dashboard/fans#arrangements) to edit list rules.',
+      })
+    }
     const toolName = meta?.name ?? toolId
     const toolDesc = meta?.longDescription ?? meta?.description ?? ''
     const formatHint =

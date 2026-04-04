@@ -21,11 +21,72 @@ export type CirceChurnSettingsRow = {
   credits_per_run: number
   link_divine_manager_tasks?: boolean
   link_protocol_tasks?: boolean
+  /** When true (default), digest includes future-drop / calendar teaser lines for at-risk fans. */
+  tease_future_content?: boolean
+  /** Optional creator notes: upcoming themes, days, or drops for teaser ideas. */
+  calendar_teaser_notes?: string | null
   last_run_at: string | null
   last_run_error: string | null
   last_digest_excerpt: string | null
   last_digest_markdown?: string | null
   last_digest_at?: string | null
+}
+
+export function defaultCirceChurnSettings(userId: string): CirceChurnSettingsRow {
+  return {
+    user_id: userId,
+    enabled: false,
+    run_cadence: 'off',
+    run_hour_utc: 9,
+    expiring_within_days: 14,
+    stale_interaction_days: 10,
+    include_stale_active: true,
+    max_fans_per_run: 6,
+    notify_on_run_summary: true,
+    notify_when_empty: false,
+    credits_per_run: 2,
+    link_divine_manager_tasks: true,
+    link_protocol_tasks: true,
+    tease_future_content: true,
+    calendar_teaser_notes: null,
+    last_run_at: null,
+    last_run_error: null,
+    last_digest_excerpt: null,
+    last_digest_markdown: null,
+    last_digest_at: null,
+  }
+}
+
+function churnDigestSystemPrompt(settings: CirceChurnSettingsRow): string {
+  const teaseOn = settings.tease_future_content !== false
+  const teaseBlock = teaseOn
+    ? `
+
+Also under each fan section (after Draft DM), add:
+- **Future content teaser**: 2–3 short lines for feed, story, or DM — something worth staying subscribed for is coming, without inventing specifics the creator did not provide.
+- **Calendar teaser**: If the batch prompt includes the creator's schedule notes, align teasers to those days/themes; otherwise suggest a tasteful "this week / weekend" rhythm without fake dates.
+
+Stay platform-appropriate; no harassment or pressure tactics.`
+    : ''
+
+  return `You are Circe's Churn Predictor (background job). You receive several at-risk subscribers at once.
+
+Output markdown with:
+## Summary
+2–4 sentences on overall churn themes for this batch.
+
+Then for EACH fan (use @username headings):
+- **Risk**: Low / Medium / High / Critical + one-line why (expiry, silence, spend cooling, renew off…)
+- **Likely reasons**: bullets (inference, not accusation)
+- **Free or unlock ideas**: 2 concrete ideas — e.g. which type of past PPV/set to gift, teaser clip, loyalty perk, time-limited unlock — platform-safe, no harassment
+- **Next actions**: 2–3 bullets (DM angle, post, mass-DM segment — be specific)
+- **Draft DM**: one short warm message they can edit${teaseBlock}
+
+After the markdown, output ONE fenced JSON block exactly in this shape (use real fan UUIDs from the "### Fan id …" headers above):
+\`\`\`json
+{ "fans": [ { "fanId": "<uuid>", "risk": "High", "one_line": "short reason for inbox" } ] }
+\`\`\`
+Include every fan in the batch. Risk must be one of: Low, Medium, High, Critical.`
 }
 
 function utcYmd(d: Date): string {
@@ -143,12 +204,13 @@ export type RunCirceChurnForUserResult = {
 export async function runCirceChurnForUser(
   supabase: SupabaseClient,
   settings: CirceChurnSettingsRow,
-  options?: { dryRun?: boolean; now?: Date },
+  options?: { dryRun?: boolean; now?: Date; force?: boolean },
 ): Promise<RunCirceChurnForUserResult> {
   const now = options?.now ?? new Date()
   const dryRun = options?.dryRun === true || process.env.CHURN_DRY_RUN === 'true'
+  const force = options?.force === true
 
-  if (!isChurnDueForRun(settings, now)) {
+  if (!force && !isChurnDueForRun(settings, now)) {
     return { ran: false, skippedReason: 'not_due' }
   }
 
@@ -270,33 +332,24 @@ export async function runCirceChurnForUser(
     )
   }
 
+  const calendarBlock =
+    settings.tease_future_content !== false
+      ? `
+
+Creator upcoming content / calendar notes (optional — use only for teaser ideas; if empty, suggest generic angles):
+${(settings.calendar_teaser_notes || '').trim() || '(not provided)'}`
+      : ''
+
   let digest = ''
   try {
     const { text } = await generateText({
       model: 'anthropic/claude-sonnet-4',
-      system: `You are Circe's Churn Predictor (background job). You receive several at-risk subscribers at once.
+      system: `${churnDigestSystemPrompt(settings)}
 
-Output markdown with:
-## Summary
-2–4 sentences on overall churn themes for this batch.
-
-Then for EACH fan (use @username headings):
-- **Risk**: Low / Medium / High / Critical + one-line why (expiry, silence, spend cooling, renew off…)
-- **Likely reasons**: bullets (inference, not accusation)
-- **Free or unlock ideas**: 2 concrete ideas — e.g. which type of past PPV/set to gift, teaser clip, loyalty perk, time-limited unlock — platform-safe, no harassment
-- **Next actions**: 2–3 bullets (DM angle, post, mass-DM segment — be specific)
-- **Draft DM**: one short warm message they can edit
-
-Stay practical, adult-platform appropriate, no illegal or coercive tactics.
-
-After the markdown, output ONE fenced JSON block exactly in this shape (use real fan UUIDs from the "### Fan id …" headers above):
-\`\`\`json
-{ "fans": [ { "fanId": "<uuid>", "risk": "High", "one_line": "short reason for inbox" } ] }
-\`\`\`
-Include every fan in the batch. Risk must be one of: Low, Medium, High, Critical.`,
+Stay practical, adult-platform appropriate, no illegal or coercive tactics.`,
       prompt: `Analyze this batch of CRM fans for retention.
 
-${blocks.join('\n\n---\n\n')}`,
+${blocks.join('\n\n---\n\n')}${calendarBlock}`,
     })
     digest = text
   } catch (e) {

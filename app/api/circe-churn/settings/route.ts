@@ -1,31 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+import { defaultCirceChurnSettings, type CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
 
 const CADENCES = new Set(['off', 'daily', 'weekly'])
-
-function defaultsForUser(userId: string): CirceChurnSettingsRow {
-  return {
-    user_id: userId,
-    enabled: false,
-    run_cadence: 'off',
-    run_hour_utc: 9,
-    expiring_within_days: 14,
-    stale_interaction_days: 10,
-    include_stale_active: true,
-    max_fans_per_run: 6,
-    notify_on_run_summary: true,
-    notify_when_empty: false,
-    credits_per_run: 2,
-    link_divine_manager_tasks: true,
-    link_protocol_tasks: true,
-    last_run_at: null,
-    last_run_error: null,
-    last_digest_excerpt: null,
-    last_digest_markdown: null,
-    last_digest_at: null,
-  }
-}
 
 export async function GET(request: NextRequest) {
   const supabase = await createRouteHandlerClient(request)
@@ -39,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { data: row } = await supabase.from('circe_churn_settings').select('*').eq('user_id', user.id).maybeSingle()
 
   if (!row) {
-    return NextResponse.json({ settings: defaultsForUser(user.id) })
+    return NextResponse.json({ settings: defaultCirceChurnSettings(user.id) })
   }
 
   return NextResponse.json({ settings: row })
@@ -101,6 +78,11 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.notify_when_empty === 'boolean') patch.notify_when_empty = body.notify_when_empty
   if (typeof body.link_divine_manager_tasks === 'boolean') patch.link_divine_manager_tasks = body.link_divine_manager_tasks
   if (typeof body.link_protocol_tasks === 'boolean') patch.link_protocol_tasks = body.link_protocol_tasks
+  if (typeof body.tease_future_content === 'boolean') patch.tease_future_content = body.tease_future_content
+  if (typeof body.calendar_teaser_notes === 'string') {
+    const t = body.calendar_teaser_notes.trim()
+    patch.calendar_teaser_notes = t.length ? t.slice(0, 4000) : null
+  }
 
   if (typeof body.max_fans_per_run === 'number' && Number.isInteger(body.max_fans_per_run)) {
     if (body.max_fans_per_run < 1 || body.max_fans_per_run > 25) {

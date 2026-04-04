@@ -15,6 +15,7 @@ import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protoco
 import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
 import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
 import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
+import { logUsageEvent } from '@/lib/usage/server-log'
 
 export const maxDuration = 30
 
@@ -1220,6 +1221,19 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
     }
 
     const answerSdp = await res.text()
+
+    logUsageEvent({
+      userId: user.id,
+      feature: 'divine-manager-realtime-session',
+      provider: 'openai',
+      model: 'gpt-realtime',
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      metadata: {
+        kind: 'webrtc_sdp_exchange',
+        note: 'Token/cost for Realtime is session-based; see OpenAI usage dashboard. Client also reports voice state time to admin.',
+      },
+    })
+
     return new NextResponse(answerSdp, {
       headers: { 'Content-Type': 'application/sdp' },
     })

@@ -9,6 +9,7 @@ import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
+import { CirceTipPopupHost } from '@/components/community/circe-tip-popup'
 import { ProtocolTasksProvider } from '@/components/divine/protocol-tasks-context'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
@@ -65,6 +66,7 @@ export default async function DashboardLayout({
               </div>
             </div>
             <VoiceControlPopup />
+            <CirceTipPopupHost />
           </VoiceSessionProvider>
           </ProtocolTasksProvider>
         </DivinePanelWrapper>

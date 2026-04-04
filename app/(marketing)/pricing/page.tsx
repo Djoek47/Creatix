@@ -13,7 +13,7 @@ import {
 import {
   REVENUE_TIERS,
   focusFanslyUsd,
-  focusManyvidsUsd,
+  MANYVIDS_FOCUS_SINGLE_FLAT_USD,
   twoPlatformFocusUsd,
   percentVsOnlyFansBase,
   percentSavingsTwoPlatformFocus,
@@ -59,7 +59,7 @@ function SavingsGlanceCard({
 }
 
 const PRICING_DESCRIPTION =
-  'Revenue-based pricing vs OnlyFans base: Fansly −10%, ManyVids −25%; two-platform Focus sums line prices with pair discounts (+5% for Fansly+ManyVids); or Unified for all three. Free interactive calculator and full USD matrix. 14-day free trial.'
+  'Revenue-based pricing: Fansly line −10% vs OF base (capped at $200/mo); ManyVids solo Focus $39/mo any tier; pair lines use bundle math; Unified for all three. Per-seat billing for multiple managers. Calculator + matrix. 14-day trial.'
 
 export const metadata: Metadata = {
   title: 'Pricing | Circe et Venus',
@@ -258,7 +258,7 @@ export default function PricingPage() {
                   <tbody>
                     {REVENUE_TIERS.map((row) => {
                       const fl = focusFanslyUsd(row)
-                      const mv = focusManyvidsUsd(row)
+                      const mv = MANYVIDS_FOCUS_SINGLE_FLAT_USD
                       const ofFl = twoPlatformFocusUsd(row, 'onlyfans', 'fansly')
                       const unifiedPct = percentVsOnlyFansBase(row, row.multiPriceUsd)
                       return (

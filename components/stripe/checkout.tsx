@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react'
 import type { BillingVariant } from '@/lib/pricing-matrix'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
+import { DEFAULT_BILLING_SEATS } from '@/lib/billing/seats'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -22,6 +23,8 @@ interface CheckoutProps {
   tierIndex?: number
   /** Focus (`single`): 1–2 platforms; omit for Unified (`multi`). */
   focusPlatforms?: AdultBillingPlatform[] | null
+  /** Managers on the same creator account (multiplies monthly price). */
+  seats?: number
   buttonText?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
@@ -34,6 +37,7 @@ export function Checkout({
   billingVariant,
   tierIndex,
   focusPlatforms,
+  seats = DEFAULT_BILLING_SEATS,
   buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
@@ -55,13 +59,14 @@ export function Checkout({
           tierIndex,
           focusPlatforms:
             billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
+          seats,
         })
       }
       return await startCheckoutSession(productId)
     } finally {
       setLoading(false)
     }
-  }, [productId, billingVariant, tierIndex, focusPlatforms])
+  }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -95,11 +100,13 @@ export function CheckoutEmbed({
   billingVariant,
   tierIndex,
   focusPlatforms,
+  seats = DEFAULT_BILLING_SEATS,
 }: {
   productId: string
   billingVariant?: BillingVariant
   tierIndex?: number
   focusPlatforms?: AdultBillingPlatform[] | null
+  seats?: number
 }) {
   const fetchClientSecret = useCallback(() => {
     if (productId === PAID_PLAN_ID) {
@@ -111,10 +118,11 @@ export function CheckoutEmbed({
         tierIndex,
         focusPlatforms:
           billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
+        seats,
       })
     }
     return startCheckoutSession(productId)
-  }, [productId, billingVariant, tierIndex, focusPlatforms])
+  }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
 
   return (
     <div id="checkout">

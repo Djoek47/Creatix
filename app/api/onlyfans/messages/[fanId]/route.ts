@@ -12,6 +12,8 @@ import {
   upsertOnlyFansDmMessageCache,
 } from '@/lib/messages/of-dm-cache'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { logMessageSendEvent } from '@/lib/usage/log-message-send'
+import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
 
 class OnlyFansNotConnectedError extends Error {
   override readonly name = 'OnlyFansNotConnectedError'
@@ -257,6 +259,15 @@ export async function POST(
     })
 
     await upsertOnlyFansDmMessageCache(supabase, user.id, fanId, [result])
+
+    logMessageSendEvent({
+      userId: user.id,
+      platform: 'onlyfans',
+      fanId,
+      source: 'chat_dm',
+      metadata: { hasMedia: hasMedia, hasPrice: typeof price === 'number' && price > 0 },
+    })
+    bumpSubscriptionMessagesSent(user.id, 1)
 
     return NextResponse.json({
       success: true,

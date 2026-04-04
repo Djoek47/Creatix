@@ -34,6 +34,8 @@ import {
   Leaf,
   Compass,
   MessagesSquare,
+  ListTree,
+  Calendar,
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
@@ -46,12 +48,14 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'photo-enhancer': Camera,
   'ai-chatter': MessageSquare,
   commenter: MessagesSquare,
+  housekeeping: ListTree,
   'mood-detector': Brain,
   'gift-suggester': Gift,
   'whale-whisperer': Crown,
   'price-optimizer': Target,
   'viral-predictor': Flame,
   'churn-predictor': BarChart3,
+  'retention-tease': Calendar,
   'leak-scanner': Shield,
   'dmca-automator': Scroll,
   'voice-cloning': Music,
@@ -188,9 +192,13 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                   ? '/dashboard/settings?tab=billing#pricing-plans'
                   : tool.id === 'commenter'
                     ? '/dashboard/commenter'
-                    : tool.id === 'churn-predictor'
-                      ? '/dashboard/retention/churn'
-                      : `/dashboard/ai-studio/tools/${tool.id}`
+                    : tool.id === 'housekeeping'
+                      ? '/dashboard/commenter?section=housekeeping'
+                      : tool.id === 'churn-predictor'
+                        ? '/dashboard/retention/churn'
+                        : tool.id === 'retention-tease'
+                          ? '/dashboard/retention/churn#future-tease'
+                          : `/dashboard/ai-studio/tools/${tool.id}`
               return (
                 <Link key={tool.id} href={href} className="group block">
                   <Card

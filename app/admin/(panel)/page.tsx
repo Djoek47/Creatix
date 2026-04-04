@@ -3,6 +3,7 @@ import { adminOverviewExtended } from '@/lib/admin/queries'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { AdminRecalculateTelemetryButton } from '@/components/admin/recalculate-telemetry-button'
 import { cn } from '@/lib/utils'
 
 export default async function AdminOverviewPage() {
@@ -24,7 +25,8 @@ export default async function AdminOverviewPage() {
             Overall telemetry, per-user leaders (30d), provider spend, app AI credits, and auth activity.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-start gap-2">
+          <AdminRecalculateTelemetryButton />
           <Button variant="outline" size="sm" asChild>
             <a href="/api/admin/export/usage?days=30" target="_blank" rel="noreferrer">
               Export usage CSV

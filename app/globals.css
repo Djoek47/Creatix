@@ -545,6 +545,57 @@
   animation: divine-crown-ending-red 0.9s ease-in-out infinite;
 }
 
+/* Collapsed crown during call — align with in-pill Mic colors (emerald / amber / red) */
+@keyframes divine-crown-mic-emerald-pulse {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      inset 0 0 0 1px rgb(16 185 129 / 0.38),
+      0 0 12px 0 rgb(16 185 129 / 0.22);
+  }
+  50% {
+    filter: brightness(1.07) saturate(1.06);
+    box-shadow:
+      inset 0 0 0 1px rgb(16 185 129 / 0.55),
+      0 0 22px 1px rgb(16 185 129 / 0.32);
+  }
+}
+
+@keyframes divine-crown-mic-amber-pulse {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+    box-shadow:
+      inset 0 0 0 1px rgb(245 158 11 / 0.4),
+      0 0 12px 0 rgb(245 158 11 / 0.2);
+  }
+  50% {
+    filter: brightness(1.08) saturate(1.08);
+    box-shadow:
+      inset 0 0 0 1px rgb(245 158 11 / 0.58),
+      0 0 22px 1px rgb(245 158 11 / 0.3);
+  }
+}
+
+.divine-crown-mic-connected {
+  background: linear-gradient(180deg, oklch(0.78 0.14 160), oklch(0.62 0.14 160));
+  color: oklch(0.16 0.05 160);
+  animation: divine-crown-mic-emerald-pulse 2s ease-in-out infinite;
+}
+
+.divine-crown-mic-connecting {
+  background: linear-gradient(180deg, oklch(0.86 0.16 75), oklch(0.72 0.16 70));
+  color: oklch(0.22 0.06 70);
+  animation: divine-crown-mic-amber-pulse 2s ease-in-out infinite;
+}
+
+.divine-crown-mic-error {
+  background: linear-gradient(180deg, oklch(0.68 0.22 25), oklch(0.55 0.22 22));
+  color: oklch(0.98 0.01 25);
+  animation: divine-crown-ending-red 0.9s ease-in-out infinite;
+}
+
 /* Notifications bell: Divine realtime briefing — gold ↔ purple rainbow glow */
 @keyframes divine-briefing-gold-purple-glow {
   0%,

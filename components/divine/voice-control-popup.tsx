@@ -35,7 +35,7 @@ export function VoiceControlPopup() {
   const [expanded, setExpanded] = useState(false)
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [skipLauncher, setSkipLauncher] = useState(false)
-  const crownStateClass = useDivineCrownStateClass()
+  const crownStateClass = useDivineCrownStateClass(expanded)
 
   const loadFabSettings = useCallback(async () => {
     try {
@@ -64,9 +64,9 @@ export function VoiceControlPopup() {
 
   useEffect(() => {
     if (!voice) return
-    if (isActive) setExpanded(true)
+    // Collapse when the call fully ends; do not force-expand while connected — user can collapse and read status on the crown (mic-style colors).
     if (!hasStartedCall) setExpanded(false)
-  }, [voice, isActive, hasStartedCall])
+  }, [voice, hasStartedCall])
 
   if (!voice) return null
 
@@ -108,8 +108,10 @@ export function VoiceControlPopup() {
   }
 
   const crownClassName = cn(
-    'divine-fab-crown divine-crown-trigger grid h-[4.125rem] w-[4.125rem] min-h-[66px] min-w-[66px] shrink-0 place-items-center p-0 leading-none transition-colors',
-    expanded ? 'rounded-none border-l border-white/15' : 'rounded-full border border-white/15 shadow-lg',
+    'divine-fab-crown divine-crown-trigger grid w-[4.125rem] min-w-[66px] shrink-0 place-items-center p-0 leading-none transition-colors',
+    expanded
+      ? 'h-full min-h-[4.125rem] self-stretch rounded-none border-l border-white/15'
+      : 'h-[4.125rem] min-h-[66px] rounded-full border border-white/15 shadow-lg',
     crownStateClass,
     'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-0',
   )
@@ -252,13 +254,20 @@ export function VoiceControlPopup() {
       )
     }
 
+    const collapsedCallLabel =
+      status === 'error'
+        ? 'Divine voice error — expand for details'
+        : status === 'connecting'
+          ? 'Divine voice connecting — expand for controls'
+          : 'Divine voice active — expand for End and tools'
+
     return (
       <button
         type="button"
         onClick={handleCrownToggleExpand}
         className={crownClassName}
-        aria-label={expanded ? 'Collapse Divine voice control' : 'Expand Divine voice control'}
-        title={expanded ? 'Collapse Divine voice control' : 'Expand Divine voice control'}
+        aria-label={expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control'}
+        title={expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control'}
       >
         <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
       </button>
@@ -279,22 +288,22 @@ export function VoiceControlPopup() {
         <DivineProtocolTaskRail />
         <div
           className={cn(
-            'flex h-[4.125rem] min-h-[66px] items-center overflow-hidden rounded-full transition-all duration-300',
+            'flex overflow-hidden rounded-full transition-all duration-300',
             expanded
-              ? 'divine-voice-pill-expanded w-[min(92vw,660px)] bg-card/95 shadow-lg backdrop-blur-sm'
-              : 'h-[4.125rem] w-[4.125rem] min-h-[66px] min-w-[66px] border-0 bg-transparent shadow-none',
+              ? 'divine-voice-pill-expanded h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch bg-card/95 shadow-lg backdrop-blur-sm'
+              : 'h-[4.125rem] min-h-[66px] w-[4.125rem] min-w-[66px] items-center border-0 bg-transparent shadow-none',
           )}
         >
           <div
             className={cn(
               'min-w-0 transition-all duration-300',
-              expanded ? 'w-full px-3 py-2 opacity-100' : 'w-0 px-0 py-0 opacity-0',
+              expanded ? 'flex-1 px-3 py-2.5 opacity-100' : 'w-0 px-0 py-0 opacity-0',
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div
                 className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                  'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
                   status === 'error'
                     ? 'bg-red-500/10 text-red-500'
                     : status === 'connecting'
@@ -307,8 +316,8 @@ export function VoiceControlPopup() {
                 <Mic className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium leading-tight">Divine voice: {primaryLabel}</span>
-                <span className="block text-xs text-muted-foreground leading-tight">
+                <span className="block text-[13px] font-medium leading-snug">Divine voice: {primaryLabel}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
                   You can keep browsing; call stays active.
                 </span>
                 <DivineWorkingLogo
@@ -321,14 +330,14 @@ export function VoiceControlPopup() {
                 ref={voiceVizRef}
                 width={94}
                 height={33}
-                className="hidden rounded-md bg-muted sm:block"
+                className="hidden shrink-0 self-center rounded-md bg-muted sm:block"
               />
               {!isActive ? (
-                <Button size="sm" className="h-8 text-xs" onClick={() => { void startVoiceCall() }}>
+                <Button size="sm" className="h-8 shrink-0 self-center text-xs" onClick={() => { void startVoiceCall() }}>
                   Start call
                 </Button>
               ) : (
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex shrink-0 flex-col items-end gap-1 self-center">
                   <div className="flex items-center gap-1">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

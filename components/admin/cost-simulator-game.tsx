@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   computeDailyCostScenario,
+  SERPER_USD_PER_SEARCH,
   SIMULATOR_DAYS_PER_MONTH,
   type CostSimulatorInput,
 } from '@/lib/admin/cost-simulator-model'
@@ -51,6 +52,9 @@ export function AdminCostSimulatorGame() {
   const [focusPresetId, setFocusPresetId] = useState('of')
   const [crewSize, setCrewSize] = useState(3)
   const [intensity, setIntensity] = useState(55)
+  const [fansDaily, setFansDaily] = useState(140)
+  const [reputationRunsDaily, setReputationRunsDaily] = useState(0.2)
+  const [leakRunsDaily, setLeakRunsDaily] = useState(0.15)
 
   const focusPlatforms = useMemo(() => {
     return FOCUS_PRESETS.find((p) => p.id === focusPresetId)?.platforms ?? ['onlyfans']
@@ -64,8 +68,21 @@ export function AdminCostSimulatorGame() {
       focusPlatforms: planKind === 'trial' || billingVariant === 'multi' ? ['onlyfans'] : focusPlatforms,
       crewSize,
       intensity,
+      fansInteractedPerUserPerDay: fansDaily,
+      reputationScanRunsPerUserPerDay: reputationRunsDaily,
+      leakScanRunsPerUserPerDay: leakRunsDaily,
     }),
-    [planKind, billingVariant, tierIndex, focusPlatforms, crewSize, intensity],
+    [
+      planKind,
+      billingVariant,
+      tierIndex,
+      focusPlatforms,
+      crewSize,
+      intensity,
+      fansDaily,
+      reputationRunsDaily,
+      leakRunsDaily,
+    ],
   )
 
   const result = useMemo(() => computeDailyCostScenario(input), [input])
@@ -97,10 +114,11 @@ export function AdminCostSimulatorGame() {
           </Badge>
         </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          All figures are <strong className="text-foreground">per day</strong>. Subscription is prorated as
-          monthly ÷ {SIMULATOR_DAYS_PER_MONTH}. Provider cost blends <strong className="text-foreground">five</strong>{' '}
-          active lanes (chatter, gateway, 4o-class, Sonnet-class, Grok) so the sim leans into “using most of the
-          product,” not a single cheap model.
+          All figures are <strong className="text-foreground">per day</strong>. Subscription is prorated as monthly ÷{' '}
+          {SIMULATOR_DAYS_PER_MONTH}. Provider cost stacks <strong className="text-foreground">five</strong> core LLM
+          lanes, <strong className="text-foreground">fan-touch</strong> volume (mini-class tokens per fan you interact
+          with), and <strong className="text-foreground">Serper</strong> searches for reputation discovery vs DMCA/leak
+          scans ({fmtUsd(SERPER_USD_PER_SEARCH)} / search baseline — tune if your Serper tier differs).
         </p>
       </div>
 
@@ -208,7 +226,51 @@ export function AdminCostSimulatorGame() {
                 onValueChange={(v) => setIntensity(v[0] ?? 0)}
               />
               <p className="text-xs text-muted-foreground">
-                Scales every service lane together (5% floor so the mix stays visible).
+                Scales core LLM lanes and fan-touch tokens (5% floor on the bundle).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fans interacted / user / day</Label>
+              <Input
+                type="number"
+                min={0}
+                max={250000}
+                value={fansDaily}
+                onChange={(e) => setFansDaily(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Each fan adds mini-model CRM/DM-style tokens, scaled by intensity × crew.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reputation scans / user / day</Label>
+              <Input
+                type="number"
+                min={0}
+                max={24}
+                step={0.05}
+                value={reputationRunsDaily}
+                onChange={(e) => setReputationRunsDaily(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Fractional runs OK (e.g. 0.14 ≈ one wide+social Serper batch per week). Each full run ≈ 58 searches.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>DMCA / leak scans / user / day</Label>
+              <Input
+                type="number"
+                min={0}
+                max={24}
+                step={0.05}
+                value={leakRunsDaily}
+                onChange={(e) => setLeakRunsDaily(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Protection pipeline Serper volume; each full run ≈ 52 searches (handle + title queries).
               </p>
             </div>
           </CardContent>
@@ -284,7 +346,7 @@ export function AdminCostSimulatorGame() {
                         {fmtUsd(result.dailyProviderCostUsd)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        Sum of five lanes × crew (not live invoices).
+                        LLM lanes + fan touches + Serper (reputation + leak) — not live invoices.
                       </p>
                     </div>
                   </div>
@@ -323,7 +385,9 @@ export function AdminCostSimulatorGame() {
           <Card className="border-border">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Service lanes (daily)</CardTitle>
-              <CardDescription>Token volume and cost per lane before crew aggregation.</CardDescription>
+              <CardDescription>
+                Workspace daily total per lane (crew already multiplied where applicable).
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {result.lanes.map((lane) => (
@@ -334,7 +398,9 @@ export function AdminCostSimulatorGame() {
                   <div>
                     <p className="font-medium text-foreground">{lane.label}</p>
                     <p className="font-mono text-[11px] text-muted-foreground">
-                      {fmtInt(lane.inputTokens)} in · {fmtInt(lane.outputTokens)} out
+                      {lane.kind === 'serper'
+                        ? `~${fmtInt(lane.serperSearches ?? 0)} Serper searches @ ${fmtUsd(SERPER_USD_PER_SEARCH)}`
+                        : `${fmtInt(lane.inputTokens)} in · ${fmtInt(lane.outputTokens)} out`}
                     </p>
                   </div>
                   <span className="font-mono text-sm tabular-nums text-primary">

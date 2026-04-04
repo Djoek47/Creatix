@@ -72,7 +72,9 @@ COMMENT ON TABLE public.admin_login_attempts IS
 -- ---------------------------------------------------------------------------
 -- Reporting views (RLS on base tables = no direct client access without policies)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.admin_v_user_usage_daily AS
+-- security_invoker: enforce permissions/RLS as the querying role (not view owner). Server uses service role.
+CREATE OR REPLACE VIEW public.admin_v_user_usage_daily
+WITH (security_invoker = true) AS
 SELECT
   user_id,
   (date_trunc('day', created_at AT TIME ZONE 'UTC'))::date AS day_utc,
@@ -88,7 +90,8 @@ GROUP BY user_id, (date_trunc('day', created_at AT TIME ZONE 'UTC'))::date;
 COMMENT ON VIEW public.admin_v_user_usage_daily IS
   'Admin analytics: daily AI usage per user. Query with service role from server only.';
 
-CREATE OR REPLACE VIEW public.admin_v_user_usage_monthly AS
+CREATE OR REPLACE VIEW public.admin_v_user_usage_monthly
+WITH (security_invoker = true) AS
 SELECT
   user_id,
   date_trunc('month', created_at AT TIME ZONE 'UTC')::date AS month_utc,

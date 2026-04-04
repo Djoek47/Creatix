@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
+import { SITE_NAME } from '@/lib/seo/marketing-metadata'
 
 export const metadata: Metadata = {
-  title: 'Circe et Venus - Legal',
-  description: 'Legal information and policies for Circe et Venus',
+  title: {
+    default: `Legal | ${SITE_NAME}`,
+  },
+  description: `Terms, privacy, cookies, and company information for ${SITE_NAME} (Creatix).`,
 }
 
 export default function LegalLayout({

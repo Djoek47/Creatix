@@ -105,10 +105,24 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'Circe et Venus',
-              url: getAppUrl(),
-              logo: getCanonicalUrl('/icon.png'),
+              '@graph': [
+                {
+                  '@type': 'Organization',
+                  '@id': `${getAppUrl()}/#organization`,
+                  name: 'Circe et Venus',
+                  alternateName: 'Creatix',
+                  url: getAppUrl(),
+                  logo: getCanonicalUrl('/icon.png'),
+                },
+                {
+                  '@type': 'WebSite',
+                  '@id': `${getAppUrl()}/#website`,
+                  name: 'Circe et Venus',
+                  url: getAppUrl(),
+                  publisher: { '@id': `${getAppUrl()}/#organization` },
+                  inLanguage: 'en-US',
+                },
+              ],
             }),
           }}
         />

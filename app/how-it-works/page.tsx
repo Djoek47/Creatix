@@ -10,11 +10,23 @@ import {
   Users, Link2, Calendar, MessageSquare, BarChart3,
   Sparkles, Check, Zap
 } from 'lucide-react'
+import type { Metadata } from 'next'
+import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
-export const metadata = {
+export const metadata: Metadata = buildPublicMetadata({
+  path: '/how-it-works',
   title: 'How It Works | Circe et Venus',
-  description: 'Learn how Circe et Venus helps content creators grow and retain their audience',
-}
+  description:
+    'Connect OnlyFans, Fansly, or MYM; meet Circe & Venus AI guides; get pricing, content, and DM insights. Step-by-step how Circe et Venus helps adult creators grow and retain fans.',
+  keywords: [
+    'how Circe et Venus works',
+    'OnlyFans setup',
+    'creator onboarding',
+    'AI creator assistant',
+    'fan retention',
+    'Circe et Venus',
+  ],
+})
 
 export default function HowItWorksPage() {
   const steps = [

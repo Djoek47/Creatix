@@ -41,12 +41,25 @@ import {
   Mic,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Metadata } from 'next'
+import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
-export const metadata = {
+export const metadata: Metadata = buildPublicMetadata({
+  path: '/features',
   title: 'Features | Circe et Venus',
   description:
-    'Divine Manager voice control, Circe retention, Venus growth, AI studio, cosmic calendar, and creator-native analytics — one platform.',
-}
+    'Divine Manager (voice + chat), Circe retention & leak protection, Venus growth, AI Studio tools, cosmic calendar, CRM, DMs, and creator analytics — OnlyFans, Fansly & more in one platform.',
+  keywords: [
+    'creator features',
+    'OnlyFans AI',
+    'Fansly tools',
+    'DMCA protection',
+    'creator CRM',
+    'voice AI assistant',
+    'content calendar',
+    'Circe et Venus',
+  ],
+})
 
 export default function FeaturesPage() {
   const divineManagerFeatures = [

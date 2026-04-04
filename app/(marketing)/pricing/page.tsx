@@ -26,8 +26,8 @@ import { PriceWithSavings } from '@/components/marketing/pricing-table-cells'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
-import { getCanonicalUrl } from '@/lib/site-url'
 import { cn } from '@/lib/utils'
+import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
 function SavingsGlanceCard({
   label,
@@ -61,23 +61,10 @@ function SavingsGlanceCard({
 const PRICING_DESCRIPTION =
   'Revenue-based pricing: Fansly line −10% vs OF base (capped at $200/mo); ManyVids solo Focus $39/mo any tier; pair lines use bundle math; Unified for all three. Per-seat billing for multiple managers. Calculator + matrix. 14-day trial.'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPublicMetadata({
+  path: '/pricing',
   title: 'Pricing | Circe et Venus',
   description: PRICING_DESCRIPTION,
-  alternates: { canonical: '/pricing' },
-  openGraph: {
-    title: 'Pricing | Circe et Venus',
-    description: PRICING_DESCRIPTION,
-    url: getCanonicalUrl('/pricing'),
-    type: 'website',
-    siteName: 'Circe et Venus',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Pricing | Circe et Venus',
-    description: PRICING_DESCRIPTION,
-  },
-  robots: { index: true, follow: true },
   keywords: [
     'creator pricing',
     'OnlyFans tools pricing',
@@ -88,8 +75,9 @@ export const metadata: Metadata = {
     'creator SaaS',
     'Focus plan',
     'Unified plan',
+    'per-seat billing',
   ],
-}
+})
 
 export default function PricingPage() {
   const sampleTier = REVENUE_TIERS[4]

@@ -13,7 +13,6 @@ export const SEO_PUBLIC_PATHS: readonly string[] = [
   '/how-it-works',
   '/auth/login',
   '/auth/sign-up',
-  '/auth/sign-up-success',
   '/about',
   '/contact',
   '/privacy',

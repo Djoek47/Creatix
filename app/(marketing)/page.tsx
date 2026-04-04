@@ -18,11 +18,31 @@ import {
   Sun,
   Mic,
 } from 'lucide-react'
+import type { Metadata } from 'next'
+import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
-export const metadata = {
-  title: 'Circe et Venus — Divine creator OS',
-  description:
-    'Voice-first Divine Manager, Circe for retention & protection, Venus for growth. AI, analytics, and adult platform tools in one gorgeous workspace.',
+const HOME_DESC =
+  'Voice-first Divine Manager, Circe for retention & protection, Venus for growth. AI, analytics, OnlyFans, Fansly & adult creator tools in one workspace — sign up for a 14-day trial.'
+
+export const metadata: Metadata = {
+  ...buildPublicMetadata({
+    path: '/',
+    title: 'Circe et Venus — Divine creator OS',
+    description: HOME_DESC,
+    keywords: [
+      'creator OS',
+      'OnlyFans manager',
+      'Fansly',
+      'ManyVids',
+      'Divine Manager',
+      'AI for creators',
+      'fan retention',
+      'creator analytics',
+      'Circe et Venus',
+      'Creatix',
+    ],
+  }),
+  title: { absolute: 'Circe et Venus — Divine creator OS' },
 }
 
 export default function LandingPage() {

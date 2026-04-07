@@ -25,6 +25,9 @@ export default function ToolRunnerPage() {
     if (toolId === 'retention-tease') {
       router.replace('/dashboard/retention/churn#future-tease')
     }
+    if (toolId === 'voice-cloning') {
+      router.replace('/dashboard/ai-studio/tools')
+    }
     if (toolId === 'price-optimizer' || toolId === 'viral-predictor') {
       router.replace('/dashboard/divine-manager')
     }
@@ -40,6 +43,7 @@ export default function ToolRunnerPage() {
     toolId === 'ai-chatter' ||
     toolId === 'whale-whisperer' ||
     toolId === 'retention-tease' ||
+    toolId === 'voice-cloning' ||
     toolId === 'price-optimizer' ||
     toolId === 'viral-predictor' ||
     toolId === 'leak-scanner' ||

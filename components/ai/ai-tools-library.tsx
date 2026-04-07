@@ -179,30 +179,34 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredTools.map((tool) => {
               const Icon = ICON_MAP[tool.id] ?? Wand2
+              const comingSoon = tool.comingSoon === true
               const href =
-                tool.isPro && !isPro
-                  ? '/dashboard/settings?tab=billing#pricing-plans'
-                  : tool.id === 'commenter'
-                    ? '/dashboard/commenter'
-                    : tool.id === 'housekeeping'
-                      ? '/dashboard/commenter?section=housekeeping'
-                      : tool.id === 'churn-predictor'
-                        ? '/dashboard/retention/churn'
-                        : tool.id === 'retention-tease'
-                          ? '/dashboard/retention/churn#future-tease'
-                          : `/dashboard/ai-studio/tools/${tool.id}`
-              return (
-                <Link key={tool.id} href={href} className="group block">
-                  <Card
-                    className={`relative h-full overflow-hidden border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)] ${
-                      tool.isPro ? 'border-amber-500/20 hover:border-amber-400/40' : 'border-border/70 hover:border-purple-500/35'
-                    }`}
-                  >
-                    {tool.isPro && !isPro ? (
-                      <div className="absolute right-2 top-2 z-10">
-                        <Lock className="h-4 w-4 text-amber-500" aria-hidden />
-                      </div>
-                    ) : null}
+                comingSoon
+                  ? ''
+                  : tool.isPro && !isPro
+                    ? '/dashboard/settings?tab=billing#pricing-plans'
+                    : tool.id === 'commenter'
+                      ? '/dashboard/commenter'
+                      : tool.id === 'housekeeping'
+                        ? '/dashboard/commenter?section=housekeeping'
+                        : tool.id === 'churn-predictor'
+                          ? '/dashboard/retention/churn'
+                          : tool.id === 'retention-tease'
+                            ? '/dashboard/retention/churn#future-tease'
+                            : `/dashboard/ai-studio/tools/${tool.id}`
+              const cardInner = (
+                <>
+                  {comingSoon ? (
+                    <div className="absolute right-2 top-2 z-10">
+                      <Badge variant="outline" className="border-muted-foreground/30 text-[10px] text-muted-foreground">
+                        Coming soon
+                      </Badge>
+                    </div>
+                  ) : tool.isPro && !isPro ? (
+                    <div className="absolute right-2 top-2 z-10">
+                      <Lock className="h-4 w-4 text-amber-500" aria-hidden />
+                    </div>
+                  ) : null}
                     <CardContent className="p-4 pt-5">
                       <div className="flex gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 transition-all duration-300 group-hover:from-pink-500/20 group-hover:via-amber-400/15 group-hover:to-cyan-500/15 group-hover:ring-purple-400/25">
@@ -211,7 +215,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="ai-tools-lib-title text-[15px] font-semibold leading-tight">{tool.name}</h3>
-                            {tool.badge ? (
+                            {tool.badge && !comingSoon ? (
                               <Badge
                                 variant="secondary"
                                 className={`text-[10px] ${
@@ -229,7 +233,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                             ) : null}
                           </div>
                           <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{tool.description}</p>
-                          {tool.credits != null ? (
+                          {tool.credits != null && !comingSoon ? (
                             <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
                               <Zap className="h-3 w-3 shrink-0 text-amber-500/80" aria-hidden />
                               {tool.credits} credit{tool.credits !== 1 ? 's' : ''}
@@ -238,6 +242,29 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                         </div>
                       </div>
                     </CardContent>
+                </>
+              )
+
+              return comingSoon ? (
+                <div
+                  key={tool.id}
+                  className="block cursor-not-allowed"
+                  aria-label={`${tool.name} — coming soon`}
+                >
+                  <Card
+                    className="relative h-full overflow-hidden border border-dashed border-border/80 bg-muted/20 opacity-95"
+                  >
+                    {cardInner}
+                  </Card>
+                </div>
+              ) : (
+                <Link key={tool.id} href={href} className="group block">
+                  <Card
+                    className={`relative h-full overflow-hidden border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)] ${
+                      tool.isPro ? 'border-amber-500/20 hover:border-amber-400/40' : 'border-border/70 hover:border-purple-500/35'
+                    }`}
+                  >
+                    {cardInner}
                   </Card>
                 </Link>
               )

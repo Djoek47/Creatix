@@ -109,12 +109,7 @@ export function MimicTestWizard() {
           Mimic Test
         </CardTitle>
         <CardDescription>
-          Voice interview builds your fan-reply style for Divine. Pair it with{' '}
-          <Link href="/dashboard/ai-studio/tools/voice-cloning" className="text-primary underline-offset-2 hover:underline">
-            Voice Cloning
-          </Link>{' '}
-          in AI Studio to dictate or paste samples so generated lines match how you speak—useful for audio scripts and DMs.
-          Fan-facing drafts still require your review before send.
+          Voice interview builds your fan-reply style for Divine. A dedicated <span className="font-medium text-foreground">Voice Cloning</span> tool in AI Studio is planned (not available yet) to layer dictated or pasted samples on top of this profile—useful for audio scripts and DMs. Fan-facing drafts still require your review before send.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -178,15 +173,15 @@ export function MimicTestWizard() {
                 <p className="text-sm font-medium">Voice Cloning (AI Studio)</p>
                 <p className="text-xs text-muted-foreground">
                   This interview shapes <span className="font-medium text-foreground">what</span> you sound like to fans.
-                  Open Voice Cloning to <span className="font-medium text-foreground">record or dictate</span> sample lines
-                  (mic on the tool) or paste old messages—the model learns your phrasing for new audio-ready copy and scripts.
-                  Pro; uses AI credits per run.
+                  The standalone Voice Cloning runner is <span className="font-medium text-foreground">coming soon</span>
+                  — it will let you record, dictate, or paste extra samples so generated lines match how you speak. Listed under
+                  AI Studio → Tools when ready.
                 </p>
               </div>
             </div>
-            <Button size="sm" variant="secondary" className="shrink-0 gap-1.5" asChild>
-              <Link href="/dashboard/ai-studio/tools/voice-cloning">
-                Open Voice Cloning
+            <Button size="sm" variant="outline" className="shrink-0 gap-1.5" asChild>
+              <Link href="/dashboard/ai-studio/tools">
+                Browse AI Studio tools
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </Button>

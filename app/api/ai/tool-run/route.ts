@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
     }
 
     const meta = getToolMeta(toolId)
+    if (meta?.comingSoon) {
+      return NextResponse.json({ error: 'This tool is not available yet.' }, { status: 503 })
+    }
     if (toolId === 'commenter') {
       return NextResponse.json({
         content:

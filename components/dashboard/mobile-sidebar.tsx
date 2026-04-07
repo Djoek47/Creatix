@@ -86,9 +86,10 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
         icon: 'text-circe-light'
       },
       venus: {
-        // Gold for Venus
+        // Gold on hover only (idle neutral like default; active = amber)
         active: 'bg-amber-500/20 text-amber-500 dark:text-amber-400',
-        inactive: 'text-amber-600/70 dark:text-amber-500/70 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400',
+        inactive:
+          'text-foreground/70 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400',
         icon: 'text-amber-500 dark:text-amber-400'
       },
       'ai-studio': {

@@ -18,6 +18,8 @@ export interface AIToolMeta {
   hasRunner?: boolean
   /** Omit from AI Studio tools grid (still in Divine Manager `run_ai_studio_tool` ids when hasRunner) */
   hiddenFromLibrary?: boolean
+  /** Shown in the library but not runnable yet (no API / runner) */
+  comingSoon?: boolean
 }
 
 // Icon names only; actual icons are resolved in the component that renders (tools page / library)
@@ -168,13 +170,14 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'voice-cloning',
     name: 'Voice Cloning',
-    description: 'Clone your voice for responses',
+    description: 'Coming soon — match your phrasing for DMs and scripts',
     longDescription:
-      'Paste or **dictate** samples (mic button) so AI learns your phrasing and rhythm for new message variants—ideal for scripts you’ll read aloud or send as audio. **Pairs with Divine Manager → Mimic Test**: Mimic captures your fan-reply interview; Voice Cloning deepens style for generated copy. Pro; 5 credits per run.',
+      '**Not available yet.** We plan a dedicated runner to learn your phrasing and rhythm from samples (text or dictation), aligned with Divine Manager → Mimic Test for fan-reply style. Check back for a future Pro release.',
     category: 'premium',
-    isPro: true,
+    badge: 'Coming soon',
     credits: 5,
-    hasRunner: true,
+    hasRunner: false,
+    comingSoon: true,
   },
   {
     id: 'competitor-analysis',
@@ -205,13 +208,13 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
 ]
 
 export const TOOL_IDS_WITH_RUNNER = new Set(
-  ALL_TOOLS_META.filter((t) => t.hasRunner).map((t) => t.id)
+  ALL_TOOLS_META.filter((t) => t.hasRunner && !t.comingSoon).map((t) => t.id),
 )
 
 /** Ids passed to `run_ai_studio_tool` / `runAiStudioToolServer` (Divine Manager, voice, chat). */
-export const DIVINE_MANAGER_AI_STUDIO_TOOL_IDS: string[] = ALL_TOOLS_META.filter((t) => t.hasRunner).map(
-  (t) => t.id,
-)
+export const DIVINE_MANAGER_AI_STUDIO_TOOL_IDS: string[] = ALL_TOOLS_META.filter(
+  (t) => t.hasRunner && !t.comingSoon,
+).map((t) => t.id)
 
 export function getToolMeta(id: string): AIToolMeta | undefined {
   return ALL_TOOLS_META.find((t) => t.id === id)

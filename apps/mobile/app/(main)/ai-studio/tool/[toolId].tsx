@@ -60,6 +60,21 @@ export default function ToolRunnerScreen() {
     )
   }
 
+  if (meta.comingSoon) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{meta.name}</Text>
+          <Text style={styles.desc}>{meta.longDescription}</Text>
+          <Text style={styles.muted}>This tool is not available yet. Check AI Studio on the web for updates.</Text>
+          <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+            <Text style={styles.link}>Go back</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
   const webBase = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '')
   const commenterUrl = webBase ? `${webBase}/dashboard/commenter` : ''
   const housekeepingUrl = webBase ? `${webBase}/dashboard/commenter?section=housekeeping` : ''
@@ -177,4 +192,5 @@ const styles = StyleSheet.create({
   error: { color: theme.danger, marginBottom: 8 },
   result: { fontSize: 15, lineHeight: 22, color: theme.text },
   link: { color: theme.gold, fontSize: 16 },
+  muted: { fontSize: 13, color: theme.textDim, marginTop: 8, lineHeight: 20 },
 })

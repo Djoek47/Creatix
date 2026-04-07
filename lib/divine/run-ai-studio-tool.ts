@@ -75,6 +75,9 @@ export async function runAiStudioToolServer(
   if (!meta) {
     return { success: false, error: `Unknown tool id: ${toolId}` }
   }
+  if (meta.comingSoon) {
+    return { success: false, error: `${meta.name} is not available yet.` }
+  }
   if (!meta.hasRunner) {
     return {
       success: false,
@@ -140,12 +143,6 @@ export async function runAiStudioToolServer(
         pricing_bias: a.pricing_bias ?? a.pricingBias ?? '',
         platform: a.platform ?? 'onlyfans',
         current_price: typeof a.current_price === 'number' ? a.current_price : a.currentPrice,
-      }, cookie)
-    case 'voice-cloning':
-      return postAi('voice-clone', {
-        sampleText: a.sampleText ?? '',
-        targetTone: a.targetTone ?? a.contentType ?? 'natural',
-        context: a.context ?? a.description ?? '',
       }, cookie)
     case 'pricing-optimizer':
       return postAi('pricing-optimizer', {

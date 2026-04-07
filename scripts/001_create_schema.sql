@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.platform_connections (
   platform TEXT NOT NULL CHECK (platform IN ('onlyfans', 'mym', 'fansly')),
   platform_username TEXT,
   access_token TEXT,
+  platform_user_id TEXT,
   refresh_token TEXT,
   is_connected BOOLEAN DEFAULT FALSE,
   last_sync_at TIMESTAMPTZ,

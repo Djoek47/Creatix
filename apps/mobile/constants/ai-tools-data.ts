@@ -15,6 +15,7 @@ export interface AIToolMeta {
   credits?: number
   hasRunner?: boolean
   hiddenFromLibrary?: boolean
+  comingSoon?: boolean
 }
 
 export const ALL_TOOLS_META: AIToolMeta[] = [
@@ -152,13 +153,14 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'voice-cloning',
     name: 'Voice Cloning',
-    description: 'Clone your voice for responses',
+    description: 'Coming soon — match your phrasing for DMs and scripts',
     longDescription:
-      'Web: dictate or paste samples in AI Studio; pairs with Mimic Test on Divine Manager for fan-facing style. Pro.',
+      'Not available yet. Planned: samples + style alignment with Mimic Test. Watch AI Studio on web for launch.',
     category: 'premium',
-    isPro: true,
+    badge: 'Coming soon',
     credits: 5,
-    hasRunner: true,
+    hasRunner: false,
+    comingSoon: true,
   },
   {
     id: 'competitor-analysis',
@@ -188,7 +190,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   { id: 'standard-of-attraction', name: 'Standard of Attraction', description: 'Pro rating of how commercially attractive your content is', longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.', category: 'premium', isPro: true, badge: 'Pro', credits: 3, hasRunner: true },
 ]
 
-export const TOOL_IDS_WITH_RUNNER = new Set(ALL_TOOLS_META.filter((t) => t.hasRunner).map((t) => t.id))
+export const TOOL_IDS_WITH_RUNNER = new Set(
+  ALL_TOOLS_META.filter((t) => t.hasRunner && !t.comingSoon).map((t) => t.id),
+)
 
 export function getToolMeta(id: string): AIToolMeta | undefined {
   return ALL_TOOLS_META.find((t) => t.id === id)

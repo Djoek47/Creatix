@@ -93,9 +93,9 @@ const variantStyles = {
     icon: 'text-circe-light'
   },
   venus: {
-    // Gold for Venus
+    // Gold on hover only (idle matches default sidebar; active = full gold)
     active: 'bg-gold/20 text-gold',
-    inactive: 'text-gold/70 hover:bg-gold/10 hover:text-gold',
+    inactive: 'text-sidebar-foreground/70 hover:bg-gold/10 hover:text-gold',
     icon: 'text-gold'
   },
   'ai-studio': {

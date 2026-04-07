@@ -136,18 +136,6 @@ const workingTools = [
 // Pro tools that require subscription
 const proTools = [
   {
-    id: 'voice-clone',
-    name: 'Voice Clone',
-    description: 'Clone your writing voice for consistent messaging',
-    longDescription: 'AI analyzes your writing style and generates authentic messages that sound exactly like you.',
-    icon: Mic,
-    color: 'text-gold',
-    bgColor: 'bg-gold/10',
-    borderColor: 'border-gold/30',
-    credits: 3,
-    isPro: true,
-  },
-  {
     id: 'pricing-optimizer',
     name: 'Pricing Optimizer',
     description: 'AI-powered pricing recommendations',
@@ -256,6 +244,30 @@ interface AIResult {
   analysis?: Record<string, unknown>
 }
 
+/** Response from POST /api/ai/income-predictor (same shape as full dashboard load). */
+interface IncomePredictorApiResult {
+  context?: {
+    currentMonthlyUsdEstimate?: number | null
+    openLeakAlerts?: number
+    onlyFansConnected?: boolean
+    partnerForecastError?: string | null
+  }
+  heuristics?: {
+    level: string
+    message: string
+    suggestedNextTierOrRange?: string | null
+  }
+  ai?: {
+    headline?: string
+    summary?: string
+    partnerForecastNarrative?: string
+    nextMonthTargetAssessment?: string
+    strategies?: Array<{ title: string; detail: string }>
+    leakAndProtection?: string
+    postingCadenceAdvice?: string
+  }
+}
+
 interface CompetitorInsightResult {
   executiveSummary: string
   marketContext: string
@@ -330,7 +342,9 @@ export function AIToolsSelector({
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<CaptionResult | ContentIdeasResult | AIResult | null>(null)
+  const [result, setResult] = useState<CaptionResult | ContentIdeasResult | AIResult | IncomePredictorApiResult | null>(
+    null,
+  )
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
   const [aiCreditsUsed, setAiCreditsUsed] = useState(0)
@@ -387,7 +401,6 @@ export function AIToolsSelector({
   const [currentPrice, setCurrentPrice] = useState('')
   
   // Pro tool specific states
-  const [sampleText, setSampleText] = useState('')
   const [audienceSegment, setAudienceSegment] = useState('all')
   const [campaignGoal, setCampaignGoal] = useState('')
   const [attractionImage, setAttractionImage] = useState<string | null>(null)
@@ -636,18 +649,6 @@ export function AIToolsSelector({
           break
         
         // Pro Tools
-        case 'voice-clone':
-          response = await fetch('/api/ai/voice-clone', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sampleText,
-              targetTone: contentType,
-              context: contentDescription,
-            }),
-          })
-          break
-          
         case 'pricing-optimizer':
           response = await fetch('/api/ai/pricing-optimizer', {
             method: 'POST',
@@ -1262,45 +1263,6 @@ export function AIToolsSelector({
         )
         
       // Pro Tool Inputs
-      case 'voice-clone':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Tip: Complete{' '}
-              <Link href="/dashboard/divine-manager?section=mimic" className="text-primary underline-offset-2 hover:underline">
-                Mimic Test
-              </Link>{' '}
-              on Divine Manager for fan-reply style; use this tool to clone phrasing for new messages and scripts (dictate
-              samples with the mic).
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Sample of Your Writing</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setSampleText(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="Paste some of your previous messages or captions so AI can learn your voice..."
-                value={sampleText}
-                onChange={(e) => setSampleText(e.target.value)}
-                className="min-h-[120px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>What to Generate</Label>
-              <Textarea 
-                placeholder="Describe what kind of message you need in your voice..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-        
       case 'churn-predictor':
         return (
           <div className="space-y-4">
@@ -2037,6 +1999,68 @@ export function AIToolsSelector({
     </div>
   )
 
+  const renderIncomePredictorResults = (res: IncomePredictorApiResult) => {
+    const ai = res.ai
+    const h = res.heuristics
+    const ctx = res.context
+    return (
+      <div className="space-y-4 border-t border-border pt-4">
+        <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-circe/90">
+          <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          Income predictor readout
+        </p>
+        <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          {ai?.headline ? <p className="text-sm font-semibold text-foreground">{ai.headline}</p> : null}
+          {ai?.summary ? (
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{ai.summary}</p>
+          ) : null}
+          {!ai?.headline && !ai?.summary ? (
+            <p className="text-xs text-muted-foreground">No summary returned. Open the full Income Predictor for details.</p>
+          ) : null}
+          {h?.level ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Goal realism:</span>
+              <Badge variant="secondary" className="capitalize">
+                {h.level}
+              </Badge>
+              {h.suggestedNextTierOrRange ? (
+                <span className="text-muted-foreground">Next band: {h.suggestedNextTierOrRange}</span>
+              ) : null}
+            </div>
+          ) : null}
+          {h?.message ? <p className="text-xs text-muted-foreground leading-relaxed">{h.message}</p> : null}
+          {ai?.nextMonthTargetAssessment ? (
+            <p className="text-xs text-muted-foreground border-l-2 border-circe/30 pl-2">{ai.nextMonthTargetAssessment}</p>
+          ) : null}
+          {ai?.strategies && ai.strategies.length > 0 ? (
+            <ul className="space-y-2 text-sm">
+              {ai.strategies.slice(0, 6).map((s, i) => (
+                <li key={i} className="flex gap-2">
+                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>
+                    <span className="font-medium text-foreground">{s.title}</span>
+                    {s.detail ? <span className="text-muted-foreground"> — {s.detail}</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {ctx?.partnerForecastError ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{ctx.partnerForecastError}</p>
+          ) : null}
+          {typeof ctx?.openLeakAlerts === 'number' && ctx.openLeakAlerts > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Open leak alerts: {ctx.openLeakAlerts} — review under Protection.
+            </p>
+          ) : null}
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+            <Link href="/dashboard/analytics/income-predictor">Open full Income Predictor</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   const renderChurnResults = (res: AIResult) => (
     <div className="space-y-3 border-t border-border pt-4">
       <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-violet-300/90 dark:text-violet-200/85">
@@ -2060,16 +2084,24 @@ export function AIToolsSelector({
   )
 
   // Render generic results
-  const renderGenericResults = (res: AIResult) => (
+  const renderGenericResults = (res: AIResult | Record<string, unknown>) => (
     <div className="space-y-4 pt-4 border-t border-border">
       <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-        <p className="text-sm whitespace-pre-wrap">{res.content}</p>
+        {typeof (res as AIResult).content === 'string' && (res as AIResult).content.trim() ? (
+          <p className="text-sm whitespace-pre-wrap text-foreground">{(res as AIResult).content}</p>
+        ) : (
+          <pre className="max-h-48 overflow-auto text-left text-xs text-muted-foreground whitespace-pre-wrap break-words">
+            {JSON.stringify(res, null, 2)}
+          </pre>
+        )}
       </div>
-      {res.suggestions && res.suggestions.length > 0 && (
+      {'suggestions' in res &&
+        Array.isArray((res as AIResult).suggestions) &&
+        (res as AIResult).suggestions!.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-xs font-medium text-muted-foreground">Suggestions</h4>
           <ul className="space-y-1">
-            {res.suggestions.map((suggestion, index) => (
+            {(res as AIResult).suggestions!.map((suggestion, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
                 <ChevronRight className="h-4 w-4 text-primary mt-0.5" />
                 {suggestion}
@@ -2241,7 +2273,7 @@ export function AIToolsSelector({
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
                       <p className="text-xs text-muted-foreground">
-                        Get Voice Cloning, Competitor Analysis, Churn Prediction, Mass DM Composer and more
+                        Get Competitor Analysis, Churn Prediction, Mass DM Composer and more
                       </p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">
@@ -2348,7 +2380,7 @@ export function AIToolsSelector({
           <div
             className={cn(
               'w-full self-start overflow-x-hidden rounded-lg border border-border',
-              selectedTool.id === 'churn-predictor'
+              selectedTool.id === 'churn-predictor' || selectedTool.id === 'income-predictor'
                 ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto bg-muted/15 p-3'
                 : 'max-h-[min(60vh,400px)] overflow-y-auto p-3',
             )}
@@ -2370,7 +2402,12 @@ export function AIToolsSelector({
                   ? renderPhotoEditResults(result as PhotoEditIntentResult)
               : selectedTool.id === 'churn-predictor'
                 ? renderChurnResults(result as AIResult)
-                : renderGenericResults(result as AIResult)}
+                : selectedTool.id === 'income-predictor' &&
+                    result &&
+                    typeof result === 'object' &&
+                    'ai' in result
+                  ? renderIncomePredictorResults(result as IncomePredictorApiResult)
+                  : renderGenericResults(result as AIResult)}
           </div>
         )}
       </CardContent>

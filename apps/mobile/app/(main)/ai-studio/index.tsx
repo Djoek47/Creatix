@@ -39,15 +39,16 @@ export default function AiStudioScreen() {
                   key={t.id}
                   style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                   onPress={() => {
-                    if (t.hasRunner) {
-                      router.push(`/(main)/ai-studio/tool/${t.id}`)
-                    }
+                    if (t.comingSoon || !t.hasRunner) return
+                    router.push(`/(main)/ai-studio/tool/${t.id}`)
                   }}
-                  disabled={!t.hasRunner}
+                  disabled={!t.hasRunner || t.comingSoon}
                 >
                   <Text style={styles.cardTitle}>{t.name}</Text>
                   <Text style={styles.cardDesc}>{t.description}</Text>
-                  {!t.hasRunner ? (
+                  {t.comingSoon ? (
+                    <Text style={styles.muted}>Coming soon</Text>
+                  ) : !t.hasRunner ? (
                     <Text style={styles.muted}>Use web dashboard for this tool</Text>
                   ) : null}
                 </Pressable>

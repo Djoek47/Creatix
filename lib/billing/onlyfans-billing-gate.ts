@@ -119,17 +119,37 @@ export function evaluateAdultPlatformBillingDenial(args: {
   )
 }
 
-type PlatformConnectionObservedRow = {
+export type PlatformConnectionObservedRow = {
   access_token?: string | null
   platform_user_id?: string | null
   observed_monthly_revenue_usd?: number | null
   observed_revenue_captured_at?: string | null
   observed_revenue_onlyfans_account_id?: string | null
+  /** When true, we may recover partner id from `observed_revenue_onlyfans_account_id` if token columns are empty. */
+  is_connected?: boolean | null
 } | null
 
+/**
+ * Partner API account id for OnlyFans (stored in `access_token` for new connections; mirrors Fansly fallback on `platform_user_id`).
+ * If the row is still marked connected but token columns were cleared, use the last scoped revenue account id.
+ */
+export function onlyFansPartnerAccountIdFromRow(row: PlatformConnectionObservedRow): string | null {
+  if (!row) return null
+  const fromToken = row.access_token != null && String(row.access_token).trim() !== '' ? String(row.access_token).trim() : null
+  if (fromToken) return fromToken
+  const fromPlatformUser =
+    row.platform_user_id != null && String(row.platform_user_id).trim() !== '' ? String(row.platform_user_id).trim() : null
+  if (fromPlatformUser) return fromPlatformUser
+  if (row.is_connected === true) {
+    const obs = row.observed_revenue_onlyfans_account_id
+    if (obs != null && String(obs).trim() !== '') return String(obs).trim()
+  }
+  return null
+}
+
 export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
-  if (!row?.access_token || String(row.access_token).trim() === '') return null
-  const id = String(row.access_token)
+  const id = onlyFansPartnerAccountIdFromRow(row)
+  if (!id) return null
   return {
     partnerAccountId: id,
     observedMonthlyRevenueUsd: row.observed_monthly_revenue_usd != null ? Number(row.observed_monthly_revenue_usd) : null,
@@ -150,7 +170,7 @@ export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRo
 }
 
 const PLATFORM_OBSERVED_SELECT =
-  'access_token, platform_user_id, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id'
+  'access_token, platform_user_id, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id, is_connected'
 
 export type AdultPlatformBillingContext = {
   onlyfansAccessToken: string | null
@@ -184,8 +204,7 @@ export async function loadAdultPlatformBillingContext(
     supabase.from('subscriptions').select('plan_id,status,revenue_tier').eq('user_id', user.id).maybeSingle(),
   ])
 
-  const onlyfansAccessToken =
-    ofConn?.access_token != null && String(ofConn.access_token).trim() !== '' ? String(ofConn.access_token) : null
+  const onlyfansAccessToken = onlyFansPartnerAccountIdFromRow(ofConn)
   const fanslyAccessToken =
     fsConn?.access_token != null && String(fsConn.access_token).trim() !== ''
       ? String(fsConn.access_token)

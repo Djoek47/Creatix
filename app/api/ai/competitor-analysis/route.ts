@@ -40,7 +40,12 @@ const outputSchema = z.object({
   postingCadenceIdeas: z.array(z.string()).max(6),
   chattingAndDmTips: z.array(z.string()).max(8),
   commentingAndSocialTips: z.array(z.string()).max(8),
-  howToUseSources: z.string().describe('Tell user to verify claims using provided URLs'),
+  improvementPriorities: z
+    .array(z.string())
+    .max(8)
+    .describe(
+      '3–7 prioritized, concrete next steps (growth, retention, positioning) tailored to this creator. No URLs or "verify online" boilerplate.',
+    ),
   caveats: z.string().describe('Ethics: public info only, no harassment, estimates not guarantees'),
 })
 
@@ -52,42 +57,6 @@ type LibraryRow = {
   headline: string
   summary: string | null
   body: string
-  source_urls: unknown
-}
-
-function parseSourceUrls(raw: unknown): { url: string; title?: string }[] {
-  if (!Array.isArray(raw)) return []
-  const out: { url: string; title?: string }[] = []
-  for (const x of raw) {
-    if (!x || typeof x !== 'object') continue
-    const u = (x as { url?: string }).url
-    if (typeof u !== 'string' || !u.trim()) continue
-    const t = (x as { title?: string }).title
-    out.push({ url: u.trim(), title: typeof t === 'string' ? t : undefined })
-  }
-  return out
-}
-
-function mergeSources(
-  hits: DiscoveryHit[],
-  libraryRows: LibraryRow[],
-): { url: string; title: string }[] {
-  const map = new Map<string, string>()
-  for (const h of hits) {
-    if (!h.link) continue
-    const k = h.link.split('#')[0].toLowerCase()
-    if (!map.has(k)) map.set(k, h.title || k)
-  }
-  for (const row of libraryRows) {
-    for (const s of parseSourceUrls(row.source_urls)) {
-      const k = s.url.split('#')[0].toLowerCase()
-      if (!map.has(k)) map.set(k, s.title || s.url)
-    }
-  }
-  return Array.from(map.entries()).map(([url, title]) => ({
-    url,
-    title: title.length > 120 ? `${title.slice(0, 117)}…` : title,
-  }))
 }
 
 function libraryToPromptBlock(rows: LibraryRow[]): string {
@@ -169,6 +138,66 @@ function internalBenchmarksToPromptBlock(rows: InternalBenchmarkRow[]): string {
   return header + lines.join('\n')
 }
 
+/** Grounded copy for the UI: compares CRM fan count to the best-matching cohort bucket (not an exact rank). */
+function buildCohortPercentileSummary(
+  fanCount: number | null | undefined,
+  rows: InternalBenchmarkRow[],
+): string {
+  if (rows.length === 0) {
+    return (
+      'Anonymized Creatix cohort benchmarks are not available yet. Once enough creators have imported fans into CRM, ' +
+      'you will see how your imported fan count lines up with peer quartiles (p25 / median / p75) by niche and platform.'
+    )
+  }
+  const row = rows[0]
+  const total = row.dataset_creator_total
+  const bucketN = row.creator_count
+  const label = `${row.platform} / ${row.niche_bucket}`
+
+  if (fanCount == null) {
+    return (
+      'We do not have your imported fan count in CRM yet. Connect or import fans to compare against anonymized peers ' +
+      `in the ${label} bucket (${bucketN} creators in this bucket; ${total} creators total in the anonymized dataset).`
+    )
+  }
+
+  const p25 = row.fan_count_p25
+  const p50 = row.fan_count_p50
+  const p75 = row.fan_count_p75
+  const mean = row.fan_count_mean
+
+  let band: string
+  if (p25 != null && p50 != null && p75 != null) {
+    if (fanCount < p25) {
+      band =
+        'roughly below the lower quartile (below p25): fewer imported fans than about three-quarters of peers in this bucket'
+    } else if (fanCount < p50) {
+      band = 'roughly between the lower quartile and the median (p25–p50)'
+    } else if (fanCount < p75) {
+      band = 'roughly between the median and upper quartile (p50–p75)'
+    } else {
+      band = 'roughly in the upper quartile (above p75) compared with peers in this bucket'
+    }
+  } else if (p50 != null) {
+    if (fanCount < p50) band = 'roughly below the cohort median for imported fans in this bucket'
+    else if (fanCount > p50) band = 'roughly above the cohort median for imported fans in this bucket'
+    else band = 'close to the cohort median for imported fans in this bucket'
+  } else if (mean != null) {
+    if (fanCount < mean) band = 'roughly below the cohort mean for imported fans in this bucket'
+    else if (fanCount > mean) band = 'roughly above the cohort mean for imported fans in this bucket'
+    else band = 'close to the cohort mean for imported fans in this bucket'
+  } else {
+    band = 'quartile cutoffs are not available for this bucket yet — use your count as loose context only'
+  }
+
+  return (
+    `Your imported fans in CRM: ${fanCount.toLocaleString()}. ` +
+      `Compared with anonymized Creatix peers in ${label} (${bucketN} creators in this bucket; ${total} creators in the full dataset): ` +
+      `p25=${p25 ?? '—'} · median (p50)=${p50 ?? '—'} · p75=${p75 ?? '—'} (imported CRM rows, not public followers). ` +
+      `That places you ${band}. This is an approximate band versus peers in this bucket, not an exact percentile rank.`
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(req)
@@ -211,7 +240,7 @@ export async function POST(req: NextRequest) {
         supabase.from('fans').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase
           .from('best_practice_library')
-          .select('id, category, headline, summary, body, source_urls')
+          .select('id, category, headline, summary, body')
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(36),
@@ -269,8 +298,9 @@ Rules:
 - **Internal benchmarks** describe imported fan rows across Creatix creators (p25/p50/p75 of fan counts per bucket). They are not public social followers and not the user's exact rank — use them as rough peer context only.
 - If the user named specific accounts, treat those as user-supplied public cues — you still have no live API to their metrics.
 - Never encourage harassment, stalking, or scraping paywalled content. Suggest ethical, marketing-level moves only.
-- Cite themes from the web block when relevant; the app will attach URLs separately for the user.
+- Use themes from the web block when relevant (no URL list is shown to the user).
 - Chatting / commenting sections should reflect general professional practices plus patterns implied by the evidence blocks.
+- Fill improvementPriorities with concrete, ordered actions (not generic "research online").
 - Output must match the JSON schema exactly.`
 
     const userPrompt = `## Creator context
@@ -298,11 +328,11 @@ Produce structured JSON per schema. Be concrete and actionable.`
     })
 
     const analysis = object as AnalysisOut
-    const sources = mergeSources(serperHits, library)
+    const cohortPercentileSummary = buildCohortPercentileSummary(fanCount, benchForPrompt)
 
     return NextResponse.json({
       ...analysis,
-      sources,
+      cohortPercentileSummary,
       meta: {
         webSearchUsed: useWebSearch && serperHits.length > 0,
         webHitCount: serperHits.length,

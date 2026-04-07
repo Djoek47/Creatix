@@ -11,7 +11,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Loader2, Sparkles, CheckCircle2, ChevronDown, RefreshCw } from 'lucide-react'
+import Link from 'next/link'
+import { Loader2, Sparkles, CheckCircle2, ChevronDown, RefreshCw, Music, ArrowUpRight } from 'lucide-react'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import {
   type MimicProfileV1,
@@ -108,8 +109,12 @@ export function MimicTestWizard() {
           Mimic Test
         </CardTitle>
         <CardDescription>
-          Voice interview builds your fan-reply style for Divine. It is only used when Divine drafts a fan-facing line in
-          your voice; by default you review before anything is sent.
+          Voice interview builds your fan-reply style for Divine. Pair it with{' '}
+          <Link href="/dashboard/ai-studio/tools/voice-cloning" className="text-primary underline-offset-2 hover:underline">
+            Voice Cloning
+          </Link>{' '}
+          in AI Studio to dictate or paste samples so generated lines match how you speak—useful for audio scripts and DMs.
+          Fan-facing drafts still require your review before send.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -159,6 +164,31 @@ export function MimicTestWizard() {
             <Button type="button" size="sm" variant="ghost" className="text-muted-foreground" onClick={() => void load()}>
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
               Refresh profile
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-venus/25 bg-venus/[0.06] p-3 dark:border-venus/30 dark:bg-venus/10">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex min-w-0 gap-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-purple-600/20 ring-1 ring-amber-500/15">
+                <Music className="h-4 w-4 text-amber-400" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Voice Cloning (AI Studio)</p>
+                <p className="text-xs text-muted-foreground">
+                  This interview shapes <span className="font-medium text-foreground">what</span> you sound like to fans.
+                  Open Voice Cloning to <span className="font-medium text-foreground">record or dictate</span> sample lines
+                  (mic on the tool) or paste old messages—the model learns your phrasing for new audio-ready copy and scripts.
+                  Pro; uses AI credits per run.
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="secondary" className="shrink-0 gap-1.5" asChild>
+              <Link href="/dashboard/ai-studio/tools/voice-cloning">
+                Open Voice Cloning
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
             </Button>
           </div>
         </div>

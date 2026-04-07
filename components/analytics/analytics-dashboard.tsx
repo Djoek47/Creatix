@@ -11,7 +11,7 @@ import { PlatformBreakdown } from '@/components/analytics/platform-breakdown'
 import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
 import Link from 'next/link'
-import { Activity, Link2, MessageCircle, Sparkles } from 'lucide-react'
+import { Activity, Link2, MessageCircle, Sparkles, TrendingUp } from 'lucide-react'
 
 type Connection = {
   platform: string
@@ -136,6 +136,12 @@ export function AnalyticsDashboard({
               <Link href="/dashboard/messages">
                 <MessageCircle className="h-4 w-4" />
                 Messages
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="gap-2 border-circe/40">
+              <Link href="/dashboard/analytics/income-predictor">
+                <TrendingUp className="h-4 w-4" />
+                Income Predictor
               </Link>
             </Button>
             <Button asChild size="sm" className="gap-2 bg-circe text-circe-foreground hover:bg-circe/90">

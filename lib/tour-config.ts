@@ -152,7 +152,7 @@ const TOURS: Record<string, TourConfig> = {
   '/dashboard/ai-studio/tools': {
     tourId: 'ai-studio-tools',
     steps: [
-      { id: 'list', title: 'AI tools', description: 'All available tools: Caption Generator, Flirt Assistant, Content Ideas, Viral Predictor, Revenue Optimizer, and others.' },
+      { id: 'list', title: 'AI tools', description: 'All available tools: Caption Generator, Flirt Assistant, Content Ideas, Churn Predictor, and others.' },
       { id: 'open', title: 'Open a tool', description: 'Click a tool to open it. You can run it from the workspace and use the output in your content or messages.' },
     ],
   },

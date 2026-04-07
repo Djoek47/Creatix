@@ -51,6 +51,7 @@ export const AI_TOOL_NAME_TO_ID: Record<string, string> = {
   generate_caption: 'caption-generator',
   predict_viral: 'viral-predictor',
   get_retention_insights: 'churn-predictor',
+  predict_income: 'income-predictor',
   get_whale_advice: 'whale-whisperer',
 }
 
@@ -98,6 +99,7 @@ export const ALLOWED_UI_PATHS = new Set<string>([
   '/dashboard/mentions',
   '/dashboard/fans',
   '/dashboard/analytics',
+  '/dashboard/analytics/income-predictor',
   '/dashboard/divine-manager',
   '/dashboard/ai-studio',
   '/dashboard/social',

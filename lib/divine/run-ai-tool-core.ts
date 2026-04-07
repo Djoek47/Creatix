@@ -128,9 +128,9 @@ export const DIVINE_AI_TOOL_IDS = [
   'photo-enhancer',
   'viral-predictor',
   'churn-predictor',
+  'income-predictor',
   'whale-whisperer',
   'content-ideas',
-  'mood-detector',
 ] as const
 
 export type DivineAiToolId = (typeof DIVINE_AI_TOOL_IDS)[number]
@@ -283,6 +283,20 @@ export async function runDivineAiToolServer(
         if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
         return { success: true, result: data }
       }
+      case 'income-predictor': {
+        const res = await fetch(`${base}/income-predictor`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            calendarMode: params.calendarMode === 'week' ? 'week' : 'month',
+            goalUsd: typeof params.goalUsd === 'number' ? params.goalUsd : undefined,
+            mode: params.mode === 'grow' ? 'grow' : 'maintain',
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
+        return { success: true, result: data }
+      }
       case 'whale-whisperer': {
         const prompt =
           typeof params.context === 'string' && params.context.trim()
@@ -304,20 +318,6 @@ export async function runDivineAiToolServer(
           currentTrends: params.currentTrends,
         }
         const res = await fetch(`${base}/content-ideas`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) return { success: false, error: (data as { error?: string }).error || 'Tool failed' }
-        return { success: true, result: data }
-      }
-      case 'mood-detector': {
-        const payload = {
-          mode: 'fan_message' as const,
-          message: params.message ?? params.text ?? '',
-        }
-        const res = await fetch(`${base}/mood-detector`, {
           method: 'POST',
           headers,
           body: JSON.stringify(payload),

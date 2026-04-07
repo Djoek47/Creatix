@@ -45,12 +45,11 @@ export function CreatorMoodPulse() {
     setError(null)
     setResult(null)
     try {
-      const res = await fetch('/api/ai/mood-detector', {
+      const res = await fetch('/api/ai/creator-mood-pulse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          mode: 'creator_check_in',
           energy: energy[0],
           stress: stress[0],
           focus: focus[0],

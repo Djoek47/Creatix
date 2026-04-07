@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  onlyFansPartnerAccountIdFromRow,
+  type PlatformConnectionObservedRow,
+} from '@/lib/billing/onlyfans-billing-gate'
 import { useRouter } from 'next/navigation'
 import {
   Tooltip,
@@ -53,10 +57,20 @@ export function ConnectedPlatforms() {
     if (!user) return
     const { data } = await supabase
       .from('platform_connections')
-      .select('platform, platform_username, last_sync_at')
+      .select(
+        'platform, platform_username, last_sync_at, access_token, platform_user_id, observed_revenue_onlyfans_account_id, is_connected',
+      )
       .eq('user_id', user.id)
       .eq('is_connected', true)
-    if (data) setConnections(data)
+    const usable =
+      (data || []).filter((row) => {
+        if (row.platform === 'onlyfans') {
+          return onlyFansPartnerAccountIdFromRow(row as PlatformConnectionObservedRow) != null
+        }
+        return true
+      }) ?? []
+    if (usable.length) setConnections(usable)
+    else setConnections([])
   }, [supabase])
 
   // Sync a single platform then reload connections + refresh page data

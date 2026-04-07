@@ -7,6 +7,11 @@ import { formatThreadTextForAi, normalizeSortedRawOfMessages } from '@/lib/divin
 
 export const maxDuration = 60
 
+/** `fans.id` is UUID; hybrid CRM may still use platform numeric ids as `id` for live-only rows — only filter by id when valid. */
+function isUuidLike(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s.trim())
+}
+
 /** OF payloads often omit isSentByMe; infer from fromUser.id vs platform fan id. */
 function coerceRawMessagesForThreadAi(rawList: unknown[], platformFanId: string): unknown[] {
   const fanKey = String(platformFanId)
@@ -71,19 +76,23 @@ export async function POST(req: NextRequest) {
       'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing'
 
     let fan: Record<string, unknown> | null = null
-    const byId = await supabase
-      .from('fans')
-      .select(fanSelect)
-      .eq('id', trimmed)
-      .eq('user_id', user.id)
-      .maybeSingle()
 
-    if (byId.error) {
-      return NextResponse.json({ error: 'Fan not found' }, { status: 404 })
+    if (isUuidLike(trimmed)) {
+      const byId = await supabase
+        .from('fans')
+        .select(fanSelect)
+        .eq('id', trimmed)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (byId.error) {
+        console.warn('[churn-predictor] fans by id:', byId.error.message)
+      } else if (byId.data) {
+        fan = byId.data as Record<string, unknown>
+      }
     }
-    if (byId.data) {
-      fan = byId.data as Record<string, unknown>
-    } else {
+
+    if (!fan) {
       const { data: byPfidRows, error: pfidErr } = await supabase
         .from('fans')
         .select(fanSelect)
@@ -92,7 +101,11 @@ export async function POST(req: NextRequest) {
         .order('total_spent', { ascending: false })
         .limit(1)
 
-      if (pfidErr || !byPfidRows?.length) {
+      if (pfidErr) {
+        console.warn('[churn-predictor] fans by platform_fan_id:', pfidErr.message)
+        return NextResponse.json({ error: 'Could not load fan from CRM' }, { status: 500 })
+      }
+      if (!byPfidRows?.length) {
         return NextResponse.json(
           {
             error:
@@ -102,10 +115,6 @@ export async function POST(req: NextRequest) {
         )
       }
       fan = byPfidRows[0] as Record<string, unknown>
-    }
-
-    if (!fan) {
-      return NextResponse.json({ error: 'Fan not found' }, { status: 404 })
     }
 
     const f = fan

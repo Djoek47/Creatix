@@ -762,6 +762,7 @@ export default function DivineManagerPage() {
       generate_caption: 'caption-generator',
       predict_viral: 'viral-predictor',
       get_retention_insights: 'churn-predictor',
+      predict_income: 'income-predictor',
       get_whale_advice: 'whale-whisperer',
     }
     const toolId = toolIdMap[toolName]
@@ -2003,6 +2004,26 @@ export default function DivineManagerPage() {
                         : JSON.stringify(lastToolResult)}
                     </div>
                   )}
+                  {lastToolName === 'predict_income' && (
+                    <div className="space-y-2 text-xs">
+                      {(() => {
+                        const r = lastToolResult as { ai?: { headline?: string; summary?: string } }
+                        const headline = r.ai?.headline
+                        const summary = r.ai?.summary
+                        return (
+                          <>
+                            {headline ? <p className="font-medium text-foreground">{headline}</p> : null}
+                            {summary ? <p className="text-muted-foreground whitespace-pre-wrap">{summary}</p> : null}
+                            {!headline && !summary ? (
+                              <pre className="text-muted-foreground whitespace-pre-wrap overflow-x-auto">
+                                {JSON.stringify(lastToolResult, null, 2)}
+                              </pre>
+                            ) : null}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
                   {lastToolName === 'get_reply_suggestions' && (
                     <>
                       {lastToolResult.recommendation != null && String(lastToolResult.recommendation).length > 0 && (
@@ -2075,7 +2096,7 @@ export default function DivineManagerPage() {
                       ))}
                     </ul>
                   )}
-                  {!['analyze_content', 'generate_caption', 'predict_viral', 'get_retention_insights', 'get_whale_advice', 'get_reply_suggestions', 'get_dm_conversations', 'get_dm_thread', 'list_content'].includes(lastToolName) && (
+                  {!['analyze_content', 'generate_caption', 'predict_viral', 'get_retention_insights', 'predict_income', 'get_whale_advice', 'get_reply_suggestions', 'get_dm_conversations', 'get_dm_thread', 'list_content'].includes(lastToolName) && (
                     <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-x-auto">
                       {JSON.stringify(lastToolResult, null, 2)}
                     </pre>

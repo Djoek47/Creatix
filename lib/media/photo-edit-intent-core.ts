@@ -3,14 +3,48 @@ import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { applySafePhotoEdit, parseDataUrl } from '@/lib/media/apply-safe-photo-edit'
 
+/**
+ * OpenAI structured outputs (strict) require every `properties` key in `required`.
+ * Use nullable (not optional) for fields that only apply to some operations.
+ */
 const intentSchema = z.object({
   operation: z.enum(['blur', 'lighting', 'emoji']).describe('Only these three are allowed'),
-  sigma: z.number().min(0.3).max(40).optional().describe('Blur strength for blur operation'),
-  brightness: z.number().min(0.65).max(1.35).optional().describe('Brightness multiplier for lighting'),
-  emoji: z.string().min(1).max(8).optional().describe('Single emoji or short emoji cluster for overlay'),
-  xPercent: z.number().min(0).max(100).optional().describe('Horizontal position of emoji, 0=left 100=right'),
-  yPercent: z.number().min(0).max(100).optional().describe('Vertical position of emoji, 0=top 100=bottom'),
-  sizePercent: z.number().min(3).max(40).optional().describe('Emoji size as percent of min dimension'),
+  sigma: z
+    .number()
+    .min(0.3)
+    .max(40)
+    .nullable()
+    .describe('Blur strength when operation is blur; null otherwise'),
+  brightness: z
+    .number()
+    .min(0.65)
+    .max(1.35)
+    .nullable()
+    .describe('Brightness when operation is lighting; null otherwise'),
+  emoji: z
+    .string()
+    .min(1)
+    .max(8)
+    .nullable()
+    .describe('Emoji when operation is emoji; null otherwise'),
+  xPercent: z
+    .number()
+    .min(0)
+    .max(100)
+    .nullable()
+    .describe('Emoji X position; null when not emoji'),
+  yPercent: z
+    .number()
+    .min(0)
+    .max(100)
+    .nullable()
+    .describe('Emoji Y position; null when not emoji'),
+  sizePercent: z
+    .number()
+    .min(3)
+    .max(40)
+    .nullable()
+    .describe('Emoji size; null when not emoji'),
   explanation: z.string().describe('Brief friendly line about what you applied'),
 })
 
@@ -107,23 +141,23 @@ Return structured fields for exactly one safe operation.`
     editBody = {
       operation: 'blur',
       imageBase64,
-      sigma: intent.sigma ?? 10,
+      sigma: intent.sigma != null ? intent.sigma : 10,
     }
   } else if (intent.operation === 'lighting') {
     editBody = {
       operation: 'lighting',
       imageBase64,
-      brightness: intent.brightness ?? 1.08,
+      brightness: intent.brightness != null ? intent.brightness : 1.08,
     }
   } else {
-    const emoji = (intent.emoji ?? '✨').slice(0, 8)
+    const emoji = (intent.emoji != null ? intent.emoji : '✨').slice(0, 8)
     editBody = {
       operation: 'emoji',
       imageBase64,
       emoji,
-      xPercent: intent.xPercent ?? 50,
-      yPercent: intent.yPercent ?? 20,
-      sizePercent: intent.sizePercent ?? 14,
+      xPercent: intent.xPercent != null ? intent.xPercent : 50,
+      yPercent: intent.yPercent != null ? intent.yPercent : 20,
+      sizePercent: intent.sizePercent != null ? intent.sizePercent : 14,
     }
   }
 

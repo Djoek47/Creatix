@@ -172,46 +172,6 @@ export async function runAiStudioToolServer(
         prompt: a.prompt ?? a.description ?? '',
         niche: a.niche ?? '',
       }, cookie)
-    case 'venus-garden':
-      return postAi('venus-garden', {
-        prompt: a.prompt ?? a.description ?? '',
-        niche: a.niche ?? '',
-      }, cookie)
-    case 'circe-oracle':
-      return postAi('circe-oracle', {
-        prompt: a.prompt ?? a.description ?? '',
-        niche: a.niche ?? '',
-      }, cookie)
-    case 'circe-transformation':
-      return postAi('circe-transformation', {
-        prompt: a.prompt ?? a.description ?? '',
-        niche: a.niche ?? '',
-      }, cookie)
-    case 'divine-forecast':
-      return postAi('tool-run', {
-        toolId: 'divine-forecast',
-        prompt: typeof a.prompt === 'string' && a.prompt.trim()
-          ? a.prompt
-          : 'Revenue and growth forecast for my creator business.',
-      }, cookie)
-    case 'video-script-ai': {
-      const parts = [
-        typeof a.niche === 'string' && a.niche.trim() && `Niche / persona: ${a.niche.trim()}`,
-        a.platform && `Platform: ${String(a.platform)}`,
-        a.scriptLength && `Target length: ${String(a.scriptLength)}`,
-        typeof a.prompt === 'string'
-          ? a.prompt
-          : typeof a.contentDescription === 'string'
-            ? a.contentDescription
-            : typeof a.description === 'string'
-              ? a.description
-              : '',
-      ].filter(Boolean) as string[]
-      const prompt =
-        parts.join('\n').trim() ||
-        'Write a short vertical video script with a strong hook, 3–5 story beats, suggested on-screen text, and a clear CTA for subscribers.'
-      return postAi('tool-run', { toolId: 'video-script-ai', prompt }, cookie)
-    }
     case 'competitor-analysis':
       return postAi(
         'competitor-analysis',

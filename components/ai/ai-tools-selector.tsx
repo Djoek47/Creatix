@@ -20,10 +20,7 @@ import {
 import { 
   Wand2, 
   PenTool, 
-  Brain, 
-  Target, 
   Lightbulb, 
-  Flame, 
   MessageSquare,
   Sparkles,
   Loader2,
@@ -44,11 +41,12 @@ import {
   Mic,
   Users,
   TrendingDown,
+  TrendingUp,
   Send,
   Heart,
-  Video,
   Eye,
   ExternalLink,
+  ListTree,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
@@ -79,8 +77,9 @@ const workingTools = [
   {
     id: 'caption-generator',
     name: 'Caption Generator',
-    description: 'Vision + voice captions for your media',
-    longDescription: 'Upload a photo or video frame, or describe with text or voice. AI sees the image when provided.',
+    description: 'Captions, posts & short video beats',
+    longDescription:
+      'Upload a photo or video frame, or describe with text or voice. Captions, hashtags, PPV copy—or ask for hook/beats/CTA for a quick vertical script.',
     icon: Wand2,
     color: 'text-pink-500',
     bgColor: 'bg-pink-500/10',
@@ -120,39 +119,6 @@ const workingTools = [
     bgColor: 'bg-sky-500/10',
     borderColor: 'border-sky-500/30',
     credits: 1,
-  },
-  {
-    id: 'mood-detector',
-    name: 'Mood Detector',
-    description: 'Analyze fan emotional state',
-    longDescription: 'Understand your fans better by analyzing message sentiment to tailor your responses and content.',
-    icon: Brain,
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-500/10',
-    borderColor: 'border-cyan-500/30',
-    credits: 1,
-  },
-  {
-    id: 'price-optimizer',
-    name: 'Price Optimizer',
-    description: 'Optimal pricing suggestions',
-    longDescription: 'AI analyzes your engagement data to suggest optimal pricing for subscriptions, PPV, and custom content.',
-    icon: Target,
-    color: 'text-green-500',
-    bgColor: 'bg-green-500/10',
-    borderColor: 'border-green-500/30',
-    credits: 2,
-  },
-  {
-    id: 'viral-predictor',
-    name: 'Viral Predictor',
-    description: 'Content success prediction',
-    longDescription: 'Predict which content is most likely to go viral before you post, based on trending patterns and your audience.',
-    icon: Flame,
-    color: 'text-orange-500',
-    bgColor: 'bg-orange-500/10',
-    borderColor: 'border-orange-500/30',
-    credits: 2,
   },
   {
     id: 'gift-suggester',
@@ -196,12 +162,26 @@ const proTools = [
   {
     id: 'churn-predictor',
     name: 'Churn Predictor',
-    description: 'Identify at-risk fans before they leave',
-    longDescription: 'AI analyzes fan behavior to predict churn risk and provides personalized retention strategies.',
+    description: "Who's at risk — Circe's Oracle for retention",
+    longDescription:
+      'Predict churn risk per fan with CRM + thread context. Former Circe\'s Oracle lives here—batch digests on Dashboard → Retention.',
     icon: TrendingDown,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/35',
+    credits: 2,
+    isPro: true,
+  },
+  {
+    id: 'income-predictor',
+    name: 'Income Predictor',
+    description: 'Partner forecast + cadence + goal realism',
+    longDescription:
+      'OnlyFans partner statistical forecast merged with your snapshots, post rate, calendar buckets, leak context, and next-month targets. Full UI: Analytics → Income Predictor.',
+    icon: TrendingUp,
+    color: 'text-circe',
+    bgColor: 'bg-circe/10',
+    borderColor: 'border-circe/35',
     credits: 2,
     isPro: true,
   },
@@ -226,19 +206,6 @@ const proTools = [
     color: 'text-gold',
     bgColor: 'bg-gold/10',
     borderColor: 'border-gold/30',
-    credits: 3,
-    isPro: true,
-  },
-  {
-    id: 'video-script-ai',
-    name: 'Video Script AI',
-    description: 'Hooks, beats, and CTAs for video',
-    longDescription:
-      'Structured scripts for teasers and promos: hook, beats, optional on-screen text, and a fan CTA. Set platform and length below.',
-    icon: Video,
-    color: 'text-violet-500',
-    bgColor: 'bg-violet-500/10',
-    borderColor: 'border-violet-500/30',
     credits: 3,
     isPro: true,
   },
@@ -302,9 +269,9 @@ interface CompetitorInsightResult {
   postingCadenceIdeas: string[]
   chattingAndDmTips: string[]
   commentingAndSocialTips: string[]
-  howToUseSources: string
+  improvementPriorities?: string[]
   caveats: string
-  sources?: Array<{ url: string; title: string }>
+  cohortPercentileSummary?: string
   meta?: {
     webSearchUsed?: boolean
     webHitCount?: number
@@ -411,7 +378,6 @@ export function AIToolsSelector({
   
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
-  const [videoScriptLength, setVideoScriptLength] = useState('short')
   const [competitorTargets, setCompetitorTargets] = useState('')
   const [useCompetitorWebSearch, setUseCompetitorWebSearch] = useState(true)
   const [contentDescription, setContentDescription] = useState('')
@@ -432,6 +398,9 @@ export function AIToolsSelector({
   const [churnFanId, setChurnFanId] = useState<string>('manual')
   const [churnExpiringOnly, setChurnExpiringOnly] = useState(false)
   const [churnFans, setChurnFans] = useState<ChurnFanPickerRow[]>([])
+  const [incomePredictorMode, setIncomePredictorMode] = useState<'maintain' | 'grow'>('maintain')
+  const [incomePredictorGoal, setIncomePredictorGoal] = useState('')
+  const [incomeCalendarMode, setIncomeCalendarMode] = useState<'week' | 'month'>('month')
 
   const churnFansFiltered = useMemo(() => {
     if (!churnExpiringOnly) return churnFans
@@ -654,42 +623,6 @@ export function AIToolsSelector({
           })
           break
           
-        case 'mood-detector':
-          response = await fetch('/api/ai/mood-detector', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mode: 'fan_message',
-              message: fanMessage,
-            }),
-          })
-          break
-          
-        case 'price-optimizer':
-          response = await fetch('/api/ai/revenue-optimizer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              currentPrice,
-              contentType,
-              platform,
-              description: contentDescription,
-            }),
-          })
-          break
-          
-        case 'viral-predictor':
-          response = await fetch('/api/ai/viral-predictor', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contentDescription,
-              contentType,
-              platform,
-            }),
-          })
-          break
-          
         case 'gift-suggester':
           response = await fetch('/api/ai/gift-suggester', {
             method: 'POST',
@@ -799,50 +732,6 @@ export function AIToolsSelector({
             body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
           })
           break
-        case 'venus-garden':
-          response = await fetch('/api/ai/venus-garden', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
-          })
-          break
-        case 'circe-oracle':
-          response = await fetch('/api/ai/circe-oracle', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
-          })
-          break
-        case 'circe-transformation':
-          response = await fetch('/api/ai/circe-transformation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
-          })
-          break
-
-        case 'video-script-ai': {
-          const scriptPrompt = [
-            niche.trim() && `Niche / persona: ${niche.trim()}`,
-            `Platform: ${platform}`,
-            `Target length: ${videoScriptLength}`,
-            contentDescription.trim(),
-          ]
-            .filter(Boolean)
-            .join('\n')
-          response = await fetch('/api/ai/tool-run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              toolId: selectedTool.id,
-              prompt:
-                scriptPrompt ||
-                'Write a short vertical video script with a strong hook, 3–5 story beats, suggested on-screen text, and a clear CTA for subscribers.',
-            }),
-          })
-          break
-        }
-
         case 'competitor-analysis':
           response = await fetch('/api/ai/competitor-analysis', {
             method: 'POST',
@@ -856,6 +745,22 @@ export function AIToolsSelector({
             }),
           })
           break
+
+        case 'income-predictor': {
+          const g = incomePredictorGoal.trim().replace(/,/g, '')
+          const goalNum = g ? Number(g) : NaN
+          response = await fetch('/api/ai/income-predictor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              calendarMode: incomeCalendarMode,
+              mode: incomePredictorMode,
+              goalUsd:
+                incomePredictorMode === 'grow' && Number.isFinite(goalNum) && goalNum > 0 ? goalNum : null,
+            }),
+          })
+          break
+        }
 
         default: {
           response = await fetch('/api/ai/tool-run', {
@@ -902,7 +807,6 @@ export function AIToolsSelector({
     setFantasyFanId('')
     setFantasyHolidayEventId('')
     setFantasyContentId('')
-    setVideoScriptLength('short')
     setCompetitorTargets('')
     setUseCompetitorWebSearch(true)
     setGiftUseWishlist(true)
@@ -995,7 +899,7 @@ export function AIToolsSelector({
                 />
               )}
               <p className="text-xs text-muted-foreground">
-                For video we use one representative frame. Add voice or text below for extra context (tone, tease, PPV angle).
+                For video we use one representative frame. In the box below you can ask for post copy—or a short script structure (hook, beats, on-screen text, CTA) for Reels/teasers.
               </p>
             </div>
             <div className="space-y-2">
@@ -1009,7 +913,7 @@ export function AIToolsSelector({
                 />
               </div>
               <Textarea 
-                placeholder="Optional: describe or use the mic to talk through what fans should feel — e.g., playful tease, soft lighting, bedroom mirror..."
+                placeholder="Optional: tone and angle for captions — or ask for a tight video outline (hook → beats → CTA). Example: “30s Reels teaser, flirty, end with PPV link…”"
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[100px]"
@@ -1314,35 +1218,6 @@ export function AIToolsSelector({
           </div>
         )
         
-      case 'mood-detector':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              For your own energy check-in (not fan DMs), use{' '}
-              <Link href="/dashboard/well-being" className="text-primary underline">
-                Well-being → Mood pulse
-              </Link>
-              .
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Fan Message to Analyze</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setFanMessage(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="Paste the fan's message here to analyze their emotional state..."
-                value={fanMessage}
-                onChange={(e) => setFanMessage(e.target.value)}
-                className="min-h-[120px]"
-              />
-            </div>
-          </div>
-        )
-
       case 'gift-suggester':
         return (
           <div className="space-y-4">
@@ -1386,102 +1261,18 @@ export function AIToolsSelector({
           </div>
         )
         
-      case 'price-optimizer':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Current Price ($)</Label>
-                <Input 
-                  type="number"
-                  placeholder="e.g., 15"
-                  value={currentPrice}
-                  onChange={(e) => setCurrentPrice(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Content Type</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="subscription">Subscription</SelectItem>
-                    <SelectItem value="ppv">PPV Content</SelectItem>
-                    <SelectItem value="custom">Custom Request</SelectItem>
-                    <SelectItem value="tip-menu">Tip Menu Item</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Textarea 
-                placeholder="Describe what you're pricing..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'viral-predictor':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Content Type</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="photo">Photo</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="reel">Reel/Short</SelectItem>
-                    <SelectItem value="carousel">Carousel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="tiktok">TikTok</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Content Description</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="Describe your content idea in detail..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
       // Pro Tool Inputs
       case 'voice-clone':
         return (
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Tip: Complete{' '}
+              <Link href="/dashboard/divine-manager?section=mimic" className="text-primary underline-offset-2 hover:underline">
+                Mimic Test
+              </Link>{' '}
+              on Divine Manager for fan-reply style; use this tool to clone phrasing for new messages and scripts (dictate
+              samples with the mic).
+            </p>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Sample of Your Writing</Label>
@@ -1513,6 +1304,14 @@ export function AIToolsSelector({
       case 'churn-predictor':
         return (
           <div className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-snug">
+              <span className="font-medium text-foreground">Circe&apos;s Oracle</span> is now this tool: pick a fan to see who&apos;s
+              at risk of churning and get concrete retention plays. Batch digests live on{' '}
+              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/retention/churn">
+                Retention
+              </Link>
+              .
+            </p>
             <div className="space-y-2">
               <Label>Fan from CRM (spend, renewal dates, thread insight, synced DMs)</Label>
               <p className="text-xs text-muted-foreground">
@@ -1597,6 +1396,57 @@ export function AIToolsSelector({
                 className="min-h-[80px]"
               />
             </div>
+          </div>
+        )
+
+      case 'income-predictor':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-snug">
+              Combines the partner revenue forecast with your synced snapshots, post cadence, and goal realism. For the full
+              calendar and raw forecast JSON, open{' '}
+              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/analytics/income-predictor">
+                Income Predictor
+              </Link>
+              .
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Calendar buckets</Label>
+                <Select value={incomeCalendarMode} onValueChange={(v) => setIncomeCalendarMode(v as 'week' | 'month')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Monthly</SelectItem>
+                    <SelectItem value="week">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Mode</Label>
+                <Select value={incomePredictorMode} onValueChange={(v) => setIncomePredictorMode(v as 'maintain' | 'grow')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="maintain">Maintain run rate</SelectItem>
+                    <SelectItem value="grow">Grow (next month $)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {incomePredictorMode === 'grow' ? (
+              <div className="space-y-2">
+                <Label>Target revenue (USD)</Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder="e.g. 12000"
+                  value={incomePredictorGoal}
+                  onChange={(e) => setIncomePredictorGoal(e.target.value)}
+                />
+              </div>
+            ) : null}
           </div>
         )
         
@@ -1808,72 +1658,8 @@ export function AIToolsSelector({
           </div>
         )
 
-      case 'video-script-ai':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                    <SelectItem value="tiktok">TikTok / Reels-style</SelectItem>
-                    <SelectItem value="youtube">YouTube-style</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Target length</Label>
-                <Select value={videoScriptLength} onValueChange={setVideoScriptLength}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="short">Short (~30–60s)</SelectItem>
-                    <SelectItem value="medium">Medium (~2–3 min)</SelectItem>
-                    <SelectItem value="long">Long-form outline</SelectItem>
-                    <SelectItem value="teaser">Ultra-short teaser (~15s)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Niche or persona (optional)</Label>
-              <Input
-                placeholder="e.g., GFE, fitness, cosplay, bratty domme…"
-                value={niche}
-                onChange={(e) => setNiche(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Brief, tone, and talking points</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="What’s the video about? Tone (playful, intimate, hype…). Must-say lines, CTA (PPV, tip menu, renew), and anything to avoid. You’ll get sections: hook → beats → CTA — edit before recording."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[120px]"
-              />
-            </div>
-          </div>
-        )
-
       case 'venus-attraction':
       case 'venus-cupid':
-      case 'venus-garden':
-      case 'circe-oracle':
-      case 'circe-transformation':
         return (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1889,9 +1675,6 @@ export function AIToolsSelector({
                 <Label>
                   {selectedTool.id === 'venus-attraction' && 'What do you want to optimize for attraction?'}
                   {selectedTool.id === 'venus-cupid' && 'Who do you want to target or where do you struggle?'}
-                  {selectedTool.id === 'venus-garden' && 'What part of your fan relationships do you want to improve?'}
-                  {selectedTool.id === 'circe-oracle' && 'What do you want the Oracle to see? (subscribers, churn, trends)'}
-                  {selectedTool.id === 'circe-transformation' && 'Describe your fans or goals for turning casuals into whales'}
                 </Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
@@ -2225,29 +2008,31 @@ export function AIToolsSelector({
           </ul>
         </div>
       ) : null}
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sources</h4>
-        <p className="text-xs text-muted-foreground">{res.howToUseSources}</p>
-        {res.sources && res.sources.length > 0 ? (
-          <ul className="space-y-1.5">
-            {res.sources.map((s) => (
-              <li key={s.url}>
-                <a
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline break-all"
-                >
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                  {s.title || s.url}
-                </a>
+      {res.cohortPercentileSummary ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Your cohort (imported fans)
+          </h4>
+          <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
+            {res.cohortPercentileSummary}
+          </p>
+        </div>
+      ) : null}
+      {res.improvementPriorities?.length ? (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Prioritized improvements
+          </h4>
+          <ul className="space-y-1">
+            {res.improvementPriorities.map((x, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                {x}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground">No URLs this run — enable web search or wait for the weekly library compile.</p>
-        )}
-      </div>
+        </div>
+      ) : null}
       <p className="text-xs text-amber-600 dark:text-amber-400">{res.caveats}</p>
     </div>
   )
@@ -2351,6 +2136,59 @@ export function AIToolsSelector({
                 </Card>
               ))}
             </div>
+
+            <div className="mt-6">
+              <div className="mb-3 flex items-center gap-2">
+                <ListTree className="h-4 w-4 text-amber-500/90" aria-hidden />
+                <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Housekeeping</h3>
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Web dashboard tools — same entries as AI Studio → Tools library. Housekeeping syncs OnlyFans lists and
+                Fansly CRM tags from your arrangements.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Link href="/dashboard/commenter" className="block">
+                  <Card className="h-full cursor-pointer border-border transition-all hover:border-violet-500/35 hover:shadow-md">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-lg bg-violet-500/10 p-2.5">
+                          <MessageSquare className="h-5 w-5 text-violet-400" aria-hidden />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <h3 className="text-sm font-semibold">Commenter</h3>
+                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            Post comments — draft replies, personas, safety flags.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/dashboard/commenter?section=housekeeping" className="block">
+                  <Card className="h-full cursor-pointer border-border transition-all hover:border-amber-500/40 hover:shadow-md">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-lg bg-amber-500/10 p-2.5">
+                          <ListTree className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <h3 className="text-sm font-semibold">Housekeeping</h3>
+                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            Smart lists: CRM segments &amp; platform sync from Fans → Arrangements.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </div>
             
             {/* Pro Tools Section */}
             <div className="mt-6">
@@ -2403,7 +2241,7 @@ export function AIToolsSelector({
                     <div className="flex-1">
                       <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
                       <p className="text-xs text-muted-foreground">
-                        Get Voice Cloning, Video Script AI, Competitor Analysis, Churn Prediction, Mass DM Composer and more
+                        Get Voice Cloning, Competitor Analysis, Churn Prediction, Mass DM Composer and more
                       </p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">

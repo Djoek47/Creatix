@@ -25,6 +25,9 @@ export default function ToolRunnerPage() {
     if (toolId === 'retention-tease') {
       router.replace('/dashboard/retention/churn#future-tease')
     }
+    if (toolId === 'price-optimizer' || toolId === 'viral-predictor') {
+      router.replace('/dashboard/divine-manager')
+    }
     if (toolId === 'leak-scanner' || toolId === 'dmca-automator' || toolId === 'circe-protection-shield') {
       router.replace('/dashboard/protection/aegis')
     }
@@ -37,6 +40,8 @@ export default function ToolRunnerPage() {
     toolId === 'ai-chatter' ||
     toolId === 'whale-whisperer' ||
     toolId === 'retention-tease' ||
+    toolId === 'price-optimizer' ||
+    toolId === 'viral-predictor' ||
     toolId === 'leak-scanner' ||
     toolId === 'dmca-automator' ||
     toolId === 'circe-protection-shield'

@@ -15,27 +15,21 @@ import {
   ArrowLeft,
   Wand2,
   PenTool,
-  Brain,
   Target,
   Lightbulb,
   Camera,
   MessageSquare,
   Gift,
-  Flame,
-  BarChart3,
   Shield,
   Scroll,
   Music,
-  Video,
   Eye,
   Moon,
-  Gem,
   Heart,
-  Leaf,
-  Compass,
   MessagesSquare,
   ListTree,
   Calendar,
+  TrendingUp,
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
@@ -49,25 +43,18 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'ai-chatter': MessageSquare,
   commenter: MessagesSquare,
   housekeeping: ListTree,
-  'mood-detector': Brain,
   'gift-suggester': Gift,
   'whale-whisperer': Crown,
-  'price-optimizer': Target,
-  'viral-predictor': Flame,
-  'churn-predictor': BarChart3,
+  'churn-predictor': Moon,
+  'income-predictor': TrendingUp,
   'retention-tease': Calendar,
   'leak-scanner': Shield,
   'dmca-automator': Scroll,
   'voice-cloning': Music,
-  'video-script-ai': Video,
   'competitor-analysis': Eye,
-  'circe-oracle': Moon,
-  'circe-transformation': Gem,
   'circe-protection-shield': Shield,
   'venus-attraction': Heart,
   'venus-cupid': Target,
-  'venus-garden': Leaf,
-  'divine-forecast': Compass,
   'standard-of-attraction': Heart,
 }
 
@@ -118,7 +105,9 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
     load()
   }, [])
 
-  const filteredTools = ALL_TOOLS_META.filter((tool) => {
+  const libraryTools = ALL_TOOLS_META.filter((t) => !t.hiddenFromLibrary)
+
+  const filteredTools = libraryTools.filter((tool) => {
     const matchesSearch =
       tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tool.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -128,7 +117,10 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
 
   const categoryCounts = CATEGORIES.map((c) => ({
     ...c,
-    count: c.id === 'all' ? ALL_TOOLS_META.length : ALL_TOOLS_META.filter((t) => t.category === c.id).length,
+    count:
+      c.id === 'all'
+        ? libraryTools.length
+        : libraryTools.filter((t) => t.category === c.id).length,
   }))
 
   return (

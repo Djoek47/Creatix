@@ -9,6 +9,7 @@ const CATEGORY_ORDER: AIToolCategory[] = ['content', 'engagement', 'analytics', 
 function groupByCategory() {
   const map = new Map<AIToolCategory, typeof ALL_TOOLS_META>()
   for (const t of ALL_TOOLS_META) {
+    if (t.hiddenFromLibrary) continue
     const list = map.get(t.category) ?? []
     list.push(t)
     map.set(t.category, list)

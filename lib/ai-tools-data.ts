@@ -16,11 +16,23 @@ export interface AIToolMeta {
   credits?: number
   /** If true, this tool has a dedicated form + API in AIToolsSelector / runner */
   hasRunner?: boolean
+  /** Omit from AI Studio tools grid (still in Divine Manager `run_ai_studio_tool` ids when hasRunner) */
+  hiddenFromLibrary?: boolean
 }
 
 // Icon names only; actual icons are resolved in the component that renders (tools page / library)
 export const ALL_TOOLS_META: AIToolMeta[] = [
-  { id: 'caption-generator', name: 'Caption Generator', description: 'Vision + voice captions for your media', longDescription: 'Upload a photo or short video (we analyze a key frame), or describe content with text or voice. AI sees the image when provided and generates platform-ready captions, hashtags, and PPV copy.', category: 'content', badge: 'Popular', credits: 1, hasRunner: true },
+  {
+    id: 'caption-generator',
+    name: 'Caption Generator',
+    description: 'Captions, posts & short video beats',
+    longDescription:
+      'Upload a photo or short video (we analyze a key frame), or describe content with text or voice. AI sees the image when provided and returns platform-ready captions, hashtags, and PPV copy. For video, you can also ask for hook → beats → on-screen text → CTA in one pass—this replaces the old standalone “Video Script AI” tool.',
+    category: 'content',
+    badge: 'Popular',
+    credits: 1,
+    hasRunner: true,
+  },
   { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', badge: 'Popular', credits: 2, hasRunner: true },
   { id: 'content-ideas', name: 'Content Ideas', description: 'Trending content suggestions', longDescription: 'Get AI-powered content ideas based on trending topics, your niche, and what performs best for similar creators.', category: 'content', credits: 1, hasRunner: true },
   { id: 'photo-enhancer', name: 'Safe photo touch-up', description: 'AI blur, lighting, emoji — text or voice', longDescription: 'Upload a photo and describe edits in text or voice; AI maps your request to safe blur, brightness, or emoji overlay (no beautify, inpaint, or video). Also available in Media & Vault with manual sliders.', category: 'content', credits: 1, hasRunner: true },
@@ -57,7 +69,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 0,
     hasRunner: true,
   },
-  { id: 'mood-detector', name: 'Mood Detector', description: 'Analyze fan emotional state', longDescription: 'Understand your fans better by analyzing message sentiment to tailor your responses and content.', category: 'engagement', badge: 'New', credits: 1, hasRunner: true },
   {
     id: 'gift-suggester',
     name: 'Gift Suggester',
@@ -78,15 +89,37 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 2,
     hasRunner: true,
   },
-  { id: 'price-optimizer', name: 'Price Optimizer', description: 'Optimal pricing suggestions', longDescription: 'AI analyzes your engagement data to suggest optimal pricing for subscriptions, PPV, and custom content.', category: 'analytics', credits: 2, hasRunner: true },
+  {
+    id: 'price-optimizer',
+    name: 'Price Optimizer',
+    description: 'Optimal pricing suggestions',
+    longDescription:
+      'Suggests subscription, PPV, and custom pricing angles from your context. **Not shown in the AI Studio grid** — use **Divine Manager** (chat or voice: `run_ai_studio_tool` with `toolId` `price-optimizer` or `pricing-optimizer`) to run it.',
+    category: 'analytics',
+    credits: 2,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
   { id: 'dm-bundle-pricing', name: 'DM Bundle Pricing', description: 'PPV / paid DM bundle price and copy', longDescription: 'Used by Divine Manager to suggest bundle pricing and fan-facing teaser copy from your goal, fan context, and vault summary.', category: 'engagement', credits: 1, hasRunner: true },
-  { id: 'viral-predictor', name: 'Viral Predictor', description: 'Content success prediction', longDescription: 'Predict which content is most likely to go viral before you post, based on trending patterns and your audience.', category: 'analytics', badge: 'Beta', credits: 2, hasRunner: true },
+  {
+    id: 'viral-predictor',
+    name: 'Viral Predictor',
+    description: 'Content success prediction',
+    longDescription:
+      'Scores likely engagement before you post. **Hidden from the AI Studio grid** — use **Divine Manager** (`predict_viral` / `run_ai_studio_tool` with `toolId` `viral-predictor`) or voice mode.',
+    category: 'analytics',
+    badge: 'Beta',
+    credits: 2,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
   {
     id: 'churn-predictor',
     name: 'Churn Predictor',
-    description: 'Background retention radar + deep dives',
+    description: "Who's at risk — Circe's Oracle for retention",
+    badge: 'Circe Pro',
     longDescription:
-      'Hub: **Dashboard → Retention** schedules batch churn digests while you are away (expiring subs + quiet actives), sends Divine notifications, and stores the last markdown report. Manual mode in AI Studio still runs a 2-credit single-fan analysis with full CRM + thread context.',
+      '**Circe\'s Oracle** merged here: predict which fans are most likely to churn and what to do next. Hub: **Dashboard → Retention** schedules batch digests (expiring subs + quiet actives), Divine notifications, and stored reports. In AI Studio, run a single-fan deep dive with CRM + thread context (same engine as before—now one tool).',
     category: 'analytics',
     credits: 2,
     hasRunner: true,
@@ -98,6 +131,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'On **Dashboard → Retention**, add optional calendar notes and run a batch digest: Circe suggests feed/story/DM teasers for subscribers at risk, aligned with your upcoming content. Uses the same credits per run as background Churn Predictor.',
     category: 'analytics',
+    credits: 2,
+    hasRunner: true,
+  },
+  {
+    id: 'income-predictor',
+    name: 'Income Predictor',
+    description: 'Partner forecast + cadence + next-month goals',
+    longDescription:
+      'Merges the OnlyFans partner statistical forecast with your synced snapshots, post rate, weekly/monthly cadence buckets, leak context, and goal realism (including intermediate revenue bands). Hub: **Dashboard → Analytics → Income Predictor**.',
+    category: 'analytics',
+    badge: 'Beta',
     credits: 2,
     hasRunner: true,
   },
@@ -121,16 +165,15 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 2,
     hasRunner: true,
   },
-  { id: 'voice-cloning', name: 'Voice Cloning', description: 'Clone your voice for responses', longDescription: 'Create an AI clone of your voice to send personalized audio messages at scale.', category: 'premium', isPro: true, credits: 5, hasRunner: true },
   {
-    id: 'video-script-ai',
-    name: 'Video Script AI',
-    description: 'Hooks, beats, and CTAs for video',
+    id: 'voice-cloning',
+    name: 'Voice Cloning',
+    description: 'Clone your voice for responses',
     longDescription:
-      'Structured scripts for vertical teasers, vault promos, or longer voiceover: hook, beats, on-screen text ideas, and a fan CTA. Runs in AI Studio — describe platform, length, tone, and talking points; edit the output before you record.',
+      'Paste or **dictate** samples (mic button) so AI learns your phrasing and rhythm for new message variants—ideal for scripts you’ll read aloud or send as audio. **Pairs with Divine Manager → Mimic Test**: Mimic captures your fan-reply interview; Voice Cloning deepens style for generated copy. Pro; 5 credits per run.',
     category: 'premium',
     isPro: true,
-    credits: 3,
+    credits: 5,
     hasRunner: true,
   },
   {
@@ -144,8 +187,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 5,
     hasRunner: true,
   },
-  { id: 'circe-oracle', name: "Circe's Oracle", description: 'Deep retention prophecies', longDescription: 'Like the enchantress who foresaw the future, receive prophetic insights on subscriber behavior and loyalty patterns.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
-  { id: 'circe-transformation', name: "Circe's Transformation", description: 'Transform casual fans into whales', longDescription: 'Just as Circe transformed men, this AI identifies and nurtures casual fans with potential to become high-value supporters.', category: 'premium', isPro: true, badge: 'Circe Pro', credits: 4, hasRunner: true },
   {
     id: 'circe-protection-shield',
     name: "Circe's Aegis",
@@ -160,8 +201,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   },
   { id: 'venus-attraction', name: "Venus's Allure", description: 'Magnetic content optimization', longDescription: 'Channel the goddess of beauty to optimize your content for maximum attraction and new subscriber conversion.', category: 'premium', isPro: true, badge: 'Venus Pro', credits: 4, hasRunner: true },
   { id: 'venus-cupid', name: "Cupid's Arrow", description: 'Target perfect new fans', longDescription: "Like Venus's son Cupid, this AI identifies and targets potential fans most likely to fall in love with your content.", category: 'premium', isPro: true, badge: 'Venus Pro', credits: 5, hasRunner: true },
-  { id: 'venus-garden', name: "Venus's Garden", description: 'Cultivate fan relationships', longDescription: 'Nurture your fan community like a divine garden, with AI-powered relationship management and engagement strategies.', category: 'premium', isPro: true, badge: 'Venus Pro', credits: 4, hasRunner: true },
-  { id: 'divine-forecast', name: 'Divine Forecast', description: 'Revenue and growth predictions', longDescription: 'Receive divine prophecies about your revenue trajectory, growth potential, and optimal business decisions.', category: 'premium', isPro: true, badge: 'Agency', credits: 8, hasRunner: true },
   { id: 'standard-of-attraction', name: 'Standard of Attraction', description: 'Pro rating of how commercially attractive your content is', longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.', category: 'premium', isPro: true, badge: 'Pro', credits: 3, hasRunner: true },
 ]
 

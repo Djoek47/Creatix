@@ -92,9 +92,10 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
         icon: 'text-amber-500 dark:text-amber-400'
       },
       'ai-studio': {
-        // Rainbow/multicolor animated
+        // Rainbow/multicolor — gradient always on; stronger when active / hover
         active: 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 animate-gradient-x',
-        inactive: 'text-foreground/70 hover:bg-gradient-to-r hover:from-pink-500/10 hover:via-purple-500/10 hover:to-cyan-500/10',
+        inactive:
+          'bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 hover:from-pink-500/15 hover:via-purple-500/15 hover:to-cyan-500/15',
         icon: 'text-purple-500'
       }
     }
@@ -115,9 +116,15 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
             isActive && styles.icon,
             isAiStudio && 'animate-hue-rotate'
           )} />
-          <span className={cn(
-            isAiStudio && isActive && 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent'
-          )}>{item.name}</span>
+          <span
+            className={cn(
+              isAiStudio &&
+                'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent',
+              isAiStudio && !isActive && 'opacity-90',
+            )}
+          >
+            {item.name}
+          </span>
         </Link>
       </SheetClose>
     )
@@ -176,7 +183,7 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
             </span>
           </div>
           {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="default" />
+            <NavLink key={item.name} item={item} variant="venus" />
           ))}
         </div>
       </nav>

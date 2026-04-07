@@ -1,4 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import {
+  onlyFansPartnerAccountIdFromRow,
+  type PlatformConnectionObservedRow,
+} from '@/lib/billing/onlyfans-billing-gate'
 import { ConnectedPlatforms } from '@/components/dashboard/connected-platforms'
 import { AnalyticsDashboard } from '@/components/analytics/analytics-dashboard'
 import { Button } from '@/components/ui/button'
@@ -13,14 +17,18 @@ export default async function AnalyticsPage() {
 
   if (!user) return null
 
-  // Check for platform connections
+  // Check for platform connections (OnlyFans “connected” must match API gate: usable partner account id)
   const { data: connections } = await supabase
     .from('platform_connections')
-    .select('platform, is_connected, last_sync_at')
+    .select(
+      'platform, is_connected, last_sync_at, access_token, platform_user_id, observed_revenue_onlyfans_account_id',
+    )
     .eq('user_id', user.id)
     .eq('is_connected', true)
 
-  const hasOnlyFansConnected = (connections || []).some((c) => c.platform === 'onlyfans')
+  const onlyfansRow = (connections || []).find((c) => c.platform === 'onlyfans')
+  const hasOnlyFansConnected =
+    onlyFansPartnerAccountIdFromRow(onlyfansRow as PlatformConnectionObservedRow) != null
 
   const { data: analytics } = await supabase
     .from('analytics_snapshots')

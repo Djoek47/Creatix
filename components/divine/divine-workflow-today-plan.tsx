@@ -184,6 +184,9 @@ export function DivineWorkflowTodayPlan({
                   <Button size="sm" variant="outline" asChild>
                     <Link href="/dashboard/ai-studio/chatter">AI Chatter & automations</Link>
                   </Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href="/dashboard/analytics/income-predictor">Income Predictor</Link>
+                  </Button>
                   <Button size="sm" className="bg-gradient-to-r from-amber-600/90 to-purple-600/90 text-white" type="button" onClick={onOpenTextDivine}>
                     Open text Divine
                   </Button>

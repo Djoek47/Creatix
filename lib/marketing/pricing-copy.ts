@@ -1,9 +1,9 @@
 /**
- * Canonical copy for the current subscription model (revenue bands × Single/Multi).
- * Import these everywhere we describe pricing so marketing stays aligned until a deliberate product update.
+ * Canonical **copy** for the subscription model (revenue bands × Focus/Unified).
+ * Dollar amounts and tiers always come from `lib/circe-venus-pricing.ts` (via `lib/pricing-matrix.ts`).
  *
  * Also update shared UI: `PricingModelInlineBlurb`, `PricingModelHeadline`, `LandingPricingSection`,
- * and `lib/pricing-matrix.ts` when the commercial model changes.
+ * and `lib/seo/pricing-seo` when positioning changes.
  */
 
 export const PRICING_MODEL_HEADLINE = 'Revenue-based Focus & Unified'

@@ -1,6 +1,6 @@
 /**
- * Revenue-tier pricing facade: checkout, UI, and billing gates use this module.
- * Canonical numbers and bands live in {@link ./circe-venus-pricing}.
+ * Revenue-tier pricing facade: checkout, UI, billing gates, and most components import **this** module.
+ * Canonical numbers and bands live only in {@link ./circe-venus-pricing} — edit that file to change the model.
  */
 
 import {
@@ -52,9 +52,10 @@ export function focusFanslyUsd(row: RevenueTierRow): number {
   return core?.prices.fl ?? Math.min(Math.round(row.focusBaseUsd * BUNDLE_ADDONS.FL_DISCOUNT), FANSLY_FOCUS_MAX_USD)
 }
 
-/** @deprecated Pair lines use fixed add-ons; kept for any code that expected a per-line MV “pair” quote. */
+/** ManyVids solo Focus line — flat per band in {@link ./circe-venus-pricing} (not a % of OF). */
 export function focusManyvidsPairUsd(row: RevenueTierRow): number {
-  return Math.round(row.focusBaseUsd * 0.75)
+  const core = pricingTierAtIndex(row.tierIndex)
+  return core?.prices.mv ?? MANYVIDS_FOCUS_SINGLE_FLAT_USD
 }
 
 export function focusManyvidsUsd(row: RevenueTierRow): number {
@@ -218,3 +219,7 @@ export function pairBundleDescription(a: AdultBillingPlatform, b: AdultBillingPl
   }
   return `Fansly + ManyVids: Fansly line + $${BUNDLE_ADDONS.MV_ON_FL}/mo (bundle)`
 }
+
+/** Same tier math as `circeVenusPricing.ts` — re-exported for one import path site-wide. */
+export { getTierByRevenue, getPrice } from '@/lib/circe-venus-pricing'
+export type { PlatformCombo, PricingTier as CirceVenusPricingTier } from '@/lib/circe-venus-pricing'

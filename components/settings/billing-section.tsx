@@ -42,6 +42,7 @@ import {
   MANYVIDS_FOCUS_SINGLE_FLAT_USD,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
 import {
   ADULT_BILLING_PLATFORMS,
@@ -510,8 +511,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Select 1–2 for Focus. Two-platform pricing uses fixed bundles: OF+FL (+$15 on OF base), OF+MV (+$20 on
-              OF base), or FL+MV (+$8 on Fansly line).
+              Select 1–2 for Focus. Two-platform pricing uses fixed bundles: OF+FL (+$
+              {BUNDLE_ADDONS.FL_ON_OF} on OF base), OF+MV (+${BUNDLE_ADDONS.MV_ON_OF} on OF base), or FL+MV (+$
+              {BUNDLE_ADDONS.MV_ON_FL} on Fansly line).
             </p>
           )}
 

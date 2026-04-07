@@ -19,6 +19,7 @@ import {
   percentSavingsTwoPlatformFocus,
   FOCUS_PLATFORM_SAVINGS_PCT,
 } from '@/lib/pricing-matrix'
+import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
@@ -28,6 +29,7 @@ import { PricingPageCalculator } from '@/components/marketing/pricing-page-calcu
 import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
 import { cn } from '@/lib/utils'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
+import { buildPricingMetaDescription, buildPricingKeywords } from '@/lib/seo/pricing-seo'
 
 function SavingsGlanceCard({
   label,
@@ -58,25 +60,11 @@ function SavingsGlanceCard({
   )
 }
 
-const PRICING_DESCRIPTION =
-  'Revenue-based pricing: Fansly ≈10% below OnlyFans base (capped at $200/mo); ManyVids solo Focus $39/mo; two-platform Focus uses fixed add-ons (OF+FL, OF+MV, FL+MV); Unified = OF base + $25 for your band. Per-seat billing. Daily Stripe alignment to observed revenue. 14-day trial.'
-
 export const metadata: Metadata = buildPublicMetadata({
   path: '/pricing',
   title: 'Pricing | Circe et Venus',
-  description: PRICING_DESCRIPTION,
-  keywords: [
-    'creator pricing',
-    'OnlyFans tools pricing',
-    'Fansly pricing',
-    'ManyVids',
-    'revenue-based subscription',
-    'Circe et Venus',
-    'creator SaaS',
-    'Focus plan',
-    'Unified plan',
-    'per-seat billing',
-  ],
+  description: buildPricingMetaDescription(),
+  keywords: buildPricingKeywords(),
 })
 
 export default function PricingPage() {
@@ -105,12 +93,12 @@ export default function PricingPage() {
     {
       question: 'What is Focus vs Unified?',
       answer:
-        'Focus covers one or two adult platforms. OnlyFans is the price base; Fansly is about 10% lower (capped at $200/mo); ManyVids solo Focus is a flat $39/mo at every band. Two-platform Focus uses fixed bundle prices: OnlyFans + Fansly = OF base + $15; OnlyFans + ManyVids = OF base + $20; Fansly + ManyVids = Fansly line + $8. Unified (all three) = OnlyFans base + $25 for your revenue band.',
+        `Focus covers one or two adult platforms. OnlyFans is the price base; Fansly is about ${Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100)}% lower (capped at $${BUNDLE_ADDONS.FL_CAP}/mo); ManyVids solo Focus is a flat $${BUNDLE_ADDONS.MV_FLAT}/mo at every band. Two-platform Focus uses fixed bundle prices: OnlyFans + Fansly = OF base + $${BUNDLE_ADDONS.FL_ON_OF}; OnlyFans + ManyVids = OF base + $${BUNDLE_ADDONS.MV_ON_OF}; Fansly + ManyVids = Fansly line + $${BUNDLE_ADDONS.MV_ON_FL}. Unified (all three) = OnlyFans base + $${BUNDLE_ADDONS.UNIFIED_ON_OF} for your revenue band.`,
     },
     {
       question: 'Which single platform is the best discount?',
       answer:
-        'Fansly is about 10% below the OnlyFans base at each band (with a $200/mo cap on the Fansly line). ManyVids solo Focus is always $39/mo — compare the matrix “% vs OF” for your band; at low bands MV can be slightly above OF base, at high bands it is far below.',
+        `Fansly is about ${Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100)}% below the OnlyFans base at each band (with a $${BUNDLE_ADDONS.FL_CAP}/mo cap on the Fansly line). ManyVids solo Focus is always $${BUNDLE_ADDONS.MV_FLAT}/mo — compare the matrix “% vs OF” for your band; at low bands MV can be slightly above OF base, at high bands it is far below.`,
     },
     {
       question: 'What about two-platform pairs?',
@@ -164,9 +152,10 @@ export default function PricingPage() {
                 <p className="text-xs font-bold uppercase tracking-widest text-circe-light">Focus</p>
                 <p className="mt-2 font-serif text-xl font-semibold">1–2 platforms</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Fansly ≈ −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}% vs OnlyFans base (capped at $200/mo). ManyVids solo Focus
-                  is $39/mo flat. Two picks use bundle add-ons: OF+FL +$15, OF+MV +$20, FL+MV +$8 on top of the primary
-                  line.
+                  Fansly ≈ −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}% vs OnlyFans base (capped at ${BUNDLE_ADDONS.FL_CAP}/mo).
+                  ManyVids solo Focus is ${BUNDLE_ADDONS.MV_FLAT}/mo flat. Two picks use bundle add-ons: OF+FL +$
+                  {BUNDLE_ADDONS.FL_ON_OF}, OF+MV +${BUNDLE_ADDONS.MV_ON_OF}, FL+MV +${BUNDLE_ADDONS.MV_ON_FL} on top of
+                  the primary line.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -176,7 +165,7 @@ export default function PricingPage() {
                   <Percent className="h-4 w-4" />
                   Best single cut
                 </div>
-                <p className="mt-2 font-serif text-xl font-semibold">ManyVids $39/mo</p>
+                <p className="mt-2 font-serif text-xl font-semibold">ManyVids ${BUNDLE_ADDONS.MV_FLAT}/mo</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Flat solo Focus at every band. Pair with OF or Fansly for fixed bundle pricing; the matrix shows % vs
                   OnlyFans base for each cell.

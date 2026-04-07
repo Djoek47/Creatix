@@ -1,10 +1,12 @@
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
+import { buildPricingMetaDescription, buildPricingProductOfferGraph } from '@/lib/seo/pricing-seo'
 
 type FaqItem = { question: string; answer: string }
 
 export function PricingJsonLd({ faqs }: { faqs: FaqItem[] }) {
   const base = getAppUrl()
   const url = getCanonicalUrl('/pricing')
+  const description = buildPricingMetaDescription()
 
   const graph = [
     {
@@ -12,10 +14,10 @@ export function PricingJsonLd({ faqs }: { faqs: FaqItem[] }) {
       '@id': `${url}#webpage`,
       url,
       name: 'Pricing | Circe et Venus',
-      description:
-        'Revenue-based Focus and Unified pricing for creators: OnlyFans, Fansly, ManyVids. Interactive price calculator and monthly USD matrix.',
+      description,
       isPartOf: { '@type': 'WebSite', '@id': `${base}/#website`, url: base },
     },
+    ...buildPricingProductOfferGraph(url),
     {
       '@type': 'FAQPage',
       '@id': `${url}#faq`,

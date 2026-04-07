@@ -20,9 +20,10 @@ import {
 } from 'lucide-react'
 import type { Metadata } from 'next'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
+import { buildHomePricingTeaserLine } from '@/lib/seo/pricing-seo'
 
 const HOME_DESC =
-  'Voice-first Divine Manager, Circe for retention & protection, Venus for growth. AI, analytics, OnlyFans, Fansly & adult creator tools in one workspace — sign up for a 14-day trial.'
+  `Voice-first Divine Manager, Circe for retention & protection, Venus for growth. AI, analytics, OnlyFans, Fansly & adult creator tools in one workspace — sign up for a 14-day trial. ${buildHomePricingTeaserLine()}`
 
 export const metadata: Metadata = {
   ...buildPublicMetadata({

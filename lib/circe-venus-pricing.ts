@@ -1,9 +1,17 @@
 /**
- * Circe et Venus — canonical pricing model (USD/mo).
- * - OF: base per revenue band
- * - FL: OF × 0.9, capped at $200 (Fansly override on top tier)
- * - MV: flat $39
- * - OF+FL: OF + $15 | OF+MV: OF + $20 | FL+MV: FL + $8 | Unified: OF + $25
+ * Circe et Venus — **single source of truth** for subscription USD amounts (USD/mo).
+ * Checkout, Stripe alignment, billing UI, and marketing copy that needs real numbers must use this module
+ * or `lib/pricing-matrix.ts` (facade). Do not duplicate tier math elsewhere.
+ *
+ * LOGIC RULES
+ * -----------
+ * - OF     : base price, scales by revenue tier (`RAW_TIERS`)
+ * - FL     : OF × 0.9, capped at $200 (`flOverride` on top tier)
+ * - MV     : flat $39 (ManyVids)
+ * - OF+FL  : OF + $15
+ * - OF+MV  : OF + $20
+ * - FL+MV  : FL + $8
+ * - Unified: OF + $25 (all three; cheaper than buying each line solo)
  */
 
 export type PlatformCombo =

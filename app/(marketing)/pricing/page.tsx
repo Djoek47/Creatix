@@ -12,18 +12,16 @@ import {
 } from 'lucide-react'
 import {
   REVENUE_TIERS,
-  focusFanslyUsd,
   MANYVIDS_FOCUS_SINGLE_FLAT_USD,
-  twoPlatformFocusUsd,
   percentVsOnlyFansBase,
   percentSavingsTwoPlatformFocus,
   FOCUS_PLATFORM_SAVINGS_PCT,
 } from '@/lib/pricing-matrix'
-import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
+import { BUNDLE_ADDONS, PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
-import { PriceWithSavings } from '@/components/marketing/pricing-table-cells'
+import { BundleMatrixCell, SoloMatrixCell } from '@/components/marketing/pricing-table-cells'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
@@ -86,9 +84,9 @@ export default function PricingPage() {
 
   const faqs = [
     {
-      question: 'What do the “% vs OF” labels mean?',
+      question: 'What do the bundle savings lines mean?',
       answer:
-        'OnlyFans Focus price is our base for each revenue band. Every other column shows how that month’s price compares: green means you pay less than the OF base for the same band; amber on Unified means you pay more than OF-only because you’re billing the full three-platform workspace.',
+        'For OF + FL, OF + MV, FL + MV, and Unified, the small line under the price is dollars and percent saved versus buying each included platform at its solo Focus price for that row. Solo OF / FL / MV columns are plain monthly USD for each line.',
     },
     {
       question: 'What is Focus vs Unified?',
@@ -98,12 +96,12 @@ export default function PricingPage() {
     {
       question: 'Which single platform is the best discount?',
       answer:
-        `Fansly is about ${Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100)}% below the OnlyFans base at each band (with a $${BUNDLE_ADDONS.FL_CAP}/mo cap on the Fansly line). ManyVids solo Focus is always $${BUNDLE_ADDONS.MV_FLAT}/mo — compare the matrix “% vs OF” for your band; at low bands MV can be slightly above OF base, at high bands it is far below.`,
+        `Fansly is about ${Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100)}% below the OnlyFans base at each band (with a $${BUNDLE_ADDONS.FL_CAP}/mo cap on the Fansly line). ManyVids solo Focus is always $${BUNDLE_ADDONS.MV_FLAT}/mo — compare the OF and MV columns for your band; at low bands MV can be slightly above OF base, at high bands it is far below.`,
     },
     {
       question: 'What about two-platform pairs?',
       answer:
-        `Example at the “${sampleTier.label}” band vs OnlyFans-only: OnlyFans + Fansly is about ${ofFlSavings >= 0 ? `${ofFlSavings}% lower` : `${-ofFlSavings}% higher`}; OnlyFans + ManyVids about ${ofMvSavings >= 0 ? `${ofMvSavings}% lower` : `${-ofMvSavings}% higher`}; Fansly + ManyVids about ${flMvSavings >= 0 ? `${flMvSavings}% lower` : `${-flMvSavings}% higher`} — green “% vs OF” in the matrix means you pay less than OF base; amber means more. Rounding can vary by $1 at some bands.`,
+        `Example at the “${sampleTier.label}” band vs OnlyFans-only: OnlyFans + Fansly is about ${ofFlSavings >= 0 ? `${ofFlSavings}% lower` : `${-ofFlSavings}% higher`}; OnlyFans + ManyVids about ${ofMvSavings >= 0 ? `${ofMvSavings}% lower` : `${-ofMvSavings}% higher`}; Fansly + ManyVids about ${flMvSavings >= 0 ? `${flMvSavings}% lower` : `${-flMvSavings}% higher`}. The full matrix lists each pair’s fixed price plus savings versus buying those platforms solo; rounding can vary by $1 at some bands.`,
     },
     {
       question: 'How does the 14-day free trial work?',
@@ -140,7 +138,10 @@ export default function PricingPage() {
             <PricingModelHeadline as="h1" />
             <div className="mx-auto mt-5 max-w-2xl space-y-3 text-base text-muted-foreground sm:text-lg">
               <PricingModelInlineBlurb />
-              <p>Every cell shows the monthly USD price and its savings (or premium) versus OnlyFans base in that band.</p>
+              <p>
+                Solo columns list each platform line; bundle columns show the fixed price plus savings versus buying
+                those lines separately. Unified is highlighted as the best total value for all three.
+              </p>
             </div>
           </MotionReveal>
         </div>
@@ -155,7 +156,7 @@ export default function PricingPage() {
                   Fansly ≈ −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}% vs OnlyFans base (capped at ${BUNDLE_ADDONS.FL_CAP}/mo).
                   ManyVids solo Focus is ${BUNDLE_ADDONS.MV_FLAT}/mo flat. Two picks use bundle add-ons: OF+FL +$
                   {BUNDLE_ADDONS.FL_ON_OF}, OF+MV +${BUNDLE_ADDONS.MV_ON_OF}, FL+MV +${BUNDLE_ADDONS.MV_ON_FL} on top of
-                  the primary line.
+                  the primary line. The matrix shows savings vs solo for each bundle.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -167,8 +168,8 @@ export default function PricingPage() {
                 </div>
                 <p className="mt-2 font-serif text-xl font-semibold">ManyVids ${BUNDLE_ADDONS.MV_FLAT}/mo</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Flat solo Focus at every band. Pair with OF or Fansly for fixed bundle pricing; the matrix shows % vs
-                  OnlyFans base for each cell.
+                  Flat solo Focus at every band. Pair with OF or Fansly for fixed bundle pricing; see the matrix for
+                  bundle savings vs solo lines.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -206,8 +207,8 @@ export default function PricingPage() {
             <SavingsGlanceCard label="Fansly + ManyVids (bundle)" pct={flMvSavings} />
           </div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Two-platform bundles can be above OnlyFans-only base; the matrix uses green for cheaper than OF and amber
-            for more. See the full table below.
+            Glance cards use % vs OnlyFans base for quick comparison. The full matrix below lists every bundle with
+            savings vs solo lines.
           </p>
         </MotionReveal>
       </section>
@@ -222,55 +223,62 @@ export default function PricingPage() {
           <MotionReveal>
             <div className="overflow-hidden rounded-3xl border border-primary/25 bg-card/40 shadow-2xl backdrop-blur-md">
               <div className="marketing-rainbow-edge h-1 w-full opacity-90" />
+              <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border/60 px-4 py-3 text-xs text-muted-foreground sm:px-6">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                  Green: bundle savings vs buying each included line solo
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="font-semibold text-fuchsia-300" aria-hidden>
+                    ●
+                  </span>
+                  Unified (all 3) — best total value
+                </span>
+              </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] border-collapse text-sm">
+                <table className="w-full min-w-[1180px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="p-4 text-left font-serif font-semibold">Monthly revenue</th>
-                      <th className="p-4 text-right font-medium">OnlyFans</th>
-                      <th className="p-4 text-right font-medium">Fansly</th>
-                      <th className="p-4 text-right font-medium">ManyVids</th>
-                      <th className="p-4 text-right font-medium">Focus OF+FL</th>
-                      <th className="p-4 text-right font-medium">Unified</th>
+                      <th className="p-3 text-left font-serif font-semibold sm:p-4">Revenue tier</th>
+                      <th className="p-3 text-right font-medium sm:p-4">OF</th>
+                      <th className="p-3 text-right font-medium sm:p-4">FL</th>
+                      <th className="p-3 text-right font-medium sm:p-4">MV</th>
+                      <th className="p-3 text-right font-medium sm:p-4">OF + FL</th>
+                      <th className="p-3 text-right font-medium sm:p-4">OF + MV</th>
+                      <th className="p-3 text-right font-medium sm:p-4">FL + MV</th>
+                      <th className="p-3 text-right font-medium text-fuchsia-200 sm:p-4">Unified (all 3)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {REVENUE_TIERS.map((row) => {
-                      const fl = focusFanslyUsd(row)
-                      const mv = MANYVIDS_FOCUS_SINGLE_FLAT_USD
-                      const ofFl = twoPlatformFocusUsd(row, 'onlyfans', 'fansly')
-                      const unifiedPct = percentVsOnlyFansBase(row, row.multiPriceUsd)
-                      return (
-                        <tr
-                          key={row.tierIndex}
-                          className="border-b border-border/40 transition-colors hover:bg-muted/20"
-                        >
-                          <td className="p-4 text-muted-foreground">{row.label}</td>
-                          <td className="p-4 text-right">
-                            <PriceWithSavings row={row} usd={row.focusBaseUsd} baseline="of" />
-                          </td>
-                          <td className="p-4 text-right">
-                            <PriceWithSavings row={row} usd={fl} />
-                          </td>
-                          <td className="p-4 text-right">
-                            <PriceWithSavings row={row} usd={mv} />
-                          </td>
-                          <td className="p-4 text-right">
-                            <PriceWithSavings row={row} usd={ofFl} />
-                          </td>
-                          <td className="p-4 text-right">
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="text-base font-bold tabular-nums text-primary sm:text-lg">
-                                ${row.multiPriceUsd}
-                              </span>
-                              <span className="text-[10px] font-medium text-amber-300/90 sm:text-xs">
-                                {unifiedPct < 0 ? `+${-unifiedPct}% vs OF · 3 platforms` : '—'}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {PRICING_TIERS.map((tier) => (
+                      <tr
+                        key={tier.tierIndex}
+                        className="border-b border-border/40 transition-colors hover:bg-muted/20"
+                      >
+                        <td className="p-3 text-muted-foreground sm:p-4">{tier.label}</td>
+                        <td className="p-3 text-right sm:p-4">
+                          <SoloMatrixCell usd={tier.prices.of} />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <SoloMatrixCell usd={tier.prices.fl} />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <SoloMatrixCell usd={tier.prices.mv} />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <BundleMatrixCell tier={tier} combo="of_fl" />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <BundleMatrixCell tier={tier} combo="of_mv" />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <BundleMatrixCell tier={tier} combo="fl_mv" />
+                        </td>
+                        <td className="p-3 text-right sm:p-4">
+                          <BundleMatrixCell tier={tier} combo="unified" />
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

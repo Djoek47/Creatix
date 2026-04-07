@@ -34,7 +34,8 @@ import { cn } from '@/lib/utils'
 
 export function PricingPageCalculator() {
   const [revenueInput, setRevenueInput] = useState('5000')
-  const [overrideTier, setOverrideTier] = useState(false)
+  /** When true, band comes from estimated revenue input; when false, from the band dropdown. */
+  const [useRevenueForBand, setUseRevenueForBand] = useState(false)
   const [tierIndex, setTierIndex] = useState(2)
   const [variant, setVariant] = useState<BillingVariant>('single')
   const [platformSelection, setPlatformSelection] = useState<Set<AdultBillingPlatform>>(
@@ -48,7 +49,7 @@ export function PricingPageCalculator() {
   }, [revenueInput])
 
   const suggestedRow = useMemo(() => getTierByIndex(derivedTier), [derivedTier])
-  const effectiveTier = overrideTier ? tierIndex : derivedTier
+  const effectiveTier = useRevenueForBand ? derivedTier : tierIndex
   const tierRow = getTierByIndex(effectiveTier)
 
   const sortedPlatforms = useMemo(
@@ -140,34 +141,7 @@ export function PricingPageCalculator() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="pricing-revenue">Estimated gross monthly revenue (USD)</Label>
-            <Input
-              id="pricing-revenue"
-              inputMode="decimal"
-              autoComplete="off"
-              placeholder="e.g. 5000"
-              value={revenueInput}
-              onChange={(e) => setRevenueInput(e.target.value)}
-              aria-describedby="pricing-revenue-hint"
-            />
-            <p id="pricing-revenue-hint" className="text-xs text-muted-foreground">
-              Used to suggest your band ({suggestedRow?.label ?? '—'}). You can override the band below.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Checkbox
-              id="pricing-tier-override"
-              checked={overrideTier}
-              onCheckedChange={(v) => setOverrideTier(v === true)}
-            />
-            <Label htmlFor="pricing-tier-override" className="cursor-pointer text-sm font-normal">
-              Override revenue band
-            </Label>
-          </div>
-
-          {overrideTier && (
+          {!useRevenueForBand && (
             <div className="space-y-2">
               <Label htmlFor="pricing-tier-select">Revenue band</Label>
               <Select
@@ -185,14 +159,45 @@ export function PricingPageCalculator() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Same revenue bands as checkout. Pick the band that matches how you bill.
+              </p>
             </div>
           )}
 
-          {!overrideTier && suggestedRow && (
-            <p className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-              <span className="font-medium text-foreground">Suggested band:</span>{' '}
-              <span className="text-muted-foreground">{suggestedRow.label}</span>
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Checkbox
+              id="pricing-revenue-override"
+              checked={useRevenueForBand}
+              onCheckedChange={(v) => {
+                const on = v === true
+                setUseRevenueForBand(on)
+                if (!on) {
+                  setTierIndex(derivedTier)
+                }
+              }}
+            />
+            <Label htmlFor="pricing-revenue-override" className="cursor-pointer text-sm font-normal">
+              Use estimated monthly revenue instead
+            </Label>
+          </div>
+
+          {useRevenueForBand && (
+            <div className="space-y-2">
+              <Label htmlFor="pricing-revenue">Estimated gross monthly revenue (USD)</Label>
+              <Input
+                id="pricing-revenue"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="e.g. 5000"
+                value={revenueInput}
+                onChange={(e) => setRevenueInput(e.target.value)}
+                aria-describedby="pricing-revenue-hint"
+              />
+              <p id="pricing-revenue-hint" className="text-xs text-muted-foreground">
+                We map this to a band the same way billing does ({suggestedRow?.label ?? '—'}).
+              </p>
+            </div>
           )}
 
           <div className="space-y-2">

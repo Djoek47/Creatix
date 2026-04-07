@@ -7,8 +7,6 @@ import { createClient } from '@/lib/supabase/client'
 import {
   getSettings,
   upsertSettings,
-  getTasks,
-  updateTask,
   DIVINE_VOICES,
   getDivineVoice,
   type DivineManagerSettingsRow,
@@ -16,7 +14,6 @@ import {
   type DivineManagerPersona,
   type DivineManagerGoals,
   type DivineManagerAutomationRules,
-  type DivineManagerTaskRow,
   type DivineBackgroundOps,
 } from '@/lib/divine-manager'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,13 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Crown, Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, ThumbsUp, X, Pencil, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
+import { Crown, Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
 import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
+import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
 
 type WizardStep = 1 | 2 | 3 | 4
 
@@ -55,15 +53,10 @@ export default function DivineManagerPage() {
   const voiceSession = useVoiceSession()
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState<DivineManagerSettingsRow | null>(null)
-  const [tasks, setTasks] = useState<DivineManagerTaskRow[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [wizardStep, setWizardStep] = useState<WizardStep>(1)
   const [saving, setSaving] = useState(false)
   const [runningBrain, setRunningBrain] = useState(false)
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-  const [editingPayload, setEditingPayload] = useState<{ suggestedText?: string } | null>(null)
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
-
   // Wizard form state
   const [persona, setPersona] = useState<DivineManagerPersona>({
     tone: 'friendly',
@@ -158,7 +151,7 @@ export default function DivineManagerPage() {
       return () => clearTimeout(t)
     }
     if (!['mimic', 'voice', 'tasks', 'alerts', 'protocol'].includes(section)) return
-    const id = `divine-section-${section}`
+    const id = section === 'protocol' ? 'divine-section-tasks' : `divine-section-${section}`
     const t = window.setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 200)
@@ -260,8 +253,6 @@ export default function DivineManagerPage() {
           if (typeof s.beta_acknowledged === 'boolean') {
             setBetaAcknowledged(s.beta_acknowledged)
           }
-          const t = await getTasks(supabase, user.id, { limit: 20 })
-          setTasks(t)
         }
       } catch (e) {
         console.error(e)
@@ -323,56 +314,10 @@ export default function DivineManagerPage() {
     try {
       const res = await fetch('/api/ai/divine-manager', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to run manager')
-      const supabase = createClient()
-      const updated = await getTasks(supabase, userId, { limit: 20 })
-      setTasks(updated)
     } catch (e) {
       console.error(e)
     } finally {
       setRunningBrain(false)
-    }
-  }
-
-  const refreshTasks = async () => {
-    if (!userId) return
-    const supabase = createClient()
-    const updated = await getTasks(supabase, userId, { limit: 20 })
-    setTasks(updated)
-  }
-
-  const handleApprove = async (t: DivineManagerTaskRow) => {
-    if (actionLoadingId) return
-    setActionLoadingId(t.id)
-    try {
-      const supabase = createClient()
-      const updates: { status: 'executed'; payload?: Record<string, unknown> } = { status: 'executed' }
-      if (editingPayload && Object.keys(editingPayload).length > 0) {
-        updates.payload = { ...(t.payload ?? {}), ...editingPayload }
-      }
-      await updateTask(supabase, t.id, updates)
-      setEditingTaskId(null)
-      setEditingPayload(null)
-      await refreshTasks()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setActionLoadingId(null)
-    }
-  }
-
-  const handleDismiss = async (t: DivineManagerTaskRow) => {
-    if (actionLoadingId) return
-    setActionLoadingId(t.id)
-    try {
-      const supabase = createClient()
-      await updateTask(supabase, t.id, { status: 'skipped' })
-      setEditingTaskId(null)
-      setEditingPayload(null)
-      await refreshTasks()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setActionLoadingId(null)
     }
   }
 
@@ -450,7 +395,6 @@ export default function DivineManagerPage() {
       await supabase.from('divine_manager_tasks').delete().eq('user_id', userId)
       await supabase.from('divine_manager_settings').delete().eq('user_id', userId)
       setSettings(null)
-      setTasks([])
       setWizardStep(1)
       setPersona({
         tone: 'friendly',
@@ -1295,8 +1239,6 @@ export default function DivineManagerPage() {
 
   // Console: already set up
   const mode = settings.mode
-  const today = new Date().toISOString().slice(0, 10)
-  const todayTasks = tasks.filter((t) => t.scheduled_for?.startsWith(today) || (t.status === 'suggested' && !t.scheduled_for))
 
   return (
     <div className="divine-page-bg min-h-full">
@@ -1626,115 +1568,7 @@ export default function DivineManagerPage() {
           </Button>
         </div>
 
-      <Card id="divine-section-tasks" className="divine-card scroll-mt-24">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="font-serif text-lg flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Today&apos;s Plan
-              </CardTitle>
-              <CardDescription>Curated tasks for today. Run Divine to generate suggestions.</CardDescription>
-            </div>
-            {mode !== 'off' && (
-              <Button variant="outline" size="sm" onClick={handleRunManager} disabled={runningBrain}>
-                {runningBrain ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {runningBrain ? 'Divine is running…' : 'Run Divine'}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {todayTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Your plan will appear here once the manager runs.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {todayTasks.slice(0, 10).map((t) => (
-                <li key={t.id} className="rounded-lg border border-border/80 pl-4 py-3 pr-3 space-y-2 border-l-4 border-l-primary/50">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm capitalize">{t.type.replace(/_/g, ' ')}</p>
-                        {t.category && (
-                          <Badge variant="outline" className="text-[10px] uppercase">
-                            {t.category}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t.source ?? 'Manager'}
-                        {t.payload?.segment ? ` · Segment: ${String(t.payload.segment)}` : null}
-                      </p>
-                      {editingTaskId === t.id ? (
-                        <div className="mt-2">
-                          <Label className="text-xs">Edit message / details</Label>
-                          <Textarea
-                            className="mt-1 min-h-[60px] text-sm"
-                            value={editingPayload?.suggestedText ?? (t.payload?.suggestedText as string) ?? ''}
-                            onChange={(e) => setEditingPayload({ suggestedText: e.target.value })}
-                            placeholder="Suggested text..."
-                          />
-                        </div>
-                      ) : (
-                        t.payload?.suggestedText && (
-                          <p className="text-xs mt-1 line-clamp-2">{String(t.payload.suggestedText)}</p>
-                        )
-                      )}
-                    </div>
-                    <Badge variant={t.status === 'executed' ? 'default' : t.status === 'suggested' ? 'secondary' : 'outline'}>
-                      {t.status}
-                    </Badge>
-                  </div>
-                  {t.status === 'suggested' && (
-                    <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-border">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="h-7 text-xs"
-                        disabled={actionLoadingId === t.id}
-                        onClick={() => handleApprove(t)}
-                      >
-                        {actionLoadingId === t.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ThumbsUp className="h-3 w-3" />}
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={actionLoadingId === t.id}
-                        onClick={() => {
-                          if (editingTaskId === t.id) {
-                            setEditingTaskId(null)
-                            setEditingPayload(null)
-                          } else {
-                            setEditingTaskId(t.id)
-                            setEditingPayload({ suggestedText: (t.payload?.suggestedText as string) ?? '' })
-                          }
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                        {editingTaskId === t.id ? 'Cancel edit' : 'Edit'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs text-muted-foreground"
-                        disabled={actionLoadingId === t.id}
-                        onClick={() => handleDismiss(t)}
-                      >
-                        <X className="h-3 w-3" />
-                        Dismiss
-                      </Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <DivineManagerProtocolTasksCard />
 
       {settings.beta_acknowledged && mode !== 'off' && (
         <Card id="divine-section-voice" className="divine-card scroll-mt-24">
@@ -2361,6 +2195,24 @@ export default function DivineManagerPage() {
                 }}
               />
             </div>
+            {mode !== 'off' && (
+              <div className="flex flex-col gap-1 pt-2 border-t border-border/80">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit h-8 text-xs gap-1"
+                  onClick={() => void handleRunManager()}
+                  disabled={runningBrain}
+                >
+                  {runningBrain ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Run legacy manager batch
+                </Button>
+                <p className="text-[10px] text-muted-foreground max-w-md">
+                  Optional one-off brainstorm of older manager task rows (separate from Protocols &amp; tasks above).
+                </p>
+              </div>
+            )}
           </div>
           <p><span className="font-medium text-foreground">Rules:</span> Auto-post {settings.automation_rules?.autoPostSchedule?.enabled ? 'on' : 'off'}, Welcome DM {settings.automation_rules?.autoWelcomeDm?.enabled ? 'on' : 'off'}, Tip follow-up {settings.automation_rules?.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}</p>
           <p className="font-medium text-foreground pt-2">Voice automation</p>

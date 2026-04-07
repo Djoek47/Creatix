@@ -81,7 +81,7 @@ type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 /** Purple = tool/model work; gold = assistant speaking; idle = neither. */
 export type VoiceSurfaceState = 'idle' | 'working' | 'speaking'
 
-type VoiceSessionContextValue = {
+export type VoiceSessionContextValue = {
   status: VoiceStatus
   /** Derived from remote audio (speaking) vs in-flight tools (working). */
   voiceSurfaceState: VoiceSurfaceState

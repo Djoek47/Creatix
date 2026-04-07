@@ -75,7 +75,7 @@ export type DivineComposerBridge = {
 
 export type DmSendAttributionSource = 'user' | 'divine' | 'divine_scheduled'
 
-type DivinePanelContextValue = {
+export type DivinePanelContextValue = {
   user: User
   panelOpen: boolean
   setPanelOpen: (open: boolean) => void

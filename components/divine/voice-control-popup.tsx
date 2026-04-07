@@ -346,7 +346,7 @@ export function VoiceControlPopup() {
                           variant="ghost"
                           className="h-8 w-8 shrink-0 p-0"
                           aria-label="Plan and tasks shortcuts"
-                          title="Today’s plan, protocol, manager tasks"
+                          title="Protocols & tasks, Divine chat, manager"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>

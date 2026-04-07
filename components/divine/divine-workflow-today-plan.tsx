@@ -284,7 +284,7 @@ export function DivineWorkflowTodayPlan({
               <div className="rounded-lg border border-amber-500/15 bg-card/40 p-3 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium">
-                    Today&apos;s Plan — protocol (
+                    Protocols &amp; tasks (
                     {data.plan_tasks.filter((t) => t.status === 'pending' || t.status === 'executing').length} open)
                   </p>
                   <Button
@@ -294,16 +294,17 @@ export function DivineWorkflowTodayPlan({
                     type="button"
                     onClick={onOpenTextDivine}
                   >
-                    Run Divine
+                    Open Divine chat
                   </Button>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Same list as the floating rail. Green when done, gold/purple pulse when executing, amber tint for
-                  leftovers.
+                  Same queue as the main card and floating rail—notifications, scans, and tool follow-ups. Green when done,
+                  gold/purple pulse when executing, amber tint for leftovers.
                 </p>
                 {data.plan_tasks.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    No tasks for today yet. Ask Divine to build your plan or add items from the rail.
+                    Nothing open yet. New items arrive from notifications and background tools; ask Divine in chat to add a
+                    task if needed.
                   </p>
                 ) : (
                   <ul className="text-xs space-y-2">

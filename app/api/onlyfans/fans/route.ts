@@ -1,6 +1,7 @@
 /**
  * GET /api/onlyfans/fans
- * List fans from OnlyFans API (live data). Query: filter=active|expired|latest|top, limit, offset, sort (for top).
+ * List fans from OnlyFans API (live data). Query: filter=active|expired|latest|top|all, limit (1–200), offset, sort (for top).
+ * Upstream allows at most 20 fans per HTTP call; this route pages automatically for larger limits.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
@@ -9,6 +10,33 @@ import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classificati
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
 import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+
+/** Partner OnlyFans API caps `limit` at 20 per call; larger totals use multiple pages. */
+const OF_FAN_LIST_PAGE_MAX = 20
+const FAN_LIST_MAX = 200
+
+/**
+ * Fetch fan list pages until `totalLimit` rows are collected or the API returns a short page.
+ */
+async function fetchFanListPaged(
+  totalLimit: number,
+  startOffset: number,
+  fetchPage: (limit: number, offset: number) => Promise<unknown>,
+): Promise<unknown> {
+  const merged: unknown[] = []
+  let offset = startOffset
+  while (merged.length < totalLimit) {
+    const need = totalLimit - merged.length
+    const pageLimit = Math.min(OF_FAN_LIST_PAGE_MAX, need)
+    const page = await fetchPage(pageLimit, offset)
+    const rows = extractOnlyFansFanRows(page)
+    merged.push(...rows)
+    if (rows.length < pageLimit) break
+    if (rows.length === 0) break
+    offset += rows.length
+  }
+  return { data: merged }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,8 +69,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const filter = (searchParams.get('filter') || 'active') as 'active' | 'expired' | 'latest' | 'top' | 'all'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '25', 10), 50)
-    const offset = parseInt(searchParams.get('offset') || '0', 10)
+    const limit = Math.min(
+      Math.max(parseInt(searchParams.get('limit') || '25', 10) || 25, 1),
+      FAN_LIST_MAX,
+    )
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0)
     const sort = (searchParams.get('sort') || 'total') as
       | 'total'
       | 'subscriptions'
@@ -54,19 +85,19 @@ export async function GET(request: NextRequest) {
     let data: unknown
     switch (filter) {
       case 'all':
-        data = await api.getFansAll({ limit, offset })
+        data = await fetchFanListPaged(limit, offset, (l, o) => api.getFansAll({ limit: l, offset: o }))
         break
       case 'expired':
-        data = await api.getFansExpired({ limit, offset })
+        data = await fetchFanListPaged(limit, offset, (l, o) => api.getFansExpired({ limit: l, offset: o }))
         break
       case 'latest':
-        data = await api.getFansLatest({ limit, offset })
+        data = await fetchFanListPaged(limit, offset, (l, o) => api.getFansLatest({ limit: l, offset: o }))
         break
       case 'top':
-        data = await api.getFansTop({ limit, offset, sort })
+        data = await fetchFanListPaged(limit, offset, (l, o) => api.getFansTop({ limit: l, offset: o, sort }))
         break
       default:
-        data = await api.getFansActive({ limit, offset })
+        data = await fetchFanListPaged(limit, offset, (l, o) => api.getFansActive({ limit: l, offset: o }))
     }
 
     const raw = extractOnlyFansFanRows(data) as Record<string, unknown>[]

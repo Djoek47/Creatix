@@ -4,6 +4,12 @@ import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { CookieConsent } from '@/components/cookie-consent'
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
+import {
+  OG_IMAGE_HEIGHT,
+  OG_IMAGE_WIDTH,
+  PUBLIC_OG_IMAGE_PATH,
+  SITE_NAME,
+} from '@/lib/seo/marketing-metadata'
 import './globals.css'
 
 const cinzel = Cinzel({ 
@@ -49,13 +55,22 @@ export const metadata: Metadata = {
     title: 'Circe et Venus - Divine Creator Management',
     description:
       'Mythological AI-powered platform for content creators. Circe for retention & protection, Venus for growth & seduction.',
-    siteName: 'Circe et Venus',
+    siteName: SITE_NAME,
+    images: [
+      {
+        url: PUBLIC_OG_IMAGE_PATH,
+        width: OG_IMAGE_WIDTH,
+        height: OG_IMAGE_HEIGHT,
+        alt: `${SITE_NAME} — creator platform`,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Circe et Venus - Divine Creator Management',
     description:
       'Mythological AI-powered platform for content creators. Circe for retention & protection, Venus for growth & seduction.',
+    images: [getCanonicalUrl(PUBLIC_OG_IMAGE_PATH)],
   },
   manifest: '/manifest.webmanifest',
   icons: {

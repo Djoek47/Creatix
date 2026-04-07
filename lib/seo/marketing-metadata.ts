@@ -4,8 +4,13 @@ import { getCanonicalUrl } from '@/lib/site-url'
 /** Public brand name for titles and Open Graph. */
 export const SITE_NAME = 'Circe et Venus'
 
-/** Default social / OG image (square mark; replace with 1200×630 asset when available). */
-const OG_IMAGE_PATH = '/icon.png'
+/**
+ * Default Open Graph / Twitter card image — **1200×630** landscape (Facebook / LinkedIn / Slack;
+ * X `summary_large_image` works well at this size). Place the asset at `public/og.png`.
+ */
+export const PUBLIC_OG_IMAGE_PATH = '/og.png'
+export const OG_IMAGE_WIDTH = 1200
+export const OG_IMAGE_HEIGHT = 630
 
 /**
  * Full Next.js metadata for indexable marketing/legal pages: canonical URL, Open Graph, Twitter, robots.
@@ -17,7 +22,7 @@ export function buildPublicMetadata(opts: {
   keywords?: string[]
 }): Metadata {
   const url = getCanonicalUrl(opts.path)
-  const imageUrl = getCanonicalUrl(OG_IMAGE_PATH)
+  const imageUrl = getCanonicalUrl(PUBLIC_OG_IMAGE_PATH)
 
   return {
     title: opts.title,
@@ -34,8 +39,8 @@ export function buildPublicMetadata(opts: {
       images: [
         {
           url: imageUrl,
-          width: 512,
-          height: 512,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
           alt: `${SITE_NAME} — creator platform`,
         },
       ],

@@ -24,13 +24,23 @@ const categoryEnum = z.enum([
 ])
 
 const outputSchema = z.object({
-  executiveSummary: z.string().describe('2–4 short paragraphs: what you inferred and limits of data'),
+  executiveSummary: z
+    .string()
+    .describe(
+      '2–4 short paragraphs: lead with you vs named competitors — same anonymized CRM fan band first, then one tier above (next quartile up). State evidence limits clearly.',
+    ),
   marketContext: z.string().describe('How niche + platform typically compete; no fake statistics'),
-  qualitativeTierNote: z.string().describe('Rough where the creator might sit vs archetypes — qualitative only'),
+  qualitativeTierNote: z
+    .string()
+    .describe(
+      'Where the creator sits vs cohort quartiles (imported fans) and how that frames same-band vs one-tier-up competitors — qualitative only.',
+    ),
   peerArchetypes: z
     .array(
       z.object({
-        label: z.string(),
+        label: z
+          .string()
+          .describe('Name the band, e.g. "Same band (p25–p50 peers)" or "One tier above (p50–p75)" when applicable.'),
         typicalPublicSignals: z.string(),
         ideasToBorrow: z.string(),
       }),
@@ -198,6 +208,62 @@ function buildCohortPercentileSummary(
   )
 }
 
+/** Frames “same stat band” vs “one tier above” for competitor comparison (next quartile band). */
+function buildTierBandGuide(
+  fanCount: number | null | undefined,
+  rows: InternalBenchmarkRow[],
+): string {
+  if (rows.length === 0) {
+    return (
+      '**Tier framing:** No cohort row matched — compare competitors **qualitatively** from creator-supplied public cues. ' +
+      'When benchmarks appear, interpret “same band” as peers in a similar imported-fan range and “one tier above” as the next quartile up.'
+    )
+  }
+  const row = rows[0]
+  const p25 = row.fan_count_p25
+  const p50 = row.fan_count_p50
+  const p75 = row.fan_count_p75
+  const label = `${row.platform} / ${row.niche_bucket}`
+
+  if (fanCount == null || p25 == null || p50 == null || p75 == null) {
+    return (
+      `**Tier framing (${label}):** Quartile cutoffs (imported CRM fans in cohort): p25=${p25 ?? '—'} · p50=${p50 ?? '—'} · p75=${p75 ?? '—'}. ` +
+      'Without the creator’s exact imported fan count, infer **same band** vs **one tier above** from their notes and named competitors only — do not invent metrics.'
+    )
+  }
+
+  type Band = 'below_p25' | 'p25_p50' | 'p50_p75' | 'above_p75'
+  let band: Band
+  if (fanCount < p25) band = 'below_p25'
+  else if (fanCount < p50) band = 'p25_p50'
+  else if (fanCount < p75) band = 'p50_p75'
+  else band = 'above_p75'
+
+  const sameBand: Record<Band, string> = {
+    below_p25:
+      '**Your band:** below p25 (lower quartile for imported fans in this bucket). **Same-band competitors:** treat named peers who plausibly sit in a similar lower-quartile range like you.',
+    p25_p50:
+      '**Your band:** between p25 and p50 (below cohort median). **Same-band competitors:** peers who look comparable in scale/positioning to you in this range.',
+    p50_p75:
+      '**Your band:** between p50 and p75 (above median, below top quartile). **Same-band competitors:** peers who sit with you in this upper-middle band.',
+    above_p75:
+      '**Your band:** above p75 (top quartile for imported fans in this bucket). **Same-band competitors:** peers at a similar top-quartile level.',
+  }
+
+  const tierAbove: Record<Band, string> = {
+    below_p25:
+      '**One tier above:** roughly **p25–p50** (up to the cohort median). Contrast what competitors in that next band typically do vs your named peers in your band.',
+    p25_p50:
+      '**One tier above:** roughly **p50–p75** (between median and upper quartile). Focus on what separates that tier from your band.',
+    p50_p75:
+      '**One tier above:** roughly **above p75** (top quartile). Describe what stronger peers in that tier tend to do publicly.',
+    above_p75:
+      '**One tier above:** there is no higher quartile in this cohort slice — use **aspirational next step** language (growth plays from web + library) without inventing follower counts.',
+  }
+
+  return `${sameBand[band]}\n\n${tierAbove[band]}`
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(req)
@@ -265,6 +331,7 @@ export async function POST(req: NextRequest) {
     const benchAll = (benchRaw ?? []) as InternalBenchmarkRow[]
     const benchForPrompt = selectBenchmarksForPrompt(benchAll, niche, 12)
     const cohortBlock = internalBenchmarksToPromptBlock(benchForPrompt)
+    const tierBandGuide = buildTierBandGuide(fanCount, benchForPrompt)
     const datasetTotal = benchForPrompt[0]?.dataset_creator_total ?? 0
 
     let serperHits: DiscoveryHit[] = []
@@ -291,10 +358,11 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join('\n')
 
-    const system = `You help subscription-platform creators with strategic competitor and market positioning.
+    const system = `You help subscription-platform creators with **competitor-focused** positioning: compare **the creator to named competitors**, not generic market essays.
 
 Rules:
-- Use ONLY the evidence blocks below (internal CRM cohort benchmarks if present, web results, shared best-practice library, anonymized community tips, creator context). Do not invent follower counts, revenue, or private stats.
+- **Primary focus:** Contrast the creator with **competitors they named** (or clearly implied peers). Use the **tier band guide** to separate (1) peers in the **same anonymized stat band** as the creator’s imported CRM fans and (2) what typically characterizes competitors **one tier above** (next quartile band). When the creator did not name anyone, say so and still map archetypes to same-band vs tier-above using cohort + library — do not invent specific accounts.
+- Use ONLY the evidence blocks below (internal CRM cohort benchmarks if present, tier band guide, web results, shared best-practice library, anonymized community tips, creator context). Do not invent follower counts, revenue, or private stats.
 - **Internal benchmarks** describe imported fan rows across Creatix creators (p25/p50/p75 of fan counts per bucket). They are not public social followers and not the user's exact rank — use them as rough peer context only.
 - If the user named specific accounts, treat those as user-supplied public cues — you still have no live API to their metrics.
 - Never encourage harassment, stalking, or scraping paywalled content. Suggest ethical, marketing-level moves only.
@@ -305,6 +373,9 @@ Rules:
 
     const userPrompt = `## Creator context
 ${creatorContext || '(minimal context provided)'}
+
+## How to frame same band vs one tier above (use this in every section)
+${tierBandGuide}
 
 ## Internal anonymized Creatix cohort (CRM-imported fans; your own product data when cohort is large enough)
 ${cohortBlock}
@@ -318,7 +389,7 @@ ${libBlock}
 ## Anonymized approved community tips (no author PII)
 ${tipsBlock}
 
-Produce structured JSON per schema. Be concrete and actionable.`
+Produce structured JSON per schema. Lead with competitor comparison (same band vs one tier above); be concrete and actionable.`
 
     const { object } = await generateObject({
       model: 'openai/gpt-4o-mini',

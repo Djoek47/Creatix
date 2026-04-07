@@ -42,7 +42,7 @@ const circeNavigation = [
 
 const venusNavigation = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Commenter', href: '/dashboard/commenter', icon: MessagesSquare },
+  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
 ]
 

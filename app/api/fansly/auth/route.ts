@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { refreshFanslyObservedRevenueForBilling } from '@/lib/fansly/billing-observation'
+import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 
 // POST: Connect Fansly account with username/password
 // Handles initial connection and 2FA verification
@@ -30,6 +31,29 @@ export async function POST(request: NextRequest) {
           code: 'ALREADY_CONNECTED',
         },
         { status: 409 }
+      )
+    }
+
+    const [{ data: subRow }, { data: connRows }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('billing_variant, billing_focus_platform, billing_focus_platforms, status')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', user.id),
+    ])
+
+    if (adultPlatformConnectBlockedByFocusPlan(connRows || [], subRow, 'fansly')) {
+      return NextResponse.json(
+        {
+          error:
+            'Your current plan is Focus for OnlyFans only. Upgrade to Unified (priced by your revenue tier) under Billing to connect Fansly.',
+          code: 'BILLING_FOCUS_UPGRADE_REQUIRED',
+        },
+        { status: 403 },
       )
     }
 

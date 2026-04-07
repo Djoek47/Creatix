@@ -705,7 +705,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               asChild
               className="border-venus/40 text-venus hover:bg-venus/10"
             >
-              <Link href="/dashboard/ai-studio/tools/venus-attraction">Open Venus Pro</Link>
+              <Link href="/dashboard/ai-studio/tools">Open Venus Pro</Link>
             </Button>
           </div>
           {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-md">{scanSummary}</p> : null}

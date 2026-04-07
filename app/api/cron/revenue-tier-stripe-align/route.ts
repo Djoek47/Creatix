@@ -46,6 +46,10 @@ function focusPlatformsForSub(row: {
  * Aligns Stripe subscription unit price + metadata to the revenue tier implied by
  * connected OnlyFans / Fansly observations. Uses `proration_behavior: 'none'` so the
  * new amount applies on the next invoice.
+ *
+ * Skips: non–paid plans; missing observations; tier already aligned; `past_due` and
+ * other non-active/trialing statuses (no price moves while payment is failed);
+ * `revenue_tier_sync_paused_until` in the future (admin/support override).
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
@@ -66,7 +70,7 @@ export async function GET(req: Request) {
   const { data: subs, error: subsErr } = await supabase
     .from('subscriptions')
     .select(
-      'user_id, stripe_subscription_id, revenue_tier, billing_variant, billing_focus_platforms, billing_seats, plan_id, status',
+      'user_id, stripe_subscription_id, revenue_tier, billing_variant, billing_focus_platforms, billing_seats, plan_id, status, revenue_tier_sync_paused_until',
     )
     .not('stripe_subscription_id', 'is', null)
 
@@ -130,12 +134,21 @@ export async function GET(req: Request) {
       billing_seats: number | null
       plan_id: string
       status: string | null
+      revenue_tier_sync_paused_until: string | null
     }
     processed++
     const st = (r.status || '').toLowerCase()
     if (st !== 'active' && st !== 'trialing') {
       skipped++
       continue
+    }
+    const pauseUntil = r.revenue_tier_sync_paused_until
+    if (pauseUntil) {
+      const t = Date.parse(pauseUntil)
+      if (Number.isFinite(t) && t > Date.now()) {
+        skipped++
+        continue
+      }
     }
     if (!isPaidPlanId(r.plan_id)) {
       skipped++

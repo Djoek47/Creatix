@@ -37,8 +37,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
-import { isPaidPlanId } from '@/lib/billing/access'
-import { focusUpgradeRequired, resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
+import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -186,6 +185,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     billing_variant: string | null
     billing_focus_platform: string | null
     billing_focus_platforms: string[] | null
+    revenue_band_label: string | null
   } | null>(null)
   const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
   const [savingOfPageModel, setSavingOfPageModel] = useState(false)
@@ -225,7 +225,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       supabase.from('platform_connections').select('*').eq('user_id', user.id),
       supabase
         .from('subscriptions')
-        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_band_label')
         .eq('user_id', user.id)
         .maybeSingle(),
     ])
@@ -240,6 +240,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           (subRow as { billing_focus_platform?: string | null }).billing_focus_platform ?? null,
         billing_focus_platforms:
           (subRow as { billing_focus_platforms?: string[] | null }).billing_focus_platforms ?? null,
+        revenue_band_label: (subRow as { revenue_band_label?: string | null }).revenue_band_label ?? null,
       })
     } else {
       setBillingSub(null)
@@ -560,6 +561,18 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
       const data = await response.json()
 
+      if (response.status === 403 && data?.code === 'BILLING_FOCUS_UPGRADE_REQUIRED') {
+        setFanslyDialogOpen(false)
+        setError(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Your plan is Focus for OnlyFans only. Upgrade to Unified under Billing to connect Fansly.',
+        )
+        setMultiUpgradeOpen(true)
+        setFanslyLoading(false)
+        return
+      }
+
       if (response.status === 409 && data?.code === 'ALREADY_CONNECTED') {
         setFanslyDialogOpen(false)
         setError(data.error || 'Fansly is already connected.')
@@ -605,22 +618,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     const platform = PLATFORMS.find(p => p.id === platformId)
     if (platform?.comingSoon) return
 
-    const paid =
-      billingSub &&
-      isPaidPlanId(billingSub.plan_id) &&
-      (billingSub.status === 'active' || billingSub.status === 'trialing')
-    if (
-      paid &&
-      focusUpgradeRequired(
-        connections,
-        billingSub.billing_variant as 'single' | 'multi' | null | undefined,
-        resolveAllowedFocusPlatforms(
-          billingSub.billing_focus_platforms,
-          billingSub.billing_focus_platform,
-        ),
-        platformId,
-      )
-    ) {
+    if (adultPlatformConnectBlockedByFocusPlan(connections, billingSub ?? undefined, platformId)) {
       setMultiUpgradeOpen(true)
       return
     }
@@ -877,9 +875,16 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Unified plan required</AlertDialogTitle>
               <AlertDialogDescription>
-                Your subscription is <strong>Focus</strong> for the adult platforms you chose (up to two).
-                This connection isn&apos;t included on your plan — upgrade to <strong>Unified</strong> under
-                Billing to cover all three, then connect again.
+                Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
+                Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
+                by your revenue tier
+                {billingSub?.revenue_band_label ? (
+                  <>
+                    {' '}
+                    (your band: <strong>{billingSub.revenue_band_label}</strong>)
+                  </>
+                ) : null}
+                . Upgrade under Billing, then connect again.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1160,9 +1165,16 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Unified plan required</AlertDialogTitle>
             <AlertDialogDescription>
-              Your subscription is <strong>Focus</strong> for the adult platforms you chose (up to two).
-              This connection isn&apos;t included on your plan — upgrade to <strong>Unified</strong> under
-              Billing to cover all three, then connect again.
+              Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
+              Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
+              by your revenue tier
+              {billingSub?.revenue_band_label ? (
+                <>
+                  {' '}
+                  (your band: <strong>{billingSub.revenue_band_label}</strong>)
+                </>
+              ) : null}
+              . Upgrade under Billing, then connect again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
-import type { TourStep } from '@/lib/tour-config'
+import type { TourStep } from '@/lib/tour-types'
 
 interface TourDialogProps {
   open: boolean

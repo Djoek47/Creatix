@@ -25,16 +25,26 @@ export function StartTourButton({ className }: { className?: string }) {
 
   if (!hasSteps || !startTour) return null
 
+  const isFullWelcome = pathname === '/dashboard/welcome'
+  const labelDone = isFullWelcome ? 'Full tour' : 'Tutorial'
+  const labelStart = isFullWelcome ? 'Full tour' : 'Start Tour'
+  const titleDone = isFullWelcome
+    ? 'Show full app tour again'
+    : 'Show page walkthrough again'
+  const titleStart = isFullWelcome
+    ? 'Start the full app orientation (all major areas)'
+    : 'Start page walkthrough (dialog tour)'
+
   return (
     <Button
       variant="ghost"
       size="sm"
       className={className}
       onClick={startTour}
-      title={completed ? 'Show page walkthrough again' : 'Start page walkthrough (dialog tour)'}
+      title={completed ? titleDone : titleStart}
     >
       <BookOpen className="h-4 w-4 mr-1.5" />
-      {completed ? 'Tutorial' : 'Start Tour'}
+      {completed ? labelDone : labelStart}
     </Button>
   )
 }

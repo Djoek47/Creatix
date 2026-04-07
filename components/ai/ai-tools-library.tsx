@@ -53,7 +53,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'voice-cloning': Music,
   'competitor-analysis': Eye,
   'circe-protection-shield': Shield,
-  'venus-attraction': Heart,
   'venus-cupid': Target,
   'standard-of-attraction': Heart,
 }

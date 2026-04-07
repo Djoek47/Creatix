@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
   Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles
+  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles, BookOpen
 } from 'lucide-react'
 
 // Social Media Logos
@@ -301,6 +301,13 @@ export default function SettingsPage() {
                 <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 Contact Support
               </a>
+              <Link
+                href="/dashboard/welcome?openTour=1"
+                className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg"
+              >
+                <BookOpen className="h-3 w-3 flex-shrink-0" />
+                Full app tour
+              </Link>
             </div>
           </CardContent>
         </Card>

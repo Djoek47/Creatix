@@ -7,12 +7,14 @@
 3. **API enforcement** — `lib/billing/onlyfans-billing-gate.ts` blocks paid users whose `subscriptions.revenue_tier` is below the tier implied by **scoped** OnlyFans and/or Fansly `platform_connections` observations (`REVENUE_TIER_MISMATCH`).
 4. **Stripe alignment job** — `GET /api/cron/revenue-tier-stripe-align` (Vercel Cron: `15 4 * * *` UTC). Secured with `CRON_SECRET` / `x-vercel-cron: true`. For each **active/trialing** `cev-paid` subscription with a Stripe id, computes `requiredTier = max(OF, Fansly)` from observations; if it differs from `revenue_tier`, updates the subscription item with `price_data` + metadata and **`proration_behavior: 'none'`** so the new unit amount applies on the **next invoice**. Supabase stays in sync via `customer.subscription.updated` webhooks.
 5. **Fansly connect** — After OAuth success, `refreshFanslyObservedRevenueForBilling` runs so MTD revenue is stored before gated routes rely on it.
+6. **Tier change notifications** — When Stripe subscription metadata updates `revenueTier` and the DB already had a prior tier, `customer.subscription.updated` triggers in-app Divine notification (`lib/billing/tier-change-notify.ts`) plus optional **Resend** email if `RESEND_API_KEY` is set and `profiles.email` is present.
+7. **Manual pause** — `subscriptions.revenue_tier_sync_paused_until` skips the daily cron until that timestamp. Admins: `GET` / `PATCH /api/admin/users/[id]/revenue-tier-sync-pause` (`pausedUntil`: ISO string or `null` to clear).
 
 ## Goals (retained)
 
 1. Align subscription price with the creator’s **business scale** (revenue band).
 2. Apply tier moves on a **predictable schedule** — next invoice, not mid-cycle proration (see cron above).
-3. Notify creators on band moves — **not implemented** (Phase 4 below).
+3. Notify creators on band moves — **implemented** (webhook-driven; see §Implemented #6).
 4. Downgrades use the same cron path as upgrades.
 
 ## Definitions
@@ -30,18 +32,21 @@
 
 ### Phase 4 — Creator notifications
 
-- When `computedTier > previousTier`, send in-app or email with new band, price, effective date.
-- Idempotency: e.g. `last_tier_congrats_at` + `last_congrats_tier` or `billing_tier_events` table.
+- [x] In-app + optional email when `revenue_tier` changes via Stripe metadata (subscription updated webhook).
+- Idempotency: Stripe replays the same tier only if metadata changes; duplicate events with identical tier do not notify.
 
 ### Phase 5 — Edge cases (partially done)
 
 - [x] Trial / active: cron updates **trialing** and **active** alike.
-- [ ] **past_due** — skip or use last known tier (cron currently skips non-active/trialing).
-- [ ] **Manual override** — `tier_locked_until` or support flag to skip cron.
+- [x] **past_due** — cron **does not** change price (only `active` / `trialing`); subscription stays on last metadata until payment recovers.
+- [x] **Manual override** — `revenue_tier_sync_paused_until` + admin API (see §Implemented #7).
 - [x] **Multi-platform revenue** — tier for gating uses **max** of OnlyFans-required and Fansly-required tiers from each platform’s own observation (not a single blended dollar amount).
 
 ## References
 
+- `scripts/074_subscriptions_revenue_tier_sync_pause.sql` — `revenue_tier_sync_paused_until` column.
+- `lib/billing/tier-change-notify.ts` — tier-change in-app + Resend email.
+- `app/api/admin/users/[id]/revenue-tier-sync-pause/route.ts` — admin pause/clear.
 - `lib/circe-venus-pricing.ts` — tier thresholds and USD prices.
 - `lib/pricing-matrix.ts` — `tierIndexFromMonthlyRevenue`, `getMonthlyPriceUsd`, `getMonthlyPriceCents`.
 - `app/api/cron/revenue-tier-stripe-align/route.ts` — scheduled Stripe updates.

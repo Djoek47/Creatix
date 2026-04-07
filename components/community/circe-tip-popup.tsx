@@ -155,7 +155,8 @@ export function CirceTipPopupHost() {
       role="status"
       aria-live="polite"
     >
-      <Card className="pointer-events-auto relative w-full max-w-md border-circe/35 bg-gradient-to-br from-circe/10 via-card to-card shadow-lg animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <Card className="circe-tip-card-glow pointer-events-auto relative w-full border-circe/50 bg-gradient-to-br from-circe/32 via-card to-card shadow-xl">
         <Button
           type="button"
           variant="ghost"
@@ -195,6 +196,7 @@ export function CirceTipPopupHost() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

@@ -113,7 +113,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hasRunner: true,
     hiddenFromLibrary: true,
   },
-  { id: 'dm-bundle-pricing', name: 'DM Bundle Pricing', description: 'PPV / paid DM bundle price and copy', longDescription: 'Used by Divine Manager to suggest bundle pricing and fan-facing teaser copy from your goal, fan context, and vault summary.', category: 'engagement', credits: 1, hasRunner: true },
+  {
+    id: 'dm-bundle-pricing',
+    name: 'DM Bundle Pricing',
+    description: 'PPV / paid DM bundle price and copy',
+    longDescription:
+      'Suggests bundle price points and fan-facing teaser copy from your goal, fan context, and vault metadata. **Not shown in the AI Studio grid** — use **Divine Manager** (`recommend_dm_bundle` or `run_ai_studio_tool` with `toolId` `dm-bundle-pricing`).',
+    category: 'engagement',
+    credits: 1,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
   {
     id: 'viral-predictor',
     name: 'Viral Predictor',
@@ -193,9 +203,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'competitor-analysis',
     name: 'Competitor Analysis',
-    description: 'Serper + shared best-practice library',
+    description: 'You vs peers in your band & one tier up',
     longDescription:
-      'Pro-only: blends **anonymized Creatix cohort benchmarks** (CRM fan-count percentiles by platform + niche bucket once you have enough creators), live web discovery (Serper), the shared best-practices library, and Community tips. Returns structured angles plus source links. No paywalled scraping or private competitor metrics.',
+      'Pro-only: **compares you to competitors** using your CRM-imported fan count against **anonymized Creatix cohort bands** (same stat range as you, then **one tier above**), plus optional live web discovery (Serper), the shared best-practices library, and Community tips. Name public @handles or positioning notes so the run can contrast peers in your band vs the next tier up. No paywalled scraping or private competitor metrics.',
     category: 'premium',
     isPro: true,
     credits: 5,
@@ -213,7 +223,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 6,
     hasRunner: true,
   },
-  { id: 'venus-attraction', name: "Venus's Allure", description: 'Magnetic content optimization', longDescription: 'Channel the goddess of beauty to optimize your content for maximum attraction and new subscriber conversion.', category: 'premium', isPro: true, badge: 'Venus Pro', credits: 4, hasRunner: true },
   {
     id: 'venus-cupid',
     name: "Cupid's Arrow",

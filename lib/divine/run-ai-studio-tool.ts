@@ -158,16 +158,8 @@ export async function runAiStudioToolServer(
         tone: a.tone ?? a.contentType ?? 'friendly',
         callToAction: a.callToAction ?? a.description ?? '',
       }, cookie)
-    case 'venus-attraction':
-      return postAi('venus-attraction', {
-        prompt: a.prompt ?? a.description ?? a.contentDescription ?? '',
-        niche: a.niche ?? '',
-        platform: a.platform ?? 'onlyfans',
-      }, cookie)
     case 'venus-cupid':
       return postAi('venus-cupid', {
-        prompt: a.prompt ?? a.description ?? '',
-        niche: a.niche ?? '',
         tagForChurn: a.tagForChurn !== false,
       }, cookie)
     case 'competitor-analysis':

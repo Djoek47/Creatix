@@ -28,10 +28,10 @@ function ToolRunnerInner() {
     if (toolId === 'retention-tease') {
       router.replace('/dashboard/retention/churn#future-tease')
     }
-    if (toolId === 'voice-cloning') {
+    if (toolId === 'voice-cloning' || toolId === 'venus-attraction') {
       router.replace('/dashboard/ai-studio/tools')
     }
-    if (toolId === 'price-optimizer' || toolId === 'viral-predictor') {
+    if (toolId === 'price-optimizer' || toolId === 'viral-predictor' || toolId === 'dm-bundle-pricing') {
       router.replace('/dashboard/divine-manager')
     }
     if (toolId === 'leak-scanner' || toolId === 'dmca-automator' || toolId === 'circe-protection-shield') {
@@ -50,8 +50,10 @@ function ToolRunnerInner() {
     toolId === 'whale-whisperer' ||
     toolId === 'retention-tease' ||
     toolId === 'voice-cloning' ||
+    toolId === 'venus-attraction' ||
     toolId === 'price-optimizer' ||
     toolId === 'viral-predictor' ||
+    toolId === 'dm-bundle-pricing' ||
     toolId === 'leak-scanner' ||
     toolId === 'dmca-automator' ||
     toolId === 'circe-protection-shield'

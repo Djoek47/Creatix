@@ -1334,7 +1334,7 @@ export default function DivineManagerPage() {
               <Link href="/dashboard/ai-studio?tab=tools">AI Studio</Link>
             </Button>
             <Button variant="outline" size="sm" className="border-purple-500/20 bg-card/50" asChild>
-              <Link href="/dashboard/commenter">Commenter</Link>
+              <Link href="/dashboard/commenter">Housekeeping</Link>
             </Button>
             <Button variant="outline" size="sm" className="border-amber-500/20 bg-card/50" asChild>
               <Link href="/dashboard/protection">Protection</Link>

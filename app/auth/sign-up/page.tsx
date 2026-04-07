@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Loader2, Sparkles, Moon, Sun, Star, Shield } from 'lucide-react'
+import { ArrowLeft, Loader2, Sparkles, Moon, Sun, Shield, Mic, MessageSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -53,11 +53,12 @@ export default function SignUpPage() {
   }
 
   const features = [
-    { icon: Moon, text: 'Circe - Retention Enchantress AI', color: 'text-circe' },
-    { icon: Sun, text: 'Venus - Growth Goddess AI', color: 'text-venus' },
-    { icon: Star, text: 'Cosmic Content Calendar', color: 'text-primary' },
-    { icon: Shield, text: 'Divine Leak Protection', color: 'text-circe' },
-    { icon: Sparkles, text: 'Astrology-Powered Scheduling', color: 'text-venus' },
+    { icon: Moon, text: 'Circe — retention, protection & analytics', color: 'text-circe' },
+    { icon: Sun, text: 'Venus — fans, mentions & housekeeping', color: 'text-venus' },
+    { icon: Mic, text: 'Divine Manager — voice & chat', color: 'text-primary' },
+    { icon: MessageSquare, text: 'Unified inbox — OnlyFans & Fansly', color: 'text-venus' },
+    { icon: Shield, text: 'Leak alerts & DMCA drafts (you approve)', color: 'text-circe' },
+    { icon: Sparkles, text: 'AI Studio — tools library & credits', color: 'text-primary' },
   ]
 
   return (

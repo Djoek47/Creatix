@@ -32,12 +32,11 @@ export const metadata: Metadata = {
   keywords: [
     'creator management',
     'OnlyFans',
-    'MYM',
     'Fansly',
+    'ManyVids',
     'content creator',
     'fan management',
     'AI assistant',
-    'astrology',
     'Circe',
     'Venus',
   ],

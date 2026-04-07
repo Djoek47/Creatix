@@ -54,7 +54,7 @@ const circeNavigation: NavItem[] = [
 // Venus's domain - Growth, Attraction, Reputation (White)
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Commenter', href: '/dashboard/commenter', icon: MessagesSquare },
+  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
 ]
 
@@ -69,7 +69,7 @@ const silverNavigation: NavItem[] = [
   { name: 'Content library', href: '/dashboard/content-library', icon: Library },
 ]
 
-// AI Studio - Rainbow animated
+// AI Studio — gold/purple glow idle; rainbow gradient on hover
 const aiStudioNavigation: NavItem[] = [
   { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Star },
 ]
@@ -99,11 +99,22 @@ const variantStyles = {
     icon: 'text-gold'
   },
   'ai-studio': {
-    // Rainbow/multicolor — gradient always on; stronger when active / hover
-    active: 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 animate-gradient-x',
+    // Gold + purple glow idle; rainbow animated gradient on hover (group-hover)
+    active:
+      'group relative overflow-hidden transition-all duration-300 ' +
+      'bg-gradient-to-r from-amber-500/12 via-purple-500/15 to-violet-600/18 ' +
+      'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.28),0_0_14px_-2px_rgba(251,191,36,0.28),0_0_22px_-4px_rgba(168,85,247,0.38)] ' +
+      'hover:bg-gradient-to-r hover:from-pink-500/22 hover:via-fuchsia-500/22 hover:to-cyan-500/18 ' +
+      'hover:bg-[length:200%_200%] hover:animate-gradient-x ' +
+      'hover:shadow-[0_0_18px_rgba(236,72,153,0.42),0_0_24px_rgba(168,85,247,0.38),0_0_26px_rgba(34,211,238,0.32),0_0_16px_rgba(251,191,36,0.28)]',
     inactive:
-      'bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 hover:from-pink-500/15 hover:via-purple-500/15 hover:to-cyan-500/15',
-    icon: 'text-purple-500'
+      'group relative overflow-hidden transition-all duration-300 ' +
+      'bg-gradient-to-r from-amber-500/8 via-transparent to-purple-500/12 ' +
+      'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2),0_0_12px_-2px_rgba(251,191,36,0.22),0_0_18px_-4px_rgba(147,51,234,0.28)] ' +
+      'hover:bg-gradient-to-r hover:from-pink-500/18 hover:via-purple-500/18 hover:to-cyan-500/15 ' +
+      'hover:bg-[length:200%_200%] hover:animate-gradient-x ' +
+      'hover:shadow-[0_0_16px_rgba(236,72,153,0.38),0_0_22px_rgba(168,85,247,0.34),0_0_24px_rgba(34,211,238,0.28)]',
+    icon: 'text-amber-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.55)] group-hover:text-purple-200 group-hover:drop-shadow-[0_0_12px_rgba(236,72,153,0.45)]'
   }
 } as const
 
@@ -136,16 +147,18 @@ function NavLink({
         isActive ? styles.active : styles.inactive
       )}
     >
-      <Icon className={cn(
-        'h-5 w-5 flex-shrink-0', 
-        isActive && styles.icon,
-        isAiStudio && 'animate-hue-rotate'
-      )} />
+      <Icon
+        className={cn(
+          'h-5 w-5 flex-shrink-0',
+          isAiStudio ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate') : isActive && styles.icon,
+        )}
+      />
       {!collapsed && (
         <span
           className={cn(
             isAiStudio &&
-              'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent',
+              'bg-gradient-to-r from-amber-500 via-purple-500 to-violet-500 bg-clip-text text-transparent transition-all duration-300 ' +
+                'group-hover:from-pink-500 group-hover:via-purple-500 group-hover:to-cyan-500 group-hover:bg-[length:200%_200%] group-hover:animate-gradient-x',
             isAiStudio && !isActive && 'opacity-90',
           )}
         >
@@ -206,7 +219,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           ))}
         </div>
 
-        {/* AI Studio - Rainbow/Multicolor */}
+        {/* AI Studio — gold + purple glow; rainbow on hover */}
         <div className="space-y-1">
           {aiStudioNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="ai-studio" pathname={pathname} collapsed={collapsed} />

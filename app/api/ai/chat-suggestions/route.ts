@@ -19,7 +19,7 @@ const suggestionSchema = z.object({
 export async function POST(req: NextRequest) {
   const { fanMessage, conversationHistory, fanTier, creatorPersona } = await req.json()
 
-  const systemPrompt = `You are an AI assistant helping content creators on platforms like OnlyFans, MYM, and Fansly craft engaging replies to their fans.
+  const systemPrompt = `You are an AI assistant helping content creators on platforms like OnlyFans, Fansly, and ManyVids craft engaging replies to their fans.
 
 Creator Persona: ${creatorPersona || 'Friendly, flirty, and engaging'}
 Fan Tier: ${fanTier || 'regular'}

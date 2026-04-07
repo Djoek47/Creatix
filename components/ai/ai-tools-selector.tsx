@@ -191,9 +191,9 @@ const proTools = [
   {
     id: 'competitor-analysis',
     name: 'Competitor Analysis',
-    description: 'Positioning vs peers (public signals)',
+    description: 'You vs peers in your band & one tier up',
     longDescription:
-      'Compare positioning using only what you paste below (public @handles, bios, pricing hints). Get differentiation ideas, content angles, and watch-outs — no scraping or private data.',
+      'Uses your imported CRM fan count vs anonymized cohort quartiles, then contrasts **competitors in your stat band** with what typically works **one tier above**. Add public @handles or positioning notes — no scraping or private data.',
     icon: Eye,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
@@ -748,20 +748,11 @@ export function AIToolsSelector({
           })
           break
 
-        case 'venus-attraction':
-          response = await fetch('/api/ai/venus-attraction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined, platform }),
-          })
-          break
         case 'venus-cupid':
           response = await fetch('/api/ai/venus-cupid', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              prompt: contentDescription,
-              niche: niche || undefined,
               tagForChurn: cupidTagChurn,
             }),
           })
@@ -1596,8 +1587,13 @@ export function AIToolsSelector({
       case 'competitor-analysis':
         return (
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Use only public marketing signals you already know (bios, free posts, stated prices). Do not use this to harass, stalk, or infer private data.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We anchor you on{' '}
+              <strong className="text-foreground">your cohort stat band</strong> (imported fans vs anonymized Creatix
+              quartiles), then compare you to <strong className="text-foreground">named competitors</strong> in the{' '}
+              <strong className="text-foreground">same band</strong> and contrast with{' '}
+              <strong className="text-foreground">one tier above</strong> (next quartile up). Use only public marketing
+              signals — no harassment or private data.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -1624,9 +1620,9 @@ export function AIToolsSelector({
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Competitors or peers (public cues)</Label>
+              <Label>Competitors to compare (required for a focused run)</Label>
               <Textarea
-                placeholder="@handles, link to public pages, or short notes on how they position (themes, price tier if public, posting cadence you’ve noticed)…"
+                placeholder="@handles, public profile links, or notes on who sits near you vs who feels one step ahead (themes, price tier if public, cadence)…"
                 value={competitorTargets}
                 onChange={(e) => setCompetitorTargets(e.target.value)}
                 className="min-h-[100px]"
@@ -1634,7 +1630,7 @@ export function AIToolsSelector({
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Your goals &amp; what you want to figure out</Label>
+                <Label>What you want out of the comparison</Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
                   size="sm"
@@ -1642,7 +1638,7 @@ export function AIToolsSelector({
                 />
               </div>
               <Textarea
-                placeholder="e.g., Stand out on promos without racing to the bottom on PPV · content gaps I could own · how to sound different in DMs…"
+                placeholder="e.g., Where I’m weak vs peers in my band · what one-tier-up creators do on promos or DMs · gaps I can own without racing to the bottom…"
                 value={contentDescription}
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[100px]"
@@ -1655,39 +1651,9 @@ export function AIToolsSelector({
                 onCheckedChange={(v) => setUseCompetitorWebSearch(v === true)}
               />
               <label htmlFor="competitor-web" className="text-xs leading-snug text-muted-foreground cursor-pointer">
-                Run live web discovery (Serper) for public guides and articles — adds verifiable source links. Turn off to
-                use only the shared library + Community tips digest.
+                Run live web discovery (Serper) for public guides and articles — adds verifiable context. Turn off to use
+                cohort benchmarks + shared library + Community tips only.
               </label>
-            </div>
-          </div>
-        )
-
-      case 'venus-attraction':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Your Niche (optional)</Label>
-              <Input
-                placeholder="e.g., fitness, cosplay, GFE..."
-                value={niche}
-                onChange={(e) => setNiche(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>What do you want to optimize for attraction?</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Describe your situation, goals, or ask a specific question. Grok (Venus/Circe) will respond with tailored advice."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[120px]"
-              />
             </div>
           </div>
         )
@@ -1696,41 +1662,17 @@ export function AIToolsSelector({
         return (
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Pulls your <strong className="text-foreground">newest fans</strong> from saved CRM rows plus live OnlyFans/Fansly lists (when connected),
-              then drafts introductions and care ideas. New subscribers are high churn risk until they feel welcomed—use{' '}
+              <strong className="text-foreground">Generate</strong> loads your <strong className="text-foreground">newest fans</strong> from CRM + live
+              OnlyFans/Fansly lists, then suggests how to welcome and engage them. Optional links:{' '}
               <Link href="/dashboard/retention/churn" className="text-primary underline hover:no-underline">
                 Retention → Churn
-              </Link>{' '}
-              for digests and{' '}
+              </Link>
+              ,{' '}
               <Link href="/dashboard/ai-studio/tools/churn-predictor" className="text-primary underline hover:no-underline">
                 Churn Predictor
-              </Link>{' '}
-              for deep dives.
+              </Link>
+              .
             </p>
-            <div className="space-y-2">
-              <Label>Your niche (optional)</Label>
-              <Input
-                placeholder="e.g., fitness, cosplay, GFE..."
-                value={niche}
-                onChange={(e) => setNiche(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Focus or extra context (optional)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Optional: tone, boundaries, promos, or what you want Cupid to emphasize for first-touch onboarding."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
               <Checkbox
                 id="cupid-churn-tag"
@@ -1998,7 +1940,9 @@ export function AIToolsSelector({
       </div>
       {res.peerArchetypes?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Peer archetypes</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Competitors — same band vs one tier up
+          </h4>
           <ul className="space-y-3">
             {res.peerArchetypes.map((p, i) => (
               <li key={i} className="rounded-lg border border-border p-3">

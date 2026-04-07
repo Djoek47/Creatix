@@ -40,7 +40,7 @@ export default function CirceDailyTipsPage() {
         .
       </p>
 
-      <Card className="border-circe/35 bg-gradient-to-br from-circe/10 via-card to-card">
+      <Card className="circe-tip-card-glow border-circe/50 bg-gradient-to-br from-circe/32 via-card to-card shadow-xl">
         <CardHeader>
           <div className="flex items-center gap-2 text-circe-light">
             <Sparkles className="h-5 w-5" />

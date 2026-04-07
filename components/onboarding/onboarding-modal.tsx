@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -23,6 +24,7 @@ import {
   BookOpen,
   Crown,
   HeartPulse,
+  Activity,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -41,11 +43,57 @@ interface OnboardingModalProps {
   userName?: string
 }
 
+function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
+  const router = useRouter()
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
+        <Check className="h-10 w-10 text-green-500" />
+      </div>
+      <h3 className="mb-2 text-xl font-semibold">Your Journey Begins!</h3>
+      <p className="mb-4 max-w-md text-muted-foreground">
+        For a <strong className="text-foreground">single walkthrough of every major area</strong> (sidebar, AI Studio,
+        retention, protection, and more), take the full app tour—about thirty short steps. You can also use{' '}
+        <strong className="text-foreground">Start Tour</strong> in the header on any page for a quick refresher there.
+      </p>
+      <Button
+        type="button"
+        className="mb-4 w-full max-w-sm gap-2"
+        onClick={() => {
+          onComplete()
+          router.push('/dashboard/welcome?openTour=1')
+        }}
+      >
+        <BookOpen className="h-4 w-4" aria-hidden />
+        Take full app tour
+      </Button>
+      <p className="mb-6 max-w-md text-xs text-muted-foreground">
+        Or tap <strong className="text-foreground">Get Started</strong> below to close this window and explore on your own.
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Badge variant="outline" className="gap-1">
+          <Zap className="h-3 w-3" />
+          100 AI Credits
+        </Badge>
+        <Badge variant="outline" className="gap-1">
+          <Star className="h-3 w-3" />
+          14-Day Pro Trial
+        </Badge>
+      </div>
+      <Link href="/dashboard/guide" className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline">
+        <BookOpen className="h-4 w-4" />
+        Open the Guide for detailed help
+      </Link>
+    </div>
+  )
+}
+
 export function OnboardingModal({ open, onComplete, userName = 'Creator' }: OnboardingModalProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [completed, setCompleted] = useState<string[]>([])
 
-  const steps: OnboardingStep[] = [
+  const steps: OnboardingStep[] = useMemo(
+    () => [
     {
       id: 'welcome',
       title: 'Welcome to Circe et Venus',
@@ -337,6 +385,15 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
               <p className="text-sm text-muted-foreground">Load, Mimic snapshot, moon &amp; zodiac calendar</p>
             </div>
           </div>
+          <div className="flex items-center gap-3 rounded-lg border border-circe/20 bg-circe/5 p-3">
+            <div className="rounded-lg bg-circe/15 p-2">
+              <Activity className="h-5 w-5 text-circe-light" />
+            </div>
+            <div>
+              <p className="font-medium">Retention &amp; churn</p>
+              <p className="text-sm text-muted-foreground">Churn hub, digests, Churn Predictor in AI Studio</p>
+            </div>
+          </div>
           <div className="flex items-center gap-3 rounded-lg border border-border p-3">
             <div className="rounded-lg bg-circe/10 p-2">
               <Shield className="h-5 w-5 text-circe-light" />
@@ -355,36 +412,11 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
       description: 'Begin your divine journey',
       icon: Check,
       iconColor: 'text-green-500',
-      content: (
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
-            <Check className="h-10 w-10 text-green-500" />
-          </div>
-          <h3 className="mb-2 text-xl font-semibold">
-            Your Journey Begins!
-          </h3>
-          <p className="mb-6 max-w-md text-muted-foreground">
-            You are now ready to explore Circe et Venus. The goddesses await your command. For a dialog walkthrough of
-            each page, use <strong className="text-foreground">Start Tour</strong> in the header anytime.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <Zap className="h-3 w-3" />
-              100 AI Credits
-            </Badge>
-            <Badge variant="outline" className="gap-1">
-              <Star className="h-3 w-3" />
-              14-Day Pro Trial
-            </Badge>
-          </div>
-          <Link href="/dashboard/guide" className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline">
-            <BookOpen className="h-4 w-4" />
-            Open the Guide for detailed help
-          </Link>
-        </div>
-      ),
+      content: <OnboardingCompleteContent onComplete={onComplete} />,
     },
-  ]
+  ],
+    [userName, onComplete],
+  )
 
   const progress = ((currentStep + 1) / steps.length) * 100
   const currentStepData = steps[currentStep]

@@ -17,7 +17,7 @@ export const metadata: Metadata = buildPublicMetadata({
   path: '/how-it-works',
   title: 'How It Works | Circe et Venus',
   description:
-    'Connect OnlyFans, Fansly, or MYM; meet Circe & Venus AI guides; get pricing, content, and DM insights. Step-by-step how Circe et Venus helps adult creators grow and retain fans.',
+    'Connect OnlyFans and Fansly, open Divine Manager, and use Circe (retention & protection) and Venus (fans & growth) with AI Studio — step-by-step how Circe et Venus works today.',
   keywords: [
     'how Circe et Venus works',
     'OnlyFans setup',
@@ -32,8 +32,9 @@ export default function HowItWorksPage() {
   const steps = [
     {
       number: '01',
-      title: 'Connect Your Platforms',
-      description: 'Link your OnlyFans, Fansly, MYM, or other creator platforms. Our secure integration syncs your analytics and content.',
+      title: 'Connect your platforms',
+      description:
+        'Link OnlyFans and Fansly for DMs, fans, and sync. ManyVids is on Unified billing when you choose that tier — see Pricing for Focus vs Unified.',
       icon: Link2,
       color: 'primary',
     },
@@ -62,27 +63,25 @@ export default function HowItWorksPage() {
 
   const features = [
     {
-      title: 'Circe - Retention AI',
-      description: 'Like the mythological enchantress, Circe keeps your fans captivated.',
+      title: 'Circe — Retention & protection',
+      description: 'Analytics, Retention, and Protection in the app — same names as the sidebar.',
       icon: Moon,
       color: 'circe',
       items: [
-        'Churn prediction and prevention alerts',
-        'Retention analytics and insights',
-        'Leak detection and DMCA automation',
-        'Fan engagement scoring',
+        'Churn signals and retention digests (AI Studio + Retention hub)',
+        'Income predictor and dashboard snapshots',
+        'Leak alerts, scan scheduling, and DMCA drafts you review before sending',
       ],
     },
     {
-      title: 'Venus - Growth AI',
-      description: 'Channel the goddess of attraction to grow your audience.',
+      title: 'Venus — Growth & fans',
+      description: 'Fans, Commenter (housekeeping), and Mentions — CRM and public signals together.',
       icon: Sun,
       color: 'venus',
       items: [
-        'Growth strategy recommendations',
-        'Optimal posting time analysis',
-        'Content performance predictions',
-        'Reputation and sentiment monitoring',
+        'Fan CRM, segments, and smart lists synced to platforms',
+        'Commenter: scored replies, review-only posting',
+        'Mentions and reputation off the main feed',
       ],
     },
   ]
@@ -238,33 +237,33 @@ export default function HowItWorksPage() {
               {[
                 {
                   icon: Calendar,
-                  title: 'Cosmic Content Calendar',
-                  description: 'Schedule posts aligned with celestial energies for optimal engagement.',
+                  title: 'Content calendar',
+                  description: 'Schedule drops and orchestrate rhythm; optional cosmic framing when you want it.',
                 },
                 {
                   icon: MessageSquare,
                   title: 'AI Chatter',
-                  description: 'Automated responses that sound just like you, available 24/7.',
+                  description: 'Per-fan DM automation (OnlyFans) with review queues and Mimic-aware drafts.',
                 },
                 {
                   icon: Shield,
-                  title: 'Leak Protection',
-                  description: 'Continuous monitoring and automated DMCA takedowns.',
+                  title: 'Leak protection',
+                  description: 'Monitoring, alerts, and DMCA draft workflows — you stay in the loop.',
                 },
                 {
                   icon: BarChart3,
-                  title: 'Advanced Analytics',
-                  description: 'Deep insights into revenue, fans, and content performance.',
+                  title: 'Analytics',
+                  description: 'Revenue, snapshots, and Income Predictor — tied to your connected data.',
                 },
                 {
                   icon: Users,
-                  title: 'Fan Management',
-                  description: 'Track, tier, and nurture your most valuable supporters.',
+                  title: 'Fan CRM',
+                  description: 'Segments, spend, tags, and Housekeeping lists synced to platforms.',
                 },
                 {
                   icon: Zap,
-                  title: 'AI Tools Suite',
-                  description: '20+ AI-powered tools for content, engagement, and growth.',
+                  title: 'AI Studio',
+                  description: 'Library of runnable tools (credits where marked) plus Divine Manager access.',
                 },
               ].map((feature) => (
                 <div
@@ -299,7 +298,7 @@ export default function HowItWorksPage() {
               Ready to Transform Your Creator Business?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Join thousands of creators who trust divine AI to guide their journey.
+              Start a trial, connect a platform, and open Divine Manager — the same stack described on Features.
             </p>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">{PRICING_MODEL_TRIAL_LINE}</p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">

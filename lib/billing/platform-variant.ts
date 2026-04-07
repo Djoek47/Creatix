@@ -65,6 +65,39 @@ export function resolveAllowedFocusPlatforms(
   return ['onlyfans']
 }
 
+/** Stripe / subscriptions row fields used for Focus vs Unified resolution. */
+export interface SubscriptionFocusFields {
+  billing_variant?: string | null
+  billing_focus_platforms?: string[] | null
+  billing_focus_platform?: string | null
+  status?: string | null
+}
+
+const SUBSCRIPTION_STATUSES_ENFORCING_FOCUS: ReadonlySet<string> = new Set([
+  'active',
+  'trialing',
+  'past_due',
+])
+
+/**
+ * Focus vs Unified when `billing_variant` is missing on legacy rows: infer from focus columns;
+ * unknown → Unified (do not block extra platforms).
+ */
+export function effectiveBillingVariant(row: SubscriptionFocusFields | null | undefined): 'single' | 'multi' {
+  if (!row) return 'multi'
+  if (row.billing_variant === 'multi') return 'multi'
+  if (row.billing_variant === 'single') return 'single'
+  if (row.billing_focus_platforms?.length) {
+    const v = sortFocusPlatforms(row.billing_focus_platforms)
+    if (v.length >= 1 && v.length <= 2) return 'single'
+  }
+  const leg = row.billing_focus_platform?.toLowerCase().trim()
+  if (leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)) {
+    return 'single'
+  }
+  return 'multi'
+}
+
 /**
  * True if connecting `platformIdToConnect` would add or use a platform outside the Focus allowance.
  * False for Unified (`multi`) or non-adult platforms.
@@ -77,6 +110,7 @@ export function focusUpgradeRequired(
 ): boolean {
   const pid = platformIdToConnect.toLowerCase()
   if (!(ADULT_BILLING_PLATFORMS as readonly string[]).includes(pid)) return false
+  if (billingVariant === 'multi') return false
   if (billingVariant !== 'single') return false
 
   const allowedList =
@@ -92,4 +126,21 @@ export function focusUpgradeRequired(
     if (!allowed.has(a)) return true
   }
   return false
+}
+
+/**
+ * Block dashboard “Connect” when an active subscription is Focus and the new platform is outside allowance.
+ * (Unified = no block here; no subscription row = no block.)
+ */
+export function adultPlatformConnectBlockedByFocusPlan(
+  connections: PlatformConnectionLike[],
+  sub: SubscriptionFocusFields | null | undefined,
+  platformIdToConnect: string,
+): boolean {
+  if (!sub) return false
+  const st = (sub.status || '').toLowerCase()
+  if (!SUBSCRIPTION_STATUSES_ENFORCING_FOCUS.has(st)) return false
+  const variant = effectiveBillingVariant(sub)
+  const allowed = resolveAllowedFocusPlatforms(sub.billing_focus_platforms, sub.billing_focus_platform)
+  return focusUpgradeRequired(connections, variant, allowed, platformIdToConnect)
 }

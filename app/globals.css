@@ -678,6 +678,36 @@
   animation: messages-scroll-fab-glow 3.2s ease-in-out infinite;
 }
 
+/* Circe daily tips: popup + full tips page — less flat than from-circe/10; dark gold ↔ purple glow */
+@keyframes circe-tip-dgold-purple-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(139, 92, 246, 0.38),
+      0 0 32px -6px rgba(251, 191, 36, 0.36),
+      0 0 52px -10px rgba(167, 139, 250, 0.28),
+      0 16px 44px -14px rgba(0, 0, 0, 0.55);
+  }
+  33% {
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.42),
+      0 0 40px -6px rgba(147, 51, 234, 0.4),
+      0 0 56px -8px rgba(251, 191, 36, 0.3),
+      0 16px 44px -14px rgba(0, 0, 0, 0.55);
+  }
+  66% {
+    box-shadow:
+      0 0 0 1px rgba(168, 85, 247, 0.45),
+      0 0 36px -6px rgba(217, 119, 6, 0.42),
+      0 0 48px -10px rgba(168, 85, 247, 0.34),
+      0 16px 44px -14px rgba(0, 0, 0, 0.55);
+  }
+}
+
+.circe-tip-card-glow {
+  animation: circe-tip-dgold-purple-glow 3.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .messages-scroll-latest-fab {
     animation: none;

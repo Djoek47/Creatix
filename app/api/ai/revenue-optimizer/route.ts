@@ -43,7 +43,7 @@ const revenueOptimizationSchema = z.object({
 export async function POST(req: NextRequest) {
   const { creatorStats, contentHistory, fanDemographics, currentPricing } = await req.json()
 
-  const systemPrompt = `You are a revenue optimization AI for adult content creators on OnlyFans, MYM, and Fansly.
+  const systemPrompt = `You are a revenue optimization AI for adult content creators on OnlyFans, Fansly, and ManyVids.
 
 Your job is to analyze creator data and provide actionable recommendations to maximize revenue while maintaining fan satisfaction.
 

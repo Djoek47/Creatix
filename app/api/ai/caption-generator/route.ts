@@ -30,7 +30,7 @@ function buildSystemPrompt(
   creatorTone: string | undefined,
   hasImage: boolean,
 ) {
-  return `You are a social media expert specializing in adult content creator platforms (OnlyFans, MYM, Fansly).
+  return `You are a social media expert specializing in adult content creator platforms (OnlyFans, Fansly, ManyVids).
 
 Creator Profile:
 - Niche: ${creatorNiche || 'General'}

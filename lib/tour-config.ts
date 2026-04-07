@@ -2,18 +2,12 @@
  * Per-page tutorial steps (modal: Next / Back / Done).
  * Completion: localStorage key `${TOUR_STORAGE_PREFIX}${tourId}` (see tour-provider).
  */
+import type { TourConfig } from '@/lib/tour-types'
+import { fullAppWelcomeTour } from '@/lib/tour-full-app-welcome'
+
+export type { TourStep, TourConfig } from '@/lib/tour-types'
+
 export const TOUR_STORAGE_PREFIX = 'circe-tour-v2-done-'
-
-export interface TourStep {
-  id: string
-  title: string
-  description: string
-}
-
-export interface TourConfig {
-  tourId: string
-  steps: TourStep[]
-}
 
 /** v2 tour content — bump TOUR_STORAGE_PREFIX when changing materially */
 const TOURS: Record<string, TourConfig> = {
@@ -66,7 +60,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'map-venus',
         title: 'Venus: growth',
         description:
-          'Under Venus: Fans CRM, Commenter (post replies + housekeeping lists), Mentions. Gold = attract, reply in public, reputation.',
+          'Under Venus: Fans CRM, Housekeeping (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
       },
       {
         id: 'map-community-guide',
@@ -94,6 +88,8 @@ const TOURS: Record<string, TourConfig> = {
       },
     ],
   },
+
+  '/dashboard/welcome': fullAppWelcomeTour,
 
   '/dashboard/messages': {
     tourId: 'messages',
@@ -162,13 +158,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tiers',
         title: 'Spend tiers',
         description:
-          'Whales, VIPs, and regulars help you prioritize outreach. Align with Commenter and Churn for the same fans across the product.',
+          'Whales, VIPs, and regulars help you prioritize outreach. Align with Housekeeping and Churn for the same fans across the product.',
       },
       {
         id: 'classify',
         title: 'Classification & lists',
         description:
-          'Use fan classification or smart lists (with Housekeeping on Commenter) to keep CRM segments aligned with OnlyFans lists.',
+          'Use fan classification or smart lists on the Housekeeping page to keep CRM segments aligned with OnlyFans lists.',
       },
       {
         id: 'add',
@@ -444,7 +440,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'grid',
         title: 'Tools library',
         description:
-          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Commenter, Retention, Protection).',
+          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Housekeeping, Retention, Protection).',
       },
       {
         id: 'credits',
@@ -612,7 +608,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'workflow',
         title: 'Workflow',
         description:
-          'Pair with Commenter for public replies and with Divine for suggested responses where enabled.',
+          'Pair with Housekeeping for public replies and with Divine for suggested responses where enabled.',
       },
     ],
   },
@@ -652,7 +648,7 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'feed',
-        title: 'Commenter',
+        title: 'Housekeeping',
         description:
           'Sync post and story comments from OnlyFans via webhooks and API. Review each fan comment with AI safety and persona reply drafts.',
       },
@@ -664,7 +660,7 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'housekeeping',
-        title: 'Housekeeping',
+        title: 'Smart lists',
         description:
           'Smart classify: auto-segment fans by spend, thread/DM activity, cold fans, and freeloaders — then sync those segments to OnlyFans lists and Fansly tags. Configure under Fans → Arrangements or here.',
       },
@@ -713,6 +709,7 @@ const TOURS: Record<string, TourConfig> = {
  * ai-studio/tools before ai-studio; etc.
  */
 const TOUR_PATH_MATCH_ORDER: string[] = [
+  '/dashboard/welcome',
   '/dashboard/community/circe-daily',
   '/dashboard/analytics/income-predictor',
   '/dashboard/retention/churn',

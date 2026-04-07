@@ -107,7 +107,17 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hasRunner: true,
     hiddenFromLibrary: true,
   },
-  { id: 'dm-bundle-pricing', name: 'DM Bundle Pricing', description: 'PPV / paid DM bundle price and copy', longDescription: 'Used by Divine Manager to suggest bundle pricing and fan-facing teaser copy from your goal, fan context, and vault summary.', category: 'engagement', credits: 1, hasRunner: true },
+  {
+    id: 'dm-bundle-pricing',
+    name: 'DM Bundle Pricing',
+    description: 'PPV / paid DM bundle price and copy',
+    longDescription:
+      'Hidden from this list — use Divine Manager on web (`recommend_dm_bundle` / `run_ai_studio_tool` with `dm-bundle-pricing`).',
+    category: 'engagement',
+    credits: 1,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
   {
     id: 'viral-predictor',
     name: 'Viral Predictor',
@@ -175,9 +185,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'competitor-analysis',
     name: 'Competitor Analysis',
-    description: 'Serper + shared best-practice library',
+    description: 'You vs peers in your band & one tier up',
     longDescription:
-      'On web (Pro): full run with web sources + shared library. Mobile API: POST /api/ai/competitor-analysis with niche, platform, competitorTargets, goals.',
+      'Pro (web): compares you to named competitors in your **same cohort band** and **one tier above**, using CRM benchmarks + optional web/library. Mobile: POST /api/ai/competitor-analysis with niche, platform, competitorTargets, goals.',
     category: 'premium',
     isPro: true,
     credits: 5,
@@ -195,7 +205,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     credits: 6,
     hasRunner: true,
   },
-  { id: 'venus-attraction', name: "Venus's Allure", description: 'Magnetic content optimization', longDescription: 'Channel the goddess of beauty to optimize your content for maximum attraction and new subscriber conversion.', category: 'premium', isPro: true, badge: 'Venus Pro', credits: 4, hasRunner: true },
   {
     id: 'venus-cupid',
     name: "Cupid's Arrow",

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   BookOpen,
@@ -36,6 +37,24 @@ export default function GuidePage() {
           Everything you need to get the most out of Circe et Venus. Use the links below to jump to any section.
         </p>
       </div>
+
+      <Card className="border-primary/25 bg-muted/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">New to the app?</CardTitle>
+          <CardDescription>
+            Take the full app tour for a single walkthrough of the sidebar, Circe vs Venus, AI Studio, retention, and
+            more—about thirty short steps.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="secondary" className="gap-2">
+            <Link href="/dashboard/welcome?openTour=1">
+              <BookOpen className="h-4 w-4" aria-hidden />
+              Start full app tour
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Table of contents */}
       <Card>
@@ -81,7 +100,7 @@ export default function GuidePage() {
               Circe et Venus gives you two divine AIs: <strong className="text-circe-light">Circe</strong> focuses on retention, analytics, and protection (keeping your fans and content safe). <strong className="text-amber-500">Venus</strong> focuses on growth, attraction, and reputation (bringing in new fans and opportunities).
             </p>
             <p>
-              After sign-up you&apos;ll see a short tutorial. You can skip it or complete it, and reopen this Guide anytime from the sidebar. The most important step is connecting at least one platform (OnlyFans, Fansly, or MYM) so we can sync your data and give you personalized insights.
+              After sign-up you&apos;ll see a short tutorial. You can skip it or complete it, and reopen this Guide anytime from the sidebar. The most important step is connecting <strong>OnlyFans</strong> or <strong>Fansly</strong> so we can sync DMs, fans, and insights. ManyVids revenue can factor into <strong>Unified</strong> billing tiers — see Pricing and Billing.
             </p>
           </CardContent>
         </Card>
@@ -253,7 +272,7 @@ export default function GuidePage() {
               <Link2 className="h-5 w-5" />
               Connecting your platforms
             </CardTitle>
-            <CardDescription>Link OnlyFans, Fansly, MYM, and more</CardDescription>
+            <CardDescription>Link OnlyFans and Fansly; ManyVids on Unified billing where applicable</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
@@ -262,7 +281,7 @@ export default function GuidePage() {
             <ul className="list-disc list-inside space-y-1">
               <li><strong>OnlyFans</strong> — Connect with your OnlyFans email and password. See the OnlyFans section below for tips (proxy, 2FA, face verification, session expiry).</li>
               <li><strong>Fansly</strong> — Connect with your Fansly username/email and password. You may be asked for 2FA; we&apos;ll prompt you in the dialog.</li>
-              <li><strong>MYM</strong> — Connect from the same Integrations page when available.</li>
+              <li><strong>ManyVids</strong> — Used for revenue and Unified-tier pricing when your plan includes it; in-app tools still center on OnlyFans and Fansly surfaces.</li>
             </ul>
             <p>
               Once connected, use <strong>Sync</strong> to pull the latest fans, messages, and earnings. If a platform session expires (e.g. you changed your password or OnlyFans logged you out), we automatically disconnect that account for security. You can reconnect anytime with a fresh login.
@@ -500,7 +519,7 @@ export default function GuidePage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              <Link href="/dashboard/settings" className="text-primary underline hover:no-underline">Settings</Link> is where you manage your profile (name, avatar), notifications, security (password), billing and subscription, and <strong>Integrations</strong> (connect/disconnect platforms). Use the Integrations tab to connect OnlyFans, Fansly, MYM, and to sync or disconnect.
+              <Link href="/dashboard/settings" className="text-primary underline hover:no-underline">Settings</Link> is where you manage your profile (name, avatar), notifications, security (password), billing and subscription, and <strong>Integrations</strong> (connect/disconnect platforms). Use the Integrations tab for OnlyFans, Fansly, and any other listed platforms, then sync or disconnect as needed.
             </p>
           </CardContent>
         </Card>

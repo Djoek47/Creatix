@@ -25,6 +25,8 @@ Run `git log -1 --oneline` after pull to confirm you match remote.
 
 ## Install & build (this repo uses pnpm)
 
+Use the **Node version** in the repo root [`.nvmrc`](../.nvmrc) (`nvm use`, `fnm use`, or install that major version).
+
 ```bash
 corepack enable && corepack prepare pnpm@9.15.4 --activate
 pnpm install
@@ -32,6 +34,10 @@ pnpm run build   # optional sanity check
 ```
 
 If you only have npm: `npx pnpm@9.15.4 install` (lockfile is `pnpm-lock.yaml`).
+
+**Line endings:** [`.gitattributes`](../.gitattributes) keeps source files as **LF**. After cloning on Windows, avoid turning off `core.autocrlf` overrides that fight the repo — default Git behavior with this file is fine.
+
+**Bash scripts** (`scripts/*.sh`): on Windows, use Git Bash or WSL. On Unix, `chmod +x scripts/push-all.sh` if your clone lost the executable bit.
 
 ## Supabase / DB (do on the Supabase project, not only on PC)
 

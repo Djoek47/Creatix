@@ -24,17 +24,19 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 ## Getting Started
 
-First, run the development server:
+This repo uses **pnpm** (see `package.json` → `packageManager`). On a new machine, align **Node** with [`.nvmrc`](.nvmrc) (e.g. `nvm use`, `fnm use`, or install Node 22 LTS).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+corepack enable && corepack prepare pnpm@9.15.4 --activate
+pnpm install
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+**Switching computers or OS (Windows ↔ macOS ↔ Linux):** follow [`docs/internal/PC_SWITCH_HANDOFF.md`](docs/internal/PC_SWITCH_HANDOFF.md) — branch to use, env vars, Supabase notes. Text files are normalized to **LF** via [`.gitattributes`](.gitattributes) so line endings stay consistent across platforms.
+
+**Shell scripts** (e.g. [`scripts/push-all.sh`](scripts/push-all.sh)): on Windows, run from **Git Bash**, **WSL**, or another environment that provides `bash`; on macOS/Linux, `chmod +x scripts/push-all.sh` if needed.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

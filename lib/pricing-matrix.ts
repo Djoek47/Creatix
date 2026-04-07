@@ -1,105 +1,100 @@
 /**
- * Revenue-tier pricing (USD): Focus = 1–2 adult platforms.
- * - OnlyFans line = tier `focusBaseUsd`.
- * - Fansly line = 10% below OF base, **capped at $200/mo** (largest Fansly account benchmark).
- * - ManyVids **solo Focus** = **$39/mo flat** (any tier). ManyVids as part of a **two-platform** Focus uses 25% below OF base (pair line).
- * Two-platform Focus = sum of the two line prices × pair bundle factor; Unified = multi column unchanged.
+ * Revenue-tier pricing facade: checkout, UI, and billing gates use this module.
+ * Canonical numbers and bands live in {@link ./circe-venus-pricing}.
  */
 
+import {
+  PRICING_TIERS,
+  TIER_COUNT as CV_TIER_COUNT,
+  tierIndexFromMonthlyRevenue as cvTierIndexFromMonthlyRevenue,
+  BUNDLE_ADDONS,
+  type PlatformCombo,
+} from '@/lib/circe-venus-pricing'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { sortFocusPlatforms } from '@/lib/billing/platform-variant'
 
 export type BillingVariant = 'single' | 'multi'
 
-/** Multiplier applied to (P_a + P_b) after each platform’s Focus line price. */
-export function twoPlatformBundleMultiplier(a: AdultBillingPlatform, b: AdultBillingPlatform): number {
-  const s = new Set<AdultBillingPlatform>([a, b])
-  if (s.has('onlyfans') && s.has('fansly')) return 0.9
-  if (s.has('onlyfans') && s.has('manyvids')) return 0.75
-  if (s.has('fansly') && s.has('manyvids')) return 1.05
-  throw new Error('twoPlatformBundleMultiplier: expected two distinct focus platforms')
-}
-
 export interface RevenueTierRow {
-  /** 0..10 */
   tierIndex: number
   label: string
   minUsd: number
   maxUsd: number | null
-  /** OnlyFans Focus base (canonical); Fansly/ManyVids derived */
   focusBaseUsd: number
-  /** Unified — unchanged “original” multi price */
   multiPriceUsd: number
 }
 
-/** 11 tiers — only base + Unified stored; FL/MV computed from base */
-export const REVENUE_TIERS: readonly RevenueTierRow[] = [
-  { tierIndex: 0, label: 'Under $1,000', minUsd: 0, maxUsd: 1000, focusBaseUsd: 35, multiPriceUsd: 50 },
-  { tierIndex: 1, label: '$1k – $5k', minUsd: 1000, maxUsd: 5000, focusBaseUsd: 50, multiPriceUsd: 75 },
-  { tierIndex: 2, label: '$5k – $7.5k', minUsd: 5000, maxUsd: 7500, focusBaseUsd: 75, multiPriceUsd: 100 },
-  { tierIndex: 3, label: '$7.5k – $10k', minUsd: 7500, maxUsd: 10000, focusBaseUsd: 100, multiPriceUsd: 140 },
-  { tierIndex: 4, label: '$10k – $15k', minUsd: 10000, maxUsd: 15000, focusBaseUsd: 125, multiPriceUsd: 175 },
-  { tierIndex: 5, label: '$15k – $25k', minUsd: 15000, maxUsd: 25000, focusBaseUsd: 175, multiPriceUsd: 245 },
-  { tierIndex: 6, label: '$25k – $35k', minUsd: 25000, maxUsd: 35000, focusBaseUsd: 225, multiPriceUsd: 315 },
-  { tierIndex: 7, label: '$35k – $45k', minUsd: 35000, maxUsd: 45000, focusBaseUsd: 275, multiPriceUsd: 385 },
-  { tierIndex: 8, label: '$45k – $60k', minUsd: 45000, maxUsd: 60000, focusBaseUsd: 350, multiPriceUsd: 490 },
-  { tierIndex: 9, label: '$60k – $80k', minUsd: 60000, maxUsd: 80000, focusBaseUsd: 425, multiPriceUsd: 595 },
-  { tierIndex: 10, label: '$80k+', minUsd: 80000, maxUsd: null, focusBaseUsd: 500, multiPriceUsd: 700 },
-] as const
+export const REVENUE_TIERS: readonly RevenueTierRow[] = PRICING_TIERS.map((t) => ({
+  tierIndex: t.tierIndex,
+  label: t.label,
+  minUsd: t.revenueMin ?? 0,
+  maxUsd: t.revenueMax,
+  focusBaseUsd: t.prices.of,
+  multiPriceUsd: t.prices.unified,
+}))
 
-export const TIER_COUNT = REVENUE_TIERS.length
+export const TIER_COUNT = CV_TIER_COUNT
 
-/** ManyVids-only Focus: fixed regardless of revenue tier. */
-export const MANYVIDS_FOCUS_SINGLE_FLAT_USD = 39
+export const MANYVIDS_FOCUS_SINGLE_FLAT_USD = BUNDLE_ADDONS.MV_FLAT
 
-/** Fansly Focus line never exceeds this (USD/mo). */
-export const FANSLY_FOCUS_MAX_USD = 200
+export const FANSLY_FOCUS_MAX_USD = BUNDLE_ADDONS.FL_CAP
 
 export function getTierByIndex(index: number): RevenueTierRow | undefined {
   return REVENUE_TIERS.find((t) => t.tierIndex === index)
 }
 
-/** Fansly line: 10% below OF base, capped. */
-export function focusFanslyUsd(row: RevenueTierRow): number {
-  return Math.min(Math.round(row.focusBaseUsd * 0.9), FANSLY_FOCUS_MAX_USD)
+function pricingTierAtIndex(index: number) {
+  return PRICING_TIERS[index]
 }
 
-/** ManyVids line when paired with another platform (25% below OF base). */
+export function focusFanslyUsd(row: RevenueTierRow): number {
+  const core = pricingTierAtIndex(row.tierIndex)
+  return core?.prices.fl ?? Math.min(Math.round(row.focusBaseUsd * BUNDLE_ADDONS.FL_DISCOUNT), FANSLY_FOCUS_MAX_USD)
+}
+
+/** @deprecated Pair lines use fixed add-ons; kept for any code that expected a per-line MV “pair” quote. */
 export function focusManyvidsPairUsd(row: RevenueTierRow): number {
   return Math.round(row.focusBaseUsd * 0.75)
 }
 
-/** @deprecated alias for `focusManyvidsPairUsd` — marketing tables use this for pair line; solo MV is {@link MANYVIDS_FOCUS_SINGLE_FLAT_USD}. */
 export function focusManyvidsUsd(row: RevenueTierRow): number {
   return focusManyvidsPairUsd(row)
 }
 
-/** Per-platform line when that platform is part of a two-platform Focus pair (not solo ManyVids flat). */
 export function focusPairLineUsd(row: RevenueTierRow, platform: AdultBillingPlatform): number {
-  if (platform === 'onlyfans') return row.focusBaseUsd
-  if (platform === 'fansly') return focusFanslyUsd(row)
-  return focusManyvidsPairUsd(row)
+  const core = pricingTierAtIndex(row.tierIndex)
+  if (!core) throw new Error(`Invalid tier: ${row.tierIndex}`)
+  if (platform === 'onlyfans') return core.prices.of
+  if (platform === 'fansly') return core.prices.fl
+  return core.prices.mv
 }
 
-/** Legacy name: same as {@link focusPairLineUsd}. */
 export function focusPriceUsd(row: RevenueTierRow, platform: AdultBillingPlatform): number {
   return focusPairLineUsd(row, platform)
 }
 
-function linePriceForPair(row: RevenueTierRow, platform: AdultBillingPlatform): number {
-  return focusPairLineUsd(row, platform)
+function twoPlatformSetToCombo(a: AdultBillingPlatform, b: AdultBillingPlatform): PlatformCombo {
+  const s = new Set<AdultBillingPlatform>([a, b])
+  if (s.has('onlyfans') && s.has('fansly')) return 'of_fl'
+  if (s.has('onlyfans') && s.has('manyvids')) return 'of_mv'
+  if (s.has('fansly') && s.has('manyvids')) return 'fl_mv'
+  throw new Error('twoPlatformSetToCombo: expected two distinct adult billing platforms')
 }
 
-/** Two distinct platforms; order-independent. Sum of line prices × pair factor, then rounded. */
+/** @deprecated Old multiplier model; use {@link twoPlatformFocusUsd} which reads fixed bundle prices. */
+export function twoPlatformBundleMultiplier(_a: AdultBillingPlatform, _b: AdultBillingPlatform): number {
+  return 1
+}
+
 export function twoPlatformFocusUsd(
   row: RevenueTierRow,
   a: AdultBillingPlatform,
   b: AdultBillingPlatform,
 ): number {
-  const p1 = linePriceForPair(row, a)
-  const p2 = linePriceForPair(row, b)
-  const mult = twoPlatformBundleMultiplier(a, b)
-  return Math.round((p1 + p2) * mult)
+  const core = pricingTierAtIndex(row.tierIndex)
+  if (!core) throw new Error(`Invalid tier: ${row.tierIndex}`)
+  const combo = twoPlatformSetToCombo(a, b)
+  return core.prices[combo]
 }
 
 export function focusPlatformDisplayName(platform: AdultBillingPlatform): string {
@@ -127,21 +122,22 @@ function normalizeFocusPlatformsInput(
   return sorted
 }
 
-/** Monthly USD for Focus (1–2 platforms) or Unified. */
 export function getMonthlyPriceUsd(
   variant: BillingVariant,
   tierIndex: number,
   focusPlatforms?: AdultBillingPlatform[] | null,
 ): number {
-  const row = getTierByIndex(tierIndex)
-  if (!row) throw new Error(`Invalid tier index: ${tierIndex}`)
-  if (variant === 'multi') return row.multiPriceUsd
+  const core = pricingTierAtIndex(tierIndex)
+  if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
+  if (variant === 'multi') return core.prices.unified
   const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
   if (fps.length === 1) {
-    if (fps[0] === 'manyvids') return MANYVIDS_FOCUS_SINGLE_FLAT_USD
-    if (fps[0] === 'fansly') return focusFanslyUsd(row)
-    return row.focusBaseUsd
+    if (fps[0] === 'manyvids') return core.prices.mv
+    if (fps[0] === 'fansly') return core.prices.fl
+    return core.prices.of
   }
+  const row = getTierByIndex(tierIndex)
+  if (!row) throw new Error(`Invalid tier index: ${tierIndex}`)
   return twoPlatformFocusUsd(row, fps[0], fps[1])
 }
 
@@ -187,31 +183,15 @@ export function checkoutProductDescription(
 }
 
 export function tierIndexFromMonthlyRevenue(monthlyRevenueUsd: number): number {
-  const x = Math.max(0, monthlyRevenueUsd)
-  if (x < 1000) return 0
-  if (x < 5000) return 1
-  if (x < 7500) return 2
-  if (x < 10000) return 3
-  if (x < 15000) return 4
-  if (x < 25000) return 5
-  if (x < 35000) return 6
-  if (x < 45000) return 7
-  if (x < 60000) return 8
-  if (x < 80000) return 9
-  return 10
+  return cvTierIndexFromMonthlyRevenue(monthlyRevenueUsd)
 }
 
-/**
- * Positive = cheaper than OnlyFans Focus base for that tier (savings %).
- * Negative = more than OF base (e.g. Unified bundle vs single-platform OF).
- */
 export function percentVsOnlyFansBase(row: RevenueTierRow, monthlyUsd: number): number {
   const b = row.focusBaseUsd
   if (!b) return 0
   return Math.round((1 - monthlyUsd / b) * 100)
 }
 
-/** % vs OnlyFans base for a two-platform Focus pair (positive = cheaper than OF-only). */
 export function percentSavingsTwoPlatformFocus(
   row: RevenueTierRow,
   a: AdultBillingPlatform,
@@ -220,9 +200,21 @@ export function percentSavingsTwoPlatformFocus(
   return percentVsOnlyFansBase(row, twoPlatformFocusUsd(row, a, b))
 }
 
-/** Typical headline savings (exact at most tiers; rounding can vary by $1). */
+/** Headline approximations for marketing; exact savings are band-specific (see calculator). */
 export const FOCUS_PLATFORM_SAVINGS_PCT = {
   onlyfans: 0,
-  fansly: 10,
-  manyvids: 25,
+  fansly: Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100),
+  /** ManyVids Focus solo is flat $39 — % vs OF varies by band; 0 = “see matrix”. */
+  manyvids: 0,
 } as const satisfies Record<AdultBillingPlatform, number>
+
+export function pairBundleDescription(a: AdultBillingPlatform, b: AdultBillingPlatform): string {
+  const s = new Set<AdultBillingPlatform>([a, b])
+  if (s.has('onlyfans') && s.has('fansly')) {
+    return `OnlyFans + Fansly: OnlyFans base + $${BUNDLE_ADDONS.FL_ON_OF}/mo (bundle)`
+  }
+  if (s.has('onlyfans') && s.has('manyvids')) {
+    return `OnlyFans + ManyVids: OnlyFans base + $${BUNDLE_ADDONS.MV_ON_OF}/mo (bundle)`
+  }
+  return `Fansly + ManyVids: Fansly line + $${BUNDLE_ADDONS.MV_ON_FL}/mo (bundle)`
+}

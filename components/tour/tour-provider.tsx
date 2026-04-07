@@ -2,15 +2,13 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { getTourForPath } from '@/lib/tour-config'
+import { getTourForPath, TOUR_STORAGE_PREFIX } from '@/lib/tour-config'
 import { TourDialog } from './tour-dialog'
-
-const STORAGE_PREFIX = 'circe-tour-done-'
 
 function getTourCompleted(tourId: string): boolean {
   if (typeof window === 'undefined') return false
   try {
-    return localStorage.getItem(STORAGE_PREFIX + tourId) === '1'
+    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
   } catch {
     return false
   }
@@ -18,7 +16,7 @@ function getTourCompleted(tourId: string): boolean {
 
 function setTourCompleted(tourId: string) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + tourId, '1')
+    localStorage.setItem(TOUR_STORAGE_PREFIX + tourId, '1')
   } catch {
     // ignore
   }

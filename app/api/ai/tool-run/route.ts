@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (toolId === 'housekeeping') {
       return NextResponse.json({
         content:
-          'Housekeeping (smart list sync) runs in the web app: open Dashboard → Commenter with ?section=housekeeping or Fans → Arrangements (/dashboard/fans#arrangements) to edit list rules.',
+          'Housekeeping: Smart classify fans by spend, DM/thread activity, and freeloader segments — then sync to OnlyFans lists and Fansly tags. Open Dashboard → Commenter?section=housekeeping or Fans → Arrangements to configure housekeeping_lists; cron housekeeping-fan-lists applies changes.',
       })
     }
     const toolName = meta?.name ?? toolId

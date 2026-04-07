@@ -13,6 +13,8 @@ function formatNumber(amount: number): string {
   return parts.join(',')
 }
 
+type PlatformScope = 'all' | 'onlyfans' | 'fansly'
+
 interface FansStatsProps {
   stats: {
     totalFans: number
@@ -20,13 +22,25 @@ interface FansStatsProps {
     totalRevenue: number
     activeFans: number
   }
+  platformScope?: PlatformScope
+  snapshotFansByPlatform?: Record<string, number>
 }
 
-export function FansStats({ stats }: FansStatsProps) {
+export function FansStats({
+  stats,
+  platformScope = 'all',
+  snapshotFansByPlatform = {},
+}: FansStatsProps) {
+  const ofSnap = snapshotFansByPlatform.onlyfans ?? 0
+  const flSnap = snapshotFansByPlatform.fansly ?? 0
+  const showBreakdown =
+    platformScope === 'all' && (ofSnap > 0 || flSnap > 0)
+
   const cards = [
     {
       title: 'Total Fans',
       value: formatNumber(stats.totalFans),
+      sublabel: showBreakdown ? `OF ${formatNumber(ofSnap)} · Fansly ${formatNumber(flSnap)}` : undefined,
       icon: Users,
       color: 'text-chart-1',
       bgColor: 'bg-chart-1/10',
@@ -34,6 +48,7 @@ export function FansStats({ stats }: FansStatsProps) {
     {
       title: 'Whale Tier',
       value: formatNumber(stats.whales),
+      sublabel: undefined,
       icon: Crown,
       color: 'text-chart-4',
       bgColor: 'bg-chart-4/10',
@@ -41,6 +56,7 @@ export function FansStats({ stats }: FansStatsProps) {
     {
       title: 'Total Revenue',
       value: `$${formatNumber(stats.totalRevenue)}`,
+      sublabel: undefined,
       icon: DollarSign,
       color: 'text-chart-2',
       bgColor: 'bg-chart-2/10',
@@ -48,6 +64,7 @@ export function FansStats({ stats }: FansStatsProps) {
     {
       title: 'Active Fans',
       value: formatNumber(stats.activeFans),
+      sublabel: undefined,
       icon: Activity,
       color: 'text-chart-5',
       bgColor: 'bg-chart-5/10',
@@ -65,6 +82,9 @@ export function FansStats({ stats }: FansStatsProps) {
             <div>
               <p className="text-sm text-muted-foreground">{card.title}</p>
               <p className="text-xl font-bold">{card.value}</p>
+              {card.sublabel ? (
+                <p className="text-xs text-muted-foreground mt-0.5">{card.sublabel}</p>
+              ) : null}
             </div>
           </CardContent>
         </Card>

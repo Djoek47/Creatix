@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
@@ -25,27 +26,82 @@ export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 
 
 export type AudienceFilter = 'all' | 'whales' | 'creators' | 'fans'
 
+export type PlatformScope = 'all' | 'onlyfans' | 'fansly'
+
+const PLATFORM_SCOPE_STORAGE = 'creatix-fans-platform-scope'
+
+function parsePlatformScope(raw: string | null): PlatformScope | null {
+  if (raw === 'all' || raw === 'onlyfans' || raw === 'fansly') return raw
+  return null
+}
+
 interface FansPageClientProps {
   initialFans: Fan[]
   /** Thread insight rows for merging into list views; defaults to none. */
   threadInsightsBrief?: ThreadInsightBrief[]
   hasOnlyFansConnected: boolean
+  hasFanslyConnected: boolean
   hasFanPlatformsConnected: boolean
   analyticsTotalFans?: number
+  /** Latest Circe snapshot total_fans per platform (analytics_snapshots). */
+  snapshotFansByPlatform?: Record<string, number>
 }
 
 export function FansPageClient({
   initialFans,
   threadInsightsBrief = [],
   hasOnlyFansConnected,
+  hasFanslyConnected,
   hasFanPlatformsConnected,
   analyticsTotalFans = 0,
+  snapshotFansByPlatform = {},
 }: FansPageClientProps) {
+  const searchParams = useSearchParams()
+
+  const [platformScope, setPlatformScope] = useState<PlatformScope>('all')
+  const [scopeReady, setScopeReady] = useState(false)
+
+  useEffect(() => {
+    const fromUrl = parsePlatformScope(searchParams.get('platform'))
+    if (fromUrl) {
+      setPlatformScope(fromUrl)
+    } else {
+      try {
+        const stored = parsePlatformScope(window.localStorage.getItem(PLATFORM_SCOPE_STORAGE))
+        if (stored) setPlatformScope(stored)
+      } catch {
+        /* ignore */
+      }
+    }
+    setScopeReady(true)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!scopeReady) return
+    try {
+      window.localStorage.setItem(PLATFORM_SCOPE_STORAGE, platformScope)
+    } catch {
+      /* ignore */
+    }
+    const url = new URL(window.location.href)
+    if (platformScope === 'all') {
+      url.searchParams.delete('platform')
+    } else {
+      url.searchParams.set('platform', platformScope)
+    }
+    window.history.replaceState(null, '', url.pathname + url.search)
+  }, [platformScope, scopeReady])
+
+  const hasLiveSource =
+    (platformScope === 'all' && (hasOnlyFansConnected || hasFanslyConnected)) ||
+    (platformScope === 'onlyfans' && hasOnlyFansConnected) ||
+    (platformScope === 'fansly' && hasFanslyConnected)
+
   // Prefer synced CRM rows when we have them; "Live: Active" can return [] if the partner
   // payload shape differs or the session is stale — empty live + hidden DB confused creators.
   const [filter, setFilter] = useState<FansFilter>(() => {
     if (initialFans.length > 0) return 'database'
-    if (hasOnlyFansConnected) return 'active'
+    if (hasOnlyFansConnected || hasFanslyConnected) return 'active'
     return 'database'
   })
   const [audienceFilter, setAudienceFilter] = useState<AudienceFilter>('all')
@@ -58,19 +114,66 @@ export function FansPageClient({
 
   const insightMap = useMemo(() => insightRowsToMap(threadInsightsBrief), [threadInsightsBrief])
 
+  const scopedInitialFans = useMemo(() => {
+    if (platformScope === 'all') return initialFans
+    return initialFans.filter((f) => f.platform === platformScope)
+  }, [initialFans, platformScope])
+
   const fetchLive = useCallback(
     async (f: FansFilter) => {
-      if (f === 'database' || f === 'expiring' || !hasOnlyFansConnected) return
+      if (f === 'database' || f === 'expiring' || !hasLiveSource) return
       setLoadingLive(true)
       setLiveFetchError(null)
       try {
-        const res = await fetch(`/api/onlyfans/fans?filter=${f}&limit=50`)
-        const data = (await res.json().catch(() => ({}))) as { fans?: Fan[]; error?: string }
-        if (res.ok && Array.isArray(data.fans)) {
-          setLiveFans(data.fans)
+        const runOf = hasOnlyFansConnected && (platformScope === 'all' || platformScope === 'onlyfans')
+        const runFl = hasFanslyConnected && (platformScope === 'all' || platformScope === 'fansly')
+
+        if (!runOf && !runFl) {
+          setLiveFans([])
+          setLiveFetchError('Connect OnlyFans or Fansly (or change platform scope) to load live lists.')
+          return
+        }
+
+        const qs = `filter=${encodeURIComponent(f)}&limit=50`
+        const promises: Promise<Response>[] = []
+        if (runOf) promises.push(fetch(`/api/onlyfans/fans?${qs}`))
+        if (runFl) promises.push(fetch(`/api/fansly/fans?${qs}`))
+
+        const responses = await Promise.all(promises)
+        const payloads = await Promise.all(
+          responses.map((res) => res.json().catch(() => ({})) as Promise<{ fans?: Fan[]; error?: string }>),
+        )
+
+        let combined: Fan[] = []
+        let err: string | undefined
+        let i = 0
+        if (runOf) {
+          const res = responses[i]
+          const data = payloads[i]
+          i += 1
+          if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
+          else if (!res.ok) err = data.error || `OnlyFans live list failed (${res.status}).`
+        }
+        if (runFl) {
+          const res = responses[i]
+          const data = payloads[i]
+          if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
+          else if (!res.ok) {
+            const flErr = data.error || `Fansly live list failed (${res.status}).`
+            err = err ? `${err} ${flErr}` : flErr
+          }
+        }
+
+        if (combined.length > 0 || !err) {
+          setLiveFans(combined)
+          if (err) setLiveFetchError(err)
+          else setLiveFetchError(null)
         } else {
           setLiveFans([])
-          setLiveFetchError(data.error || `Could not load live fans (${res.status}). Try “From database” or reconnect OnlyFans.`)
+          setLiveFetchError(
+            err ||
+              'Could not load live fans. Try “From database”, reconnect the platform, or check billing.',
+          )
         }
       } catch {
         setLiveFans([])
@@ -79,13 +182,15 @@ export function FansPageClient({
         setLoadingLive(false)
       }
     },
-    [hasOnlyFansConnected],
+    [hasLiveSource, hasOnlyFansConnected, hasFanslyConnected, platformScope],
   )
 
   const fetchExpiring = useCallback(async () => {
     setLoadingLive(true)
     try {
-      const res = await fetch('/api/fans/expiring?days=14')
+      const platformQ =
+        platformScope === 'all' ? '' : `&platform=${encodeURIComponent(platformScope)}`
+      const res = await fetch(`/api/fans/expiring?days=14${platformQ}`)
       const data = await res.json()
       if (res.ok && Array.isArray(data.fans)) {
         setExpiringFans(data.fans as Fan[])
@@ -97,7 +202,7 @@ export function FansPageClient({
     } finally {
       setLoadingLive(false)
     }
-  }, [])
+  }, [platformScope])
 
   useEffect(() => {
     if (filter === 'expiring') {
@@ -110,12 +215,12 @@ export function FansPageClient({
   }, [filter, fetchLive, fetchExpiring])
 
   const mergedFans = useMemo(() => {
-    if (filter === 'database') return initialFans
+    if (filter === 'database') return scopedInitialFans
     if (filter === 'expiring') {
       return expiringFans.map((f) => mergeThreadInsightsIntoFan(f, insightMap))
     }
     return liveFans.map((f) => mergeThreadInsightsIntoFan(f, insightMap))
-  }, [filter, initialFans, liveFans, expiringFans, insightMap])
+  }, [filter, scopedInitialFans, liveFans, expiringFans, insightMap])
 
   const fans = useMemo(() => {
     if (audienceFilter === 'all') return mergedFans
@@ -128,7 +233,12 @@ export function FansPageClient({
     })
   }, [mergedFans, audienceFilter])
 
-  const derivedTotalFans = Math.max(analyticsTotalFans || 0, mergedFans.length)
+  const snapshotTotalForScope = useMemo(() => {
+    if (platformScope === 'all') return analyticsTotalFans
+    return snapshotFansByPlatform[platformScope] ?? 0
+  }, [platformScope, analyticsTotalFans, snapshotFansByPlatform])
+
+  const derivedTotalFans = Math.max(snapshotTotalForScope || 0, mergedFans.length)
   const stats = {
     totalFans: derivedTotalFans,
     whales: mergedFans.filter((f) => f.audience?.isWhaleOrVip ?? f.tier === 'whale').length,
@@ -142,11 +252,29 @@ export function FansPageClient({
         filter={filter}
         onFilterChange={setFilter}
         hasOnlyFansConnected={hasOnlyFansConnected}
+        hasFanslyConnected={hasFanslyConnected}
         hasFanPlatformsConnected={hasFanPlatformsConnected}
         loadingLive={loadingLive}
         onSyncStatus={setSyncStatusMessage}
       />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Platform</span>
+          <div className="inline-flex rounded-md border border-border p-0.5">
+            {(['all', 'onlyfans', 'fansly'] as const).map((scope) => (
+              <Button
+                key={scope}
+                type="button"
+                variant={platformScope === scope ? 'secondary' : 'ghost'}
+                size="sm"
+                className="px-3"
+                onClick={() => setPlatformScope(scope)}
+              >
+                {scope === 'all' ? 'All' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+              </Button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">Audience</span>
           <Select
@@ -173,7 +301,11 @@ export function FansPageClient({
           {liveFetchError}
         </p>
       ) : null}
-      <FansStats stats={stats} />
+      <FansStats
+        stats={stats}
+        platformScope={platformScope}
+        snapshotFansByPlatform={snapshotFansByPlatform}
+      />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>
         <div className="inline-flex rounded-md border border-border p-0.5">

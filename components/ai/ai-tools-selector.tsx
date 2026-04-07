@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
@@ -72,20 +74,8 @@ function formatFantasyCalendarDate(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Define the non-Pro AI tools that work
+// Define the non-Pro AI tools that work (caption generator is fused into content-ideas — same runner id, subtabs in UI)
 const workingTools = [
-  {
-    id: 'caption-generator',
-    name: 'Caption Generator',
-    description: 'Captions, posts & short video beats',
-    longDescription:
-      'Upload a photo or video frame, or describe with text or voice. Captions, hashtags, PPV copy—or ask for hook/beats/CTA for a quick vertical script.',
-    icon: Wand2,
-    color: 'text-pink-500',
-    bgColor: 'bg-pink-500/10',
-    borderColor: 'border-pink-500/30',
-    credits: 1,
-  },
   {
     id: 'fantasy-writer',
     name: 'Fantasy Writer',
@@ -100,8 +90,9 @@ const workingTools = [
   {
     id: 'content-ideas',
     name: 'Content Ideas',
-    description: 'Trending content suggestions',
-    longDescription: 'Get AI-powered content ideas based on trending topics, your niche, and what performs best for similar creators.',
+    description: 'Trending ideas & AI captions',
+    longDescription:
+      'Switch between trending niche ideas and the caption generator (upload media or describe with text/voice) in one workspace.',
     icon: Lightbulb,
     color: 'text-yellow-500',
     bgColor: 'bg-yellow-500/10',
@@ -244,6 +235,22 @@ interface AIResult {
   analysis?: Record<string, unknown>
 }
 
+interface CupidArrowResult extends AIResult {
+  newFans?: Array<{
+    id: string
+    username: string
+    displayName: string | null
+    platform: string
+    source: string
+    subscriptionStart: string | null
+    lastInteraction: string | null
+    totalSpent: number
+  }>
+  meta?: { hybridTotal?: number; databaseCount?: number; warnings?: string[] }
+  markedForChurnCount?: number
+  tagForChurn?: boolean
+}
+
 /** Response from POST /api/ai/income-predictor (same shape as full dashboard load). */
 interface IncomePredictorApiResult {
   context?: {
@@ -340,6 +347,9 @@ export function AIToolsSelector({
   const voiceSession = useVoiceSession()
   const photoVoiceImageRef = useRef<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
+  const searchParams = useSearchParams()
+  /** Fused "Content Ideas" workspace: trending ideas vs caption generator (same card). */
+  const [contentStudioSubtab, setContentStudioSubtab] = useState<'ideas' | 'captions'>('ideas')
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<CaptionResult | ContentIdeasResult | AIResult | IncomePredictorApiResult | null>(
@@ -375,20 +385,38 @@ export function AIToolsSelector({
     loadSubscription()
   }, [loadSubscription])
 
+  /** Which API + form to run when Content Ideas card is open (ideas vs fused caption generator). */
+  const effectiveRunnerId = useMemo(() => {
+    if (!selectedTool) return null
+    if (selectedTool.id === 'content-ideas' && contentStudioSubtab === 'captions') {
+      return 'caption-generator'
+    }
+    return selectedTool.id
+  }, [selectedTool, contentStudioSubtab])
+
   useEffect(() => {
     if (!initialToolId) {
       setResolvingInitial(false)
       return
     }
+    const tabParam = searchParams.get('tab')
+    const mappedId = initialToolId === 'caption-generator' ? 'content-ideas' : initialToolId
     const all = [...workingTools, ...proTools]
-    const found = all.find((t) => t.id === initialToolId)
+    const found = all.find((t) => t.id === mappedId)
     if (found) {
       setSelectedTool(found)
     } else {
       setSelectedTool(makeGenericTool(initialToolId) as ToolType)
     }
+    if (mappedId === 'content-ideas') {
+      setContentStudioSubtab(
+        initialToolId === 'caption-generator' || tabParam === 'captions' ? 'captions' : 'ideas',
+      )
+    } else {
+      setContentStudioSubtab('ideas')
+    }
     setResolvingInitial(false)
-  }, [initialToolId])
+  }, [initialToolId, searchParams])
   
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
@@ -414,6 +442,7 @@ export function AIToolsSelector({
   const [incomePredictorMode, setIncomePredictorMode] = useState<'maintain' | 'grow'>('maintain')
   const [incomePredictorGoal, setIncomePredictorGoal] = useState('')
   const [incomeCalendarMode, setIncomeCalendarMode] = useState<'week' | 'month'>('month')
+  const [cupidTagChurn, setCupidTagChurn] = useState(true)
 
   const churnFansFiltered = useMemo(() => {
     if (!churnExpiringOnly) return churnFans
@@ -538,15 +567,15 @@ export function AIToolsSelector({
   }
   
   const runTool = async () => {
-    if (!selectedTool) return
-    
+    if (!selectedTool || !effectiveRunnerId) return
+
     setLoading(true)
     setResult(null)
-    
+
     try {
       let response: Response
-      
-      switch (selectedTool.id) {
+
+      switch (effectiveRunnerId) {
         case 'caption-generator':
           response = await fetch('/api/ai/caption-generator', {
             method: 'POST',
@@ -730,7 +759,11 @@ export function AIToolsSelector({
           response = await fetch('/api/ai/venus-cupid', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: contentDescription, niche: niche || undefined }),
+            body: JSON.stringify({
+              prompt: contentDescription,
+              niche: niche || undefined,
+              tagForChurn: cupidTagChurn,
+            }),
           })
           break
         case 'competitor-analysis':
@@ -796,6 +829,7 @@ export function AIToolsSelector({
   
   const resetTool = () => {
     setSelectedTool(null)
+    setContentStudioSubtab('ideas')
     setResult(null)
     setContentDescription('')
     setFanMessage('')
@@ -811,13 +845,14 @@ export function AIToolsSelector({
     setCompetitorTargets('')
     setUseCompetitorWebSearch(true)
     setGiftUseWishlist(true)
+    setCupidTagChurn(true)
   }
   
   // Render tool-specific input form
   const renderToolInputs = () => {
-    if (!selectedTool) return null
-    
-    switch (selectedTool.id) {
+    if (!selectedTool || !effectiveRunnerId) return null
+
+    switch (effectiveRunnerId) {
       case 'caption-generator':
         return (
           <div className="space-y-4">
@@ -1297,13 +1332,20 @@ export function AIToolsSelector({
                 <SelectContent>
                   <SelectItem value="manual">Manual entry only</SelectItem>
                   {churnFansFiltered.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      @{f.username}
-                      {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
-                      {f.subscription_expires_at
-                        ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
-                        : ''}
-                      {f._source !== 'database' ? ' · live list' : ''}
+                    <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
+                      <span className="inline-flex items-center gap-1.5 flex-wrap">
+                        <span className="rounded border border-border px-1 py-0 text-[10px] uppercase text-muted-foreground">
+                          {f.platform === 'onlyfans' ? 'OF' : f.platform === 'fansly' ? 'Fansly' : f.platform}
+                        </span>
+                        <span>
+                          @{f.username}
+                          {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
+                          {f.subscription_expires_at
+                            ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
+                            : ''}
+                          {f._source !== 'database' ? ' · live list' : ''}
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1621,7 +1663,6 @@ export function AIToolsSelector({
         )
 
       case 'venus-attraction':
-      case 'venus-cupid':
         return (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1634,10 +1675,7 @@ export function AIToolsSelector({
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>
-                  {selectedTool.id === 'venus-attraction' && 'What do you want to optimize for attraction?'}
-                  {selectedTool.id === 'venus-cupid' && 'Who do you want to target or where do you struggle?'}
-                </Label>
+                <Label>What do you want to optimize for attraction?</Label>
                 <VoiceInputButton
                   onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
                   size="sm"
@@ -1650,6 +1688,60 @@ export function AIToolsSelector({
                 onChange={(e) => setContentDescription(e.target.value)}
                 className="min-h-[120px]"
               />
+            </div>
+          </div>
+        )
+
+      case 'venus-cupid':
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Pulls your <strong className="text-foreground">newest fans</strong> from saved CRM rows plus live OnlyFans/Fansly lists (when connected),
+              then drafts introductions and care ideas. New subscribers are high churn risk until they feel welcomed—use{' '}
+              <Link href="/dashboard/retention/churn" className="text-primary underline hover:no-underline">
+                Retention → Churn
+              </Link>{' '}
+              for digests and{' '}
+              <Link href="/dashboard/ai-studio/tools/churn-predictor" className="text-primary underline hover:no-underline">
+                Churn Predictor
+              </Link>{' '}
+              for deep dives.
+            </p>
+            <div className="space-y-2">
+              <Label>Your niche (optional)</Label>
+              <Input
+                placeholder="e.g., fitness, cosplay, GFE..."
+                value={niche}
+                onChange={(e) => setNiche(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Focus or extra context (optional)</Label>
+                <VoiceInputButton
+                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+              <Textarea
+                placeholder="Optional: tone, boundaries, promos, or what you want Cupid to emphasize for first-touch onboarding."
+                value={contentDescription}
+                onChange={(e) => setContentDescription(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+              <Checkbox
+                id="cupid-churn-tag"
+                checked={cupidTagChurn}
+                onCheckedChange={(v) => setCupidTagChurn(v === true)}
+              />
+              <label htmlFor="cupid-churn-tag" className="cursor-pointer text-xs leading-snug text-muted-foreground">
+                <span className="font-medium text-foreground">Tag CRM fans for churn follow-up</span> — append a short note on
+                each <strong className="text-foreground">saved</strong> fan row so you remember they belong in Churn Predictor /
+                retention workflows (live-only fans need a CRM sync first).
+              </label>
             </div>
           </div>
         )
@@ -2061,6 +2153,62 @@ export function AIToolsSelector({
     )
   }
 
+  const renderCupidResults = (res: CupidArrowResult) => (
+    <div className="space-y-4 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+        <Badge variant="secondary" className="gap-1 font-normal">
+          <Users className="h-3 w-3" aria-hidden />
+          {Array.isArray(res.newFans) ? res.newFans.length : 0} newest in batch
+        </Badge>
+        {typeof res.markedForChurnCount === 'number' && res.tagForChurn !== false ? (
+          <Badge variant="outline" className="gap-1 border-amber-500/35 font-normal text-amber-700 dark:text-amber-300">
+            <TrendingDown className="h-3 w-3" aria-hidden />
+            {res.markedForChurnCount} CRM fan{res.markedForChurnCount === 1 ? '' : 's'} tagged for churn follow-up
+          </Badge>
+        ) : null}
+      </div>
+      {res.meta?.warnings && res.meta.warnings.length > 0 ? (
+        <ul className="list-inside list-disc space-y-0.5 text-xs text-amber-700/95 dark:text-amber-300/95">
+          {res.meta.warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+      ) : null}
+      {Array.isArray(res.newFans) && res.newFans.length > 0 ? (
+        <div className="rounded-lg border border-border bg-muted/20">
+          <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+            Newest fans (CRM + live lists)
+          </div>
+          <ul className="max-h-[220px] space-y-1.5 overflow-y-auto p-3 text-xs">
+            {res.newFans.map((f) => (
+              <li key={f.id} className="flex flex-col gap-0.5 rounded-md bg-background/60 px-2 py-1.5">
+                <span className="font-medium text-foreground">
+                  @{f.username}
+                  {f.displayName ? <span className="font-normal text-muted-foreground"> · {f.displayName}</span> : null}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {f.platform} · {f.source === 'database' ? 'CRM' : f.source === 'live_onlyfans' ? 'Live OF' : 'Live Fansly'}
+                  {f.subscriptionStart ? ` · sub ${new Date(f.subscriptionStart).toLocaleDateString()}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{res.content}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/retention/churn">Retention → Churn</Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/ai-studio/tools/churn-predictor">Churn Predictor</Link>
+        </Button>
+      </div>
+    </div>
+  )
+
   const renderChurnResults = (res: AIResult) => (
     <div className="space-y-3 border-t border-border pt-4">
       <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-violet-300/90 dark:text-violet-200/85">
@@ -2146,7 +2294,10 @@ export function AIToolsSelector({
                 <Card 
                   key={tool.id}
                   className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
-                  onClick={() => setSelectedTool(tool)}
+                  onClick={() => {
+                    if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
+                    setSelectedTool(tool)
+                  }}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-start gap-3">
@@ -2175,8 +2326,8 @@ export function AIToolsSelector({
                 <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Housekeeping</h3>
               </div>
               <p className="mb-3 text-xs text-muted-foreground">
-                Web dashboard tools — same entries as AI Studio → Tools library. Housekeeping syncs OnlyFans lists and
-                Fansly CRM tags from your arrangements.
+                Web dashboard tools — same entries as AI Studio → Tools library. Housekeeping runs Smart classify (spend,
+                threads, freeloaders) into OnlyFans lists and Fansly tags from Arrangements.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Link href="/dashboard/commenter" className="block">
@@ -2212,7 +2363,7 @@ export function AIToolsSelector({
                             <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                           </div>
                           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            Smart lists: CRM segments &amp; platform sync from Fans → Arrangements.
+                            Classify by spend &amp; threads; surface freeloaders — sync lists from Arrangements.
                           </p>
                         </div>
                       </div>
@@ -2331,6 +2482,21 @@ export function AIToolsSelector({
               <CardDescription className="text-xs">
                 {selectedTool.longDescription}
               </CardDescription>
+              {selectedTool.id === 'content-ideas' ? (
+                <Tabs
+                  value={contentStudioSubtab}
+                  onValueChange={(v) => {
+                    setContentStudioSubtab(v as 'ideas' | 'captions')
+                    setResult(null)
+                  }}
+                  className="mt-3 w-full max-w-md"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="ideas">Ideas</TabsTrigger>
+                    <TabsTrigger value="captions">Captions</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              ) : null}
             </div>
           </div>
           <Badge variant="outline" className="gap-1">
@@ -2348,7 +2514,7 @@ export function AIToolsSelector({
             loading ||
             (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
             (selectedTool.id === 'photo-enhancer' && (!photoEditImageDataUrl || !contentDescription.trim())) ||
-            (selectedTool.id === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
+            (effectiveRunnerId === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
             (selectedTool.id === 'fantasy-writer' &&
               !contentDescription.trim() &&
               !fantasyHolidayEventId &&
@@ -2385,7 +2551,7 @@ export function AIToolsSelector({
                 : 'max-h-[min(60vh,400px)] overflow-y-auto p-3',
             )}
           >
-            {selectedTool.id === 'caption-generator' && 'captions' in result
+            {effectiveRunnerId === 'caption-generator' && 'captions' in result
               ? renderCaptionResults(result as CaptionResult)
               : selectedTool.id === 'competitor-analysis' &&
                   result &&
@@ -2400,6 +2566,8 @@ export function AIToolsSelector({
                     'imageBase64' in result &&
                     'explanation' in result
                   ? renderPhotoEditResults(result as PhotoEditIntentResult)
+              : selectedTool.id === 'venus-cupid' && result && typeof result === 'object' && 'content' in result
+                ? renderCupidResults(result as CupidArrowResult)
               : selectedTool.id === 'churn-predictor'
                 ? renderChurnResults(result as AIResult)
                 : selectedTool.id === 'income-predictor' &&

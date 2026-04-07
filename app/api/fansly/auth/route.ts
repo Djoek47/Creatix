@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
+import { refreshFanslyObservedRevenueForBilling } from '@/lib/fansly/billing-observation'
 
 // POST: Connect Fansly account with username/password
 // Handles initial connection and 2FA verification
@@ -75,6 +76,8 @@ export async function POST(request: NextRequest) {
             onConflict: 'user_id,platform'
           })
 
+        await refreshFanslyObservedRevenueForBilling(supabase, user.id)
+
         return NextResponse.json({ 
           success: true, 
           accountId: result.account_id,
@@ -138,6 +141,8 @@ export async function POST(request: NextRequest) {
             onConflict: 'user_id,platform',
           },
         )
+
+      await refreshFanslyObservedRevenueForBilling(supabase, user.id)
 
       return NextResponse.json({ 
         success: true, 

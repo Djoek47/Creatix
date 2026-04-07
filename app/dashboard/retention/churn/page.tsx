@@ -454,9 +454,13 @@ export default function ChurnPredictorHubPage() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              After the first scheduled run, the full digest appears here. Sync OnlyFans/Fansly CRM so expiry dates and
-              spend are real.
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              No digest yet. When background churn runs on your schedule, the latest batch report will show here. Sync
+              OnlyFans or Fansly from{' '}
+              <Link href="/dashboard/fans" className="text-circe underline-offset-4 hover:underline">
+                Fans
+              </Link>{' '}
+              so subscription end dates and spend match the platform.
             </p>
           )}
         </CardContent>

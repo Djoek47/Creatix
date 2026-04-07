@@ -1051,7 +1051,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
                 '/dashboard/ai-studio?tab=library',
                 '/dashboard/ai-studio?tab=tools',
                 '/dashboard/ai-studio?tab=tools&ai=circe',
-                '/dashboard/ai-studio/tools/caption-generator',
+                '/dashboard/ai-studio/tools/content-ideas?tab=captions',
                 '/dashboard/social',
                 '/dashboard/settings',
                 '/dashboard/settings?tab=integrations',

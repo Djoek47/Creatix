@@ -1,71 +1,49 @@
 # Revenue tier transition plan (Focus / Unified billing)
 
-This document describes **how tier changes should work** once automated revenue-based transitions are implemented. **Current production behavior** is unchanged: users pick a band at checkout; Stripe metadata stores `revenue_tier` and `billing_variant`. No cron yet applies tiers from live revenue.
+## Implemented (2026)
 
-## Goals
+1. **Canonical pricing** — `lib/circe-venus-pricing.ts` (revenue bands 0–10, additive Focus bundles, Unified = OF + $25). `lib/pricing-matrix.ts` is the facade for checkout and UI.
+2. **Tier index from revenue** — `tierIndexFromMonthlyRevenue` / `getTierByRevenue` use the same half-open bands as checkout (`revenueMax` exclusive).
+3. **API enforcement** — `lib/billing/onlyfans-billing-gate.ts` blocks paid users whose `subscriptions.revenue_tier` is below the tier implied by **scoped** OnlyFans and/or Fansly `platform_connections` observations (`REVENUE_TIER_MISMATCH`).
+4. **Stripe alignment job** — `GET /api/cron/revenue-tier-stripe-align` (Vercel Cron: `15 4 * * *` UTC). Secured with `CRON_SECRET` / `x-vercel-cron: true`. For each **active/trialing** `cev-paid` subscription with a Stripe id, computes `requiredTier = max(OF, Fansly)` from observations; if it differs from `revenue_tier`, updates the subscription item with `price_data` + metadata and **`proration_behavior: 'none'`** so the new unit amount applies on the **next invoice**. Supabase stays in sync via `customer.subscription.updated` webhooks.
+5. **Fansly connect** — After OAuth success, `refreshFanslyObservedRevenueForBilling` runs so MTD revenue is stored before gated routes rely on it.
+
+## Goals (retained)
 
 1. Align subscription price with the creator’s **business scale** (revenue band).
-2. Apply tier moves on a **predictable schedule** (e.g. next billing period), not random mid-cycle surprises.
-3. Notify creators when they **move up** a band (congratulations + effective date).
-4. Optionally handle **downgrades** with the same clarity.
+2. Apply tier moves on a **predictable schedule** — next invoice, not mid-cycle proration (see cron above).
+3. Notify creators on band moves — **not implemented** (Phase 4 below).
+4. Downgrades use the same cron path as upgrades.
 
 ## Definitions
 
-- **Revenue band / tier index** — `0..10` matching `lib/pricing-matrix.ts` → `REVENUE_TIERS` and `tierIndexFromMonthlyRevenue(monthlyRevenueUsd)`.
-- **Monthly revenue (for tiering)** — product must define one canonical metric, e.g.:
-  - **Self-reported** gross monthly revenue (already partially modeled via billing UI / `revenue_self_reported_at` on `subscriptions`), or
-  - **Aggregated platform analytics** (OnlyFans / Fansly / ManyVids) when reliable monthly totals exist in our DB.
-- **Effective date** — recommended: **start of the next Stripe subscription period** after evaluation (matches “next month” language in product discussions).
+- **Revenue band / tier index** — `0..10` matching `lib/circe-venus-pricing.ts` → `PRICING_TIERS` and `tierIndexFromMonthlyRevenue(monthlyRevenueUsd)`.
+- **Monthly revenue (for tiering)** — **Platform-reported month-to-date-style** earnings stored on `platform_connections` (`observed_monthly_revenue_usd`), not a closed accounting month unless we change the observation pipeline. OnlyFans uses API “this month” / chart fallbacks; Fansly uses UTC month-to-date totals. Early in the month, MTD can sit below a full-month run rate; late disconnects can leave **stale** observations until the next sync or disconnect cleanup.
+- **Effective date** — Next Stripe invoice after cron updates the subscription (`proration_behavior: 'none'`).
 
-## Current schema touchpoints
+## Schema touchpoints
 
 - `public.subscriptions`: `revenue_tier`, `revenue_band_label`, `billing_variant`, `billing_focus_platforms`, Stripe ids.
 - Stripe checkout / webhook: metadata patches tier fields (`app/api/stripe/webhook/route.ts`, `app/actions/stripe.ts`).
 
-## Phased implementation
-
-### Phase 1 — Specification (no code)
-
-- [ ] Choose **single source of truth** for “monthly revenue”: self-report vs synced analytics vs **max** / **sum** across platforms when they disagree.
-- [ ] Document **timezone** and **month boundary** (calendar month UTC vs creator timezone).
-- [ ] Decide **upgrade vs downgrade** policy:
-  - Upgrades: next period vs immediate with proration.
-  - Downgrades: grace month vs next period only.
-
-### Phase 2 — Evaluation job
-
-- [ ] Add a **scheduled route** (Vercel Cron) e.g. weekly or daily that:
-  1. Loads paid subscribers (`subscriptions` + Stripe subscription status).
-  2. Computes `computedTier = tierIndexFromMonthlyRevenue(revenueUsd)` per chosen rules.
-  3. Compares to `subscriptions.revenue_tier`.
-  4. If different, enqueue or write `tier_change_pending` (new table or columns: `pending_revenue_tier`, `effective_at`).
-
-### Phase 3 — Stripe alignment
-
-- [ ] On `effective_at`, update Stripe subscription to the **price** that matches `getMonthlyPriceUsd(variant, tierIndex, focusPlatforms)` for that customer’s variant and focus list.
-- [ ] Update Supabase `subscriptions.revenue_tier`, `revenue_band_label`, and metadata parity with Stripe.
-- [ ] Log to `admin_audit_log` or a dedicated `billing_tier_events` table for support.
+## Remaining phases
 
 ### Phase 4 — Creator notifications
 
-- [ ] When `computedTier > previousTier`, send **congratulations** (in-app banner, email, or both) with:
-  - New band label
-  - New monthly price (if higher)
-  - **Effective date** of the change
-- [ ] Idempotency: one congratulation per tier transition (e.g. `last_tier_congrats_at` + `last_congrats_tier` on `subscriptions` or event table).
+- When `computedTier > previousTier`, send in-app or email with new band, price, effective date.
+- Idempotency: e.g. `last_tier_congrats_at` + `last_congrats_tier` or `billing_tier_events` table.
 
-### Phase 5 — Edge cases
+### Phase 5 — Edge cases (partially done)
 
-- [ ] **Trial / past_due / canceled** — skip or use last known good tier.
-- [ ] **Manual override** — support/admin can set tier; job should respect a `tier_locked_until` flag if added.
-- [ ] **Multi-platform revenue mismatch** (e.g. OF low, Fansly high) — document whether tier uses **max**, **sum**, or **primary platform** before implementing.
-
-## Split revenue (OF vs Fansly vs ManyVids)
-
-Not implemented in pricing math today: a **single** monthly number drives `tierIndexFromMonthlyRevenue`. If product requires different bands per platform, that is a **separate project** (schema + Stripe + UI). This plan assumes **one composite monthly revenue** until that spec is approved.
+- [x] Trial / active: cron updates **trialing** and **active** alike.
+- [ ] **past_due** — skip or use last known tier (cron currently skips non-active/trialing).
+- [ ] **Manual override** — `tier_locked_until` or support flag to skip cron.
+- [x] **Multi-platform revenue** — tier for gating uses **max** of OnlyFans-required and Fansly-required tiers from each platform’s own observation (not a single blended dollar amount).
 
 ## References
 
-- `lib/pricing-matrix.ts` — tier thresholds and prices (`tierIndexFromMonthlyRevenue`, `getMonthlyPriceUsd`).
-- Public **pricing calculator** (`/pricing`) uses the same functions for estimates; Stripe checkout must stay in sync with that module.
-- `docs/internal/ADMIN_USAGE_AND_COSTS.md` — admin auth model (same docs folder).
+- `lib/circe-venus-pricing.ts` — tier thresholds and USD prices.
+- `lib/pricing-matrix.ts` — `tierIndexFromMonthlyRevenue`, `getMonthlyPriceUsd`, `getMonthlyPriceCents`.
+- `app/api/cron/revenue-tier-stripe-align/route.ts` — scheduled Stripe updates.
+- Public **pricing calculator** (`/pricing`) uses `pricing-matrix`; checkout must stay aligned with the same module.
+- `docs/internal/ADMIN_USAGE_AND_COSTS.md` — admin auth model.

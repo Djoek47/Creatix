@@ -17,6 +17,33 @@ import { theme } from '@/constants/theme'
 import { formatApiScreenError } from '@/lib/api-errors'
 import { apiFetch } from '@/lib/api'
 
+type MessagingReadPrefs = {
+  auto_mark_on_open: boolean
+  per_chat_overrides: Record<string, string>
+}
+
+async function loadMessagingReadPrefs(): Promise<MessagingReadPrefs> {
+  const res = await apiFetch('/api/user/messaging-read-preferences')
+  if (!res.ok) return { auto_mark_on_open: false, per_chat_overrides: {} }
+  const j = (await res.json()) as {
+    auto_mark_on_open?: boolean
+    per_chat_overrides?: Record<string, string>
+  }
+  return {
+    auto_mark_on_open: j.auto_mark_on_open === true,
+    per_chat_overrides:
+      typeof j.per_chat_overrides === 'object' && j.per_chat_overrides != null ? j.per_chat_overrides : {},
+  }
+}
+
+function shouldAutoMarkOnlyFansChat(prefs: MessagingReadPrefs, fanId: string): boolean {
+  const key = `onlyfans:${fanId}`
+  const o = prefs.per_chat_overrides[key]
+  if (o === 'auto') return true
+  if (o === 'never') return false
+  return prefs.auto_mark_on_open
+}
+
 type Msg = {
   id: string
   text?: string
@@ -57,7 +84,10 @@ export default function MessageThreadScreen() {
       return
     }
     setItems(json.messages ?? [])
-    void apiFetch(`/api/onlyfans/chats/${encodeURIComponent(fid)}/read`, { method: 'POST' }).catch(() => undefined)
+    const prefs = await loadMessagingReadPrefs()
+    if (shouldAutoMarkOnlyFansChat(prefs, fid)) {
+      void apiFetch(`/api/onlyfans/chats/${encodeURIComponent(fid)}/read`, { method: 'POST' }).catch(() => undefined)
+    }
   }, [fid])
 
   useEffect(() => {

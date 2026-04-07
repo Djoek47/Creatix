@@ -87,6 +87,10 @@
     {
       "path": "/api/cron/aggregate-creator-benchmarks",
       "schedule": "40 5 * * 0"
+    },
+    {
+      "path": "/api/cron/revenue-tier-stripe-align",
+      "schedule": "15 4 * * *"
     }
   ]
 }

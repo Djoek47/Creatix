@@ -325,7 +325,7 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
             </div>
             <div>
               <p className="font-medium">AI Studio</p>
-              <p className="text-sm text-muted-foreground">Vault, tools, captions, touch-ups</p>
+              <p className="text-sm text-muted-foreground">Media &amp; Vault, tool library, credits, Pro tools</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-border p-3">
@@ -364,7 +364,8 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
             Your Journey Begins!
           </h3>
           <p className="mb-6 max-w-md text-muted-foreground">
-            You are now ready to explore Circe et Venus. The goddesses await your command.
+            You are now ready to explore Circe et Venus. The goddesses await your command. For a dialog walkthrough of
+            each page, use <strong className="text-foreground">Start Tour</strong> in the header anytime.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             <Badge variant="outline" className="gap-1">
@@ -425,7 +426,7 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
             <span className="flex items-center gap-2">
               <Link href="/dashboard/guide" className="hover:text-foreground">Guide</Link>
               <button onClick={handleSkip} className="hover:text-foreground">
-                Skip tutorial
+                Skip onboarding
               </button>
             </span>
           </div>

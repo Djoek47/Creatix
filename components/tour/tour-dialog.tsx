@@ -33,11 +33,14 @@ export function TourDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md gap-4" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
             <BookOpen className="h-4 w-4" />
             <span className="text-xs">
               Step {stepIndex + 1} of {steps.length}
             </span>
+            {process.env.NODE_ENV === 'development' && (
+              <span className="text-[10px] font-mono opacity-70">{tourId}</span>
+            )}
           </div>
           <DialogTitle className="text-lg">{step.title}</DialogTitle>
           <DialogDescription className="text-sm leading-relaxed">

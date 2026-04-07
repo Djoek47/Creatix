@@ -136,12 +136,12 @@ export function IncomePredictorDashboard() {
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-circe">
               <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-widest">Divine + partner forecast</span>
+              <span className="text-xs font-semibold uppercase tracking-widest">Divine + partner forecast (OnlyFans)</span>
             </div>
             <h1 className="text-xl font-semibold sm:text-2xl">Income Predictor</h1>
             <p className="text-sm text-muted-foreground max-w-prose leading-relaxed">
-              Combines your synced finances, post cadence, and the OnlyFans partner statistical forecast with goal realism
-              checks and leak-aware strategies.
+              Combines your synced finances, post cadence, and the OnlyFans partner statistical forecast (global partner
+              analytics — not available for Fansly in this tool yet) with goal realism checks and leak-aware strategies.
             </p>
           </div>
         </div>
@@ -317,7 +317,9 @@ export function IncomePredictorDashboard() {
 
           <Card className="border-border/80">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Partner forecast ({result.calendarMode === 'month' ? '3mo horizon' : '1mo horizon'})</CardTitle>
+              <CardTitle className="text-sm">
+                Partner forecast — OnlyFans ({result.calendarMode === 'month' ? '3mo horizon' : '1mo horizon'})
+              </CardTitle>
               <CardDescription className="text-xs">{result.ai.partnerForecastNarrative}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">

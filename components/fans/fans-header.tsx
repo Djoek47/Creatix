@@ -22,6 +22,7 @@ interface FansHeaderProps {
   filter?: FansFilter
   onFilterChange?: (f: FansFilter) => void
   hasOnlyFansConnected?: boolean
+  hasFanslyConnected?: boolean
   /** OnlyFans or Fansly — enables quick platform sync. */
   hasFanPlatformsConnected?: boolean
   loadingLive?: boolean
@@ -33,6 +34,7 @@ export function FansHeader({
   filter = 'database',
   onFilterChange,
   hasOnlyFansConnected = false,
+  hasFanslyConnected = false,
   hasFanPlatformsConnected = false,
   loadingLive = false,
   onSyncStatus,
@@ -176,7 +178,8 @@ export function FansHeader({
               >
                 <span className="font-medium">Full CRM update</span>
                 <span className="block text-xs text-muted-foreground">
-                  Quick sync, then every OnlyFans DM thread (subs, expiry, spend)
+                  Quick sync, then walk every OnlyFans DM (subs, expiry, spend). Fansly has no full DM walk yet—use
+                  Quick sync for Fansly subscribers.
                 </span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -221,7 +224,7 @@ export function FansHeader({
               <DropdownMenuItem onClick={() => onFilterChange?.('expiring')}>
                 Expiring soon (CRM, 14 days)
               </DropdownMenuItem>
-              {hasOnlyFansConnected && (
+              {(hasOnlyFansConnected || hasFanslyConnected) && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onFilterChange?.('active')}>
@@ -232,9 +235,15 @@ export function FansHeader({
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onFilterChange?.('latest')}>
                     Live: Latest
+                    <span className="block text-xs text-muted-foreground">
+                      OnlyFans: newest subscribers; Fansly: active list (API)
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onFilterChange?.('top')}>
                     Live: Top spenders
+                    <span className="block text-xs text-muted-foreground">
+                      OnlyFans: by spend; Fansly: active list (API)
+                    </span>
                   </DropdownMenuItem>
                 </>
               )}

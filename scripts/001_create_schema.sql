@@ -51,9 +51,20 @@ CREATE TABLE IF NOT EXISTS public.fans (
   last_interaction_at TIMESTAMPTZ,
   first_subscribed_at TIMESTAMPTZ,
   notes TEXT,
+  subscription_expires_at TIMESTAMPTZ,
+  subscription_renews_on TIMESTAMPTZ,
+  is_renewing BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Subscription period columns (also in 044_fans_subscription_expires.sql); ALTER is for DBs created before this.
+ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS subscription_renews_on TIMESTAMPTZ;
+ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS is_renewing BOOLEAN DEFAULT TRUE;
+CREATE INDEX IF NOT EXISTS idx_fans_user_subscription_expires
+  ON public.fans (user_id, subscription_expires_at)
+  WHERE subscription_status = 'active' AND subscription_expires_at IS NOT NULL;
 
 -- Fan tags for segmentation
 CREATE TABLE IF NOT EXISTS public.fan_tags (

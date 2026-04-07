@@ -59,7 +59,7 @@ function SavingsGlanceCard({
 }
 
 const PRICING_DESCRIPTION =
-  'Revenue-based pricing: Fansly line −10% vs OF base (capped at $200/mo); ManyVids solo Focus $39/mo any tier; pair lines use bundle math; Unified for all three. Per-seat billing for multiple managers. Calculator + matrix. 14-day trial.'
+  'Revenue-based pricing: Fansly ≈10% below OnlyFans base (capped at $200/mo); ManyVids solo Focus $39/mo; two-platform Focus uses fixed add-ons (OF+FL, OF+MV, FL+MV); Unified = OF base + $25 for your band. Per-seat billing. Daily Stripe alignment to observed revenue. 14-day trial.'
 
 export const metadata: Metadata = buildPublicMetadata({
   path: '/pricing',
@@ -84,6 +84,7 @@ export default function PricingPage() {
   const ofFlSavings = percentSavingsTwoPlatformFocus(sampleTier, 'onlyfans', 'fansly')
   const ofMvSavings = percentSavingsTwoPlatformFocus(sampleTier, 'onlyfans', 'manyvids')
   const flMvSavings = percentSavingsTwoPlatformFocus(sampleTier, 'fansly', 'manyvids')
+  const mvSoloVsOfPct = percentVsOnlyFansBase(sampleTier, MANYVIDS_FOCUS_SINGLE_FLAT_USD)
 
   const comparisonRows = [
     { feature: '14-day free trial', trial: true, paid: true },
@@ -104,12 +105,12 @@ export default function PricingPage() {
     {
       question: 'What is Focus vs Unified?',
       answer:
-        'Focus covers one or two adult platforms (OnlyFans, Fansly, ManyVids). OnlyFans is the price base; Fansly is 10% lower and ManyVids 25% lower at each band. For two platforms we add those two line prices, then apply: OnlyFans + Fansly → 10% off the sum; OnlyFans + ManyVids → 25% off the sum; Fansly + ManyVids → 5% on top of the sum. All three platforms bill as Unified at the original multi-platform price for your band.',
+        'Focus covers one or two adult platforms. OnlyFans is the price base; Fansly is about 10% lower (capped at $200/mo); ManyVids solo Focus is a flat $39/mo at every band. Two-platform Focus uses fixed bundle prices: OnlyFans + Fansly = OF base + $15; OnlyFans + ManyVids = OF base + $20; Fansly + ManyVids = Fansly line + $8. Unified (all three) = OnlyFans base + $25 for your revenue band.',
     },
     {
       question: 'Which single platform is the best discount?',
       answer:
-        'At every band, ManyVids Focus is 25% below the OnlyFans base — the deepest single-platform cut. Fansly is 10% below base.',
+        'Fansly is about 10% below the OnlyFans base at each band (with a $200/mo cap on the Fansly line). ManyVids solo Focus is always $39/mo — compare the matrix “% vs OF” for your band; at low bands MV can be slightly above OF base, at high bands it is far below.',
     },
     {
       question: 'What about two-platform pairs?',
@@ -129,7 +130,7 @@ export default function PricingPage() {
     {
       question: 'Will my subscription band update automatically when my revenue grows?',
       answer:
-        'Right now you choose your revenue band at checkout and can change it anytime in Settings → Billing. Automatic band reviews (for example, aligning your next bill after revenue crosses a new threshold) are planned; until then, update your band in-app if your business has moved up.',
+        'Creatix reads month-to-date-style earnings from connected OnlyFans and Fansly to infer your band. A scheduled job aligns your Stripe subscription amount and band metadata when observed revenue implies a different tier — changes apply on your next invoice (no mid-cycle proration). You can still change band or plan anytime in Settings → Billing.',
     },
   ]
 
@@ -163,8 +164,9 @@ export default function PricingPage() {
                 <p className="text-xs font-bold uppercase tracking-widest text-circe-light">Focus</p>
                 <p className="mt-2 font-serif text-xl font-semibold">1–2 platforms</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Stack discounts: Fansly −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}%, ManyVids −{FOCUS_PLATFORM_SAVINGS_PCT.manyvids}% vs
-                  OnlyFans base. Two picks → sum of line prices, then pair rule (OF+FL −10%, OF+MV −25%, FL+MV +5%).
+                  Fansly ≈ −{FOCUS_PLATFORM_SAVINGS_PCT.fansly}% vs OnlyFans base (capped at $200/mo). ManyVids solo Focus
+                  is $39/mo flat. Two picks use bundle add-ons: OF+FL +$15, OF+MV +$20, FL+MV +$8 on top of the primary
+                  line.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -174,10 +176,10 @@ export default function PricingPage() {
                   <Percent className="h-4 w-4" />
                   Best single cut
                 </div>
-                <p className="mt-2 font-serif text-xl font-semibold">ManyVids −25%</p>
+                <p className="mt-2 font-serif text-xl font-semibold">ManyVids $39/mo</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Deepest per-platform discount vs OF base. Pair it with OF or Fansly and the matrix shows the exact
-                  % vs OF for that bundle at each band.
+                  Flat solo Focus at every band. Pair with OF or Fansly for fixed bundle pricing; the matrix shows % vs
+                  OnlyFans base for each cell.
                 </p>
               </div>
             </MotionStaggerItem>
@@ -209,7 +211,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <SavingsGlanceCard label="Fansly vs OF" pct={FOCUS_PLATFORM_SAVINGS_PCT.fansly} fixedDiscount />
-            <SavingsGlanceCard label="ManyVids vs OF" pct={FOCUS_PLATFORM_SAVINGS_PCT.manyvids} fixedDiscount />
+            <SavingsGlanceCard label="ManyVids solo vs OF" pct={mvSoloVsOfPct} fixedDiscount />
             <SavingsGlanceCard label="OF + Fansly (bundle)" pct={ofFlSavings} />
             <SavingsGlanceCard label="OF + ManyVids (bundle)" pct={ofMvSavings} />
             <SavingsGlanceCard label="Fansly + ManyVids (bundle)" pct={flMvSavings} />

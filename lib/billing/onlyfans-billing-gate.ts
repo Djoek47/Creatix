@@ -79,6 +79,18 @@ function requiredTierFromScopedObservation(obs: ScopedPlatformObservation | null
   return tierIndexFromMonthlyRevenue(Math.max(0, Number(scoped.usd)))
 }
 
+/** Max revenue band implied by connected OF/Fansly observations (null if neither has scoped revenue). */
+export function computeRequiredRevenueTierFromScopedObservations(args: {
+  onlyfans: ScopedPlatformObservation | null
+  fansly: ScopedPlatformObservation | null
+}): number | null {
+  const ofT = requiredTierFromScopedObservation(args.onlyfans)
+  const fsT = requiredTierFromScopedObservation(args.fansly)
+  const tiers = [ofT, fsT].filter((t): t is number => t != null)
+  if (tiers.length === 0) return null
+  return Math.max(...tiers)
+}
+
 /**
  * Subscribed revenue band must cover the highest implied tier across OnlyFans and Fansly (each scoped to its connected account id).
  */

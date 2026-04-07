@@ -3,16 +3,14 @@
 import { Button } from '@/components/ui/button'
 import { BookOpen } from 'lucide-react'
 import { useTour } from './tour-provider'
-import { getTourForPath } from '@/lib/tour-config'
+import { getTourForPath, TOUR_STORAGE_PREFIX } from '@/lib/tour-config'
 import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
-
-const STORAGE_PREFIX = 'circe-tour-done-'
 
 function getTourCompleted(tourId: string): boolean {
   if (typeof window === 'undefined') return false
   try {
-    return localStorage.getItem(STORAGE_PREFIX + tourId) === '1'
+    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
   } catch {
     return false
   }
@@ -33,7 +31,7 @@ export function StartTourButton({ className }: { className?: string }) {
       size="sm"
       className={className}
       onClick={startTour}
-      title={completed ? 'Show tutorial again' : 'Start page tutorial'}
+      title={completed ? 'Show page walkthrough again' : 'Start page walkthrough (dialog tour)'}
     >
       <BookOpen className="h-4 w-4 mr-1.5" />
       {completed ? 'Tutorial' : 'Start Tour'}

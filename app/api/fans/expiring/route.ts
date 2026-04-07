@@ -19,11 +19,14 @@ export async function GET(request: NextRequest) {
 
     const daysRaw = request.nextUrl.searchParams.get('days')
     const days = Math.min(90, Math.max(1, parseInt(daysRaw || '14', 10) || 14))
+    const platformRaw = request.nextUrl.searchParams.get('platform')
+    const platform =
+      platformRaw === 'onlyfans' || platformRaw === 'fansly' ? platformRaw : null
     const now = new Date()
     const until = new Date(now)
     until.setUTCDate(until.getUTCDate() + days)
 
-    const { data: rows, error } = await supabase
+    let q = supabase
       .from('fans')
       .select('*')
       .eq('user_id', user.id)
@@ -31,6 +34,12 @@ export async function GET(request: NextRequest) {
       .not('subscription_expires_at', 'is', null)
       .gte('subscription_expires_at', now.toISOString())
       .lte('subscription_expires_at', until.toISOString())
+
+    if (platform) {
+      q = q.eq('platform', platform)
+    }
+
+    const { data: rows, error } = await q
       .order('subscription_expires_at', { ascending: true })
       .limit(500)
 

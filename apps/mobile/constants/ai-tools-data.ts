@@ -29,9 +29,19 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     badge: 'Popular',
     credits: 1,
     hasRunner: true,
+    hiddenFromLibrary: true,
   },
   { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', badge: 'Popular', credits: 2, hasRunner: true },
-  { id: 'content-ideas', name: 'Content Ideas', description: 'Trending content suggestions', longDescription: 'Get AI-powered content ideas based on trending topics, your niche, and what performs best for similar creators.', category: 'content', credits: 1, hasRunner: true },
+  {
+    id: 'content-ideas',
+    name: 'Content Ideas',
+    description: 'Trending ideas & AI captions',
+    longDescription:
+      'Two modes: trending content ideas for your niche, or the caption generator (upload or describe) for captions, hashtags, and PPV copy.',
+    category: 'content',
+    credits: 1,
+    hasRunner: true,
+  },
   { id: 'photo-enhancer', name: 'Safe photo touch-up', description: 'AI blur, lighting, emoji — text or voice', longDescription: 'Upload a photo and describe edits in text or voice; AI maps your request to safe blur, brightness, or emoji overlay (no beautify, inpaint, or video). Also available in Media & Vault with manual sliders.', category: 'content', credits: 1, hasRunner: true },
   {
     id: 'ai-chatter',
@@ -58,9 +68,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'housekeeping',
     name: 'Housekeeping',
-    description: 'Smart lists: CRM segments & platform sync',
+    description: 'Auto-classify fans: spend, threads & freeloaders',
     longDescription:
-      'Web-only: /dashboard/commenter?section=housekeeping or Fans → Arrangements for housekeeping_lists rules.',
+      'Web-only: Smart classify — spend, DM/thread activity, cold fans, and freeloader segments — synced to OnlyFans lists & Fansly tags. Open /dashboard/commenter?section=housekeeping or Fans → Arrangements (housekeeping_lists).',
     category: 'engagement',
     badge: 'MVP',
     credits: 0,
@@ -186,7 +196,18 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hasRunner: true,
   },
   { id: 'venus-attraction', name: "Venus's Allure", description: 'Magnetic content optimization', longDescription: 'Channel the goddess of beauty to optimize your content for maximum attraction and new subscriber conversion.', category: 'premium', isPro: true, badge: 'Venus Pro', credits: 4, hasRunner: true },
-  { id: 'venus-cupid', name: "Cupid's Arrow", description: 'Target perfect new fans', longDescription: "Like Venus's son Cupid, this AI identifies and targets potential fans most likely to fall in love with your content.", category: 'premium', isPro: true, badge: 'Venus Pro', credits: 5, hasRunner: true },
+  {
+    id: 'venus-cupid',
+    name: "Cupid's Arrow",
+    description: 'Newest fans — onboarding & early churn care',
+    longDescription:
+      'Lists your newest subscribers from CRM + live platform lists, then drafts warm introductions, first-touch care, and follow-ups. Tags saved CRM fans for Churn Predictor follow-through — new subs churn easily until they feel seen.',
+    category: 'premium',
+    isPro: true,
+    badge: 'Venus Pro',
+    credits: 5,
+    hasRunner: true,
+  },
   { id: 'standard-of-attraction', name: 'Standard of Attraction', description: 'Pro rating of how commercially attractive your content is', longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.', category: 'premium', isPro: true, badge: 'Pro', credits: 3, hasRunner: true },
 ]
 

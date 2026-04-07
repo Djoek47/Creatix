@@ -1,7 +1,8 @@
 /**
- * Per-page and per-tool tutorial steps. Each step is shown in a popup; user can Next / Back / Done.
- * Completion is stored in localStorage per tourId.
+ * Per-page tutorial steps (modal: Next / Back / Done).
+ * Completion: localStorage key `${TOUR_STORAGE_PREFIX}${tourId}` (see tour-provider).
  */
+export const TOUR_STORAGE_PREFIX = 'circe-tour-v2-done-'
 
 export interface TourStep {
   id: string
@@ -14,46 +15,308 @@ export interface TourConfig {
   steps: TourStep[]
 }
 
+/** v2 tour content — bump TOUR_STORAGE_PREFIX when changing materially */
 const TOURS: Record<string, TourConfig> = {
   '/dashboard': {
     tourId: 'dashboard',
     steps: [
-      { id: 'overview', title: 'Dashboard overview', description: 'Your command center: revenue, fans, and messages at a glance. Stats cards show totals; connect OnlyFans or Fansly to see real data.' },
-      { id: 'platforms', title: 'Connected platforms', description: 'This widget shows which platforms are linked. Click "Manage" to connect or disconnect accounts in Settings.' },
-      { id: 'revenue', title: 'Revenue chart', description: 'Revenue over time from your connected platforms. Sync your accounts to populate this chart.' },
-      { id: 'quick-actions', title: 'Quick actions', description: 'Shortcuts to messages, content, fans, and AI tools. Use them to jump into the most common tasks.' },
+      {
+        id: 'map-intro',
+        title: 'Your CRM home',
+        description:
+          'This dashboard is your home base: revenue, fans, inbox health, and quick entry to every area of Circe et Venus—similar to a creator CRM command center.',
+      },
+      {
+        id: 'map-divine',
+        title: 'Divine Manager',
+        description:
+          'Use the sidebar: Divine Manager is voice + text control of your AI assistant—tasks, Mimic style, notifications, and tools without leaving the page.',
+      },
+      {
+        id: 'map-content-wellbeing',
+        title: 'Content & Well-being',
+        description:
+          'Content is your schedule and posts. Well-being is a calmer check-in (Mimic snapshot, cosmic calendar)—pair with work, not replace it.',
+      },
+      {
+        id: 'map-messages-social',
+        title: 'Messages & Social',
+        description:
+          'Messages is your unified OnlyFans/Fansly inbox. Social covers cross-platform promotion and reputation signals outside the adult platforms.',
+      },
+      {
+        id: 'map-content-library',
+        title: 'Content library',
+        description:
+          'Content library is your media vault: describe assets for AI, link posts, and safe touch-ups—separate from the calendar on Content.',
+      },
+      {
+        id: 'map-ai-studio',
+        title: 'AI Studio',
+        description:
+          'AI Studio bundles Media & Vault plus the full tools library (captions, churn, competitor insights, gifts, and more). Pro tools use credits where marked.',
+      },
+      {
+        id: 'map-circe',
+        title: 'Circe: retention & shield',
+        description:
+          'Under Circe: Analytics (revenue and fans), Retention (churn hub and digests), Protection (leaks, DMCA, Aegis). Purple = stay, protect, analyze.',
+      },
+      {
+        id: 'map-venus',
+        title: 'Venus: growth',
+        description:
+          'Under Venus: Fans CRM, Commenter (post replies + housekeeping lists), Mentions. Gold = attract, reply in public, reputation.',
+      },
+      {
+        id: 'map-community-guide',
+        title: 'Community & Guide',
+        description:
+          'Community has tips and Circe daily habits. Guide is the long-form manual—bookmark it. Settings holds billing, integrations, and security.',
+      },
+      {
+        id: 'stats',
+        title: 'Stats on this page',
+        description:
+          'Cards summarize revenue, fans, and conversation activity. Connect OnlyFans or Fansly under Settings → Integrations so numbers stay real.',
+      },
+      {
+        id: 'platforms',
+        title: 'Connected platforms',
+        description:
+          'See which accounts are linked. Use Manage or Settings to connect, refresh tokens, or disconnect.',
+      },
+      {
+        id: 'widgets',
+        title: 'Widgets & shortcuts',
+        description:
+          'Alerts, mentions, and quick links push you into Messages, Protection, AI Studio, or Divine—use them as your daily triage list.',
+      },
     ],
   },
+
   '/dashboard/messages': {
     tourId: 'messages',
     steps: [
-      { id: 'list', title: 'Conversations', description: 'All your OnlyFans and Fansly chats in one place. Select a conversation to open it.' },
-      { id: 'chat', title: 'Chat window', description: 'Read and reply to fans here. You can send text, use AI suggestions, or schedule replies.' },
-      { id: 'mass', title: 'Mass message', description: 'Use "Mass message" to send one message to multiple fans at once (e.g. a promo or announcement).' },
+      {
+        id: 'list',
+        title: 'Conversation list',
+        description:
+          'All OnlyFans and Fansly threads in one list. Pick a fan to load the thread; unread counts and platform badges help you prioritize.',
+      },
+      {
+        id: 'thread',
+        title: 'Chat thread',
+        description:
+          'Read and reply here. Creatix can show media via a secure proxy; if something will not load, open the official OnlyFans or Fansly app for full video or DRM-locked content.',
+      },
+      {
+        id: 'divine-ai',
+        title: 'Divine & AI in chat',
+        description:
+          'Use Divine or suggestion panels where available to draft replies—everything is review-first unless you explicitly enable auto-send in AI Chatter.',
+      },
+      {
+        id: 'refresh',
+        title: 'Refresh & actions',
+        description:
+          'Refresh pulls the latest messages from the platform. Use the thread menu for read/unread and platform-specific actions on OnlyFans.',
+      },
+      {
+        id: 'mass',
+        title: 'Mass messaging',
+        description:
+          'Open Mass message from the Messages area to target segments or lists for promos and announcements—keep compliance and platform rules in mind.',
+      },
     ],
   },
+
+  '/dashboard/messages/mass': {
+    tourId: 'messages-mass',
+    steps: [
+      {
+        id: 'purpose',
+        title: 'Mass DM composer',
+        description:
+          'Compose one campaign to many fans at once. Segment by tags, lists, or spend where the UI allows—this is your broadcast lane, not 1:1 chat.',
+      },
+      {
+        id: 'review',
+        title: 'Review before send',
+        description:
+          'Preview copy and audience. Platform APIs may throttle or require confirmation; follow OnlyFans/Fansly rules for promotional content.',
+      },
+    ],
+  },
+
   '/dashboard/fans': {
     tourId: 'fans',
     steps: [
-      { id: 'list', title: 'Fans list', description: 'All subscribers and followers from your connected platforms. Filter by tier (whale, VIP, regular) or search by name.' },
-      { id: 'tiers', title: 'Tiers', description: 'Fans are grouped by spending: whales (high spenders), VIPs, and regular. Focus engagement on your top supporters.' },
-      { id: 'add', title: 'Add fan', description: 'You can manually add a fan (e.g. from another platform) via "Add fan" for notes and tracking.' },
+      {
+        id: 'list',
+        title: 'Fans CRM',
+        description:
+          'Subscriber and fan rows synced from connected platforms. Search, sort, and open a fan for notes, tags, and deep links to Messages.',
+      },
+      {
+        id: 'tiers',
+        title: 'Spend tiers',
+        description:
+          'Whales, VIPs, and regulars help you prioritize outreach. Align with Commenter and Churn for the same fans across the product.',
+      },
+      {
+        id: 'classify',
+        title: 'Classification & lists',
+        description:
+          'Use fan classification or smart lists (with Housekeeping on Commenter) to keep CRM segments aligned with OnlyFans lists.',
+      },
+      {
+        id: 'add',
+        title: 'Manual fans',
+        description:
+          'Add a fan manually when you need CRM notes or tracking for someone not yet synced—useful for cross-platform context.',
+      },
     ],
   },
+
+  '/dashboard/fans/classify': {
+    tourId: 'fans-classify',
+    steps: [
+      {
+        id: 'rules',
+        title: 'Classification',
+        description:
+          'Run rules to label fans by behavior or spend. Results feed lists and automations elsewhere—keep rules aligned with your Housekeeping lists.',
+      },
+      {
+        id: 'sync',
+        title: 'Sync with platforms',
+        description:
+          'After classification, sync or push segments to OnlyFans user lists where supported so DMs and promotions match.',
+      },
+    ],
+  },
+
+  '/dashboard/fans/new': {
+    tourId: 'fans-new',
+    steps: [
+      {
+        id: 'manual',
+        title: 'Add fan',
+        description:
+          'Add a manual fan row for CRM notes, tags, or tracking when someone is not fully synced from a platform.',
+      },
+      {
+        id: 'crm',
+        title: 'Use with CRM',
+        description:
+          'Return to Fans list to search and merge with synced subscribers; link out to Messages when you start chatting.',
+      },
+    ],
+  },
+
   '/dashboard/content': {
     tourId: 'content',
     steps: [
-      { id: 'library', title: 'Content library', description: 'All your posts and scheduled content. Filter by status: draft, scheduled, published, archived.' },
-      { id: 'new', title: 'New content', description: 'Create a new post from "New content". Write copy, add media, and publish to connected platforms or schedule for later.' },
+      {
+        id: 'calendar',
+        title: 'Content calendar',
+        description:
+          'Planned posts and status: draft, scheduled, published. Track what goes out on which day across connected platforms.',
+      },
+      {
+        id: 'new',
+        title: 'New post',
+        description:
+          'Create new content from here: copy, media, schedule. Publish or schedule to connected accounts per integration settings.',
+      },
     ],
   },
+
+  '/dashboard/content/new': {
+    tourId: 'content-new',
+    steps: [
+      {
+        id: 'composer',
+        title: 'Composer',
+        description:
+          'Write your post, attach media, and pick timing. Match your platform’s rules for PPV, teasers, and locked content.',
+      },
+      {
+        id: 'schedule',
+        title: 'Schedule & publish',
+        description:
+          'Choose publish now or a future slot. Return to Content to edit or move items on the calendar.',
+      },
+    ],
+  },
+
+  '/dashboard/content-library': {
+    tourId: 'content-library',
+    steps: [
+      {
+        id: 'vault',
+        title: 'Media vault',
+        description:
+          'Describe and tag media for Divine Manager PPV and recommendations. Link vault items to OnlyFans posts when you need consistent metadata.',
+      },
+      {
+        id: 'photo',
+        title: 'Safe photo touch-up',
+        description:
+          'Request blur, lighting, or emoji overlays—no beautify or inpaint. Same pipeline as AI Studio safe edits.',
+      },
+      {
+        id: 'schedule-link',
+        title: 'Content schedule',
+        description:
+          'Jump to Content schedule from here when you want to place described assets on the calendar.',
+      },
+    ],
+  },
+
   '/dashboard/analytics': {
     tourId: 'analytics',
     steps: [
-      { id: 'overview', title: 'Analytics', description: 'Revenue, fans, and engagement over time. Data comes from your connected platforms after sync.' },
-      { id: 'breakdown', title: 'Breakdown', description: 'See performance by platform (OnlyFans, Fansly) and by content type to optimize your strategy.' },
+      {
+        id: 'overview',
+        title: 'Analytics',
+        description:
+          'Revenue, fans, and engagement over time from synced snapshots. Use it to compare periods and platforms after connections are healthy.',
+      },
+      {
+        id: 'breakdown',
+        title: 'Platform breakdown',
+        description:
+          'Split OnlyFans vs Fansly where both are connected. Pair with Retention for churn risk and with Income Predictor for forward-looking goals.',
+      },
+      {
+        id: 'income-predictor-link',
+        title: 'Income Predictor',
+        description:
+          'Open Income Predictor from Analytics for forecast-style goals and cadence—Pro-only where billing applies.',
+      },
     ],
   },
+
+  '/dashboard/analytics/income-predictor': {
+    tourId: 'analytics-income-predictor',
+    steps: [
+      {
+        id: 'forecast',
+        title: 'Income Predictor',
+        description:
+          'Blends partner statistics with your synced snapshots and goals. Use maintain vs grow modes and calendar notes to sanity-check next month.',
+      },
+      {
+        id: 'goals',
+        title: 'Goals & realism',
+        description:
+          'Set targets and read intermediate bands—this is planning, not a guarantee. Revisit after major campaigns or platform changes.',
+      },
+    ],
+  },
+
   '/dashboard/well-being': {
     tourId: 'well-being',
     steps: [
@@ -61,28 +324,29 @@ const TOURS: Record<string, TourConfig> = {
         id: 'overview',
         title: 'Well-being hub',
         description:
-          'One screen for how heavy your inboxes feel, how your Mimic interview is shaping up, and a cosmic calendar so you can breathe and plan without juggling five tabs.',
+          'One screen for inbox load, Mimic profile snapshot, and a cosmic calendar—so you can breathe and plan without juggling five tabs.',
       },
       {
         id: 'mimic-snapshot',
         title: 'Mimic snapshot',
         description:
-          'Glance at warmth, humor, and flirt sliders from your Mimic profile. Finish the voice interview in Divine Manager when you want fan-facing drafts to sound unmistakably you.',
+          'Warmth, humor, and flirt sliders from your Mimic profile. Finish the voice interview in Divine Manager when you want fan-facing drafts to sound like you.',
       },
       {
         id: 'cosmic-hero',
         title: 'Cosmic calendar',
         description:
-          'The calendar opens with affirmations, a large moon phase, Western zodiac season, and the Chinese zodiac year. Scroll the strips of all twelve signs, then open the month grid for day-by-day glow.',
+          'Moon phase, zodiac, and monthly grid—optional rhythm. Pair with Community → Circe daily tips for habit ideas.',
       },
       {
         id: 'rhythm',
         title: 'Rhythm, not rigor',
         description:
-          'Use this page as a gentle check-in — not a scorecard. Pair it with Daily tips from Circe in Community when you want habit ideas.',
+          'Use this as a gentle check-in, not a scorecard. Pair with Community when you want structured habit ideas.',
       },
     ],
   },
+
   '/dashboard/divine-manager': {
     tourId: 'divine-manager',
     steps: [
@@ -90,79 +354,173 @@ const TOURS: Record<string, TourConfig> = {
         id: 'welcome',
         title: 'Welcome to Divine Manager',
         description:
-          'This is your operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. If you landed on a deep link, the tour still works — scroll the page as we go.',
+          'Operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. Scroll the page if you landed on a deep link.',
       },
       {
         id: 'voice',
         title: 'Voice with the crown',
         description:
-          'Tap the floating crown to talk. You can open the launcher first (Text Divine, shortcuts) or skip straight into a call from Divine Manager settings. Divine hears you in real time and can open tools, stats, and fans.',
+          'Tap the floating crown to talk. Open the launcher for Text Divine and shortcuts, or jump straight into voice from settings.',
       },
       {
         id: 'text',
-        title: 'Text when you prefer typing',
+        title: 'Text chat',
         description:
-          'Open the text sheet for the same manager brain. Great for long prompts, links, or when you cannot speak out loud.',
+          'The text sheet runs the same manager brain—best for long prompts, links, or when you cannot speak.',
       },
       {
         id: 'protocol-rail',
-        title: 'Protocol tasks above the crown',
+        title: 'Protocol tasks',
         description:
-          'The collapsible rail lists open follow-ups and workflows. Collapse it anytime you want a clean screen. Briefings work best when tasks link to items in your saved inbox.',
+          'The collapsible rail lists follow-ups and workflows. Collapse it for a clean screen; link tasks to inbox items when possible.',
       },
       {
         id: 'bell',
-        title: 'Bell and Live vs Divine',
+        title: 'Notifications',
         description:
-          'Notifications split platform activity (Live) from leaks, reputation, billing, and Divine actions (Divine). Run a briefing from the bell to queue saved rows for a walkthrough with Divine.',
+          'Live vs Divine: platform activity vs leaks, billing, reputation, and Divine actions. Run a briefing to walk saved rows with Divine.',
       },
       {
         id: 'mimic',
         title: 'Mimic Test',
         description:
-          'Complete the voice interview so Divine can draft fan-facing lines in your style. Drafts stay review-first — nothing sends until you say so.',
+          'Voice interview so Divine mirrors your fan-reply style. Drafts are review-first; a future Voice Cloning runner in AI Studio is planned for extra samples.',
       },
       {
         id: 'today-plan',
         title: 'Today plan and tasks',
         description:
-          'See suggested moves for the day, jump to automation and alerts, and wire large-tip tasks if you use those rules. Anchor links on the page jump straight to Today plan or tasks.',
+          'Suggested moves for the day, automation hooks, and large-tip rules when configured. Anchor links jump to Today plan or tasks.',
       },
       {
         id: 'voice-settings',
-        title: 'How Divine sounds',
+        title: 'Voice settings',
         description:
-          'In Voice settings: choose brief, balanced, or more expressive replies; decide when the End call button unlocks; set DM focus and composer timing; optional instant crown start.',
+          'Brevity vs expressiveness, when End call unlocks, DM focus, composer timing, and optional instant crown start.',
       },
       {
         id: 'guide-link',
-        title: 'Go deeper in the Guide',
+        title: 'Guide',
         description:
-          'Help and Guide has a full Divine Manager chapter with deep links and plain-language detail. Revisit anytime from the sidebar.',
+          'The Guide has a full Divine Manager chapter with deep links. Revisit anytime from the sidebar.',
       },
     ],
   },
+
   '/dashboard/ai-studio': {
     tourId: 'ai-studio',
     steps: [
-      { id: 'vault', title: 'Media & Vault', description: 'Tag and describe content for Divine Manager PPV recommendations, link OnlyFans posts, and run safe photo touch-ups (blur, lighting, emoji).' },
-      { id: 'tools', title: 'AI tools', description: 'Open the Tools tab for captions, churn analysis, growth tools, and more—each uses credits where noted.' },
+      {
+        id: 'tabs',
+        title: 'AI Studio',
+        description:
+          'Two tabs: Media & Vault (assets, descriptions, safe edits) and Tools (full library). Credits apply where each tool says so; Pro gates apply for premium tools.',
+      },
+      {
+        id: 'vault',
+        title: 'Media & Vault',
+        description:
+          'Tag content for Divine, link OnlyFans posts, vault photos for PPV context, and run safe photo touch-ups.',
+      },
+      {
+        id: 'tools',
+        title: 'Tools library',
+        description:
+          'Captions, churn, competitor analysis, gifts, fantasy writer, and more. Some tools are listed as Coming soon until they are ready.',
+      },
+      {
+        id: 'chatter-gifts',
+        title: 'Chatter & gifts',
+        description:
+          'Open AI Chatter and Gift wishlist from here for DM automation and product links in gift suggestions.',
+      },
     ],
   },
+
   '/dashboard/ai-studio/tools': {
     tourId: 'ai-studio-tools',
     steps: [
-      { id: 'list', title: 'AI tools', description: 'All available tools: Caption Generator, Flirt Assistant, Content Ideas, Churn Predictor, and others.' },
-      { id: 'open', title: 'Open a tool', description: 'Click a tool to open it. You can run it from the workspace and use the output in your content or messages.' },
+      {
+        id: 'grid',
+        title: 'Tools library',
+        description:
+          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Commenter, Retention, Protection).',
+      },
+      {
+        id: 'credits',
+        title: 'Credits & Pro',
+        description:
+          'Credits show in the header. Pro-only tools require an active plan; locked cards link to billing.',
+      },
+      {
+        id: 'open',
+        title: 'Run a tool',
+        description:
+          'Click through to run from the workspace. Outputs are yours to copy into messages, posts, or protocols.',
+      },
     ],
   },
+
+  '/dashboard/ai-studio/chatter': {
+    tourId: 'ai-studio-chatter',
+    steps: [
+      {
+        id: 'purpose',
+        title: 'AI Chatter',
+        description:
+          'Per-fan DM automation for OnlyFans: drafts, queues, optional auto-send (beta). Pair with Mimic for tone and with Messages for the live thread.',
+      },
+      {
+        id: 'profiles',
+        title: 'Profiles & whales',
+        description:
+          'Switch modes or whale whisper profiles where available. Review everything before send unless you have explicitly enabled automation.',
+      },
+    ],
+  },
+
+  '/dashboard/ai-studio/gifts': {
+    tourId: 'ai-studio-gifts',
+    steps: [
+      {
+        id: 'wishlist',
+        title: 'Gift wishlist',
+        description:
+          'Save HTTPS product links with titles and prices so Gift Suggester and other tools can reference real items.',
+      },
+      {
+        id: 'use',
+        title: 'Using in tools',
+        description:
+          'Return to AI Studio → Tools to run Gift Suggester with wishlist context for a fan or campaign.',
+      },
+    ],
+  },
+
   '/dashboard/settings': {
     tourId: 'settings',
     steps: [
-      { id: 'tabs', title: 'Settings tabs', description: 'Profile, Integrations, Security, Billing, and more. Use Integrations to connect or disconnect OnlyFans and Fansly.' },
-      { id: 'integrations', title: 'Integrations', description: 'Connect your creator accounts here. OnlyFans uses a secure popup; Fansly uses email/password in a dialog.' },
+      {
+        id: 'tabs',
+        title: 'Settings',
+        description:
+          'Profile, Integrations, Security, Billing, and preferences. Integrations connect OnlyFans and Fansly; billing controls Pro and credits.',
+      },
+      {
+        id: 'integrations',
+        title: 'Integrations',
+        description:
+          'Connect OnlyFans via secure OAuth popup; Fansly via email/password in the dialog. Disconnect here if tokens expire.',
+      },
+      {
+        id: 'billing',
+        title: 'Billing & plan',
+        description:
+          'Upgrade, payment method, and usage limits where applicable. Adult-platform billing may gate certain features.',
+      },
     ],
   },
+
   '/dashboard/guide': {
     tourId: 'guide',
     steps: [
@@ -170,47 +528,226 @@ const TOURS: Record<string, TourConfig> = {
         id: 'welcome',
         title: 'Guide',
         description:
-          'This page summarizes how Circe et Venus works. Revisit it anytime. Use Start Tour in the header on any dashboard page for a short dialog walkthrough.',
+          'Long-form documentation for Circe et Venus. Use the table of contents to jump to Divine Manager, CRM, AI Studio, and billing.',
       },
       {
-        id: 'divine-chapter',
-        title: 'Divine Manager chapter',
+        id: 'tour',
+        title: 'Page tours',
         description:
-          'Jump to the Divine Manager section in the table of contents for voice, text, protocol tasks, Mimic, notifications, and deep links into the app.',
+          'Start Tour in the header runs a short dialog for the page you are on. It does not auto-navigate; switch pages and start again for each area.',
       },
     ],
   },
+
   '/dashboard/protection': {
     tourId: 'protection',
     steps: [
-      { id: 'leaks', title: 'Leak protection', description: 'Check for unauthorized use of your content. Paste URLs to scan and submit DMCA claims if needed.' },
+      {
+        id: 'overview',
+        title: 'Protection',
+        description:
+          'Leak alerts, DMCA drafts, and resolution history. Paste URLs to scan; review every claim before sending to third parties.',
+      },
+      {
+        id: 'aegis',
+        title: 'Aegis hub',
+        description:
+          'Open Circe’s Aegis for scheduled scans, optional draft DMCAs, and links to broader protection settings—see the Protection tour on the Aegis page for detail.',
+      },
     ],
   },
+
+  '/dashboard/protection/aegis': {
+    tourId: 'protection-aegis',
+    steps: [
+      {
+        id: 'shield',
+        title: 'Aegis',
+        description:
+          'Unified hub: shield toggles, Sentinel schedule, leak-scan defaults, optional Hammer drafts, and links to Mentions for reputation (separate from leak alerts).',
+      },
+      {
+        id: 'schedule',
+        title: 'Scans & drafts',
+        description:
+          'Configure cadence and severity. Review every automated draft before it is sent externally.',
+      },
+      {
+        id: 'dmca',
+        title: 'DMCA & leaks',
+        description:
+          'Leak Scanner and DMCA Automator can draft from severe findings—you still review and send from Protection.',
+      },
+    ],
+  },
+
   '/dashboard/social': {
     tourId: 'social',
     steps: [
-      { id: 'reputation', title: 'Social reputation', description: 'Monitor mentions and reputation across social platforms. Connect accounts to enable scanning.' },
+      {
+        id: 'reputation',
+        title: 'Social promotion',
+        description:
+          'Cross-platform promotion and reputation signals. Connect accounts where available so scans have context.',
+      },
+      {
+        id: 'mentions',
+        title: 'With Mentions',
+        description:
+          'Use Venus → Mentions for review queues; Social complements with broader promotion context.',
+      },
     ],
   },
+
   '/dashboard/mentions': {
     tourId: 'mentions',
     steps: [
-      { id: 'list', title: 'Mentions', description: 'See where you are mentioned online. Review and mark as reviewed from this list.' },
+      {
+        id: 'queue',
+        title: 'Mentions',
+        description:
+          'Inbound mentions and reputation items to triage. Mark reviewed when handled; escalate to Protection if leaks overlap.',
+      },
+      {
+        id: 'workflow',
+        title: 'Workflow',
+        description:
+          'Pair with Commenter for public replies and with Divine for suggested responses where enabled.',
+      },
+    ],
+  },
+
+  '/dashboard/retention/churn': {
+    tourId: 'retention-churn',
+    steps: [
+      {
+        id: 'hub',
+        title: 'Retention hub',
+        description:
+          'Churn Predictor: scheduled digests for expiring subs and quiet fans, CRM-backed. Configure cadence, credits, and notifications here.',
+      },
+      {
+        id: 'last-run',
+        title: 'Last run & digest',
+        description:
+          'Last run shows when the background job completed. Sync CRM so expiries and spend are accurate; some media may only fully play in the official platform app.',
+      },
+      {
+        id: 'protocols',
+        title: 'Protocols & tasks',
+        description:
+          'Open protocols and tasks to act on batches. Link to AI Studio churn tool for one-off deep dives on a fan.',
+      },
+      {
+        id: 'tease',
+        title: 'Future tease',
+        description:
+          'Optional calendar notes feed retention teasers in digests—align with Content calendar for consistent messaging.',
+      },
+    ],
+  },
+
+  '/dashboard/commenter': {
+    tourId: 'commenter',
+    steps: [
+      {
+        id: 'feed',
+        title: 'Commenter',
+        description:
+          'Sync post and story comments from OnlyFans via webhooks and API. Review each fan comment with AI safety and persona reply drafts.',
+      },
+      {
+        id: 'personas',
+        title: 'Circe, Venus, Flirt, Pro',
+        description:
+          'Pick a persona suggestion or Best pick—copy to OnlyFans manually; review-only by default. Stalking or risk flags surface for Divine notifications.',
+      },
+      {
+        id: 'housekeeping',
+        title: 'Housekeeping',
+        description:
+          'Smart classify: auto-segment fans by spend, thread/DM activity, cold fans, and freeloaders — then sync those segments to OnlyFans lists and Fansly tags. Configure under Fans → Arrangements or here.',
+      },
+    ],
+  },
+
+  '/dashboard/community': {
+    tourId: 'community',
+    steps: [
+      {
+        id: 'tips',
+        title: 'Community',
+        description:
+          'Approved tips and community content. Use it for peer ideas and habit inspiration—not official support.',
+      },
+      {
+        id: 'circe-daily',
+        title: 'Circe daily tips',
+        description:
+          'Open Circe daily tips for numbered habits and anchors; link from Well-being when you want structured routines.',
+      },
+    ],
+  },
+
+  '/dashboard/community/circe-daily': {
+    tourId: 'community-circe-daily',
+    steps: [
+      {
+        id: 'daily',
+        title: 'Circe daily tips',
+        description:
+          'Numbered tips with anchors for deep linking. Use alongside Well-being and Community for habits.',
+      },
+      {
+        id: 'prefs',
+        title: 'Preferences',
+        description:
+          'Toggle tip types in Settings → Preferences when available so the feed matches your focus.',
+      },
     ],
   },
 }
 
-/** Get tour config for a pathname; supports /dashboard/ai-studio/tools/[toolId] by stripping dynamic segment. */
-export function getTourForPath(pathname: string, toolId?: string): TourConfig | null {
+/**
+ * Longest-prefix-first: community/circe-daily before community;
+ * ai-studio/tools before ai-studio; etc.
+ */
+const TOUR_PATH_MATCH_ORDER: string[] = [
+  '/dashboard/community/circe-daily',
+  '/dashboard/analytics/income-predictor',
+  '/dashboard/retention/churn',
+  '/dashboard/ai-studio/chatter',
+  '/dashboard/ai-studio/gifts',
+  '/dashboard/ai-studio/tools',
+  '/dashboard/messages/mass',
+  '/dashboard/protection/aegis',
+  '/dashboard/fans/classify',
+  '/dashboard/commenter',
+  '/dashboard/content-library',
+  '/dashboard/community',
+  '/dashboard/content/new',
+  '/dashboard/fans/new',
+]
+
+function pathMatchesNormalizedKey(normalized: string, key: string): boolean {
+  return normalized === key || normalized.startsWith(key + '/')
+}
+
+export function getTourForPath(pathname: string, _toolId?: string): TourConfig | null {
   const normalized = pathname.replace(/\/$/, '') || '/dashboard'
-  if (toolId && normalized.includes('/ai-studio/tools')) {
-    const base = '/dashboard/ai-studio/tools'
-    return TOURS[base] ?? getTourForPath('/dashboard/ai-studio')
+
+  for (const key of TOUR_PATH_MATCH_ORDER) {
+    const cfg = TOURS[key]
+    if (cfg && pathMatchesNormalizedKey(normalized, key)) return cfg
   }
-  if (TOURS[normalized]) return TOURS[normalized]
-  if (normalized.startsWith('/dashboard/ai-studio/tools/')) return TOURS['/dashboard/ai-studio/tools'] ?? TOURS['/dashboard/ai-studio']
-  if (normalized.startsWith('/dashboard/content/new')) return TOURS['/dashboard/content']
-  if (normalized.startsWith('/dashboard/fans/new')) return TOURS['/dashboard/fans']
+
+  const direct = TOURS[normalized]
+  if (direct) return direct
+
+  if (normalized.startsWith('/dashboard/ai-studio/tools/')) {
+    return TOURS['/dashboard/ai-studio/tools'] ?? TOURS['/dashboard/ai-studio'] ?? null
+  }
+
   return TOURS['/dashboard'] ?? null
 }
 

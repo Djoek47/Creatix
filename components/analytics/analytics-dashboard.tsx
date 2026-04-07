@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { AnalyticsSnapshot, Content } from '@/lib/types'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,14 @@ export function AnalyticsDashboard({
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(
     connectedPlatforms.length > 0 ? connectedPlatforms : [],
   )
+
+  useEffect(() => {
+    setSelectedPlatforms((prev) => {
+      const extra = connectedPlatforms.filter((p) => !prev.includes(p))
+      if (extra.length === 0) return prev
+      return [...prev, ...extra]
+    })
+  }, [connectedPlatforms])
 
   const filtered = useMemo(() => {
     if (selectedPlatforms.length === 0) return analytics

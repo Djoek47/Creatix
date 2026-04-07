@@ -13,6 +13,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -46,6 +49,12 @@ import { isBoundaryNiche, NICHE_LABELS } from '@/lib/niches'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
+import {
+  effectiveChatReadMode,
+  mergeMessagingReadPrefs,
+  shouldAutoMarkOnOpen,
+  type MessagingReadPreferences,
+} from '@/lib/messaging-read-preferences'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt'
@@ -63,6 +72,34 @@ function isDmSendSource(s: string): s is DmSendSource {
 
 function resolveDmSendSource(map: Record<string, DmSendSource>, messageId: string): DmSendSource {
   return map[messageId] ?? 'user'
+}
+
+/** Shown when embedded CDN media can’t load in Creatix (signed URLs, DRM, etc.). */
+function PlatformViewElsewhereHint({
+  platform,
+  compact,
+}: {
+  platform: 'onlyfans' | 'fansly'
+  compact?: boolean
+}) {
+  return (
+    <div className={cn('space-y-1', compact ? 'text-left' : 'text-center')}>
+      <p className="text-sm text-muted-foreground">
+        {platform === 'fansly' ? (
+          <>
+            Couldn&apos;t load this here. Full video and some content may only be available in the{' '}
+            <span className="font-medium text-foreground">Fansly</span> app or on fansly.com.
+          </>
+        ) : (
+          <>
+            Couldn&apos;t load this here. Full video and some content are only available in the{' '}
+            <span className="font-medium text-foreground">OnlyFans</span> app or at{' '}
+            <span className="font-medium text-foreground">onlyfans.com</span>.
+          </>
+        )}
+      </p>
+    </div>
+  )
 }
 
 function creatorBubbleStyles(source: DmSendSource): {
@@ -206,7 +243,7 @@ function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>
   return o
 }
 
-function ChatMediaItem({ media }: { media: OnlyFansMedia }) {
+function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'onlyfans' | 'fansly' }) {
   const pres = useMemo(() => getProxiedMediaPresentation(media as RawOnlyFansMedia), [
     media.id,
     media.type,
@@ -260,12 +297,15 @@ function ChatMediaItem({ media }: { media: OnlyFansMedia }) {
 
   if (failed) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-center space-y-2">
-        <p className="text-sm text-muted-foreground">Could not load media</p>
+      <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 space-y-2">
+        <PlatformViewElsewhereHint platform={platform} />
         {openOriginalHref && /^https?:\/\//i.test(openOriginalHref) && (
-          <a href={openOriginalHref} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
-            Open original
-          </a>
+          <p className="text-center">
+            <a href={openOriginalHref} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
+              Try opening link
+              {platform === 'fansly' ? ' (may still require Fansly)' : ' (may still require OnlyFans)'}
+            </a>
+          </p>
         )}
       </div>
     )
@@ -277,8 +317,8 @@ function ChatMediaItem({ media }: { media: OnlyFansMedia }) {
     const src = videoSrc
     if (!src) {
       return (
-        <div className="rounded-lg bg-muted/50 p-4 text-center">
-          <p className="text-sm text-muted-foreground">Video unavailable</p>
+        <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3">
+          <PlatformViewElsewhereHint platform={platform} />
         </div>
       )
     }
@@ -303,8 +343,8 @@ function ChatMediaItem({ media }: { media: OnlyFansMedia }) {
 
   if (!imgSrc) {
     return (
-      <div className="rounded-lg bg-muted/50 p-4 text-center">
-        <p className="text-sm text-muted-foreground">Image unavailable</p>
+      <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3">
+        <PlatformViewElsewhereHint platform={platform} />
       </div>
     )
   }
@@ -328,7 +368,13 @@ function ChatMediaItem({ media }: { media: OnlyFansMedia }) {
   )
 }
 
-function ChatPreviewImage({ rawUrl }: { rawUrl: string }) {
+function ChatPreviewImage({
+  rawUrl,
+  platform,
+}: {
+  rawUrl: string
+  platform: 'onlyfans' | 'fansly'
+}) {
   const chain = useMemo(() => {
     const proxied = proxyImageUrl(rawUrl) || rawUrl
     const o: string[] = []
@@ -345,7 +391,15 @@ function ChatPreviewImage({ rawUrl }: { rawUrl: string }) {
   }, [chain.join('\0')])
 
   const src = chain[idx]
-  if (hidden || !src) return null
+  if (!src) return null
+
+  if (hidden) {
+    return (
+      <div className="rounded-md border border-dashed border-border/80 bg-muted/30 px-2 py-1.5">
+        <PlatformViewElsewhereHint platform={platform} compact />
+      </div>
+    )
+  }
 
   return (
     <img
@@ -414,6 +468,8 @@ export function ChatWindow({
   const pendingComposerSuggestionRef = useRef<'user' | 'circe' | 'venus' | 'flirt'>('user')
   const [divineTyping, setDivineTyping] = useState(false)
   const [purgingCacheIds, setPurgingCacheIds] = useState<Set<string>>(() => new Set())
+  /** Loaded when opening an OnlyFans thread; drives auto mark-as-read + per-thread override UI. */
+  const [messagingReadPrefs, setMessagingReadPrefs] = useState<MessagingReadPreferences | null>(null)
 
   const divineComposerHighlight = useMemo(() => {
     if (!conversation) return false
@@ -442,6 +498,11 @@ export function ChatWindow({
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
+
+  const onlyFansChatReadMode = useMemo(() => {
+    if (!conversation || conversation.platform !== 'onlyfans' || !messagingReadPrefs) return null
+    return effectiveChatReadMode(messagingReadPrefs, 'onlyfans', String(conversation.user.id))
+  }, [conversation, messagingReadPrefs])
 
   useEffect(() => {
     pendingChatterOutboxIdRef.current = null
@@ -798,10 +859,34 @@ export function ChatWindow({
     }
   }
 
+  const setChatReadBehavior = useCallback(
+    async (behavior: 'inherit' | 'auto' | 'never') => {
+      if (!conversation || conversation.platform !== 'onlyfans') return
+      const res = await fetch('/api/user/messaging-read-preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          setChatOverride: {
+            platform: 'onlyfans',
+            fanId: String(conversation.user.id),
+            behavior,
+          },
+        }),
+      })
+      if (res.ok) {
+        const j = (await res.json()) as Partial<MessagingReadPreferences>
+        setMessagingReadPrefs(mergeMessagingReadPrefs(j))
+      }
+    },
+    [conversation],
+  )
+
   // Load messages when conversation changes
   useEffect(() => {
     if (!conversation) {
       setMessages([])
+      setMessagingReadPrefs(null)
       return
     }
 
@@ -839,6 +924,18 @@ export function ChatWindow({
         }
 
         setMessages(normalizeAndSortMessages(data.messages || []))
+
+        const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
+        const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
+        setMessagingReadPrefs(prefs)
+        if (shouldAutoMarkOnOpen(prefs, 'onlyfans', String(conversation.user.id))) {
+          const cid = String(conversation.chatId || conversation.user.id)
+          void fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' }).catch(
+            () => undefined,
+          )
+          onMessageSent?.()
+        }
+
         void fetch(
           `/api/divine/dm-send-events?fan_id=${encodeURIComponent(String(conversation.user.id))}`,
           { credentials: 'include' },
@@ -868,7 +965,7 @@ export function ChatWindow({
     loadMessages()
     // Prefer id + platform over full `conversation` so parents that pass inline objects
     // (or stale memo) cannot retrigger this effect every render (React #185).
-  }, [conversation?.user?.id, conversation?.platform])
+  }, [conversation?.user?.id, conversation?.platform, onMessageSent])
 
   // After paint: snap to bottom when opening a long thread; otherwise only follow if near bottom. Skip when the list fits (no overflow).
   useLayoutEffect(() => {
@@ -1188,6 +1285,37 @@ export function ChatWindow({
                     <Mail className="mr-2 h-4 w-4" />
                     Mark as unread
                   </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-default">
+                      Auto-mark read when opening…
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="min-w-[14rem]">
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground leading-snug">
+                        Controls whether Creatix tells OnlyFans this chat is read when you open it here. Default is off—use
+                        Settings → Notifications to enable for all threads, or pick per thread below.
+                      </p>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => void setChatReadBehavior('inherit')}
+                        className={onlyFansChatReadMode === 'inherit' ? 'bg-accent/60' : ''}
+                      >
+                        Use account default
+                        {messagingReadPrefs?.auto_mark_on_open ? ' (on)' : ' (off)'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => void setChatReadBehavior('auto')}
+                        className={onlyFansChatReadMode === 'auto' ? 'bg-accent/60' : ''}
+                      >
+                        Always for this thread
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => void setChatReadBehavior('never')}
+                        className={onlyFansChatReadMode === 'never' ? 'bg-accent/60' : ''}
+                      >
+                        Never for this thread
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={async () => {
@@ -1296,7 +1424,7 @@ export function ChatWindow({
                     {msg.media && msg.media.length > 0 && (
                       <div className="mb-2 space-y-2">
                         {msg.media.map((m) => (
-                          <ChatMediaItem key={m.id} media={m} />
+                          <ChatMediaItem key={m.id} media={m} platform={conversation.platform} />
                         ))}
                       </div>
                     )}
@@ -1304,7 +1432,7 @@ export function ChatWindow({
                     {(!msg.media || msg.media.length === 0) && msg.previews && msg.previews.length > 0 && (
                       <div className="mb-2 space-y-2">
                         {msg.previews.map((p, idx) => (
-                          <ChatPreviewImage key={idx} rawUrl={p.url} />
+                          <ChatPreviewImage key={idx} rawUrl={p.url} platform={conversation.platform} />
                         ))}
                       </div>
                     )}

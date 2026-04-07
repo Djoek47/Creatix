@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils'
 const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
   onlyfans: 'Base',
   fansly: '−10%',
-  manyvids: '−25%',
+  manyvids: '$39 flat',
 }
 
 export function LandingPricingSection() {

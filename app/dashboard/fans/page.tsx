@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { FansPageClient } from '@/components/fans/fans-page-client'
 import type { Fan } from '@/lib/types'
@@ -44,6 +45,7 @@ export default async function FansPage() {
   })
   const hasFanPlatformsConnected = (connections?.length ?? 0) > 0
   const hasOnlyFansConnected = connections?.some((c: { platform: string }) => c.platform === 'onlyfans') ?? false
+  const hasFanslyConnected = connections?.some((c: { platform: string }) => c.platform === 'fansly') ?? false
 
   // Mirror dashboard logic: derive total fans from the latest snapshot per platform
   const latestByPlatform = new Map<string, { platform: string; total_fans?: number | null; date: string }>()
@@ -54,14 +56,22 @@ export default async function FansPage() {
   })
   const analyticsTotalFans =
     Array.from(latestByPlatform.values()).reduce((sum, a) => sum + (a.total_fans || 0), 0) || 0
+  const snapshotFansByPlatform: Record<string, number> = {}
+  latestByPlatform.forEach((a, key) => {
+    snapshotFansByPlatform[key] = a.total_fans ?? 0
+  })
 
   return (
-    <FansPageClient
-      initialFans={fans}
-      threadInsightsBrief={(insightRows || []) as ThreadInsightBrief[]}
-      hasOnlyFansConnected={hasOnlyFansConnected}
-      hasFanPlatformsConnected={hasFanPlatformsConnected}
-      analyticsTotalFans={analyticsTotalFans}
-    />
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading fans…</div>}>
+      <FansPageClient
+        initialFans={fans}
+        threadInsightsBrief={(insightRows || []) as ThreadInsightBrief[]}
+        hasOnlyFansConnected={hasOnlyFansConnected}
+        hasFanslyConnected={hasFanslyConnected}
+        hasFanPlatformsConnected={hasFanPlatformsConnected}
+        analyticsTotalFans={analyticsTotalFans}
+        snapshotFansByPlatform={snapshotFansByPlatform}
+      />
+    </Suspense>
   )
 }

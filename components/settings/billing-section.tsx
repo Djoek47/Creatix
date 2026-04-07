@@ -433,10 +433,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <CardTitle className="font-semibold">Plans & pricing</CardTitle>
           <CardDescription>
             Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base;
-            Fansly line is 10% below base, <strong>capped at $200/mo</strong>; ManyVids <strong>solo</strong> is{' '}
-            <strong>$39/mo</strong> (any tier). Two-platform pairs use line prices + bundle rules. Pick{' '}
-            <strong>all three</strong> for <strong>Unified</strong>. <strong>Seats</strong> = managers on the
-            same creator account (price × seats).
+            Fansly line is ~10% below base, <strong>capped at $200/mo</strong>; ManyVids <strong>solo</strong> is{' '}
+            <strong>$39/mo</strong> (any tier). Two-platform Focus uses fixed bundle prices (OF+FL, OF+MV, FL+MV).
+            Pick <strong>all three</strong> for <strong>Unified</strong> (OF base + $25 for your band).{' '}
+            <strong>Seats</strong> = managers on the same creator account (price × seats). Connected OnlyFans /
+            Fansly earnings may adjust your band on the next invoice (see pricing FAQ).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -509,8 +510,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Select 1–2 for Focus. Two-platform price is each platform&apos;s line price added together, then
-              OnlyFans + Fansly −10%, OnlyFans + ManyVids −25%, or Fansly + ManyVids +5% on that sum.
+              Select 1–2 for Focus. Two-platform pricing uses fixed bundles: OF+FL (+$15 on OF base), OF+MV (+$20 on
+              OF base), or FL+MV (+$8 on Fansly line).
             </p>
           )}
 

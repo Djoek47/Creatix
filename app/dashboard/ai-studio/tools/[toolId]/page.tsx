@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AIToolsSelector } from '@/components/ai/ai-tools-selector'
 
-export default function ToolRunnerPage() {
+function ToolRunnerInner() {
   const params = useParams()
   const router = useRouter()
   const toolId = typeof params?.toolId === 'string' ? params.toolId : ''
 
   useEffect(() => {
+    if (toolId === 'caption-generator') {
+      router.replace('/dashboard/ai-studio/tools/content-ideas?tab=captions')
+    }
     if (toolId === 'commenter') {
       router.replace('/dashboard/commenter')
     }
@@ -36,6 +39,9 @@ export default function ToolRunnerPage() {
     }
   }, [toolId, router])
 
+  if (toolId === 'caption-generator') {
+    return null
+  }
   if (toolId === 'commenter' || toolId === 'housekeeping') {
     return null
   }
@@ -60,5 +66,19 @@ export default function ToolRunnerPage() {
         backHref="/dashboard/ai-studio/tools"
       />
     </div>
+  )
+}
+
+export default function ToolRunnerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
+          Loading tool…
+        </div>
+      }
+    >
+      <ToolRunnerInner />
+    </Suspense>
   )
 }

@@ -19,9 +19,9 @@ import {
   getMonthlyPriceUsd,
   getTierByIndex,
   tierIndexFromMonthlyRevenue,
-  focusPairLineUsd,
-  twoPlatformBundleMultiplier,
   focusPlatformDisplayName,
+  focusPlatformsShortLabel,
+  pairBundleDescription,
   percentVsOnlyFansBase,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
@@ -31,13 +31,6 @@ import {
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { cn } from '@/lib/utils'
-
-function pairBundleDescription(a: AdultBillingPlatform, b: AdultBillingPlatform): string {
-  const m = twoPlatformBundleMultiplier(a, b)
-  if (m === 0.9) return 'OnlyFans + Fansly: 10% off the sum of line prices'
-  if (m === 0.75) return 'OnlyFans + ManyVids: 25% off the sum of line prices'
-  return 'Fansly + ManyVids: 5% added on top of the sum of line prices'
-}
 
 export function PricingPageCalculator() {
   const [revenueInput, setRevenueInput] = useState('5000')
@@ -110,18 +103,15 @@ export function PricingPageCalculator() {
     }
     if (sortedPlatforms.length === 2) {
       const [a, b] = sortedPlatforms
-      const u1 = focusPairLineUsd(tierRow, a)
-      const u2 = focusPairLineUsd(tierRow, b)
-      const sum = u1 + u2
-      const mult = twoPlatformBundleMultiplier(a, b)
+      const bundleUsd = getMonthlyPriceUsd('single', effectiveTier, [a, b])
       return {
         lines: [
-          { label: focusPlatformDisplayName(a), usd: u1 },
-          { label: focusPlatformDisplayName(b), usd: u2 },
-          { label: 'Subtotal (sum)', usd: sum },
+          {
+            label: `Focus bundle (${focusPlatformsShortLabel([a, b])})`,
+            usd: bundleUsd,
+          },
         ],
         note: pairBundleDescription(a, b),
-        multiplier: mult,
       }
     }
     return null
@@ -301,12 +291,6 @@ export function PricingPageCalculator() {
                     <span>${row.usd}</span>
                   </li>
                 ))}
-                {'multiplier' in breakdown && breakdown.multiplier != null && (
-                  <li className="flex justify-between gap-4 text-xs text-muted-foreground">
-                    <span>Bundle factor</span>
-                    <span>×{breakdown.multiplier}</span>
-                  </li>
-                )}
                 <li className="pt-2 text-xs text-muted-foreground">{breakdown.note}</li>
               </ul>
             )}

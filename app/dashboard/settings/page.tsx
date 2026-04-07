@@ -90,6 +90,7 @@ export default function SettingsPage() {
     notify_subscription_expired: true,
     notify_subscription_renewed: false,
   })
+  const [messagingAutoMarkReadOnOpen, setMessagingAutoMarkReadOnOpen] = useState(false)
   const [preferences, setPreferences] = useState({
     language: 'en',
     dateFormat: 'MM/DD/YYYY',
@@ -163,7 +164,13 @@ export default function SettingsPage() {
           notify_subscription_renewed: prefs.notify_subscription_renewed ?? false,
         })
       }
-      
+
+      const msgReadRes = await fetch('/api/user/messaging-read-preferences')
+      if (msgReadRes.ok) {
+        const mr = await msgReadRes.json()
+        setMessagingAutoMarkReadOnOpen(mr.auto_mark_on_open === true)
+      }
+
       setLoading(false)
     }
     
@@ -596,6 +603,33 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="mb-2 font-medium">Messages (read state)</h4>
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    OnlyFans marks chats as read on their servers when you open them in Creatix—only if you opt in below.
+                    You can always mark read or unread from each thread&apos;s menu. Per-thread overrides live there too.
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Auto-mark as read when I open a thread</p>
+                      <p className="text-sm text-muted-foreground">
+                        Off by default so you can preview without clearing unread until you choose
+                      </p>
+                    </div>
+                    <Switch
+                      checked={messagingAutoMarkReadOnOpen}
+                      onCheckedChange={async (checked) => {
+                        setMessagingAutoMarkReadOnOpen(checked)
+                        await fetch('/api/user/messaging-read-preferences', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ auto_mark_on_open: checked }),
+                        })
+                      }}
+                    />
                   </div>
                 </div>
                 <Separator />

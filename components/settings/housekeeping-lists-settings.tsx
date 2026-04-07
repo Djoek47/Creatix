@@ -21,8 +21,8 @@ export function HousekeepingListsSettings({
           Arrangements (smart lists)
         </CardTitle>
         <CardDescription>
-          Auto-sync fans into OnlyFans lists and Fansly CRM tags from CRM spend and activity. Configure segments and
-          active-chat lists on the Fans page.
+          Smart classify: segment fans by spend, DM/thread activity, cold engagement, and freeloader buckets — then sync
+          to OnlyFans lists and Fansly tags. Configure segments and active-chat lists under Fans → Arrangements.
         </CardDescription>
       </CardHeader>
       <CardContent>

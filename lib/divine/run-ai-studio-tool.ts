@@ -101,7 +101,7 @@ export async function runAiStudioToolServer(
       success: true,
       result: {
         content:
-          'Housekeeping (smart list sync) is configured in the web dashboard: open Dashboard → Commenter and use the Housekeeping section, or Fans → Arrangements (/dashboard/fans#arrangements) for `housekeeping_lists` rules. Cron `housekeeping-fan-lists` syncs OnlyFans lists / Fansly tags. No API execution here.',
+          'Housekeeping runs Smart classify in the web app: Fans → Arrangements or Commenter → Housekeeping configure segments (spend tiers, active chat/thread activity, cold, freeloader new vs mature, spenders, recent subs). Cron housekeeping-fan-lists pushes matching fans to OnlyFans lists and Fansly CRM tags. No API execution here — open the dashboard to edit rules.',
       },
     }
   }
@@ -168,6 +168,7 @@ export async function runAiStudioToolServer(
       return postAi('venus-cupid', {
         prompt: a.prompt ?? a.description ?? '',
         niche: a.niche ?? '',
+        tagForChurn: a.tagForChurn !== false,
       }, cookie)
     case 'competitor-analysis':
       return postAi(

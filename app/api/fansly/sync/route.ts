@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { fanslyMonthToDateRevenueUsd } from '@/lib/fansly/observed-month-to-date-revenue'
+import { writeFanslyConnectionBillingSnapshot } from '@/lib/fansly/billing-observation'
 import { subscriptionFieldsFromFanslyFan } from '@/lib/fans/subscription-dates'
 
 // POST: Sync Fansly data for a user
@@ -97,21 +98,12 @@ export async function POST(request: NextRequest) {
 
     const observedFanslyUsd = await fanslyMonthToDateRevenueUsd(api, String(accountId))
 
-    // Update platform connection with profile info + scoped MTD revenue for billing
-    await supabase
-      .from('platform_connections')
-      .update({
-        last_sync_at: new Date().toISOString(),
-        platform_username: profile.username || connection.platform_username,
-        ...(observedFanslyUsd != null
-          ? {
-              observed_monthly_revenue_usd: observedFanslyUsd,
-              observed_revenue_captured_at: new Date().toISOString(),
-              observed_revenue_onlyfans_account_id: String(accountId),
-            }
-          : {}),
-      })
-      .eq('id', connection.id)
+    await writeFanslyConnectionBillingSnapshot(supabase, {
+      connectionRowId: connection.id,
+      accountId: String(accountId),
+      observedUsd: observedFanslyUsd,
+      platformUsername: profile.username || connection.platform_username,
+    })
 
     return NextResponse.json({
       success: true,

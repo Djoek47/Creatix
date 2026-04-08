@@ -1047,9 +1047,9 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           return (
             <div
               key={alert.id}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-4 sm:flex-row sm:items-start sm:justify-between"
+              className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/30 p-4"
             >
-              <div className="flex-1 min-w-0 space-y-2">
+              <div className="min-w-0 w-full space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     variant="outline"
@@ -1090,7 +1090,9 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   ) : null}
                   <span className="text-xs text-muted-foreground">{alert.source_platform}</span>
                 </div>
-                <div className="text-sm break-all">{alert.source_url}</div>
+                <p className="block w-full max-w-full whitespace-normal text-sm break-words [overflow-wrap:anywhere]">
+                  {alert.source_url}
+                </p>
                 {nuanceText ? (
                   <p className="text-xs text-muted-foreground line-clamp-4">{nuanceText}</p>
                 ) : null}
@@ -1212,7 +1214,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 shrink-0">
+              <div className="flex w-full min-w-0 flex-wrap gap-2 border-t border-border/60 pt-3 sm:pt-4">
                 <Button asChild variant="outline" size="sm">
                   <a href={alert.source_url} target="_blank" rel="noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />

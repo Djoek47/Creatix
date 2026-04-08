@@ -149,7 +149,7 @@ export function ProtectionResolvedArchive({ resolvedLeaks, dmcaClaims }: Props) 
               </div>
               {dmcaCount === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No claims stored yet. Use <span className="font-medium text-foreground">Send DMCA</span> on an active
+                  No claims stored yet. Use <span className="font-medium text-foreground">Download DMCA</span> on an active
                   alert to generate a draft.
                 </p>
               ) : (

@@ -18,6 +18,7 @@ import { formatApiScreenError } from '@/lib/api-errors'
 import { apiFetch } from '@/lib/api'
 import { openUrlSafe } from '@/lib/open-url'
 import { supabase } from '@/lib/supabase'
+import { getHostReportDestinations } from '@/lib/host-report-destinations'
 
 type LeakRow = {
   id: string
@@ -25,6 +26,7 @@ type LeakRow = {
   severity: string | null
   detected_at: string | null
   source_url?: string | null
+  notes?: string | null
 }
 
 type ScanIdentityHandle = { value: string; label?: string; source?: string }
@@ -46,7 +48,7 @@ export default function ProtectionScreen() {
     if (!session?.user?.id) return
     const { data } = await supabase
       .from('leak_alerts')
-      .select('id, status, severity, detected_at, source_url')
+      .select('id, status, severity, detected_at, source_url, notes')
       .eq('user_id', session.user.id)
       .order('detected_at', { ascending: false })
     setItems((data as LeakRow[]) ?? [])
@@ -193,6 +195,21 @@ export default function ProtectionScreen() {
                   <Text style={styles.smallBtnText}>Open link</Text>
                 </Pressable>
               ) : null}
+              {item.source_url ? (() => {
+                const { links } = getHostReportDestinations(item.source_url, item.notes ?? null)
+                const first = links[0]
+                if (!first) return null
+                return (
+                  <Pressable
+                    style={({ pressed }) => [styles.smallBtn, pressed && styles.pressed]}
+                    onPress={() => void openUrlSafe(first.href)}
+                  >
+                    <Text style={styles.smallBtnText}>
+                      {first.kind === 'url' ? 'Report to host' : 'Email host'}
+                    </Text>
+                  </Pressable>
+                )
+              })() : null}
               <Pressable
                 style={({ pressed }) => [styles.dmcaBtn, pressed && styles.pressed]}
                 onPress={() => void startDmca(item)}

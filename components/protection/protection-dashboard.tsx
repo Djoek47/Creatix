@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -20,7 +20,19 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ExternalLink, Upload, FileText, Shield, ChevronDown, Filter, RotateCcw } from 'lucide-react'
+import {
+  Loader2,
+  ExternalLink,
+  Upload,
+  FileText,
+  Shield,
+  ChevronDown,
+  Filter,
+  RotateCcw,
+  Copy,
+  Mail,
+} from 'lucide-react'
+import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
@@ -63,6 +75,9 @@ function parseLeakMeta(notes: string | null): {
   reviewConclusion?: string
   distributionNuance?: string
   suggestedUserAction?: string
+  contactHint?: string
+  contactUrl?: string
+  contactEmail?: string
 } {
   try {
     const j = JSON.parse(notes || '{}') as {
@@ -73,6 +88,9 @@ function parseLeakMeta(notes: string | null): {
         reviewConclusion?: string
         distributionNuance?: string
         suggestedUserAction?: string
+        contactHint?: string
+        contactUrl?: string
+        contactEmail?: string
       }
       pageVerify?: { verifiedLikelyMatch?: boolean }
     }
@@ -85,6 +103,9 @@ function parseLeakMeta(notes: string | null): {
       reviewConclusion: g?.reviewConclusion,
       distributionNuance: g?.distributionNuance,
       suggestedUserAction: g?.suggestedUserAction,
+      contactHint: g?.contactHint,
+      contactUrl: g?.contactUrl,
+      contactEmail: g?.contactEmail,
     }
   } catch {
     return {}
@@ -126,6 +147,96 @@ const DISTRIBUTION_OPTIONS: { value: LeakDistributionIntent; label: string }[] =
   { value: 'ok_if_free', label: 'OK if free everywhere I choose' },
   { value: 'cross_post_consented', label: 'Cross-post / consent nuance' },
 ]
+
+function HostReportDestinationUI({
+  sourceUrl,
+  notes,
+  variant,
+}: {
+  sourceUrl: string
+  notes: string | null
+  variant: 'inline' | 'panel'
+}): ReactNode {
+  const { links, hintText } = useMemo(
+    () => getHostReportDestinations(sourceUrl, notes),
+    [sourceUrl, notes],
+  )
+  const [copied, setCopied] = useState(false)
+
+  const copyHint = useCallback(() => {
+    if (!hintText) return
+    void navigator.clipboard.writeText(hintText).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    })
+  }, [hintText])
+
+  if (links.length === 0 && !hintText) return null
+
+  const linkButtons = links.map((link, idx) =>
+    link.kind === 'url' ? (
+      <Button key={`url-${idx}-${link.href}`} asChild variant="outline" size="sm">
+        <a href={link.href} target="_blank" rel="noreferrer">
+          <ExternalLink className="mr-2 h-4 w-4" />
+          {link.label}
+        </a>
+      </Button>
+    ) : (
+      <Button key={`mailto-${idx}-${link.href}`} asChild variant="outline" size="sm">
+        <a href={link.href}>
+          <Mail className="mr-2 h-4 w-4" />
+          {link.label}
+        </a>
+      </Button>
+    ),
+  )
+
+  const hintBlock =
+    hintText != null && hintText.length > 0 ? (
+      <div
+        className={cn(
+          'flex items-start gap-2',
+          variant === 'inline' ? 'w-full basis-full text-[10px]' : 'text-xs',
+        )}
+      >
+        <p className="min-w-0 flex-1 break-words text-muted-foreground">{hintText}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={copyHint}
+          title={copied ? 'Copied' : 'Copy hint'}
+          aria-label={copied ? 'Copied' : 'Copy where-to-report hint'}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    ) : null
+
+  if (variant === 'panel') {
+    return (
+      <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
+        <div>
+          <p className="text-xs font-medium text-foreground">Where to send your notice</p>
+          <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+            Links open public copyright or abuse pages when we know them. You pick the right channel and submit
+            yourself—Creatix does not file with third parties (not legal advice).
+          </p>
+        </div>
+        {linkButtons.length > 0 ? <div className="flex flex-wrap gap-2">{linkButtons}</div> : null}
+        {hintBlock}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {linkButtons}
+      {hintBlock}
+    </>
+  )
+}
 
 function defaultSnoozeIso(): string {
   const d = new Date()
@@ -1093,6 +1204,11 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                     View
                   </a>
                 </Button>
+                <HostReportDestinationUI
+                  sourceUrl={alert.source_url}
+                  notes={alert.notes ?? null}
+                  variant="inline"
+                />
                 {isPro && alert.severity === 'critical' ? (
                   <Button
                     type="button"
@@ -1108,7 +1224,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   </Button>
                 ) : null}
                 <Button size="sm" onClick={() => startDmcaFromAlert(alert)}>
-                  Send DMCA
+                  Download DMCA
                 </Button>
               </div>
             </div>
@@ -1130,9 +1246,18 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           <DialogHeader>
             <DialogTitle>DMCA Takedown Notice</DialogTitle>
             <DialogDescription>
-              Review and send a DMCA takedown notice for this leak. You can attach proof files before sending.
+              Review your DMCA draft for this leak. Attach proof files, then download the notice to send it to the host
+              yourself—Creatix does not submit notices automatically.
             </DialogDescription>
           </DialogHeader>
+
+          {selectedAlert ? (
+            <HostReportDestinationUI
+              variant="panel"
+              sourceUrl={selectedAlert.source_url}
+              notes={selectedAlert.notes ?? null}
+            />
+          ) : null}
 
           {dmcaLoading ? (
             <div className="flex items-center justify-center py-10">

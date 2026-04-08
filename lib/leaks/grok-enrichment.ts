@@ -25,6 +25,10 @@ export type GrokLeakEnrichment = {
   confidence?: number
   rationale?: string
   contactHint?: string
+  /** When inferable from the URL/snippet — official or obvious report page */
+  contactUrl?: string
+  /** When inferable — public abuse or legal inbox */
+  contactEmail?: string
   /** From title/snippet only — you do not see authenticated pages */
   evidenceAccessibility?: EvidenceAccessibility
   reviewConclusion?: LeakReviewConclusion
@@ -86,6 +90,8 @@ Return a JSON object with key "items" whose value is an array of objects with:
 - confidence (number 0 to 1): how sure this URL is actually infringing given only public evidence
 - rationale (short string)
 - contactHint (short string; where to send DMCA/abuse if obvious, e.g. "Cloudflare abuse form", "Reddit report")
+- contactUrl (optional string; a single https URL to that host's copyright/DMCA/abuse page if you know it from public knowledge; omit if unsure)
+- contactEmail (optional string; a single abuse or legal email if widely known, e.g. abuse@host; omit if unsure)
 - evidenceAccessibility (one of: public_snippet | likely_paywall_or_sign_in | unknown) — whether the evidence looks like a public snippet vs likely gated content
 - reviewConclusion (one of: likely_infringing | non_conclusive | non_conclusive_needs_access)
 - distributionNuance (short string): e.g. same promo free on one platform vs paid elsewhere; ambiguous cross-post consent; stolen to another site — state when you cannot know from snippets
@@ -141,6 +147,8 @@ ${JSON.stringify(items, null, 2)}`
         confidence: typeof x.confidence === 'number' ? Math.min(1, Math.max(0, x.confidence)) : undefined,
         rationale: typeof x.rationale === 'string' ? x.rationale : undefined,
         contactHint: typeof x.contactHint === 'string' ? x.contactHint : undefined,
+        contactUrl: typeof x.contactUrl === 'string' ? x.contactUrl : undefined,
+        contactEmail: typeof x.contactEmail === 'string' ? x.contactEmail : undefined,
         evidenceAccessibility: normEvidence(x.evidenceAccessibility),
         reviewConclusion: normConclusion(x.reviewConclusion),
         distributionNuance:

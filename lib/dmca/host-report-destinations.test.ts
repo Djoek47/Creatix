@@ -2,16 +2,32 @@
  * Run: pnpm run test:dmca-host
  */
 import assert from 'node:assert/strict'
-import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
+import {
+  getHostReportDestinations,
+  isLowQualityContactHint,
+} from '@/lib/dmca/host-report-destinations'
 
 function run() {
+  assert.equal(isLowQualityContactHint('coomer abuse'), true)
+  assert.equal(isLowQualityContactHint('Use https://x.com/forms/dmca with your details'), false)
+
   const reddit = getHostReportDestinations('https://www.reddit.com/r/foo/comments/abc', null)
   assert.ok(reddit.links.some((l) => l.kind === 'url' && l.source === 'curated'))
   assert.ok(reddit.links.some((l) => l.href.includes('reddithelp')))
 
   const unknown = getHostReportDestinations('https://unknown-example-xyz.test/page', null)
-  assert.equal(unknown.links.length, 0)
+  assert.ok(unknown.links.length >= 2)
+  assert.ok(unknown.links.every((l) => l.source === 'guidance'))
+  assert.ok(unknown.links.some((l) => l.href.includes('google.com/search')))
+  assert.ok(unknown.links.some((l) => l.href.includes('dmca.com')))
   assert.equal(unknown.hintText, null)
+
+  const coomerBad = getHostReportDestinations(
+    'https://coomer.su/onlyfans/user/x',
+    JSON.stringify({ grok: { contactHint: 'coomer abuse' } }),
+  )
+  assert.equal(coomerBad.hintText, null)
+  assert.ok(coomerBad.links.every((l) => l.source === 'guidance'))
 
   const notesUrl = JSON.stringify({
     grok: {

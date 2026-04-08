@@ -1,3 +1,5 @@
+import { isLowQualityContactHint } from '@/lib/dmca/host-report-destinations'
+
 export type LeakUrgency = 'immediate' | 'soon' | 'backlog'
 
 export type EvidenceAccessibility = 'public_snippet' | 'likely_paywall_or_sign_in' | 'unknown'
@@ -89,7 +91,7 @@ Return a JSON object with key "items" whose value is an array of objects with:
 - urgency (one of immediate/soon/backlog): immediate = act today if likely leak; soon = this week; backlog = lower priority
 - confidence (number 0 to 1): how sure this URL is actually infringing given only public evidence
 - rationale (short string)
-- contactHint (short string; where to send DMCA/abuse if obvious, e.g. "Cloudflare abuse form", "Reddit report")
+- contactHint (optional string): only if you can give a useful sentence (steps, product name, or context). Never output vague two-word keywords like "coomer abuse" or "site DMCA" with no URL/email—omit the field instead. Prefer contactUrl/contactEmail when you know them.
 - contactUrl (optional string; a single https URL to that host's copyright/DMCA/abuse page if you know it from public knowledge; omit if unsure)
 - contactEmail (optional string; a single abuse or legal email if widely known, e.g. abuse@host; omit if unsure)
 - evidenceAccessibility (one of: public_snippet | likely_paywall_or_sign_in | unknown) — whether the evidence looks like a public snippet vs likely gated content
@@ -139,23 +141,42 @@ ${JSON.stringify(items, null, 2)}`
         : []
     return (arr as any[])
       .filter((x) => x && typeof x.url === 'string')
-      .map((x) => ({
+      .map((x) => {
+        const rawHint = typeof x.contactHint === 'string' ? x.contactHint : undefined
+        const contactHint =
+          rawHint && !isLowQualityContactHint(rawHint) ? rawHint : undefined
+        let contactUrl: string | undefined
+        if (typeof x.contactUrl === 'string') {
+          try {
+            const u = new URL(x.contactUrl.trim())
+            if (u.protocol === 'https:' || u.protocol === 'http:') contactUrl = u.toString()
+          } catch {
+            contactUrl = undefined
+          }
+        }
+        let contactEmail: string | undefined
+        if (typeof x.contactEmail === 'string') {
+          const t = x.contactEmail.trim()
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) contactEmail = t
+        }
+        return {
         url: x.url,
         likelyLeak: Boolean(x.likelyLeak),
         severity: x.severity,
         urgency: ['immediate', 'soon', 'backlog'].includes(x.urgency) ? x.urgency : undefined,
         confidence: typeof x.confidence === 'number' ? Math.min(1, Math.max(0, x.confidence)) : undefined,
         rationale: typeof x.rationale === 'string' ? x.rationale : undefined,
-        contactHint: typeof x.contactHint === 'string' ? x.contactHint : undefined,
-        contactUrl: typeof x.contactUrl === 'string' ? x.contactUrl : undefined,
-        contactEmail: typeof x.contactEmail === 'string' ? x.contactEmail : undefined,
+        contactHint,
+        contactUrl,
+        contactEmail,
         evidenceAccessibility: normEvidence(x.evidenceAccessibility),
         reviewConclusion: normConclusion(x.reviewConclusion),
         distributionNuance:
           typeof x.distributionNuance === 'string' ? x.distributionNuance.slice(0, 1200) : undefined,
         suggestedUserAction: normSuggestedAction(x.suggestedUserAction),
         mediaType: normMediaType(x.mediaType),
-      }))
+        }
+      })
   } catch {
     return []
   }

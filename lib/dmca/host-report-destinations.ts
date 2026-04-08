@@ -80,7 +80,7 @@ export type HostReportLink = {
   kind: HostReportLinkKind
   href: string
   label: string
-  source: 'grok_url' | 'grok_email' | 'curated' | 'hint_url' | 'hint_email'
+  source: 'grok_url' | 'grok_email' | 'curated' | 'hint_url' | 'hint_email' | 'guidance'
 }
 
 export type HostReportResolution = {
@@ -120,6 +120,40 @@ function firstEmailInText(text: string): string | null {
 
 function isPlainEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
+}
+
+/**
+ * True when the model returned a useless keyword (e.g. "coomer abuse") with no URL/email —
+ * not safe to show as copyable instructions.
+ */
+export function isLowQualityContactHint(hint: string): boolean {
+  const t = hint.trim()
+  if (!t) return true
+  if (firstUrlInText(t) || firstEmailInText(t)) return false
+  const words = t.split(/\s+/).filter(Boolean)
+  if (t.length >= 160 && words.length >= 18) return false
+  if (t.length <= 64) return true
+  if (words.length <= 6 && t.length <= 160) return true
+  return false
+}
+
+function guidanceLinksForHostname(hostname: string): HostReportLink[] {
+  const hostNorm = hostname.trim() || 'this site'
+  const q = encodeURIComponent(`${hostNorm} DMCA copyright abuse contact email`)
+  return [
+    {
+      kind: 'url',
+      href: `https://www.google.com/search?q=${q}`,
+      label: `Search Google for “${hostNorm}” + DMCA`,
+      source: 'guidance',
+    },
+    {
+      kind: 'url',
+      href: 'https://www.dmca.com/',
+      label: 'DMCA.com (third-party takedown help — not affiliated)',
+      source: 'guidance',
+    },
+  ]
 }
 
 function canonicalHrefForDedupe(href: string): string {
@@ -261,18 +295,29 @@ export function getHostReportDestinations(
   let hintText: string | null = null
   if (contactHint?.trim()) {
     const hint = contactHint.trim()
-    const u = firstUrlInText(hint)
-    const e = firstEmailInText(hint)
-    const rest = hint
-      .replace(u ?? '', '')
-      .replace(e ?? '', '')
-      .trim()
-      .replace(/^[,;\s]+|[,;\s]+$/g, '')
-    const substantive = rest.length > 0
-    if (links.length === 0) {
-      hintText = hint
-    } else if (substantive) {
-      hintText = hint
+    if (isLowQualityContactHint(hint)) {
+      hintText = null
+    } else {
+      const u = firstUrlInText(hint)
+      const e = firstEmailInText(hint)
+      const rest = hint
+        .replace(u ?? '', '')
+        .replace(e ?? '', '')
+        .trim()
+        .replace(/^[,;\s]+|[,;\s]+$/g, '')
+      const substantive = rest.length > 0
+      if (links.length === 0) {
+        hintText = hint
+      } else if (substantive) {
+        hintText = hint
+      }
+    }
+  }
+
+  if (links.length === 0) {
+    const labelHost = pageHost ? normalizeHost(pageHost) : 'this site'
+    for (const g of guidanceLinksForHostname(labelHost)) {
+      pushUnique(links, g, seen)
     }
   }
 

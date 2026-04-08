@@ -161,6 +161,10 @@ function HostReportDestinationUI({
     () => getHostReportDestinations(sourceUrl, notes),
     [sourceUrl, notes],
   )
+  const hasOnlyGuidance = useMemo(
+    () => links.length > 0 && links.every((l) => l.source === 'guidance'),
+    [links],
+  )
   const [copied, setCopied] = useState(false)
 
   const copyHint = useCallback(() => {
@@ -220,8 +224,19 @@ function HostReportDestinationUI({
         <div>
           <p className="text-xs font-medium text-foreground">Where to send your notice</p>
           <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-            Links open public copyright or abuse pages when we know them. You pick the right channel and submit
-            yourself—Creatix does not file with third parties (not legal advice).
+            {hasOnlyGuidance ? (
+              <>
+                We don&apos;t have a verified DMCA or abuse URL for this host from the scan. Use Google to find the
+                site&apos;s legal or abuse contact, or a third-party takedown service. Re-verify page only checks whether
+                the page likely matches your content—it does not discover WHOIS or contact forms. Creatix does not file
+                with third parties (not legal advice).
+              </>
+            ) : (
+              <>
+                Links open public copyright or abuse pages when we know them. You pick the right channel and submit
+                yourself—Creatix does not file with third parties (not legal advice).
+              </>
+            )}
           </p>
         </div>
         {linkButtons.length > 0 ? <div className="flex flex-wrap gap-2">{linkButtons}</div> : null}

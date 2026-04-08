@@ -21,6 +21,10 @@ export function normalizeUrl(raw: string): string | null {
     }
     // Normalize hostname + remove default ports
     u.hostname = u.hostname.toLowerCase()
+    // Treat www. and apex as same for dedupe (avoid duplicate rows for the same page)
+    if (u.hostname.startsWith('www.')) {
+      u.hostname = u.hostname.slice(4)
+    }
     if ((u.protocol === 'https:' && u.port === '443') || (u.protocol === 'http:' && u.port === '80')) {
       u.port = ''
     }

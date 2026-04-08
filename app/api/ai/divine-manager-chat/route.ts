@@ -328,11 +328,33 @@ const CHAT_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'list_leak_alerts',
-      description: 'List recent leak / DMCA candidate alerts from Protection.',
+      description:
+        'List leak / DMCA candidate rows from Protection (active queue). Optional filters by severity and media type.',
       parameters: {
         type: 'object',
-        properties: { limit: { type: 'number', description: 'Max rows (default 12)' } },
+        properties: {
+          limit: { type: 'number', description: 'Max rows (default 12, max 25)' },
+          severity: {
+            type: 'string',
+            enum: ['critical', 'high', 'medium', 'low'],
+            description: 'Optional: only this gravity',
+          },
+          media_type: {
+            type: 'string',
+            enum: ['video', 'photo', 'unknown'],
+            description: 'Optional: video vs photo vs unknown',
+          },
+        },
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_leak_triage_summary',
+      description:
+        'Counts active leak alerts by severity for quick triage (Protection). Use before suggesting DMCA steps.',
+      parameters: { type: 'object', properties: {} },
     },
   },
   {

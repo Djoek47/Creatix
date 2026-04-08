@@ -162,6 +162,19 @@ export default function CirceAegisPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
+        <span className="text-muted-foreground">Triage:</span>
+        <Button variant="secondary" size="sm" asChild>
+          <Link href="/dashboard/protection?severity=critical,high">Priority leak queue</Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/protection">All active leaks</Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/mentions">Mentions</Link>
+        </Button>
+      </div>
+
       {error ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}

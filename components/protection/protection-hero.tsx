@@ -43,7 +43,17 @@ export function ProtectionHero() {
             variant="secondary"
             className="border border-white/10 bg-background/40 backdrop-blur-sm hover:bg-background/60"
           >
+            <Link href="/dashboard/protection?severity=critical,high">Critical leak queue</Link>
+          </Button>
+          <Button
+            asChild
+            variant="secondary"
+            className="border border-white/10 bg-background/40 backdrop-blur-sm hover:bg-background/60"
+          >
             <Link href="/dashboard/protection/aegis">Aegis automation</Link>
+          </Button>
+          <Button asChild variant="outline" className="border-violet-400/30 text-violet-100 hover:bg-violet-500/10">
+            <Link href="/dashboard/mentions">Reputation &amp; mentions</Link>
           </Button>
           <Button asChild variant="outline" className="border-violet-400/30 text-violet-100 hover:bg-violet-500/10">
             <Link href="/dashboard/settings?tab=integrations">Integrations</Link>

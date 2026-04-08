@@ -9,6 +9,9 @@ export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 export type ConversationStatus = 'active' | 'pending' | 'archived'
 export type LeakSeverity = 'critical' | 'high' | 'medium' | 'low'
 
+/** Row `leak_alerts.media_type` — from AI triage + URL heuristics */
+export type LeakMediaType = 'video' | 'photo' | 'unknown'
+
 /** Row `leak_alerts.status` — detection / triage (distinct from `user_case_status`). */
 export type LeakDetectionStatus =
   | 'pending'
@@ -188,6 +191,8 @@ export interface LeakAlert {
   id: string
   user_id: string
   source_url: string
+  /** Dedupe key — `normalizeUrl(source_url)`; maintained by leak scan + APIs */
+  normalized_source_url?: string | null
   source_platform: string
   matched_content_id: string | null
   severity: LeakSeverity
@@ -201,6 +206,11 @@ export interface LeakAlert {
   creator_distribution_intent?: LeakDistributionIntent | null
   /** One-line from Grok for list views */
   ai_nuance_summary?: string | null
+  /** video | photo | unknown */
+  media_type?: LeakMediaType
+  /** Same canonical URL seen again after resolve */
+  reappearance_count?: number
+  last_seen_at?: string | null
 }
 
 export type ReputationScanChannel = 'web_wide' | 'social'

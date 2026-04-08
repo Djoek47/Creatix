@@ -18,10 +18,16 @@ export function DashboardAegisWidget() {
           Leak scans, DMCA drafts, and protection cadence — tune scans from one place.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="space-y-2 pt-0">
         <Button asChild size="sm" variant="secondary" className="w-full gap-2 border-circe/20 bg-circe/10 text-circe hover:bg-circe/15">
+          <Link href="/dashboard/protection?severity=critical,high">
+            Open leak queue (priority)
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline" className="w-full gap-2 border-circe/25 text-circe hover:bg-circe/10">
           <Link href="/dashboard/protection/aegis">
-            Open Aegis
+            Aegis settings
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         </Button>

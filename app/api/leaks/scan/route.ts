@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     success: result.success,
     inserted: result.inserted,
     skipped: result.skipped,
+    reopened: result.reopened,
     filteredStrict: result.filteredStrict,
     message: result.message,
     providerConfigured: result.providerConfigured,

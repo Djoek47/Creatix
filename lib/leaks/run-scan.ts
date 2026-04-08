@@ -8,6 +8,12 @@ import { enrichWithGrok, type GrokLeakEnrichment } from '@/lib/leaks/grok-enrich
 import { verifyLeakPagesWithGrok } from '@/lib/leaks/grok-page-verify'
 import { fetchPageTextExcerpt, pageLikelyMentionsAliases } from '@/lib/leaks/fetch-verify'
 import { isPaidPlanId } from '@/lib/billing/access'
+import {
+  canReopenResolvedLeak,
+  inferMediaTypeFromUrl,
+  shouldSkipDuplicateScan,
+} from '@/lib/leaks/canonical-dedupe'
+import type { LeakMediaType } from '@/lib/types'
 
 export type RunLeakScanParams = {
   userId: string
@@ -33,6 +39,8 @@ export type RunLeakScanResult = {
   success: boolean
   inserted: number
   skipped: number
+  /** Same canonical URL reopened after prior resolve */
+  reopened?: number
   filteredStrict: number
   message?: string
   /** When set, API route should use this status (e.g. 400 for validation). */
@@ -56,6 +64,67 @@ function safeJsonParse(input: string) {
   } catch {
     return {}
   }
+}
+
+function resolveMediaType(grok: { mediaType?: 'video' | 'photo' | 'unknown' } | undefined, url: string): LeakMediaType {
+  const g = grok?.mediaType
+  if (g === 'video' || g === 'photo') return g
+  return inferMediaTypeFromUrl(url)
+}
+
+function parsePageVerifySeverities(): Set<string> {
+  const raw = process.env.LEAK_SCAN_PAGE_VERIFY_SEVERITIES || 'critical'
+  const parts = raw
+    .split(/[,|]/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+  return new Set(parts.length ? parts : ['critical'])
+}
+
+type ExistingLeakRow = {
+  id: string
+  source_url: string
+  normalized_source_url: string | null
+  status: string
+  notes: string | null
+  reappearance_count: number | null
+}
+
+async function fetchExistingLeakRowsByCanonical(
+  supabase: import('@supabase/supabase-js').SupabaseClient,
+  userId: string,
+  candidates: Array<{ url: string; norm: string }>,
+): Promise<Map<string, ExistingLeakRow>> {
+  const norms = [...new Set(candidates.map((c) => c.norm))]
+  const rawUrls = [...new Set(candidates.map((c) => c.url))]
+  const map = new Map<string, ExistingLeakRow>()
+
+  const { data: byNorm } = await supabase
+    .from('leak_alerts')
+    .select('id, source_url, normalized_source_url, status, notes, reappearance_count')
+    .eq('user_id', userId)
+    .in('normalized_source_url', norms)
+
+  for (const row of byNorm || []) {
+    const r = row as ExistingLeakRow
+    const key = r.normalized_source_url || normalizeUrl(r.source_url)
+    if (key) map.set(key, r)
+  }
+
+  const { data: byRaw } = await supabase
+    .from('leak_alerts')
+    .select('id, source_url, normalized_source_url, status, notes, reappearance_count')
+    .eq('user_id', userId)
+    .in('source_url', rawUrls)
+    .is('normalized_source_url', null)
+
+  for (const row of byRaw || []) {
+    const r = row as ExistingLeakRow
+    const key = normalizeUrl(r.source_url)
+    if (key && !map.has(key)) map.set(key, r)
+  }
+
+  return map
 }
 
 function matchesKeywordGate(
@@ -389,59 +458,113 @@ export async function runLeakScan(
     candidates = [...manualOnes, ...passedSearch]
   }
 
-  const { data: existing } = await supabase
-    .from('leak_alerts')
-    .select('source_url')
-    .eq('user_id', userId)
-    .in(
-      'source_url',
-      candidates.map((c) => c.url),
-    )
-
-  const existingSet = new Set((existing || []).map((e: { source_url: string }) => e.source_url))
-
   const grokKey = process.env.XAI_API_KEY
   const needPostGrok =
     !strict && isPro && Boolean(grokKey) && candidates.some((c) => !manualSet.has(c.url))
 
-  const inserts = candidates
-    .filter((c) => !existingSet.has(c.url))
-    .map((c) => {
-      const fromSearch = Boolean(c.query)
-      const grokPre = preGrokByUrl.get(c.url)
-      const baseNotes =
-        c.title || c.snippet
-          ? {
-              title: c.title,
-              snippet: c.snippet,
-              ...(grokPre ? { grok: grokPre } : {}),
-            }
-          : grokPre
-            ? { grok: grokPre }
+  const withNorm = candidates
+    .map((c) => ({ c, norm: normalizeUrl(c.url) }))
+    .filter((x): x is { c: (typeof candidates)[0]; norm: string } => x.norm != null)
+
+  const existingByNorm = await fetchExistingLeakRowsByCanonical(
+    supabase,
+    userId,
+    withNorm.map(({ c, norm }) => ({ url: c.url, norm })),
+  )
+
+  let skippedDup = 0
+  let reopenedCount = 0
+  const reopenIds: string[] = []
+  const inserts: Record<string, unknown>[] = []
+
+  for (const { c, norm } of withNorm) {
+    const grokPre = preGrokByUrl.get(c.url)
+    const existingRow = existingByNorm.get(norm)
+    if (existingRow) {
+      if (shouldSkipDuplicateScan(existingRow.status)) {
+        skippedDup++
+        continue
+      }
+      if (canReopenResolvedLeak(existingRow.status)) {
+        const prev = safeJsonParse(existingRow.notes || '{}') as Record<string, unknown>
+        const baseNotes: Record<string, unknown> = {
+          ...prev,
+          title: c.title,
+          snippet: c.snippet,
+          ...(grokPre ? { grok: grokPre } : {}),
+          reappearance: {
+            at: new Date().toISOString(),
+            note: 'Same canonical URL resurfaced in a scan after a resolved outcome.',
+          },
+        }
+        const nuanceLine =
+          grokPre?.distributionNuance && grokPre.distributionNuance.trim()
+            ? grokPre.distributionNuance.trim().slice(0, 500)
             : null
 
-      const nuanceLine =
-        grokPre?.distributionNuance && grokPre.distributionNuance.trim()
-          ? grokPre.distributionNuance.trim().slice(0, 500)
+        await supabase
+          .from('leak_alerts')
+          .update({
+            status: 'detected',
+            detected_at: new Date().toISOString(),
+            resolved_at: null,
+            reappearance_count: (existingRow.reappearance_count ?? 0) + 1,
+            last_seen_at: new Date().toISOString(),
+            normalized_source_url: norm,
+            source_url: c.url,
+            notes: JSON.stringify(baseNotes),
+            ai_nuance_summary: nuanceLine,
+            severity: (grokPre?.severity as string) || 'medium',
+            media_type: resolveMediaType(grokPre, c.url),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingRow.id)
+        reopenedCount++
+        reopenIds.push(existingRow.id)
+        continue
+      }
+      skippedDup++
+      continue
+    }
+
+    const fromSearch = Boolean(c.query)
+    const baseNotes =
+      c.title || c.snippet
+        ? {
+            title: c.title,
+            snippet: c.snippet,
+            ...(grokPre ? { grok: grokPre } : {}),
+          }
+        : grokPre
+          ? { grok: grokPre }
           : null
 
-      return {
-        user_id: userId,
-        source_url: c.url,
-        source_platform: guessSourcePlatform(c.url),
-        detected_at: new Date().toISOString(),
-        status: 'detected' as const,
-        severity: (grokPre?.severity as 'critical' | 'high' | 'medium' | 'low' | undefined) || 'medium',
-        detected_by: fromSearch ? 'search_api' : 'user_report',
-        query: c.query || null,
-        notes: baseNotes ? JSON.stringify(baseNotes) : null,
-        ai_nuance_summary: nuanceLine,
-      }
+    const nuanceLine =
+      grokPre?.distributionNuance && grokPre.distributionNuance.trim()
+        ? grokPre.distributionNuance.trim().slice(0, 500)
+        : null
+
+    inserts.push({
+      user_id: userId,
+      source_url: c.url,
+      normalized_source_url: norm,
+      source_platform: guessSourcePlatform(c.url),
+      detected_at: new Date().toISOString(),
+      status: 'detected' as const,
+      severity: (grokPre?.severity as 'critical' | 'high' | 'medium' | 'low' | undefined) || 'medium',
+      detected_by: fromSearch ? 'search_api' : 'user_report',
+      query: c.query || null,
+      notes: baseNotes ? JSON.stringify(baseNotes) : null,
+      ai_nuance_summary: nuanceLine,
+      media_type: resolveMediaType(grokPre, c.url),
     })
+  }
 
   let pageVerifyCount = 0
+  let insertedRows: Array<{ id: string; source_url: string; notes: string | null }> | null = null
+
   if (inserts.length > 0) {
-    const { data: insertedRows, error: insertErr } = await supabase
+    const { data: rows, error: insertErr } = await supabase
       .from('leak_alerts')
       .insert(inserts)
       .select('id,source_url,notes')
@@ -458,128 +581,146 @@ export async function runLeakScan(
         fetchVerified: fetchVerifyTopN > 0 ? fetchVerified : undefined,
       }
     }
+    insertedRows = rows as typeof insertedRows
+  }
 
-    if (insertedRows && insertedRows.length > 0) {
-      await insertDivineAppNotification(supabase, userId, {
-        type: 'protection',
-        title: `Circe: ${insertedRows.length} new leak signal${insertedRows.length > 1 ? 's' : ''}`,
-        description:
-          'Review detections in Protection. Start DMCA when you confirm a match.',
-        link: '/dashboard/protection',
-        metadata: { kind: 'leak_scan', count: insertedRows.length },
-      })
+  const pageVerifyLevels = parsePageVerifySeverities()
+
+  if (insertedRows && insertedRows.length > 0) {
+    await insertDivineAppNotification(supabase, userId, {
+      type: 'protection',
+      title: `Circe: ${insertedRows.length} new leak signal${insertedRows.length > 1 ? 's' : ''}`,
+      description:
+        'Review detections in Protection. Start DMCA when you confirm a match.',
+      link: '/dashboard/protection',
+      metadata: { kind: 'leak_scan', count: insertedRows.length },
+    })
+  }
+
+  if (reopenedCount > 0) {
+    await insertDivineAppNotification(supabase, userId, {
+      type: 'protection',
+      title: `Circe: ${reopenedCount} leak${reopenedCount > 1 ? 's' : ''} resurfaced`,
+      description: 'A previously resolved URL appeared again in search. Review in Protection.',
+      link: '/dashboard/protection',
+      metadata: { kind: 'leak_resurface', count: reopenedCount },
+    })
+  }
+
+  if (needPostGrok && grokKey && insertedRows && insertedRows.length > 0) {
+    const byUrl = new Map<string, { id: string; source_url: string; notes: string | null }>()
+    insertedRows.forEach((r: { id: string; source_url: string; notes: string | null }) =>
+      byUrl.set(r.source_url, r),
+    )
+
+    const batchSize = 12
+    for (let i = 0; i < candidates.length; i += batchSize) {
+      const batch = candidates.slice(i, i + batchSize).filter((c) => !manualSet.has(c.url))
+      if (batch.length === 0) continue
+      try {
+        const enriched = await enrichWithGrok({ apiKey: grokKey, items: batch })
+        for (const e of enriched) {
+          const row = byUrl.get(e.url)
+          if (!row) continue
+          const nextNotes = {
+            ...(row.notes ? safeJsonParse(row.notes) : {}),
+            grok: e,
+          }
+          const summary =
+            e.distributionNuance && e.distributionNuance.trim()
+              ? e.distributionNuance.trim().slice(0, 500)
+              : null
+          await supabase
+            .from('leak_alerts')
+            .update({
+              severity: e.severity || 'medium',
+              notes: JSON.stringify(nextNotes),
+              ai_nuance_summary: summary,
+              media_type: resolveMediaType(e, e.url),
+            })
+            .eq('id', row.id)
+        }
+      } catch {
+        // ignore enrichment failures
+      }
+    }
+  }
+
+  const idsForPageVerify = [
+    ...(insertedRows?.map((r) => r.id) || []),
+    ...reopenIds,
+  ]
+
+  if (scrapeMaxPages > 0 && isPro && grokKey && idsForPageVerify.length > 0) {
+    const { data: freshRows } = await supabase
+      .from('leak_alerts')
+      .select('id,source_url,notes')
+      .eq('user_id', userId)
+      .in('id', idsForPageVerify)
+
+    const toScrape: Array<{ id: string; source_url: string; notes: string | null }> = []
+    for (const row of freshRows || []) {
+      const n = safeJsonParse(row.notes || '{}')
+      const sev = n.grok?.severity as string | undefined
+      if (sev && pageVerifyLevels.has(String(sev).toLowerCase())) {
+        toScrape.push(row)
+        if (toScrape.length >= scrapeMaxPages) break
+      }
     }
 
-    if (needPostGrok && grokKey && insertedRows && insertedRows.length > 0) {
-      const byUrl = new Map<string, { id: string; source_url: string; notes: string | null }>()
-      insertedRows.forEach((r: { id: string; source_url: string; notes: string | null }) =>
-        byUrl.set(r.source_url, r),
-      )
+    if (toScrape.length > 0) {
+      const items: Array<{ url: string; pageExcerpt: string; title?: string; snippet?: string }> = []
+      for (const row of toScrape) {
+        const n = safeJsonParse(row.notes || '{}')
+        const excerpt = await fetchPageTextExcerpt(row.source_url)
+        if (excerpt) {
+          items.push({
+            url: row.source_url,
+            pageExcerpt: excerpt,
+            title: n.title,
+            snippet: n.snippet,
+          })
+        }
+      }
 
-      const batchSize = 12
-      for (let i = 0; i < candidates.length; i += batchSize) {
-        const batch = candidates.slice(i, i + batchSize).filter((c) => !manualSet.has(c.url))
-        if (batch.length === 0) continue
+      if (items.length > 0) {
         try {
-          const enriched = await enrichWithGrok({ apiKey: grokKey, items: batch })
-          for (const e of enriched) {
-            const row = byUrl.get(e.url)
-            if (!row) continue
+          const verified = await verifyLeakPagesWithGrok({
+            apiKey: grokKey,
+            items,
+            knownHandles: usernames,
+            knownTitlesSample: mergedTitles.slice(0, 20),
+          })
+          const byUrlV = new Map(verified.map((v) => [v.url, v]))
+          for (const row of toScrape) {
+            const v = byUrlV.get(row.source_url)
+            if (!v) continue
+            const n = safeJsonParse(row.notes || '{}')
             const nextNotes = {
-              ...(row.notes ? safeJsonParse(row.notes) : {}),
-              grok: e,
+              ...n,
+              pageVerify: {
+                verifiedLikelyMatch: v.verifiedLikelyMatch,
+                rationale: v.rationale,
+                checkedAt: new Date().toISOString(),
+              },
             }
-            const summary =
-              e.distributionNuance && e.distributionNuance.trim()
-                ? e.distributionNuance.trim().slice(0, 500)
-                : null
-            await supabase
-              .from('leak_alerts')
-              .update({
-                severity: e.severity || 'medium',
-                notes: JSON.stringify(nextNotes),
-                ai_nuance_summary: summary,
-              })
-              .eq('id', row.id)
+            await supabase.from('leak_alerts').update({ notes: JSON.stringify(nextNotes) }).eq('id', row.id)
+            pageVerifyCount++
           }
         } catch {
-          // ignore enrichment failures
-        }
-      }
-    }
-
-    // Critical / high: optional page fetch + second Grok pass (Pro + XAI)
-    if (scrapeMaxPages > 0 && isPro && grokKey && insertedRows && insertedRows.length > 0) {
-      const { data: freshRows } = await supabase
-        .from('leak_alerts')
-        .select('id,source_url,notes')
-        .eq('user_id', userId)
-        .in(
-          'id',
-          insertedRows.map((r: { id: string }) => r.id),
-        )
-
-      const toScrape: Array<{ id: string; source_url: string; notes: string | null }> = []
-      for (const row of freshRows || []) {
-        const n = safeJsonParse(row.notes || '{}')
-        const sev = n.grok?.severity as string | undefined
-        if (sev === 'critical' || sev === 'high') {
-          toScrape.push(row)
-          if (toScrape.length >= scrapeMaxPages) break
-        }
-      }
-
-      if (toScrape.length > 0) {
-        const items: Array<{ url: string; pageExcerpt: string; title?: string; snippet?: string }> = []
-        for (const row of toScrape) {
-          const n = safeJsonParse(row.notes || '{}')
-          const excerpt = await fetchPageTextExcerpt(row.source_url)
-          if (excerpt) {
-            items.push({
-              url: row.source_url,
-              pageExcerpt: excerpt,
-              title: n.title,
-              snippet: n.snippet,
-            })
-          }
-        }
-
-        if (items.length > 0) {
-          try {
-            const verified = await verifyLeakPagesWithGrok({
-              apiKey: grokKey,
-              items,
-              knownHandles: usernames,
-              knownTitlesSample: mergedTitles.slice(0, 20),
-            })
-            const byUrlV = new Map(verified.map((v) => [v.url, v]))
-            for (const row of toScrape) {
-              const v = byUrlV.get(row.source_url)
-              if (!v) continue
-              const n = safeJsonParse(row.notes || '{}')
-              const nextNotes = {
-                ...n,
-                pageVerify: {
-                  verifiedLikelyMatch: v.verifiedLikelyMatch,
-                  rationale: v.rationale,
-                  checkedAt: new Date().toISOString(),
-                },
-              }
-              await supabase.from('leak_alerts').update({ notes: JSON.stringify(nextNotes) }).eq('id', row.id)
-              pageVerifyCount++
-            }
-          } catch {
-            // best-effort
-          }
+          // best-effort
         }
       }
     }
   }
 
+  const skippedNormalize = candidates.length - withNorm.length
+
   return {
     success: true,
     inserted: inserts.length,
-    skipped: candidates.length - inserts.length,
+    skipped: skippedDup + skippedNormalize,
+    reopened: reopenedCount > 0 ? reopenedCount : undefined,
     filteredStrict,
     providerConfigured: Boolean(provider),
     grokEnrichment: isPro && Boolean(process.env.XAI_API_KEY),

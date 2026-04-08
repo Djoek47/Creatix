@@ -156,7 +156,7 @@ export function CirceTipPopupHost() {
       aria-live="polite"
     >
       <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <Card className="circe-tip-card-glow pointer-events-auto relative w-full border-circe/50 bg-gradient-to-br from-circe/32 via-card to-card shadow-xl">
+        <Card className="circe-tip-card-glow pointer-events-auto relative w-full border-circe/60 bg-gradient-to-br from-circe/65 via-card/90 to-card shadow-xl">
         <Button
           type="button"
           variant="ghost"

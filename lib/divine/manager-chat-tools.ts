@@ -42,6 +42,7 @@ import { getVoiceMemoryPayload } from '@/lib/divine/voice-memory-server'
 import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/divine/thread-scan-async'
 import { getSettings } from '@/lib/divine-manager'
 import { upsertFanRecentsFromConversations, searchFanRecents } from '@/lib/divine/fan-recents-server'
+import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
@@ -61,6 +62,7 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
   'get_reply_suggestions',
   'get_dm_thread_and_suggestions',
   'list_leak_alerts',
+  'get_leak_triage_summary',
   'update_leak_alert_case',
   'trigger_reputation_briefing',
   'list_reputation_mentions',
@@ -742,21 +744,56 @@ export async function runContextTool(
     }
     if (name === 'list_leak_alerts') {
       if (!ctx) return 'Context unavailable.'
-      const lim = typeof args.limit === 'number' ? Math.min(args.limit, 25) : 12
+      const lim = typeof args.limit === 'number' ? Math.min(Math.max(args.limit, 1), 25) : 12
+      const sev = typeof args.severity === 'string' ? args.severity : null
+      const media = typeof args.media_type === 'string' ? args.media_type : null
       const { data: rows, error } = await ctx.supabase
         .from('leak_alerts')
-        .select('id, source_url, severity, user_case_status, ai_nuance_summary, detected_at')
+        .select('id, source_url, severity, media_type, status, user_case_status, ai_nuance_summary, detected_at')
         .eq('user_id', ctx.userId)
         .order('detected_at', { ascending: false })
-        .limit(lim)
+        .limit(100)
       if (error) return error.message
-      if (!rows?.length) return 'No leak alerts yet.'
-      return (rows as Array<Record<string, unknown>>)
+      let list = (rows || []).filter((r) => isLeakStatusActive((r as { status?: string }).status))
+      if (sev && ['critical', 'high', 'medium', 'low'].includes(sev)) {
+        list = list.filter((r) => String((r as { severity?: string }).severity) === sev)
+      }
+      if (media && ['video', 'photo', 'unknown'].includes(media)) {
+        list = list.filter((r) => {
+          const mt = String((r as { media_type?: string }).media_type || 'unknown')
+          return mt === media
+        })
+      }
+      const sliced = list.slice(0, lim)
+      if (!sliced.length) return 'No matching leak alerts in the active queue.'
+      return (sliced as Array<Record<string, unknown>>)
         .map(
           (r) =>
-            `- ${String(r.severity)} | ${String(r.user_case_status ?? 'open')} | ${String(r.source_url).slice(0, 80)}… ${r.ai_nuance_summary ? `(${String(r.ai_nuance_summary).slice(0, 120)})` : ''}`,
+            `- ${String(r.severity)} | ${String(r.media_type ?? 'unknown')} | ${String(r.user_case_status ?? 'open')} | ${String(r.source_url).slice(0, 80)}… ${r.ai_nuance_summary ? `(${String(r.ai_nuance_summary).slice(0, 120)})` : ''}`,
         )
         .join('\n')
+    }
+    if (name === 'get_leak_triage_summary') {
+      if (!ctx) return 'Context unavailable.'
+      const { data: rows, error } = await ctx.supabase
+        .from('leak_alerts')
+        .select('severity, status')
+        .eq('user_id', ctx.userId)
+      if (error) return error.message
+      const counts: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
+      let active = 0
+      for (const r of rows || []) {
+        const row = r as { severity?: string; status?: string }
+        if (!isLeakStatusActive(row.status)) continue
+        active++
+        const s = row.severity
+        if (s && s in counts) counts[s]++
+      }
+      return [
+        `Active Protection queue: ${active} alert(s).`,
+        `By severity (active): critical ${counts.critical}, high ${counts.high}, medium ${counts.medium}, low ${counts.low}.`,
+        'Use Protection filters or list_leak_alerts with severity to focus DMCA work.',
+      ].join(' ')
     }
     if (name === 'update_leak_alert_case') {
       if (!ctx) return 'Context unavailable.'

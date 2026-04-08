@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { LeakAlert, LeakDetectionStatus, LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
 import { LEAK_OUTCOME_OPTIONS } from '@/lib/leaks/leak-detection-status'
@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ExternalLink, Upload, FileText, Shield } from 'lucide-react'
+import { Loader2, ExternalLink, Upload, FileText, Shield, ChevronDown, Filter, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import type { LeakMediaType, LeakSeverity } from '@/lib/types'
 
 type Props = {
   activeAlerts: LeakAlert[]
@@ -175,8 +177,19 @@ function urgencyRank(u: string | undefined): number {
   return 3
 }
 
+const ALL_SEVERITIES: LeakSeverity[] = ['critical', 'high', 'medium', 'low']
+
+function severityRank(s: string | undefined): number {
+  if (s === 'critical') return 0
+  if (s === 'high') return 1
+  if (s === 'medium') return 2
+  if (s === 'low') return 3
+  return 4
+}
+
 export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
 
   const [scanLoading, setScanLoading] = useState(false)
@@ -208,6 +221,32 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [focusContentId, setFocusContentId] = useState<string>('')
   const [focusTitleFilter, setFocusTitleFilter] = useState('')
   const leakHandlesInit = useRef(false)
+  const urlFiltersSynced = useRef(false)
+
+  /** Rookie default: focus on worst leaks first (toggle “All severities” to expand). */
+  const [severityFilters, setSeverityFilters] = useState<Set<LeakSeverity>>(
+    () => new Set<LeakSeverity>(['critical', 'high']),
+  )
+  const [mediaFilter, setMediaFilter] = useState<'all' | LeakMediaType>('all')
+  const [filterText, setFilterText] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [verifyLoadingId, setVerifyLoadingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (urlFiltersSynced.current) return
+    const sev = searchParams.get('severity')
+    const m = searchParams.get('media')
+    if (!sev && !m) return
+    if (sev) {
+      const parts = sev.split(',').filter((p): p is LeakSeverity =>
+        ALL_SEVERITIES.includes(p as LeakSeverity),
+      )
+      if (parts.length > 0) setSeverityFilters(new Set(parts))
+    }
+    if (m === 'video' || m === 'photo' || m === 'unknown') setMediaFilter(m)
+    urlFiltersSynced.current = true
+  }, [searchParams])
+
 
   const displayHandles = useMemo(() => {
     const aliases = parseAliases(aliasInput)
@@ -333,11 +372,44 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   const sortedAlerts = useMemo(() => {
     return [...activeAlerts].sort((a, b) => {
+      const sr = severityRank(a.severity) - severityRank(b.severity)
+      if (sr !== 0) return sr
       const ua = parseLeakMeta(a.notes).urgency
       const ub = parseLeakMeta(b.notes).urgency
       return urgencyRank(ua) - urgencyRank(ub)
     })
   }, [activeAlerts])
+
+  const filteredAlerts = useMemo(() => {
+    const q = filterText.trim().toLowerCase()
+    return sortedAlerts.filter((alert) => {
+      const sev = (alert.severity || 'medium') as LeakSeverity
+      if (!severityFilters.has(sev)) return false
+      const mt = (alert.media_type || 'unknown') as LeakMediaType
+      if (mediaFilter !== 'all' && mt !== mediaFilter) return false
+      if (!q) return true
+      const hay = `${alert.source_url} ${alert.ai_nuance_summary || ''} ${formatNotesLine(alert.notes)}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [sortedAlerts, severityFilters, mediaFilter, filterText])
+
+  const verifyLeakPage = useCallback(
+    async (alertId: string) => {
+      setVerifyLoadingId(alertId)
+      setAlertUpdateError(null)
+      try {
+        const res = await fetch(`/api/leaks/alerts/${alertId}/verify`, { method: 'POST' })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Page verify failed')
+        router.refresh()
+      } catch (e) {
+        setAlertUpdateError(e instanceof Error ? e.message : 'Page verify failed')
+      } finally {
+        setVerifyLoadingId(null)
+      }
+    },
+    [router],
+  )
 
   const patchLeakAlert = useCallback(
     async (alertId: string, body: Record<string, unknown>) => {
@@ -521,44 +593,62 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </Button>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="alias-input" className="text-xs text-muted-foreground">
-          Extra names and handles (comma or line; searched in addition to connected platforms)
-        </Label>
-        <Textarea
-          id="alias-input"
-          value={aliasInput}
-          onChange={(e) => setAliasInput(e.target.value)}
-          placeholder="e.g. stage name, alternate @handles"
-          className="min-h-[72px] text-sm"
-        />
+      <div className="rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
+        <p className="font-medium text-foreground">Start here</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Pick identities below, run <strong>Invoke Scan</strong> or paste a link, then use the filters to focus on the
+          worst leaks first (defaults to <strong>critical</strong> and <strong>high</strong>).
+        </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="former-input" className="text-xs text-muted-foreground">
-          Former / old usernames (comma or line; saved to your profile for every scan)
-        </Label>
-        <Textarea
-          id="former-input"
-          value={formerInput}
-          onChange={(e) => setFormerInput(e.target.value)}
-          placeholder="Handles you used before a rebrand"
-          className="min-h-[56px] text-sm"
-        />
-      </div>
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" type="button" className="flex w-full items-center justify-between gap-2 text-sm">
+            Advanced identity hints (extra aliases, saved former names, title phrases)
+            <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', advancedOpen && 'rotate-180')} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4 data-[state=open]:pt-3">
+          <div className="space-y-2">
+            <Label htmlFor="alias-input" className="text-xs text-muted-foreground">
+              Extra names and handles (comma or line; searched in addition to connected platforms)
+            </Label>
+            <Textarea
+              id="alias-input"
+              value={aliasInput}
+              onChange={(e) => setAliasInput(e.target.value)}
+              placeholder="e.g. stage name, alternate @handles"
+              className="min-h-[72px] text-sm"
+            />
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="title-hints" className="text-xs text-muted-foreground">
-          Content titles / phrases to search (one per line; merged with your library titles when enabled below)
-        </Label>
-        <Textarea
-          id="title-hints"
-          value={titleHintsInput}
-          onChange={(e) => setTitleHintsInput(e.target.value)}
-          placeholder="Exact or partial video or set titles that might appear on leak sites"
-          className="min-h-[72px] text-sm"
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="former-input" className="text-xs text-muted-foreground">
+              Former / old usernames (comma or line; saved to your profile for every scan)
+            </Label>
+            <Textarea
+              id="former-input"
+              value={formerInput}
+              onChange={(e) => setFormerInput(e.target.value)}
+              placeholder="Handles you used before a rebrand"
+              className="min-h-[56px] text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="title-hints" className="text-xs text-muted-foreground">
+              Content titles / phrases to search (one per line; merged with your library titles when enabled below)
+            </Label>
+            <Textarea
+              id="title-hints"
+              value={titleHintsInput}
+              onChange={(e) => setTitleHintsInput(e.target.value)}
+              placeholder="Exact or partial video or set titles that might appear on leak sites"
+              className="min-h-[72px] text-sm"
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
@@ -735,8 +825,88 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           {alertUpdateError}
         </p>
       ) : null}
+      <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+          <span className="text-xs font-medium text-foreground">Filter queue</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] uppercase text-muted-foreground mr-1">Severity</span>
+          {ALL_SEVERITIES.map((s) => (
+            <Button
+              key={s}
+              type="button"
+              size="sm"
+              variant={severityFilters.has(s) ? 'secondary' : 'outline'}
+              className="h-7 text-xs capitalize"
+              onClick={() => {
+                setSeverityFilters((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(s)) next.delete(s)
+                  else next.add(s)
+                  if (next.size === 0) next.add(s)
+                  return next
+                })
+              }}
+            >
+              {s}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={() => setSeverityFilters(new Set(ALL_SEVERITIES))}
+          >
+            All
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs gap-1"
+            onClick={() => setSeverityFilters(new Set(['critical', 'high']))}
+          >
+            <RotateCcw className="h-3 w-3" />
+            Priority
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase text-muted-foreground">Media</span>
+          <Select
+            value={mediaFilter}
+            onValueChange={(v) => setMediaFilter(v as 'all' | LeakMediaType)}
+          >
+            <SelectTrigger className="h-8 w-[140px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any</SelectItem>
+              <SelectItem value="video">Video</SelectItem>
+              <SelectItem value="photo">Photo</SelectItem>
+              <SelectItem value="unknown">Unknown</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="leak-filter-text" className="text-[10px] text-muted-foreground">
+            Search URL / notes
+          </Label>
+          <Input
+            id="leak-filter-text"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filter…"
+            className="h-9 text-sm"
+          />
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Showing {filteredAlerts.length} of {sortedAlerts.length} in the active queue.
+        </p>
+      </div>
       <div className="space-y-3">
-        {sortedAlerts.map((alert) => {
+        {filteredAlerts.map((alert) => {
           const meta = parseLeakMeta(alert.notes)
           const caseStatus = (alert.user_case_status as LeakUserCaseStatus | undefined) || 'open'
           const distIntent =
@@ -764,6 +934,16 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   >
                     {alert.severity || 'unknown'}
                   </Badge>
+                  {alert.media_type && alert.media_type !== 'unknown' ? (
+                    <Badge variant="outline" className="text-xs capitalize border-primary/30">
+                      {alert.media_type}
+                    </Badge>
+                  ) : null}
+                  {(alert.reappearance_count ?? 0) > 0 ? (
+                    <Badge variant="secondary" className="text-xs">
+                      Resurfaced ×{alert.reappearance_count}
+                    </Badge>
+                  ) : null}
                   {meta.urgency ? (
                     <Badge variant="outline" className={cn('text-xs capitalize', urgencyClass)}>
                       {meta.urgency}
@@ -913,6 +1093,20 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                     View
                   </a>
                 </Button>
+                {isPro && alert.severity === 'critical' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={verifyLoadingId === alert.id}
+                    onClick={() => void verifyLeakPage(alert.id)}
+                  >
+                    {verifyLoadingId === alert.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Re-verify page
+                  </Button>
+                ) : null}
                 <Button size="sm" onClick={() => startDmcaFromAlert(alert)}>
                   Send DMCA
                 </Button>

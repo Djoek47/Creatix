@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -115,10 +116,12 @@ export default async function ProtectionPage() {
           when you confirm a real match.
         </p>
         <div className="rounded-2xl border border-border/80 bg-card/30 p-4 shadow-sm sm:p-6">
-          <ProtectionDashboard
-            activeAlerts={activeAlerts as LeakAlert[]}
-            suggestedAlias={profile?.full_name?.trim() || null}
-          />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading protection tools…</p>}>
+            <ProtectionDashboard
+              activeAlerts={activeAlerts as LeakAlert[]}
+              suggestedAlias={profile?.full_name?.trim() || null}
+            />
+          </Suspense>
         </div>
       </section>
 

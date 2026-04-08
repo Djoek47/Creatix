@@ -825,11 +825,22 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       {
         type: 'function' as const,
         name: 'list_leak_alerts',
-        description: 'List recent leak / DMCA candidate alerts from Protection.',
+        description:
+          'List leak / DMCA candidates from Protection (active queue). Optional severity and media_type filters.',
         parameters: {
           type: 'object',
-          properties: { limit: { type: 'number' } },
+          properties: {
+            limit: { type: 'number' },
+            severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low'] },
+            media_type: { type: 'string', enum: ['video', 'photo', 'unknown'] },
+          },
         },
+      },
+      {
+        type: 'function' as const,
+        name: 'get_leak_triage_summary',
+        description: 'Count active leak alerts by severity (Protection triage).',
+        parameters: { type: 'object', properties: {} },
       },
       {
         type: 'function' as const,

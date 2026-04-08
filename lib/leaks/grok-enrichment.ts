@@ -17,6 +17,8 @@ export type GrokLeakEnrichment = {
   url: string
   likelyLeak: boolean
   severity?: 'critical' | 'high' | 'medium' | 'low'
+  /** video vs photo vs unknown — from title/snippet/URL cues only */
+  mediaType?: 'video' | 'photo' | 'unknown'
   /** Triage order for DMCA review */
   urgency?: LeakUrgency
   /** 0–1 confidence this link is infringing */
@@ -43,6 +45,11 @@ function normConclusion(v: unknown): LeakReviewConclusion | undefined {
     v === 'non_conclusive_needs_access'
   )
     return v
+  return undefined
+}
+
+function normMediaType(v: unknown): 'video' | 'photo' | 'unknown' | undefined {
+  if (v === 'video' || v === 'photo' || v === 'unknown') return v
   return undefined
 }
 
@@ -83,6 +90,7 @@ Return a JSON object with key "items" whose value is an array of objects with:
 - reviewConclusion (one of: likely_infringing | non_conclusive | non_conclusive_needs_access)
 - distributionNuance (short string): e.g. same promo free on one platform vs paid elsewhere; ambiguous cross-post consent; stolen to another site — state when you cannot know from snippets
 - suggestedUserAction (one of: review_when_signed_in | dmca_if_confirmed_match | monitor | ignore_if_intentionally_public)
+- mediaType (one of: video | photo | unknown): whether the page appears to host primarily video, still images/sets, or unclear from snippet
 
 Items:
 ${JSON.stringify(items, null, 2)}`
@@ -138,6 +146,7 @@ ${JSON.stringify(items, null, 2)}`
         distributionNuance:
           typeof x.distributionNuance === 'string' ? x.distributionNuance.slice(0, 1200) : undefined,
         suggestedUserAction: normSuggestedAction(x.suggestedUserAction),
+        mediaType: normMediaType(x.mediaType),
       }))
   } catch {
     return []

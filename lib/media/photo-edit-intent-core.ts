@@ -2,6 +2,8 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { applySafePhotoEdit, parseDataUrl } from '@/lib/media/apply-safe-photo-edit'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 /**
  * OpenAI structured outputs (strict) require every `properties` key in `required`.
@@ -98,15 +100,9 @@ export async function executePhotoEditIntent(opts: {
     return { ok: false, error: parsedImg.error, status: 400 }
   }
 
-  const { data: subscription } = await opts.supabase
-    .from('subscriptions')
-    .select('ai_credits_used, ai_credits_limit')
-    .eq('user_id', opts.userId)
-    .maybeSingle()
-
-  const used = (subscription as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = (subscription as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
-  if (limit < 999999 && used >= limit) {
+  const photoCost = getCreditsForToolId('photo-enhancer')
+  const gate = await hasEnoughAiCredits(opts.supabase, opts.userId, photoCost)
+  if (!gate.ok) {
     return { ok: false, error: 'AI credits exhausted', status: 402 }
   }
 
@@ -166,11 +162,9 @@ Return structured fields for exactly one safe operation.`
     return { ok: false, error: out.error, status: 500 }
   }
 
-  if (limit < 999999) {
-    await opts.supabase
-      .from('subscriptions')
-      .update({ ai_credits_used: used + 1 })
-      .eq('user_id', opts.userId)
+  const consumed = await consumeAiCredits(opts.supabase, opts.userId, photoCost)
+  if (!consumed.ok) {
+    return { ok: false, error: 'AI credits exhausted', status: 402 }
   }
 
   return {
@@ -179,7 +173,7 @@ Return structured fields for exactly one safe operation.`
       imageBase64: out.imageBase64,
       operation: intent.operation,
       explanation: intent.explanation,
-      creditsUsed: limit < 999999 ? used + 1 : used,
+      creditsUsed: consumed.usedAfter,
     },
   }
 }

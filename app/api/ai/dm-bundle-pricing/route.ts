@@ -1,6 +1,8 @@
 import { generateText } from 'ai'
 import { NextRequest } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 45
 
@@ -33,6 +35,15 @@ export async function POST(req: NextRequest) {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (!goal) {
     return Response.json({ error: 'goal is required' }, { status: 400 })
+  }
+
+  const bundleCost = getCreditsForToolId('dm-bundle-pricing')
+  const gate = await hasEnoughAiCredits(supabase, user.id, bundleCost)
+  if (!gate.ok) {
+    return Response.json(
+      { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+      { status: 402 },
+    )
   }
 
   const fanContext = typeof body.fan_context === 'string' ? body.fan_context.trim() : ''
@@ -82,17 +93,7 @@ ${priceLine}`
     })
 
     try {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('ai_credits_used')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      if (subscription) {
-        await supabase
-          .from('subscriptions')
-          .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-          .eq('user_id', user.id)
-      }
+      await consumeAiCredits(supabase, user.id, bundleCost)
     } catch {
       // ignore credit errors
     }

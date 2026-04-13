@@ -1,5 +1,5 @@
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
-import { buildPricingMetaDescription, buildPricingProductOfferGraph } from '@/lib/seo/pricing-seo'
+import { buildPricingMetaDescription, buildPricingSoftwareOfferGraph } from '@/lib/seo/pricing-seo'
 
 type FaqItem = { question: string; answer: string }
 
@@ -17,7 +17,7 @@ export function PricingJsonLd({ faqs }: { faqs: FaqItem[] }) {
       description,
       isPartOf: { '@type': 'WebSite', '@id': `${base}/#website`, url: base },
     },
-    ...buildPricingProductOfferGraph(url),
+    ...buildPricingSoftwareOfferGraph(url),
     {
       '@type': 'FAQPage',
       '@id': `${url}#faq`,

@@ -380,7 +380,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <Zap className="mx-auto h-6 w-6 text-primary" />
               <p className="mt-2 font-medium">AI Credits</p>
               <p className="text-2xl font-bold">
-                {aiCreditsUsed}/{aiCreditsLimit === 999999 ? '∞' : aiCreditsLimit}
+                {aiCreditsUsed}/{aiCreditsLimit}
               </p>
               <Progress
                 value={(aiCreditsUsed / Math.min(aiCreditsLimit, 1000)) * 100}

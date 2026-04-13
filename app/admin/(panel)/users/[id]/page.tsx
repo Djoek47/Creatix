@@ -107,9 +107,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 <span className="text-muted-foreground">App AI credits (used / limit)</span>
                 <div className="tabular-nums">
                   {subscription.ai_credits_used.toLocaleString()} /{' '}
-                  {subscription.ai_credits_limit >= 999999
-                    ? '∞'
-                    : subscription.ai_credits_limit.toLocaleString()}
+                  {subscription.ai_credits_limit.toLocaleString()}
                 </div>
               </div>
               <div>

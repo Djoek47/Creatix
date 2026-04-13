@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
 
@@ -15,31 +17,25 @@ const creatorMoodSchema = z.object({
   nextHourRitual: z.string().describe('One concrete ritual for the next hour to stay sustainable'),
 })
 
-async function bumpMoodCredit(req: NextRequest) {
-  try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('ai_credits_used')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (subscription) {
-      await supabase
-        .from('subscriptions')
-        .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-        .eq('user_id', user.id)
-    }
-  } catch {
-    // ignore
-  }
-}
-
 /** Creator well-being check-in only (was part of removed Mood Detector AI Studio tool). */
 export async function POST(req: NextRequest) {
+  const supabase = await createRouteHandlerClient(req)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const moodCost = getCreditsForToolId('creator-mood-pulse')
+  const gate = await hasEnoughAiCredits(supabase, user.id, moodCost)
+  if (!gate.ok) {
+    return Response.json(
+      { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+      { status: 402 },
+    )
+  }
+
   const body = (await req.json().catch(() => ({}))) as {
     energy?: number
     stress?: number
@@ -80,6 +76,13 @@ Produce the structured well-being response.`,
     ],
   })
 
-  await bumpMoodCredit(req)
+  const consumed = await consumeAiCredits(supabase, user.id, moodCost)
+  if (!consumed.ok) {
+    return Response.json(
+      { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: consumed.used, limit: consumed.limit },
+      { status: 402 },
+    )
+  }
+
   return Response.json({ mode: 'creator_check_in' as const, ...output })
 }

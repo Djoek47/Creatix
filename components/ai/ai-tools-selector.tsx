@@ -2388,7 +2388,7 @@ export function AIToolsSelector({
                 <Zap className="h-4 w-4 text-primary" />
                 <span className="text-sm">AI Credits</span>
               </div>
-              <span className="font-medium">{aiCreditsUsed}/{aiCreditsLimit === 999999 ? '∞' : aiCreditsLimit}</span>
+              <span className="font-medium">{aiCreditsUsed}/{aiCreditsLimit}</span>
             </div>
           </ScrollArea>
         </CardContent>

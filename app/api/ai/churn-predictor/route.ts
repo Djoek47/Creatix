@@ -4,6 +4,8 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { loadOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
 import { formatThreadTextForAi, normalizeSortedRawOfMessages } from '@/lib/divine/of-thread-text'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 60
 
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('plan_id, ai_credits_used, ai_credits_limit')
+    .select('plan_id')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -50,18 +52,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Pro subscription required for Churn Predictor' }, { status: 403 })
   }
 
+  const churnCost = getCreditsForToolId('churn-predictor')
+  const gate = await hasEnoughAiCredits(supabase, user.id, churnCost)
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: 'AI credits exhausted', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+      { status: 402 },
+    )
+  }
+
   const body = await req.json().catch(() => ({})) as {
     fanId?: string
     fanData?: string
     recentActivity?: string
     subscriptionLength?: string
     spendingHistory?: string
-  }
-
-  const used = (subscription as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = (subscription as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
-  if (limit < 999999 && used >= limit) {
-    return NextResponse.json({ error: 'AI credits exhausted' }, { status: 402 })
   }
 
   let fanBlock = ''
@@ -278,15 +283,16 @@ Respond with:
 7) A ready-to-send message draft the creator can edit (warm, not desperate)`,
   })
 
-  if (limit < 999999) {
-    await supabase
-      .from('subscriptions')
-      .update({ ai_credits_used: used + 1 })
-      .eq('user_id', user.id)
+  const consumed = await consumeAiCredits(supabase, user.id, churnCost)
+  if (!consumed.ok) {
+    return NextResponse.json(
+      { error: 'AI credits exhausted', code: 'ai_credits_exhausted', used: consumed.used, limit: consumed.limit },
+      { status: 402 },
+    )
   }
 
   return NextResponse.json({
     content: text,
-    creditsUsed: limit < 999999 ? used + 1 : used,
+    creditsUsed: consumed.usedAfter,
   })
 }

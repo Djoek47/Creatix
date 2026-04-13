@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -14,7 +16,7 @@ export async function POST(req: NextRequest) {
   // Check subscription for Pro access
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('plan_id, ai_credits_used, ai_credits_limit')
+    .select('plan_id')
     .eq('user_id', user.id)
     .single()
 
@@ -28,13 +30,23 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  const voiceCost = getCreditsForToolId('voice-cloning')
+  const gate = await hasEnoughAiCredits(supabase, user.id, voiceCost)
+  if (!gate.ok) {
+    return new Response(
+      JSON.stringify({
+        error: 'Insufficient AI credits',
+        code: 'ai_credits_exhausted',
+        used: gate.used,
+        limit: gate.limit,
+      }),
+      { status: 402, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   const { sampleText, targetTone, context } = await req.json()
 
-  // Increment AI credits used
-  await supabase
-    .from('subscriptions')
-    .update({ ai_credits_used: (subscription?.ai_credits_used || 0) + 1 })
-    .eq('user_id', user.id)
+  await consumeAiCredits(supabase, user.id, voiceCost)
 
   const result = streamText({
     model: 'anthropic/claude-sonnet-4',

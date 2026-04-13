@@ -175,7 +175,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'Configure background web scans under Protection → Circe’s Aegis: same Serper + Grok pipeline as manual Protection scan, on your chosen cadence. Review every candidate before acting.',
     category: 'protection',
-    credits: 3,
+    credits: 10,
     hasRunner: true,
   },
   {

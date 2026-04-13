@@ -146,7 +146,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
           <Badge variant="outline" className="gap-1 border-amber-500/25 bg-amber-500/[0.04] text-foreground">
             <Zap className="h-3 w-3 text-amber-500" aria-hidden />
             {credits
-              ? `${credits.limit === 999999 ? '∞' : Math.max(0, credits.limit - credits.used)} left`
+              ? `${Math.max(0, credits.limit - credits.used)} left`
               : 'Credits'}
           </Badge>
           {!isPro ? (

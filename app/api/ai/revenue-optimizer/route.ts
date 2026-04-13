@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
 
@@ -41,6 +43,21 @@ const revenueOptimizationSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const supabase = await createRouteHandlerClient(req)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const revCost = getCreditsForToolId('revenue-optimizer')
+  if (user) {
+    const gate = await hasEnoughAiCredits(supabase, user.id, revCost)
+    if (!gate.ok) {
+      return Response.json(
+        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+        { status: 402 },
+      )
+    }
+  }
+
   const { creatorStats, contentHistory, fanDemographics, currentPricing } = await req.json()
 
   const systemPrompt = `You are a revenue optimization AI for adult content creators on OnlyFans, Fansly, and ManyVids.
@@ -97,29 +114,12 @@ Generate comprehensive revenue optimization recommendations.`,
     ],
   })
 
-  // Count AI credit for this revenue optimization analysis
-  try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('ai_credits_used')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (subscription) {
-        await supabase
-          .from('subscriptions')
-          .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-          .eq('user_id', user.id)
-      }
+  if (user) {
+    try {
+      await consumeAiCredits(supabase, user.id, revCost)
+    } catch {
+      // ignore credit errors
     }
-  } catch {
-    // ignore credit errors
   }
 
   return Response.json(output)

@@ -8,8 +8,8 @@
  * - OF     : base price, scales by revenue tier (`RAW_TIERS`)
  * - FL     : OF × 0.9, capped at $200 (`flOverride` on top tier)
  * - MV     : flat $39 (ManyVids)
- * - OF+FL  : OF + $15
- * - OF+MV  : OF + $20
+ * - OF+FL  : OF + $20
+ * - OF+MV  : OF + $15
  * - FL+MV  : FL + $8
  * - Unified: OF + $25 (all three; cheaper than buying each line solo)
  */
@@ -38,8 +38,8 @@ const MV_FLAT = 39
 const FL_CAP = 200
 const FL_DISCOUNT = 0.9
 
-const ADDON_FL = 15
-const ADDON_MV_ON_OF = 20
+const ADDON_FL = 20
+const ADDON_MV_ON_OF = 15
 const ADDON_MV_ON_FL = 8
 const ADDON_UNIFIED = 25
 

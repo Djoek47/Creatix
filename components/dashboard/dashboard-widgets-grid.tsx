@@ -1,10 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react'
 import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
 import { cloneLayout, verticalCompactor } from 'react-grid-layout/core'
-import { GripVertical, Heart, LayoutGrid, RotateCcw, Shield } from 'lucide-react'
+import { GripVertical, LayoutGrid, RotateCcw, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -20,12 +29,14 @@ import { SocialReputationWidget } from '@/components/dashboard/social-reputation
 import { OnlyFansNotificationsCard } from '@/components/dashboard/onlyfans-notifications-card'
 import { MessageActivity } from '@/components/dashboard/message-activity'
 import { DashboardAegisWidget } from '@/components/dashboard/dashboard-aegis-widget'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import Link from 'next/link'
+import { DashboardFeaturedToolWidget } from '@/components/dashboard/dashboard-featured-tool-widget'
 import { pixelsToGridH } from '@/lib/dashboard/grid-metrics'
+import { DEFAULT_FEATURED_TOOL_ID, listFeaturedToolCandidates } from '@/lib/dashboard/featured-tool-options'
+import { getToolMeta } from '@/lib/ai-tools-data'
 
 const STORAGE_LAYOUT = 'circe-dashboard-layout-v1'
 const STORAGE_VISIBLE = 'circe-dashboard-widgets-visible-v1'
+const STORAGE_FEATURED_TOOL = 'circe-dashboard-featured-tool-v1'
 
 const COLS = 12
 
@@ -56,7 +67,11 @@ const DEFAULT_VISIBILITY: Record<string, boolean> = {
 
 const WIDGET_OPTIONS: { id: string; label: string; hint?: string; optional?: boolean }[] = [
   { id: 'stats', label: 'Overview stats' },
-  { id: 'standardAttraction', label: 'Standard of Attraction' },
+  {
+    id: 'standardAttraction',
+    label: 'Featured AI Studio tool',
+    hint: 'Pin any runnable tool; pick below the grip.',
+  },
   { id: 'revenue', label: 'Revenue chart' },
   { id: 'quickColumn', label: 'Platforms & quick actions' },
   { id: 'messageActivity', label: 'Conversations' },
@@ -99,8 +114,8 @@ const GridWithWidth = WidthProvider(GridLayout)
 
 function DragStrip({ label }: { label: string }) {
   return (
-    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 text-muted-foreground active:cursor-grabbing">
-      <GripVertical className="h-4 w-4 shrink-0" aria-hidden />
+    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab touch-none select-none items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 text-muted-foreground active:cursor-grabbing">
+      <GripVertical className="pointer-events-none h-4 w-4 shrink-0" aria-hidden />
       <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
     </div>
   )
@@ -115,29 +130,40 @@ function WidgetShell({ children }: { children: React.ReactNode }) {
 }
 
 /** Measures natural height and bumps the grid item's `h` so tiles grow with content (no inner scrollbars). */
-function DashboardGridMeasuredItem({
-  id,
-  patchH,
-  children,
-}: {
-  id: string
-  patchH: (widgetId: string, nextH: number) => void
-  children: React.ReactNode
-}) {
-  const ref = useRef<HTMLDivElement | null>(null)
+const DashboardGridMeasuredItem = forwardRef<
+  HTMLDivElement,
+  {
+    id: string
+    patchH: (widgetId: string, nextH: number) => void
+    skipPatchRef: MutableRefObject<boolean>
+    children: React.ReactNode
+  }
+>(function DashboardGridMeasuredItem({ id, patchH, skipPatchRef, children }, forwardedRef) {
+  const innerRef = useRef<HTMLDivElement | null>(null)
   const patchRef = useRef(patchH)
   patchRef.current = patchH
 
+  const setRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      innerRef.current = node
+      if (typeof forwardedRef === 'function') forwardedRef(node)
+      else if (forwardedRef) (forwardedRef as MutableRefObject<HTMLDivElement | null>).current = node
+    },
+    [forwardedRef],
+  )
+
   useEffect(() => {
-    const el = ref.current
+    const el = innerRef.current
     if (!el) return
     let t: ReturnType<typeof setTimeout> | null = null
     const measure = () => {
+      if (skipPatchRef.current) return
       const px = el.scrollHeight
       const nextH = pixelsToGridH(px)
       patchRef.current(id, nextH)
     }
     const ro = new ResizeObserver(() => {
+      if (skipPatchRef.current) return
       if (t) clearTimeout(t)
       t = setTimeout(measure, 72)
     })
@@ -147,14 +173,14 @@ function DashboardGridMeasuredItem({
       ro.disconnect()
       if (t) clearTimeout(t)
     }
-  }, [id])
+  }, [id, skipPatchRef])
 
   return (
-    <div ref={ref} className="dashboard-grid-cell box-border w-full min-w-0">
+    <div ref={setRef} className="dashboard-grid-cell box-border h-full w-full min-w-0">
       {children}
     </div>
   )
-}
+})
 
 export type DashboardWidgetsGridProps = {
   userId: string
@@ -179,6 +205,7 @@ export function DashboardWidgetsGrid({
 }: DashboardWidgetsGridProps) {
   const layoutKey = `${STORAGE_LAYOUT}:${userId}`
   const visibleKey = `${STORAGE_VISIBLE}:${userId}`
+  const featuredToolKey = `${STORAGE_FEATURED_TOOL}:${userId}`
 
   const [layout, setLayout] = useState<Layout>(() =>
     verticalCompactor.compact(cloneLayout(DEFAULT_DASHBOARD_LAYOUT.filter((l) => DEFAULT_VISIBILITY[l.i] !== false)), COLS),
@@ -186,6 +213,23 @@ export function DashboardWidgetsGrid({
   const [visible, setVisible] = useState<Record<string, boolean>>({ ...DEFAULT_VISIBILITY })
   const [ready, setReady] = useState(false)
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [featuredToolId, setFeaturedToolIdState] = useState(DEFAULT_FEATURED_TOOL_ID)
+  /** Pause auto-height patching while dragging or resizing so RGL + ResizeObserver do not fight. */
+  const interactionLockRef = useRef(false)
+
+  const setFeaturedToolId = useCallback(
+    (id: string) => {
+      const allowed = new Set(listFeaturedToolCandidates().map((t) => t.id))
+      if (!allowed.has(id)) return
+      setFeaturedToolIdState(id)
+      try {
+        localStorage.setItem(featuredToolKey, id)
+      } catch {
+        // ignore
+      }
+    },
+    [featuredToolKey],
+  )
 
   useEffect(() => {
     try {
@@ -209,11 +253,20 @@ export function DashboardWidgetsGrid({
       nextLayout = layoutForVisible(vis, nextLayout)
       setVisible(vis)
       setLayout(nextLayout)
+
+      const allowedTools = new Set(listFeaturedToolCandidates().map((t) => t.id))
+      const rawFt = typeof window !== 'undefined' ? localStorage.getItem(featuredToolKey) : null
+      if (rawFt && allowedTools.has(rawFt)) {
+        setFeaturedToolIdState(rawFt)
+      } else {
+        setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
+      }
     } catch {
       setLayout(layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT))
+      setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
     }
     setReady(true)
-  }, [layoutKey, visibleKey])
+  }, [layoutKey, visibleKey, featuredToolKey])
 
   const persistVisible = useCallback(
     (next: Record<string, boolean>) => {
@@ -253,12 +306,14 @@ export function DashboardWidgetsGrid({
     persistVisible(DEFAULT_VISIBILITY)
     const next = layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT)
     setLayout(next)
+    setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
     try {
       localStorage.setItem(layoutKey, JSON.stringify(next))
+      localStorage.setItem(featuredToolKey, DEFAULT_FEATURED_TOOL_ID)
     } catch {
       // ignore
     }
-  }, [layoutKey, persistVisible])
+  }, [layoutKey, persistVisible, featuredToolKey])
 
   const setWidgetVisible = useCallback(
     (id: string, checked: boolean) => {
@@ -281,6 +336,7 @@ export function DashboardWidgetsGrid({
   )
 
   const patchItemH = useCallback((widgetId: string, nextH: number) => {
+    if (interactionLockRef.current) return
     setLayout((prev) => {
       const cur = prev.find((l) => l.i === widgetId)
       if (!cur) return prev
@@ -306,31 +362,9 @@ export function DashboardWidgetsGrid({
       ),
       standardAttraction: (
         <WidgetShell>
-          <DragStrip label="Standard of Attraction" />
+          <DragStrip label={getToolMeta(featuredToolId)?.name ?? 'Featured tool'} />
           <div className="w-full min-w-0">
-            <Card className="overflow-hidden border-gold/35 bg-gradient-to-r from-gold/[0.08] via-amber-500/[0.04] to-transparent shadow-sm">
-              <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 font-serif text-lg text-gold md:text-xl">
-                    <span className="rounded-lg border border-gold/30 bg-gold/10 p-2">
-                      <Heart className="h-5 w-5" aria-hidden />
-                    </span>
-                    Standard of Attraction
-                  </CardTitle>
-                  <CardDescription className="max-w-2xl text-sm">
-                    Pro-only rating of how commercially attractive your latest photos and videos are, through the eyes of
-                    Venus and Circe.
-                  </CardDescription>
-                </div>
-                <Button
-                  asChild
-                  size="sm"
-                  className="shrink-0 bg-gradient-to-r from-circe to-venus text-white hover:opacity-90"
-                >
-                  <Link href="/dashboard/ai-studio/tools/standard-of-attraction">Open Pro Tool</Link>
-                </Button>
-              </CardHeader>
-            </Card>
+            <DashboardFeaturedToolWidget toolId={featuredToolId} onToolIdChange={setFeaturedToolId} />
           </div>
         </WidgetShell>
       ),
@@ -398,7 +432,7 @@ export function DashboardWidgetsGrid({
       ),
     }
     return map
-  }, [stats, analytics, hasConnectedPlatforms, fans, totalFans, leakAlerts, mentions])
+  }, [stats, analytics, hasConnectedPlatforms, fans, totalFans, leakAlerts, mentions, featuredToolId, setFeaturedToolId])
 
   if (!ready) {
     return (
@@ -418,8 +452,8 @@ export function DashboardWidgetsGrid({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <p className="mr-auto max-w-xl text-xs text-muted-foreground">
-          Drag the strip on each block to move it. Block height grows with content. Add or remove sections below. Layout
-          and choices are saved in this browser.
+          Drag the grip strip to move a block; drag the right edge to resize width. The featured tool block can pin any
+          runnable AI Studio tool (dropdown). Height grows with content. Layout and choices are saved in this browser.
         </p>
         <Popover open={customizeOpen} onOpenChange={setCustomizeOpen}>
           <PopoverTrigger asChild>
@@ -470,6 +504,7 @@ export function DashboardWidgetsGrid({
         </Button>
       </div>
 
+      {/* Width handle only: height stays content-driven via ResizeObserver (corner/south handles would fight h). */}
       <GridWithWidth
         className="dashboard-widgets-grid -mx-1 min-h-[400px]"
         measureBeforeMount
@@ -480,13 +515,27 @@ export function DashboardWidgetsGrid({
         layout={layout}
         onLayoutChange={onLayoutChange}
         draggableHandle=".dashboard-widget-drag"
+        draggableCancel=".dashboard-featured-tool-picker"
         compactType="vertical"
         isDraggable
-        isResizable={false}
-        useCSSTransforms={false}
+        isResizable
+        resizeHandles={['e']}
+        useCSSTransforms
+        onDragStart={() => {
+          interactionLockRef.current = true
+        }}
+        onDragStop={() => {
+          interactionLockRef.current = false
+        }}
+        onResizeStart={() => {
+          interactionLockRef.current = true
+        }}
+        onResizeStop={() => {
+          interactionLockRef.current = false
+        }}
       >
         {orderedIds.map((id) => (
-          <DashboardGridMeasuredItem key={id} id={id} patchH={patchItemH}>
+          <DashboardGridMeasuredItem key={id} id={id} patchH={patchItemH} skipPatchRef={interactionLockRef}>
             {widgetBody[id]}
           </DashboardGridMeasuredItem>
         ))}

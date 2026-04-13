@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
 
@@ -21,6 +23,21 @@ const viralSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const supabase = await createRouteHandlerClient(req)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const cost = getCreditsForToolId('viral-predictor')
+  if (user) {
+    const gate = await hasEnoughAiCredits(supabase, user.id, cost)
+    if (!gate.ok) {
+      return Response.json(
+        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+        { status: 402 },
+      )
+    }
+  }
+
   const { contentDescription, contentType, platform } = await req.json()
 
   const systemPrompt = `You are an expert at predicting viral content on social media and adult content platforms.
@@ -53,29 +70,12 @@ Analyze and provide a viral score with detailed insights.`,
     ],
   })
 
-  // Count AI credit for this viral prediction
-  try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('ai_credits_used')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (subscription) {
-        await supabase
-          .from('subscriptions')
-          .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-          .eq('user_id', user.id)
-      }
+  if (user) {
+    try {
+      await consumeAiCredits(supabase, user.id, cost)
+    } catch {
+      // ignore credit errors
     }
-  } catch {
-    // ignore credit errors
   }
 
   return Response.json(output)

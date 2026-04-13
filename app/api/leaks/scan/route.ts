@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { runLeakScan } from '@/lib/leaks/run-scan'
+import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 
 type ScanBody = {
   urls?: string[]
@@ -23,6 +25,11 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_LEAK_SCAN)
+  if (!gate.ok) {
+    return insufficientAiCreditsResponse(gate.used, gate.limit)
+  }
 
   const body: ScanBody = await req.json().catch(() => ({}))
   if (Array.isArray(body.focus_handles) && body.focus_handles.length === 0) {
@@ -58,6 +65,11 @@ export async function POST(req: NextRequest) {
       },
       { status },
     )
+  }
+
+  const consumed = await consumeAiCredits(supabase, user.id, CREDITS_LEAK_SCAN)
+  if (!consumed.ok) {
+    return insufficientAiCreditsResponse(consumed.used, consumed.limit)
   }
 
   return NextResponse.json({

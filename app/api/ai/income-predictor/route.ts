@@ -7,10 +7,10 @@ import { withDefaultAccountIds } from '@/lib/onlyfans-api-route'
 import { loadAdultPlatformBillingContext } from '@/lib/billing/onlyfans-billing-gate'
 import { assessGoalRealism } from '@/lib/income-predictor/realism'
 import { bucketPublishedPosts, countPostsInWindow } from '@/lib/income-predictor/calendar-buckets'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 60
-
-const CREDITS_PER_RUN = 2
 
 const incomePredictorSchema = z.object({
   headline: z.string().describe('One-line takeaway for the creator'),
@@ -51,6 +51,19 @@ export async function POST(req: NextRequest) {
     typeof body.goalUsd === 'number' && Number.isFinite(body.goalUsd) && body.goalUsd > 0 ? body.goalUsd : null
 
   const uid = user.id
+  const incomeCost = getCreditsForToolId('income-predictor')
+  const gate = await hasEnoughAiCredits(supabase, uid, incomeCost)
+  if (!gate.ok) {
+    return NextResponse.json(
+      {
+        error: 'Insufficient AI credits',
+        code: 'ai_credits_exhausted',
+        used: gate.used,
+        limit: gate.limit,
+      },
+      { status: 402 },
+    )
+  }
 
   const [billingCtx, leaksRes, contentRes, snapshotsRes] = await Promise.all([
     loadAdultPlatformBillingContext(supabase),
@@ -185,13 +198,7 @@ Produce structured output.`
   })
 
   try {
-    const { data: subscription } = await supabase.from('subscriptions').select('ai_credits_used').eq('user_id', uid).maybeSingle()
-    if (subscription) {
-      await supabase
-        .from('subscriptions')
-        .update({ ai_credits_used: (subscription.ai_credits_used || 0) + CREDITS_PER_RUN })
-        .eq('user_id', uid)
-    }
+    await consumeAiCredits(supabase, uid, incomeCost)
   } catch {
     // ignore
   }

@@ -5,6 +5,8 @@ import {
   generateDMCANotice,
   insertDraftDmcaClaim,
 } from '@/lib/dmca/create-draft-claim'
+import { CREDITS_DMCA_CLAIM } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 
 // POST: Generate a pre-filled DMCA claim
 export async function POST(request: NextRequest) {
@@ -16,6 +18,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_DMCA_CLAIM)
+    if (!gate.ok) {
+      return insufficientAiCreditsResponse(gate.used, gate.limit)
     }
 
     const body: Partial<DMCAClaimData> = await request.json()
@@ -70,6 +77,11 @@ export async function POST(request: NextRequest) {
 
     if (saveError) {
       console.error('Failed to save DMCA claim:', saveError)
+    }
+
+    const consumed = await consumeAiCredits(supabase, user.id, CREDITS_DMCA_CLAIM)
+    if (!consumed.ok) {
+      return insufficientAiCreditsResponse(consumed.used, consumed.limit)
     }
 
     return NextResponse.json({

@@ -2,6 +2,7 @@ import { generateText } from 'ai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 import { isPaidSubscription } from '@/lib/billing/access'
+import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
 import {
   extractChurnFanSignalsFromDigest,
   normalizeRiskLevel,
@@ -229,7 +230,7 @@ export async function runCirceChurnForUser(
   const used = (sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
   const limit = (sub as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
   const creditsNeeded = settings.credits_per_run ?? 2
-  if (limit < 999999 && used + creditsNeeded > limit) {
+  if (used + creditsNeeded > limit) {
     const ts = now.toISOString()
     await supabase
       .from('circe_churn_settings')
@@ -363,11 +364,14 @@ ${blocks.join('\n\n---\n\n')}${calendarBlock}`,
 
   const excerpt = digest.slice(0, 500)
 
-  if (limit < 999999) {
+  const consumed = await consumeAiCredits(supabase, userId, creditsNeeded)
+  if (!consumed.ok) {
+    const tsErr = now.toISOString()
     await supabase
-      .from('subscriptions')
-      .update({ ai_credits_used: used + creditsNeeded })
+      .from('circe_churn_settings')
+      .update({ last_run_at: tsErr, last_run_error: 'Insufficient AI credits', updated_at: tsErr })
       .eq('user_id', userId)
+    return { ran: true, candidates: candidates.length, error: 'Insufficient AI credits' }
   }
 
   await supabase

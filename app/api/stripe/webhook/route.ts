@@ -6,7 +6,10 @@ import {
   insertDivineAppNotification,
   type NotificationInsertClient,
 } from '@/lib/notifications/divine-app-notification'
-import { getPlanLimits } from '@/lib/billing/plan-limits'
+import {
+  subscriptionFinancialFieldsFromMerged,
+  type SubscriptionRowForCredits,
+} from '@/lib/billing/credit-economics'
 import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
@@ -72,12 +75,42 @@ async function upsertSubscriptionByUserId(
   userId: string,
   patch: Record<string, unknown>,
 ) {
-  const planId = patch.plan_id as string | undefined
+  const { data: existing } = await supabase
+    .from('subscriptions')
+    .select(
+      'plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
+    )
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const ex = existing as {
+    plan_id?: string | null
+    billing_variant?: string | null
+    revenue_tier?: number | null
+    billing_focus_platform?: string | null
+    billing_focus_platforms?: string[] | null
+    billing_seats?: number | null
+  } | null
+
+  const merged: SubscriptionRowForCredits = {
+    plan_id: (patch.plan_id ?? ex?.plan_id) as string | null | undefined,
+    billing_variant: (patch.billing_variant ?? ex?.billing_variant) as string | null,
+    revenue_tier: (patch.revenue_tier ?? ex?.revenue_tier) as number | null,
+    billing_focus_platform: (patch.billing_focus_platform ?? ex?.billing_focus_platform) as string | null,
+    billing_focus_platforms: (patch.billing_focus_platforms ?? ex?.billing_focus_platforms) as
+      | string[]
+      | null,
+    billing_seats: (patch.billing_seats ?? ex?.billing_seats) as number | null,
+  }
+
+  const { storage_limit_mb, ai_credits_limit } = subscriptionFinancialFieldsFromMerged(merged)
+
   await supabase.from('subscriptions').upsert(
     {
       user_id: userId,
       ...patch,
-      ...(planId ? getPlanLimits(planId) : {}),
+      storage_limit_mb,
+      ai_credits_limit,
       updated_at: new Date().toISOString(),
     } as any,
     { onConflict: 'user_id' },

@@ -6,7 +6,7 @@ import { useVoiceSession } from '@/components/divine/voice-session-context'
 /**
  * Crown FAB colors:
  * - Pill **expanded** during a call: gold / silver / purple / rainbow / red (rich state).
- * - Pill **collapsed** during a call: same **semantic hues as the in-pill Mic** (emerald = live, amber = connecting, red = error).
+ * - Pill **collapsed** during a call: same **semantic hues as the in-pill Mic** (emerald = live/listening, amber = connecting, red = error).
  * - Idle: yellow.
  */
 export function useDivineCrownStateClass(pillExpanded: boolean): string {

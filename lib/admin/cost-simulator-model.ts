@@ -2,8 +2,12 @@ import type { UnitCostRow } from '@/lib/usage/estimate-cost'
 import { estimateUsdFromTokens } from '@/lib/usage/estimate-cost'
 import { getMonthlyPriceUsd, type BillingVariant } from '@/lib/pricing-matrix'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
-import { getPlanLimits } from '@/lib/billing/plan-limits'
-import { PAID_PLAN_ID, TRIAL_PLAN_ID } from '@/lib/billing/access'
+import {
+  computeMonthlyCreditAllowance,
+  CREDIT_USD_VALUE,
+  TRIAL_AI_CREDITS_LIMIT,
+} from '@/lib/billing/credit-economics'
+import { PAID_PLAN_ID } from '@/lib/billing/access'
 
 /** Calendar-style proration for “per day” subscription slice. */
 export const SIMULATOR_DAYS_PER_MONTH = 30
@@ -145,6 +149,9 @@ export interface CostSimulatorResult {
   trialCreditsIncludedPerDay: number | null
   /** If trial: implied credits/month at this daily token pace. */
   trialCreditsImpliedMonthly: number | null
+  /** Paid: monthly included credits from subscription (20% of monthly USD at CREDIT_USD_VALUE). */
+  paidMonthlyCreditsIncluded: number | null
+  paidCreditPoolUsd: number | null
   verdict: 'healthy' | 'tight' | 'underwater' | 'trial_burn'
   verdictHint: string
 }
@@ -241,8 +248,20 @@ export function computeDailyCostScenario(input: CostSimulatorInput): CostSimulat
   const marginPctOfSubscription =
     dailySubscriptionUsd > 1e-6 ? (dailyMarginUsd / dailySubscriptionUsd) * 100 : null
 
-  const limits = getPlanLimits(input.planKind === 'trial' ? TRIAL_PLAN_ID : PAID_PLAN_ID)
-  const trialCreditsLimitMonthly = input.planKind === 'trial' ? limits.ai_credits_limit : null
+  const trialCreditsLimitMonthly = input.planKind === 'trial' ? TRIAL_AI_CREDITS_LIMIT : null
+  const paidMonthlyCreditsIncluded =
+    input.planKind === 'paid'
+      ? computeMonthlyCreditAllowance({
+          plan_id: PAID_PLAN_ID,
+          billing_variant: input.billingVariant,
+          revenue_tier: input.tierIndex,
+          billing_focus_platform: input.focusPlatforms?.[0] ?? 'onlyfans',
+          billing_focus_platforms: input.focusPlatforms,
+          billing_seats: crew,
+        })
+      : null
+  const paidCreditPoolUsd =
+    paidMonthlyCreditsIncluded != null ? paidMonthlyCreditsIncluded * CREDIT_USD_VALUE : null
   const trialCreditsIncludedPerDay =
     input.planKind === 'trial' && trialCreditsLimitMonthly != null
       ? trialCreditsLimitMonthly / SIMULATOR_DAYS_PER_MONTH
@@ -265,18 +284,26 @@ export function computeDailyCostScenario(input: CostSimulatorInput): CostSimulat
       trialCreditsLimitMonthly != null &&
       trialCreditsImpliedMonthly > trialCreditsLimitMonthly
     verdictHint = over
-      ? `At this daily pace, implied usage exceeds the ~${trialCreditsLimitMonthly} trial credits/month heuristic — paid tier assumes unlimited in-app credits.`
+      ? `At this daily pace, implied usage exceeds the ~${trialCreditsLimitMonthly} trial credits/month heuristic. Pro plans include a monthly credit pool (~20% of subscription USD at $${CREDIT_USD_VALUE}/credit), not unlimited in-app credits.`
       : 'Trial pays $0/day; provider cost is your daily burn. Numbers are illustrative (token→credit mapping is approximate).'
   } else if (dailyMarginUsd < 0) {
     verdict = 'underwater'
     verdictHint =
-      'Estimated daily provider cost exceeds the prorated subscription slice — tune intensity or revisit unit costs.'
+      paidMonthlyCreditsIncluded != null && paidCreditPoolUsd != null
+        ? `Estimated daily provider cost exceeds the prorated subscription slice — tune intensity or revisit unit costs. Included credits this month ≈ ${paidMonthlyCreditsIncluded.toLocaleString()} (~${paidCreditPoolUsd.toFixed(2)} USD pool at $${CREDIT_USD_VALUE}/credit) before overage.`
+        : 'Estimated daily provider cost exceeds the prorated subscription slice — tune intensity or revisit unit costs.'
   } else if (marginPctOfSubscription != null && marginPctOfSubscription < 12) {
     verdict = 'tight'
-    verdictHint = 'Positive but thin — small shifts in model mix or volume move the needle quickly.'
+    verdictHint =
+      paidMonthlyCreditsIncluded != null && paidCreditPoolUsd != null
+        ? `Positive but thin — small shifts in model mix or volume move the needle quickly. Included credits ≈ ${paidMonthlyCreditsIncluded.toLocaleString()} / mo (~$${paidCreditPoolUsd.toFixed(2)} at $${CREDIT_USD_VALUE}/credit).`
+        : 'Positive but thin — small shifts in model mix or volume move the needle quickly.'
   } else {
     verdict = 'healthy'
-    verdictHint = 'Comfortable headroom vs this heavy multi-service daily scenario.'
+    verdictHint =
+      paidMonthlyCreditsIncluded != null && paidCreditPoolUsd != null
+        ? `Comfortable headroom vs this heavy multi-service daily scenario. Included credits ≈ ${paidMonthlyCreditsIncluded.toLocaleString()} / mo (~$${paidCreditPoolUsd.toFixed(2)} at $${CREDIT_USD_VALUE}/credit).`
+        : 'Comfortable headroom vs this heavy multi-service daily scenario.'
   }
 
   return {
@@ -289,6 +316,8 @@ export function computeDailyCostScenario(input: CostSimulatorInput): CostSimulat
     trialCreditsLimitMonthly,
     trialCreditsIncludedPerDay,
     trialCreditsImpliedMonthly,
+    paidMonthlyCreditsIncluded,
+    paidCreditPoolUsd,
     verdict,
     verdictHint,
   }

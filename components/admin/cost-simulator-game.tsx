@@ -8,6 +8,7 @@ import {
   SIMULATOR_DAYS_PER_MONTH,
   type CostSimulatorInput,
 } from '@/lib/admin/cost-simulator-model'
+import { CREDIT_USD_VALUE } from '@/lib/billing/credit-economics'
 import { REVENUE_TIERS, type BillingVariant } from '@/lib/pricing-matrix'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -370,6 +371,16 @@ export function AdminCostSimulatorGame() {
                       {result.trialCreditsImpliedMonthly} credits / month from tokens.
                     </p>
                   )}
+
+                  {planKind === 'paid' &&
+                    result.paidMonthlyCreditsIncluded != null &&
+                    result.paidCreditPoolUsd != null && (
+                      <p className="text-xs text-muted-foreground">
+                        Included AI credits (this workspace): ~{result.paidMonthlyCreditsIncluded.toLocaleString()}{' '}
+                        / month (~{fmtUsd(result.paidCreditPoolUsd)} pool at {fmtUsd(CREDIT_USD_VALUE)} / credit —
+                        20% of subscription USD × seats).
+                      </p>
+                    )}
 
                   {planKind === 'paid' && result.marginPctOfSubscription != null && (
                     <p className="text-xs text-muted-foreground">

@@ -20,6 +20,8 @@ import {
   parseOnlyFansCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
 import { logAiUsageEvent } from '@/lib/usage/server-log'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
 
@@ -66,15 +68,7 @@ function utcDayString(d = new Date()): string {
 }
 
 async function bumpAiCredits(supabase: SupabaseClient, userId: string): Promise<void> {
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('ai_credits_used, ai_credits_limit')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const used = (subscription as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = (subscription as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
-  if (limit >= 999999) return
-  await supabase.from('subscriptions').update({ ai_credits_used: used + 1 }).eq('user_id', userId)
+  await consumeAiCredits(supabase, userId, getCreditsForToolId('ai-chatter'))
 }
 
 async function loadVaultSnippet(supabase: SupabaseClient, userId: string): Promise<string> {

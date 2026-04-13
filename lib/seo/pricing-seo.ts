@@ -54,9 +54,13 @@ export function buildPricingKeywords(): string[] {
 }
 
 /**
- * Schema.org graph fragments for /pricing: Product + AggregateOffer (monthly USD range).
+ * Schema.org graph fragment for /pricing: SoftwareApplication + AggregateOffer.
+ *
+ * We intentionally do **not** use `Product` here: Google’s Product rich results expect
+ * `aggregateRating` / `review` when a product is merchandised; we have no public review feed.
+ * `SoftwareApplication` matches a web SaaS subscription and avoids that Product-snippet profile.
  */
-export function buildPricingProductOfferGraph(pricingPageUrl: string): Record<string, unknown>[] {
+export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<string, unknown>[] {
   const low = firstTier()
   const high = lastTier()
   const minMonthly = Math.min(low.prices.of, BUNDLE_ADDONS.MV_FLAT)
@@ -64,12 +68,15 @@ export function buildPricingProductOfferGraph(pricingPageUrl: string): Record<st
 
   return [
     {
-      '@type': 'Product',
-      '@id': `${pricingPageUrl}#subscription-product`,
-      name: 'Circe et Venus — creator subscription',
+      '@type': 'SoftwareApplication',
+      '@id': `${pricingPageUrl}#software`,
+      name: 'Circe et Venus',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
       description: buildPricingMetaDescription(),
-      brand: {
-        '@type': 'Brand',
+      url: pricingPageUrl,
+      provider: {
+        '@type': 'Organization',
         name: 'Circe et Venus',
       },
       offers: {

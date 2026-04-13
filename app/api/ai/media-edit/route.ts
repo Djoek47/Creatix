@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { applySafePhotoEdit } from '@/lib/media/apply-safe-photo-edit'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 60
 
@@ -42,16 +44,13 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('ai_credits_used, ai_credits_limit')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  const used = (subscription as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = (subscription as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
-  if (limit < 999999 && used >= limit) {
-    return NextResponse.json({ error: 'AI credits exhausted' }, { status: 402 })
+  const photoCost = getCreditsForToolId('photo-enhancer')
+  const gate = await hasEnoughAiCredits(supabase, user.id, photoCost)
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: 'AI credits exhausted', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+      { status: 402 },
+    )
   }
 
   const result = await applySafePhotoEdit(body)
@@ -59,16 +58,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
 
-  if (limit < 999999) {
-    await supabase
-      .from('subscriptions')
-      .update({ ai_credits_used: used + 1 })
-      .eq('user_id', user.id)
+  const consumed = await consumeAiCredits(supabase, user.id, photoCost)
+  if (!consumed.ok) {
+    return NextResponse.json(
+      {
+        error: 'AI credits exhausted',
+        code: 'ai_credits_exhausted',
+        used: consumed.used,
+        limit: consumed.limit,
+      },
+      { status: 402 },
+    )
   }
 
   return NextResponse.json({
     imageBase64: result.imageBase64,
     operation: body.operation,
-    creditsUsed: limit < 999999 ? used + 1 : used,
+    creditsUsed: consumed.usedAfter,
   })
 }

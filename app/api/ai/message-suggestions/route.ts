@@ -6,6 +6,8 @@ import {
   NormalizedChatMessage,
 } from '@/lib/ai/message-suggestions'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Check subscription for Pro / Grok access
     const { data: subscription } = await supabase
       .from('subscriptions')
-      .select('plan_id, ai_credits_used')
+      .select('plan_id')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -69,6 +71,21 @@ export async function POST(req: NextRequest) {
 
     const xaiKey = process.env.XAI_API_KEY
     const openaiKey = process.env.OPENAI_API_KEY
+
+    if (!xaiKey && !openaiKey) {
+      return NextResponse.json(
+        { error: 'AI provider is not configured on the server' },
+        { status: 503 },
+      )
+    }
+
+    const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+    if (!gate.ok) {
+      return NextResponse.json(
+        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+        { status: 402 },
+      )
+    }
 
     const ctx = {
       mode,
@@ -91,27 +108,15 @@ export async function POST(req: NextRequest) {
     } else if (openaiKey) {
       // Free or Pro without Grok but OpenAI is configured → use OpenAI
       result = await generateMessageSuggestionsWithOpenAI(ctx)
-    } else if (xaiKey) {
-      // Fallback: OpenAI not configured but Grok is – use Grok even for non‑Pro
-      result = await generateMessageSuggestionsWithGrok(xaiKey, ctx)
     } else {
-      // No AI provider keys configured – return a clear error instead of generic 500
-      return NextResponse.json(
-        { error: 'AI provider is not configured on the server' },
-        { status: 503 }
-      )
+      // Fallback: OpenAI not configured but Grok is – use Grok even for non‑Pro
+      result = await generateMessageSuggestionsWithGrok(xaiKey!, ctx)
     }
 
-    // Count one AI credit for this suggestion run (best effort)
-    if (subscription) {
-      try {
-        await supabase
-          .from('subscriptions')
-          .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-          .eq('user_id', user.id)
-      } catch {
-        // ignore credit errors
-      }
+    try {
+      await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+    } catch {
+      // ignore credit errors
     }
 
     return NextResponse.json(result)

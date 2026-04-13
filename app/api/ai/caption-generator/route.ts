@@ -3,6 +3,8 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { callGrokVision } from '@/lib/ai/grok-tools'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 60
 
@@ -175,18 +177,7 @@ async function finalizeResponse(req: NextRequest, output: CaptionOutput) {
     } = await supabase.auth.getUser()
 
     if (user) {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('ai_credits_used')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (subscription) {
-        await supabase
-          .from('subscriptions')
-          .update({ ai_credits_used: (subscription.ai_credits_used || 0) + 1 })
-          .eq('user_id', user.id)
-      }
+      await consumeAiCredits(supabase, user.id, getCreditsForToolId('caption-generator'))
     }
   } catch {
     // ignore credit errors

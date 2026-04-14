@@ -1,8 +1,24 @@
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardCommandTiles } from '@/components/dashboard/dashboard-command-tiles'
-import { DashboardWidgetsGrid } from '@/components/dashboard/dashboard-widgets-grid'
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
+
+const DashboardWidgetsGrid = dynamic(
+  () =>
+    import('@/components/dashboard/dashboard-widgets-grid').then((m) => ({
+      default: m.DashboardWidgetsGrid,
+    })),
+  {
+    ssr: true,
+    loading: () => (
+      <div
+        className="min-h-[280px] animate-pulse rounded-xl border border-border bg-muted/25"
+        aria-hidden
+      />
+    ),
+  },
+)
 
 export default async function DashboardPage() {
   const supabase = await createClient()

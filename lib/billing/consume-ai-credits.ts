@@ -1,5 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import {
+  effectiveMonthlyCreditLimit,
+  type SubscriptionRowForCredits,
+} from '@/lib/billing/credit-economics'
+
+const SUBSCRIPTION_CREDIT_FIELDS =
+  'plan_id, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats, ai_credits_used, ai_credits_limit'
+
+function limitFromSubscriptionRow(
+  sub: SubscriptionRowForCredits & { ai_credits_limit?: number | null },
+): number {
+  return effectiveMonthlyCreditLimit(sub)
+}
 
 export type ConsumeAiCreditsResult =
   | { ok: true; usedAfter: number; limit: number }
@@ -16,7 +29,7 @@ export async function consumeAiCredits(
 
   const { data: sub, error } = await supabase
     .from('subscriptions')
-    .select('ai_credits_used, ai_credits_limit')
+    .select(SUBSCRIPTION_CREDIT_FIELDS)
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -24,8 +37,9 @@ export async function consumeAiCredits(
     return { ok: false, error: 'insufficient_credits', used: 0, limit: 0 }
   }
 
-  const used = Number((sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0)
-  const limit = Number((sub as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100)
+  const row = sub as (SubscriptionRowForCredits & { ai_credits_used?: number | null }) | null
+  const used = Number(row?.ai_credits_used ?? 0)
+  const limit = row ? limitFromSubscriptionRow(row) : 100
 
   if (used + amount > limit) {
     return { ok: false, error: 'insufficient_credits', used, limit }
@@ -54,12 +68,13 @@ export async function hasEnoughAiCredits(
 
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('ai_credits_used, ai_credits_limit')
+    .select(SUBSCRIPTION_CREDIT_FIELDS)
     .eq('user_id', userId)
     .maybeSingle()
 
-  const used = Number((sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0)
-  const limit = Number((sub as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100)
+  const row = sub as (SubscriptionRowForCredits & { ai_credits_used?: number | null }) | null
+  const used = Number(row?.ai_credits_used ?? 0)
+  const limit = row ? limitFromSubscriptionRow(row) : 100
 
   if (used + amount > limit) {
     return { ok: false, error: 'insufficient_credits', used, limit }

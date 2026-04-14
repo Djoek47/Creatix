@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 import { isPaidSubscription } from '@/lib/billing/access'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
+import { effectiveMonthlyCreditLimit, type SubscriptionRowForCredits } from '@/lib/billing/credit-economics'
 import {
   extractChurnFanSignalsFromDigest,
   normalizeRiskLevel,
@@ -219,7 +220,9 @@ export async function runCirceChurnForUser(
 
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('plan_id, status, ai_credits_used, ai_credits_limit')
+    .select(
+      'plan_id, status, ai_credits_used, ai_credits_limit, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
+    )
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -228,7 +231,7 @@ export async function runCirceChurnForUser(
   }
 
   const used = (sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = (sub as { ai_credits_limit?: number } | null)?.ai_credits_limit ?? 100
+  const limit = effectiveMonthlyCreditLimit(sub as SubscriptionRowForCredits & { ai_credits_limit?: number | null })
   const creditsNeeded = settings.credits_per_run ?? 2
   if (used + creditsNeeded > limit) {
     const ts = now.toISOString()

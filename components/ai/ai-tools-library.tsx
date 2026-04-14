@@ -34,6 +34,7 @@ import {
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'caption-generator': Wand2,
@@ -86,13 +87,23 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
         if (!user) return
         const { data } = await supabase
           .from('subscriptions')
-          .select('ai_credits_used,ai_credits_limit,plan_id')
+          .select(
+            'ai_credits_used,ai_credits_limit,plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
+          )
           .eq('user_id', user.id)
           .maybeSingle()
         if (data) {
           setCredits({
             used: data.ai_credits_used ?? 0,
-            limit: data.ai_credits_limit ?? 100,
+            limit: effectiveMonthlyCreditLimit({
+              plan_id: data.plan_id,
+              billing_variant: (data as { billing_variant?: string | null }).billing_variant,
+              revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
+              billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
+              billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
+              billing_seats: (data as { billing_seats?: number | null }).billing_seats,
+              ai_credits_limit: data.ai_credits_limit,
+            }),
           })
           const planId = (data as { plan_id?: string }).plan_id?.toLowerCase()
           setIsPro(!!planId && isPaidPlanId(planId))

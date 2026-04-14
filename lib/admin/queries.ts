@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAppCreditUsdEstimate } from '@/lib/admin/credit-usd'
+import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { resolveAdminOverviewRange, type AdminOverviewRangeMode } from '@/lib/admin/time-range'
 
 function sinceDaysIso(days: number): string {
@@ -546,7 +547,9 @@ export async function adminUserDetail(userId: string) {
       .limit(200),
     supabase
       .from('subscriptions')
-      .select('plan_id, ai_credits_used, ai_credits_limit, messages_sent')
+      .select(
+        'plan_id, ai_credits_used, ai_credits_limit, messages_sent, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
+      )
       .eq('user_id', userId)
       .maybeSingle(),
     fetchUserUsageEventsForAggregation(supabase, userId, since),
@@ -616,10 +619,31 @@ export async function adminUserDetail(userId: string) {
     .filter((r) => r.events > 0)
     .sort((a, b) => b.estimated_usd - a.estimated_usd)
 
-  const sub = subscription as UserSubscriptionUsageRow | null | undefined
+  const sub = subscription as
+    | (UserSubscriptionUsageRow & {
+        billing_variant?: string | null
+        revenue_tier?: number | null
+        billing_focus_platform?: string | null
+        billing_focus_platforms?: string[] | null
+        billing_seats?: number | null
+      })
+    | null
+    | undefined
   const wh = webhook as UserUsageWebhookRow | null | undefined
   const appCreditUsdRate = getAppCreditUsdEstimate()
   const creditsUsed = Number(sub?.ai_credits_used ?? 0)
+  const creditsLimitEffective =
+    sub != null
+      ? effectiveMonthlyCreditLimit({
+          plan_id: sub.plan_id,
+          billing_variant: sub.billing_variant,
+          revenue_tier: sub.revenue_tier,
+          billing_focus_platform: sub.billing_focus_platform,
+          billing_focus_platforms: sub.billing_focus_platforms,
+          billing_seats: sub.billing_seats,
+          ai_credits_limit: sub.ai_credits_limit,
+        })
+      : 0
   const appCreditsUsdEquivalent = Math.round(creditsUsed * appCreditUsdRate * 1e6) / 1e6
 
   let vIdle = 0
@@ -649,7 +673,7 @@ export async function adminUserDetail(userId: string) {
       ? {
           plan_id: sub.plan_id ?? null,
           ai_credits_used: creditsUsed,
-          ai_credits_limit: Number(sub.ai_credits_limit ?? 0),
+          ai_credits_limit: creditsLimitEffective,
           messages_sent: Number(sub.messages_sent ?? 0),
         }
       : null,

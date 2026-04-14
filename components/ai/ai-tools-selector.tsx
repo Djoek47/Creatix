@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -368,16 +369,28 @@ export function AIToolsSelector({
     
     const { data } = await supabase
       .from('subscriptions')
-      .select('plan_id, ai_credits_used, ai_credits_limit')
+      .select(
+        'plan_id, ai_credits_used, ai_credits_limit, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
+      )
       .eq('user_id', user.id)
       .single()
     
     if (data) {
-      const planId = (data as any).plan_id as string | null | undefined
+      const planId = (data as { plan_id?: string | null }).plan_id as string | null | undefined
       const normalized = planId?.toLowerCase() || null
       setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
       setAiCreditsUsed(data.ai_credits_used || 0)
-      setAiCreditsLimit(data.ai_credits_limit || 100)
+      setAiCreditsLimit(
+        effectiveMonthlyCreditLimit({
+          plan_id: data.plan_id,
+          billing_variant: (data as { billing_variant?: string | null }).billing_variant,
+          revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
+          billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
+          billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
+          billing_seats: (data as { billing_seats?: number | null }).billing_seats,
+          ai_credits_limit: data.ai_credits_limit,
+        }),
+      )
     }
   }, [supabase])
   

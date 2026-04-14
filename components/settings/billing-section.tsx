@@ -51,6 +51,7 @@ import {
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
+import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
 
 interface BillingSectionProps {
@@ -271,7 +272,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
     : { name: PRODUCTS.find((p) => p.id === 'divine-trial')?.name || 'Divine Trial', priceMonthly: 0 }
 
   const aiCreditsUsed = subData?.ai_credits_used || 0
-  const aiCreditsLimit = subData?.ai_credits_limit || 100
+  const aiCreditsLimit = useMemo(
+    () => (subData ? effectiveMonthlyCreditLimit(subData) : 100),
+    [subData],
+  )
   const storageUsedGB = (subData?.storage_used_mb || 0) / 1000
   const storageLimitGB = (subData?.storage_limit_mb || 5000) / 1000
   const dbPeriodEnd = subData?.current_period_end ? new Date(subData.current_period_end) : null
@@ -382,8 +386,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <p className="text-2xl font-bold">
                 {aiCreditsUsed}/{aiCreditsLimit}
               </p>
+              <p className="text-xs text-muted-foreground">
+                Monthly pool ≈ 20% of subscription (USD) at $0.01/credit — not unlimited.
+              </p>
               <Progress
-                value={(aiCreditsUsed / Math.min(aiCreditsLimit, 1000)) * 100}
+                value={
+                  aiCreditsLimit > 0 ? Math.min(100, (aiCreditsUsed / aiCreditsLimit) * 100) : 0
+                }
                 className="mt-2 h-1"
               />
             </div>

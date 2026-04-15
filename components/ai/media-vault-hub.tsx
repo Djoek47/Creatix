@@ -174,9 +174,9 @@ export function MediaVaultHub() {
     void loadOfPosts()
   }, [])
 
-  const openRow = (r: VaultContentRow) => {
+  const openRow = (r: VaultContentRow, opts?: { resetFrameMsg?: boolean }) => {
     setSelected(r)
-    setFrameMsg(null)
+    if (opts?.resetFrameMsg !== false) setFrameMsg(null)
     setDraftTitle(r.title)
     setDraftDescription(r.description || '')
     setDraftSales(r.sales_notes || '')
@@ -358,12 +358,13 @@ export function MediaVaultHub() {
     return Boolean(r.file_url && /^https?:\/\//i.test(r.file_url.trim()))
   }
 
-  const openFrameEditor = async () => {
-    if (!selected) return
+  const openFrameEditor = async (row?: VaultContentRow) => {
+    const target = row ?? selected
+    if (!target) return
     setFrameBusy(true)
     setFrameMsg(null)
     try {
-      const res = await fetch(`/api/content/vault/${selected.id}/frame-session`)
+      const res = await fetch(`/api/content/vault/${target.id}/frame-session`)
       const j = (await res.json()) as {
         error?: string
         frameLaunchUrl?: string | null
@@ -371,17 +372,20 @@ export function MediaVaultHub() {
         frameConfigured?: boolean
       }
       if (!res.ok) {
+        if (row) openRow(row, { resetFrameMsg: false })
         setFrameMsg(j.error || 'Could not start editor session')
         return
       }
       const open = j.frameLaunchUrl || j.assetProxyUrl
       if (open) window.open(open, '_blank', 'noopener,noreferrer')
       if (!j.frameConfigured) {
+        if (row) openRow(row, { resetFrameMsg: false })
         setFrameMsg(
           'NEXT_PUBLIC_FRAME_URL is not set — opened the asset proxy only. Deploy Frame separately, or use Replace video to upload an edited file.',
         )
       }
     } catch {
+      if (row) openRow(row, { resetFrameMsg: false })
       setFrameMsg('Network error')
     } finally {
       setFrameBusy(false)

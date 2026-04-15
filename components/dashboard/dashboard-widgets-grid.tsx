@@ -30,9 +30,15 @@ import { OnlyFansNotificationsCard } from '@/components/dashboard/onlyfans-notif
 import { MessageActivity } from '@/components/dashboard/message-activity'
 import { DashboardAegisWidget } from '@/components/dashboard/dashboard-aegis-widget'
 import { DashboardFeaturedToolWidget } from '@/components/dashboard/dashboard-featured-tool-widget'
-import { pixelsToGridH } from '@/lib/dashboard/grid-metrics'
+import {
+  DASHBOARD_MARGIN_Y,
+  DASHBOARD_ROW_HEIGHT,
+  pixelsToGridH,
+} from '@/lib/dashboard/grid-metrics'
 import { DEFAULT_FEATURED_TOOL_ID, listFeaturedToolCandidates } from '@/lib/dashboard/featured-tool-options'
+import { mergeDashboardVisibility } from '@/lib/dashboard/dashboard-preset'
 import { getToolMeta } from '@/lib/ai-tools-data'
+import type { DivineDashboardPreset } from '@/lib/divine-manager'
 
 const STORAGE_LAYOUT = 'circe-dashboard-layout-v1'
 const STORAGE_VISIBLE = 'circe-dashboard-widgets-visible-v1'
@@ -110,11 +116,25 @@ function layoutForVisible(visible: Record<string, boolean>, baseLayout: Layout):
   return verticalCompactor.compact(cloneLayout(items), COLS)
 }
 
+/** Prevent runaway row spans (bad localStorage or h-full ↔ scrollHeight feedback). */
+function clampLayoutHeights(layout: Layout): Layout {
+  return layout.map((item) => {
+    const def = DEFAULT_DASHBOARD_LAYOUT.find((d) => d.i === item.i)
+    const minH = item.minH ?? def?.minH ?? 1
+    const maxH = item.maxH ?? def?.maxH ?? 80
+    const h = Math.max(minH, Math.min(maxH, Math.round(item.h)))
+    return { ...item, h }
+  })
+}
+
 const GridWithWidth = WidthProvider(GridLayout)
 
 function DragStrip({ label }: { label: string }) {
   return (
-    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab touch-none select-none items-center gap-2 rounded-lg border border-border/45 bg-gradient-to-r from-muted/55 to-muted/25 px-2.5 text-muted-foreground shadow-inner ring-1 ring-gold/10 active:cursor-grabbing dark:from-muted/35 dark:to-muted/15">
+    <div
+      className="dashboard-widget-drag relative z-10 flex h-9 shrink-0 cursor-grab touch-none select-none items-center gap-2 rounded-lg border border-border/45 bg-gradient-to-r from-muted/55 to-muted/25 px-2.5 text-muted-foreground shadow-inner ring-1 ring-gold/10 active:cursor-grabbing dark:from-muted/35 dark:to-muted/15"
+      aria-label={`Drag to move: ${label}`}
+    >
       <GripVertical className="pointer-events-none h-4 w-4 shrink-0 text-circe/70" aria-hidden />
       <span className="text-[11px] font-semibold uppercase tracking-wide">{label}</span>
     </div>
@@ -158,7 +178,9 @@ const DashboardGridMeasuredItem = forwardRef<
     let t: ReturnType<typeof setTimeout> | null = null
     const measure = () => {
       if (skipPatchRef.current) return
-      const px = el.scrollHeight
+      /** RGL row span is capped at 80 in patchItemH; max pixel height for h=80 (prevents scrollHeight blowups). */
+      const maxPx = 80 * DASHBOARD_ROW_HEIGHT + 79 * DASHBOARD_MARGIN_Y
+      const px = Math.min(el.scrollHeight, maxPx)
       const nextH = pixelsToGridH(px)
       patchRef.current(id, nextH)
     }
@@ -176,7 +198,10 @@ const DashboardGridMeasuredItem = forwardRef<
   }, [id, skipPatchRef])
 
   return (
-    <div ref={setRef} className="dashboard-grid-cell box-border h-full w-full min-w-0">
+    <div
+      ref={setRef}
+      className="dashboard-grid-cell box-border w-full min-w-0 min-h-0 shrink-0"
+    >
       {children}
     </div>
   )
@@ -210,7 +235,12 @@ export function DashboardWidgetsGrid({
   const featuredToolKey = `${STORAGE_FEATURED_TOOL}:${userId}`
 
   const [layout, setLayout] = useState<Layout>(() =>
-    verticalCompactor.compact(cloneLayout(DEFAULT_DASHBOARD_LAYOUT.filter((l) => DEFAULT_VISIBILITY[l.i] !== false)), COLS),
+    clampLayoutHeights(
+      verticalCompactor.compact(
+        cloneLayout(DEFAULT_DASHBOARD_LAYOUT.filter((l) => DEFAULT_VISIBILITY[l.i] !== false)),
+        COLS,
+      ),
+    ),
   )
   const [visible, setVisible] = useState<Record<string, boolean>>({ ...DEFAULT_VISIBILITY })
   const [ready, setReady] = useState(false)
@@ -258,7 +288,7 @@ export function DashboardWidgetsGrid({
       } else {
         nextLayout = layoutForVisible(vis, DEFAULT_DASHBOARD_LAYOUT)
       }
-      nextLayout = layoutForVisible(vis, nextLayout)
+      nextLayout = clampLayoutHeights(layoutForVisible(vis, nextLayout))
       setVisible(vis)
       setLayout(nextLayout)
 
@@ -272,7 +302,7 @@ export function DashboardWidgetsGrid({
         setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
       }
     } catch {
-      setLayout(layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT))
+      setLayout(clampLayoutHeights(layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT)))
       setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
     }
     setReady(true)
@@ -291,9 +321,10 @@ export function DashboardWidgetsGrid({
 
   const onLayoutChange = useCallback(
     (next: Layout) => {
-      setLayout(next)
+      const clamped = clampLayoutHeights(next)
+      setLayout(clamped)
       try {
-        localStorage.setItem(layoutKey, JSON.stringify(next))
+        localStorage.setItem(layoutKey, JSON.stringify(clamped))
       } catch {
         // quota / private mode
       }
@@ -302,7 +333,7 @@ export function DashboardWidgetsGrid({
   )
 
   const resetLayout = useCallback(() => {
-    const next = layoutForVisible(visible, DEFAULT_DASHBOARD_LAYOUT)
+    const next = clampLayoutHeights(layoutForVisible(visible, DEFAULT_DASHBOARD_LAYOUT))
     setLayout(next)
     try {
       localStorage.setItem(layoutKey, JSON.stringify(next))
@@ -314,7 +345,7 @@ export function DashboardWidgetsGrid({
   const resetAll = useCallback(() => {
     setVisible({ ...DEFAULT_VISIBILITY })
     persistVisible(DEFAULT_VISIBILITY)
-    const next = layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT)
+    const next = clampLayoutHeights(layoutForVisible(DEFAULT_VISIBILITY, DEFAULT_DASHBOARD_LAYOUT))
     setLayout(next)
     setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
     try {
@@ -329,7 +360,7 @@ export function DashboardWidgetsGrid({
     const vis = mergeDashboardVisibility(DEFAULT_VISIBILITY, dashboardPreset?.widgetVisibility, null)
     setVisible(vis)
     persistVisible(vis)
-    const next = layoutForVisible(vis, DEFAULT_DASHBOARD_LAYOUT)
+    const next = clampLayoutHeights(layoutForVisible(vis, DEFAULT_DASHBOARD_LAYOUT))
     setLayout(next)
     const allowedTools = new Set(listFeaturedToolCandidates().map((t) => t.id))
     const ft =
@@ -355,7 +386,7 @@ export function DashboardWidgetsGrid({
         const next = { ...prev, [id]: checked }
         persistVisible(next)
         setLayout((prevLayout) => {
-          const merged = layoutForVisible(next, prevLayout)
+          const merged = clampLayoutHeights(layoutForVisible(next, prevLayout))
           try {
             localStorage.setItem(layoutKey, JSON.stringify(merged))
           } catch {
@@ -548,9 +579,9 @@ export function DashboardWidgetsGrid({
         </Button>
       </div>
 
-      {/* Width handle only: height stays content-driven via ResizeObserver (corner/south handles would fight h). */}
+      {/* East handle: resize width in columns. Height follows content (ResizeObserver); N/S handles would fight auto-h. */}
       <GridWithWidth
-        className="dashboard-widgets-grid -mx-1 min-h-[400px] rounded-2xl border border-border/35 bg-muted/10 p-1 md:p-2 [&_.react-resizable-handle]:w-1.5 [&_.react-resizable-handle]:rounded-full [&_.react-resizable-handle]:bg-circe/35"
+        className="dashboard-widgets-grid -mx-1 min-h-[400px] rounded-2xl border border-border/35 bg-muted/10 p-1 md:p-2 [&_.react-resizable-handle]:box-border [&_.react-resizable-handle-e]:min-h-[3rem]"
         measureBeforeMount
         cols={COLS}
         rowHeight={30}

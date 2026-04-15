@@ -75,6 +75,26 @@ export type VoiceHangupPolicy = 'always' | 'after_closing_prompt'
 /** How Divine focuses a fan from tools: full Messages route vs floating overlay. */
 export type DmFocusMode = 'navigate' | 'overlay'
 
+/** Dashboard command-center preset (stored under `automation_rules.dashboard`). */
+export type DashboardMood = 'minimal' | 'operations' | 'creative'
+export type DashboardAccentKey = 'circe' | 'venus' | 'gold' | 'balanced'
+
+export interface DivineDashboardPreset {
+  /** Optional label for analytics / Divine (“operations_v2”). */
+  presetId?: string
+  mood?: DashboardMood
+  accent?: DashboardAccentKey
+  /** Default section visibility; merged with local toggles (local wins until reset). */
+  widgetVisibility?: Record<string, boolean>
+  /** Optional in-app story / hero copy slot (future). */
+  featuredStoryCopyId?: string
+  /** Default pinned AI Studio tool (valid runnable tool id). */
+  featuredToolId?: string
+  /** Bump when Divine ships a new layout emphasis so clients can detect stale local state. */
+  presetVersion?: number
+  updatedAt?: string
+}
+
 /** Background cron: enrich Divine brain with DB snapshot + optional in-app digest notification. */
 export interface DivineBackgroundOps {
   enabled?: boolean
@@ -126,12 +146,15 @@ export interface DivineManagerAutomationRules {
   /** Optional onboarding overrides (e.g. user marked "I've set up AI Chatter"). */
   divine_onboarding_checklist?: Record<string, boolean>
   divine_background_ops?: DivineBackgroundOps
+  /** Divine-applied dashboard mood, accent, and default widget visibility (see `lib/dashboard/dashboard-preset.ts`). */
+  dashboard?: DivineDashboardPreset
   [key: string]:
     | AutomationRule
     | DivineManagerVoiceAuto
     | DivineManagerAutomationAlerts
     | DivineManagerAutomationJobs
     | DivineBackgroundOps
+    | DivineDashboardPreset
     | Record<string, boolean>
     | VoiceHangupPolicy
     | DmFocusMode

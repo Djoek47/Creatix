@@ -13,7 +13,7 @@ import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout/legacy
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { cloneLayout, verticalCompactor } from 'react-grid-layout/core'
-import { GripVertical, LayoutGrid, RotateCcw, Shield } from 'lucide-react'
+import { GripVertical, LayoutGrid, RotateCcw, Shield, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -114,16 +114,16 @@ const GridWithWidth = WidthProvider(GridLayout)
 
 function DragStrip({ label }: { label: string }) {
   return (
-    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab touch-none select-none items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 text-muted-foreground active:cursor-grabbing">
-      <GripVertical className="pointer-events-none h-4 w-4 shrink-0" aria-hidden />
-      <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
+    <div className="dashboard-widget-drag flex h-9 shrink-0 cursor-grab touch-none select-none items-center gap-2 rounded-lg border border-border/45 bg-gradient-to-r from-muted/55 to-muted/25 px-2.5 text-muted-foreground shadow-inner ring-1 ring-gold/10 active:cursor-grabbing dark:from-muted/35 dark:to-muted/15">
+      <GripVertical className="pointer-events-none h-4 w-4 shrink-0 text-circe/70" aria-hidden />
+      <span className="text-[11px] font-semibold uppercase tracking-wide">{label}</span>
     </div>
   )
 }
 
 function WidgetShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="box-border flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border/35 bg-card/25 p-2 shadow-sm">
+    <div className="box-border flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-border/50 bg-card/45 p-2.5 shadow-[0_14px_42px_-28px_rgba(0,0,0,0.45)] backdrop-blur-md dark:bg-card/35 md:p-3">
       {children}
     </div>
   )
@@ -184,6 +184,7 @@ const DashboardGridMeasuredItem = forwardRef<
 
 export type DashboardWidgetsGridProps = {
   userId: string
+  dashboardPreset?: DivineDashboardPreset | null
   stats: React.ComponentProps<typeof StatsCards>['stats']
   analytics: React.ComponentProps<typeof RevenueChart>['analytics']
   hasConnectedPlatforms: boolean
@@ -195,6 +196,7 @@ export type DashboardWidgetsGridProps = {
 
 export function DashboardWidgetsGrid({
   userId,
+  dashboardPreset = null,
   stats,
   analytics,
   hasConnectedPlatforms,
@@ -233,14 +235,20 @@ export function DashboardWidgetsGrid({
 
   useEffect(() => {
     try {
-      let vis = { ...DEFAULT_VISIBILITY }
+      let localVis: Record<string, boolean> | null = null
       const rawVis = typeof window !== 'undefined' ? localStorage.getItem(visibleKey) : null
       if (rawVis) {
         const parsed = JSON.parse(rawVis) as Record<string, unknown>
         if (parsed && typeof parsed === 'object') {
-          vis = { ...DEFAULT_VISIBILITY, ...Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, Boolean(v)])) }
+          localVis = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, Boolean(v)]))
         }
       }
+
+      const vis = mergeDashboardVisibility(
+        DEFAULT_VISIBILITY,
+        dashboardPreset?.widgetVisibility,
+        localVis,
+      )
 
       const rawLayout = typeof window !== 'undefined' ? localStorage.getItem(layoutKey) : null
       let nextLayout: Layout
@@ -258,6 +266,8 @@ export function DashboardWidgetsGrid({
       const rawFt = typeof window !== 'undefined' ? localStorage.getItem(featuredToolKey) : null
       if (rawFt && allowedTools.has(rawFt)) {
         setFeaturedToolIdState(rawFt)
+      } else if (dashboardPreset?.featuredToolId && allowedTools.has(dashboardPreset.featuredToolId)) {
+        setFeaturedToolIdState(dashboardPreset.featuredToolId)
       } else {
         setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
       }
@@ -266,7 +276,7 @@ export function DashboardWidgetsGrid({
       setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
     }
     setReady(true)
-  }, [layoutKey, visibleKey, featuredToolKey])
+  }, [layoutKey, visibleKey, featuredToolKey, dashboardPreset])
 
   const persistVisible = useCallback(
     (next: Record<string, boolean>) => {
@@ -314,6 +324,30 @@ export function DashboardWidgetsGrid({
       // ignore
     }
   }, [layoutKey, persistVisible, featuredToolKey])
+
+  const resetToDivinePreset = useCallback(() => {
+    const vis = mergeDashboardVisibility(DEFAULT_VISIBILITY, dashboardPreset?.widgetVisibility, null)
+    setVisible(vis)
+    persistVisible(vis)
+    const next = layoutForVisible(vis, DEFAULT_DASHBOARD_LAYOUT)
+    setLayout(next)
+    const allowedTools = new Set(listFeaturedToolCandidates().map((t) => t.id))
+    const ft =
+      dashboardPreset?.featuredToolId && allowedTools.has(dashboardPreset.featuredToolId)
+        ? dashboardPreset.featuredToolId
+        : DEFAULT_FEATURED_TOOL_ID
+    setFeaturedToolIdState(ft)
+    try {
+      localStorage.removeItem(layoutKey)
+      localStorage.removeItem(visibleKey)
+      localStorage.removeItem(featuredToolKey)
+      localStorage.setItem(layoutKey, JSON.stringify(next))
+      localStorage.setItem(visibleKey, JSON.stringify(vis))
+      localStorage.setItem(featuredToolKey, ft)
+    } catch {
+      // ignore
+    }
+  }, [dashboardPreset, layoutKey, visibleKey, featuredToolKey, persistVisible])
 
   const setWidgetVisible = useCallback(
     (id: string, checked: boolean) => {
@@ -502,11 +536,21 @@ export function DashboardWidgetsGrid({
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
           Reset layout
         </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="gap-1.5 border-gold/25 bg-gold/[0.06] hover:bg-gold/[0.1]"
+          onClick={resetToDivinePreset}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-gold" aria-hidden />
+          Reset to Divine preset
+        </Button>
       </div>
 
       {/* Width handle only: height stays content-driven via ResizeObserver (corner/south handles would fight h). */}
       <GridWithWidth
-        className="dashboard-widgets-grid -mx-1 min-h-[400px]"
+        className="dashboard-widgets-grid -mx-1 min-h-[400px] rounded-2xl border border-border/35 bg-muted/10 p-1 md:p-2 [&_.react-resizable-handle]:w-1.5 [&_.react-resizable-handle]:rounded-full [&_.react-resizable-handle]:bg-circe/35"
         measureBeforeMount
         cols={COLS}
         rowHeight={30}
@@ -536,7 +580,11 @@ export function DashboardWidgetsGrid({
       >
         {orderedIds.map((id) => (
           <DashboardGridMeasuredItem key={id} id={id} patchH={patchItemH} skipPatchRef={interactionLockRef}>
-            {widgetBody[id]}
+            {widgetBody[id] ?? (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                Widget &quot;{id}&quot; is unavailable.
+              </div>
+            )}
           </DashboardGridMeasuredItem>
         ))}
       </GridWithWidth>

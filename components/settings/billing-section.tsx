@@ -13,6 +13,7 @@ import {
   createCustomerPortalSession,
   createCustomerPortalSessionForFlow,
 } from '@/app/actions/stripe'
+import { syncSubscriptionCreditsFromPlanAction } from '@/app/actions/subscription-credits'
 import { createClient } from '@/lib/supabase/client'
 import {
   CreditCard,
@@ -108,6 +109,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
   const loadSubscriptionData = useCallback(async () => {
     if (!userId) return
+
+    await syncSubscriptionCreditsFromPlanAction()
 
     const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).single()
 
@@ -387,7 +390,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 {aiCreditsUsed}/{aiCreditsLimit}
               </p>
               <p className="text-xs text-muted-foreground">
-                Monthly pool ≈ 20% of subscription (USD) at $0.01/credit — not unlimited.
+                $1 = 100 credits ($0.01 each). Monthly pool ≈ 20% of your subscription (USD), e.g. $100/mo →
+                ~2,000 credits. Each tool debits based on estimated provider cost.
               </p>
               <Progress
                 value={

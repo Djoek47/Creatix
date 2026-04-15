@@ -109,7 +109,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'Suggests subscription, PPV, and custom pricing angles from your context. **Not shown in the AI Studio grid** — use **Divine Manager** (chat or voice: `run_ai_studio_tool` with `toolId` `price-optimizer` or `pricing-optimizer`) to run it.',
     category: 'analytics',
-    credits: 2,
+    credits: 4,
     hasRunner: true,
     hiddenFromLibrary: true,
   },
@@ -132,7 +132,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Scores likely engagement before you post. **Hidden from the AI Studio grid** — use **Divine Manager** (`predict_viral` / `run_ai_studio_tool` with `toolId` `viral-predictor`) or voice mode.',
     category: 'analytics',
     badge: 'Beta',
-    credits: 2,
+    credits: 3,
     hasRunner: true,
     hiddenFromLibrary: true,
   },
@@ -144,7 +144,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       '**Circe\'s Oracle** merged here: predict which fans are most likely to churn and what to do next. Hub: **Dashboard → Retention** schedules batch digests (expiring subs + quiet actives), Divine notifications, and stored reports. In AI Studio, run a single-fan deep dive with CRM + thread context (same engine as before—now one tool).',
     category: 'analytics',
-    credits: 2,
+    credits: 3,
     hasRunner: true,
   },
   {
@@ -154,7 +154,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'On **Dashboard → Retention**, add optional calendar notes and run a batch digest: Circe suggests feed/story/DM teasers for subscribers at risk, aligned with your upcoming content. Uses the same credits per run as background Churn Predictor.',
     category: 'analytics',
-    credits: 2,
+    credits: 3,
     hasRunner: true,
   },
   {
@@ -165,7 +165,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Merges the OnlyFans partner statistical forecast with your synced snapshots, post rate, weekly/monthly cadence buckets, leak context, and goal realism (including intermediate revenue bands). Hub: **Dashboard → Analytics → Income Predictor**.',
     category: 'analytics',
     badge: 'Beta',
-    credits: 2,
+    credits: 4,
     hasRunner: true,
   },
   {
@@ -175,7 +175,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'Configure background web scans under Protection → Circe’s Aegis: same Serper + Grok pipeline as manual Protection scan, on your chosen cadence. Review every candidate before acting.',
     category: 'protection',
-    credits: 10,
+    credits: 42,
     hasRunner: true,
   },
   {
@@ -185,7 +185,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'From Aegis: optionally auto-create draft DMCA claims for high-severity leaks. Nothing is filed with hosts automatically — open Protection to review, edit, and send each notice yourself.',
     category: 'protection',
-    credits: 2,
+    credits: 7,
     hasRunner: true,
   },
   {
@@ -208,7 +208,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Pro-only: **compares you to competitors** using your CRM-imported fan count against **anonymized Creatix cohort bands** (same stat range as you, then **one tier above**), plus optional live web discovery (Serper), the shared best-practices library, and Community tips. Name public @handles or positioning notes so the run can contrast peers in your band vs the next tier up. No paywalled scraping or private competitor metrics.',
     category: 'premium',
     isPro: true,
-    credits: 5,
+    credits: 12,
     hasRunner: true,
   },
   {
@@ -220,7 +220,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     category: 'premium',
     isPro: true,
     badge: 'Circe Pro',
-    credits: 6,
+    credits: 8,
     hasRunner: true,
   },
   {

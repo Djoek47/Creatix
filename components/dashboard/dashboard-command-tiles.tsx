@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { MessageSquare, Sparkles, Shield, HeartPulse, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { DivineDashboardPreset } from '@/lib/divine-manager'
 
 const tiles = [
   {
@@ -37,40 +38,61 @@ const tiles = [
   },
 ] as const
 
-export function DashboardCommandTiles() {
+export type DashboardCommandTilesProps = {
+  accent?: DivineDashboardPreset['accent']
+  tierIndex?: number | null
+}
+
+export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTilesProps) {
+  const tierSheen =
+    tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 8
+      ? 'shadow-[0_0_40px_-12px_rgba(168,85,247,0.25)]'
+      : tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 4
+        ? 'shadow-[0_0_36px_-14px_rgba(234,179,8,0.2)]'
+        : 'shadow-[0_0_32px_-14px_rgba(6,182,212,0.18)]'
+
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map((tile) => (
-          <Link
-            key={tile.href}
-            href={tile.href}
-            className={cn(
-              'group relative overflow-hidden rounded-xl border bg-gradient-to-br p-4 transition-colors',
-              tile.accent
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className={cn(
-                  'rounded-lg border border-border/40 bg-background/60 p-2.5 shadow-sm backdrop-blur-sm transition-transform group-hover:scale-[1.02]',
-                  tile.iconClass
-                )}
-              >
-                <tile.icon className="h-5 w-5" aria-hidden />
+      <div className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-4', tierSheen)}>
+        {tiles.map((tile) => {
+          const boosted =
+            (accent === 'circe' && tile.href === '/dashboard/messages') ||
+            (accent === 'gold' && tile.href === '/dashboard/ai-studio') ||
+            (accent === 'venus' && tile.href === '/dashboard/well-being')
+          return (
+            <Link
+              key={tile.href}
+              href={tile.href}
+              className={cn(
+                'group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-all duration-300 md:p-5',
+                'shadow-sm hover:shadow-md',
+                tile.accent,
+                boosted && 'ring-1 ring-gold/30 md:scale-[1.01]',
+              )}
+            >
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="relative flex items-start gap-3">
+                <div
+                  className={cn(
+                    'rounded-xl border border-border/50 bg-background/70 p-2.5 shadow-sm backdrop-blur-sm transition-transform group-hover:scale-[1.03]',
+                    tile.iconClass,
+                  )}
+                >
+                  <tile.icon className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold tracking-tight">{tile.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tile.description}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold tracking-tight">{tile.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{tile.description}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          )
+        })}
       </div>
       <div className="flex justify-end">
         <Link
           href="/dashboard/divine-manager"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:border-border hover:text-foreground"
         >
           <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
           Divine Manager

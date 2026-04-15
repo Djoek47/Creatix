@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardCommandTiles } from '@/components/dashboard/dashboard-command-tiles'
 import { DashboardWidgetsGrid } from '@/components/dashboard/dashboard-widgets-grid'
+import { DashboardCommandCenter } from '@/components/dashboard/dashboard-command-center'
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
+import { extractDashboardPreset } from '@/lib/dashboard/dashboard-preset'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -20,6 +22,7 @@ export default async function DashboardPage() {
     { data: analytics },
     { data: platformConnections },
     { data: subscription },
+    { data: divineRow },
   ] = await Promise.all([
     supabase.from('fans').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
     supabase.from('content').select('*').eq('user_id', user.id).eq('status', 'scheduled'),
@@ -30,15 +33,20 @@ export default async function DashboardPage() {
     supabase.from('platform_connections').select('*').eq('user_id', user.id).eq('is_connected', true),
     supabase
       .from('subscriptions')
-      .select('plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms')
+      .select('plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms, revenue_tier')
       .eq('user_id', user.id)
       .maybeSingle(),
+    supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', user.id).maybeSingle(),
   ])
+
+  const dashboardPreset = extractDashboardPreset(divineRow?.automation_rules ?? null)
 
   // Check if user has any connected platforms
   const hasConnectedPlatforms = (platformConnections?.length || 0) > 0
 
   const planLabel = getDashboardPlanLabel(subscription ?? null)
+  const revenueTier =
+    subscription && typeof subscription.revenue_tier === 'number' ? subscription.revenue_tier : null
 
   // Calculate stats from analytics data - aggregate from both platforms
   const totalRevenue = analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0
@@ -89,21 +97,34 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 sm:space-y-10">
-      <DashboardHero planLabel={planLabel} hasConnectedPlatforms={hasConnectedPlatforms} />
-
-      <DashboardCommandTiles />
-
-      <DashboardWidgetsGrid
-        userId={user.id}
-        stats={stats}
-        analytics={analytics || []}
-        hasConnectedPlatforms={hasConnectedPlatforms}
-        fans={fans || []}
-        totalFans={totalFans}
-        leakAlerts={leakAlerts || []}
-        mentions={mentions || []}
-      />
-    </div>
+    <DashboardCommandCenter
+      tierIndex={revenueTier}
+      preset={dashboardPreset}
+      hero={
+        <DashboardHero
+          planLabel={planLabel}
+          hasConnectedPlatforms={hasConnectedPlatforms}
+          mood={dashboardPreset?.mood}
+          accent={dashboardPreset?.accent}
+          tierIndex={revenueTier}
+        />
+      }
+      commandStrip={
+        <DashboardCommandTiles accent={dashboardPreset?.accent} tierIndex={revenueTier} />
+      }
+      widgetRegion={
+        <DashboardWidgetsGrid
+          userId={user.id}
+          dashboardPreset={dashboardPreset}
+          stats={stats}
+          analytics={analytics || []}
+          hasConnectedPlatforms={hasConnectedPlatforms}
+          fans={fans || []}
+          totalFans={totalFans}
+          leakAlerts={leakAlerts || []}
+          mentions={mentions || []}
+        />
+      }
+    />
   )
 }

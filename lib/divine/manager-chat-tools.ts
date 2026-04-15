@@ -41,6 +41,10 @@ import { getStats } from '@/lib/divine-intent-actions'
 import { getVoiceMemoryPayload } from '@/lib/divine/voice-memory-server'
 import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/divine/thread-scan-async'
 import { getSettings } from '@/lib/divine-manager'
+import {
+  dashboardPatchFromToolArgs,
+  mergeDashboardPresetIntoRules,
+} from '@/lib/dashboard/dashboard-preset'
 import { upsertFanRecentsFromConversations, searchFanRecents } from '@/lib/divine/fan-recents-server'
 import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
@@ -89,6 +93,7 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
   'get_comment_reply_suggestions',
   'refresh_comment_analysis',
   'sync_commenter_from_posts',
+  'apply_dashboard_preset',
 ])
 
 export type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
@@ -1261,6 +1266,29 @@ export async function runContextTool(
         `navigation: ${JSON.stringify(nav)}`,
       ].join('\n')
       return summary.slice(0, 3800)
+    }
+    if (name === 'apply_dashboard_preset') {
+      if (!ctx) return 'Context unavailable.'
+      const patch = dashboardPatchFromToolArgs(args)
+      if (Object.keys(patch).length === 0) {
+        return [
+          'Provide at least one field: mood (minimal|operations|creative), accent (circe|venus|gold|balanced),',
+          'presetId, widgetVisibility object, featuredToolId (runnable AI Studio tool id), featuredStoryCopyId, presetVersion,',
+          'or visible_widgets (array of widget ids to show).',
+        ].join(' ')
+      }
+      const settings = await getSettings(ctx.supabase, ctx.userId)
+      const merged = mergeDashboardPresetIntoRules(settings?.automation_rules ?? {}, patch)
+      const { error } = await ctx.supabase.from('divine_manager_settings').upsert(
+        {
+          user_id: ctx.userId,
+          automation_rules: merged as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' },
+      )
+      if (error) return `Could not save dashboard preset: ${error.message}`
+      return `Dashboard preset updated (${Object.keys(patch).join(', ')}). Refresh the dashboard page to see accent and defaults; use “Reset to Divine preset” there to clear local layout overrides.`
     }
   } catch (e) {
     return e instanceof Error ? e.message : 'Request failed'

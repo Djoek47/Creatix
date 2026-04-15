@@ -1,6 +1,11 @@
 /**
  * In-app AI credit economics: monthly allowance for paid plans, per-tool debits, and USD mapping.
- * Paid allowance = floor((monthly subscription USD × seats × 0.2) / CREDIT_USD_VALUE) — 20% of subscription as credits.
+ *
+ * **Monthly pool (paid):** 20% of subscription USD (× seats) converted at `CREDIT_USD_VALUE`.
+ * Example: $100/mo → $20 → 20 / 0.01 = **2 000 credits** ($1 = 100 credits).
+ *
+ * **Per use:** Debits approximate our blended provider COGS (OpenAI / Anthropic / Grok / Serper, etc.); tune
+ * `PROVIDER_USD_ESTIMATE` from real invoices. `creditsForProviderUsdEstimate` = ceil(usd / CREDIT_USD_VALUE), min 1.
  */
 
 import { ALL_TOOLS_META } from '@/lib/ai-tools-data'
@@ -14,21 +19,46 @@ export const CREDIT_USD_VALUE = 0.01
 /** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
 export const TRIAL_AI_CREDITS_LIMIT = 100
 
-/** Old rows stored “unlimited” as a huge integer; treat as missing so we recompute from subscription USD. */
-const LEGACY_UNLIMITED_CREDITS_THRESHOLD = 999000
+/** Old DB rows used a huge sentinel for “unlimited”; sync + UI ignore these. */
+export const LEGACY_AI_CREDITS_DB_SENTINEL = 999000
 
-/** Product-level overrides (per message / run), not necessarily equal to ALL_TOOLS_META.credits for legacy rows. */
-export const CREDITS_DIVINE_CHAT_MESSAGE = 5
-export const CREDITS_DMCA_CLAIM = 10
-export const CREDITS_LEAK_SCAN = 10
+const LEGACY_UNLIMITED_CREDITS_THRESHOLD = LEGACY_AI_CREDITS_DB_SENTINEL
+
+/** Rough blended COGS (USD) per action — adjust from provider invoices. */
+export const PROVIDER_USD_ESTIMATE = {
+  /** Typical gpt-4o-mini style chat turn */
+  chatMiniTurn: 0.0015,
+  /** Richer chat / small tool (more tokens) */
+  toolLight: 0.012,
+  toolMedium: 0.035,
+  toolHeavy: 0.1,
+  /** Full leak scan: many Serper calls + Grok enrichment */
+  serperLeakScanRun: 0.42,
+  /** Reputation wide+social Serper batch */
+  serperReputationRun: 0.48,
+  dmcaClaimPrep: 0.07,
+} as const
+
+/** Credits to debit ≈ provider USD / CREDIT_USD_VALUE (integer, ≥ 1, capped for sanity). */
+export function creditsForProviderUsdEstimate(providerUsd: number): number {
+  if (!Number.isFinite(providerUsd) || providerUsd <= 0) return 1
+  const n = Math.ceil(providerUsd / CREDIT_USD_VALUE)
+  return Math.min(50_000, Math.max(1, n))
+}
+
+/** Product-level overrides (routes + Divine tools). Aligned to PROVIDER_USD_ESTIMATE. */
+export const CREDITS_DIVINE_CHAT_MESSAGE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.chatMiniTurn)
+export const CREDITS_DMCA_CLAIM = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.dmcaClaimPrep)
+export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperLeakScanRun)
 
 const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'leak-scanner': CREDITS_LEAK_SCAN,
-  /** Circe / Venus / flirt / message-suggestions — one “chat message” debit per request. */
   'divine-chat': CREDITS_DIVINE_CHAT_MESSAGE,
-  'mass-dm-composer': 2,
-  'creator-mood-pulse': 1,
-  'revenue-optimizer': 1,
+  'mass-dm-composer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
+  'creator-mood-pulse': creditsForProviderUsdEstimate(0.004),
+  'revenue-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'pricing-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'price-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
 }
 
 export type SubscriptionRowForCredits = {

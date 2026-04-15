@@ -34,7 +34,7 @@ import {
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
+import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'caption-generator': Wand2,
@@ -243,10 +243,10 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                             ) : null}
                           </div>
                           <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{tool.description}</p>
-                          {tool.credits != null && !comingSoon ? (
+                          {!comingSoon ? (
                             <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
                               <Zap className="h-3 w-3 shrink-0 text-amber-500/80" aria-hidden />
-                              {tool.credits} credit{tool.credits !== 1 ? 's' : ''}
+                              {formatToolCreditCost(tool.id)}
                             </p>
                           ) : null}
                         </div>

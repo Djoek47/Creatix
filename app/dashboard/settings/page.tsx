@@ -730,7 +730,7 @@ export default function SettingsPage() {
 
           {/* Integrations Section */}
           {activeTab === 'integrations' && (
-            <>
+            <div data-tour="settings-integrations" className="flex flex-col gap-6">
               <PlatformConnector />
 
               <HousekeepingListsSettings
@@ -780,7 +780,7 @@ export default function SettingsPage() {
                   ))}
                 </CardContent>
               </Card>
-            </>
+            </div>
           )}
 
           {/* Data & Privacy Section */}

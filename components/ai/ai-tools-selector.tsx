@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
+import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -86,7 +86,6 @@ const workingTools = [
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
     borderColor: 'border-purple-500/30',
-    credits: 2,
   },
   {
     id: 'content-ideas',
@@ -98,7 +97,6 @@ const workingTools = [
     color: 'text-yellow-500',
     bgColor: 'bg-yellow-500/10',
     borderColor: 'border-yellow-500/30',
-    credits: 1,
   },
   {
     id: 'photo-enhancer',
@@ -110,7 +108,6 @@ const workingTools = [
     color: 'text-sky-500',
     bgColor: 'bg-sky-500/10',
     borderColor: 'border-sky-500/30',
-    credits: 1,
   },
   {
     id: 'gift-suggester',
@@ -121,7 +118,6 @@ const workingTools = [
     color: 'text-rose-500',
     bgColor: 'bg-rose-500/10',
     borderColor: 'border-rose-500/30',
-    credits: 1,
   },
 ]
 
@@ -136,7 +132,6 @@ const proTools = [
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
     borderColor: 'border-green-500/30',
-    credits: 2,
     isPro: true,
   },
   {
@@ -149,7 +144,6 @@ const proTools = [
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/35',
-    credits: 2,
     isPro: true,
   },
   {
@@ -162,7 +156,6 @@ const proTools = [
     color: 'text-circe',
     bgColor: 'bg-circe/10',
     borderColor: 'border-circe/35',
-    credits: 2,
     isPro: true,
   },
   {
@@ -174,7 +167,6 @@ const proTools = [
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/30',
-    credits: 2,
     isPro: true,
   },
   {
@@ -186,7 +178,6 @@ const proTools = [
     color: 'text-gold',
     bgColor: 'bg-gold/10',
     borderColor: 'border-gold/30',
-    credits: 3,
     isPro: true,
   },
   {
@@ -199,7 +190,6 @@ const proTools = [
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
-    credits: 5,
     isPro: true,
   },
 ]
@@ -334,7 +324,6 @@ function makeGenericTool(toolId: string): ToolType {
     color: 'text-primary',
     bgColor: 'bg-primary/10',
     borderColor: 'border-primary/30',
-    credits: meta?.credits ?? 1,
   }
 }
 
@@ -2268,7 +2257,7 @@ export function AIToolsSelector({
                         </p>
                         <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                           <Zap className="h-3 w-3" />
-                          {tool.credits} credit{tool.credits > 1 ? 's' : ''}/use
+                          {formatToolCreditCost(tool.id)}/use
                         </div>
                       </div>
                     </div>
@@ -2363,7 +2352,7 @@ export function AIToolsSelector({
                           </p>
                           <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                             <Zap className="h-3 w-3" />
-                            {tool.credits} credit{tool.credits > 1 ? 's' : ''}/use
+                            {formatToolCreditCost(tool.id)}/use
                           </div>
                         </div>
                       </div>
@@ -2458,7 +2447,7 @@ export function AIToolsSelector({
           </div>
           <Badge variant="outline" className="gap-1">
             <Zap className="h-3 w-3" />
-            {selectedTool.credits} credit{selectedTool.credits > 1 ? 's' : ''}
+            {formatToolCreditCost(selectedTool.id)}
           </Badge>
         </div>
       </CardHeader>

@@ -8,7 +8,7 @@
  * `PROVIDER_USD_ESTIMATE` from real invoices. `creditsForProviderUsdEstimate` = ceil(usd / CREDIT_USD_VALUE), min 1.
  */
 
-import { ALL_TOOLS_META } from '@/lib/ai-tools-data'
+import { ALL_TOOLS_META, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { isPaidPlanId } from '@/lib/billing/access'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { getMonthlyPriceUsd, TIER_COUNT, type BillingVariant } from '@/lib/pricing-matrix'
@@ -137,8 +137,16 @@ export function subscriptionFinancialFieldsFromMerged(
 export function getCreditsForToolId(toolId: string): number {
   const o = CREDIT_OVERRIDES_BY_TOOL_ID[toolId]
   if (typeof o === 'number' && o >= 0) return o
-  const meta = ALL_TOOLS_META.find((t) => t.id === toolId)
+  const canonical = resolveCanonicalToolId(toolId)
+  const meta = ALL_TOOLS_META.find((t) => t.id === canonical)
   const c = meta?.credits
   if (typeof c === 'number' && c >= 0) return c
   return 1
+}
+
+/** UI copy for per-use cost (matches API debit via getCreditsForToolId). */
+export function formatToolCreditCost(toolId: string): string {
+  const n = getCreditsForToolId(toolId)
+  if (n === 0) return 'Free'
+  return `${n} credit${n !== 1 ? 's' : ''}`
 }

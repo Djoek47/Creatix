@@ -530,7 +530,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tour',
         title: 'Page tours',
         description:
-          'Start Tour in the header runs a short dialog for the page you are on. It does not auto-navigate; switch pages and start again for each area.',
+          'Start Tour in the header runs a short spotlight tour for the page you are on. The full orientation on Welcome also navigates between real routes. Switch pages and start again for each area.',
       },
     ],
   },

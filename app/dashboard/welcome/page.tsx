@@ -10,7 +10,7 @@ import { useTour } from '@/components/tour/tour-provider'
 
 /**
  * Dedicated route for the full-app orientation tour (see lib/tour-full-app-welcome.ts).
- * Open with ?openTour=1 to auto-start the dialog (e.g. from onboarding or Guide).
+ * Open with ?openTour=1 to auto-start the tour (e.g. from onboarding or Guide).
  */
 export default function WelcomeTourPage() {
   const searchParams = useSearchParams()
@@ -30,15 +30,18 @@ export default function WelcomeTourPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
-      <Card className="border-primary/25 bg-gradient-to-br from-amber-500/[0.06] via-background to-violet-500/[0.08]">
+      <Card
+        data-tour="welcome-card"
+        className="border-primary/25 bg-gradient-to-br from-amber-500/[0.06] via-background to-violet-500/[0.08]"
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Sparkles className="h-6 w-6 text-amber-500" aria-hidden />
             Full app tour
           </CardTitle>
           <CardDescription>
-            One dialog walks the sidebar and major features—about thirty short steps. Use the header any time for a
-            shorter tour on the page you are on.
+            The tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with animated
+            highlights. Use Start Tour in the header anytime for a shorter walkthrough on the page you are on.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

@@ -131,7 +131,10 @@ export function IncomePredictorDashboard() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-circe/[0.04] p-5 sm:p-6">
+      <div
+        data-tour="income-predictor-hero"
+        className="rounded-2xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-circe/[0.04] p-5 sm:p-6"
+      >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-circe">

@@ -32,14 +32,15 @@ export function StartTourButton({ className }: { className?: string }) {
     ? 'Show full app tour again'
     : 'Show page walkthrough again'
   const titleStart = isFullWelcome
-    ? 'Start the full app orientation (all major areas)'
-    : 'Start page walkthrough (dialog tour)'
+    ? 'Start the full app orientation (navigates real pages with highlights)'
+    : 'Start page walkthrough (spotlight steps for this screen)'
 
   return (
     <Button
       variant="ghost"
       size="sm"
       className={className}
+      data-tour="header-start-tour"
       onClick={startTour}
       title={completed ? titleDone : titleStart}
     >

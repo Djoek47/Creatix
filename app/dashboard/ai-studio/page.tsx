@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PenTool, Sparkles } from 'lucide-react'
@@ -22,6 +22,14 @@ export default function AIStudioPage() {
 
   const [activeTab, setActiveTab] = useState(initialTab)
 
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'tools') setActiveTab('tools')
+    else if (tab === 'library' || tab === 'vault') setActiveTab('library')
+    else if (tab === 'cosmic' || tab === 'chatter' || tab === 'overview') setActiveTab('library')
+    else if (searchParams.get('ai') === 'circe' || searchParams.get('ai') === 'venus') setActiveTab('library')
+  }, [searchParams])
+
   return (
     <div className="min-w-0 space-y-5">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
@@ -37,6 +45,7 @@ export default function AIStudioPage() {
           </TabsTrigger>
           <TabsTrigger
             value="tools"
+            data-tour="ai-studio-tools-tab"
             className="group/aitools rounded-xl border border-border/80 bg-card/80 px-4 py-3 text-sm font-medium shadow-sm transition-all data-[state=active]:border-purple-500/35 data-[state=active]:bg-purple-500/[0.06] data-[state=active]:shadow-[0_0_28px_-6px_rgba(168,85,247,0.35)] data-[state=inactive]:opacity-80 sm:py-2.5"
           >
             <span className="flex items-center justify-center gap-2">

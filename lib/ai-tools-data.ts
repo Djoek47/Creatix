@@ -247,6 +247,16 @@ export const DIVINE_MANAGER_AI_STUDIO_TOOL_IDS: string[] = ALL_TOOLS_META.filter
   (t) => t.hasRunner && !t.comingSoon,
 ).map((t) => t.id)
 
+/** Legacy UI/API ids that map to the canonical row in ALL_TOOLS_META (same runner + billing). */
+export const TOOL_ID_ALIASES: Record<string, string> = {
+  'pricing-optimizer': 'price-optimizer',
+}
+
+export function resolveCanonicalToolId(id: string): string {
+  return TOOL_ID_ALIASES[id] ?? id
+}
+
 export function getToolMeta(id: string): AIToolMeta | undefined {
-  return ALL_TOOLS_META.find((t) => t.id === id)
+  const canonical = resolveCanonicalToolId(id)
+  return ALL_TOOLS_META.find((t) => t.id === canonical)
 }

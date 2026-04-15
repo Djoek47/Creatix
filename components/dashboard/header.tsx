@@ -65,7 +65,12 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         {mounted ? (
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] md:hidden"
+                data-tour="header-start-tour-mobile"
+              >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Open menu</span>
               </Button>

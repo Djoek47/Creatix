@@ -1,18 +1,11 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { getTourForPath, TOUR_STORAGE_PREFIX } from '@/lib/tour-config'
 import { TourDialog } from './tour-dialog'
-
-function getTourCompleted(tourId: string): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
-  } catch {
-    return false
-  }
-}
+import { TourSpotlight } from './tour-spotlight'
+import type { TourConfig } from '@/lib/tour-types'
 
 function setTourCompleted(tourId: string) {
   try {
@@ -20,6 +13,38 @@ function setTourCompleted(tourId: string) {
   } catch {
     // ignore
   }
+}
+
+function normalizePath(p: string): string {
+  return p.replace(/\/$/, '') || '/dashboard'
+}
+
+/** Canonical path+query for comparing tour navigation targets. */
+function tourRouteKey(href: string): string {
+  try {
+    const u = new URL(href, 'http://tour.local')
+    const path = normalizePath(u.pathname)
+    const sorted = [...u.searchParams.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&')
+    return sorted ? `${path}?${sorted}` : path
+  } catch {
+    return normalizePath(href)
+  }
+}
+
+function currentRouteKey(pathname: string, searchParams: URLSearchParams): string {
+  const path = normalizePath(pathname)
+  const sorted = [...searchParams.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&')
+  return sorted ? `${path}?${sorted}` : path
+}
+
+function isInteractiveTour(config: TourConfig): boolean {
+  return config.steps.some((s) => s.path != null || s.targetSelector != null)
 }
 
 type TourContextValue = {
@@ -35,36 +60,56 @@ export function useTour() {
   return ctx
 }
 
-export function TourProvider({ children }: { children: React.ReactNode }) {
+function TourProviderInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const config = useMemo(() => getTourForPath(pathname ?? '/dashboard'), [pathname])
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathConfig = useMemo(() => getTourForPath(pathname ?? '/dashboard'), [pathname])
   const [open, setOpen] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
+  const [activeTour, setActiveTour] = useState<TourConfig | null>(null)
+
+  const config = open && activeTour ? activeTour : pathConfig
 
   const startTour = useCallback(() => {
-    if (!config || config.steps.length === 0) return
+    const c = getTourForPath(pathname ?? '/dashboard')
+    if (!c || c.steps.length === 0) return
+    setActiveTour(c)
     setStepIndex(0)
     setOpen(true)
-  }, [config])
+  }, [pathname])
+
+  useEffect(() => {
+    if (!open || !activeTour) return
+    const step = activeTour.steps[stepIndex]
+    if (!step?.path) return
+    const target = tourRouteKey(step.path)
+    const cur = currentRouteKey(pathname ?? '', searchParams)
+    if (cur !== target) {
+      router.push(step.path)
+    }
+  }, [open, activeTour, stepIndex, pathname, searchParams, router])
 
   const onNext = useCallback(() => {
-    if (!config) return
-    if (stepIndex < config.steps.length - 1) {
+    if (!activeTour) return
+    if (stepIndex < activeTour.steps.length - 1) {
       setStepIndex((i) => i + 1)
     } else {
-      setTourCompleted(config.tourId)
+      setTourCompleted(activeTour.tourId)
       setOpen(false)
+      setActiveTour(null)
     }
-  }, [config, stepIndex])
+  }, [activeTour, stepIndex])
 
   const onBack = useCallback(() => {
     if (stepIndex > 0) setStepIndex((i) => i - 1)
   }, [stepIndex])
 
   const onClose = useCallback(() => {
-    if (config) setTourCompleted(config.tourId)
+    if (activeTour) setTourCompleted(activeTour.tourId)
     setOpen(false)
-  }, [config])
+    setActiveTour(null)
+  }, [activeTour])
 
   const value = useMemo<TourContextValue>(
     () => ({
@@ -75,20 +120,43 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     [startTour, open, config?.tourId]
   )
 
+  const showTour = open && activeTour && activeTour.steps.length > 0
+  const interactive = activeTour ? isInteractiveTour(activeTour) : false
+
   return (
     <TourContext.Provider value={value}>
       {children}
-      {config && config.steps.length > 0 && (
-        <TourDialog
-          open={open}
-          onClose={onClose}
-          steps={config.steps}
-          stepIndex={stepIndex}
-          onNext={onNext}
-          onBack={onBack}
-          tourId={config.tourId}
-        />
-      )}
+      {showTour &&
+        (interactive ? (
+          <TourSpotlight
+            open={open}
+            pathname={pathname ?? ''}
+            onClose={onClose}
+            steps={activeTour.steps}
+            stepIndex={stepIndex}
+            onNext={onNext}
+            onBack={onBack}
+            tourId={activeTour.tourId}
+          />
+        ) : (
+          <TourDialog
+            open={open}
+            onClose={onClose}
+            steps={activeTour.steps}
+            stepIndex={stepIndex}
+            onNext={onNext}
+            onBack={onBack}
+            tourId={activeTour.tourId}
+          />
+        ))}
     </TourContext.Provider>
+  )
+}
+
+export function TourProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <TourProviderInner>{children}</TourProviderInner>
+    </Suspense>
   )
 }

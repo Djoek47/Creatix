@@ -521,16 +521,16 @@ const TOURS: Record<string, TourConfig> = {
     tourId: 'guide',
     steps: [
       {
-        id: 'welcome',
-        title: 'Guide',
+        id: 'guide-hub',
+        title: 'Guide & orbital tour',
         description:
-          'Long-form documentation for Circe et Venus. Use the table of contents to jump to Divine Manager, CRM, AI Studio, and billing.',
+          'This page combines the full-app tour story with the manual: scroll animated steps (each callout sits above the surface it describes), launch the live tour from Welcome, or expand Deep reference for integrations and troubleshooting.',
       },
       {
-        id: 'tour',
-        title: 'Page tours',
+        id: 'header-tour',
+        title: 'Shorter page tours',
         description:
-          'Start Tour in the header runs a short spotlight tour for the page you are on. The full orientation on Welcome also navigates between real routes. Switch pages and start again for each area.',
+          'On other screens, Start Tour in the header opens a spotlight walkthrough for that page. Switch routes and tap it again for area-specific tips.',
       },
     ],
   },

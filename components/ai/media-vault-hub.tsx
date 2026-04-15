@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, ImageIcon, Link2, Mic, Save, Sparkles, Wand2 } from 'lucide-react'
+import { Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Sparkles, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +46,8 @@ export type VaultContentRow = {
   external_preview_url: string | null
   scheduled_at: string | null
   updated_at?: string | null
+  /** Supabase Storage path in vault-media (optional; see scripts/074, 075). */
+  vault_storage_path?: string | null
 }
 
 type OfPost = {
@@ -91,6 +93,10 @@ export function MediaVaultHub() {
   const [touchAiInstruction, setTouchAiInstruction] = useState('')
   const [touchAiBusy, setTouchAiBusy] = useState(false)
 
+  const [frameBusy, setFrameBusy] = useState(false)
+  const [frameMsg, setFrameMsg] = useState<string | null>(null)
+  const [replaceBusy, setReplaceBusy] = useState(false)
+
   const loadVault = useCallback(async () => {
     setLoading(true)
     try {
@@ -101,13 +107,27 @@ export function MediaVaultHub() {
         setRows([])
         return
       }
-      const { data, error } = await supabase
+      let query = supabase
         .from('content')
         .select(
-          'id, title, description, content_type, status, thumbnail_url, file_url, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
+          'id, title, description, content_type, status, thumbnail_url, file_url, vault_storage_path, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
         )
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
+
+      let { data, error } = await query
+
+      if (error && /vault_storage_path|column/i.test(error.message || '')) {
+        const fb = await supabase
+          .from('content')
+          .select(
+            'id, title, description, content_type, status, thumbnail_url, file_url, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
+          )
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+        data = fb.data
+        error = fb.error
+      }
 
       if (error) {
         const { data: fallback } = await supabase
@@ -156,6 +176,7 @@ export function MediaVaultHub() {
 
   const openRow = (r: VaultContentRow) => {
     setSelected(r)
+    setFrameMsg(null)
     setDraftTitle(r.title)
     setDraftDescription(r.description || '')
     setDraftSales(r.sales_notes || '')
@@ -326,6 +347,77 @@ export function MediaVaultHub() {
 
   const isPhoto = (r: VaultContentRow) =>
     r.content_type === 'photo' || (r.content_type !== 'video' && !r.content_type?.includes('video'))
+
+  const isVideoRow = (r: VaultContentRow) => {
+    const t = (r.content_type || '').toLowerCase()
+    return t === 'video' || t.includes('video')
+  }
+
+  const hasVaultVideoFile = (r: VaultContentRow) => {
+    if (r.vault_storage_path && r.vault_storage_path.length > 0) return true
+    return Boolean(r.file_url && /^https?:\/\//i.test(r.file_url.trim()))
+  }
+
+  const openFrameEditor = async () => {
+    if (!selected) return
+    setFrameBusy(true)
+    setFrameMsg(null)
+    try {
+      const res = await fetch(`/api/content/vault/${selected.id}/frame-session`)
+      const j = (await res.json()) as {
+        error?: string
+        frameLaunchUrl?: string | null
+        assetProxyUrl?: string
+        frameConfigured?: boolean
+      }
+      if (!res.ok) {
+        setFrameMsg(j.error || 'Could not start editor session')
+        return
+      }
+      const open = j.frameLaunchUrl || j.assetProxyUrl
+      if (open) window.open(open, '_blank', 'noopener,noreferrer')
+      if (!j.frameConfigured) {
+        setFrameMsg(
+          'NEXT_PUBLIC_FRAME_URL is not set — opened the asset proxy only. Deploy Frame separately, or use Replace video to upload an edited file.',
+        )
+      }
+    } catch {
+      setFrameMsg('Network error')
+    } finally {
+      setFrameBusy(false)
+    }
+  }
+
+  const uploadVideoReplace = async (file: File) => {
+    if (!selected) return
+    setReplaceBusy(true)
+    setFrameMsg(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/content/vault/${selected.id}/frame-export`, { method: 'POST', body: fd })
+      const j = (await res.json()) as { error?: string; content?: { id: string } }
+      if (!res.ok) {
+        setFrameMsg(typeof j.error === 'string' ? j.error : 'Upload failed')
+        return
+      }
+      await loadVault()
+      if (j.content?.id) {
+        const { data } = await supabase
+          .from('content')
+          .select(
+            'id, title, description, content_type, status, thumbnail_url, file_url, vault_storage_path, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
+          )
+          .eq('id', j.content.id)
+          .single()
+        if (data) setSelected(data as VaultContentRow)
+      }
+    } catch {
+      setFrameMsg('Upload failed')
+    } finally {
+      setReplaceBusy(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -515,6 +607,75 @@ export function MediaVaultHub() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save metadata
               </Button>
+
+              {selected && isVideoRow(selected) && (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <div className="flex items-center gap-2">
+                    <Clapperboard className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">Video (Frame bridge)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Edit cuts in the open-source{' '}
+                    <a
+                      href="https://github.com/aregrid/frame"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                    >
+                      Frame
+                    </a>{' '}
+                    app (MIT), or upload an export here. Hosting is short-term — download important files.
+                  </p>
+                  {frameMsg && (
+                    <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
+                      {frameMsg}
+                    </p>
+                  )}
+                  {hasVaultVideoFile(selected) ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="gap-2"
+                        disabled={frameBusy}
+                        onClick={() => void openFrameEditor()}
+                      >
+                        {frameBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+                        Edit in Frame
+                      </Button>
+                      <Button type="button" variant="outline" className="gap-2" asChild>
+                        <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-4 w-4" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No direct video file on this item yet (preview-only OF posts). Use Replace video to upload an MP4,
+                      then you can open Frame.
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Replace video (export from Frame or any editor)</Label>
+                    <Input
+                      type="file"
+                      accept="video/*,.mp4,.mov,.webm"
+                      disabled={replaceBusy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        e.target.value = ''
+                        if (f) void uploadVideoReplace(f)
+                      }}
+                    />
+                    {replaceBusy && (
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {isPhoto(selected) && (
                 <div className="space-y-3 border-t border-border pt-4">

@@ -1190,3 +1190,19 @@ body {
 .dashboard-widgets-grid.react-grid-layout .react-grid-item .react-resizable-handle-e:active {
   background: oklch(0.65 0.16 85 / 0.28);
 }
+
+/* Guide page — slow decorative orbit rings */
+@keyframes guide-orbit-spin {
+  from {
+    transform: translate(-50%, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, 0) rotate(360deg);
+  }
+}
+.animate-guide-orbit-slow {
+  animation: guide-orbit-spin 120s linear infinite;
+}
+.animate-guide-orbit-fast {
+  animation: guide-orbit-spin 90s linear infinite reverse;
+}

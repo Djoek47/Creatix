@@ -22,6 +22,7 @@ import {
   registerNotificationUiHandlers,
 } from '@/lib/dashboard/notification-ui-bridge'
 import { executeNotificationSecretaryBriefing } from '@/lib/divine/notification-secretary-briefing-client'
+import { stripHtml } from '@/lib/html-utils'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -110,13 +111,14 @@ export function Notifications() {
       const ofNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => ({
         id: `of-${String(n.id ?? n.notificationId ?? '')}`,
         type: 'system',
-        title:
+        title: stripHtml(
           typeof n.title === 'string' && n.title.trim().length
             ? n.title
             : typeof n.type === 'string'
               ? n.type
               : 'OnlyFans notification',
-        description:
+        ),
+        description: stripHtml(
           typeof n.text === 'string' && n.text.trim().length
             ? n.text
             : typeof n.body === 'string' && n.body.trim().length
@@ -124,6 +126,7 @@ export function Notifications() {
               : typeof n.message === 'string'
                 ? n.message
                 : '',
+        ),
         read: false,
         created_at:
           typeof n.createdAt === 'string'
@@ -153,13 +156,14 @@ export function Notifications() {
       const fsNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => ({
         id: `fs-${String(n.id ?? n.notificationId ?? '')}`,
         type: 'system',
-        title:
+        title: stripHtml(
           typeof n.title === 'string' && n.title.trim().length
             ? n.title
             : typeof n.type === 'string'
               ? n.type
               : 'Fansly notification',
-        description:
+        ),
+        description: stripHtml(
           typeof n.text === 'string' && n.text.trim().length
             ? n.text
             : typeof n.body === 'string' && n.body.trim().length
@@ -167,6 +171,7 @@ export function Notifications() {
               : typeof n.message === 'string'
                 ? n.message
                 : '',
+        ),
         read: false,
         created_at:
           typeof n.createdAt === 'string'
@@ -661,8 +666,8 @@ function NotificationRow({
           }}
           className="block"
         >
-          <p className={cn('text-sm', !notification.read && 'font-medium')}>{notification.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{notification.description}</p>
+          <p className={cn('text-sm', !notification.read && 'font-medium')}>{stripHtml(notification.title)}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{stripHtml(notification.description)}</p>
           {notification.origin === 'platform_pull' && (
             <p className="mt-0.5 text-[10px] text-muted-foreground/70">Not saved to your inbox yet</p>
           )}

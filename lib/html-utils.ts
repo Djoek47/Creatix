@@ -13,8 +13,11 @@ export function stripHtml(html: string | null | undefined): string {
   // Convert </p> to double newline (paragraph break)
   text = text.replace(/<\/p>/gi, '\n\n')
   
-  // Extract href from anchor tags and append URL
-  text = text.replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([^<]*)<\/a>/gi, '$2 ($1)')
+  // Extract href from anchor tags (including nested markup inside the link)
+  text = text.replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, url: string, inner: string) => {
+    const innerPlain = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    return innerPlain ? `${innerPlain} (${url})` : url
+  })
 
   // OnlyFans / rich HTML: trailing <o>…</o> wrappers (often a single “O” marker). Remove whole blocks first
   // so inner text is not left behind when <o> and </o> are stripped separately.

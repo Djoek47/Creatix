@@ -53,7 +53,7 @@ export default async function DashboardLayout({
         <DivinePanelWrapper user={user}>
           <ProtocolTasksProvider>
           <VoiceSessionProvider>
-            <div className="flex h-screen bg-background">
+            <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">
               {/* Desktop sidebar - hidden on mobile */}
               <div className="hidden md:block">
                 <DashboardSidebar user={user} profile={profile} />

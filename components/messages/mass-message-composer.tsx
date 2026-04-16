@@ -138,15 +138,9 @@ export function MassMessageComposer({
     if (!files?.length) return
     setUploading(true)
     try {
+      const { uploadLocalFileToOnlyFansMedia } = await import('@/lib/onlyfans-upload-client')
       for (let i = 0; i < files.length; i++) {
-        const formData = new FormData()
-        formData.append('file', files[i])
-        const res = await fetch('/api/onlyfans/media/upload', { method: 'POST', body: formData })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error((err as { error?: string }).error || 'Upload failed')
-        }
-        const data = (await res.json()) as { id: string }
+        const data = await uploadLocalFileToOnlyFansMedia(files[i])
         if (data.id) setMediaIds((prev) => [...prev, data.id])
       }
     } catch (err) {

@@ -28,6 +28,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Sparkles, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
+import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
 import { cn } from '@/lib/utils'
 
 export type VaultContentRow = {
@@ -447,6 +448,18 @@ export function MediaVaultHub() {
         </TabsList>
 
         <TabsContent value="creatix" className="mt-4 space-y-4">
+          <Card className="border-dashed border-primary/25">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Add to Creatix vault</CardTitle>
+              <CardDescription>
+                Create a draft photo or video row here. For videos, you can attach an MP4 now or later (Replace video in
+                the item).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <VaultQuickAdd onSuccess={() => void loadVault()} />
+            </CardContent>
+          </Card>
           {loading ? (
             <div className="flex justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

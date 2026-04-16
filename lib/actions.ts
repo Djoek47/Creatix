@@ -57,6 +57,20 @@ export async function deleteFan(fanId: string) {
   revalidatePath('/dashboard/fans', 'page')
 }
 
+/** DB `content.content_type` CHECK allows photo | video | message | ppv; the new-content UI uses image | text. */
+function normalizeContentTypeForDb(raw: string | null): 'photo' | 'video' | 'message' | 'ppv' {
+  const key = (raw || 'photo').toLowerCase().trim()
+  const map: Record<string, 'photo' | 'video' | 'message' | 'ppv'> = {
+    image: 'photo',
+    text: 'message',
+    photo: 'photo',
+    video: 'video',
+    message: 'message',
+    ppv: 'ppv',
+  }
+  return map[key] ?? 'photo'
+}
+
 // Content Actions
 export async function createContent(formData: FormData) {
   const supabase = await createClient()
@@ -67,15 +81,22 @@ export async function createContent(formData: FormData) {
   const platforms = formData.getAll('platforms') as string[]
   const tags = (formData.get('tags') as string)?.split(',').map(t => t.trim()).filter(Boolean) || []
 
+  const scheduledRaw = formData.get('scheduled_at') as string | null
+  let scheduled_at: string | null = null
+  if (scheduledRaw) {
+    const d = new Date(scheduledRaw)
+    if (!Number.isNaN(d.getTime())) scheduled_at = d.toISOString()
+  }
+
   const { error } = await supabase.from('content').insert({
     user_id: user.id,
     title: formData.get('title') as string,
     description: formData.get('description') as string || null,
-    content_type: formData.get('content_type') as string || 'image',
+    content_type: normalizeContentTypeForDb(formData.get('content_type') as string | null),
     platforms,
     tags,
     status: formData.get('status') as string || 'draft',
-    scheduled_at: formData.get('scheduled_at') ? new Date(formData.get('scheduled_at') as string).toISOString() : null,
+    scheduled_at,
   })
 
   if (error) throw error

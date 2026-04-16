@@ -144,16 +144,11 @@ export default function NewContentPage() {
     setUploadError(null)
     setUploadingMedia(true)
     try {
+      const { uploadLocalFileToOnlyFansMedia } = await import('@/lib/onlyfans-upload-client')
       const newIds: string[] = []
       for (let i = 0; i < files.length; i++) {
-        const formData = new FormData()
-        formData.append('file', files[i])
-        const res = await fetch('/api/onlyfans/media/upload', { method: 'POST', body: formData })
-        const data = (await res.json()) as { id?: string; error?: string }
-        if (!res.ok || !data.id) {
-          throw new Error(data.error || 'Upload failed')
-        }
-        newIds.push(data.id)
+        const result = await uploadLocalFileToOnlyFansMedia(files[i])
+        newIds.push(result.id)
       }
       setMediaIds((prev) => [...prev, ...newIds])
     } catch (err) {

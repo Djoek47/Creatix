@@ -1067,12 +1067,9 @@ export function ChatWindow({
     if (!files?.length || conversation?.platform !== 'onlyfans') return
     setUploadingMedia(true)
     try {
+      const { uploadLocalFileToOnlyFansMedia } = await import('@/lib/onlyfans-upload-client')
       for (let i = 0; i < files.length; i++) {
-        const formData = new FormData()
-        formData.append('file', files[i])
-        const res = await fetch('/api/onlyfans/media/upload', { method: 'POST', body: formData })
-        if (!res.ok) throw new Error('Upload failed')
-        const data = (await res.json()) as { id: string }
+        const data = await uploadLocalFileToOnlyFansMedia(files[i])
         if (data.id) setAttachedMediaIds((prev) => [...prev, data.id])
       }
     } catch {

@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
 import { cn } from '@/lib/utils'
 
 type VaultListItem = {
@@ -121,44 +122,55 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
         <DialogHeader>
           <DialogTitle>Edit a vault video</DialogTitle>
           <DialogDescription>
-            Opens the Frame bridge in a new tab. Only items with a hosted video file are listed.
+            Opens the Frame bridge in a new tab. Pick a video below, or add one to your Creatix vault first.
           </DialogDescription>
         </DialogHeader>
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <ScrollArea className="max-h-[min(70vh,480px)] pr-3">
+          <div className="space-y-4">
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : loadError ? (
+              <p className="text-sm text-destructive">{loadError}</p>
+            ) : playable.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No videos with a hosted file yet. Create a vault item below and attach an MP4, or open an item in Media
+                &amp; vault and use Replace video.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {playable.map((r) => (
+                  <li key={r.id}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-auto w-full justify-between gap-2 py-2 text-left font-normal"
+                      disabled={launchingId !== null}
+                      onClick={() => void openEditor(r.id)}
+                    >
+                      <span className="line-clamp-2 min-w-0 flex-1">{r.title || 'Untitled'}</span>
+                      {launchingId === r.id ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                      ) : (
+                        <span className="shrink-0 text-xs text-muted-foreground">Open</span>
+                      )}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Add to Creatix vault</p>
+              <VaultQuickAdd
+                compact
+                onSuccess={() => {
+                  void loadItems()
+                }}
+              />
+            </div>
           </div>
-        ) : loadError ? (
-          <p className="text-sm text-destructive">{loadError}</p>
-        ) : playable.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No editable videos yet. Add an MP4 to a vault video (Replace video in the item) or import content with an
-            HTTPS file URL.
-          </p>
-        ) : (
-          <ScrollArea className="max-h-[min(60vh,360px)] pr-3">
-            <ul className="space-y-2">
-              {playable.map((r) => (
-                <li key={r.id}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-auto w-full justify-between gap-2 py-2 text-left font-normal"
-                    disabled={launchingId !== null}
-                    onClick={() => void openEditor(r.id)}
-                  >
-                    <span className="line-clamp-2 min-w-0 flex-1">{r.title || 'Untitled'}</span>
-                    {launchingId === r.id ? (
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                    ) : (
-                      <span className="shrink-0 text-xs text-muted-foreground">Open</span>
-                    )}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </ScrollArea>
-        )}
+        </ScrollArea>
         {launchMsg && (
           <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
             {launchMsg}

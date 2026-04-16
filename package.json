@@ -55,6 +55,7 @@
     "@supabase/supabase-js": "^2.98.0",
     "@tanstack/react-virtual": "^3.13.23",
     "@vercel/analytics": "1.6.1",
+    "@vercel/blob": "^0.27.1",
     "ai": "^6.0.116",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

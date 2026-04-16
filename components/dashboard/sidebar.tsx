@@ -192,7 +192,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'relative flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
+        'relative flex h-full min-h-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -211,8 +211,8 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         )}
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 space-y-6 overflow-y-auto p-2">
+      {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
+      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-2">
         {/* Dashboard, Content, Messages - Black light/White dark */}
         <div className="space-y-1">
           {silverNavigation.map((item) => (
@@ -258,8 +258,8 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Bottom Navigation */}
-      <div className="border-t border-sidebar-border p-2">
+      {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
+      <div className="shrink-0 border-t border-sidebar-border p-2">
         {bottomNavigation.map((item) => (
           <NavLink key={item.name} item={item} variant="default" pathname={pathname} collapsed={collapsed} />
         ))}

@@ -23,6 +23,20 @@
 
 Rotate `FRAME_BRIDGE_SECRET` and `FRAME_EXPORT_SECRET` if leaked; old tokens become invalid.
 
+### Local development
+
+1. In the **Creatix project root** (same folder as `package.json`), create or edit **`.env.local`** (gitignored).
+2. Set a value at least **16 characters** (e.g. run `openssl rand -hex 16` on macOS/Linux/Git Bash, or use any long random string).
+3. Add:
+
+   ```bash
+   FRAME_BRIDGE_SECRET=paste_your_value_here
+   ```
+
+4. **Restart** the dev server so Next.js reloads env.
+
+On **Vercel**: Project → Settings → Environment Variables → add `FRAME_BRIDGE_SECRET` for the right environments → **Redeploy**.
+
 ## Database / Storage (Supabase)
 
 1. Run `scripts/074_vault_media_storage.sql` — adds `content.vault_storage_path`.
@@ -63,6 +77,7 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 
 | Symptom                             | Check                                                                        |
 | ----------------------------------- | ---------------------------------------------------------------------------- |
+| **503** “FRAME_BRIDGE_SECRET is not configured” | Set `FRAME_BRIDGE_SECRET` (≥16 chars) in `.env.local` and restart dev; on Vercel add the var and redeploy. |
 | 500 on export, “Bucket not found”   | Run `075_vault_media_bucket.sql`.                                            |
 | 500 on export, column error         | Run `074_vault_media_storage.sql`.                                           |
 | `frame-session` 400 “No video file” | Row must be `content_type` video and `file_url` **or** `vault_storage_path`. |

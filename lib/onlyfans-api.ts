@@ -1273,13 +1273,21 @@ class OnlyFansAPI {
       id: String(n.id ?? n.notificationId ?? ''),
       type: String(n.type ?? n.category ?? 'unknown'),
       title: typeof n.title === 'string' ? n.title : undefined,
-      text: typeof n.text === 'string'
-        ? n.text
-        : typeof n.body === 'string'
-          ? n.body
-          : typeof n.message === 'string'
-            ? n.message
-            : undefined,
+      text: (() => {
+        const candidates = [
+          n.text,
+          n.body,
+          n.message,
+          n.html,
+          n.description,
+          n.content,
+          n.replaceText,
+        ]
+        for (const c of candidates) {
+          if (typeof c === 'string' && c.trim().length) return c
+        }
+        return undefined
+      })(),
       createdAt: typeof n.createdAt === 'string'
         ? n.createdAt
         : typeof n.date === 'string'

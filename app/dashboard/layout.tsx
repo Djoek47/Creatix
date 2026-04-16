@@ -56,8 +56,8 @@ export default async function DashboardLayout({
           <VoiceSessionProvider>
             <DashboardDocumentScrollLock />
             <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">
-              {/* Desktop sidebar - hidden on mobile */}
-              <div className="hidden md:block">
+              {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
+              <div className="hidden h-full min-h-0 md:flex md:flex-col">
                 <DashboardSidebar user={user} profile={profile} />
               </div>
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

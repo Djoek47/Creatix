@@ -1,23 +1,49 @@
 /**
+ * Decode common HTML entities so escaped markup (e.g. &lt;a …&gt;) is unwrapped
+ * before tag stripping. Runs in a loop so &amp;lt; becomes a real tag after a few passes.
+ */
+function decodeHtmlEntitiesForStripping(s: string): string {
+  let text = s
+  for (let pass = 0; pass < 6; pass++) {
+    const prev = text
+    text = text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/&amp;/g, '&')
+    if (text === prev) break
+  }
+  return text
+}
+
+/**
  * Strips HTML tags from text while preserving emojis and converting
  * common HTML elements to their text equivalents
  */
 export function stripHtml(html: string | null | undefined): string {
   if (!html) return ''
-  
-  let text = html
-  
+
+  let text = decodeHtmlEntitiesForStripping(html)
+
   // Convert <br> and <br /> to newlines
   text = text.replace(/<br\s*\/?>/gi, '\n')
-  
+
   // Convert </p> to double newline (paragraph break)
   text = text.replace(/<\/p>/gi, '\n\n')
-  
-  // Extract href from anchor tags (including nested markup inside the link)
-  text = text.replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, url: string, inner: string) => {
-    const innerPlain = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-    return innerPlain ? `${innerPlain} (${url})` : url
-  })
+
+  // Anchors: href in single/double quotes (OnlyFans often uses href='…')
+  text = text.replace(
+    /<a\b[^>]*\bhref\s*=\s*(["'])([^"']*)\1[^>]*>([\s\S]*?)<\/a>/gi,
+    (_: string, _q: string, url: string, inner: string) => {
+      const innerPlain = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      return innerPlain ? `${innerPlain} (${url})` : url
+    },
+  )
 
   // OnlyFans / rich HTML: trailing <o>…</o> wrappers (often a single “O” marker). Remove whole blocks first
   // so inner text is not left behind when <o> and </o> are stripped separately.
@@ -26,19 +52,9 @@ export function stripHtml(html: string | null | undefined): string {
   
   // Remove all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '')
-  
-  // Decode common HTML entities
-  text = text.replace(/&nbsp;/g, ' ')
-  text = text.replace(/&amp;/g, '&')
-  text = text.replace(/&lt;/g, '<')
-  text = text.replace(/&gt;/g, '>')
-  text = text.replace(/&quot;/g, '"')
-  text = text.replace(/&#39;/g, "'")
-  text = text.replace(/&apos;/g, "'")
-  
-  // Decode numeric HTML entities (like &#128139; for emojis)
-  text = text.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
-  text = text.replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+
+  // Any entities left in plain text (e.g. &amp; in copy)
+  text = decodeHtmlEntitiesForStripping(text)
   
   // Clean up extra whitespace but preserve intentional line breaks
   text = text.replace(/[ \t]+/g, ' ')

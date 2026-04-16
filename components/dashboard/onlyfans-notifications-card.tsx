@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Bell, Loader2 } from 'lucide-react'
+import { stripHtml } from '@/lib/html-utils'
 
 type OnlyFansNotification = {
   id: string
@@ -126,8 +127,8 @@ export function OnlyFansNotificationsCard() {
                   <span className="font-medium capitalize">{n.type}</span>{' '}
                   {n.fromUser?.username ? `@${n.fromUser.username}` : ''}
                   {': '}
-                  <span className="text-muted-foreground">
-                    {n.text || n.title || 'Notification'}
+                  <span className="text-muted-foreground line-clamp-4 break-words">
+                    {stripHtml(n.text || n.title || 'Notification')}
                   </span>
                 </li>
               ))}

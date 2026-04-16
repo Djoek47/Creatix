@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Sparkles, Wand2 } from 'lucide-react'
+import { Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
 import { cn } from '@/lib/utils'
@@ -665,6 +665,12 @@ export function MediaVaultHub() {
                           <Download className="h-4 w-4" />
                           Download
                         </a>
+                      </Button>
+                      <Button type="button" variant="outline" className="gap-2" asChild>
+                        <Link href="/dashboard/ai-studio/ariadne">
+                          <Shield className="h-4 w-4" />
+                          Ariadne Trace
+                        </Link>
                       </Button>
                     </div>
                   ) : (

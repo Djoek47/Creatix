@@ -37,6 +37,12 @@ export const PROVIDER_USD_ESTIMATE = {
   /** Reputation wide+social Serper batch */
   serperReputationRun: 0.48,
   dmcaClaimPrep: 0.07,
+  /** Frame AI assist (gpt-4o-mini class) */
+  frameAiAssistTurn: 0.012,
+  /** Ariadne append-v1 embed (download + upload + crypto) */
+  ariadneEmbed: 0.08,
+  /** Ariadne leak-file detection parse */
+  ariadneDetect: 0.04,
 } as const
 
 /** Credits to debit ≈ provider USD / CREDIT_USD_VALUE (integer, ≥ 1, capped for sanity). */
@@ -59,6 +65,10 @@ const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'revenue-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'pricing-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'price-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'frame-ai-assist': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.frameAiAssistTurn),
+  'frame-studio': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
+  'ariadne-trace': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneEmbed),
+  'ariadne-detect': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneDetect),
 }
 
 export type SubscriptionRowForCredits = {

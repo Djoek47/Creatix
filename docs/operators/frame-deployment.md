@@ -3,6 +3,7 @@
 ## Overview
 
 - **Frame** ([aregrid/frame](https://github.com/aregrid/frame)) runs as a **separate deployment** (e.g. Vercel project `frame.yourdomain.com`).
+- **Creatix fork:** Create your own fork and a long-lived branch (e.g. `frame`), apply branding, then deploy. See **[frame-fork-creatix.md](frame-fork-creatix.md)** and **[frame-branding-tokens.css](frame-branding-tokens.css)**.
 - **Creatix** exposes:
   - `GET /api/content/vault/[id]/frame-session` — authenticated; returns `assetProxyUrl`, `exportToken`, `exportUrl`, optional `frameLaunchUrl`.
   - `GET /api/content/vault/[id]/asset?t=...` — HMAC token; proxies video (Range supported for external URLs).
@@ -17,6 +18,7 @@
 | `FRAME_BRIDGE_SECRET`       | **Yes** (for bridge) | Min 16 chars. Signs asset-read and export tokens (`lib/frame-vault-bridge.ts`).                                                                                 |
 | `FRAME_EXPORT_SECRET`       | For Frame POST       | Shared secret; Frame sends `X-Frame-Export-Secret: <value>` with export `exportToken` form field.                                                               |
 | `NEXT_PUBLIC_FRAME_URL`     | Optional             | e.g. `https://frame.example.com` — used to build `frameLaunchUrl` (`?importUrl=`). If unset, UI still opens `assetProxyUrl` and manual **Replace video** works. |
+| `ARIADNE_SECRET`            | Optional             | Signs Ariadne forensic payloads (`append-v1`). Falls back to `FRAME_BRIDGE_SECRET` if unset. |
 | `NEXT_PUBLIC_SUPABASE_URL`  | Yes                  | Storage uploads.                                                                                                                                                |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes                  | Server-side storage + DB updates.                                                                                                                               |
 
@@ -65,7 +67,7 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 ## CORS
 
 - Asset proxy is **same-origin** (Creatix) — avoids browser CORS to OnlyFans/CDN when Frame loads `importUrl`.
-- If Frame is on another origin, allow that origin in Frame’s server config to call Creatix export (or use server-side POST from Frame backend only).
+- **`NEXT_PUBLIC_FRAME_URL`:** When set, `POST /api/ariadne/embed` and related routes add `Access-Control-Allow-Origin` for that origin so the Frame web app can call Creatix with `Authorization: Bearer <exportToken>` from the browser. Prefer server-side POST from Frame if you lock down CORS further.
 
 ## Retention / storage
 

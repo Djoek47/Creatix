@@ -11,7 +11,7 @@
 
 ## Creatix integration (v1)
 
-Creatix does **not** vendor Frame in this repository. Deploy Frame as a **separate Vercel project** (or Docker) and point:
+Creatix does **not** vendor Frame in this repository. **Fork** upstream into your org (branch `frame`), apply branding from [`docs/operators/frame-branding-tokens.css`](operators/frame-branding-tokens.css), then deploy Frame as a **separate Vercel project** (or Docker) and point:
 
 - `NEXT_PUBLIC_FRAME_URL` — Frame web origin (e.g. `https://frame.example.com`).
 - Configure Frame (fork or env) to:

@@ -1,0 +1,20 @@
+/**
+ * Copy these CSS variables into the Frame fork (packages/frame-web global styles)
+ * so the editor matches Creatix dashboard feel. Tune hex values to match app/globals.css.
+ */
+
+:root {
+  --creatix-brand-name: 'Creatix Frame';
+  --creatix-radius-xl: 0.75rem;
+  --creatix-radius-2xl: 1rem;
+  /* Align with Tailwind theme / globals — dark-first */
+  --creatix-bg: oklch(0.14 0.02 280);
+  --creatix-card: oklch(0.18 0.02 280);
+  --creatix-border: oklch(0.35 0.04 280 / 0.45);
+  --creatix-circe: oklch(0.62 0.22 295);
+  --creatix-circe-light: oklch(0.72 0.16 295);
+  --creatix-foreground: oklch(0.96 0.01 280);
+  --creatix-muted: oklch(0.65 0.02 280);
+}
+
+/* Logo: place /public/creatix-mark.svg and /public/creatix-wordmark.svg in Frame public/ from Creatix public/ */

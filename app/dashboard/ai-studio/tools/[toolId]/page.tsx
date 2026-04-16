@@ -37,6 +37,12 @@ function ToolRunnerInner() {
     if (toolId === 'leak-scanner' || toolId === 'dmca-automator' || toolId === 'circe-protection-shield') {
       router.replace('/dashboard/protection/aegis')
     }
+    if (toolId === 'ariadne-trace') {
+      router.replace('/dashboard/ai-studio/ariadne')
+    }
+    if (toolId === 'frame-studio') {
+      router.replace('/dashboard/ai-studio')
+    }
   }, [toolId, router])
 
   if (toolId === 'caption-generator') {
@@ -56,7 +62,9 @@ function ToolRunnerInner() {
     toolId === 'dm-bundle-pricing' ||
     toolId === 'leak-scanner' ||
     toolId === 'dmca-automator' ||
-    toolId === 'circe-protection-shield'
+    toolId === 'circe-protection-shield' ||
+    toolId === 'ariadne-trace' ||
+    toolId === 'frame-studio'
   ) {
     return null
   }

@@ -84,16 +84,21 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
     ? `${frameBase}/?importUrl=${encodeURIComponent(assetProxyUrl)}`
     : null
 
+  const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`
+  const frameAssistApiUrl = `${base}/api/frame/ai/assist`
+
   return NextResponse.json({
     contentId: id,
     assetProxyUrl,
     exportToken,
     exportUrl,
+    ariadneEmbedApiUrl,
+    frameAssistApiUrl,
     frameBaseUrl: frameBase || null,
     frameLaunchUrl,
     frameConfigured,
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
     instructions:
-      'Open frameLaunchUrl in a new tab (when Frame is deployed). Configure your Frame fork to POST exported files to exportUrl with headers X-Frame-Export-Secret and form field exportToken, or use Replace video in the vault to upload manually.',
+      'Open frameLaunchUrl in a new tab (when Frame is deployed). Configure your Frame fork to POST exported files to exportUrl with headers X-Frame-Export-Secret and form field exportToken, or use Replace video in the vault to upload manually. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" } (session cookie or same-site auth). Frame AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.',
   })
 }

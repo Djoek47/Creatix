@@ -236,6 +236,50 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hasRunner: true,
   },
   { id: 'standard-of-attraction', name: 'Standard of Attraction', description: 'Pro rating of how commercially attractive your content is', longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.', category: 'premium', isPro: true, badge: 'Pro', credits: 3, hasRunner: true },
+  {
+    id: 'frame-studio',
+    name: 'Frame Studio',
+    description: 'Creatix-branded video editor (Frame fork)',
+    longDescription:
+      'Opens the **Media & vault** hub where you can launch the Frame bridge, replace video, and use vault presets. Deploy your Frame fork separately and set `NEXT_PUBLIC_FRAME_URL` on Vercel. Divine can deep-link here.',
+    category: 'content',
+    badge: 'Beta',
+    credits: 2,
+    hasRunner: true,
+  },
+  {
+    id: 'frame-ai-assist',
+    name: 'Frame AI Assist',
+    description: 'Editing and pacing copilot for Frame',
+    longDescription:
+      'Server-side assistant via `POST /api/frame/ai/assist` — same billing as other AI tools. Call from the Frame deployment with `Authorization: Bearer <exportToken>` from `frame-session`, or from the logged-in dashboard.',
+    category: 'content',
+    credits: 2,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
+    id: 'ariadne-trace',
+    name: 'Ariadne Trace',
+    description: 'Per-recipient forensic marker on exported video',
+    longDescription:
+      'Embeds a signed **append-v1** marker in vault video (MVP) so leaks can be traced to a recipient key. Use **Media & vault → Ariadne** for existing library files; Frame export can call the same API. See [`docs/ariadne-technical-spec.md`](../docs/ariadne-technical-spec.md).',
+    category: 'protection',
+    badge: 'Pro',
+    credits: 8,
+    hasRunner: true,
+  },
+  {
+    id: 'ariadne-detect',
+    name: 'Ariadne Detect',
+    description: 'Decode marker from a suspected leak file',
+    longDescription:
+      'Upload a video file; we scan for an Ariadne append-v1 payload and match it to your export records. Powers future DMCA pre-fill. **API:** `POST /api/ariadne/detect` (multipart).',
+    category: 'protection',
+    credits: 4,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
 ]
 
 export const TOOL_IDS_WITH_RUNNER = new Set(

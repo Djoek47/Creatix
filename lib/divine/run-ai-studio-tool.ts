@@ -181,6 +181,38 @@ export async function runAiStudioToolServer(
         },
         cookie,
       )
+    case 'frame-studio':
+      return {
+        success: true,
+        result: {
+          content:
+            'Frame Studio: open **Dashboard → AI Studio** for Media & vault (video editor toolbar, Replace video, Frame bridge). Deploy the Frame fork separately; set `NEXT_PUBLIC_FRAME_URL` on Creatix. Path: /dashboard/ai-studio',
+        },
+      }
+    case 'ariadne-trace':
+      return {
+        success: true,
+        result: {
+          content:
+            'Ariadne Trace: open **Dashboard → AI Studio → Ariadne** to embed a per-recipient forensic marker on a vault video (`/dashboard/ai-studio/ariadne`). Uses the same API as Frame export when wired.',
+        },
+      }
+    case 'frame-ai-assist':
+      return {
+        success: true,
+        result: {
+          content:
+            'Frame AI Assist: `POST /api/frame/ai/assist` with `{ messages }` (AI SDK). Authenticate with session cookie or `Authorization: Bearer <exportToken>` from `GET /api/content/vault/[id]/frame-session`. Credits debited per `frame-ai-assist`.',
+        },
+      }
+    case 'ariadne-detect':
+      return {
+        success: true,
+        result: {
+          content:
+            'Ariadne Detect: `POST /api/ariadne/detect` with multipart `file`. Decodes append-v1 markers and matches `ariadne_exports` for your account.',
+        },
+      }
     default: {
       const fromArgs = buildGenericToolRunPrompt(a).trim()
       const fallback = `The creator is using Divine Manager. Help them with "${meta.name}" (${meta.description}). Give concrete, actionable output they can use today.`

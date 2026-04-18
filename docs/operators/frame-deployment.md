@@ -2,8 +2,9 @@
 
 ## Overview
 
-- **Frame** ([aregrid/frame](https://github.com/aregrid/frame)) runs as a **separate deployment** (e.g. Vercel project `frame.yourdomain.com`).
-- **Creatix fork:** Create your own fork and a long-lived branch (e.g. `frame`), apply branding, then deploy. See **[frame-fork-creatix.md](frame-fork-creatix.md)** and **[frame-branding-tokens.css](frame-branding-tokens.css)**.
+- **Frame editor** ships in this repository under [`frame-editor/`](../../frame-editor/README.md) on branch **`frame`**. Deploy it as a **separate Vercel project** (same GitHub repo, **Root Directory** `frame-editor`, branch `frame`) so it can live on its own origin (e.g. `frame.yourdomain.com`).
+- Optional styling reference: **[frame-branding-tokens.css](frame-branding-tokens.css)** (CSS variables aligned with Creatix).
+- Upstream reference (MIT): [aregrid/frame](https://github.com/aregrid/frame) — not vendored as a submodule; this app is a focused web editor integrated with Creatix vault APIs.
 - **Creatix** exposes:
   - `GET /api/content/vault/[id]/frame-session` — authenticated; returns `assetProxyUrl`, `exportToken`, `exportUrl`, optional `frameLaunchUrl`.
   - `GET /api/content/vault/[id]/asset?t=...` — HMAC token; proxies video (Range supported for external URLs).
@@ -82,6 +83,3 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 | 500 on export, column error                     | Run `074_vault_media_storage.sql`.                                                                         |
 | `frame-session` 400 “No video file”             | Row must be `content_type` video and `file_url` **or** `vault_storage_path`.                               |
 | Token invalid                                   | Clock skew / expired token; re-open sheet and retry.                                                       |
-
-
-See also `[docs/frame-upstream-notes.md](../frame-upstream-notes.md)`.

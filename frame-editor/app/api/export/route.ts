@@ -6,12 +6,15 @@ function isAllowedExportUrl(url: string): boolean {
   try {
     const u = new URL(url)
     if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
-    const list = (process.env.CREATIX_EXPORT_HOST_ALLOWLIST || DEFAULT_HOSTS.join(','))
+    /** Always union defaults so CREATIX_EXPORT_HOST_ALLOWLIST can add preview hosts without dropping production. */
+    const extra = (process.env.CREATIX_EXPORT_HOST_ALLOWLIST || '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
-    if (!list.includes(u.hostname)) return false
-    return /\/api\/content\/vault\/[^/]+\/frame-export$/.test(u.pathname)
+    const allow = new Set([...DEFAULT_HOSTS, ...extra])
+    if (!allow.has(u.hostname)) return false
+    const path = u.pathname.replace(/\/+$/, '') || '/'
+    return /\/api\/content\/vault\/[^/]+\/frame-export$/.test(path)
   } catch {
     return false
   }

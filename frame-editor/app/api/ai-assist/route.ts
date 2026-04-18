@@ -107,17 +107,41 @@ function formatUpstreamFailure(status: number, body: string, creatixBase: string
   return t || `Upstream error (${status})`
 }
 
-/** Best-effort parse of Vercel AI UI message stream (line prefix `0:` = text deltas). */
+/**
+ * Creatix `streamText` + `toUIMessageStreamResponse()` emits SSE `data:` lines with
+ * `{ "type": "text-delta", "delta": "..." }`. Older streams used lines prefixed with `0:`.
+ */
 function extractDataStreamText(raw: string): string {
   const parts: string[] = []
   for (const line of raw.split('\n')) {
     const t = line.trim()
-    if (!t.startsWith('0:')) continue
-    try {
-      const j = JSON.parse(t.slice(2)) as unknown
-      if (typeof j === 'string') parts.push(j)
-    } catch {
-      /* ignore malformed chunks */
+    if (!t) continue
+
+    if (t.startsWith('0:')) {
+      try {
+        const j = JSON.parse(t.slice(2)) as unknown
+        if (typeof j === 'string') parts.push(j)
+      } catch {
+        /* ignore */
+      }
+      continue
+    }
+
+    if (t.startsWith('data:')) {
+      const payload = t.slice(5).trim()
+      if (payload === '[DONE]') continue
+      try {
+        const j = JSON.parse(payload) as {
+          type?: string
+          delta?: string
+          text?: string
+        }
+        if (j.type === 'text-delta' && typeof j.delta === 'string') {
+          parts.push(j.delta)
+        }
+      } catch {
+        /* ignore */
+      }
     }
   }
   if (parts.length > 0) return parts.join('')

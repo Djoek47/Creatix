@@ -77,9 +77,8 @@ export function EditorApp() {
       try {
         const fd = new FormData()
         fd.append('file', file)
-        fd.append('exportUrl', exportUrl)
         fd.append('exportToken', exportToken)
-        const res = await fetch('/api/export', { method: 'POST', body: fd })
+        const res = await fetch(exportUrl, { method: 'POST', body: fd, credentials: 'omit' })
         const text = await res.text()
         if (!res.ok) {
           setExportStatus(`Upload failed (${res.status}): ${text.slice(0, 400)}`)

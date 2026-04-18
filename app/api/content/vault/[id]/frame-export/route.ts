@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
+import { applyFrameCorsHeaders } from '@/lib/cors-frame'
 import {
   isAllowedVaultVideoMime,
   vaultExportObjectPath,
@@ -11,9 +12,20 @@ import {
 
 export const runtime = 'nodejs'
 
+function withCors(request: NextRequest, res: NextResponse): NextResponse {
+  return applyFrameCorsHeaders(request, res)
+}
+
 /**
- * Upload edited video: either Frame service (X-Frame-Export-Secret + exportToken) or logged-in user (session).
+ * Upload edited video:
+ * - Markit/Frame **browser**: `exportToken` only (HMAC) — large files bypass Markit's Vercel body limit.
+ * - Server proxy: `X-Frame-Export-Secret` + `exportToken` (legacy).
+ * - Logged-in creator: session cookie, no token.
  */
+export async function OPTIONS(request: NextRequest) {
+  return withCors(request, new NextResponse(null, { status: 204 }))
+}
+
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const serviceSecret = process.env.FRAME_EXPORT_SECRET
@@ -21,60 +33,68 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   const contentType = request.headers.get('content-type') || ''
   if (!contentType.includes('multipart/form-data')) {
-    return NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 })
+    return withCors(request, NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 }))
   }
 
   let formData: FormData
   try {
     formData = await request.formData()
   } catch {
-    return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
+    return withCors(request, NextResponse.json({ error: 'Invalid body' }, { status: 400 }))
   }
 
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: 'Missing file' }, { status: 400 })
+    return withCors(request, NextResponse.json({ error: 'Missing file' }, { status: 400 }))
   }
 
   if (file.size > VAULT_EXPORT_MAX_BYTES) {
-    return NextResponse.json({ error: 'File too large' }, { status: 413 })
+    return withCors(request, NextResponse.json({ error: 'File too large' }, { status: 413 }))
   }
 
   const exportTokenRaw = formData.get('exportToken')
   const exportToken = typeof exportTokenRaw === 'string' ? exportTokenRaw : null
 
+  const payloadFromToken = exportToken ? verifyExportToken(exportToken) : null
+
   let userId: string | null = null
 
-  if (serviceSecret && headerSecret === serviceSecret && exportToken) {
-    const payload = verifyExportToken(exportToken)
-    if (!payload || payload.contentId !== id) {
-      return NextResponse.json({ error: 'Invalid export token' }, { status: 403 })
+  const hasServiceAuth = Boolean(serviceSecret && headerSecret === serviceSecret && exportToken)
+
+  if (hasServiceAuth) {
+    if (!payloadFromToken || payloadFromToken.contentId !== id) {
+      return withCors(request, NextResponse.json({ error: 'Invalid export token' }, { status: 403 }))
     }
-    userId = payload.userId
+    userId = payloadFromToken.userId
+  } else if (exportToken) {
+    if (!payloadFromToken || payloadFromToken.contentId !== id) {
+      return withCors(request, NextResponse.json({ error: 'Invalid export token' }, { status: 403 }))
+    }
+    userId = payloadFromToken.userId
   } else {
     const supabase = await createRouteHandlerClient(request)
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return withCors(request, NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
     }
     userId = user.id
   }
 
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return withCors(request, NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
   }
 
   const mime = file.type || 'application/octet-stream'
   if (!isAllowedVaultVideoMime(mime)) {
-    return NextResponse.json({ error: 'Unsupported file type; use a video file' }, { status: 400 })
+    return withCors(request, NextResponse.json({ error: 'Unsupported file type; use a video file' }, { status: 400 }))
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+    return withCors(request, NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 }))
   }
 
   const service = createServiceClient(url, key)
@@ -87,7 +107,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     .maybeSingle()
 
   if (fetchErr || !row) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return withCors(request, NextResponse.json({ error: 'Not found' }, { status: 404 }))
   }
 
   const path = vaultExportObjectPath(userId, id, file.name || 'export.mp4')
@@ -103,7 +123,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       /not exist|Bucket not found/i.test(upErr.message || '')
         ? ' Create the vault-media bucket (scripts/075_vault_media_bucket.sql).'
         : ''
-    return NextResponse.json({ error: (upErr.message || 'Upload failed') + hint }, { status: 500 })
+    return withCors(
+      request,
+      NextResponse.json({ error: (upErr.message || 'Upload failed') + hint }, { status: 500 }),
+    )
   }
 
   const signedSeconds = 60 * 24 * 60 * 60 // 60 days
@@ -112,7 +135,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     .createSignedUrl(path, signedSeconds)
 
   if (signErr || !signed?.signedUrl) {
-    return NextResponse.json({ error: signErr?.message || 'Could not sign URL' }, { status: 500 })
+    return withCors(request, NextResponse.json({ error: signErr?.message || 'Could not sign URL' }, { status: 500 }))
   }
 
   const patch: Record<string, unknown> = {
@@ -130,13 +153,16 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     .maybeSingle()
 
   if (updErr || !updated) {
-    return NextResponse.json({ error: updErr?.message || 'Update failed' }, { status: 500 })
+    return withCors(request, NextResponse.json({ error: updErr?.message || 'Update failed' }, { status: 500 }))
   }
 
-  return NextResponse.json({
-    success: true,
-    content: updated,
-    downloadUrl: signed.signedUrl,
-    signedUrlExpiresInSec: signedSeconds,
-  })
+  return withCors(
+    request,
+    NextResponse.json({
+      success: true,
+      content: updated,
+      downloadUrl: signed.signedUrl,
+      signedUrlExpiresInSec: signedSeconds,
+    }),
+  )
 }

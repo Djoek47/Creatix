@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { AriadneTracePanel } from '@/components/ai/ariadne-trace-panel'
 
@@ -12,7 +13,9 @@ export default function AriadneTracePage() {
         <ArrowLeft className="h-4 w-4" />
         Back to AI Studio
       </Link>
-      <AriadneTracePanel />
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading Ariadne…</div>}>
+        <AriadneTracePanel />
+      </Suspense>
     </div>
   )
 }

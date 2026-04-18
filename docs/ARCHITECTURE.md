@@ -6,6 +6,8 @@ Creatix is a **Next.js (App Router)** application deployed as a **single unit** 
 
 **Supabase** provides auth, Postgres, and RLS. Server code uses [`lib/supabase/server.ts`](../lib/supabase/server.ts) (cookies / SSR); the browser uses [`lib/supabase/client.ts`](../lib/supabase/client.ts).
 
+**Markit (standalone editor)** — vault bridge, ffmpeg.wasm, Assist, Ariadne handoff: see [`docs/markit-ecosystem-architecture.md`](markit-ecosystem-architecture.md).
+
 ```mermaid
 flowchart LR
   subgraph clients [Clients]

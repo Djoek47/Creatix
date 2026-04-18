@@ -28,7 +28,14 @@ const ARIADNE_EMBED_MAX_BYTES = Math.min(80 * 1024 * 1024, VAULT_EXPORT_MAX_BYTE
 export async function POST(request: NextRequest) {
   const jc = (data: unknown, status: number) => applyFrameCorsHeaders(request, NextResponse.json(data, { status }))
 
-  let body: { contentId?: string; recipientKey?: string; source?: 'vault_standalone' | 'frame_export' }
+  let body: {
+    contentId?: string
+    recipientKey?: string
+    source?: 'vault_standalone' | 'frame_export'
+    /** When set (OnlyFans), recipientKey defaults to onlyfans:{id} if omitted */
+    platformFanId?: string
+    platform?: string
+  }
   try {
     body = await request.json()
   } catch {
@@ -36,11 +43,25 @@ export async function POST(request: NextRequest) {
   }
 
   const contentId = typeof body.contentId === 'string' ? body.contentId : ''
-  const recipientKey = typeof body.recipientKey === 'string' ? body.recipientKey.trim() : ''
   const source = body.source === 'frame_export' ? 'frame_export' : 'vault_standalone'
+  const platformFanId =
+    typeof body.platformFanId === 'string' && body.platformFanId.trim()
+      ? body.platformFanId.trim()
+      : ''
+  const platform =
+    typeof body.platform === 'string' && body.platform.trim() ? body.platform.trim().toLowerCase() : ''
+  let recipientKey = typeof body.recipientKey === 'string' ? body.recipientKey.trim() : ''
+
+  if (platformFanId && !recipientKey) {
+    const pf = platform || 'onlyfans'
+    recipientKey = `${pf}:${platformFanId}`
+  }
 
   if (!contentId || !recipientKey) {
-    return jc({ error: 'contentId and recipientKey are required' }, 400)
+    return jc(
+      { error: 'contentId is required, and either recipientKey or platformFanId (chat fan) must be provided' },
+      400,
+    )
   }
 
   const supabase = await createRouteHandlerClient(request)
@@ -153,7 +174,7 @@ export async function POST(request: NextRequest) {
     return jc({ error: signErr?.message || 'Could not sign URL' }, 500)
   }
 
-  const { error: insErr } = await service.from('ariadne_exports').insert({
+  const exportRow: Record<string, unknown> = {
     user_id: userId,
     content_id: contentId,
     recipient_key: recipientKey,
@@ -163,9 +184,21 @@ export async function POST(request: NextRequest) {
     payload_manifest: payload as unknown as Record<string, unknown>,
     file_sha256_before: before,
     file_sha256_after: after,
-  })
+  }
+  if (platformFanId) {
+    exportRow.platform = platform || 'onlyfans'
+    exportRow.platform_fan_id = platformFanId
+  }
+
+  const { error: insErr } = await service.from('ariadne_exports').insert(exportRow)
 
   if (insErr) {
+    if (/platform_fan_id|column .* does not exist/i.test(insErr.message)) {
+      return jc(
+        { error: 'Database missing fan columns on ariadne_exports. Run scripts/077_ariadne_exports_fan_columns.sql.' },
+        { status: 503 },
+      )
+    }
     return jc({ error: insErr.message || 'Could not save Ariadne record' }, 500)
   }
 

@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { extractAppendV1 } from '@/lib/ariadne-embed'
+import { parseAriadneRecipientKey } from '@/lib/ariadne-detect-report'
 
 export const runtime = 'nodejs'
 
@@ -70,15 +71,39 @@ export async function POST(request: NextRequest) {
       algorithmVersion: null,
       message: 'No Ariadne append-v1 marker found in this file.',
       creditsCharged: toolCost,
+      report: {
+        verdict: 'no_marker',
+        headline: 'No Ariadne marker detected',
+        summary:
+          'This file does not contain a Creatix append-v1 forensic marker in the expected format. It may be an unmarked copy, re-encoded without the tail, or not from your workflow.',
+      },
     })
   }
 
-  const { data: exp, error: expErr } = await service
-    .from('ariadne_exports')
-    .select('id, content_id, recipient_key, source, algorithm_version, created_at, payload_id')
-    .eq('user_id', user.id)
-    .eq('payload_id', extracted.payloadId)
-    .maybeSingle()
+  let exp: Record<string, unknown> | null = null
+  let expErr: { message?: string } | null = null
+  {
+    const sel = await service
+      .from('ariadne_exports')
+      .select(
+        'id, content_id, recipient_key, source, algorithm_version, created_at, payload_id, platform, platform_fan_id',
+      )
+      .eq('user_id', user.id)
+      .eq('payload_id', extracted.payloadId)
+      .maybeSingle()
+    exp = sel.data as Record<string, unknown> | null
+    expErr = sel.error
+    if (sel.error && /platform_fan_id|column .* does not exist/i.test(sel.error.message || '')) {
+      const fb = await service
+        .from('ariadne_exports')
+        .select('id, content_id, recipient_key, source, algorithm_version, created_at, payload_id')
+        .eq('user_id', user.id)
+        .eq('payload_id', extracted.payloadId)
+        .maybeSingle()
+      exp = fb.data as Record<string, unknown> | null
+      expErr = fb.error
+    }
+  }
 
   const debit = await consumeAiCredits(supabase, user.id, toolCost)
   if (!debit.ok) {
@@ -91,8 +116,53 @@ export async function POST(request: NextRequest) {
       payload: extracted,
       message: 'Marker decoded but no matching export row for your account (wrong account or old export).',
       creditsCharged: toolCost,
+      report: {
+        verdict: 'unregistered',
+        headline: 'Marker not registered to your workspace',
+        summary:
+          'A valid Ariadne marker was found in the file, but it is not registered to your Creatix account. It may belong to another creator or an old export.',
+      },
     })
   }
+
+  const recipientKey = String(exp.recipient_key ?? '')
+  const parsed = parseAriadneRecipientKey(recipientKey)
+  const contentId = String(exp.content_id ?? '')
+
+  let contentTitle: string | null = null
+  if (contentId) {
+    const { data: crow } = await service
+      .from('content')
+      .select('title')
+      .eq('id', contentId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    contentTitle = (crow as { title?: string } | null)?.title ?? null
+  }
+
+  let fanHandle: string | null = null
+  const fanLookupId =
+    (typeof exp.platform_fan_id === 'string' && exp.platform_fan_id) ||
+    (parsed.kind === 'onlyfans_fan' ? parsed.fanId : '')
+  if (fanLookupId) {
+    const { data: fr } = await supabase
+      .from('divine_fan_recents')
+      .select('username, display_name')
+      .eq('user_id', user.id)
+      .eq('platform', 'onlyfans')
+      .eq('fan_id', fanLookupId)
+      .maybeSingle()
+    if (fr) {
+      const row = fr as { username?: string | null; display_name?: string | null }
+      fanHandle = row.username?.trim() || row.display_name?.trim() || null
+    }
+  }
+
+  const embeddedAt = String(exp.created_at ?? '')
+  const markerExpiresAt =
+    typeof extracted.exp === 'number' && Number.isFinite(extracted.exp)
+      ? new Date(extracted.exp * 1000).toISOString()
+      : null
 
   return NextResponse.json({
     match: true,
@@ -101,5 +171,33 @@ export async function POST(request: NextRequest) {
     creditsCharged: toolCost,
     dmcaHint:
       'Use recipient_key and content_id with Protection / DMCA workflows; cross-reference leak alerts for the same file hash when v2 lands.',
+    report: {
+      verdict: 'verified_account_match',
+      headline: 'Marker verified — matches your Creatix export',
+      recipientKey,
+      recipientKind: parsed.kind,
+      recipientLine: parsed.displayLine,
+      onlyFansFanId: parsed.kind === 'onlyfans_fan' ? parsed.fanId : (exp.platform_fan_id as string) || null,
+      fanUsernameOrDisplay: fanHandle,
+      attributionLine:
+        fanHandle && parsed.kind === 'onlyfans_fan'
+          ? `@${fanHandle} (OnlyFans id ${parsed.fanId})`
+          : fanHandle
+            ? `@${fanHandle}`
+            : parsed.kind === 'onlyfans_fan'
+              ? `OnlyFans fan id ${parsed.fanId ?? exp.platform_fan_id ?? '—'}`
+              : recipientKey,
+      contentId,
+      contentTitle,
+      vaultItemLabel: contentTitle || 'Vault item',
+      embeddedAt,
+      embeddedAtReadable: embeddedAt ? new Date(embeddedAt).toLocaleString() : null,
+      markerExpiresAt,
+      markerExpiresReadable: markerExpiresAt ? new Date(markerExpiresAt).toLocaleString() : null,
+      exportId: String(exp.id ?? ''),
+      payloadId: String(exp.payload_id ?? extracted.payloadId ?? ''),
+      algorithmVersion: String(exp.algorithm_version ?? 'append-v1'),
+      source: String(exp.source ?? ''),
+    },
   })
 }

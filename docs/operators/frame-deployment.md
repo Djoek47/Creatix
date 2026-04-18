@@ -8,8 +8,12 @@
 - **Creatix** exposes:
   - `GET /api/content/vault/[id]/frame-session` — authenticated; returns `assetProxyUrl`, `exportToken`, `exportUrl`, optional `frameLaunchUrl`.
   - `GET /api/content/vault/[id]/asset?t=...` — HMAC token; proxies video (Range supported for external URLs).
-  - `POST /api/content/vault/[id]/frame-export` — multipart `file`; either **session cookie** (creator upload) or **Frame service** headers.
+  - `POST /api/content/vault/[id]/frame-export` — multipart `file` + `exportToken` (HMAC) from the browser (Markit/Frame origin must match `NEXT_PUBLIC_FRAME_URL` CORS), or **session cookie** (creator upload), or **Frame service** header `X-Frame-Export-Secret` + token (legacy proxy).
   - `GET /api/content/vault/[id]/download` — redirects to signed URL or external `file_url`.
+
+### Markit: second angle (`importUrl2`)
+
+For **dual-camera** workflows, the Markit deployment accepts an optional query param **`importUrl2`**: a second **`assetProxyUrl`** from another vault item’s `frame-session` (same user). Markit fetches both videos in the browser; AI edit plans can reference `"source":"secondary"` for segments from the second file. **Vault upload** still uses the **primary** item’s `exportUrl` + `exportToken` only. See Markit `DEPLOYMENT.md` (dual angle section) in the Markit repo — if cloned next to Creatix: `../markit/DEPLOYMENT.md`.
 
 ## Environment variables (Creatix / Vercel)
 
@@ -17,8 +21,8 @@
 | Variable                    | Required             | Description                                                                                                                                                     |
 | --------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FRAME_BRIDGE_SECRET`       | **Yes** (for bridge) | Min 16 chars. Signs asset-read and export tokens (`lib/frame-vault-bridge.ts`).                                                                                 |
-| `FRAME_EXPORT_SECRET`       | For Frame POST       | Shared secret; Frame sends `X-Frame-Export-Secret: <value>` with export `exportToken` form field.                                                               |
-| `NEXT_PUBLIC_FRAME_URL`     | Optional             | e.g. `https://frame.example.com` — used to build `frameLaunchUrl` (`?importUrl=`). If unset, UI still opens `assetProxyUrl` and manual **Replace video** works. |
+| `FRAME_EXPORT_SECRET`       | Optional (legacy)    | Shared secret for server-side proxies that POST with `X-Frame-Export-Secret`. Markit posts **directly** to this API with `exportToken` only (no secret in browser). |
+| `NEXT_PUBLIC_FRAME_URL`     | **Recommended**      | e.g. `https://markit-xxx.vercel.app` — `frameLaunchUrl` + **CORS** for vault export. Comma-separated for multiple origins. Must **exactly** match the editor tab’s origin. |
 | `ARIADNE_SECRET`            | Optional             | Signs Ariadne forensic payloads (`append-v1`). Falls back to `FRAME_BRIDGE_SECRET` if unset.                                                                    |
 | `NEXT_PUBLIC_SUPABASE_URL`  | Yes                  | Storage uploads.                                                                                                                                                |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes                  | Server-side storage + DB updates.                                                                                                                               |
@@ -50,11 +54,9 @@ Without these, `frame-export` uploads fail with bucket/column errors.
 Until Frame is patched to read `importUrl` and POST exports automatically:
 
 1. Creators can still **Replace video** in the vault sheet (multipart to `frame-export`).
-2. Configure a future Frame build to:
-  - Load source from `importUrl` query param (returned as `frameLaunchUrl`).
-  - POST `file` + `exportToken` to `exportUrl` with header `X-Frame-Export-Secret`.
+2. Markit/Frame: load source from `importUrl` (`frameLaunchUrl`). POST `file` + `exportToken` to `exportUrl` **from the browser** (CORS). Avoid proxying large files through a second Vercel app (small body limits).
 
-Example curl (service export):
+Example curl (legacy server proxy with secret):
 
 ```bash
 curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
@@ -66,7 +68,7 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 ## CORS
 
 - Asset proxy is **same-origin** (Creatix) — avoids browser CORS to OnlyFans/CDN when Frame loads `importUrl`.
-- `**NEXT_PUBLIC_FRAME_URL`:** When set, `POST /api/ariadne/embed` and related routes add `Access-Control-Allow-Origin` for that origin so the Frame web app can call Creatix with `Authorization: Bearer <exportToken>` from the browser. Prefer server-side POST from Frame if you lock down CORS further.
+- **`NEXT_PUBLIC_FRAME_URL`:** When set, matching origins get CORS on `frame-export`, `asset`, Ariadne embed, etc., so Markit can call Creatix from the browser (multipart export and APIs that use `Authorization: Bearer <exportToken>`).
 
 ## Retention / storage
 

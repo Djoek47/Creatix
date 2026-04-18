@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsDown,
+  Shield,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -1245,6 +1247,17 @@ export function ChatWindow({
                 <User className="mr-2 h-4 w-4" />
                 View Profile
               </DropdownMenuItem>
+              {conversation.platform === 'onlyfans' && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/dashboard/ai-studio/ariadne?fanId=${encodeURIComponent(String(conversation.user.id))}&platform=onlyfans`}
+                    className="flex cursor-pointer items-center"
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    Ariadne trace (this fan)
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => {
                   if (conversation.platform !== 'onlyfans') {

@@ -101,9 +101,15 @@ export async function POST(req: NextRequest) {
     try {
       raw = await api.getFanDetailRaw(fanId)
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'OnlyFans API request failed'
+      const looksLikeNotFound = /^not\s*found$/i.test(msg.trim()) || /\b404\b/.test(msg)
       return NextResponse.json(
-        { error: e instanceof Error ? e.message : 'OnlyFans API request failed' },
-        { status: 502 },
+        {
+          error: looksLikeNotFound
+            ? 'OnlyFans has no fan profile for this ID (not found). Use the ID from your OnlyFans inbox for this person, or reconnect OnlyFans if the problem persists.'
+            : msg,
+        },
+        { status: looksLikeNotFound ? 404 : 502 },
       )
     }
 

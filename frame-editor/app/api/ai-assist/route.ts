@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
       const j = JSON.parse(errText) as Record<string, unknown>
       return NextResponse.json(j, { status: upstream.status })
     } catch {
-      return NextResponse.json({ error: errText || upstream.statusText }, { status: upstream.status })
+      return NextResponse.json(
+        { error: formatUpstreamFailure(upstream.status, errText, creatix) },
+        { status: upstream.status },
+      )
     }
   }
 
@@ -81,6 +84,27 @@ export async function POST(req: NextRequest) {
   const raw = await upstream.text()
   const text = extractDataStreamText(raw)
   return NextResponse.json({ text, rawStream: process.env.NODE_ENV === 'development' ? raw : undefined })
+}
+
+/**
+ * Creatix returns JSON errors for API routes. If production is missing
+ * `/api/frame/ai/assist`, Next serves an HTML 404 — avoid dumping that into the UI.
+ */
+function formatUpstreamFailure(status: number, body: string, creatixBase: string): string {
+  const t = body.trim()
+  const looksLikeHtml =
+    t.startsWith('<!DOCTYPE') || t.startsWith('<html') || /<\/html>/i.test(t)
+  if (looksLikeHtml || status === 404) {
+    return (
+      `Creatix did not return Frame Assist (${status}). ` +
+      `Deploy a build that includes /api/frame/ai/assist on ${creatixBase} ` +
+      `(merge from the frame branch), or fix NEXT_PUBLIC_CREATIX_APP_URL on this Frame project.`
+    )
+  }
+  if (t.length > 600) {
+    return `${t.slice(0, 280)}…`
+  }
+  return t || `Upstream error (${status})`
 }
 
 /** Best-effort parse of Vercel AI UI message stream (line prefix `0:` = text deltas). */

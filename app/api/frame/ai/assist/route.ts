@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { streamText, convertToModelMessages, type UIMessage } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
@@ -16,8 +17,16 @@ If asked about illegal content or non-consensual material, refuse and redirect t
 /**
  * Frame (or dashboard) calls with:
  * - Session cookie (same-site), OR
- * - Header Authorization: Bearer <exportToken> from GET frame-session (ties request to vault content).
+ * - Header Authorization: Bearer <exportToken> from GET frame-session (ties request to vault content), OR
+ * - Header Authorization: Bearer <Supabase access_token> (standalone Frame app on another origin).
  */
+function getBillingSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
+
 export async function POST(req: NextRequest) {
   try {
   const body = await req.json().catch(() => ({}))
@@ -35,6 +44,15 @@ export async function POST(req: NextRequest) {
     const token = authHeader.slice(7).trim()
     const p = verifyExportToken(token)
     if (p) userId = p.userId
+    else {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (url && anon) {
+        const sb = createClient(url, anon)
+        const { data } = await sb.auth.getUser(token)
+        if (data.user?.id) userId = data.user.id
+      }
+    }
   }
 
   const supabase = await createRouteHandlerClient(req)
@@ -52,8 +70,16 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  const billing = getBillingSupabase()
+  if (!billing) {
+    return new Response(JSON.stringify({ error: 'Server misconfiguration' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const cost = getCreditsForToolId('frame-ai-assist')
-  const gate = await hasEnoughAiCredits(supabase, userId, cost)
+  const gate = await hasEnoughAiCredits(billing, userId, cost)
   if (!gate.ok) {
     return new Response(
       JSON.stringify({
@@ -66,7 +92,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  await consumeAiCredits(supabase, userId, cost)
+  await consumeAiCredits(billing, userId, cost)
 
   const result = streamText({
     model: gateway('openai/gpt-4o-mini'),

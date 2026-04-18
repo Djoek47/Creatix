@@ -1,8 +1,13 @@
 import { updateSession } from '@/lib/supabase/middleware'
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  try {
+    return await updateSession(request)
+  } catch (err) {
+    console.error('[middleware]', err)
+    return new NextResponse('Middleware error', { status: 500 })
+  }
 }
 
 export const config = {
@@ -13,8 +18,10 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * - GET /api/content/vault/[id]/asset — token-auth proxy for Frame; skips Edge
+     *   Supabase session refresh (avoids MIDDLEWARE_INVOCATION_FAILED when Edge
+     *   session refresh fails; the route handler verifies ?t= itself).
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/content/vault/[^/]+/asset$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

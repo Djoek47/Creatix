@@ -1,0 +1,8 @@
+.next
+node_modules
+.env
+.env.local
+*.log
+
+build-log.txt
+build-out.txt

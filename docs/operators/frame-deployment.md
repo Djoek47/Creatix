@@ -18,7 +18,7 @@
 | `FRAME_BRIDGE_SECRET`       | **Yes** (for bridge) | Min 16 chars. Signs asset-read and export tokens (`lib/frame-vault-bridge.ts`).                                                                                 |
 | `FRAME_EXPORT_SECRET`       | For Frame POST       | Shared secret; Frame sends `X-Frame-Export-Secret: <value>` with export `exportToken` form field.                                                               |
 | `NEXT_PUBLIC_FRAME_URL`     | Optional             | e.g. `https://frame.example.com` — used to build `frameLaunchUrl` (`?importUrl=`). If unset, UI still opens `assetProxyUrl` and manual **Replace video** works. |
-| `ARIADNE_SECRET`            | Optional             | Signs Ariadne forensic payloads (`append-v1`). Falls back to `FRAME_BRIDGE_SECRET` if unset. |
+| `ARIADNE_SECRET`            | Optional             | Signs Ariadne forensic payloads (`append-v1`). Falls back to `FRAME_BRIDGE_SECRET` if unset.                                                                    |
 | `NEXT_PUBLIC_SUPABASE_URL`  | Yes                  | Storage uploads.                                                                                                                                                |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes                  | Server-side storage + DB updates.                                                                                                                               |
 
@@ -27,14 +27,12 @@ Rotate `FRAME_BRIDGE_SECRET` and `FRAME_EXPORT_SECRET` if leaked; old tokens bec
 
 ### Local development
 
-1. In the **Creatix project root** (same folder as `package.json`), create or edit **`.env.local`** (gitignored).
+1. In the **Creatix project root** (same folder as `package.json`), create or edit `**.env.local`** (gitignored).
 2. Set a value at least **16 characters** (e.g. run `openssl rand -hex 16` on macOS/Linux/Git Bash, or use any long random string).
 3. Add:
-
-   ```bash
+  ```bash
    FRAME_BRIDGE_SECRET=paste_your_value_here
-   ```
-
+  ```
 4. **Restart** the dev server so Next.js reloads env.
 
 On **Vercel**: Project → Settings → Environment Variables → add `FRAME_BRIDGE_SECRET` for the right environments → **Redeploy**.
@@ -67,7 +65,7 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 ## CORS
 
 - Asset proxy is **same-origin** (Creatix) — avoids browser CORS to OnlyFans/CDN when Frame loads `importUrl`.
-- **`NEXT_PUBLIC_FRAME_URL`:** When set, `POST /api/ariadne/embed` and related routes add `Access-Control-Allow-Origin` for that origin so the Frame web app can call Creatix with `Authorization: Bearer <exportToken>` from the browser. Prefer server-side POST from Frame if you lock down CORS further.
+- `**NEXT_PUBLIC_FRAME_URL`:** When set, `POST /api/ariadne/embed` and related routes add `Access-Control-Allow-Origin` for that origin so the Frame web app can call Creatix with `Authorization: Bearer <exportToken>` from the browser. Prefer server-side POST from Frame if you lock down CORS further.
 
 ## Retention / storage
 
@@ -77,13 +75,13 @@ curl -X POST "https://YOUR_CREATIX/api/content/vault/CONTENT_ID/frame-export" \
 ## Troubleshooting
 
 
-| Symptom                             | Check                                                                        |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
+| Symptom                                         | Check                                                                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | **503** “FRAME_BRIDGE_SECRET is not configured” | Set `FRAME_BRIDGE_SECRET` (≥16 chars) in `.env.local` and restart dev; on Vercel add the var and redeploy. |
-| 500 on export, “Bucket not found”   | Run `075_vault_media_bucket.sql`.                                            |
-| 500 on export, column error         | Run `074_vault_media_storage.sql`.                                           |
-| `frame-session` 400 “No video file” | Row must be `content_type` video and `file_url` **or** `vault_storage_path`. |
-| Token invalid                       | Clock skew / expired token; re-open sheet and retry.                         |
+| 500 on export, “Bucket not found”               | Run `075_vault_media_bucket.sql`.                                                                          |
+| 500 on export, column error                     | Run `074_vault_media_storage.sql`.                                                                         |
+| `frame-session` 400 “No video file”             | Row must be `content_type` video and `file_url` **or** `vault_storage_path`.                               |
+| Token invalid                                   | Clock skew / expired token; re-open sheet and retry.                                                       |
 
 
 See also `[docs/frame-upstream-notes.md](../frame-upstream-notes.md)`.

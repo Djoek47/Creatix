@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createAssetReadToken, createExportToken } from '@/lib/frame-vault-bridge'
-import { getAppUrl } from '@/lib/site-url'
+import { getAppUrlFromRequest } from '@/lib/site-url'
 
 function isVideoContentType(ct: string | null | undefined): boolean {
   if (!ct) return false
@@ -73,7 +73,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
     )
   }
 
-  const base = getAppUrl()
+  const base = getAppUrlFromRequest(_request)
   const assetToken = createAssetReadToken(id, user.id, 3600)
   const exportToken = createExportToken(id, user.id, 7200)
   const assetProxyUrl = `${base}/api/content/vault/${id}/asset?t=${encodeURIComponent(assetToken)}`
@@ -81,7 +81,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   const frameBase = (process.env.NEXT_PUBLIC_FRAME_URL || '').replace(/\/$/, '')
   const frameConfigured = frameBase.length > 0
   const frameLaunchUrl = frameConfigured
-    ? `${frameBase}/?importUrl=${encodeURIComponent(assetProxyUrl)}`
+    ? `${frameBase}/?importUrl=${encodeURIComponent(assetProxyUrl)}&exportUrl=${encodeURIComponent(exportUrl)}&exportToken=${encodeURIComponent(exportToken)}`
     : null
 
   const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`

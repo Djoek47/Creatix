@@ -7,7 +7,10 @@ export function applyFrameCorsHeaders(request: NextRequest, response: NextRespon
   if (frameOrigin && origin && (origin === frameOrigin || origin.startsWith(frameOrigin))) {
     response.headers.set('Access-Control-Allow-Origin', origin)
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+    response.headers.set(
+      'Access-Control-Allow-Headers',
+      'Authorization, Content-Type, Range',
+    )
     response.headers.set('Access-Control-Max-Age', '86400')
   }
   return response

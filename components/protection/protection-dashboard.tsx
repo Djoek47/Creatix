@@ -36,6 +36,9 @@ import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
+import { ProtectionModeToggle } from '@/components/protection/protection-mode-toggle'
+import { ProtectionInvokeButton } from '@/components/protection/protection-invoke-button'
+import { ProtectionEasyHandles } from '@/components/protection/protection-easy-handles'
 import {
   Select,
   SelectContent,
@@ -336,13 +339,13 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [selectedAlert, setSelectedAlert] = useState<LeakAlert | null>(null)
   const [proofUploading, setProofUploading] = useState(false)
   const [proofPaths, setProofPaths] = useState<string[]>([])
-  const [isPro, setIsPro] = useState(false)
+  const [hasPaidPlan, setHasPaidPlan] = useState(false)
   const [alertUpdateError, setAlertUpdateError] = useState<string | null>(null)
   const [aegisEnabled, setAegisEnabled] = useState<boolean | null>(null)
   const [aegisLastRun, setAegisLastRun] = useState<string | null>(null)
 
   const { handles: identityHandles, contentTitles } = useScanIdentity()
-  const [useAllLeakHandles] = useState(false)
+  const [useAllLeakHandles, setUseAllLeakHandles] = useState(false)
   const [selectedLeakHandles, setSelectedLeakHandles] = useState<Set<string>>(new Set())
   const [focusContentId, setFocusContentId] = useState<string>('')
   const [focusTitleFilter, setFocusTitleFilter] = useState('')
@@ -356,6 +359,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [mediaFilter, setMediaFilter] = useState<'all' | LeakMediaType>('all')
   const [filterText, setFilterText] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [uiMode, setUiMode] = useState<'easy' | 'pro'>('easy')
   const [verifyLoadingId, setVerifyLoadingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -388,20 +392,61 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   }, [identityHandles, aliasInput])
 
   useEffect(() => {
+    try {
+      const v = window.localStorage.getItem('protection_ui_mode')
+      if (v === 'pro') setUiMode('pro')
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
+    if (displayHandles.length === 0) return
     if (leakHandlesInit.current) return
     leakHandlesInit.current = true
     try {
+      const ua = window.localStorage.getItem('protection_use_all_handles')
       const raw = window.localStorage.getItem('protection_selected_handles')
-      if (!raw) return
-      const parsed = JSON.parse(raw) as string[]
-      if (!Array.isArray(parsed)) return
-      const allowed = new Set(identityHandles.map((h) => h.value))
-      setSelectedLeakHandles(new Set(parsed.filter((h) => allowed.has(h))))
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[]
+        if (Array.isArray(parsed)) {
+          const allowed = new Set(displayHandles.map((h) => h.value))
+          const filtered = new Set(parsed.filter((h) => allowed.has(h)))
+          if (filtered.size > 0) {
+            setSelectedLeakHandles(filtered)
+            setUseAllLeakHandles(
+              ua === '1' || (ua !== '0' && filtered.size === displayHandles.length),
+            )
+            return
+          }
+        }
+      }
+      setUseAllLeakHandles(true)
+      const all = new Set(displayHandles.map((h) => h.value))
+      setSelectedLeakHandles(all)
+      window.localStorage.setItem('protection_use_all_handles', '1')
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(all)))
     } catch {
-      // ignore malformed storage
+      setUseAllLeakHandles(true)
+      const all = new Set(displayHandles.map((h) => h.value))
+      setSelectedLeakHandles(all)
     }
-  }, [identityHandles])
+  }, [displayHandles])
+
+  useEffect(() => {
+    if (!useAllLeakHandles) return
+    setSelectedLeakHandles((prev) => {
+      const next = new Set(displayHandles.map((h) => h.value))
+      if (prev.size === next.size && [...prev].every((x) => next.has(x))) return prev
+      try {
+        window.localStorage.setItem('protection_selected_handles', JSON.stringify([...next]))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }, [displayHandles, useAllLeakHandles])
 
   const severityColors: Record<string, string> = {
     critical: 'bg-destructive/20 text-destructive border-destructive/30',
@@ -422,7 +467,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           .maybeSingle()
         const planId = (data as { plan_id?: string } | null)?.plan_id
         if (planId && isPaidPlanId(planId)) {
-          setIsPro(true)
+          setHasPaidPlan(true)
         }
       } catch {
         // ignore subscription loading errors
@@ -555,16 +600,101 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     [router],
   )
 
+  const focusHandlesPayload = useMemo(() => {
+    if (useAllLeakHandles) return displayHandles.map((h) => h.value)
+    return Array.from(selectedLeakHandles)
+  }, [useAllLeakHandles, displayHandles, selectedLeakHandles])
+
+  const persistUiMode = useCallback((m: 'easy' | 'pro') => {
+    setUiMode(m)
+    try {
+      window.localStorage.setItem('protection_ui_mode', m)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const handleUseAllLeakHandlesChange = useCallback(
+    (v: boolean) => {
+      setUseAllLeakHandles(v)
+      try {
+        window.localStorage.setItem('protection_use_all_handles', v ? '1' : '0')
+      } catch {
+        // ignore
+      }
+      if (v) {
+        const next = new Set(displayHandles.map((h) => h.value))
+        setSelectedLeakHandles(next)
+        try {
+          window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(next)))
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [displayHandles],
+  )
+
+  const handleSelectAllHandles = useCallback(() => {
+    setUseAllLeakHandles(false)
+    try {
+      window.localStorage.setItem('protection_use_all_handles', '0')
+    } catch {
+      // ignore
+    }
+    const next = new Set(displayHandles.map((h) => h.value))
+    setSelectedLeakHandles(next)
+    try {
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(next)))
+    } catch {
+      // ignore
+    }
+  }, [displayHandles])
+
+  const handleClearHandles = useCallback(() => {
+    setUseAllLeakHandles(false)
+    try {
+      window.localStorage.setItem('protection_use_all_handles', '0')
+    } catch {
+      // ignore
+    }
+    setSelectedLeakHandles(new Set())
+    try {
+      window.localStorage.setItem('protection_selected_handles', '[]')
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const handleToggleLeakHandle = useCallback((value: string) => {
+    setUseAllLeakHandles(false)
+    try {
+      window.localStorage.setItem('protection_use_all_handles', '0')
+    } catch {
+      // ignore
+    }
+    setSelectedLeakHandles((prev) => {
+      const next = new Set(prev)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      try {
+        window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(next)))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }, [])
+
   const runScan = async () => {
     setScanLoading(true)
     setScanSummary(null)
     try {
       const aliases = parseAliases(aliasInput)
-      if (selectedLeakHandles.size === 0) {
+      if (focusHandlesPayload.length === 0) {
         setScanSummary('Select at least one identity before running Protection scan.')
         return
       }
-      const focusHandlesPayload = Array.from(selectedLeakHandles)
       const focusTitlesPayload = parseTitleHints(focusTitleFilter)
       const body: Record<string, unknown> = {
         aliases,
@@ -682,11 +812,21 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }
 
+  const canRunScan = focusHandlesPayload.length > 0
+
   return (
-    <div className="space-y-4 min-w-0">
-      <p className="text-xs text-muted-foreground">
-        Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.
-      </p>
+    <div className="space-y-5 min-w-0">
+      <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-background p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-foreground">Leak protection</p>
+          <p className="text-xs text-muted-foreground">
+            Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.{' '}
+            <span className="text-foreground/80">Easy</span> keeps steps short;{' '}
+            <span className="text-foreground/80">Pro</span> exposes every tuning option.
+          </p>
+        </div>
+        <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0 self-start" />
+      </div>
 
       <div className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
@@ -719,15 +859,164 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </Button>
       </div>
 
-      <div className="rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
-        <p className="font-medium text-foreground">Start here</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Pick identities below, run <strong>Invoke Scan</strong> or paste a link, then use the filters to focus on the
-          worst leaks first (defaults to <strong>critical</strong> and <strong>high</strong>).
-        </p>
-      </div>
+      {uiMode === 'easy' ? (
+        <div className="space-y-6">
+          <ol className="list-none space-y-6">
+            <li className="flex gap-3">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-circe/40 bg-circe/10 text-sm font-semibold text-circe"
+                aria-hidden
+              >
+                1
+              </span>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Who to search for</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tap names to include or exclude, or leave &ldquo;all names&rdquo; on. Add extras with one field.
+                  </p>
+                </div>
+                <ProtectionEasyHandles
+                  handles={displayHandles}
+                  useAll={useAllLeakHandles}
+                  onUseAllChange={handleUseAllLeakHandlesChange}
+                  selected={selectedLeakHandles}
+                  onToggle={handleToggleLeakHandle}
+                  onSelectAll={handleSelectAllHandles}
+                  onClearSelection={handleClearHandles}
+                  extraInput={aliasInput}
+                  onExtraInputChange={setAliasInput}
+                />
+              </div>
+            </li>
 
-      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <li className="flex gap-3">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-circe/40 bg-circe/10 text-sm font-semibold text-circe"
+                aria-hidden
+              >
+                2
+              </span>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Tune the sweep (optional)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Library titles help the search. Strict mode filters weaker matches.
+                  </p>
+                </div>
+                <div className="grid gap-3 rounded-xl border border-border bg-muted/15 p-3 sm:grid-cols-2">
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="include-content-titles-easy"
+                      checked={includeContentTitles}
+                      onCheckedChange={(v) => setIncludeContentTitles(v === true)}
+                    />
+                    <label
+                      htmlFor="include-content-titles-easy"
+                      className="cursor-pointer text-xs text-muted-foreground leading-snug"
+                    >
+                      Include titles from your published / scheduled library in queries.
+                    </label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="strict-scan-easy"
+                      checked={strictScan}
+                      onCheckedChange={(v) => setStrictScan(v === true)}
+                    />
+                    <label
+                      htmlFor="strict-scan-easy"
+                      className="cursor-pointer text-xs text-muted-foreground leading-snug"
+                    >
+                      Strict matching (drops unlikely results; pasted links are always kept).
+                    </label>
+                  </div>
+                </div>
+                <ProtectionInvokeButton
+                  variant="easy"
+                  loading={scanLoading}
+                  disabled={!canRunScan || scanLoading}
+                  onClick={() => void runScan()}
+                />
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-xs text-muted-foreground"
+                  onClick={() => persistUiMode('pro')}
+                >
+                  Need former usernames, title phrases, or library focus? Switch to Pro →
+                </Button>
+                {scanSummary ? (
+                  <p className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                    {scanSummary}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-muted/30 text-sm font-semibold text-muted-foreground"
+                aria-hidden
+              >
+                3
+              </span>
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-sm font-semibold text-foreground">Or flag one link yourself</p>
+                <p className="text-xs text-muted-foreground">
+                  Skips the broad search—useful when you already know the URL.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="manual-url-easy"
+                    value={manualUrl}
+                    onChange={(e) => setManualUrl(e.target.value)}
+                    placeholder="Paste a suspicious page URL…"
+                    className="text-sm"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="shrink-0 sm:w-auto"
+                    onClick={() => void reportManual()}
+                    disabled={manualLoading || !manualUrl.trim()}
+                  >
+                    {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Submit link
+                  </Button>
+                </div>
+              </div>
+            </li>
+          </ol>
+
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Venus Pro:</span>
+            <Link
+              href="/dashboard/ai-studio/tools"
+              className="text-circe underline-offset-4 hover:underline"
+            >
+              Open AI Studio tools
+            </Link>
+            <span className="text-muted-foreground/80">·</span>
+            <button
+              type="button"
+              className="text-circe underline-offset-4 hover:underline"
+              onClick={() => persistUiMode('pro')}
+            >
+              Full protection controls
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
+            <p className="font-medium text-foreground">Start here</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pick identities below, run a scan or paste a link, then use the filters to focus on the worst leaks first
+              (defaults to <strong>critical</strong> and <strong>high</strong>).
+            </p>
+          </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="outline" type="button" className="flex w-full items-center justify-between gap-2 text-sm">
             Advanced identity hints (extra aliases, saved former names, title phrases)
@@ -822,6 +1111,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               setAliasInput('')
               if (typeof window !== 'undefined') {
                 window.localStorage.removeItem('protection_selected_handles')
+                window.localStorage.removeItem('protection_use_all_handles')
               }
             } finally {
               setSaveIdentityLoading(false)
@@ -848,24 +1138,9 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         <ScanHandlePicker
           handles={displayHandles}
           useAll={useAllLeakHandles}
-          onUseAllChange={(v) => {
-            if (!v) return
-          }}
+          onUseAllChange={handleUseAllLeakHandlesChange}
           selected={selectedLeakHandles}
-          onToggle={(value) => {
-            setSelectedLeakHandles((prev) => {
-              const next = new Set(prev)
-              if (next.has(value)) next.delete(value)
-              else next.add(value)
-              if (typeof window !== 'undefined') {
-                window.localStorage.setItem(
-                  'protection_selected_handles',
-                  JSON.stringify(Array.from(next)),
-                )
-              }
-              return next
-            })
-          }}
+          onToggle={handleToggleLeakHandle}
           idPrefix="leak-scan"
         />
       )}
@@ -904,17 +1179,12 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              className="gap-2 bg-circe hover:bg-circe/90"
-              onClick={runScan}
-              disabled={
-                scanLoading ||
-                selectedLeakHandles.size === 0
-              }
-            >
-              {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Invoke Scan
-            </Button>
+            <ProtectionInvokeButton
+              variant="pro"
+              loading={scanLoading}
+              disabled={!canRunScan || scanLoading}
+              onClick={() => void runScan()}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -937,13 +1207,15 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               onChange={(e) => setManualUrl(e.target.value)}
               placeholder="Paste infringing URL…"
             />
-            <Button variant="outline" onClick={reportManual} disabled={manualLoading || !manualUrl.trim()}>
+            <Button variant="outline" onClick={() => void reportManual()} disabled={manualLoading || !manualUrl.trim()}>
               {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Report
             </Button>
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Active Alerts list (actionable) */}
       {alertUpdateError ? (
@@ -954,7 +1226,9 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-          <span className="text-xs font-medium text-foreground">Filter queue</span>
+          <span className="text-xs font-medium text-foreground">
+            {uiMode === 'easy' ? 'Your leak queue' : 'Filter queue'}
+          </span>
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-[10px] uppercase text-muted-foreground mr-1">Severity</span>
@@ -1226,7 +1500,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   notes={alert.notes ?? null}
                   variant="inline"
                 />
-                {isPro && alert.severity === 'critical' ? (
+                {hasPaidPlan && alert.severity === 'critical' ? (
                   <Button
                     type="button"
                     variant="outline"

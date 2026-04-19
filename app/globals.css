@@ -336,6 +336,71 @@
   animation: marketing-pulse-glow 4s ease-in-out infinite;
 }
 
+/* Protection dashboard — invoke scan (Easy mode) */
+@keyframes protection-scan-aura {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes protection-scan-sheen {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+@keyframes protection-scan-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.protection-invoke-easy-glow {
+  animation: protection-scan-aura 2.8s ease-in-out infinite;
+}
+
+.protection-invoke-easy-sheen {
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    oklch(0.98 0.02 90 / 0.12) 40%,
+    oklch(0.78 0.14 85 / 0.25) 50%,
+    oklch(0.98 0.02 90 / 0.12) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: protection-scan-sheen 3.5s ease-in-out infinite;
+}
+
+.protection-invoke-easy-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.55 0.2 295 / 0.9),
+    oklch(0.78 0.14 85 / 0.85),
+    oklch(0.65 0.18 320 / 0.75),
+    oklch(0.55 0.2 295 / 0.9)
+  );
+  animation: protection-scan-orbit 10s linear infinite;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.dark .protection-invoke-easy-ring {
+  opacity: 0.65;
+}
+
 /* Divine Manager — premium page background (light: subtle cream/gold edge; dark: deep with hint of circe/gold) */
 .divine-page-bg {
   background: radial-gradient(ellipse 120% 80% at 50% 0%, oklch(0.98 0.02 85 / 0.4), var(--background) 50%);

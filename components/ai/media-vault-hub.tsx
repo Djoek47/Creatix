@@ -629,10 +629,11 @@ export function MediaVaultHub() {
                 <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center gap-2">
                     <Clapperboard className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-medium">Video (Frame bridge)</span>
+                    <span className="text-sm font-medium">Video editor (beta)</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Edit cuts in the open-source{' '}
+                    <strong>Beta:</strong> Markit (vault bridge) is still in development — features may change. Inspired by
+                    open-source{' '}
                     <a
                       href="https://github.com/aregrid/frame"
                       target="_blank"
@@ -641,7 +642,7 @@ export function MediaVaultHub() {
                     >
                       Frame
                     </a>{' '}
-                    app (MIT), or upload an export here. Hosting is short-term — download important files.
+                    (MIT). Upload an export here when done. Hosting is short-term — download important files.
                   </p>
                   {frameMsg && (
                     <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
@@ -658,7 +659,7 @@ export function MediaVaultHub() {
                         onClick={() => void openFrameEditor()}
                       >
                         {frameBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
-                        Edit in Frame
+                        Open video editor (beta)
                       </Button>
                       <Button type="button" variant="outline" className="gap-2" asChild>
                         <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">
@@ -676,11 +677,11 @@ export function MediaVaultHub() {
                   ) : (
                     <p className="text-xs text-muted-foreground">
                       No direct video file on this item yet (preview-only OF posts). Use Replace video to upload an MP4,
-                      then you can open Frame.
+                      then you can open the video editor.
                     </p>
                   )}
                   <div className="space-y-1">
-                    <Label className="text-xs">Replace video (export from Frame or any editor)</Label>
+                    <Label className="text-xs">Replace video (export from the beta editor or any tool)</Label>
                     <Input
                       type="file"
                       accept="video/*,.mp4,.mov,.webm"

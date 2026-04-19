@@ -114,7 +114,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
         >
           <span className="flex items-center justify-center gap-2">
             <Clapperboard className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-            Video editor
+            Video editor (beta)
           </span>
         </Button>
       </DialogTrigger>
@@ -122,7 +122,8 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
         <DialogHeader>
           <DialogTitle>Edit a vault video</DialogTitle>
           <DialogDescription>
-            Opens the Frame bridge in a new tab. Pick a video below, or add one to your Creatix vault first.
+            The video editor (Markit) is in <strong>beta</strong> — behavior and exports may change. Opens the vault
+            bridge in a new tab. Pick a video below, or add one to your Creatix vault first.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[min(70vh,480px)] pr-3">

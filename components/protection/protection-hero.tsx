@@ -31,8 +31,9 @@ export function ProtectionHero() {
                 Your content stays yours
               </h1>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Hunt infringing links, label scams and paywall traps, draft DMCAs, and keep a clean archive of what
-                you already handled—so nothing slips through the cracks.
+                Use <span className="text-foreground/90">Easy</span> mode for a short guided flow, or{' '}
+                <span className="text-foreground/90">Pro</span> for every scan control. Hunt links, draft DMCAs, and keep
+                a clean archive of what you already handled.
               </p>
             </div>
           </div>

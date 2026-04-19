@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, RadioTower, Sparkles, BarChart3, Bell, ListTodo, Calendar, ScanLine } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+import { StudioToolHelpButton } from '@/components/ai/studio-tool-help-button'
 
 export default function ChurnPredictorHubPage() {
   const [loading, setLoading] = useState(true)
@@ -202,6 +203,7 @@ export default function ChurnPredictorHubPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <StudioToolHelpButton toolId="churn-predictor" />
             <Button
               type="button"
               className="shrink-0 bg-violet-600 text-white hover:bg-violet-500"
@@ -240,11 +242,14 @@ export default function ChurnPredictorHubPage() {
                 hints — pair with your real schedule so Circe does not invent drops.
               </CardDescription>
             </div>
-            <Switch
-              checked={teaseFutureContent}
-              onCheckedChange={setTeaseFutureContent}
-              aria-label="Include future content teasers in digest"
-            />
+            <div className="flex shrink-0 items-center gap-1">
+              <StudioToolHelpButton toolId="retention-tease" />
+              <Switch
+                checked={teaseFutureContent}
+                onCheckedChange={setTeaseFutureContent}
+                aria-label="Include future content teasers in digest"
+              />
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">

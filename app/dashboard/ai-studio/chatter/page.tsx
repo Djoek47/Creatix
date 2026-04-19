@@ -29,6 +29,7 @@ import {
   type AiChatterSendMode,
   type AiChatterSettings,
 } from '@/lib/divine/ai-chatter-types'
+import { StudioToolHelpButton } from '@/components/ai/studio-tool-help-button'
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
@@ -350,16 +351,19 @@ function AiChatterDashboardInner() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/ai-studio/tools" aria-label="Back to tools">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Bot className="h-6 w-6 shrink-0 text-primary" aria-hidden />
-          <span>OnlyFans · Mimic, thread context, queue by default</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/dashboard/ai-studio/tools" aria-label="Back to tools">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Bot className="h-6 w-6 shrink-0 text-primary" aria-hidden />
+            <span>OnlyFans · Mimic, thread context, queue by default</span>
+          </div>
         </div>
+        <StudioToolHelpButton toolId="ai-chatter" />
       </div>
 
       <Alert className="border-amber-500/40 bg-amber-500/5">

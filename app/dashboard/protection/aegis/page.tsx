@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Loader2, Shield, Clock, Gavel, ArrowRight } from 'lucide-react'
+import { StudioToolHelpButton } from '@/components/ai/studio-tool-help-button'
 type AegisSettings = {
   user_id: string
   enabled: boolean
@@ -154,12 +155,15 @@ export default function CirceAegisPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pb-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Circe&apos;s Aegis</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Background leak scans and optional DMCA <span className="font-medium text-foreground">drafts</span> while
-          you&apos;re away. Review every candidate and every notice on Protection before you send anything to a host.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Circe&apos;s Aegis</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Background leak scans and optional DMCA <span className="font-medium text-foreground">drafts</span> while
+            you&apos;re away. Review every candidate and every notice on Protection before you send anything to a host.
+          </p>
+        </div>
+        <StudioToolHelpButton toolId="circe-protection-shield" className="shrink-0" />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">

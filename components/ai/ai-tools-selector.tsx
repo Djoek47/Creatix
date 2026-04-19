@@ -55,7 +55,8 @@ import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
+import { ToolHelpDialog } from '@/components/ai/tool-help-dialog'
 import {
   compressImageForVision,
   extractVideoFrameAsDataUrl,
@@ -75,13 +76,10 @@ function formatFantasyCalendarDate(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Define the non-Pro AI tools that work (caption generator is fused into content-ideas — same runner id, subtabs in UI)
-const workingTools = [
+/** Visual-only fields; names/descriptions come from `getToolMeta` to match ALL_TOOLS_META. */
+const WORKING_TOOL_ROWS = [
   {
     id: 'fantasy-writer',
-    name: 'Fantasy Writer',
-    description: 'Roleplay tied to calendar & fans',
-    longDescription: 'Use cosmic events, your content calendar, and fan CRM — optional scenario or voice.',
     icon: PenTool,
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
@@ -89,10 +87,6 @@ const workingTools = [
   },
   {
     id: 'content-ideas',
-    name: 'Content Ideas',
-    description: 'Trending ideas & AI captions',
-    longDescription:
-      'Switch between trending niche ideas and the caption generator (upload media or describe with text/voice) in one workspace.',
     icon: Lightbulb,
     color: 'text-yellow-500',
     bgColor: 'bg-yellow-500/10',
@@ -100,10 +94,6 @@ const workingTools = [
   },
   {
     id: 'photo-enhancer',
-    name: 'Safe photo touch-up',
-    description: 'AI blur, lighting, emoji — text or voice',
-    longDescription:
-      'Upload a photo, then describe changes in text or voice. AI maps your request to safe blur, brightness, or emoji only (no beautify or inpaint).',
     icon: Camera,
     color: 'text-sky-500',
     bgColor: 'bg-sky-500/10',
@@ -111,88 +101,79 @@ const workingTools = [
   },
   {
     id: 'gift-suggester',
-    name: 'Gift Suggester',
-    description: 'Personalized gift recommendations',
-    longDescription: 'Suggest personalized gifts and rewards for your top fans based on their engagement patterns and preferences.',
     icon: Gift,
     color: 'text-rose-500',
     bgColor: 'bg-rose-500/10',
     borderColor: 'border-rose-500/30',
   },
-]
+] as const
 
-// Pro tools that require subscription
-const proTools = [
+const workingTools = WORKING_TOOL_ROWS.map((row) => {
+  const m = getToolMeta(row.id)
+  return {
+    ...row,
+    name: m?.name ?? row.id,
+    description: m?.description ?? '',
+    longDescription: m?.longDescription ?? '',
+  }
+})
+
+const PRO_TOOL_ROWS = [
   {
     id: 'pricing-optimizer',
-    name: 'Pricing Optimizer',
-    description: 'AI-powered pricing recommendations',
-    longDescription: 'Get data-driven pricing suggestions for subscriptions, PPV, and custom content based on market analysis.',
     icon: DollarSign,
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
     borderColor: 'border-green-500/30',
-    isPro: true,
   },
   {
     id: 'churn-predictor',
-    name: 'Churn Predictor',
-    description: "Who's at risk — Circe's Oracle for retention",
-    longDescription:
-      'Predict churn risk per fan with CRM + thread context. Former Circe\'s Oracle lives here—batch digests on Dashboard → Retention.',
     icon: TrendingDown,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/35',
-    isPro: true,
   },
   {
     id: 'income-predictor',
-    name: 'Income Predictor',
-    description: 'Partner forecast + cadence + goal realism',
-    longDescription:
-      'OnlyFans partner statistical forecast merged with your snapshots, post rate, calendar buckets, leak context, and next-month targets. Full UI: Analytics → Income Predictor.',
     icon: TrendingUp,
     color: 'text-circe',
     bgColor: 'bg-circe/10',
     borderColor: 'border-circe/35',
-    isPro: true,
   },
   {
     id: 'mass-dm-composer',
-    name: 'Mass DM Composer',
-    description: 'Create personalized mass messages at scale',
-    longDescription: 'Generate personalized mass DM campaigns that feel authentic with dynamic placeholders.',
     icon: Send,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/30',
-    isPro: true,
   },
   {
     id: 'standard-of-attraction',
-    name: 'Standard of Attraction',
-    description: 'Pro rating of how commercially attractive your content is',
-    longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.',
     icon: Heart,
     color: 'text-gold',
     bgColor: 'bg-gold/10',
     borderColor: 'border-gold/30',
-    isPro: true,
   },
   {
     id: 'competitor-analysis',
-    name: 'Competitor Analysis',
-    description: 'You vs peers in your band & one tier up',
-    longDescription:
-      'Uses your imported CRM fan count vs anonymized cohort quartiles, then contrasts **competitors in your stat band** with what typically works **one tier above**. Add public @handles or positioning notes — no scraping or private data.',
     icon: Eye,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
-    isPro: true,
   },
-]
+] as const
+
+const proTools = PRO_TOOL_ROWS.map((row) => {
+  const canonical = resolveCanonicalToolId(row.id)
+  const m = getToolMeta(canonical)
+  return {
+    ...row,
+    name: m?.name ?? row.id,
+    description: m?.description ?? '',
+    longDescription: m?.longDescription ?? '',
+    isPro: true as const,
+  }
+})
 
 // Caption Generator Result Interface
 interface CaptionResult {
@@ -2237,32 +2218,38 @@ export function AIToolsSelector({
           <ScrollArea className="h-[400px] pr-4">
             <div className="grid gap-3 sm:grid-cols-2">
               {workingTools.map((tool) => (
-                <Card 
-                  key={tool.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
-                  onClick={() => {
-                    if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
-                    setSelectedTool(tool)
-                  }}
-                >
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
-                        <tool.icon className={`h-5 w-5 ${tool.color}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm">{tool.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {tool.description}
-                        </p>
-                        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap className="h-3 w-3" />
-                          {formatToolCreditCost(tool.id)}/use
+                <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-primary/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId={resolveCanonicalToolId(tool.id)} />
+                  </div>
+                  <Card
+                    className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
+                    onClick={() => {
+                      if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
+                      setSelectedTool(tool)
+                    }}
+                  >
+                    <CardContent className="pt-4 pr-11">
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
+                          <tool.icon className={`h-5 w-5 ${tool.color}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-semibold">{tool.name}</h3>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
+                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Zap className="h-3 w-3" />
+                            {formatToolCreditCost(resolveCanonicalToolId(tool.id))}/use
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
 
@@ -2276,46 +2263,64 @@ export function AIToolsSelector({
                 threads, freeloaders) into OnlyFans lists and Fansly tags from Arrangements.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Link href="/dashboard/commenter" className="block">
-                  <Card className="h-full cursor-pointer border-border transition-all hover:border-violet-500/35 hover:shadow-md">
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-lg bg-violet-500/10 p-2.5">
-                          <MessageSquare className="h-5 w-5 text-violet-400" aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1">
-                            <h3 className="text-sm font-semibold">Commenter</h3>
-                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                <div className="relative rounded-xl focus-within:ring-2 focus-within:ring-violet-500/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId="commenter" />
+                  </div>
+                  <Link href="/dashboard/commenter" className="block">
+                    <Card className="h-full cursor-pointer border-border transition-all hover:border-violet-500/35 hover:shadow-md">
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-violet-500/10 p-2.5">
+                            <MessageSquare className="h-5 w-5 text-violet-400" aria-hidden />
                           </div>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            Post comments — draft replies, personas, safety flags.
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/commenter?section=housekeeping" className="block">
-                  <Card className="h-full cursor-pointer border-border transition-all hover:border-amber-500/40 hover:shadow-md">
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-lg bg-amber-500/10 p-2.5">
-                          <ListTree className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1">
-                            <h3 className="text-sm font-semibold">Housekeeping</h3>
-                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <h3 className="text-sm font-semibold">Commenter</h3>
+                              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              Post comments — draft replies, personas, safety flags.
+                            </p>
                           </div>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            Classify by spend &amp; threads; surface freeloaders — sync lists from Arrangements.
-                          </p>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
+                <div className="relative rounded-xl focus-within:ring-2 focus-within:ring-amber-500/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId="housekeeping" />
+                  </div>
+                  <Link href="/dashboard/commenter?section=housekeeping" className="block">
+                    <Card className="h-full cursor-pointer border-border transition-all hover:border-amber-500/40 hover:shadow-md">
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-amber-500/10 p-2.5">
+                            <ListTree className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <h3 className="text-sm font-semibold">Housekeeping</h3>
+                              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              Classify by spend &amp; threads; surface freeloaders — sync lists from Arrangements.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
               </div>
             </div>
             
@@ -2328,36 +2333,42 @@ export function AIToolsSelector({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {proTools.map((tool) => (
-                  <Card 
-                    key={tool.id}
-                    className={`cursor-pointer transition-all ${tool.borderColor} ${
-                      isPro 
-                        ? 'hover:shadow-lg hover:scale-[1.02] hover:border-gold/50' 
-                        : 'opacity-75 hover:opacity-100'
-                    }`}
-                    onClick={() => isPro ? setSelectedTool(tool) : null}
-                  >
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
-                          <tool.icon className={`h-5 w-5 ${tool.color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-sm">{tool.name}</h3>
-                            {!isPro && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-gold/40">
+                    <div
+                      className="absolute right-2 top-2 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <ToolHelpDialog toolId={resolveCanonicalToolId(tool.id)} />
+                    </div>
+                    <Card
+                      className={`cursor-pointer transition-all ${tool.borderColor} ${
+                        isPro
+                          ? 'hover:scale-[1.02] hover:border-gold/50 hover:shadow-lg'
+                          : 'opacity-75 hover:opacity-100'
+                      }`}
+                      onClick={() => (isPro ? setSelectedTool(tool) : null)}
+                    >
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
+                            <tool.icon className={`h-5 w-5 ${tool.color}`} />
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {tool.description}
-                          </p>
-                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                            <Zap className="h-3 w-3" />
-                            {formatToolCreditCost(tool.id)}/use
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold">{tool.name}</h3>
+                              {!isPro ? <Lock className="h-3 w-3 text-muted-foreground" /> : null}
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
+                            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                              <Zap className="h-3 w-3" />
+                              {formatToolCreditCost(resolveCanonicalToolId(tool.id))}/use
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 ))}
               </div>
               
@@ -2402,28 +2413,23 @@ export function AIToolsSelector({
   return (
     <Card className={`min-w-0 border-primary/20 ${selectedTool.borderColor}`}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             {backHref ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
                 <Link href={backHref}>
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
             ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={resetTool}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={resetTool}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className={`rounded-lg p-2 ${selectedTool.bgColor}`}>
+            <div className={`rounded-lg p-2 ${selectedTool.bgColor} shrink-0`}>
               <selectedTool.icon className={`h-5 w-5 ${selectedTool.color}`} />
             </div>
-            <div>
+            <div className="min-w-0">
               <CardTitle className="text-lg">{selectedTool.name}</CardTitle>
               <CardDescription className="text-xs">
                 {selectedTool.longDescription}
@@ -2445,10 +2451,13 @@ export function AIToolsSelector({
               ) : null}
             </div>
           </div>
-          <Badge variant="outline" className="gap-1">
-            <Zap className="h-3 w-3" />
-            {formatToolCreditCost(selectedTool.id)}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1">
+            <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
+            <Badge variant="outline" className="gap-1">
+              <Zap className="h-3 w-3" />
+              {formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

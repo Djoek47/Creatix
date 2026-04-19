@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { StudioToolHelpButton } from '@/components/ai/studio-tool-help-button'
 
 type AnalysisJson = {
   sentiment?: string
@@ -302,10 +303,14 @@ export default function CommenterPage() {
             Fan comments on your posts—draft replies here, then paste on OnlyFans.
           </p>
         </div>
-        <Button className="gap-2 shrink-0" onClick={onSync} disabled={syncing || loading}>
-          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sync
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <StudioToolHelpButton toolId="commenter" />
+          <StudioToolHelpButton toolId="housekeeping" />
+          <Button className="gap-2 shrink-0" onClick={onSync} disabled={syncing || loading}>
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sync
+          </Button>
+        </div>
       </div>
 
       <Card

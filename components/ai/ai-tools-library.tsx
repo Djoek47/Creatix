@@ -30,8 +30,11 @@ import {
   ListTree,
   Calendar,
   TrendingUp,
+  Clapperboard,
 } from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
+import { ToolHelpDialog } from '@/components/ai/tool-help-dialog'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
@@ -56,6 +59,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
   'standard-of-attraction': Heart,
+  'frame-studio': Clapperboard,
 }
 
 const CATEGORIES: { id: 'all' | AIToolCategory; name: string }[] = [
@@ -76,6 +80,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
   const [activeCategory, setActiveCategory] = useState<'all' | AIToolCategory>('all')
   const [credits, setCredits] = useState<{ used: number; limit: number } | null>(null)
   const [isPro, setIsPro] = useState(false)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     const supabase = createClient()
@@ -187,7 +192,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
 
         <TabsContent value={activeCategory} className="mt-5 focus-visible:outline-none">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredTools.map((tool) => {
+            {filteredTools.map((tool, index) => {
               const Icon = ICON_MAP[tool.id] ?? Wand2
               const comingSoon = tool.comingSoon === true
               const href =
@@ -207,22 +212,22 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
               const cardInner = (
                 <>
                   {comingSoon ? (
-                    <div className="absolute right-2 top-2 z-10">
+                    <div className="absolute left-2 top-2 z-10">
                       <Badge variant="outline" className="border-muted-foreground/30 text-[10px] text-muted-foreground">
                         Coming soon
                       </Badge>
                     </div>
                   ) : tool.isPro && !isPro ? (
-                    <div className="absolute right-2 top-2 z-10">
-                      <Lock className="h-4 w-4 text-amber-500" aria-hidden />
+                    <div className="absolute right-10 top-2 z-10" aria-hidden>
+                      <Lock className="h-4 w-4 text-amber-500" />
                     </div>
                   ) : null}
-                    <CardContent className="p-4 pt-5">
+                    <CardContent className="min-h-[118px] p-4 pt-5">
                       <div className="flex gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 transition-all duration-300 group-hover:from-pink-500/20 group-hover:via-amber-400/15 group-hover:to-cyan-500/15 group-hover:ring-purple-400/25">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 transition-all duration-300 group-hover/card:from-pink-500/20 group-hover/card:via-amber-400/15 group-hover/card:to-cyan-500/15 group-hover/card:ring-purple-400/25">
                           <Icon className="ai-tools-lib-icon h-5 w-5" aria-hidden />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 pr-7">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="ai-tools-lib-title text-[15px] font-semibold leading-tight">{tool.name}</h3>
                             {tool.badge && !comingSoon ? (
@@ -255,28 +260,58 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                 </>
               )
 
+              const hoverCard =
+                `relative z-10 h-full overflow-hidden border bg-card transition-all duration-300 group-hover/card:-translate-y-0.5 group-hover/card:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)] ${
+                  tool.isPro ? 'border-amber-500/20 group-hover/card:border-amber-400/40' : 'border-border/70 group-hover/card:border-purple-500/35'
+                }`
+
+              const soonCard =
+                'relative z-10 h-full overflow-hidden border border-dashed border-border/80 bg-muted/20 opacity-95'
+
               return comingSoon ? (
-                <div
+                <motion.div
                   key={tool.id}
                   className="block cursor-not-allowed"
                   aria-label={`${tool.name} — coming soon`}
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: reduceMotion ? 0 : 0.2,
+                    delay: reduceMotion ? 0 : Math.min(index * 0.025, 0.35),
+                  }}
                 >
-                  <Card
-                    className="relative h-full overflow-hidden border border-dashed border-border/80 bg-muted/20 opacity-95"
-                  >
-                    {cardInner}
-                  </Card>
-                </div>
+                  <div className="group/card relative h-full rounded-xl focus-within:ring-2 focus-within:ring-purple-500/45 focus-within:ring-offset-2 focus-within:ring-offset-background">
+                    <div className="absolute right-2 top-2 z-20">
+                      <ToolHelpDialog toolId={tool.id} />
+                    </div>
+                    <Card className={`${soonCard} pointer-events-none`}>
+                      {cardInner}
+                    </Card>
+                  </div>
+                </motion.div>
               ) : (
-                <Link key={tool.id} href={href} className="group block">
-                  <Card
-                    className={`relative h-full overflow-hidden border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)] ${
-                      tool.isPro ? 'border-amber-500/20 hover:border-amber-400/40' : 'border-border/70 hover:border-purple-500/35'
-                    }`}
-                  >
-                    {cardInner}
-                  </Card>
-                </Link>
+                <motion.div
+                  key={tool.id}
+                  className="h-full"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: reduceMotion ? 0 : 0.2,
+                    delay: reduceMotion ? 0 : Math.min(index * 0.025, 0.35),
+                  }}
+                >
+                  <div className="group/card relative h-full rounded-xl focus-within:ring-2 focus-within:ring-purple-500/45 focus-within:ring-offset-2 focus-within:ring-offset-background">
+                    <div className="absolute right-2 top-2 z-20">
+                      <ToolHelpDialog toolId={tool.id} />
+                    </div>
+                    <Link
+                      href={href}
+                      className="absolute inset-0 z-0 rounded-xl outline-offset-2 focus-visible:ring-2 focus-visible:ring-purple-500/60"
+                      aria-label={`Open ${tool.name}`}
+                    />
+                    <Card className={`${hoverCard} pointer-events-none`}>{cardInner}</Card>
+                  </div>
+                </motion.div>
               )
             })}
           </div>

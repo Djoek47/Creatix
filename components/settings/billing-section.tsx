@@ -584,7 +584,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
       </Card>
 
       {paymentState !== 'idle' && paymentMessage ? (
-        <Card className="overflow-hidden border-amber-500/35 bg-gradient-to-br from-amber-500/12 via-purple-500/10 to-background">
+        <Card className="billing-card-enter overflow-hidden border-amber-500/35 bg-gradient-to-br from-amber-500/12 via-purple-500/10 to-background">
           <CardContent className="relative p-4">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_52%)]" />
             <div className="relative flex items-start justify-between gap-3">
@@ -644,19 +644,19 @@ export function BillingSection({ userId }: BillingSectionProps) {
             <Checkout
               productId="credit-topup-2000"
               buttonText="Buy 2,000 · $20"
-              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-5000"
               buttonText="Buy 5,000 · $50"
-              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-10000"
               buttonText="Buy 10,000 · $100"
-              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
           </div>
@@ -685,7 +685,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     ? `Buy custom · $${customTopupUsd} · ${(customTopupUsd * 100).toLocaleString()} credits`
                     : 'Enter at least $25'
                 }
-                buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-purple-600 via-amber-500 to-purple-600 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.45),0_16px_40px_-18px_rgba(168,85,247,0.9)] transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.5),0_20px_46px_-16px_rgba(217,70,239,0.95)] active:translate-y-px active:scale-[0.99]"
+                buttonClassName="billing-topup-button w-full bg-gradient-to-r from-purple-600 via-amber-500 to-purple-600 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:brightness-110 active:translate-y-px active:scale-[0.99]"
                 onComplete={handleCheckoutComplete}
               />
             </div>

@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { callGrokVision } from '@/lib/ai/grok-tools'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 60
 
@@ -113,6 +114,10 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Image is too large. Try a smaller file or let us compress in the browser.' }, { status: 400 })
   }
 
+  const access = await requireAiToolSessionAndCredits(req, 'caption-generator')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost } = access.data
+
   const systemPrompt = buildSystemPrompt(platform, creatorNiche, creatorTone, hasImage)
 
   const userText = hasImage
@@ -150,7 +155,9 @@ Return ONLY valid JSON with this exact shape (no markdown fences):
         jsonMode: true,
       })
       const output = parseCaptionJson(raw)
-      return await finalizeResponse(req, output)
+      const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+      if (!charged.ok) return charged.response
+      return Response.json(output)
     } catch {
       // fall through to OpenAI vision
     }
@@ -162,26 +169,11 @@ Return ONLY valid JSON with this exact shape (no markdown fences):
       userText,
       imageDataUrl: hasImage ? imageRaw : undefined,
     })
-    return await finalizeResponse(req, output)
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+    if (!charged.ok) return charged.response
+    return Response.json(output)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Caption generation failed'
     return Response.json({ error: message }, { status: 500 })
   }
-}
-
-async function finalizeResponse(req: NextRequest, output: CaptionOutput) {
-  try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      await consumeAiCredits(supabase, user.id, getCreditsForToolId('caption-generator'))
-    }
-  } catch {
-    // ignore credit errors
-  }
-
-  return Response.json(output)
 }

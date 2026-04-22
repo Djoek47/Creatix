@@ -5,7 +5,7 @@ export const metadata: Metadata = buildPublicMetadata({
   path: '/privacy',
   title: 'Privacy Policy | Circe et Venus',
   description:
-    'Privacy Policy for Circe et Venus (Creatix): how we collect, use, and protect creator and account data; cookies; and your rights.',
+    'Privacy Policy for Circe et Venus (last updated April 26, 2026): how we collect, use, and protect personal information; cookies and tracking; AI; US state disclosures; and your rights.',
   keywords: ['Circe et Venus privacy', 'Creatix privacy policy', 'creator data protection'],
 })
 

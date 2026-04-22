@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 import { callGrok } from '@/lib/ai/grok-tools'
 import { loadHybridCrmFans, pickNewestFansForCupid } from '@/lib/crm/load-hybrid-fans'
 import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
@@ -153,6 +157,9 @@ export async function POST(req: NextRequest) {
       .join('\n')
 
     const content = await callGrok({ apiKey: xai, systemPrompt: SYSTEM, userPrompt })
+
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, cost)
+    if (!charged.ok) return charged.response
 
     return NextResponse.json({
       content,

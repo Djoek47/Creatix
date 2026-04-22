@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 30
 
@@ -44,20 +45,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const supabase = await createRouteHandlerClient(req)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const fantasyCost = getCreditsForToolId('fantasy-writer')
-  if (user) {
-    const gate = await hasEnoughAiCredits(supabase, user.id, fantasyCost)
-    if (!gate.ok) {
-      return Response.json(
-        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-        { status: 402 },
-      )
-    }
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'fantasy-writer')
+  if (!access.ok) return access.response
+
+  const { supabase, userId, cost } = access.data
 
   const contextBlocks: string[] = []
   if (calendarEventSummary) {
@@ -95,27 +86,29 @@ Keep content sensual but classy - think romance novel, not explicit content.`
     `Generate an engaging story opening that can be used in fan interactions, along with continuation suggestions and short message teasers. Platform: ${platform}.`,
   )
 
-  const { output } = await generateText({
-    model: 'openai/gpt-4o-mini',
-    output: Output.object({
-      schema: fantasySchema,
-    }),
-    system: systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: userParts.join('\n\n'),
-      },
-    ],
-  })
-
-  if (user) {
-    try {
-      await consumeAiCredits(supabase, user.id, fantasyCost)
-    } catch {
-      // ignore credit errors
-    }
+  let output: z.infer<typeof fantasySchema>
+  try {
+    const gen = await generateText({
+      model: 'openai/gpt-4o-mini',
+      output: Output.object({
+        schema: fantasySchema,
+      }),
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: userParts.join('\n\n'),
+        },
+      ],
+    })
+    output = gen.output
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Fantasy writer failed'
+    return Response.json({ error: message }, { status: 500 })
   }
+
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  if (!charged.ok) return charged.response
 
   return Response.json(output)
 }

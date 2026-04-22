@@ -1,55 +1,60 @@
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { logUsageEvent } from '@/lib/usage/server-log'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+  shouldBillAiStreamFinish,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient(req)
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'mass-dm-composer')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost } = access.data
 
-  // Check subscription for Pro access
   const { data: subscription } = await supabase
     .from('subscriptions')
     .select('plan_id')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
-  const planId = (subscription as any)?.plan_id as string | null | undefined
+  const planId = (subscription as { plan_id?: string | null } | null)?.plan_id
   const normalizedPlanId = planId?.toLowerCase() || null
   const isPro = Boolean(normalizedPlanId && isPaidPlanId(normalizedPlanId))
   if (!isPro) {
-    return new Response(JSON.stringify({ error: 'Pro subscription required for Mass DM Composer' }), { 
+    return new Response(JSON.stringify({ error: 'Pro subscription required for Mass DM Composer' }), {
       status: 403,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     })
-  }
-
-  const massCost = getCreditsForToolId('mass-dm-composer')
-  const gate = await hasEnoughAiCredits(supabase, user.id, massCost)
-  if (!gate.ok) {
-    return new Response(
-      JSON.stringify({
-        error: 'Insufficient AI credits',
-        code: 'ai_credits_exhausted',
-        used: gate.used,
-        limit: gate.limit,
-      }),
-      { status: 402, headers: { 'Content-Type': 'application/json' } },
-    )
   }
 
   const { campaign, audienceSegment, tone, callToAction, personalizationFields } = await req.json()
 
-  await consumeAiCredits(supabase, user.id, massCost)
-
   const result = streamText({
     model: 'anthropic/claude-sonnet-4',
+    onFinish: async ({ totalUsage, finishReason }) => {
+      try {
+        logUsageEvent({
+          userId,
+          feature: 'api/ai/mass-dm-composer',
+          provider: 'gateway',
+          model: 'anthropic/claude-sonnet-4',
+          usage: {
+            inputTokens: totalUsage?.inputTokens,
+            outputTokens: totalUsage?.outputTokens,
+            totalTokens: totalUsage?.totalTokens,
+          },
+        })
+        if (cost <= 0 || !shouldBillAiStreamFinish(finishReason)) return
+        const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+        if (!charged.ok) {
+          console.error('[mass-dm-composer] Credit charge failed after stream', finishReason)
+        }
+      } catch (e) {
+        console.error('[mass-dm-composer] onFinish error', e)
+      }
+    },
     system: `You are an expert in crafting personalized mass messages for content creators. You create messages that feel personal and genuine while being efficient to send at scale. You understand platform best practices and avoid spam triggers.`,
     prompt: `Create a mass DM campaign:
 - Campaign Goal: ${campaign || 'General engagement'}

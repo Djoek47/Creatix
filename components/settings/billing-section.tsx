@@ -414,40 +414,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
       </Card>
-
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-semibold">Credit Usage Visibility</CardTitle>
-          <CardDescription>Top debit categories and latest wallet ledger activity.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Top 5 debit categories this month</p>
-            {creditTopCategories.length === 0 ? (
-              <p className="text-muted-foreground">No debit activity yet.</p>
-            ) : (
-              creditTopCategories.map((row) => (
-                <p key={row.reason}>
-                  {row.reason}: {row.amount} credits
-                </p>
-              ))
-            )}
-          </div>
-          <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Where credits went (timeline)</p>
-            {creditTimeline.length === 0 ? (
-              <p className="text-muted-foreground">No transactions yet.</p>
-            ) : (
-              creditTimeline.map((row) => (
-                <p key={row.id}>
-                  {new Date(row.created_at).toLocaleDateString()} · {row.kind} · {row.reason_code} ·{' '}
-                  {row.amount} credits
-                </p>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
     )
   }
 
@@ -723,6 +689,40 @@ export function BillingSection({ userId }: BillingSectionProps) {
               ) : null}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="font-semibold">Credit Usage Visibility</CardTitle>
+          <CardDescription>Top debit categories and latest wallet ledger activity.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="mb-2 font-medium">Top 5 debit categories this month</p>
+            {creditTopCategories.length === 0 ? (
+              <p className="text-muted-foreground">No debit activity yet.</p>
+            ) : (
+              creditTopCategories.map((row) => (
+                <p key={row.reason}>
+                  {row.reason}: {row.amount} credits
+                </p>
+              ))
+            )}
+          </div>
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="mb-2 font-medium">Where credits went (timeline)</p>
+            {creditTimeline.length === 0 ? (
+              <p className="text-muted-foreground">No transactions yet.</p>
+            ) : (
+              creditTimeline.map((row) => (
+                <p key={row.id}>
+                  {new Date(row.created_at).toLocaleDateString()} · {row.kind} · {row.reason_code} ·{' '}
+                  {row.amount} credits
+                </p>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

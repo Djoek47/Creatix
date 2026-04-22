@@ -57,7 +57,7 @@ import {
 } from '@/lib/messaging-read-preferences'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
-type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt'
+type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
 
 function isDmSendSource(s: string): s is DmSendSource {
   return (
@@ -66,7 +66,8 @@ function isDmSendSource(s: string): s is DmSendSource {
     s === 'divine_scheduled' ||
     s === 'circe' ||
     s === 'venus' ||
-    s === 'flirt'
+    s === 'flirt' ||
+    s === 'mimic'
   )
 }
 
@@ -136,6 +137,15 @@ function creatorBubbleStyles(source: DmSendSource): {
         badgeLabel: 'AI-assisted · Venus',
         badgeMuted: 'text-amber-950/90',
         bodyMuted: 'text-amber-950/85',
+      }
+    case 'mimic':
+      return {
+        bubble:
+          'border border-sky-400/45 bg-gradient-to-br from-sky-500/85 to-cyan-700/85 text-sky-50 shadow-[0_0_0_1px_rgba(56,189,248,0.35)]',
+        timestamp: 'text-sky-100/80',
+        badgeLabel: 'AI-assisted · Mimic (beta)',
+        badgeMuted: 'text-sky-100/90',
+        bodyMuted: 'text-sky-100/80',
       }
     case 'divine':
     case 'divine_scheduled':
@@ -432,7 +442,9 @@ export function ChatWindow({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPolling, setIsPolling] = useState(false)
-  const [suggestionsLoading, setSuggestionsLoading] = useState<'scan' | 'circe' | 'venus' | 'flirt' | null>(null)
+  const [suggestionsLoading, setSuggestionsLoading] = useState<
+    'scan' | 'circe' | 'venus' | 'flirt' | 'mimic' | null
+  >(null)
   const [scanInsights, setScanInsights] = useState<{
     insights: string[]
     riskFlags: string[]
@@ -441,11 +453,12 @@ export function ChatWindow({
   const [circeSuggestions, setCirceSuggestions] = useState<string[] | null>(null)
   const [venusSuggestions, setVenusSuggestions] = useState<string[] | null>(null)
   const [flirtSuggestions, setFlirtSuggestions] = useState<string[] | null>(null)
+  const [mimicSuggestions, setMimicSuggestions] = useState<string[] | null>(null)
   const [ppvPrice, setPpvPrice] = useState<string>('')
   const [attachedMediaIds, setAttachedMediaIds] = useState<string[]>([])
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const chatFileInputRef = useRef<HTMLInputElement>(null)
-  const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | null>(null)
+  const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | 'mimic' | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -464,8 +477,8 @@ export function ChatWindow({
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
   /** OnlyFans message id → send attribution (from divine_dm_send_events + optimistic sends). */
   const [dmSendSourceByMessageId, setDmSendSourceByMessageId] = useState<Record<string, DmSendSource>>({})
-  /** Next send after inserting Circe/Venus/Flirt suggestion (Divine panel wins if set). */
-  const pendingComposerSuggestionRef = useRef<'user' | 'circe' | 'venus' | 'flirt'>('user')
+  /** Next send after inserting Circe/Venus/Flirt/Mimic suggestion (Divine panel wins if set). */
+  const pendingComposerSuggestionRef = useRef<'user' | 'circe' | 'venus' | 'flirt' | 'mimic'>('user')
   const [divineTyping, setDivineTyping] = useState(false)
   const [purgingCacheIds, setPurgingCacheIds] = useState<Set<string>>(() => new Set())
   /** Loaded when opening an OnlyFans thread; drives auto mark-as-read + per-thread override UI. */
@@ -547,9 +560,10 @@ export function ChatWindow({
       activePanel ||
       (circeSuggestions && circeSuggestions.length > 0) ||
       (venusSuggestions && venusSuggestions.length > 0) ||
-      (flirtSuggestions && flirtSuggestions.length > 0)
+      (flirtSuggestions && flirtSuggestions.length > 0) ||
+      (mimicSuggestions && mimicSuggestions.length > 0)
     if (hasAiContent) setAiSectionOpen(true)
-  }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions])
+  }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions, mimicSuggestions])
 
   const prevConvIdForScrollRef = useRef<string | undefined>(undefined)
   const didSnapBottomForConvRef = useRef<string | null>(null)
@@ -772,11 +786,12 @@ export function ChatWindow({
     setFlirtSuggestions(
       dmSuggestionBridge.flirtSuggestions.length ? dmSuggestionBridge.flirtSuggestions : null,
     )
+    setMimicSuggestions(null)
     setActivePanel(dmSuggestionBridge.highlightPanel)
     clearDmSuggestionBridge()
   }, [conversation?.user?.id, dmSuggestionBridge, clearDmSuggestionBridge])
 
-  const callSuggestionApi = async (mode: 'scan' | 'circe' | 'venus' | 'flirt') => {
+  const callSuggestionApi = async (mode: 'scan' | 'circe' | 'venus' | 'flirt' | 'mimic') => {
     if (!conversation) return
     setError(null)
     setSuggestionsLoading(mode)
@@ -850,6 +865,9 @@ export function ChatWindow({
         } else if (mode === 'flirt') {
           setFlirtSuggestions(texts.length ? texts : null)
           setActivePanel('flirt')
+        } else if (mode === 'mimic') {
+          setMimicSuggestions(texts.length ? texts : null)
+          setActivePanel('mimic')
         }
       }
     } catch (err) {
@@ -1674,11 +1692,34 @@ export function ChatWindow({
                   )}
                   Flirt
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 border-sky-500/50 text-xs text-sky-500"
+                  disabled={suggestionsLoading === 'mimic' || messages.length === 0 || !isOnlyFansConversation}
+                  onClick={() => callSuggestionApi('mimic')}
+                  title={
+                    isOnlyFansConversation
+                      ? 'Mimic suggestions in your creator voice'
+                      : 'Mimic (beta) is available for OnlyFans threads'
+                  }
+                >
+                  {suggestionsLoading === 'mimic' ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Mimic
+                  <Badge className="ml-1 border border-sky-400/40 bg-sky-500/20 px-1.5 py-0 text-[9px] uppercase tracking-wide text-sky-100">
+                    Beta
+                  </Badge>
+                </Button>
               </div>
 
               {(activePanel === 'circe' && circeSuggestions) ||
               (activePanel === 'venus' && venusSuggestions) ||
-              (activePanel === 'flirt' && flirtSuggestions) ? (
+              (activePanel === 'flirt' && flirtSuggestions) ||
+              (activePanel === 'mimic' && mimicSuggestions) ? (
                 <div className="space-y-2 rounded-md border border-border bg-secondary/40 p-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium">
@@ -1686,7 +1727,9 @@ export function ChatWindow({
                         ? 'Circe suggestions'
                         : activePanel === 'venus'
                           ? 'Venus suggestions'
-                          : 'Flirt suggestions'}
+                          : activePanel === 'flirt'
+                            ? 'Flirt suggestions'
+                            : 'Mimic suggestions (beta)'}
                     </span>
                     <button
                       type="button"
@@ -1701,7 +1744,9 @@ export function ChatWindow({
                       ? circeSuggestions
                       : activePanel === 'venus'
                         ? venusSuggestions
-                        : flirtSuggestions
+                        : activePanel === 'flirt'
+                          ? flirtSuggestions
+                          : mimicSuggestions
                     )
                       ?.slice(0, 3)
                       .map((text, idx) => (
@@ -1712,7 +1757,7 @@ export function ChatWindow({
                           onClick={() => {
                             const panel = activePanel
                             setActivePanel(null)
-                            if (panel === 'circe' || panel === 'venus' || panel === 'flirt') {
+                            if (panel === 'circe' || panel === 'venus' || panel === 'flirt' || panel === 'mimic') {
                               pendingComposerSuggestionRef.current = panel
                             }
                             void applyComposerTextAnimated(text, true, { skipAnimation: false })

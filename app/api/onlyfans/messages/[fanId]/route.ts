@@ -14,6 +14,12 @@ import {
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
+import {
+  consumeAiCredits,
+  hasEnoughAiCredits,
+  insufficientAiCreditsResponse,
+} from '@/lib/billing/consume-ai-credits'
+import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 
 class OnlyFansNotConnectedError extends Error {
   override readonly name = 'OnlyFansNotConnectedError'
@@ -251,12 +257,27 @@ export async function POST(
       }
     }
 
+    const check = await hasEnoughAiCredits(supabase, user.id, CREDITS_MESSAGE_SEND_PLATFORM)
+    if (!check.ok) return insufficientAiCreditsResponse(check.used, check.limit)
+
     const result = await api.sendMessage(fanId, {
       text: trimmed || '',
       mediaFiles: hasMedia ? mediaIds : undefined,
       previews: Array.isArray(previews) && previews.length > 0 ? previews : undefined,
       price: typeof price === 'number' && price >= 0 ? price : undefined,
     })
+
+    const reasonRef = `onlyfans_send:${fanId}:${String((result as { id?: string | number }).id ?? '')}`
+    const debit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_SEND_PLATFORM, {
+      reasonCode: 'message_send_platform',
+      reasonRef,
+      idempotencyKey: `${reasonRef}:${user.id}`,
+      metadata: {
+        endpoint: '/api/onlyfans/messages/[fanId]',
+        fan_id: fanId,
+      },
+    })
+    if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
 
     await upsertOnlyFansDmMessageCache(supabase, user.id, fanId, [result])
 

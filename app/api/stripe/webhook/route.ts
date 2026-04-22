@@ -13,6 +13,7 @@ import {
 import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
+import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -210,6 +211,26 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
         const meta = session.metadata as Record<string, string> | undefined
+        const isCreditTopup = meta?.type === 'credit_topup'
+        if (isCreditTopup && userId) {
+          const credits = Number.parseInt(meta?.credits ?? '0', 10)
+          if (Number.isFinite(credits) && credits > 0) {
+            await grantPurchasedCredits({
+              supabase,
+              userId,
+              credits,
+              reasonCode: 'stripe_topup_grant',
+              reasonRef: `stripe_checkout:${session.id}`,
+              idempotencyKey: `stripe_checkout:${session.id}`,
+              stripeCheckoutSessionId: session.id,
+              metadata: {
+                pack_id: meta?.packId ?? null,
+                stripe_payment_status: session.payment_status ?? null,
+              },
+            })
+          }
+          break
+        }
         const rawPlan = meta?.productId
         const planId = normalizePlanId(rawPlan)
         const tierMeta = metaPatch(meta)

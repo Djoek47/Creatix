@@ -2,7 +2,7 @@
 
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
-import { PRODUCTS } from '@/lib/products'
+import { PRODUCTS, getProduct } from '@/lib/products'
 import { createClient } from '@/lib/supabase/server'
 import {
   subscriptionFinancialFieldsFromMerged,
@@ -157,6 +157,13 @@ export async function startCheckoutSession(productId: string) {
     metadata: {
       productId: product.id,
       userId: user.id,
+      ...(typeof product.credits === 'number'
+        ? {
+            type: 'credit_topup',
+            packId: product.id,
+            credits: String(product.credits),
+          }
+        : {}),
     },
     ...(product.mode === 'subscription'
       ? {
@@ -175,6 +182,14 @@ export async function startCheckoutSession(productId: string) {
     throw new Error('Stripe Checkout did not return client_secret')
   }
   return session.client_secret
+}
+
+export async function startCreditTopupCheckout(packId: string) {
+  const pack = getProduct(packId)
+  if (!pack || typeof pack.credits !== 'number' || pack.mode !== 'payment') {
+    throw new Error('Invalid credit pack')
+  }
+  return startCheckoutSession(packId)
 }
 
 function paidCheckoutMetadata(

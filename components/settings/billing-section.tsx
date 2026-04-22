@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -54,6 +54,7 @@ import {
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
+import type { CreditPlanPriority } from '@/lib/billing/credit-planner'
 
 interface BillingSectionProps {
   userId?: string
@@ -78,6 +79,24 @@ interface SubscriptionData {
   revenue_band_label?: string | null
   stripe_customer_id?: string | null
   billing_seats?: number | null
+}
+
+type WalletSnapshot = {
+  includedRemaining: number
+  purchasedRemaining: number
+  totalRemaining: number
+}
+
+type PlannerResult = {
+  allocations: Array<{
+    category: CreditPlanPriority
+    credits: number
+    percent: number
+    estimatedActions: number
+  }>
+  projectedMonthlySpend: number
+  estimatedDaysToDepletion: number
+  safeModeSuggestion: string | null
 }
 
 const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
@@ -105,6 +124,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
   )
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
   const [checkoutSeats, setCheckoutSeats] = useState(DEFAULT_BILLING_SEATS)
+  const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
+  const [creditPulse, setCreditPulse] = useState<'consume' | 'grant' | null>(null)
+  const [plannerLoading, setPlannerLoading] = useState(false)
+  const [plannerResult, setPlannerResult] = useState<PlannerResult | null>(null)
+  const [creatorSize, setCreatorSize] = useState<'solo' | 'small_team' | 'agency'>('solo')
+  const [priorities, setPriorities] = useState<Set<CreditPlanPriority>>(new Set(['dm_growth']))
+  const [targetMessages, setTargetMessages] = useState(1200)
+  const [targetLeakScans, setTargetLeakScans] = useState(12)
+  const [targetReputationScans, setTargetReputationScans] = useState(8)
+  const [targetChatTurns, setTargetChatTurns] = useState(800)
+  const prevTotalRef = useRef<number | null>(null)
   const supabase = createClient()
 
   const loadSubscriptionData = useCallback(async () => {
@@ -151,6 +181,29 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (newSub) setSubData(newSub as SubscriptionData)
     }
 
+    try {
+      const { data: walletRow } = await supabase
+        .from('credit_wallets')
+        .select('included_credits_remaining,purchased_credits_remaining')
+        .eq('user_id', userId)
+        .maybeSingle()
+      const walletSnap: WalletSnapshot = {
+        includedRemaining: Number(walletRow?.included_credits_remaining ?? 0),
+        purchasedRemaining: Number(walletRow?.purchased_credits_remaining ?? 0),
+        totalRemaining:
+          Number(walletRow?.included_credits_remaining ?? 0) +
+          Number(walletRow?.purchased_credits_remaining ?? 0),
+      }
+      if (prevTotalRef.current != null) {
+        if (walletSnap.totalRemaining < prevTotalRef.current) setCreditPulse('consume')
+        if (walletSnap.totalRemaining > prevTotalRef.current) setCreditPulse('grant')
+      }
+      prevTotalRef.current = walletSnap.totalRemaining
+      setWallet(walletSnap)
+    } catch {
+      // table may not exist yet in local env
+    }
+
     const startOfMonth = new Date()
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
@@ -167,6 +220,37 @@ export function BillingSection({ userId }: BillingSectionProps) {
       }, 0) || 0
     setMessagesThisMonth(totalMessages)
   }, [userId, supabase])
+
+  useEffect(() => {
+    if (!creditPulse) return
+    const id = window.setTimeout(() => setCreditPulse(null), 1000)
+    return () => window.clearTimeout(id)
+  }, [creditPulse])
+
+  const runCreditPlanner = async () => {
+    setPlannerLoading(true)
+    try {
+      const res = await fetch('/api/billing/credit-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          monthlyCreditsAvailable: wallet?.totalRemaining ?? aiCreditsLimit - aiCreditsUsed,
+          creatorSize,
+          priorities: [...priorities],
+          targetActivityVolume: {
+            messages: targetMessages,
+            leakScans: targetLeakScans,
+            reputationScans: targetReputationScans,
+            chatTurns: targetChatTurns,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) setPlannerResult(data.plan as PlannerResult)
+    } finally {
+      setPlannerLoading(false)
+    }
+  }
 
   useEffect(() => {
     async function loadSubscription() {
@@ -383,11 +467,22 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 {subData?.cancel_at_period_end ? 'until cancelled' : 'in period'}
               </p>
             </div>
-            <div className="rounded-lg border border-border p-4 text-center">
+            <div
+              className={cn(
+                'rounded-lg border border-border p-4 text-center transition-all',
+                creditPulse === 'consume' &&
+                  'border-amber-500/60 bg-amber-500/10 shadow-[0_0_24px_rgba(250,204,21,0.25)]',
+                creditPulse === 'grant' &&
+                  'border-violet-500/60 bg-violet-500/10 shadow-[0_0_24px_rgba(167,139,250,0.28)]',
+              )}
+            >
               <Zap className="mx-auto h-6 w-6 text-primary" />
               <p className="mt-2 font-medium">AI Credits</p>
               <p className="text-2xl font-bold">
-                {aiCreditsUsed}/{aiCreditsLimit}
+                {wallet?.totalRemaining ?? Math.max(0, aiCreditsLimit - aiCreditsUsed)} remaining
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Included: {wallet?.includedRemaining ?? 0} · Purchased: {wallet?.purchasedRemaining ?? 0}
               </p>
               <p className="text-xs text-muted-foreground">
                 $1 = 100 credits ($0.01 each). Monthly pool ≈ 20% of your subscription (USD), e.g. $100/mo →
@@ -437,6 +532,126 @@ export function BillingSection({ userId }: BillingSectionProps) {
               >
                 Resume
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="font-semibold">Buy More Credits</CardTitle>
+          <CardDescription>
+            Fixed packs via Stripe. Purchased credits roll for one extra billing month.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <Checkout productId="credit-topup-2000" buttonText="Buy 2,000 · $20" buttonClassName="w-full" />
+          <Checkout productId="credit-topup-5000" buttonText="Buy 5,000 · $50" buttonClassName="w-full" />
+          <Checkout productId="credit-topup-10000" buttonText="Buy 10,000 · $100" buttonClassName="w-full" />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="font-semibold">Credit Allocation Planner</CardTitle>
+          <CardDescription>
+            Plan this month by priorities (DM growth, DMCA, reputation, chat) and target volumes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Creator size</Label>
+              <Select value={creatorSize} onValueChange={(v) => setCreatorSize(v as typeof creatorSize)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="solo">Solo</SelectItem>
+                  <SelectItem value="small_team">Small team</SelectItem>
+                  <SelectItem value="agency">Agency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Priority focus</Label>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {(['dm_growth', 'dmca', 'reputation', 'chat_support'] as CreditPlanPriority[]).map((p) => (
+                  <label key={p} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={priorities.has(p)}
+                      onCheckedChange={() =>
+                        setPriorities((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(p)) next.delete(p)
+                          else next.add(p)
+                          return next
+                        })
+                      }
+                    />
+                    <span>{p.replace('_', ' ')}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1">
+              <Label>Messages</Label>
+              <input
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                type="number"
+                value={targetMessages}
+                onChange={(e) => setTargetMessages(Number(e.target.value || 0))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Leak scans</Label>
+              <input
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                type="number"
+                value={targetLeakScans}
+                onChange={(e) => setTargetLeakScans(Number(e.target.value || 0))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Reputation scans</Label>
+              <input
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                type="number"
+                value={targetReputationScans}
+                onChange={(e) => setTargetReputationScans(Number(e.target.value || 0))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Chat turns</Label>
+              <input
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                type="number"
+                value={targetChatTurns}
+                onChange={(e) => setTargetChatTurns(Number(e.target.value || 0))}
+              />
+            </div>
+          </div>
+          <Button onClick={runCreditPlanner} disabled={plannerLoading}>
+            {plannerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Build monthly plan
+          </Button>
+          {plannerResult && (
+            <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+              <p className="font-medium">
+                Projected depletion: {plannerResult.estimatedDaysToDepletion} days · Planned spend:{' '}
+                {plannerResult.projectedMonthlySpend} credits
+              </p>
+              {plannerResult.allocations.map((row) => (
+                <p key={row.category}>
+                  {row.category.replace('_', ' ')}: {row.credits} credits ({row.percent}%) ~{' '}
+                  {row.estimatedActions} actions
+                </p>
+              ))}
+              {plannerResult.safeModeSuggestion ? (
+                <p className="text-amber-600 dark:text-amber-400">{plannerResult.safeModeSuggestion}</p>
+              ) : null}
             </div>
           )}
         </CardContent>

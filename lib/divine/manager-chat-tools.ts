@@ -41,6 +41,8 @@ import { getStats } from '@/lib/divine-intent-actions'
 import { getVoiceMemoryPayload } from '@/lib/divine/voice-memory-server'
 import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/divine/thread-scan-async'
 import { getSettings } from '@/lib/divine-manager'
+import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
+import { CREDITS_MESSAGE_GENERATION_BUNDLE } from '@/lib/billing/credit-economics'
 import {
   dashboardPatchFromToolArgs,
   mergeDashboardPresetIntoRules,
@@ -226,6 +228,27 @@ export function openPanelToHighlightPanel(
 ): 'circe' | 'venus' | 'flirt' | null {
   if (openPanel === 'circe' || openPanel === 'venus' || openPanel === 'flirt') return openPanel
   return null
+}
+
+async function billDmSuggestionBundle(
+  supabase: SupabaseClient,
+  userId: string,
+  fanId: string,
+  reasonSuffix: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_GENERATION_BUNDLE, {
+    reasonCode: 'message_generation_bundle',
+    reasonRef: `dm_reply_package:${fanId}:${reasonSuffix}`,
+    idempotencyKey: `dm_reply_package:${userId}:${fanId}:${reasonSuffix}`,
+    metadata: { tool: 'divine_manager_chat' },
+  })
+  if (!debit.ok) {
+    return {
+      ok: false,
+      message: `Insufficient AI credits (${debit.used}/${debit.limit} used this cycle).`,
+    }
+  }
+  return { ok: true }
 }
 
 function formatDmReplyToolText(
@@ -719,6 +742,13 @@ export async function runContextTool(
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
+      const billed = await billDmSuggestionBundle(
+        ctx.supabase,
+        ctx.userId,
+        String(fanId),
+        `tool:get_reply_suggestions:${Date.now()}`,
+      )
+      if (!billed.ok) return billed.message
       const data = await fetchDmReplySuggestionsPackage(ctx.supabase, ctx.userId, { fanId: String(fanId) })
       return formatDmReplyToolText('get_reply_suggestions', data)
     }
@@ -744,6 +774,13 @@ export async function runContextTool(
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
+      const billed = await billDmSuggestionBundle(
+        ctx.supabase,
+        ctx.userId,
+        String(fanId),
+        `tool:get_dm_thread_and_suggestions:${Date.now()}`,
+      )
+      if (!billed.ok) return billed.message
       const pkg = await fetchDmReplySuggestionsPackage(ctx.supabase, ctx.userId, { fanId: String(fanId) })
       return formatDmReplyToolText('get_dm_thread_and_suggestions', pkg)
     }
@@ -2138,6 +2175,20 @@ export async function runToolCall(
     }
     const openPanel = parseOpenPanelArg(args.openPanel)
     const highlightPanel = openPanelToHighlightPanel(openPanel)
+    const billed = await billDmSuggestionBundle(
+      supabase,
+      userId,
+      fanId,
+      `${name}:${tc.id}`,
+    )
+    if (!billed.ok) {
+      return {
+        tool_call_id: tc.id,
+        content: billed.message,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
     const pkg = await fetchDmReplySuggestionsPackage(supabase, userId, { fanId })
     const toolKey =
       name === 'get_reply_suggestions'

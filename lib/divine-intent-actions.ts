@@ -9,6 +9,11 @@ import { createTask } from '@/lib/divine-manager'
 import type { DivineManagerSettingsRow } from '@/lib/divine-manager'
 import { formatOnlyFansText } from '@/lib/onlyfans-text'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
+import {
+  consumeAiCredits,
+  hasEnoughAiCredits,
+} from '@/lib/billing/consume-ai-credits'
+import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 
 export type MassDmParams = {
   message: string
@@ -238,6 +243,10 @@ export async function executeSendMessage(
   if (!connection) {
     return { success: false, summary: `${platform} is not connected.` }
   }
+  const check = await hasEnoughAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM)
+  if (!check.ok) {
+    return { success: false, summary: `Insufficient AI credits (${check.used}/${check.limit}).` }
+  }
   try {
     if (platform === 'onlyfans') {
       const bad = validateChatMediaIdsForSend(mediaIds)
@@ -251,6 +260,13 @@ export async function executeSendMessage(
         previews: Array.isArray(previews) && previews.length > 0 ? previews : undefined,
         rfTag: Array.isArray(rfTag) && rfTag.length > 0 ? rfTag : undefined,
       })
+      const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM, {
+        reasonCode: 'message_send_platform',
+        reasonRef: `intent_send:onlyfans:${fanId}:${Date.now()}`,
+        idempotencyKey: `intent_send:onlyfans:${userId}:${fanId}:${Date.now()}`,
+        metadata: { source: 'divine_intent_send' },
+      })
+      if (!debit.ok) return { success: false, summary: `Insufficient AI credits (${debit.used}/${debit.limit}).` }
       return { success: true, summary: `Message sent to fan on OnlyFans.` }
     }
     if (platform === 'fansly') {
@@ -259,6 +275,13 @@ export async function executeSendMessage(
         text: message.trim(),
         mediaIds: Array.isArray(mediaIds) && mediaIds.length > 0 ? mediaIds : undefined,
       })
+      const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM, {
+        reasonCode: 'message_send_platform',
+        reasonRef: `intent_send:fansly:${fanId}:${Date.now()}`,
+        idempotencyKey: `intent_send:fansly:${userId}:${fanId}:${Date.now()}`,
+        metadata: { source: 'divine_intent_send' },
+      })
+      if (!debit.ok) return { success: false, summary: `Insufficient AI credits (${debit.used}/${debit.limit}).` }
       if (result?.success) return { success: true, summary: 'Message sent to fan on Fansly.' }
       return { success: false, summary: 'Failed to send on Fansly.' }
     }

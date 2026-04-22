@@ -15,6 +15,11 @@ import {
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
 import { logUsageEvent } from '@/lib/usage/server-log'
+import {
+  consumeAiCredits,
+  insufficientAiCreditsResponse,
+} from '@/lib/billing/consume-ai-credits'
+import { CREDITS_MESSAGE_GENERATION_LIGHT } from '@/lib/billing/credit-economics'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -1196,6 +1201,21 @@ export async function POST(req: NextRequest) {
     if (!messages.length) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
+
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m) => m?.role === 'user' && typeof m?.content === 'string')
+    const requestNonce =
+      req.headers.get('x-idempotency-key') ||
+      req.headers.get('x-request-id') ||
+      `${Date.now()}`
+    const lightDebit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_GENERATION_LIGHT, {
+      reasonCode: 'message_generation_light',
+      reasonRef: `divine_manager_chat:${(lastUserMessage?.content ?? '').slice(0, 64)}:${requestNonce}`,
+      idempotencyKey: `divine_manager_chat:${user.id}:${requestNonce}`,
+      metadata: { endpoint: '/api/ai/divine-manager-chat' },
+    })
+    if (!lightDebit.ok) return insufficientAiCreditsResponse(lightDebit.used, lightDebit.limit)
 
     const { ok: divineFull } = await isDivineFullAccess(supabase, user.id)
     const connectionSnapshot = await getPlatformConnectionSnapshot(supabase, user.id)

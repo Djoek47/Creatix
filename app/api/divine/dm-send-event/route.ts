@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
               ? 'venus'
               : raw === 'flirt'
                 ? 'flirt'
+                : raw === 'mimic'
+                  ? 'mimic'
                 : 'user'
     const preview =
       typeof body.body_preview === 'string' ? body.body_preview.slice(0, 2000) : ''

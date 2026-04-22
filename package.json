@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "test:leaks": "tsx lib/leaks/canonical-logic.test.ts",
     "test:credits": "tsx lib/billing/credit-economics.test.ts",
+    "test:credit-planner": "tsx lib/billing/credit-planner.test.ts",
     "test:dmca-host": "tsx lib/dmca/host-report-destinations.test.ts",
     "mobile": "npm run start --prefix apps/mobile"
   },

@@ -57,6 +57,9 @@ export function creditsForProviderUsdEstimate(providerUsd: number): number {
 
 /** Product-level overrides (routes + Divine tools). Aligned to PROVIDER_USD_ESTIMATE. */
 export const CREDITS_DIVINE_CHAT_MESSAGE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.chatMiniTurn)
+export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
+export const CREDITS_MESSAGE_GENERATION_BUNDLE = 5
+export const CREDITS_MESSAGE_SEND_PLATFORM = 1
 export const CREDITS_DMCA_CLAIM = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.dmcaClaimPrep)
 export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperLeakScanRun)
 

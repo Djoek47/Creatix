@@ -5,11 +5,12 @@ import {
   generateMessageSuggestionsWithOpenAI,
   NormalizedChatMessage,
 } from '@/lib/ai/message-suggestions'
+import { runMimicMessageSuggestion } from '@/lib/ai/run-mimic-message-suggestion'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
-type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
+type Mode = 'scan' | 'circe' | 'venus' | 'flirt' | 'mimic'
 
 type RequestBody = {
   mode: Mode
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     const mode: Mode = body.mode
-    if (!['scan', 'circe', 'venus', 'flirt'].includes(mode)) {
+    if (!['scan', 'circe', 'venus', 'flirt', 'mimic'].includes(mode)) {
       return NextResponse.json({ error: 'Unsupported mode' }, { status: 400 })
     }
 
@@ -87,8 +88,42 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (mode === 'mimic') {
+      if (body.platform !== 'onlyfans') {
+        return NextResponse.json(
+          { error: 'Mimic (beta) is currently available only for OnlyFans threads.' },
+          { status: 400 },
+        )
+      }
+
+      const mimicResult = await runMimicMessageSuggestion({
+        supabase,
+        userId: user.id,
+        fanId: String(body.fan.id),
+      })
+
+      if (!mimicResult.ok) {
+        return NextResponse.json({ error: mimicResult.error }, { status: 400 })
+      }
+
+      try {
+        await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+      } catch {
+        // ignore credit errors
+      }
+
+      return NextResponse.json({
+        mode: 'mimic',
+        model: 'openai',
+        suggestions: mimicResult.suggestions,
+        note: mimicResult.note,
+      })
+    }
+
+    const nonMimicMode: Exclude<Mode, 'mimic'> = mode
+
     const ctx = {
-      mode,
+      mode: nonMimicMode,
       platform: body.platform,
       fan: body.fan,
       messages,

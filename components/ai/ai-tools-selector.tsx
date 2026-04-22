@@ -7,19 +7,8 @@ import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { 
   Wand2, 
   PenTool, 
@@ -38,10 +27,8 @@ import {
   ChevronRight,
   Crown,
   BarChart3,
-  Calendar,
   Gift,
   Camera,
-  Mic,
   Users,
   TrendingDown,
   TrendingUp,
@@ -51,12 +38,15 @@ import {
   ExternalLink,
   ListTree,
 } from 'lucide-react'
-import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { ToolHelpDialog } from '@/components/ai/tool-help-dialog'
+import { runToolInputsSwitch } from '@/components/ai/tool-runners/run-tool-inputs-switch'
+import { EasyProModeToggle } from '@/components/ui/easy-pro-mode-toggle'
+import { useToolRunnerUiMode } from '@/hooks/use-tool-runner-ui-mode'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   compressImageForVision,
   extractVideoFrameAsDataUrl,
@@ -72,9 +62,8 @@ import {
 } from '@/lib/crm/fetch-crm-fans-client'
 import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 
-function formatFantasyCalendarDate(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-}
+import { formatFantasyRunnerDate } from '@/lib/calendar/format-fantasy-runner-date'
+import type { FantasyFanPickerRow, FantasyScheduledRow } from '@/components/ai/tool-runners/fantasy-writer-inputs'
 
 /** Visual-only fields; names/descriptions come from `getToolMeta` to match ALL_TOOLS_META. */
 const WORKING_TOOL_ROWS = [
@@ -330,6 +319,7 @@ export function AIToolsSelector({
   const [isPro, setIsPro] = useState(false)
   const [aiCreditsUsed, setAiCreditsUsed] = useState(0)
   const [aiCreditsLimit, setAiCreditsLimit] = useState(100)
+  const [toolRunError, setToolRunError] = useState<string | null>(null)
   const supabase = createClient()
   
   // Check subscription status
@@ -376,6 +366,12 @@ export function AIToolsSelector({
     }
     return selectedTool.id
   }, [selectedTool, contentStudioSubtab])
+
+  const runnerStorageKey = useMemo(
+    () => (effectiveRunnerId ? resolveCanonicalToolId(effectiveRunnerId) : null),
+    [effectiveRunnerId],
+  )
+  const { mode: runnerMode, setMode: setRunnerMode } = useToolRunnerUiMode(runnerStorageKey)
 
   useEffect(() => {
     if (!initialToolId) {
@@ -441,27 +437,8 @@ export function AIToolsSelector({
 
   const upcomingCosmicEvents = useMemo(() => getUpcomingCosmicEvents(90), [])
 
-  const [fantasyFans, setFantasyFans] = useState<
-    {
-      id: string
-      username: string | null
-      platform_username: string | null
-      display_name: string | null
-      total_spent: number | null
-      platform: string
-      notes: string | null
-      tags: unknown
-    }[]
-  >([])
-  const [fantasyScheduledContent, setFantasyScheduledContent] = useState<
-    {
-      id: string
-      title: string
-      description: string | null
-      scheduled_at: string | null
-      status: string
-    }[]
-  >([])
+  const [fantasyFans, setFantasyFans] = useState<FantasyFanPickerRow[]>([])
+  const [fantasyScheduledContent, setFantasyScheduledContent] = useState<FantasyScheduledRow[]>([])
   const [fantasyFanId, setFantasyFanId] = useState('')
   const [fantasyHolidayEventId, setFantasyHolidayEventId] = useState('')
   const [fantasyContentId, setFantasyContentId] = useState('')
@@ -528,7 +505,7 @@ export function AIToolsSelector({
         setCrmFansMeta(null)
         setFantasyFans([])
       }
-      setFantasyScheduledContent((contentRes.data as typeof fantasyScheduledContent) || [])
+      setFantasyScheduledContent((contentRes.data as FantasyScheduledRow[]) || [])
     })()
   }, [selectedTool?.id])
   
@@ -554,6 +531,7 @@ export function AIToolsSelector({
 
     setLoading(true)
     setResult(null)
+    setToolRunError(null)
 
     try {
       let response: Response
@@ -577,7 +555,7 @@ export function AIToolsSelector({
             ? (() => {
                 const ev = upcomingCosmicEvents.find((e) => e.id === fantasyHolidayEventId)
                 if (!ev) return undefined
-                return `${ev.holiday.name} (${formatFantasyCalendarDate(ev.date)}, ${ev.holiday.type}). Content angle: ${ev.holiday.contentIdea}`
+                return `${ev.holiday.name} (${formatFantasyRunnerDate(ev.date)}, ${ev.holiday.type}). Content angle: ${ev.holiday.contentIdea}`
               })()
             : undefined
 
@@ -604,7 +582,7 @@ export function AIToolsSelector({
                 const c = fantasyScheduledContent.find((x) => x.id === fantasyContentId)
                 if (!c) return undefined
                 const when = c.scheduled_at
-                  ? formatFantasyCalendarDate(new Date(c.scheduled_at))
+                  ? formatFantasyRunnerDate(new Date(c.scheduled_at))
                   : 'not scheduled yet'
                 return `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.${c.description ? ` Notes: ${c.description}` : ''}`
               })()
@@ -785,17 +763,23 @@ export function AIToolsSelector({
       
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to run tool')
+        const msg =
+          typeof data.error === 'string'
+            ? data.error
+            : `Request failed (${response.status})`
+        setToolRunError(msg)
+        setResult(null)
+        if (response.status === 402) {
+          void loadSubscription()
+        }
+        return
       }
 
       setResult(data)
     } catch (error) {
       console.error('Tool error:', error)
-      // Set a fallback result for demo purposes
-      setResult({
-        content: 'AI analysis complete. Results are being processed.',
-        suggestions: ['Try again with more details', 'Adjust your parameters'],
-      })
+      setToolRunError(error instanceof Error ? error.message : 'Something went wrong')
+      setResult(null)
     } finally {
       setLoading(false)
     }
@@ -804,6 +788,7 @@ export function AIToolsSelector({
   const resetTool = () => {
     setSelectedTool(null)
     setContentStudioSubtab('ideas')
+    setToolRunError(null)
     setResult(null)
     setContentDescription('')
     setFanMessage('')
@@ -826,875 +811,66 @@ export function AIToolsSelector({
   const renderToolInputs = () => {
     if (!selectedTool || !effectiveRunnerId) return null
 
-    switch (effectiveRunnerId) {
-      case 'caption-generator':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Content Type</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="photo">Photo</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="photoset">Photo Set</SelectItem>
-                    <SelectItem value="story">Story</SelectItem>
-                    <SelectItem value="livestream">Livestream</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Upload photo or video (AI sees the frame)</Label>
-              {captionImageDataUrl ? (
-                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-                  <img
-                    src={captionImageDataUrl}
-                    alt="Preview for caption"
-                    className="max-h-48 w-full object-contain"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute right-2 top-2"
-                    onClick={() => setCaptionImageDataUrl(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp,video/mp4,video/quicktime,video/webm"
-                  className="cursor-pointer"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ''
-                    if (!file) return
-                    try {
-                      if (file.type.startsWith('video/')) {
-                        const frame = await extractVideoFrameAsDataUrl(file)
-                        const blob = await fetch(frame).then((r) => r.blob())
-                        const compressed = await compressImageForVision(
-                          new File([blob], 'frame.jpg', { type: 'image/jpeg' }),
-                        )
-                        setCaptionImageDataUrl(compressed)
-                      } else {
-                        const dataUrl = await compressImageForVision(file)
-                        setCaptionImageDataUrl(dataUrl)
-                      }
-                    } catch {
-                      const reader = new FileReader()
-                      reader.onload = () => setCaptionImageDataUrl(reader.result as string)
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                For video we use one representative frame. In the box below you can ask for post copy—or a short script structure (hook, beats, on-screen text, CTA) for Reels/teasers.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Describe your content (optional if you uploaded media)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                  showTooltip={true}
-                />
-              </div>
-              <Textarea 
-                placeholder="Optional: tone and angle for captions — or ask for a tight video outline (hook → beats → CTA). Example: “30s Reels teaser, flirty, end with PPV link…”"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'fantasy-writer':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tone/Style</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="romantic">Romantic</SelectItem>
-                    <SelectItem value="playful">Playful</SelectItem>
-                    <SelectItem value="mysterious">Mysterious</SelectItem>
-                    <SelectItem value="dominant">Dominant</SelectItem>
-                    <SelectItem value="submissive">Submissive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                Cosmic calendar event (next ~90 days)
-              </Label>
-              <Select
-                value={fantasyHolidayEventId || 'none'}
-                onValueChange={(v) => setFantasyHolidayEventId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — tie fantasy to a holiday / event" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {upcomingCosmicEvents.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>
-                      {formatFantasyCalendarDate(ev.date)} — {ev.holiday.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Your scheduled content (content calendar)</Label>
-              <Select
-                value={fantasyContentId || 'none'}
-                onValueChange={(v) => setFantasyContentId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — match a planned post" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {fantasyScheduledContent.map((row) => (
-                    <SelectItem key={row.id} value={row.id}>
-                      {row.title}
-                      {row.scheduled_at
-                        ? ` · ${formatFantasyCalendarDate(new Date(row.scheduled_at))}`
-                        : ''}{' '}
-                      ({row.status})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fantasyScheduledContent.length === 0 && (
-                <p className="text-xs text-muted-foreground">No items in your content calendar yet. Add posts under Content.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                Fan profile (personalize for one fan)
-              </Label>
-              <Select
-                value={fantasyFanId || 'none'}
-                onValueChange={(v) => setFantasyFanId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — fantasy tailored to this fan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {fantasyFans.map((f) => {
-                    const h = f.username || f.platform_username || 'fan'
-                    return (
-                      <SelectItem key={f.id} value={f.id}>
-                        @{h} · {f.platform}
-                        {f.total_spent != null ? ` · ~$${f.total_spent}` : ''}
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-              {crmFansMeta?.warnings?.length ? (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  {crmFansMeta.warnings.join(' ')}
-                </p>
-              ) : null}
-              {fantasyFans.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {crmFansMeta == null
-                    ? 'Could not load fans. Refresh the page or try again.'
-                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
-                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync subscribers into this list.'}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Scenario or theme (optional if you picked calendar / fan / scheduled post above)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="e.g. masquerade strangers, slow burn, exclusive VIP vibe — or leave blank and rely on calendar + fan context."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'content-ideas':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your Niche</Label>
-                <Input 
-                  placeholder="e.g., fitness, cosplay, GFE..."
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Any specific trends or themes to explore? (optional)</Label>
-              <Textarea 
-                placeholder="Current trends you've noticed, or themes you want to try..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'photo-enhancer':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Upload photo (JPEG / PNG)</Label>
-              {photoEditImageDataUrl ? (
-                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-                  <img
-                    src={photoEditImageDataUrl}
-                    alt="Photo to edit"
-                    className="max-h-56 w-full object-contain"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute right-2 top-2"
-                    onClick={() => setPhotoEditImageDataUrl(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  className="cursor-pointer"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      const compressed = await compressImageForVision(file)
-                      setPhotoEditImageDataUrl(compressed)
-                    } catch {
-                      const reader = new FileReader()
-                      reader.onload = () => setPhotoEditImageDataUrl(reader.result as string)
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                Say what you want in plain language — e.g. &quot;blur the background more&quot;, &quot;brighter&quot;, &quot;heart emoji top right&quot;. Mic uses voice-to-text (same idea as Mimic interview).
-              </p>
-            </div>
-            {voiceSession && (
-              <div className="space-y-2 rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
-                <div className="flex items-center gap-2 text-xs font-medium text-sky-700 dark:text-sky-300">
-                  <Mic className="h-3.5 w-3.5" />
-                  OpenAI Realtime voice (like Mimic interview)
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Speak naturally; the assistant calls the same safe edit pipeline. Keep this tab open. Results appear below when a tool applies.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={
-                      !photoEditImageDataUrl ||
-                      voiceSession.status === 'connecting' ||
-                      voiceSession.status === 'connected'
-                    }
-                    onClick={() =>
-                      void voiceSession.startVoiceCall({
-                        realtimePath: '/api/ai/photo-touchup-realtime',
-                        toolPath: '/api/ai/photo-touchup-voice-tool',
-                        getToolBodyExtras: () => ({
-                          imageBase64: photoVoiceImageRef.current || '',
-                        }),
-                      })
-                    }
-                  >
-                    {voiceSession.status === 'connecting' ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                    <span className="ml-1.5">
-                      {voiceSession.status === 'connected' ? 'Voice active' : 'Start voice session'}
-                    </span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={voiceSession.status !== 'connected'}
-                    onClick={() => voiceSession.endVoiceCall()}
-                  >
-                    End voice
-                  </Button>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {voiceSession.status}
-                  </Badge>
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>How should we touch up this photo?</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                  showTooltip={true}
-                />
-              </div>
-              <Textarea
-                placeholder="e.g. Soften the whole image for privacy, brighten slightly, add a sparkle emoji near the corner…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'gift-suggester':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Fan context</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setFanMessage((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Who they are, spend level, interests, recent behavior…"
-                value={fanMessage}
-                onChange={(e) => setFanMessage(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Budget or tier hint (optional)</Label>
-              <Input
-                placeholder="e.g. $50–150, or deluxe"
-                value={currentPrice}
-                onChange={(e) => setCurrentPrice(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center space-x-2 rounded-md border border-border p-3">
-              <Checkbox
-                id="gift-wl"
-                checked={giftUseWishlist}
-                onCheckedChange={(c) => setGiftUseWishlist(c === true)}
-              />
-              <label htmlFor="gift-wl" className="text-sm cursor-pointer">
-                Use my saved wishlist links (title + price){' '}
-                <Link href="/dashboard/ai-studio/gifts" className="text-primary underline">
-                  Manage list
-                </Link>
-              </label>
-            </div>
-          </div>
-        )
-        
-      // Pro Tool Inputs
-      case 'churn-predictor':
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-snug">
-              <span className="font-medium text-foreground">Circe&apos;s Oracle</span> is now this tool: pick a fan to see who&apos;s
-              at risk of churning and get concrete retention plays. Batch digests live on{' '}
-              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/retention/churn">
-                Retention
-              </Link>
-              .
-            </p>
-            <div className="space-y-2">
-              <Label>Fan from CRM (spend, renewal dates, thread insight, synced DMs)</Label>
-              <p className="text-xs text-muted-foreground">
-                Open <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/messages">Messages</Link>{' '}
-                for a fan so DMs save to your cache — thread text improves this run even without a separate scan.
-              </p>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="churn-expiring-only"
-                  checked={churnExpiringOnly}
-                  onCheckedChange={(v) => setChurnExpiringOnly(v === true)}
-                />
-                <Label htmlFor="churn-expiring-only" className="text-sm font-normal cursor-pointer">
-                  Only fans with period ending in 14 days (needs sync)
-                </Label>
-              </div>
-              <Select value={churnFanId} onValueChange={setChurnFanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose fan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Manual entry only</SelectItem>
-                  {churnFansFiltered.map((f) => (
-                    <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
-                      <span className="inline-flex items-center gap-1.5 flex-wrap">
-                        <span className="rounded border border-border px-1 py-0 text-[10px] uppercase text-muted-foreground">
-                          {f.platform === 'onlyfans' ? 'OF' : f.platform === 'fansly' ? 'Fansly' : f.platform}
-                        </span>
-                        <span>
-                          @{f.username}
-                          {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
-                          {f.subscription_expires_at
-                            ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
-                            : ''}
-                          {f._source !== 'database' ? ' · live list' : ''}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {crmFansMeta?.warnings?.length ? (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  {crmFansMeta.warnings.join(' ')}
-                </p>
-              ) : null}
-              {!churnExpiringOnly && churnFansFiltered.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {crmFansMeta == null
-                    ? 'Could not load fans. Refresh the page or try again.'
-                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
-                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync — or pick Manual entry below.'}
-                </p>
-              ) : null}
-              {churnExpiringOnly && churnFansFiltered.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No matches. On Fans, open Sync → Full CRM update so subscription end dates populate.
-                </p>
-              ) : null}
-            </div>
-            {churnFanId === 'manual' ? (
-              <div className="space-y-2">
-                <Label>Fan information</Label>
-                <Textarea
-                  placeholder="Subscription length, spending, patterns…"
-                  value={fanMessage}
-                  onChange={(e) => setFanMessage(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Optional: extra spending / trend notes</Label>
-                <Textarea
-                  placeholder="e.g. tips dropped this month vs last…"
-                  value={fanMessage}
-                  onChange={(e) => setFanMessage(e.target.value)}
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Recent behavior or context (optional)</Label>
-              <Textarea
-                placeholder="Anything that changed lately in DMs or purchases…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'income-predictor':
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-snug">
-              Combines the partner revenue forecast with your synced snapshots, post cadence, and goal realism. For the full
-              calendar and raw forecast JSON, open{' '}
-              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/analytics/income-predictor">
-                Income Predictor
-              </Link>
-              .
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Calendar buckets</Label>
-                <Select value={incomeCalendarMode} onValueChange={(v) => setIncomeCalendarMode(v as 'week' | 'month')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="month">Monthly</SelectItem>
-                    <SelectItem value="week">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Mode</Label>
-                <Select value={incomePredictorMode} onValueChange={(v) => setIncomePredictorMode(v as 'maintain' | 'grow')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="maintain">Maintain run rate</SelectItem>
-                    <SelectItem value="grow">Grow (next month $)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {incomePredictorMode === 'grow' ? (
-              <div className="space-y-2">
-                <Label>Target revenue (USD)</Label>
-                <Input
-                  inputMode="decimal"
-                  placeholder="e.g. 12000"
-                  value={incomePredictorGoal}
-                  onChange={(e) => setIncomePredictorGoal(e.target.value)}
-                />
-              </div>
-            ) : null}
-          </div>
-        )
-        
-      case 'mass-dm-composer':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Audience Segment</Label>
-                <Select value={audienceSegment} onValueChange={setAudienceSegment}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Subscribers</SelectItem>
-                    <SelectItem value="new">New Fans (Last 7 days)</SelectItem>
-                    <SelectItem value="inactive">Inactive (30+ days)</SelectItem>
-                    <SelectItem value="whales">Top Spenders</SelectItem>
-                    <SelectItem value="expiring">Expiring Soon</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tone</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="friendly">Friendly</SelectItem>
-                    <SelectItem value="flirty">Flirty</SelectItem>
-                    <SelectItem value="urgent">Urgent/FOMO</SelectItem>
-                    <SelectItem value="exclusive">Exclusive/VIP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Campaign Goal</Label>
-              <Input 
-                placeholder="e.g., Promote new PPV, Re-engage inactive fans..."
-                value={campaignGoal}
-                onChange={(e) => setCampaignGoal(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Call to Action</Label>
-              <Textarea 
-                placeholder="What do you want fans to do after reading?"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[60px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'standard-of-attraction':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your Niche (optional)</Label>
-                <Input
-                  placeholder="e.g., fitness, cosplay, GFE..."
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Upload your photo (Grok rates if you&apos;re up to market standards)</Label>
-              {attractionImage ? (
-                <div className="relative rounded-lg border border-border bg-muted/30 overflow-hidden">
-                  <img src={attractionImage} alt="Uploaded for rating" className="max-h-48 w-full object-contain" />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => setAttractionImage(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg"
-                    className="cursor-pointer"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      try {
-                        const dataUrl = await compressImageForVision(file)
-                        setAttractionImage(dataUrl)
-                      } catch {
-                        const reader = new FileReader()
-                        reader.onload = () => setAttractionImage(reader.result as string)
-                        reader.readAsDataURL(file)
-                      }
-                    }}
-                  />
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Upload a photo and Grok will judge commercial attractiveness and whether you meet market standards. Or describe below.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Or describe your content (optional if you uploaded a photo)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Describe the content you want rated: setting, outfit, mood, type (photo/video), what’s in frame... The more detail, the better Venus and Circe can judge commercial appeal."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'competitor-analysis':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              We anchor you on{' '}
-              <strong className="text-foreground">your cohort stat band</strong> (imported fans vs anonymized Creatix
-              quartiles), then compare you to <strong className="text-foreground">named competitors</strong> in the{' '}
-              <strong className="text-foreground">same band</strong> and contrast with{' '}
-              <strong className="text-foreground">one tier above</strong> (next quartile up). Use only public marketing
-              signals — no harassment or private data.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your niche</Label>
-                <Input
-                  placeholder="e.g., fitness, cosplay, GFE, domme…"
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Primary platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                    <SelectItem value="multi">Multi-platform</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Competitors to compare (required for a focused run)</Label>
-              <Textarea
-                placeholder="@handles, public profile links, or notes on who sits near you vs who feels one step ahead (themes, price tier if public, cadence)…"
-                value={competitorTargets}
-                onChange={(e) => setCompetitorTargets(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>What you want out of the comparison</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="e.g., Where I’m weak vs peers in my band · what one-tier-up creators do on promos or DMs · gaps I can own without racing to the bottom…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="competitor-web"
-                checked={useCompetitorWebSearch}
-                onCheckedChange={(v) => setUseCompetitorWebSearch(v === true)}
-              />
-              <label htmlFor="competitor-web" className="text-xs leading-snug text-muted-foreground cursor-pointer">
-                Run live web discovery (Serper) for public guides and articles — adds verifiable context. Turn off to use
-                cohort benchmarks + shared library + Community tips only.
-              </label>
-            </div>
-          </div>
-        )
-
-      case 'venus-cupid':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Generate</strong> loads your <strong className="text-foreground">newest fans</strong> from CRM + live
-              OnlyFans/Fansly lists, then suggests how to welcome and engage them. Optional links:{' '}
-              <Link href="/dashboard/retention/churn" className="text-primary underline hover:no-underline">
-                Retention → Churn
-              </Link>
-              ,{' '}
-              <Link href="/dashboard/ai-studio/tools/churn-predictor" className="text-primary underline hover:no-underline">
-                Churn Predictor
-              </Link>
-              .
-            </p>
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
-              <Checkbox
-                id="cupid-churn-tag"
-                checked={cupidTagChurn}
-                onCheckedChange={(v) => setCupidTagChurn(v === true)}
-              />
-              <label htmlFor="cupid-churn-tag" className="cursor-pointer text-xs leading-snug text-muted-foreground">
-                <span className="font-medium text-foreground">Tag CRM fans for churn follow-up</span> — append a short note on
-                each <strong className="text-foreground">saved</strong> fan row so you remember they belong in Churn Predictor /
-                retention workflows (live-only fans need a CRM sync first).
-              </label>
-            </div>
-          </div>
-        )
-        
-      default:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Input</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="Enter your request..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-    }
+    return runToolInputsSwitch({
+      effectiveRunnerId,
+      runnerMode,
+      platform,
+      setPlatform,
+      contentType,
+      setContentType,
+      captionImageDataUrl,
+      setCaptionImageDataUrl,
+      contentDescription,
+      setContentDescription,
+      niche,
+      setNiche,
+      fanMessage,
+      setFanMessage,
+      currentPrice,
+      setCurrentPrice,
+      photoEditImageDataUrl,
+      setPhotoEditImageDataUrl,
+      voiceSession,
+      photoVoiceImageRef,
+      giftUseWishlist,
+      setGiftUseWishlist,
+      churnFanId,
+      setChurnFanId,
+      churnFans,
+      churnFansFiltered,
+      churnExpiringOnly,
+      setChurnExpiringOnly,
+      incomePredictorMode,
+      setIncomePredictorMode,
+      incomePredictorGoal,
+      setIncomePredictorGoal,
+      incomeCalendarMode,
+      setIncomeCalendarMode,
+      campaignGoal,
+      setCampaignGoal,
+      audienceSegment,
+      setAudienceSegment,
+      attractionImage,
+      setAttractionImage,
+      competitorTargets,
+      setCompetitorTargets,
+      useCompetitorWebSearch,
+      setUseCompetitorWebSearch,
+      cupidTagChurn,
+      setCupidTagChurn,
+      upcomingCosmicEvents,
+      fantasyHolidayEventId,
+      setFantasyHolidayEventId,
+      fantasyContentId,
+      setFantasyContentId,
+      fantasyFanId,
+      setFantasyFanId,
+      fantasyFans,
+      fantasyScheduledContent,
+      crmFansMeta,
+    })
   }
-  
+
   // Render caption generator results
   const renderCaptionResults = (captionResult: CaptionResult) => (
     <div className="space-y-6 pt-4 border-t border-border">
@@ -2455,12 +1631,33 @@ export function AIToolsSelector({
             <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
             <Badge variant="outline" className="gap-1">
               <Zap className="h-3 w-3" />
-              {formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}
+              {effectiveRunnerId
+                ? formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))
+                : formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}
             </Badge>
           </div>
         </div>
+        <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/25 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Easy</span> keeps steps short;{' '}
+            <span className="font-medium text-foreground">Pro</span> shows every option. Credits apply when a run
+            succeeds.
+          </p>
+          <EasyProModeToggle
+            value={runnerMode}
+            onChange={setRunnerMode}
+            ariaLabel="AI tool layout mode"
+            className="shrink-0 self-start sm:self-center"
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {toolRunError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not run tool</AlertTitle>
+            <AlertDescription>{toolRunError}</AlertDescription>
+          </Alert>
+        ) : null}
         {renderToolInputs()}
         
         <Button 
@@ -2471,15 +1668,19 @@ export function AIToolsSelector({
             (selectedTool.id === 'photo-enhancer' && (!photoEditImageDataUrl || !contentDescription.trim())) ||
             (effectiveRunnerId === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
             (selectedTool.id === 'fantasy-writer' &&
-              !contentDescription.trim() &&
-              !fantasyHolidayEventId &&
-              !fantasyFanId &&
-              !fantasyContentId) ||
+              (runnerMode === 'easy'
+                ? !contentDescription.trim()
+                : !contentDescription.trim() &&
+                  !fantasyHolidayEventId &&
+                  !fantasyFanId &&
+                  !fantasyContentId)) ||
             (selectedTool.id === 'gift-suggester' && !fanMessage.trim()) ||
             (selectedTool.id === 'competitor-analysis' &&
               !competitorTargets.trim() &&
               !contentDescription.trim() &&
-              !niche.trim())
+              !niche.trim()) ||
+            (selectedTool.id === 'churn-predictor' && churnFanId === 'manual' && !fanMessage.trim()) ||
+            (selectedTool.id === 'mass-dm-composer' && runnerMode === 'easy' && !campaignGoal.trim())
           }
           className="w-full"
         >
@@ -2491,10 +1692,18 @@ export function AIToolsSelector({
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4" />
-              Generate
+              {runnerMode === 'easy' && effectiveRunnerId
+                ? `Generate — ${formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))}`
+                : 'Generate'}
             </>
           )}
         </Button>
+        {runnerMode === 'easy' && effectiveRunnerId ? (
+          <p className="text-center text-[11px] text-muted-foreground">
+            This run uses {formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))} when it completes
+            successfully.
+          </p>
+        ) : null}
         
         {/* Results — scrollable on mobile so page doesn't grow unbounded */}
         {result && (

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 import { executePhotoEditIntent } from '@/lib/media/photo-edit-intent-core'
 
 export const maxDuration = 120
@@ -54,6 +58,10 @@ export async function POST(req: NextRequest) {
         })
       }
 
+      const access = await requireAiToolSessionAndCredits(req, 'photo-enhancer')
+      if (!access.ok) return access.response
+      const { cost } = access.data
+
       const result = await executePhotoEditIntent({
         imageBase64,
         instruction,
@@ -67,14 +75,17 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      const { imageBase64: outUrl, operation, explanation, creditsUsed } = result.data
+      const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, cost)
+      if (!charged.ok) return charged.response
+
+      const { imageBase64: outUrl, operation, explanation } = result.data
       return NextResponse.json({
         content: `${explanation} (${operation}). The updated image is shown in the editor.`,
         photo_touchup: {
           imageBase64: outUrl,
           operation,
           explanation,
-          creditsUsed,
+          creditsUsed: charged.usedAfter ?? result.data.creditsUsed,
         },
       })
     }

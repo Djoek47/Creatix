@@ -144,13 +144,13 @@ function NavLink({
       href={item.href}
       data-tour={item.href}
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium leading-snug transition-colors',
         isActive ? styles.active : styles.inactive
       )}
     >
       <Icon
         className={cn(
-          'h-5 w-5 flex-shrink-0',
+          'h-4 w-4 flex-shrink-0',
           isAiStudio ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate') : isActive && styles.icon,
         )}
       />
@@ -197,80 +197,92 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-sidebar-border px-3">
         <ThemedLogo 
-          width={32} 
-          height={32} 
+          width={28} 
+          height={28} 
           className="flex-shrink-0 rounded-full"
           priority
         />
         {!collapsed && (
-          <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
+          <span className="font-serif text-[11px] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
             CIRCE ET VENUS
           </span>
         )}
       </div>
 
-      {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
-      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-2">
+      {/* Main Navigation — compact density + 2-col Circe/Venus to avoid scrollbar on typical laptop heights */}
+      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-1.5">
         {/* Dashboard, Content, Messages - Black light/White dark */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {silverNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="default" pathname={pathname} collapsed={collapsed} />
           ))}
         </div>
 
         {/* AI Studio — gold + purple glow; rainbow on hover */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {aiStudioNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="ai-studio" pathname={pathname} collapsed={collapsed} />
           ))}
         </div>
 
-        {/* Circe's Domain */}
-        <div className="space-y-1">
+        {/* Circe's Domain — two columns when expanded */}
+        <div className="space-y-0.5">
           {!collapsed && (
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Moon className="h-4 w-4 text-circe-light" />
-              <span className="text-xs font-medium uppercase tracking-wider text-circe-light/70">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5">
+              <Moon className="h-3.5 w-3.5 text-circe-light" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-circe-light/70">
                 Circe
               </span>
             </div>
           )}
-          {circeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
-          ))}
+          <div
+            className={cn(
+              collapsed ? 'flex flex-col gap-0.5' : 'grid grid-cols-2 gap-0.5'
+            )}
+          >
+            {circeNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
+            ))}
+          </div>
         </div>
 
-        {/* Venus's Domain */}
-        <div className="space-y-1">
+        {/* Venus's Domain — two columns when expanded */}
+        <div className="space-y-0.5">
           {!collapsed && (
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Sun className="h-4 w-4 text-gold" />
-              <span className="text-xs font-medium uppercase tracking-wider text-gold/70">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5">
+              <Sun className="h-3.5 w-3.5 text-gold" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-gold/70">
                 Venus
               </span>
             </div>
           )}
-          {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
-          ))}
+          <div
+            className={cn(
+              collapsed ? 'flex flex-col gap-0.5' : 'grid grid-cols-2 gap-0.5'
+            )}
+          >
+            {venusNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
+            ))}
+          </div>
         </div>
       </nav>
 
       {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
-      <div className="shrink-0 border-t border-sidebar-border p-2">
+      <div className="shrink-0 space-y-0.5 border-t border-sidebar-border p-1.5">
         {bottomNavigation.map((item) => (
           <NavLink key={item.name} item={item} variant="default" pathname={pathname} collapsed={collapsed} />
         ))}
 
         {/* User info - Gold in light mode, Purple in dark mode */}
         {!collapsed && profile && (
-          <div className="mt-2 rounded-lg bg-sidebar-accent/30 p-3">
-            <p className="truncate text-sm font-medium text-amber-600 dark:text-circe-light">
+          <div className="mt-1 rounded-md bg-sidebar-accent/30 p-2">
+            <p className="truncate text-xs font-medium text-amber-600 dark:text-circe-light">
               {profile.full_name || 'Divine Creator'}
             </p>
-            <p className="truncate text-xs text-amber-600/70 dark:text-circe-light/70">
+            <p className="truncate text-[10px] text-amber-600/70 dark:text-circe-light/70">
               {profile.email}
             </p>
           </div>
@@ -281,7 +293,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar"
+        className="absolute -right-3 top-16 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar"
         onClick={() => {
           const next = !collapsed
           setCollapsed(next)

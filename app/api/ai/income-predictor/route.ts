@@ -1,14 +1,12 @@
 import { generateText, Output } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { withDefaultAccountIds } from '@/lib/onlyfans-api-route'
 import { loadAdultPlatformBillingContext } from '@/lib/billing/onlyfans-billing-gate'
 import { assessGoalRealism } from '@/lib/income-predictor/realism'
 import { bucketPublishedPosts, countPostsInWindow } from '@/lib/income-predictor/calendar-buckets'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { chargeAiToolCreditsAfterSuccess, requireAiToolSessionAndCredits } from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 60
 
@@ -31,14 +29,9 @@ export type IncomePredictorMode = 'maintain' | 'grow'
 export type IncomePredictorCalendarMode = 'week' | 'month'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient(req)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'income-predictor')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost: incomeCost } = access.data
 
   const body = (await req.json().catch(() => ({}))) as {
     calendarMode?: IncomePredictorCalendarMode
@@ -50,20 +43,7 @@ export async function POST(req: NextRequest) {
   const goalUsd =
     typeof body.goalUsd === 'number' && Number.isFinite(body.goalUsd) && body.goalUsd > 0 ? body.goalUsd : null
 
-  const uid = user.id
-  const incomeCost = getCreditsForToolId('income-predictor')
-  const gate = await hasEnoughAiCredits(supabase, uid, incomeCost)
-  if (!gate.ok) {
-    return NextResponse.json(
-      {
-        error: 'Insufficient AI credits',
-        code: 'ai_credits_exhausted',
-        used: gate.used,
-        limit: gate.limit,
-      },
-      { status: 402 },
-    )
-  }
+  const uid = userId
 
   const [billingCtx, leaksRes, contentRes, snapshotsRes] = await Promise.all([
     loadAdultPlatformBillingContext(supabase),
@@ -197,11 +177,8 @@ Produce structured output.`
     messages: [{ role: 'user', content: userContent }],
   })
 
-  try {
-    await consumeAiCredits(supabase, uid, incomeCost)
-  } catch {
-    // ignore
-  }
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, uid, incomeCost)
+  if (!charged.ok) return charged.response
 
   return NextResponse.json({
     context: {

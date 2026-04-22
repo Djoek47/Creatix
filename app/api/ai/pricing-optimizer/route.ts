@@ -1,52 +1,36 @@
 import { NextRequest } from 'next/server'
 import { streamText } from 'ai'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { logUsageEvent } from '@/lib/usage/server-log'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+  shouldBillAiStreamFinish,
+} from '@/lib/ai/assert-ai-tool-access'
 import {
   formatCreatorOnlyFansPageModelForAi,
   parseOnlyFansCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient(req)
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'pricing-optimizer')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost } = access.data
 
-  // Check subscription for Pro access
   const { data: subscription } = await supabase
     .from('subscriptions')
     .select('plan_id')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
-  const planId = (subscription as any)?.plan_id as string | null | undefined
+  const planId = (subscription as { plan_id?: string | null } | null)?.plan_id
   const normalizedPlanId = planId?.toLowerCase() || null
   const isPro = Boolean(normalizedPlanId && isPaidPlanId(normalizedPlanId))
   if (!isPro) {
-    return new Response(JSON.stringify({ error: 'Pro subscription required for Pricing Optimizer' }), { 
+    return new Response(JSON.stringify({ error: 'Pro subscription required for Pricing Optimizer' }), {
       status: 403,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     })
-  }
-
-  const priceCost = getCreditsForToolId('price-optimizer')
-  const gate = await hasEnoughAiCredits(supabase, user.id, priceCost)
-  if (!gate.ok) {
-    return new Response(
-      JSON.stringify({
-        error: 'Insufficient AI credits',
-        code: 'ai_credits_exhausted',
-        used: gate.used,
-        limit: gate.limit,
-      }),
-      { status: 402, headers: { 'Content-Type': 'application/json' } },
-    )
   }
 
   const { contentType, currentPrice, subscriberCount, engagementRate, niche } = await req.json()
@@ -54,7 +38,7 @@ export async function POST(req: NextRequest) {
   const { data: ofConn } = await supabase
     .from('platform_connections')
     .select('onlyfans_creator_page_model')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('platform', 'onlyfans')
     .eq('is_connected', true)
     .maybeSingle()
@@ -64,22 +48,29 @@ export async function POST(req: NextRequest) {
     ),
   )
 
-  await consumeAiCredits(supabase, user.id, priceCost)
-
   const result = streamText({
     model: 'anthropic/claude-sonnet-4',
-    onFinish: ({ totalUsage }) => {
-      logUsageEvent({
-        userId: user.id,
-        feature: 'api/ai/pricing-optimizer',
-        provider: 'gateway',
-        model: 'anthropic/claude-sonnet-4',
-        usage: {
-          inputTokens: totalUsage?.inputTokens,
-          outputTokens: totalUsage?.outputTokens,
-          totalTokens: totalUsage?.totalTokens,
-        },
-      })
+    onFinish: async ({ totalUsage, finishReason }) => {
+      try {
+        logUsageEvent({
+          userId,
+          feature: 'api/ai/pricing-optimizer',
+          provider: 'gateway',
+          model: 'anthropic/claude-sonnet-4',
+          usage: {
+            inputTokens: totalUsage?.inputTokens,
+            outputTokens: totalUsage?.outputTokens,
+            totalTokens: totalUsage?.totalTokens,
+          },
+        })
+        if (cost <= 0 || !shouldBillAiStreamFinish(finishReason)) return
+        const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+        if (!charged.ok) {
+          console.error('[pricing-optimizer] Credit charge failed after stream', finishReason)
+        }
+      } catch (e) {
+        console.error('[pricing-optimizer] onFinish error', e)
+      }
     },
     system: `You are an expert pricing strategist for content creators. You analyze market data, engagement metrics, and audience behavior to recommend optimal pricing strategies that maximize both revenue and subscriber satisfaction.`,
     prompt: `Analyze pricing for this creator:

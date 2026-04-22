@@ -109,12 +109,12 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
           href={item.href}
           data-tour={item.href}
           className={cn(
-            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
+            'flex min-h-[40px] items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium leading-snug transition-colors',
             isActive ? styles.active : styles.inactive
           )}
         >
           <item.icon className={cn(
-            'h-5 w-5 flex-shrink-0', 
+            'h-4 w-4 flex-shrink-0', 
             isActive && styles.icon,
             isAiStudio && 'animate-hue-rotate'
           )} />
@@ -135,73 +135,77 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
   return (
     <div className="flex h-full flex-col bg-card">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-4">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
         <ThemedLogo 
-          width={36} 
-          height={36} 
+          width={32} 
+          height={32} 
           className="flex-shrink-0 rounded-full"
           priority
         />
-        <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
+        <span className="font-serif text-[11px] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
           CIRCE ET VENUS
         </span>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-6 overflow-y-auto p-4">
+      {/* Navigation — tighter grouping; Circe/Venus in two columns to shorten scroll */}
+      <nav className="flex-1 space-y-3 overflow-y-auto p-3">
         {/* Dashboard, Content, Messages - Black light/White dark */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {silverNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="default" />
           ))}
         </div>
 
         {/* AI Studio - Rainbow/Multicolor */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {aiStudioNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="ai-studio" />
           ))}
         </div>
 
         {/* Circe's Domain */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Moon className="h-4 w-4 text-circe-light" />
-            <span className="text-xs font-medium uppercase tracking-wider text-circe-light/70">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 px-2 py-0.5">
+            <Moon className="h-3.5 w-3.5 text-circe-light" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-circe-light/70">
               Circe
             </span>
           </div>
-          {circeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="circe" />
-          ))}
+          <div className="grid grid-cols-2 gap-1">
+            {circeNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="circe" />
+            ))}
+          </div>
         </div>
 
         {/* Venus's Domain - Gold */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Sun className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-            <span className="text-xs font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-500/70">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 px-2 py-0.5">
+            <Sun className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-500/70">
               Venus
             </span>
           </div>
-          {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="venus" />
-          ))}
+          <div className="grid grid-cols-2 gap-1">
+            {venusNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="venus" />
+            ))}
+          </div>
         </div>
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-border p-4">
+      <div className="shrink-0 space-y-0.5 border-t border-border p-2">
         {bottomNavigation.map((item) => (
           <NavLink key={item.name} item={item} variant="default" />
         ))}
 
         {profile && (
-          <div className="mt-4 rounded-lg bg-muted/50 p-3">
-            <p className="truncate text-sm font-medium text-amber-600 dark:text-circe-light">
+          <div className="mt-1 rounded-md bg-muted/50 p-2">
+            <p className="truncate text-xs font-medium text-amber-600 dark:text-circe-light">
               {profile.full_name || 'Divine Creator'}
             </p>
-            <p className="truncate text-xs text-amber-600/70 dark:text-circe-light/70">
+            <p className="truncate text-[10px] text-amber-600/70 dark:text-circe-light/70">
               {profile.email}
             </p>
           </div>

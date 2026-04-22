@@ -43,7 +43,7 @@ export function ProtectionEasyHandles({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card/80 p-4 shadow-sm">
+    <div className="space-y-4 rounded-xl border border-border bg-card/80 p-4 shadow-sm" data-tour="protection-identity">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
           <p className="text-sm font-medium text-foreground">Who should we search for?</p>

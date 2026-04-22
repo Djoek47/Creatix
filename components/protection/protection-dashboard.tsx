@@ -816,7 +816,10 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   return (
     <div className="space-y-5 min-w-0">
-      <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-background p-4 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className="flex flex-col gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-background p-4 sm:flex-row sm:items-start sm:justify-between"
+        data-tour="protection-header"
+      >
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-foreground">Leak protection</p>
           <p className="text-xs text-muted-foreground">
@@ -828,7 +831,10 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0 self-start" />
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between"
+        data-tour="protection-aegis"
+      >
         <div className="flex items-start gap-2">
           <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div className="text-sm">
@@ -849,7 +855,10 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between"
+        data-tour="protection-integrations"
+      >
         <p className="text-xs text-muted-foreground">
           Connect creator and social accounts under Integrations so scans include every OAuth username (X, IG, TikTok,
           OnlyFans, Fansly…).
@@ -932,12 +941,14 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                     </label>
                   </div>
                 </div>
-                <ProtectionInvokeButton
-                  variant="easy"
-                  loading={scanLoading}
-                  disabled={!canRunScan || scanLoading}
-                  onClick={() => void runScan()}
-                />
+                <div data-tour="protection-scan" className="w-full max-w-lg">
+                  <ProtectionInvokeButton
+                    variant="easy"
+                    loading={scanLoading}
+                    disabled={!canRunScan || scanLoading}
+                    onClick={() => void runScan()}
+                  />
+                </div>
                 <Button
                   type="button"
                   variant="link"
@@ -961,7 +972,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               >
                 3
               </span>
-              <div className="min-w-0 flex-1 space-y-2">
+              <div className="min-w-0 flex-1 space-y-2" data-tour="protection-manual-url">
                 <p className="text-sm font-semibold text-foreground">Or flag one link yourself</p>
                 <p className="text-xs text-muted-foreground">
                   Skips the broad search—useful when you already know the URL.
@@ -1134,16 +1145,23 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </label>
       </div>
 
-      {displayHandles.length > 0 && (
-        <ScanHandlePicker
-          handles={displayHandles}
-          useAll={useAllLeakHandles}
-          onUseAllChange={handleUseAllLeakHandlesChange}
-          selected={selectedLeakHandles}
-          onToggle={handleToggleLeakHandle}
-          idPrefix="leak-scan"
-        />
-      )}
+      <div data-tour="protection-identity">
+        {displayHandles.length > 0 ? (
+          <ScanHandlePicker
+            handles={displayHandles}
+            useAll={useAllLeakHandles}
+            onUseAllChange={handleUseAllLeakHandlesChange}
+            selected={selectedLeakHandles}
+            onToggle={handleToggleLeakHandle}
+            idPrefix="leak-scan"
+          />
+        ) : (
+          <p className="rounded-md border border-dashed border-border/80 bg-muted/10 p-3 text-sm text-muted-foreground">
+            No connected handles yet. Open Integrations to link an account, or add extra @names in Advanced identity, then
+            return here to pick what to include in a scan.
+          </p>
+        )}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
@@ -1178,7 +1196,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" data-tour="protection-scan">
             <ProtectionInvokeButton
               variant="pro"
               loading={scanLoading}
@@ -1196,7 +1214,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           </div>
           {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-md">{scanSummary}</p> : null}
         </div>
-        <div className="w-full sm:max-w-md">
+        <div className="w-full sm:max-w-md" data-tour="protection-manual-url">
           <Label htmlFor="manual-url" className="text-xs text-muted-foreground">
             Bring your own link
           </Label>
@@ -1223,7 +1241,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           {alertUpdateError}
         </p>
       ) : null}
-      <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3">
+      <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3" data-tour="protection-filters">
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
           <span className="text-xs font-medium text-foreground">

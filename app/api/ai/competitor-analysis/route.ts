@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 import { isPaidSubscription } from '@/lib/billing/access'
 import {
   runCompetitorDiscoverySearch,
@@ -298,6 +302,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const access = await requireAiToolSessionAndCredits(req, 'competitor-analysis')
+    if (!access.ok) return access.response
+    const creditCost = access.data.cost
+
     const benchPlatforms = [...new Set(platformKeysForBenchmarks(platform))]
 
     const [{ data: profile }, { count: fanCount }, { data: libRows }, { data: tips }, { data: benchRaw }] =
@@ -400,6 +408,9 @@ Produce structured JSON per schema. Lead with competitor comparison (same band v
 
     const analysis = object as AnalysisOut
     const cohortPercentileSummary = buildCohortPercentileSummary(fanCount, benchForPrompt)
+
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, creditCost)
+    if (!charged.ok) return charged.response
 
     return NextResponse.json({
       ...analysis,

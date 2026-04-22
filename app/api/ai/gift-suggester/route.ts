@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 30
 
@@ -46,11 +47,6 @@ function formatWishlistForPrompt(
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient(req)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const body = (await req.json().catch(() => ({}))) as {
     fanInfo?: string
     budget?: string
@@ -60,23 +56,17 @@ export async function POST(req: NextRequest) {
   const budget = typeof body.budget === 'string' ? body.budget : ''
   const useWishlist = body.useWishlist === true
 
-  const giftCost = getCreditsForToolId('gift-suggester')
-  if (user) {
-    const gate = await hasEnoughAiCredits(supabase, user.id, giftCost)
-    if (!gate.ok) {
-      return Response.json(
-        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-        { status: 402 },
-      )
-    }
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'gift-suggester')
+  if (!access.ok) return access.response
+
+  const { supabase, userId, cost } = access.data
 
   let wishlistSection = ''
-  if (useWishlist && user) {
+  if (useWishlist) {
     const { data: items } = await supabase
       .from('creator_gift_wishlist_items')
       .select('title, description, url, price_amount, price_currency')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('fetch_status', 'ok')
       .order('updated_at', { ascending: false })
       .limit(30)
@@ -112,33 +102,35 @@ Suggest personalized gifts and rewards that:
 Focus on digital gifts, personalized content, and meaningful gestures.
 When a saved wishlist is provided, prioritize concrete items from it when they fit; otherwise suggest appropriate alternatives.`
 
-  const { output } = await generateText({
-    model: 'openai/gpt-4o-mini',
-    output: Output.object({
-      schema: giftSchema,
-    }),
-    system: systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: `Suggest gifts and rewards for this fan:
+  let output: z.infer<typeof giftSchema>
+  try {
+    const gen = await generateText({
+      model: 'openai/gpt-4o-mini',
+      output: Output.object({
+        schema: giftSchema,
+      }),
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Suggest gifts and rewards for this fan:
 
 Fan info: ${fanInfo || 'Top supporter'}
 Budget/tier: ${budget || 'Any'}
 ${wishlistSection}
 
 Provide personalized suggestions that will strengthen the relationship.`,
-      },
-    ],
-  })
-
-  if (user) {
-    try {
-      await consumeAiCredits(supabase, user.id, giftCost)
-    } catch {
-      // ignore credit errors
-    }
+        },
+      ],
+    })
+    output = gen.output
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Gift suggester failed'
+    return Response.json({ error: message }, { status: 500 })
   }
+
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  if (!charged.ok) return charged.response
 
   return Response.json(output)
 }

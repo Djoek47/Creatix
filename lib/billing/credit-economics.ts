@@ -16,6 +16,9 @@ import { getPlanLimits } from '@/lib/billing/plan-limits'
 
 export const CREDIT_USD_VALUE = 0.01
 
+/** Included credits per $1 of monthly subscription (20% back at $0.01 per credit). */
+export const CREDITS_PER_SUBSCRIPTION_USD = 20
+
 /** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
 export const TRIAL_AI_CREDITS_LIMIT = 100
 
@@ -106,6 +109,15 @@ export function computeMonthlyCreditAllowance(row: SubscriptionRowForCredits): n
   const seats = Math.max(1, Math.floor(row.billing_seats ?? 1))
   const totalUsd = monthlyUsd * seats
   return Math.floor((totalUsd * 0.2) / CREDIT_USD_VALUE)
+}
+
+/**
+ * Monthly included AI credits for marketing UI (same formula as paid `computeMonthlyCreditAllowance`, 1 seat default).
+ * Example: $100/mo → 2_000 credits ($1 subscription = 100 credits).
+ */
+export function includedCreditsForMarketing(monthlySubscriptionUsd: number, seats = 1): number {
+  const total = Math.max(0, monthlySubscriptionUsd) * Math.max(1, Math.floor(seats))
+  return Math.floor((total * 0.2) / CREDIT_USD_VALUE)
 }
 
 /**

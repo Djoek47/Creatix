@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { PRICING_MODEL_HEADLINE } from '@/lib/marketing/pricing-copy'
 
 type Props = {
   /** Smaller type on inner marketing pages; landing uses default */
@@ -8,7 +9,6 @@ type Props = {
   className?: string
 }
 
-/** Matches PRICING_MODEL_HEADLINE with brand emphasis on Focus / Unified */
 export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Props) {
   const size =
     Tag === 'h1'
@@ -18,9 +18,14 @@ export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Pro
         : 'text-3xl sm:text-4xl'
 
   return (
-    <Tag className={cn('font-serif font-semibold tracking-tight', size, className)}>
-      Revenue-based <span className="text-primary">Focus</span> &amp;{' '}
-      <span className="text-primary">Unified</span>
+    <Tag
+      className={cn(
+        'bg-gradient-to-r from-foreground via-primary to-circe-light bg-clip-text font-serif font-semibold tracking-tight text-transparent',
+        size,
+        className,
+      )}
+    >
+      {PRICING_MODEL_HEADLINE}
     </Tag>
   )
 }

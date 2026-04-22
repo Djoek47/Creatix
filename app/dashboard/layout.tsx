@@ -12,6 +12,7 @@ import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
 import { CirceTipPopupHost } from '@/components/community/circe-tip-popup'
 import { ProtocolTasksProvider } from '@/components/divine/protocol-tasks-context'
 import { DashboardDocumentScrollLock } from '@/components/dashboard/dashboard-document-scroll-lock'
+import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
 export const metadata: Metadata = {
@@ -55,6 +56,7 @@ export default async function DashboardLayout({
           <ProtocolTasksProvider>
           <VoiceSessionProvider>
             <DashboardDocumentScrollLock />
+            <DashboardRealmEntrance />
             <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">
               {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
               <div className="hidden h-full min-h-0 md:flex md:flex-col">

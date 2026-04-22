@@ -30,6 +30,8 @@ import {
   sortFocusPlatforms,
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
+import { includedCreditsForMarketing } from '@/lib/billing/credit-economics'
+import { CREDIT_ALLOWANCE_MARKETING_LINE } from '@/lib/marketing/pricing-copy'
 import { cn } from '@/lib/utils'
 
 export function PricingPageCalculator() {
@@ -66,6 +68,8 @@ export function PricingPageCalculator() {
   const monthlyUsd = tierRow
     ? getMonthlyPriceUsd(effectiveVariant, effectiveTier, focusListForPrice)
     : 0
+
+  const paidCredits = includedCreditsForMarketing(monthlyUsd, 1)
 
   const pctVsOf = tierRow ? percentVsOnlyFansBase(tierRow, monthlyUsd) : 0
 
@@ -273,6 +277,12 @@ export function PricingPageCalculator() {
               ${monthlyUsd}
               <span className="text-lg font-normal text-muted-foreground sm:text-xl">/mo</span>
             </p>
+            {monthlyUsd > 0 && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground">Paid AI credits (1 seat):</span>{' '}
+                {paidCredits.toLocaleString()}/mo — {CREDIT_ALLOWANCE_MARKETING_LINE}
+              </p>
+            )}
             {tierRow && (
               <p
                 className={cn(

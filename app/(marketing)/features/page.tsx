@@ -30,12 +30,13 @@ import {
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
+import { CREDIT_ALLOWANCE_MARKETING_LINE } from '@/lib/marketing/pricing-copy'
 
 export const metadata: Metadata = buildPublicMetadata({
   path: '/features',
   title: 'Features | Circe et Venus',
   description:
-    'Divine Manager (voice + chat), Circe retention & protection, Venus growth, AI Studio, cosmic content calendar, unified OnlyFans & Fansly messages, fan CRM, and analytics — aligned with what ships in the app.',
+    'Divine Manager (voice + chat), Circe for retention and protection, Venus for fans and growth, AI Studio, content calendar, OnlyFans and Fansly messages, fan CRM, and analytics — aligned with what ships in the app.',
   keywords: [
     'creator features',
     'OnlyFans tools',
@@ -227,14 +228,17 @@ export default function FeaturesPage() {
               Voice-first · Built for adult platforms
             </Badge>
             <h1 className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-              What&apos;s in the product{' '}
+              Everything in{' '}
               <span className="bg-gradient-to-r from-circe-light via-primary to-fuchsia-300 bg-clip-text text-transparent">
-                today
+                one workspace
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground sm:text-xl">
-              We trimmed aspirational copy: this page tracks the sidebar, AI Studio library, and live routes — OnlyFans &
-              Fansly in the inbox, protection and retention under Circe, growth and fans under Venus.
+              Messages, fans, AI tools, and protection — mapped to the same navigation you see after sign-in. OnlyFans
+              and Fansly where connected; ManyVids on Unified billing when you choose it.
+            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm text-muted-foreground sm:text-base">
+              {CREDIT_ALLOWANCE_MARKETING_LINE}
             </p>
           </MotionReveal>
           <MotionReveal delay={0.1}>
@@ -268,8 +272,8 @@ export default function FeaturesPage() {
             </MotionStaggerItem>
             <MotionStaggerItem>
               <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-5 text-center backdrop-blur-md">
-                <p className="font-serif text-2xl font-semibold text-foreground">OF + FL</p>
-                <p className="text-xs text-muted-foreground">Unified inbox focus</p>
+                <p className="font-serif text-2xl font-semibold text-foreground">Credits</p>
+                <p className="text-xs text-muted-foreground">20% of subscription back as AI credits</p>
               </div>
             </MotionStaggerItem>
           </MotionStagger>
@@ -298,14 +302,14 @@ export default function FeaturesPage() {
           <MotionReveal>
             <div className="grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
               <FeatureGrid
-                title="Circe — Retention & protection"
-                description="Matches sidebar: Analytics, Retention, Protection."
+                title="Circe — Retention and protection"
+                description="Analytics, retention, and protection — how you keep revenue and brand safe."
                 features={circeFeatures}
                 color="circe"
               />
               <FeatureGrid
-                title="Venus — Growth & fans"
-                description="Matches sidebar: Fans, Commenter (housekeeping), Mentions."
+                title="Venus — Fans and growth"
+                description="Fans, comments, and mentions — how you grow and manage public signal."
                 features={venusFeatures}
                 color="venus"
               />
@@ -315,7 +319,7 @@ export default function FeaturesPage() {
           <MotionReveal>
             <FeatureGrid
               title="Workspace"
-              description="Dashboard, Messages, Content calendar, Library, Well-being, Social — silver navigation in-app."
+              description="Dashboard, messages, content calendar, library, and well-being — your day-to-day home base."
               features={workspaceFeatures}
               color="primary"
             />
@@ -327,9 +331,9 @@ export default function FeaturesPage() {
                 <div>
                   <h2 className="font-serif text-2xl font-semibold tracking-tight text-primary sm:text-3xl">AI Studio</h2>
                   <p className="mt-2 max-w-prose text-muted-foreground">
-                    Library tools with credit costs; some tools are Divine Manager–only or Protection-adjacent. Open{' '}
-                    <span className="text-foreground/90">Dashboard → AI Studio</span> after you sign in for the live
-                    grid and runners.
+                    Runnable tools with per-run credit costs. Paid plans include a monthly pool:{' '}
+                    {CREDIT_ALLOWANCE_MARKETING_LINE} Open{' '}
+                    <span className="text-foreground/90">Dashboard → AI Studio</span> after sign-in for the live grid.
                   </p>
                 </div>
                 <LayoutGrid className="hidden h-8 w-8 text-muted-foreground/40 sm:block" aria-hidden />
@@ -388,10 +392,10 @@ export default function FeaturesPage() {
       <section className="border-t border-border/40 bg-card/25 px-4 py-16 backdrop-blur-sm sm:px-6 sm:py-24">
         <MotionReveal className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-primary/35 bg-gradient-to-br from-circe/[0.08] via-card to-primary/[0.06] p-10 text-center sm:p-14">
           <div className="marketing-rainbow-edge mx-auto mb-6 h-1 max-w-xs rounded-full" />
-          <h2 className="font-serif text-3xl font-semibold sm:text-4xl">See it in the app</h2>
+          <h2 className="font-serif text-3xl font-semibold sm:text-4xl">Open the app</h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Start the trial, connect a platform, and open Divine Manager — the feature set above is the same structure
-            you&apos;ll navigate in the dashboard.
+            Start the trial, connect a platform, and open Divine Manager. The sections above follow the same sidebar
+            you use in production.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/auth/sign-up">

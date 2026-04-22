@@ -31,6 +31,8 @@ import {
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { PAID_TIER_FEATURES } from '@/lib/products'
+import { includedCreditsForMarketing, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
+import { CREDIT_ALLOWANCE_MARKETING_LINE } from '@/lib/marketing/pricing-copy'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { PricingModelInlineBlurb } from '@/components/marketing/pricing-model-inline-blurb'
 import { cn } from '@/lib/utils'
@@ -73,6 +75,8 @@ export function LandingPricingSection() {
     ? 'Unified (all three)'
     : `Focus (${focusPlatformsShortLabel(sortedSelection)})`
 
+  const includedPaidCredits = includedCreditsForMarketing(price, 1)
+
   return (
     <section id="pricing" className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-24">
       <div className="mx-auto max-w-6xl">
@@ -82,8 +86,12 @@ export function LandingPricingSection() {
             14-day free trial
           </Badge>
           <PricingModelHeadline className="mx-auto max-w-4xl" />
-          <div className="mx-auto mt-4 max-w-2xl">
+          <div className="mx-auto mt-4 max-w-2xl space-y-3">
             <PricingModelInlineBlurb className="text-center" />
+            <p className="text-center text-sm text-muted-foreground">{CREDIT_ALLOWANCE_MARKETING_LINE}</p>
+            <p className="text-center text-xs text-muted-foreground">
+              Free trial: {TRIAL_AI_CREDITS_LIMIT} AI credits per month (included cap), not the paid allowance.
+            </p>
           </div>
         </div>
 
@@ -150,6 +158,10 @@ export function LandingPricingSection() {
               <p className="mt-4 flex items-baseline gap-1">
                 <span className="text-5xl font-bold text-primary sm:text-6xl">${price}</span>
                 <span className="text-muted-foreground">/month</span>
+              </p>
+              <p className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground/90">
+                <span className="font-medium text-primary">Paid:</span>{' '}
+                {includedPaidCredits.toLocaleString()} AI credits included per month (20% of ${price} × 100 credits per $1).
               </p>
               <ul className="mt-6 grid gap-2 sm:grid-cols-2">
                 {PAID_TIER_FEATURES.map((f) => (

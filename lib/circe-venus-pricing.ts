@@ -61,7 +61,7 @@ interface TierInput {
 }
 
 const RAW_TIERS: TierInput[] = [
-  { label: 'Under $1k', revenueMin: null, revenueMax: 1000, of: 35 },
+  { label: 'Under $1k', revenueMin: null, revenueMax: 1000, of: 39 },
   { label: '$1k – $5k', revenueMin: 1000, revenueMax: 5000, of: 50 },
   { label: '$5k – $7.5k', revenueMin: 5000, revenueMax: 7500, of: 75 },
   { label: '$7.5k – $10k', revenueMin: 7500, revenueMax: 10000, of: 100 },

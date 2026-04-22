@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemedLogo } from '@/components/themed-logo'
+import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
 import { Button } from '@/components/ui/button'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ArrowRight } from 'lucide-react'
@@ -26,7 +26,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/75 backdrop-blur-xl">
         <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4 sm:h-16 sm:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <ThemedLogo width={36} height={36} className="shrink-0 rounded-full sm:h-10 sm:w-10" priority />
+            <MarketingBrandLogo width={36} height={36} className="shrink-0 sm:h-10 sm:w-10" variant="header" priority />
             <span className="hidden truncate font-serif text-base font-semibold tracking-wider text-primary sm:inline sm:text-lg">
               CIRCE ET VENUS
             </span>
@@ -80,13 +80,13 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
           <div className="flex flex-col items-center justify-between gap-8 sm:flex-row sm:items-start">
             <div className="flex flex-col items-center gap-3 sm:items-start">
               <div className="flex items-center gap-3">
-                <ThemedLogo width={36} height={36} className="rounded-full marketing-float" />
+                <MarketingBrandLogo width={36} height={36} className="marketing-float" variant="header" />
                 <span className="font-serif text-lg font-semibold tracking-wider text-primary dark:text-circe-light">
                   CIRCE ET VENUS
                 </span>
               </div>
               <p className="max-w-xs text-center text-sm text-muted-foreground sm:text-left">
-                Divine AI for creators who want retention, growth, and a voice-first command center.
+                One workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection — with voice-first Divine Manager.
               </p>
             </div>
             <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">

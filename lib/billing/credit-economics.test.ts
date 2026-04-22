@@ -5,10 +5,15 @@
  * Aligns with subscriptionFinancialFieldsFromMerged / syncSubscriptionCreditsFromPlanAction (same formula).
  *
  * Example monthly USD by tier (Focus OF single line, from REVENUE_TIERS / getMonthlyPriceUsd):
- * tier 0 → $35 → 20% = $7 → 700 credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
+ * tier 0 → $39 → 20% = $7.80 → 780 credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
  */
 import assert from 'node:assert/strict'
-import { CREDIT_USD_VALUE, TRIAL_AI_CREDITS_LIMIT, computeMonthlyCreditAllowance } from '@/lib/billing/credit-economics'
+import {
+  CREDIT_USD_VALUE,
+  TRIAL_AI_CREDITS_LIMIT,
+  computeMonthlyCreditAllowance,
+  includedCreditsForMarketing,
+} from '@/lib/billing/credit-economics'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
 import { getMonthlyPriceUsd, TIER_COUNT } from '@/lib/pricing-matrix'
 
@@ -83,6 +88,13 @@ function run() {
     }),
     expectedPaidCredits('single', 0, 1, ['onlyfans']),
     'missing revenue_tier defaults to 0',
+  )
+
+
+  assert.equal(
+    includedCreditsForMarketing(100, 1),
+    2000,
+    '$100/mo → 20% → $20 → 2000 credits at $0.01/credit',
   )
 
   console.log('credit-economics.test.ts: all assertions passed')

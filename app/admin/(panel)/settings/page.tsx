@@ -19,6 +19,12 @@ export default async function AdminSettingsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild>
+            <Link href="/admin/analytics">Usage analytics</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/admin/simulator">Simulator</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
             <a href="/api/admin/export/usage?days=30" target="_blank" rel="noreferrer">
               Export usage CSV (30d)
             </a>

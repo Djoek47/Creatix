@@ -6,10 +6,14 @@ import {
   EmbeddedCheckoutProvider,
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
-import { startCheckoutSession, startPaidSubscriptionCheckout } from '@/app/actions/stripe'
+import {
+  startCheckoutSession,
+  startCustomCreditTopupCheckout,
+  startPaidSubscriptionCheckout,
+} from '@/app/actions/stripe'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import type { BillingVariant } from '@/lib/pricing-matrix'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
@@ -28,6 +32,8 @@ interface CheckoutProps {
   buttonText?: string
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
+  customTopupUsdAmount?: number
+  onComplete?: () => void | Promise<void>
   children?: React.ReactNode
   disabled?: boolean
 }
@@ -41,15 +47,21 @@ export function Checkout({
   buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
+  customTopupUsdAmount,
+  onComplete,
   children,
   disabled = false,
 }: CheckoutProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [completed, setCompleted] = useState(false)
 
   const fetchClientSecret = useCallback(async () => {
     setLoading(true)
     try {
+      if (typeof customTopupUsdAmount === 'number') {
+        return await startCustomCreditTopupCheckout(customTopupUsdAmount)
+      }
       if (productId === PAID_PLAN_ID) {
         if (billingVariant == null || tierIndex == null) {
           throw new Error('Choose revenue band and plan type before checkout.')
@@ -66,10 +78,21 @@ export function Checkout({
     } finally {
       setLoading(false)
     }
-  }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
+  }, [productId, billingVariant, tierIndex, focusPlatforms, seats, customTopupUsdAmount])
+
+  const handleComplete = useCallback(() => {
+    setCompleted(true)
+    void onComplete?.()
+  }, [onComplete])
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setCompleted(false)
+      }}
+    >
       <DialogTrigger asChild>
         {children || (
           <Button variant={buttonVariant} className={buttonClassName} disabled={disabled}>
@@ -80,16 +103,41 @@ export function Checkout({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Complete Your Purchase</DialogTitle>
+          <DialogTitle>{completed ? 'Payment received' : 'Complete Your Purchase'}</DialogTitle>
         </DialogHeader>
-        <div id="checkout" className="min-h-[400px]">
-          <EmbeddedCheckoutProvider
-            stripe={stripePromise}
-            options={{ fetchClientSecret }}
-          >
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
-        </div>
+        {completed ? (
+          <div className="relative overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-purple-500/12 to-background p-6 shadow-[0_0_0_1px_rgba(245,158,11,0.28),0_24px_50px_-28px_rgba(168,85,247,0.75)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_55%)]" />
+            <div className="pointer-events-none absolute -inset-[1px] rounded-xl border border-amber-300/25" />
+            <div className="relative space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                Confirmation
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-6 w-6 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.45)]" />
+                <div>
+                  <p className="text-base font-semibold text-foreground">Payment successful.</p>
+                  <p className="text-sm text-muted-foreground">
+                    We are syncing your latest credits and subscription state. This window can be closed.
+                  </p>
+                </div>
+              </div>
+              <Button className="mt-2 bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-[0_10px_26px_-14px_rgba(168,85,247,0.8)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px" onClick={() => setOpen(false)}>
+                Continue
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div id="checkout" className="min-h-[400px]">
+            <EmbeddedCheckoutProvider
+              stripe={stripePromise}
+              options={{ fetchClientSecret, onComplete: handleComplete }}
+            >
+              <EmbeddedCheckout />
+            </EmbeddedCheckoutProvider>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

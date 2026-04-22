@@ -100,7 +100,7 @@ export function CommunityTipsFeed() {
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Share how you use Creatix—shortcuts, workflows, cool ideas, or things that clicked for you. Other creators see
-          approved tips here; nothing goes live until our team reviews it (admin tools coming soon).
+          approved tips here; nothing goes live until our team reviews it in the admin approval queue.
         </p>
       </div>
 

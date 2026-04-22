@@ -10,6 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserUsageChart } from '@/components/admin/user-usage-chart'
 import { AdminUserUsageWebhookForm } from '@/components/admin/user-usage-webhook-form'
 import { Badge } from '@/components/ui/badge'
+import {
+  estimateCashForCredits,
+  estimateCreditsForFeatureUsd,
+  getHybridCreditModel,
+} from '@/lib/admin/hybrid-credit-model'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -29,6 +34,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
       appCreditsUsdEquivalent,
       messageSendEvents90d,
       voiceState90d,
+      creditWallet,
     },
     connections,
     daily,
@@ -42,6 +48,12 @@ export default async function AdminUserDetailPage({ params }: Props) {
 
   const fmtUsd = (n: number) =>
     n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 4 })
+  const hybridModel = getHybridCreditModel()
+  const modeledCredits90d = usageByFeature90d.reduce(
+    (sum, row) => sum + estimateCreditsForFeatureUsd(row.feature, row.estimated_usd, hybridModel),
+    0,
+  )
+  const modeledCash90d = estimateCashForCredits(modeledCredits90d, hybridModel)
 
   const fmtMs = (ms: number) => {
     if (ms <= 0) return '0s'
@@ -97,6 +109,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
               })}
             </div>
           </div>
+          <div>
+            <span className="text-muted-foreground">Modeled credits (90d)</span>
+            <div className="tabular-nums">{modeledCredits90d.toLocaleString(undefined, { maximumFractionDigits: 1 })}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Modeled cash eq. (90d)</span>
+            <div className="tabular-nums">{fmtUsd(modeledCash90d)}</div>
+          </div>
           {subscription && (
             <>
               <div>
@@ -109,6 +129,17 @@ export default async function AdminUserDetailPage({ params }: Props) {
                   {subscription.ai_credits_used.toLocaleString()} /{' '}
                   {subscription.ai_credits_limit.toLocaleString()}
                 </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Wallet credits remaining (included / purchased)</span>
+                <div className="tabular-nums">
+                  {(creditWallet?.included_remaining ?? 0).toLocaleString()} /{' '}
+                  {(creditWallet?.purchased_remaining ?? 0).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Wallet total remaining</span>
+                <div className="tabular-nums">{(creditWallet?.total_remaining ?? 0).toLocaleString()}</div>
               </div>
               <div>
                 <span className="text-muted-foreground">Credits → USD (display)</span>
@@ -218,13 +249,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 <TableRow>
                   <TableHead>Feature</TableHead>
                   <TableHead className="text-right">USD</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
                   <TableHead className="text-right">Events</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {usageByFeature90d.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-muted-foreground">
+                    <TableCell colSpan={4} className="text-muted-foreground">
                       No events.
                     </TableCell>
                   </TableRow>
@@ -233,6 +265,11 @@ export default async function AdminUserDetailPage({ params }: Props) {
                     <TableRow key={r.feature}>
                       <TableCell className="max-w-[180px] truncate font-mono text-xs">{r.feature}</TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{fmtUsd(r.estimated_usd)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">
+                        {estimateCreditsForFeatureUsd(r.feature, r.estimated_usd, hybridModel).toLocaleString(undefined, {
+                          maximumFractionDigits: 1,
+                        })}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums text-xs">{r.events}</TableCell>
                     </TableRow>
                   ))

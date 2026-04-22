@@ -35,7 +35,7 @@ const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/community',
     meta: {
-      eyebrow: 'Collective',
+      eyebrow: 'Collective · Beta',
       title: 'Community wisdom',
       subtitle: 'Tips and plays from creators who move like you do.',
     },

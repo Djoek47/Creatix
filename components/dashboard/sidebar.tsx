@@ -15,6 +15,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Moon,
   Sun,
   Star,
@@ -32,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
+import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 
 interface SidebarProps {
   user: User
@@ -42,20 +45,25 @@ interface NavItem {
   name: string
   href: string
   icon: LucideIcon
+  beta?: boolean
 }
 
 // Circe's domain - Retention, Analytics, Protection (Purple)
 const circeNavigation: NavItem[] = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
+]
+const circeAdvancedNavigation: NavItem[] = [
+  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
 // Venus's domain - Growth, Attraction, Reputation (White)
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
+]
+const venusAdvancedNavigation: NavItem[] = [
+  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
 // Silver themed navigation
@@ -75,7 +83,7 @@ const aiStudioNavigation: NavItem[] = [
 ]
 
 const bottomNavigation: NavItem[] = [
-  { name: 'Community', href: '/dashboard/community', icon: Lightbulb },
+  { name: 'Community', href: '/dashboard/community', icon: Lightbulb, beta: true },
   { name: 'Guide', href: '/dashboard/guide', icon: BookOpen },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
@@ -155,16 +163,23 @@ function NavLink({
         )}
       />
       {!collapsed && (
-        <span
-          className={cn(
-            isAiStudio &&
-              'bg-gradient-to-r from-amber-500 via-purple-500 to-violet-500 bg-clip-text text-transparent transition-all duration-300 ' +
-                'group-hover:from-pink-500 group-hover:via-purple-500 group-hover:to-cyan-500 group-hover:bg-[length:200%_200%] group-hover:animate-gradient-x',
-            isAiStudio && !isActive && 'opacity-90',
-          )}
-        >
-          {item.name}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn(
+              isAiStudio &&
+                'bg-gradient-to-r from-amber-500 via-purple-500 to-violet-500 bg-clip-text text-transparent transition-all duration-300 ' +
+                  'group-hover:from-pink-500 group-hover:via-purple-500 group-hover:to-cyan-500 group-hover:bg-[length:200%_200%] group-hover:animate-gradient-x',
+              isAiStudio && !isActive && 'opacity-90',
+            )}
+          >
+            {item.name}
+          </span>
+          {item.beta ? (
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[10px] uppercase tracking-wide text-amber-500">
+              Beta
+            </span>
+          ) : null}
+        </div>
       )}
     </Link>
   )
@@ -173,6 +188,12 @@ function NavLink({
 export function DashboardSidebar({ profile }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [circeExpanded, setCirceExpanded] = useState(
+    pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/'),
+  )
+  const [venusExpanded, setVenusExpanded] = useState(
+    pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/'),
+  )
   const isMessagesRoute = pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')
 
   useEffect(() => {
@@ -189,6 +210,21 @@ export function DashboardSidebar({ profile }: SidebarProps) {
     }
   }, [isMessagesRoute])
 
+  useEffect(() => {
+    if (pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/')) {
+      setCirceExpanded(true)
+    }
+    if (pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/')) {
+      setVenusExpanded(true)
+    }
+  }, [pathname])
+
+  const handleRealmReload = () => {
+    const hue = document.documentElement.classList.contains('dark') ? 'purple' : 'gold'
+    triggerDashboardRealmEntrance(hue)
+    window.location.assign(`/dashboard?realm=${Date.now()}`)
+  }
+
   return (
     <aside
       className={cn(
@@ -198,17 +234,25 @@ export function DashboardSidebar({ profile }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <ThemedLogo 
-          width={32} 
-          height={32} 
-          className="flex-shrink-0 rounded-full"
-          priority
-        />
-        {!collapsed && (
-          <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
-            CIRCE ET VENUS
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={handleRealmReload}
+          className="flex w-full items-center gap-3 rounded-md py-1 text-left transition-colors hover:bg-sidebar-accent/40"
+          aria-label="Reload dashboard with realm entrance"
+          title="Reload dashboard with realm entrance"
+        >
+          <ThemedLogo
+            width={32}
+            height={32}
+            className="flex-shrink-0 rounded-full"
+            priority
+          />
+          {!collapsed && (
+            <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
+              CIRCE ET VENUS
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
@@ -240,6 +284,22 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           {circeNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
           ))}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => setCirceExpanded((v) => !v)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium uppercase tracking-wide text-circe-light/70 transition-colors hover:bg-circe/10 hover:text-circe-light"
+              aria-expanded={circeExpanded}
+              aria-label={circeExpanded ? 'Hide Circe advanced items' : 'Show Circe advanced items'}
+            >
+              <span>More</span>
+              {circeExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          {circeExpanded &&
+            circeAdvancedNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
+            ))}
         </div>
 
         {/* Venus's Domain */}
@@ -255,6 +315,22 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           {venusNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
           ))}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => setVenusExpanded((v) => !v)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium uppercase tracking-wide text-gold/70 transition-colors hover:bg-gold/10 hover:text-gold"
+              aria-expanded={venusExpanded}
+              aria-label={venusExpanded ? 'Hide Venus advanced items' : 'Show Venus advanced items'}
+            >
+              <span>More</span>
+              {venusExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          {venusExpanded &&
+            venusAdvancedNavigation.map((item) => (
+              <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
+            ))}
         </div>
       </nav>
 

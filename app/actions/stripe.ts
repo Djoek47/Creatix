@@ -192,6 +192,59 @@ export async function startCreditTopupCheckout(packId: string) {
   return startCheckoutSession(packId)
 }
 
+export async function startCustomCreditTopupCheckout(amountUsd: number) {
+  const normalizedAmount = Number(amountUsd)
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount < 25) {
+    throw new Error('Custom top-up minimum is $25')
+  }
+  const roundedUsd = Math.round(normalizedAmount)
+  const amountCents = roundedUsd * 100
+  const credits = roundedUsd * 100
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.email) {
+    throw new Error('User not authenticated')
+  }
+
+  const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
+  const stripe = getStripe()
+  const session = await stripe.checkout.sessions.create({
+    ui_mode: 'embedded',
+    redirect_on_completion: 'never',
+    customer: customerId,
+    mode: 'payment',
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Custom Credit Top-Up · ${credits.toLocaleString()} credits`,
+            description: 'One-time custom top-up for high-usage months',
+          },
+          unit_amount: amountCents,
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      productId: 'credit-topup-custom',
+      userId: user.id,
+      type: 'credit_topup',
+      packId: 'credit-topup-custom',
+      credits: String(credits),
+      customUsdAmount: String(roundedUsd),
+    },
+  })
+
+  if (!session.client_secret) {
+    throw new Error('Stripe Checkout did not return client_secret')
+  }
+  return session.client_secret
+}
+
 function paidCheckoutMetadata(
   userId: string,
   variant: BillingVariant,

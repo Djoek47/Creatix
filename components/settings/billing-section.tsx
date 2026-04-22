@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Checkout } from '@/components/stripe/checkout'
 import { PRODUCTS, PAID_TIER_FEATURES } from '@/lib/products'
 import {
@@ -25,14 +26,10 @@ import {
   Sparkles,
   Calendar,
   AlertTriangle,
+  ArrowUpRight,
+  RefreshCw,
 } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import {
   REVENUE_TIERS,
@@ -54,7 +51,6 @@ import {
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
-import type { CreditPlanPriority } from '@/lib/billing/credit-planner'
 
 interface BillingSectionProps {
   userId?: string
@@ -87,18 +83,6 @@ type WalletSnapshot = {
   totalRemaining: number
 }
 
-type PlannerResult = {
-  allocations: Array<{
-    category: CreditPlanPriority
-    credits: number
-    percent: number
-    estimatedActions: number
-  }>
-  projectedMonthlySpend: number
-  estimatedDaysToDepletion: number
-  safeModeSuggestion: string | null
-}
-
 type CreditTimelineRow = {
   id: string
   kind: 'debit' | 'credit' | 'expire_adjustment'
@@ -114,6 +98,7 @@ const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
 }
 
 export function BillingSection({ userId }: BillingSectionProps) {
+  const router = useRouter()
   const [subscription, setSubscription] = useState<{
     status: string
     plan: string | null
@@ -134,21 +119,18 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [checkoutSeats, setCheckoutSeats] = useState(DEFAULT_BILLING_SEATS)
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
   const [creditPulse, setCreditPulse] = useState<'consume' | 'grant' | null>(null)
-  const [plannerLoading, setPlannerLoading] = useState(false)
-  const [plannerResult, setPlannerResult] = useState<PlannerResult | null>(null)
-  const [creatorSize, setCreatorSize] = useState<'solo' | 'small_team' | 'agency'>('solo')
-  const [priorities, setPriorities] = useState<Set<CreditPlanPriority>>(new Set(['dm_growth']))
-  const [targetMessages, setTargetMessages] = useState(1200)
-  const [targetLeakScans, setTargetLeakScans] = useState(12)
-  const [targetReputationScans, setTargetReputationScans] = useState(8)
-  const [targetChatTurns, setTargetChatTurns] = useState(800)
+  const [customTopupAmount, setCustomTopupAmount] = useState<string>('25')
+  const [paymentState, setPaymentState] = useState<'idle' | 'processing' | 'success' | 'pending'>('idle')
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
   const [creditTopCategories, setCreditTopCategories] = useState<Array<{ reason: string; amount: number }>>([])
   const [creditTimeline, setCreditTimeline] = useState<CreditTimelineRow[]>([])
   const prevTotalRef = useRef<number | null>(null)
   const supabase = createClient()
 
-  const loadSubscriptionData = useCallback(async () => {
-    if (!userId) return
+  const loadSubscriptionData = useCallback(async (): Promise<WalletSnapshot | null> => {
+    if (!userId) return null
 
     await syncSubscriptionCreditsFromPlanAction()
 
@@ -191,27 +173,36 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (newSub) setSubData(newSub as SubscriptionData)
     }
 
+    let walletSnap: WalletSnapshot | null = null
     try {
-      const { data: walletRow } = await supabase
-        .from('credit_wallets')
-        .select('included_credits_remaining,purchased_credits_remaining')
-        .eq('user_id', userId)
-        .maybeSingle()
-      const walletSnap: WalletSnapshot = {
-        includedRemaining: Number(walletRow?.included_credits_remaining ?? 0),
-        purchasedRemaining: Number(walletRow?.purchased_credits_remaining ?? 0),
-        totalRemaining:
-          Number(walletRow?.included_credits_remaining ?? 0) +
-          Number(walletRow?.purchased_credits_remaining ?? 0),
+      const snapshotRes = await fetch('/api/billing/credit-snapshot', {
+        method: 'GET',
+        credentials: 'include',
+      })
+      if (snapshotRes.ok) {
+        const snapshot = (await snapshotRes.json()) as {
+          wallet?: {
+            includedRemaining?: number
+            purchasedRemaining?: number
+            totalRemaining?: number
+          }
+        }
+        walletSnap = {
+          includedRemaining: Number(snapshot.wallet?.includedRemaining ?? 0),
+          purchasedRemaining: Number(snapshot.wallet?.purchasedRemaining ?? 0),
+          totalRemaining: Number(snapshot.wallet?.totalRemaining ?? 0),
+        }
+        if (prevTotalRef.current != null && walletSnap) {
+          if (walletSnap.totalRemaining < prevTotalRef.current) setCreditPulse('consume')
+          if (walletSnap.totalRemaining > prevTotalRef.current) setCreditPulse('grant')
+        }
+        if (walletSnap) {
+          prevTotalRef.current = walletSnap.totalRemaining
+          setWallet(walletSnap)
+        }
       }
-      if (prevTotalRef.current != null) {
-        if (walletSnap.totalRemaining < prevTotalRef.current) setCreditPulse('consume')
-        if (walletSnap.totalRemaining > prevTotalRef.current) setCreditPulse('grant')
-      }
-      prevTotalRef.current = walletSnap.totalRemaining
-      setWallet(walletSnap)
     } catch {
-      // table may not exist yet in local env
+      // ignore snapshot errors
     }
 
     try {
@@ -254,38 +245,53 @@ export function BillingSection({ userId }: BillingSectionProps) {
         return sum + (r.messages_received || 0) + (r.messages_sent || 0)
       }, 0) || 0
     setMessagesThisMonth(totalMessages)
+    setLastSyncedAt(new Date())
+    return walletSnap
   }, [userId, supabase])
+
+  const handleForceRefresh = useCallback(async () => {
+    setManualRefreshing(true)
+    try {
+      await loadSubscriptionData()
+      setPaymentState('idle')
+      setPaymentMessage(null)
+    } finally {
+      setManualRefreshing(false)
+    }
+  }, [loadSubscriptionData])
+
+  const handleCheckoutComplete = useCallback(async () => {
+    const previousTotal = wallet?.totalRemaining ?? prevTotalRef.current ?? 0
+    setPaymentState('processing')
+    setPaymentMessage('Payment confirmed. Syncing your latest credits...')
+
+    const waitsMs = [800, 1200, 1800, 2600, 3500]
+    let updated = false
+    for (const waitMs of waitsMs) {
+      await new Promise((resolve) => window.setTimeout(resolve, waitMs))
+      const latestWallet = await loadSubscriptionData()
+      if (latestWallet && latestWallet.totalRemaining !== previousTotal) {
+        updated = true
+        break
+      }
+    }
+
+    router.refresh()
+    await loadSubscriptionData()
+    if (updated) {
+      setPaymentState('success')
+      setPaymentMessage('Payment successful — your credits are now updated.')
+    } else {
+      setPaymentState('pending')
+      setPaymentMessage('Payment received. Final reconciliation is processing and should update shortly.')
+    }
+  }, [loadSubscriptionData, router, wallet?.totalRemaining])
 
   useEffect(() => {
     if (!creditPulse) return
     const id = window.setTimeout(() => setCreditPulse(null), 1000)
     return () => window.clearTimeout(id)
   }, [creditPulse])
-
-  const runCreditPlanner = async () => {
-    setPlannerLoading(true)
-    try {
-      const res = await fetch('/api/billing/credit-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          monthlyCreditsAvailable: wallet?.totalRemaining ?? aiCreditsLimit - aiCreditsUsed,
-          creatorSize,
-          priorities: [...priorities],
-          targetActivityVolume: {
-            messages: targetMessages,
-            leakScans: targetLeakScans,
-            reputationScans: targetReputationScans,
-            chatTurns: targetChatTurns,
-          },
-        }),
-      })
-      const data = await res.json()
-      if (res.ok) setPlannerResult(data.plan as PlannerResult)
-    } finally {
-      setPlannerLoading(false)
-    }
-  }
 
   useEffect(() => {
     async function loadSubscription() {
@@ -406,6 +412,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const daysRemaining = effectivePeriodEnd
     ? Math.max(0, Math.ceil((effectivePeriodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 14
+  const customTopupUsd = Number.parseInt(customTopupAmount, 10)
+  const customTopupValid = Number.isFinite(customTopupUsd) && customTopupUsd >= 25
+  const lastSyncedLabel = lastSyncedAt
+    ? `${lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+    : 'Not synced yet'
 
   if (loading) {
     return (
@@ -572,123 +583,127 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
+      {paymentState !== 'idle' && paymentMessage ? (
+        <Card className="overflow-hidden border-amber-500/35 bg-gradient-to-br from-amber-500/12 via-purple-500/10 to-background">
+          <CardContent className="relative p-4">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_52%)]" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {paymentState === 'success'
+                    ? 'Payment complete'
+                    : paymentState === 'pending'
+                      ? 'Payment received'
+                      : 'Finalizing payment'}
+                </p>
+                <p className="text-sm text-muted-foreground">{paymentMessage}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+                onClick={() => void handleForceRefresh()}
+              >
+                {manualRefreshing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                Refresh
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
+        <p className="text-muted-foreground">
+          Wallet sync status: <span className="font-medium text-foreground">{lastSyncedLabel}</span>
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1 border-amber-500/30 text-amber-100 hover:bg-amber-500/10"
+          onClick={() => void handleForceRefresh()}
+          disabled={manualRefreshing}
+        >
+          {manualRefreshing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          Force refresh
+        </Button>
+      </div>
+
       <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="font-semibold">Buy More Credits</CardTitle>
           <CardDescription>
-            Fixed packs via Stripe. Purchased credits roll for one extra billing month.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <Checkout productId="credit-topup-2000" buttonText="Buy 2,000 · $20" buttonClassName="w-full" />
-          <Checkout productId="credit-topup-5000" buttonText="Buy 5,000 · $50" buttonClassName="w-full" />
-          <Checkout productId="credit-topup-10000" buttonText="Buy 10,000 · $100" buttonClassName="w-full" />
-        </CardContent>
-      </Card>
-
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-semibold">Credit Allocation Planner</CardTitle>
-          <CardDescription>
-            Plan this month by priorities (DM growth, DMCA, reputation, chat) and target volumes.
+            Purchased credits roll one extra month. Instant confirmation appears after Stripe success.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Creator size</Label>
-              <Select value={creatorSize} onValueChange={(v) => setCreatorSize(v as typeof creatorSize)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="solo">Solo</SelectItem>
-                  <SelectItem value="small_team">Small team</SelectItem>
-                  <SelectItem value="agency">Agency</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Priority focus</Label>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {(['dm_growth', 'dmca', 'reputation', 'chat_support'] as CreditPlanPriority[]).map((p) => (
-                  <label key={p} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={priorities.has(p)}
-                      onCheckedChange={() =>
-                        setPriorities((prev) => {
-                          const next = new Set(prev)
-                          if (next.has(p)) next.delete(p)
-                          else next.add(p)
-                          return next
-                        })
-                      }
-                    />
-                    <span>{p.replace('_', ' ')}</span>
-                  </label>
-                ))}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Checkout
+              productId="credit-topup-2000"
+              buttonText="Buy 2,000 · $20"
+              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              onComplete={handleCheckoutComplete}
+            />
+            <Checkout
+              productId="credit-topup-5000"
+              buttonText="Buy 5,000 · $50"
+              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              onComplete={handleCheckoutComplete}
+            />
+            <Checkout
+              productId="credit-topup-10000"
+              buttonText="Buy 10,000 · $100"
+              buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white shadow-[0_0_0_1px_rgba(245,158,11,0.35),0_14px_35px_-18px_rgba(168,85,247,0.7)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_18px_40px_-16px_rgba(168,85,247,0.85)] active:translate-y-px active:scale-[0.99]"
+              onComplete={handleCheckoutComplete}
+            />
+          </div>
+          <div className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-500/8 to-purple-500/8 p-4">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_1fr] sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="custom-topup">Custom amount</Label>
+                <Input
+                  id="custom-topup"
+                  type="number"
+                  min={25}
+                  step={1}
+                  value={customTopupAmount}
+                  onChange={(e) => setCustomTopupAmount(e.target.value)}
+                  className="bg-background/70"
+                  placeholder="25"
+                />
+                <p className="text-xs text-muted-foreground">Minimum $25 (100 credits per $1)</p>
               </div>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <div className="space-y-1">
-              <Label>Messages</Label>
-              <input
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
-                type="number"
-                value={targetMessages}
-                onChange={(e) => setTargetMessages(Number(e.target.value || 0))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Leak scans</Label>
-              <input
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
-                type="number"
-                value={targetLeakScans}
-                onChange={(e) => setTargetLeakScans(Number(e.target.value || 0))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Reputation scans</Label>
-              <input
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
-                type="number"
-                value={targetReputationScans}
-                onChange={(e) => setTargetReputationScans(Number(e.target.value || 0))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Chat turns</Label>
-              <input
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
-                type="number"
-                value={targetChatTurns}
-                onChange={(e) => setTargetChatTurns(Number(e.target.value || 0))}
+              <Checkout
+                productId="credit-topup-custom"
+                customTopupUsdAmount={customTopupUsd}
+                disabled={!customTopupValid}
+                buttonText={
+                  customTopupValid
+                    ? `Buy custom · $${customTopupUsd} · ${(customTopupUsd * 100).toLocaleString()} credits`
+                    : 'Enter at least $25'
+                }
+                buttonClassName="w-full relative overflow-hidden bg-gradient-to-r from-purple-600 via-amber-500 to-purple-600 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.45),0_16px_40px_-18px_rgba(168,85,247,0.9)] transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.5),0_20px_46px_-16px_rgba(217,70,239,0.95)] active:translate-y-px active:scale-[0.99]"
+                onComplete={handleCheckoutComplete}
               />
             </div>
           </div>
-          <Button onClick={runCreditPlanner} disabled={plannerLoading}>
-            {plannerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Build monthly plan
-          </Button>
-          {plannerResult && (
-            <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
-              <p className="font-medium">
-                Projected depletion: {plannerResult.estimatedDaysToDepletion} days · Planned spend:{' '}
-                {plannerResult.projectedMonthlySpend} credits
+          <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 p-3">
+            <div>
+              <p className="text-sm font-medium">Credit Allocation Planner moved</p>
+              <p className="text-xs text-muted-foreground">
+                Open it from your Dashboard quick actions for faster access.
               </p>
-              {plannerResult.allocations.map((row) => (
-                <p key={row.category}>
-                  {row.category.replace('_', ' ')}: {row.credits} credits ({row.percent}%) ~{' '}
-                  {row.estimatedActions} actions
-                </p>
-              ))}
-              {plannerResult.safeModeSuggestion ? (
-                <p className="text-amber-600 dark:text-amber-400">{plannerResult.safeModeSuggestion}</p>
-              ) : null}
             </div>
-          )}
+            <Button asChild variant="outline" className="gap-1">
+              <Link href="/dashboard/credits-planner">
+                Open planner
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -850,6 +865,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   focusPlatforms={focusCheckoutList ?? undefined}
                   seats={checkoutSeats}
                   disabled={!focusCheckoutList}
+                  onComplete={handleCheckoutComplete}
                   buttonText={
                     paidActive
                       ? `Checkout Focus — $${focusCheckoutUsd}/mo`
@@ -919,6 +935,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   billingVariant="multi"
                   tierIndex={checkoutTierIndex}
                   seats={checkoutSeats}
+                  onComplete={handleCheckoutComplete}
                   buttonText={
                     paidActive
                       ? `Checkout Unified — $${unifiedCheckoutUsd}/mo`

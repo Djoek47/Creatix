@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
+import { formatToolCreditCost } from '@/lib/billing/credit-economics'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -347,8 +347,11 @@ export function AIToolsSelector({
   )
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
-  const [aiCreditsUsed, setAiCreditsUsed] = useState(0)
-  const [aiCreditsLimit, setAiCreditsLimit] = useState(100)
+  const [creditWallet, setCreditWallet] = useState<{
+    totalRemaining: number
+    includedRemaining: number
+    purchasedRemaining: number
+  } | null>(null)
   const supabase = createClient()
   
   // Check subscription status
@@ -359,7 +362,7 @@ export function AIToolsSelector({
     const { data } = await supabase
       .from('subscriptions')
       .select(
-        'plan_id, ai_credits_used, ai_credits_limit, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
+        'plan_id',
       )
       .eq('user_id', user.id)
       .single()
@@ -368,18 +371,25 @@ export function AIToolsSelector({
       const planId = (data as { plan_id?: string | null }).plan_id as string | null | undefined
       const normalized = planId?.toLowerCase() || null
       setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
-      setAiCreditsUsed(data.ai_credits_used || 0)
-      setAiCreditsLimit(
-        effectiveMonthlyCreditLimit({
-          plan_id: data.plan_id,
-          billing_variant: (data as { billing_variant?: string | null }).billing_variant,
-          revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
-          billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
-          billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
-          billing_seats: (data as { billing_seats?: number | null }).billing_seats,
-          ai_credits_limit: data.ai_credits_limit,
-        }),
-      )
+    }
+    const snapshotRes = await fetch('/api/billing/credit-snapshot', {
+      method: 'GET',
+      credentials: 'include',
+    })
+    if (snapshotRes.ok) {
+      const snapshot = (await snapshotRes.json()) as {
+        wallet?: {
+          totalRemaining?: number
+          includedRemaining?: number
+          purchasedRemaining?: number
+        }
+      }
+      const wallet = snapshot.wallet
+      setCreditWallet({
+        totalRemaining: Number(wallet?.totalRemaining ?? 0),
+        includedRemaining: Number(wallet?.includedRemaining ?? 0),
+        purchasedRemaining: Number(wallet?.purchasedRemaining ?? 0),
+      })
     }
   }, [supabase])
   
@@ -2390,7 +2400,11 @@ export function AIToolsSelector({
                 <Zap className="h-4 w-4 text-primary" />
                 <span className="text-sm">AI Credits</span>
               </div>
-              <span className="font-medium">{aiCreditsUsed}/{aiCreditsLimit}</span>
+              <span className="font-medium">
+                {creditWallet
+                  ? `${creditWallet.totalRemaining} left`
+                  : '...'}
+              </span>
             </div>
           </ScrollArea>
         </CardContent>

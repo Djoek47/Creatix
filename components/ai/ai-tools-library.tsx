@@ -34,7 +34,7 @@ import {
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
+import { formatToolCreditCost } from '@/lib/billing/credit-economics'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'caption-generator': Wand2,
@@ -74,7 +74,11 @@ interface AIToolsLibraryProps {
 export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<'all' | AIToolCategory>('all')
-  const [credits, setCredits] = useState<{ used: number; limit: number } | null>(null)
+  const [creditSnapshot, setCreditSnapshot] = useState<{
+    totalRemaining: number
+    includedRemaining: number
+    purchasedRemaining: number
+  } | null>(null)
   const [isPro, setIsPro] = useState(false)
 
   useEffect(() => {
@@ -93,20 +97,28 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
           .eq('user_id', user.id)
           .maybeSingle()
         if (data) {
-          setCredits({
-            used: data.ai_credits_used ?? 0,
-            limit: effectiveMonthlyCreditLimit({
-              plan_id: data.plan_id,
-              billing_variant: (data as { billing_variant?: string | null }).billing_variant,
-              revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
-              billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
-              billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
-              billing_seats: (data as { billing_seats?: number | null }).billing_seats,
-              ai_credits_limit: data.ai_credits_limit,
-            }),
-          })
           const planId = (data as { plan_id?: string }).plan_id?.toLowerCase()
           setIsPro(!!planId && isPaidPlanId(planId))
+        }
+
+        const snapshotRes = await fetch('/api/billing/credit-snapshot', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        if (snapshotRes.ok) {
+          const snapshot = (await snapshotRes.json()) as {
+            wallet?: {
+              totalRemaining?: number
+              includedRemaining?: number
+              purchasedRemaining?: number
+            }
+          }
+          const wallet = snapshot.wallet
+          setCreditSnapshot({
+            totalRemaining: Number(wallet?.totalRemaining ?? 0),
+            includedRemaining: Number(wallet?.includedRemaining ?? 0),
+            purchasedRemaining: Number(wallet?.purchasedRemaining ?? 0),
+          })
         }
       } catch {
         // ignore
@@ -156,9 +168,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="gap-1 border-amber-500/25 bg-amber-500/[0.04] text-foreground">
             <Zap className="h-3 w-3 text-amber-500" aria-hidden />
-            {credits
-              ? `${Math.max(0, credits.limit - credits.used)} left`
-              : 'Credits'}
+            {creditSnapshot ? `${creditSnapshot.totalRemaining} left` : 'Credits'}
           </Badge>
           {!isPro ? (
             <Button size="sm" className="gap-1 bg-gradient-to-r from-amber-600 to-purple-600 text-white hover:from-amber-500 hover:to-purple-500" asChild>

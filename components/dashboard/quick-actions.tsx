@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Upload, MessageSquare, BarChart3, HeartPulse } from 'lucide-react'
+import { Plus, Upload, MessageSquare, BarChart3, HeartPulse, WalletCards } from 'lucide-react'
 import Link from 'next/link'
 
 export function QuickActions() {
@@ -41,6 +41,13 @@ export function QuickActions() {
       description: 'Pressure, mimic profile & cosmic rhythm',
       href: '/dashboard/well-being',
       color: 'bg-circe/15 text-circe dark:text-circe-light',
+    },
+    {
+      icon: WalletCards,
+      label: 'Credits Planner',
+      description: 'Allocation strategy for monthly usage',
+      href: '/dashboard/credits-planner',
+      color: 'bg-amber-500/15 text-amber-500 dark:text-amber-300',
     },
   ]
 

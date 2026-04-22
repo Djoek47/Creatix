@@ -1,6 +1,4 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { ArrowRight, Link2, Mic, Sparkles, TrendingUp } from 'lucide-react'
+﻿import { Link2, Mic, Sparkles, TrendingUp } from 'lucide-react'
 import type { Metadata } from 'next'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
@@ -43,7 +41,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-16 sm:px-6 sm:pb-20">
+      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-5xl">
           <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
             {steps.map((step) => (
@@ -62,24 +60,6 @@ export default function HowItWorksPage() {
             ))}
           </MotionStagger>
         </div>
-      </section>
-
-      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
-        <MotionReveal className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-circe/5 via-card to-primary/5 p-10 text-center sm:p-12">
-          <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Ready?</h2>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link href="/auth/sign-up">
-              <Button size="lg" className="h-12 rounded-full bg-gradient-to-r from-primary to-circe/90 px-10 text-primary-foreground shadow-lg">
-                Start free trial <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button variant="outline" size="lg" className="h-12 rounded-full border-primary/35 px-10">
-                Pricing
-              </Button>
-            </Link>
-          </div>
-        </MotionReveal>
       </section>
     </main>
   )

@@ -1,14 +1,17 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { LandingPricingSection } from '@/components/marketing/landing-pricing-section'
 import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
-import { ArrowRight, Shield, TrendingUp, Sparkles, Moon, Sun, Mic } from 'lucide-react'
+import { ArrowRight, Shield, TrendingUp, Moon, Sun } from 'lucide-react'
 import type { Metadata } from 'next'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 import { buildHomePricingTeaserLine } from '@/lib/seo/pricing-seo'
+import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
+import { MarketingModeProvider, useMarketingMode } from '@/components/marketing/marketing-mode-context'
+import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 
 const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. 14-day trial. ${buildHomePricingTeaserLine()}`
 
@@ -33,6 +36,28 @@ export const metadata: Metadata = {
   title: { absolute: 'Circe et Venus — Creator workspace for OnlyFans & Fansly' },
 }
 
+function HomePricingSwitch() {
+  const { mode } = useMarketingMode()
+  if (mode === 'pro') return <LandingPricingSection />
+  const fromPrice = PRICING_TIERS[0]?.prices.of ?? 39
+
+  return (
+    <section id="pricing" className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="font-serif text-3xl font-semibold sm:text-4xl">From ${fromPrice}/mo</h2>
+        <p className="mt-3 text-muted-foreground">Price follows your monthly revenue band.</p>
+        <div className="mt-8 flex justify-center">
+          <Link href="/pricing">
+            <Button size="lg" className="h-12 gap-2 rounded-full px-10">
+              See pricing <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function LandingPage() {
   return (
     <main className="relative z-10 pt-14 sm:pt-16">
@@ -48,14 +73,6 @@ export default function LandingPage() {
                 variant="hero"
                 priority
               />
-            </div>
-          </MotionReveal>
-
-          <MotionReveal delay={0.06}>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-gradient-to-r from-primary/10 via-circe/10 to-fuchsia-500/10 px-5 py-2 text-sm font-medium text-primary shadow-lg shadow-primary/5">
-              <Mic className="h-4 w-4" aria-hidden />
-              Voice or text · Divine Manager
-              <Sparkles className="h-4 w-4 text-circe-light" aria-hidden />
             </div>
           </MotionReveal>
 
@@ -75,22 +92,13 @@ export default function LandingPage() {
           </MotionReveal>
 
           <MotionReveal delay={0.18}>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="mt-10 flex justify-center">
               <Link href="/auth/sign-up">
                 <Button
                   size="lg"
                   className="h-12 gap-2 rounded-full bg-gradient-to-r from-primary to-circe/90 px-10 text-base text-primary-foreground shadow-xl shadow-primary/25 hover:opacity-[0.97]"
                 >
                   Start free trial <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/how-it-works">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-12 rounded-full border-primary/40 px-10 text-base hover:bg-primary/10"
-                >
-                  How it works
                 </Button>
               </Link>
             </div>
@@ -173,30 +181,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <LandingPricingSection />
-
-      <section className="px-4 py-14 sm:px-6 sm:py-20">
-        <MotionReveal className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-primary/35 bg-gradient-to-br from-circe/[0.08] via-card to-primary/[0.06] p-10 text-center shadow-2xl sm:p-12">
-          <div className="marketing-rainbow-edge mx-auto mb-8 h-1 max-w-xs rounded-full opacity-90" />
-          <MarketingBrandLogo width={72} height={72} className="mx-auto" variant="header" />
-          <h2 className="mt-6 font-serif text-3xl font-semibold sm:text-4xl">Ready when you are.</h2>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link href="/auth/sign-up">
-              <Button
-                size="lg"
-                className="h-12 rounded-full bg-gradient-to-r from-primary to-circe/90 px-10 text-primary-foreground shadow-lg"
-              >
-                Start free trial <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button size="lg" variant="outline" className="h-12 rounded-full border-primary/35 px-10">
-                Pricing
-              </Button>
-            </Link>
+      <MarketingModeProvider>
+        <section className="px-4 pb-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl justify-end">
+            <ProModeToggle className="mb-4" />
           </div>
-        </MotionReveal>
-      </section>
+        </section>
+        <HomePricingSwitch />
+      </MarketingModeProvider>
     </main>
   )
 }
+

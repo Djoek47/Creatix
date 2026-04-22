@@ -1,8 +1,5 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
+﻿import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import {
-  ArrowRight,
   Shield,
   Users,
   MessageSquare,
@@ -62,7 +59,7 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-16 sm:px-6 sm:pb-20">
+      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-6xl">
           <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.05}>
             {features.map((f) => (
@@ -78,27 +75,6 @@ export default function FeaturesPage() {
             ))}
           </MotionStagger>
         </div>
-      </section>
-
-      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
-        <MotionReveal className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-primary/35 bg-gradient-to-br from-circe/[0.08] via-card to-primary/[0.06] p-10 text-center shadow-2xl sm:p-12">
-          <h2 className="font-serif text-3xl font-semibold sm:text-4xl">Try it free.</h2>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link href="/auth/sign-up">
-              <Button
-                size="lg"
-                className="h-12 rounded-full bg-gradient-to-r from-primary to-circe/90 px-10 text-primary-foreground shadow-lg"
-              >
-                Start free trial <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button size="lg" variant="outline" className="h-12 rounded-full border-primary/35 px-10">
-                Pricing
-              </Button>
-            </Link>
-          </div>
-        </MotionReveal>
       </section>
     </main>
   )

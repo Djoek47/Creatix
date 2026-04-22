@@ -99,6 +99,14 @@ type PlannerResult = {
   safeModeSuggestion: string | null
 }
 
+type CreditTimelineRow = {
+  id: string
+  kind: 'debit' | 'credit' | 'expire_adjustment'
+  amount: number
+  reason_code: string
+  created_at: string
+}
+
 const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
   onlyfans: 'Base',
   fansly: '≤$200',
@@ -134,6 +142,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [targetLeakScans, setTargetLeakScans] = useState(12)
   const [targetReputationScans, setTargetReputationScans] = useState(8)
   const [targetChatTurns, setTargetChatTurns] = useState(800)
+  const [creditTopCategories, setCreditTopCategories] = useState<Array<{ reason: string; amount: number }>>([])
+  const [creditTimeline, setCreditTimeline] = useState<CreditTimelineRow[]>([])
   const prevTotalRef = useRef<number | null>(null)
   const supabase = createClient()
 
@@ -202,6 +212,31 @@ export function BillingSection({ userId }: BillingSectionProps) {
       setWallet(walletSnap)
     } catch {
       // table may not exist yet in local env
+    }
+
+    try {
+      const { data: txRows } = await supabase
+        .from('credit_transactions')
+        .select('id,kind,amount,reason_code,created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(40)
+
+      const timeline = (txRows ?? []) as CreditTimelineRow[]
+      setCreditTimeline(timeline.slice(0, 10))
+      const debitTotals = new Map<string, number>()
+      for (const row of timeline) {
+        if (row.kind !== 'debit') continue
+        debitTotals.set(row.reason_code, (debitTotals.get(row.reason_code) ?? 0) + Number(row.amount ?? 0))
+      }
+      const top = [...debitTotals.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([reason, amount]) => ({ reason, amount }))
+      setCreditTopCategories(top)
+    } catch {
+      setCreditTopCategories([])
+      setCreditTimeline([])
     }
 
     const startOfMonth = new Date()
@@ -377,6 +412,40 @@ export function BillingSection({ userId }: BillingSectionProps) {
       <Card className="border-border bg-card">
         <CardContent className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="font-semibold">Credit Usage Visibility</CardTitle>
+          <CardDescription>Top debit categories and latest wallet ledger activity.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="mb-2 font-medium">Top 5 debit categories this month</p>
+            {creditTopCategories.length === 0 ? (
+              <p className="text-muted-foreground">No debit activity yet.</p>
+            ) : (
+              creditTopCategories.map((row) => (
+                <p key={row.reason}>
+                  {row.reason}: {row.amount} credits
+                </p>
+              ))
+            )}
+          </div>
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="mb-2 font-medium">Where credits went (timeline)</p>
+            {creditTimeline.length === 0 ? (
+              <p className="text-muted-foreground">No transactions yet.</p>
+            ) : (
+              creditTimeline.map((row) => (
+                <p key={row.id}>
+                  {new Date(row.created_at).toLocaleDateString()} · {row.kind} · {row.reason_code} ·{' '}
+                  {row.amount} credits
+                </p>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     )

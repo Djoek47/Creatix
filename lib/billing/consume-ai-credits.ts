@@ -53,7 +53,8 @@ export async function consumeAiCredits(
   const enforceWallet = process.env.CREDIT_WALLET_ENFORCED !== 'false'
   if (enforceWallet) {
     const reasonCode = options?.reasonCode ?? 'ai_usage'
-    const reasonRef = options?.reasonRef ?? `ai:${userId}`
+    const nonce = crypto.randomUUID()
+    const reasonRef = options?.reasonRef ?? `ai:${userId}:${nonce}`
     const idempotencyKey = options?.idempotencyKey ?? `${reasonCode}:${reasonRef}:${amount}`
     const wallet = await consumeFromWallet({
       supabase,

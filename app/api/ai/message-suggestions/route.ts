@@ -8,7 +8,11 @@ import {
 import { runMimicMessageSuggestion } from '@/lib/ai/run-mimic-message-suggestion'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  consumeAiCredits,
+  hasEnoughAiCredits,
+  insufficientAiCreditsResponse,
+} from '@/lib/billing/consume-ai-credits'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt' | 'mimic'
 
@@ -82,11 +86,13 @@ export async function POST(req: NextRequest) {
 
     const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
     if (!gate.ok) {
-      return NextResponse.json(
-        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-        { status: 402 },
-      )
+      return insufficientAiCreditsResponse(gate.used, gate.limit)
     }
+
+    const requestId =
+      req.headers.get('x-idempotency-key') ||
+      req.headers.get('x-request-id') ||
+      `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
     if (mode === 'mimic') {
       if (body.platform !== 'onlyfans') {
@@ -106,11 +112,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: mimicResult.error }, { status: 400 })
       }
 
-      try {
-        await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
-      } catch {
-        // ignore credit errors
-      }
+      const debit = await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE, {
+        reasonCode: 'message_generation_light',
+        reasonRef: `message_suggestions:mimic:${body.platform}:${body.fan.id}:${requestId}`,
+        idempotencyKey: `message_suggestions:mimic:${user.id}:${body.fan.id}:${requestId}`,
+        metadata: { endpoint: '/api/ai/message-suggestions', mode: 'mimic' },
+      })
+      if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
 
       return NextResponse.json({
         mode: 'mimic',
@@ -148,11 +156,13 @@ export async function POST(req: NextRequest) {
       result = await generateMessageSuggestionsWithGrok(xaiKey!, ctx)
     }
 
-    try {
-      await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
-    } catch {
-      // ignore credit errors
-    }
+    const debit = await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE, {
+      reasonCode: 'message_generation_light',
+      reasonRef: `message_suggestions:${mode}:${body.platform}:${body.fan.id}:${requestId}`,
+      idempotencyKey: `message_suggestions:${mode}:${user.id}:${body.fan.id}:${requestId}`,
+      metadata: { endpoint: '/api/ai/message-suggestions', mode },
+    })
+    if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
 
     return NextResponse.json(result)
   } catch (error: any) {

@@ -283,7 +283,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
       setPaymentMessage('Payment successful — your credits are now updated.')
     } else {
       setPaymentState('pending')
-      setPaymentMessage('Payment received. Final reconciliation is processing and should update shortly.')
+      setPaymentMessage('Payment is confirmed. Final reconciliation is in progress and will update shortly.')
     }
   }, [loadSubscriptionData, router, wallet?.totalRemaining])
 
@@ -434,7 +434,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-semibold">
             <CreditCard className="h-5 w-5" />
-            Current Plan
+            Plan & Billing
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -461,7 +461,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
             <div className="mt-4 flex flex-wrap gap-3">
               <Button onClick={handleManageBilling} disabled={loadingPortal} variant="outline">
                 {loadingPortal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Open Stripe Billing Portal
+                Open Stripe Portal
               </Button>
 
               {paidActive ? (
@@ -471,7 +471,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     disabled={loadingPortal}
                     variant="outline"
                   >
-                    Update Payment Method
+                    Payment Method
                   </Button>
                   {!subData?.cancel_at_period_end && (
                     <Button
@@ -479,7 +479,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       disabled={loadingPortal}
                       variant="destructive"
                     >
-                      Cancel Subscription
+                      Cancel Plan
                     </Button>
                   )}
                 </>
@@ -593,8 +593,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   {paymentState === 'success'
                     ? 'Payment complete'
                     : paymentState === 'pending'
-                      ? 'Payment received'
-                      : 'Finalizing payment'}
+                      ? 'Payment recorded'
+                      : 'Finalizing'}
                 </p>
                 <p className="text-sm text-muted-foreground">{paymentMessage}</p>
               </div>
@@ -614,7 +614,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
         <p className="text-muted-foreground">
-          Wallet sync status: <span className="font-medium text-foreground">{lastSyncedLabel}</span>
+          Wallet synced: <span className="font-medium text-foreground">{lastSyncedLabel}</span>
         </p>
         <Button
           variant="outline"
@@ -628,15 +628,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          Force refresh
+          Sync now
         </Button>
       </div>
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Buy More Credits</CardTitle>
+          <CardTitle className="font-semibold">Top Up Credits</CardTitle>
           <CardDescription>
-            Purchased credits roll one extra month. Instant confirmation appears after Stripe success.
+            Fast top-ups for peak demand. Purchased credits roll one extra month.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -692,9 +692,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 p-3">
             <div>
-              <p className="text-sm font-medium">Credit Allocation Planner moved</p>
+              <p className="text-sm font-medium">Planner moved to Dashboard</p>
               <p className="text-xs text-muted-foreground">
-                Open it from your Dashboard quick actions for faster access.
+                Open it from Dashboard quick actions for daily planning.
               </p>
             </div>
             <Button asChild variant="outline" className="gap-1">
@@ -709,12 +709,12 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Credit Usage Visibility</CardTitle>
-          <CardDescription>Top debit categories and latest wallet ledger activity.</CardDescription>
+          <CardTitle className="font-semibold">Credit Usage</CardTitle>
+          <CardDescription>Where credits are going right now.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Top 5 debit categories this month</p>
+            <p className="mb-2 font-medium">Top 5 debit categories</p>
             {creditTopCategories.length === 0 ? (
               <p className="text-muted-foreground">No debit activity yet.</p>
             ) : (
@@ -726,7 +726,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
             )}
           </div>
           <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Where credits went (timeline)</p>
+            <p className="mb-2 font-medium">Recent ledger timeline</p>
             {creditTimeline.length === 0 ? (
               <p className="text-muted-foreground">No transactions yet.</p>
             ) : (
@@ -743,7 +743,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card id="revenue-pricing" className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Plans & pricing</CardTitle>
+          <CardTitle className="font-semibold">Plans & Pricing</CardTitle>
           <CardDescription>
             Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base;
             Fansly line is ~10% below base, <strong>capped at $200/mo</strong>; ManyVids <strong>solo</strong> is{' '}
@@ -986,8 +986,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Free trial</CardTitle>
-          <CardDescription>Start with limited usage; upgrade anytime above.</CardDescription>
+          <CardTitle className="font-semibold">Trial</CardTitle>
+          <CardDescription>Start lean. Upgrade when you want full power.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border p-4">
@@ -1003,14 +1003,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Billing History</CardTitle>
-          <CardDescription>View your past invoices</CardDescription>
+          <CardTitle className="font-semibold">Invoices</CardTitle>
+          <CardDescription>Open invoice history in Stripe.</CardDescription>
         </CardHeader>
         <CardContent>
           {paidActive ? (
             <Button variant="outline" onClick={handleManageBilling} disabled={loadingPortal}>
               {loadingPortal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              View Invoices in Stripe Portal
+              Open Invoices
             </Button>
           ) : (
             <p className="py-8 text-center text-muted-foreground">No invoices yet</p>

@@ -103,27 +103,27 @@ export function Checkout({
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{completed ? 'Payment received' : 'Complete Your Purchase'}</DialogTitle>
+          <DialogTitle>{completed ? 'Payment complete' : 'Complete your purchase'}</DialogTitle>
         </DialogHeader>
         {completed ? (
-          <div className="relative overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-purple-500/12 to-background p-6 shadow-[0_0_0_1px_rgba(245,158,11,0.28),0_24px_50px_-28px_rgba(168,85,247,0.75)]">
+          <div className="billing-card-enter relative overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-purple-500/12 to-background p-6 shadow-[0_0_0_1px_rgba(245,158,11,0.28),0_24px_50px_-28px_rgba(168,85,247,0.75)]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_55%)]" />
             <div className="pointer-events-none absolute -inset-[1px] rounded-xl border border-amber-300/25" />
             <div className="relative space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
                 <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                Confirmation
+                Confirmed
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 h-6 w-6 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.45)]" />
                 <div>
                   <p className="text-base font-semibold text-foreground">Payment successful.</p>
                   <p className="text-sm text-muted-foreground">
-                    We are syncing your latest credits and subscription state. This window can be closed.
+                    We are syncing credits and billing state now. You can safely close this window.
                   </p>
                 </div>
               </div>
-              <Button className="mt-2 bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-[0_10px_26px_-14px_rgba(168,85,247,0.8)] transition-all hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px" onClick={() => setOpen(false)}>
+              <Button className="mt-2 bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-[0_10px_26px_-14px_rgba(168,85,247,0.8)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px" onClick={() => setOpen(false)}>
                 Continue
               </Button>
             </div>

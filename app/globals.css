@@ -1206,3 +1206,98 @@ body {
 .animate-guide-orbit-fast {
   animation: guide-orbit-spin 90s linear infinite reverse;
 }
+
+/* Billing interactions: premium gold/purple motion accents */
+@keyframes billing-card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes billing-topup-sheen {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.8;
+  }
+  45% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+}
+
+@keyframes billing-topup-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.36),
+      0 14px 35px -18px rgba(168, 85, 247, 0.7);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.48),
+      0 20px 44px -16px rgba(168, 85, 247, 0.9);
+  }
+}
+
+.billing-card-enter {
+  animation: billing-card-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.billing-topup-button {
+  position: relative;
+  overflow: hidden;
+  animation: billing-topup-glow 4.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.billing-topup-button::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(
+    110deg,
+    transparent 0%,
+    rgba(251, 191, 36, 0.1) 28%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(192, 132, 252, 0.16) 64%,
+    transparent 100%
+  );
+  transform: translateX(-130%);
+  pointer-events: none;
+  animation: billing-topup-sheen 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-card-enter,
+  .billing-topup-button,
+  .billing-topup-button::before {
+    animation: none;
+  }
+}
+
+/* Mobile/touch cadence: slightly snappier response and faster settle */
+@media (hover: none), (pointer: coarse) {
+  .billing-card-enter {
+    animation-duration: 320ms;
+  }
+
+  .billing-topup-button {
+    transition-duration: 220ms !important;
+    animation-duration: 3.8s;
+  }
+
+  .billing-topup-button::before {
+    animation-duration: 5s;
+  }
+}

@@ -23,11 +23,11 @@ export const PRODUCTS: Product[] = [
   {
     id: 'divine-trial',
     name: 'Divine Trial',
-    description: '14-day free trial with limited features',
+    description: '2-day free trial (card required) with limited features',
     priceInCents: 0,
     priceMonthly: 0,
     features: [
-      '100 AI credits/month',
+      '250 AI credits total',
       '5GB storage',
       'Basic analytics',
       'Email support',

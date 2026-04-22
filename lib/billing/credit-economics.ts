@@ -20,7 +20,7 @@ export const CREDIT_USD_VALUE = 0.01
 export const CREDITS_PER_SUBSCRIPTION_USD = 20
 
 /** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
-export const TRIAL_AI_CREDITS_LIMIT = 100
+export const TRIAL_AI_CREDITS_LIMIT = 250
 
 /** Old DB rows used a huge sentinel for “unlimited”; sync + UI ignore these. */
 export const LEGACY_AI_CREDITS_DB_SENTINEL = 999000

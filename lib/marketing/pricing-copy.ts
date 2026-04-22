@@ -9,7 +9,7 @@
 export const PRICING_MODEL_HEADLINE = 'Simple plans. One workspace.'
 
 export const PRICING_MODEL_TRIAL_LINE =
-  'Start with a 14-day free trial. No credit card required.'
+  'Start with a 2-day free trial. Credit card required.'
 
 /** One line for pricing + credits (amounts come from live tier math in UI). */
 export const CREDIT_ALLOWANCE_MARKETING_LINE =

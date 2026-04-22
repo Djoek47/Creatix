@@ -27,6 +27,8 @@ import {
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
 
+const TRIAL_DURATION_DAYS = 2
+
 function clampBillingSeats(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_BILLING_SEATS
   return Math.min(MAX_BILLING_SEATS, Math.max(1, Math.floor(n)))
@@ -135,6 +137,26 @@ export async function startCheckoutSession(productId: string) {
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
 
   const stripe = getStripe()
+  if (product.id === 'divine-trial') {
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: 'embedded',
+      redirect_on_completion: 'never',
+      customer: customerId,
+      mode: 'setup',
+      payment_method_types: ['card'],
+      metadata: {
+        productId: product.id,
+        userId: user.id,
+        type: 'trial_setup',
+        trialDays: String(TRIAL_DURATION_DAYS),
+      },
+    })
+    if (!session.client_secret) {
+      throw new Error('Stripe Checkout did not return client_secret')
+    }
+    return session.client_secret
+  }
+
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     ui_mode: 'embedded',
     redirect_on_completion: 'never',

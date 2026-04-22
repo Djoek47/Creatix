@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Checkout } from '@/components/stripe/checkout'
 import { PRODUCTS, PAID_TIER_FEATURES } from '@/lib/products'
@@ -154,7 +155,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         setPlatformSelection(new Set(['onlyfans']))
       }
     } else {
-      const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      const trialEnd = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
       const { data: newSub } = await supabase
         .from('subscriptions')
         .insert({
@@ -162,7 +163,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           plan_id: 'divine-trial',
           status: 'trial',
           ai_credits_used: 0,
-          ai_credits_limit: 100,
+          ai_credits_limit: 250,
           storage_used_mb: 0,
           storage_limit_mb: 5000,
           trial_ends_at: trialEnd,

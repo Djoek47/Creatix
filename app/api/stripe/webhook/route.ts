@@ -18,6 +18,7 @@ import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const TRIAL_DURATION_DAYS = 2
 
 function normalizePlanId(raw: string | undefined): string | undefined {
   if (!raw) return undefined
@@ -234,11 +235,24 @@ export async function POST(req: NextRequest) {
         const rawPlan = meta?.productId
         const planId = normalizePlanId(rawPlan)
         const tierMeta = metaPatch(meta)
+        const trialEndsAt =
+          planId === 'divine-trial'
+            ? new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+            : null
 
         if (userId && customerId) {
           await upsertSubscriptionByUserId(supabase, userId, {
             stripe_customer_id: customerId,
             ...(planId ? { plan_id: planId } : {}),
+            ...(trialEndsAt
+              ? {
+                  status: 'trialing',
+                  trial_ends_at: trialEndsAt,
+                  current_period_start: new Date().toISOString(),
+                  current_period_end: trialEndsAt,
+                  cancel_at_period_end: false,
+                }
+              : {}),
             ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
             ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
             ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),

@@ -3,12 +3,15 @@
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
 import { ConversationRail } from './conversation-rail'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { ChatWindow } from './chat-window'
+import { MessagingLayout } from './MessagingLayout'
 import { MassMessageDialog } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
+import { RightDrawer } from './RightDrawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,6 +19,7 @@ import { FanProfileModal } from '@/components/messages/fan-profile-modal'
 import { InboxFiltersBar } from '@/components/messages/inbox-filters-bar'
 import { cn } from '@/lib/utils'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { uiFadeTransition, uiPanelTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
 import {
   Sheet,
   SheetContent,
@@ -33,6 +37,8 @@ import {
   PanelLeft,
   User,
   Search,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import type {
@@ -83,6 +89,9 @@ function MessagesLayoutContent({
   initialPlatform,
   hasFanPlatformConnected = false,
 }: MessagesLayoutProps) {
+  const { reduced } = useUiMotionPreferences()
+  const fadeTransition = uiFadeTransition(reduced)
+  const panelTransition = uiPanelTransition(reduced)
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const divinePanel = useDivinePanel()
@@ -108,6 +117,10 @@ function MessagesLayoutContent({
   const [fanProfileOpen, setFanProfileOpen] = useState(false)
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
+  const [focusMode, setFocusMode] = useState(false)
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(false)
+  const inboxSearchInputRef = useRef<HTMLInputElement>(null)
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
 
   const [segment, setSegment] = useState<InboxSegment>('all')
@@ -148,6 +161,21 @@ function MessagesLayoutContent({
   useEffect(() => {
     setFanProfileOpen(false)
   }, [selectedConversation?.user.id, selectedConversation?.platform])
+
+  useEffect(() => {
+    setRightDrawerOpen(false)
+  }, [selectedConversation?.user.id, selectedConversation?.platform])
+
+  useEffect(() => {
+    if (focusMode) return
+    const onResize = () => {
+      if (window.innerWidth < 1280) setRightDrawerOpen(false)
+      if (window.innerWidth < 1024) setChatsRailExpanded(false)
+    }
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [focusMode])
 
   useEffect(() => {
     const onSidebarExpanded = () => {
@@ -271,6 +299,26 @@ function MessagesLayoutContent({
     if (loadingMore || !hasMoreInbox) return
     void loadInbox({ append: true })
   }, [loadInbox, loadingMore, hasMoreInbox])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        if (view !== 'conversations') setView('conversations')
+        if (isMobile) {
+          setConversationMenuOpen(true)
+          window.setTimeout(() => mobileSearchInputRef.current?.focus(), 50)
+          return
+        }
+        if (!focusMode) {
+          setChatsRailExpanded(true)
+          window.setTimeout(() => inboxSearchInputRef.current?.focus(), 50)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [focusMode, isMobile, view])
 
   // Open the thread for ?fanId= / ?chat= or Divine voice/chat "focus fan"
   useEffect(() => {
@@ -409,9 +457,9 @@ function MessagesLayoutContent({
       : undefined
 
   return (
-    <div className="flex h-[calc(100dvh-9.5rem)] max-h-[calc(100dvh-9.5rem)] min-h-0 flex-col sm:h-[calc(100dvh-11rem)] sm:max-h-[calc(100dvh-11rem)]">
+    <div className="flex h-[calc(100dvh-5.9rem)] max-h-[calc(100dvh-5.9rem)] min-h-0 flex-col">
       {/* Header: back on mobile when chat open, title, view toggle, actions */}
-      <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2 sm:mb-4">
+      <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {selectedConversation && view === 'conversations' && (
             <Button
@@ -436,7 +484,9 @@ function MessagesLayoutContent({
             </Button>
           )}
           <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground truncate">{conversationsSubtitle}</p>
+            <p className="truncate text-[12px] font-medium tracking-tight text-muted-foreground sm:text-[13px]">
+              {conversationsSubtitle}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -487,74 +537,53 @@ function MessagesLayoutContent({
                   Mass page
                 </Link>
               </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => setFocusMode((v) => !v)}
+                title={focusMode ? 'Exit focus mode' : 'Focus mode'}
+              >
+                {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+              {!isMobile && selectedConversation && !focusMode ? (
+                <Button
+                  variant={rightDrawerOpen ? 'secondary' : 'outline'}
+                  size="sm"
+                  className="hidden lg:inline-flex"
+                  onClick={() => setRightDrawerOpen((v) => !v)}
+                >
+                  Profile
+                </Button>
+              ) : null}
               <MassMessageDialog />
             </>
           )}
         </div>
       </div>
 
-      {view === 'insights' ? (
-        <div className="flex-1 min-h-0 overflow-auto">
-          <MessageEngagementInsights />
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          {selectedConversation && (
-            <>
-              <div className="rounded-lg border border-border bg-card px-3 py-2.5 shadow-sm">
-                <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-center">
-                  <Avatar className="h-10 w-10 shrink-0 border border-border">
-                    <AvatarImage
-                      src={proxyImageUrl(selectedConversation.user.avatar) || selectedConversation.user.avatar}
-                      alt=""
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {selectedConversation.user.name?.[0]?.toUpperCase() ||
-                        selectedConversation.user.username?.[0]?.toUpperCase() ||
-                        '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    onClick={() => setFanProfileOpen(true)}
-                    title="Open fan profile"
-                    aria-label="Open fan profile"
-                  >
-                    <User className="h-4 w-4" />
-                  </Button>
-                  <div className="min-w-0 flex-1 text-center sm:max-w-none sm:flex-none sm:text-left">
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
-                      <span className="truncate text-sm font-medium">
-                        {selectedConversation.user.name || selectedConversation.user.username || 'Unknown'}
-                      </span>
-                      <span
-                        className={cn(
-                          'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                          selectedConversation.platform === 'onlyfans'
-                            ? 'bg-sky-500/10 text-sky-500'
-                            : 'bg-blue-500/10 text-blue-500',
-                        )}
-                      >
-                        <img
-                          src={
-                            selectedConversation.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'
-                          }
-                          alt={selectedConversation.platform}
-                          className="h-3 w-3"
-                        />
-                        {selectedConversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-                      </span>
-                    </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      @{selectedConversation.user.username}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <AnimatePresence mode="wait" initial={false}>
+        {view === 'insights' ? (
+          <motion.div
+            key="insights-view"
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={fadeTransition}
+            className="flex-1 min-h-0 overflow-auto"
+          >
+            <MessageEngagementInsights />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="conversations-view"
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={fadeTransition}
+            className="flex min-h-0 flex-1 flex-col gap-2.5"
+          >
+            {selectedConversation ? (
               <FanProfileModal
                 open={fanProfileOpen}
                 onOpenChange={setFanProfileOpen}
@@ -564,44 +593,60 @@ function MessagesLayoutContent({
                 initialName={selectedConversation.user.name}
                 initialAvatar={selectedConversation.user.avatar}
               />
-            </>
-          )}
-          <div className="flex min-h-0 flex-1 gap-2">
-            {!isMobile && (
-              <ConversationRail
-                conversations={conversations}
-                selectedKey={
-                  selectedConversation ? conversationRowKey(selectedConversation) : undefined
+            ) : null}
+            <motion.div layout transition={panelTransition} className="min-h-0 flex flex-1">
+              <MessagingLayout
+                focusMode={focusMode}
+                leftPane={
+                  !isMobile ? (
+                    <ConversationRail
+                      conversations={conversations}
+                      selectedKey={
+                        selectedConversation ? conversationRowKey(selectedConversation) : undefined
+                      }
+                      onSelect={(conv) => setSelectedConversation(conv)}
+                      expanded={chatsRailExpanded}
+                      onExpandedChange={(expanded) => {
+                        setChatsRailExpanded(expanded)
+                      }}
+                      segment={segment}
+                      onSegmentChange={setSegment}
+                      sort={sort}
+                      onSortChange={setSort}
+                      platform={inboxPlatform}
+                      onPlatformChange={setInboxPlatform}
+                      tag={tag}
+                      onTagChange={setTag}
+                      searchQuery={inboxSearch}
+                      onSearchQueryChange={setInboxSearch}
+                      hasMore={hasMoreInbox}
+                      loadingMore={loadingMore}
+                      onLoadMore={loadMoreInbox}
+                      searchInputRef={inboxSearchInputRef}
+                    />
+                  ) : null
                 }
-                onSelect={(conv) => setSelectedConversation(conv)}
-                expanded={chatsRailExpanded}
-                onExpandedChange={(expanded) => {
-                  setChatsRailExpanded(expanded)
-                }}
-                segment={segment}
-                onSegmentChange={setSegment}
-                sort={sort}
-                onSortChange={setSort}
-                platform={inboxPlatform}
-                onPlatformChange={setInboxPlatform}
-                tag={tag}
-                onTagChange={setTag}
-                searchQuery={inboxSearch}
-                onSearchQueryChange={setInboxSearch}
-                hasMore={hasMoreInbox}
-                loadingMore={loadingMore}
-                onLoadMore={loadMoreInbox}
+                centerPane={
+                  <ChatWindow
+                    conversation={selectedConversation}
+                    userId={userId}
+                    chatterDraftOutboxId={chatterDraftOutboxId}
+                    onMessageSent={() => void loadInbox({ refresh: true })}
+                    onOpenFanProfile={() => setFanProfileOpen(true)}
+                    nullConversationTitle={emptyInboxChatTitle}
+                    nullConversationDescription={emptyInboxChatDescription}
+                  />
+                }
+                rightPane={
+                  !isMobile && rightDrawerOpen && selectedConversation ? (
+                    <RightDrawer
+                      conversation={selectedConversation}
+                      onOpenFanProfile={() => setFanProfileOpen(true)}
+                    />
+                  ) : null
+                }
               />
-            )}
-            <ChatWindow
-              conversation={selectedConversation}
-              userId={userId}
-              chatterDraftOutboxId={chatterDraftOutboxId}
-              onMessageSent={() => void loadInbox({ refresh: true })}
-              onOpenFanProfile={() => setFanProfileOpen(true)}
-              nullConversationTitle={emptyInboxChatTitle}
-              nullConversationDescription={emptyInboxChatDescription}
-            />
+            </motion.div>
             {isMobile && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">
@@ -626,6 +671,7 @@ function MessagesLayoutContent({
                     <div className="relative shrink-0">
                       <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <Input
+                        ref={mobileSearchInputRef}
                         placeholder="Search name…"
                         className="h-9 bg-input pl-8 text-sm"
                         value={inboxSearch}
@@ -651,9 +697,9 @@ function MessagesLayoutContent({
                 </SheetContent>
               </Sheet>
             )}
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

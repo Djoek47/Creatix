@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ import {
   shouldAutoMarkOnOpen,
   type MessagingReadPreferences,
 } from '@/lib/messaging-read-preferences'
+import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
@@ -228,6 +231,14 @@ interface OnlyFansMessage {
   }
 }
 
+type VaultVideoRow = {
+  id: string
+  title: string | null
+  content_type: string
+  file_url: string | null
+  vault_storage_path?: string | null
+}
+
 interface ChatWindowProps {
   conversation: OnlyFansConversation | null
   userId: string
@@ -338,7 +349,7 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
         poster={videoPoster}
         controls
         playsInline
-        className="rounded-lg max-w-full"
+        className="rounded-lg max-w-full object-contain w-full max-h-[62vh] bg-black/30"
         referrerPolicy="no-referrer"
         onError={() => {
           if (videoIdx < videoChain.length - 1) {
@@ -363,7 +374,7 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
     <img
       src={imgSrc}
       alt="Media"
-      className="rounded-lg max-w-full h-auto"
+      className="rounded-lg max-w-full h-auto object-contain max-h-[62vh]"
       referrerPolicy="no-referrer"
       loading="lazy"
       decoding="async"
@@ -415,7 +426,7 @@ function ChatPreviewImage({
     <img
       src={src}
       alt="Preview"
-      className="rounded-lg max-w-full h-auto"
+      className="rounded-lg max-w-full h-auto object-contain max-h-[62vh]"
       referrerPolicy="no-referrer"
       loading="lazy"
       decoding="async"
@@ -436,6 +447,8 @@ export function ChatWindow({
   nullConversationTitle,
   nullConversationDescription,
 }: ChatWindowProps) {
+  const { reduced } = useUiMotionPreferences()
+  const fadeTransition = uiFadeTransition(reduced)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<OnlyFansMessage[]>([])
   const [loading, setLoading] = useState(false)
@@ -457,6 +470,11 @@ export function ChatWindow({
   const [ppvPrice, setPpvPrice] = useState<string>('')
   const [attachedMediaIds, setAttachedMediaIds] = useState<string[]>([])
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [traceEnabled, setTraceEnabled] = useState(false)
+  const [traceContentId, setTraceContentId] = useState('')
+  const [traceRecipientKey, setTraceRecipientKey] = useState('')
+  const [traceVaultRows, setTraceVaultRows] = useState<VaultVideoRow[]>([])
+  const [traceVaultLoading, setTraceVaultLoading] = useState(false)
   const chatFileInputRef = useRef<HTMLInputElement>(null)
   const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | 'mimic' | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -511,6 +529,31 @@ export function ChatWindow({
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
+
+  useEffect(() => {
+    if (!traceEnabled || !isOnlyFansConversation) return
+    let cancelled = false
+    setTraceVaultLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch('/api/content/vault')
+        const json = (await res.json()) as { items?: VaultVideoRow[] }
+        if (!res.ok || cancelled) return
+        const list = Array.isArray(json.items) ? json.items : []
+        const videos = list.filter((row) => row.content_type === 'video' && (row.file_url || row.vault_storage_path))
+        if (cancelled) return
+        setTraceVaultRows(videos)
+        if (!traceContentId && videos.length > 0) setTraceContentId(videos[0].id)
+      } catch {
+        if (!cancelled) setTraceVaultRows([])
+      } finally {
+        if (!cancelled) setTraceVaultLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [traceEnabled, isOnlyFansConversation, traceContentId])
 
   const onlyFansChatReadMode = useMemo(() => {
     if (!conversation || conversation.platform !== 'onlyfans' || !messagingReadPrefs) return null
@@ -1118,9 +1161,29 @@ export function ChatWindow({
     setPpvPrice('')
 
     try {
-      const body: { text: string; mediaIds?: string[]; price?: number } = { text: messageText }
+      const body: {
+        text: string
+        mediaIds?: string[]
+        price?: number
+        trace?: {
+          enabled: boolean
+          contentId: string
+          recipientKey?: string
+          recipientUsername?: string
+          recipientDisplayName?: string
+        }
+      } = { text: messageText }
       if (mediaIdsToSend.length > 0) body.mediaIds = mediaIdsToSend
       if (priceToSend != null && !Number.isNaN(priceToSend) && priceToSend >= 0) body.price = priceToSend
+      if (traceEnabled) {
+        body.trace = {
+          enabled: true,
+          contentId: traceContentId,
+          recipientKey: traceRecipientKey.trim() || conversation.user.username || String(conversation.user.id),
+          recipientUsername: conversation.user.username,
+          recipientDisplayName: conversation.user.name,
+        }
+      }
 
       const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}`, {
         method: 'POST',
@@ -1131,6 +1194,7 @@ export function ChatWindow({
         const data = (await res.json()) as {
         error?: string
         message?: OnlyFansMessage & { id?: string | number }
+        trace?: { payloadId?: string; exportId?: string; creditsCharged?: number }
       }
 
       if (!res.ok) {
@@ -1164,6 +1228,9 @@ export function ChatWindow({
             }),
           }).catch(() => undefined)
         }
+      }
+      if (data.trace?.payloadId) {
+        setError(null)
       }
       void fetch('/api/divine/refresh-thread-insight', {
         method: 'POST',
@@ -1215,7 +1282,7 @@ export function ChatWindow({
     const title = nullConversationTitle ?? 'Select a conversation'
     const description = nullConversationDescription
     return (
-      <Card className="flex min-h-0 flex-1 items-center justify-center border-border bg-card">
+      <Card className="flex min-h-0 flex-1 items-center justify-center rounded-xl border-border/80 bg-card/95">
         <div className="flex max-w-md flex-col items-center px-4 text-center text-muted-foreground">
           <svg className="mb-4 h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -1234,11 +1301,17 @@ export function ChatWindow({
   const fan = conversation.user
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden border-border bg-card py-0 shadow-sm">
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={fadeTransition}
+      className="flex min-h-0 flex-1"
+    >
+    <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden rounded-xl border-border/80 bg-card/95 py-0 shadow-sm">
       {/* Label + thread actions (menu only — no separate “Thread tools” bar) */}
-      <div className="z-10 shrink-0 border-b border-border/60 bg-card px-3 py-2 sm:px-4">
+      <div className="z-10 shrink-0 border-b border-border/60 bg-card/95 px-3.5 py-2.5 sm:px-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] font-medium uppercase leading-normal tracking-wide text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase leading-normal tracking-[0.14em] text-muted-foreground">
             Fan conversation
           </p>
           <DropdownMenu>
@@ -1359,7 +1432,7 @@ export function ChatWindow({
           ref={messagesContainerRef}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
         >
-        <div className="p-3 sm:p-4">
+        <div className="p-3.5 sm:p-4">
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center sm:min-h-[240px]">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1394,7 +1467,7 @@ export function ChatWindow({
             <p className="text-xs text-muted-foreground">Start the conversation!</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {messages.map((msg) => {
               const fromId = msg.fromUser?.id
               const isCreator =
@@ -1417,7 +1490,7 @@ export function ChatWindow({
                 >
                   <div
                     className={cn(
-                      'max-w-[82%] rounded-2xl px-4 py-2',
+                      'max-w-[96%] md:max-w-[90%] rounded-2xl px-4 py-2',
                       fanSavedDeletedOnOF
                         ? 'border-2 border-red-500/55 bg-red-950/55 text-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] dark:bg-red-950/70'
                         : isCreator && creatorStyles
@@ -1454,7 +1527,7 @@ export function ChatWindow({
                     {msg.text && (
                       <p
                         className={cn(
-                          'text-sm whitespace-pre-wrap',
+                          'text-[13px] leading-relaxed whitespace-pre-wrap',
                           fanSavedDeletedOnOF && 'text-red-50',
                         )}
                       >
@@ -1782,7 +1855,7 @@ export function ChatWindow({
         </div>
 
       {/* Composer + send: fixed to bottom of chat card (always visible) */}
-      <div className="flex flex-shrink-0 flex-col border-t-2 border-border bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
+      <div className="flex flex-shrink-0 flex-col border-t border-border/80 bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
         {error && messages.length > 0 && (
           <div className="border-b border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:px-4">
             {error}
@@ -1791,7 +1864,7 @@ export function ChatWindow({
 
         <div
           className={cn(
-            'space-y-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-3',
+            'space-y-2.5 px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-4 sm:pb-3',
             /* Fixed Divine crown (~3.5rem) + edge inset — keep mic + send clear */
             reserveDivineCrownSpace && 'pb-1 pr-[5rem] sm:pr-[6rem]',
           )}
@@ -1819,6 +1892,55 @@ export function ChatWindow({
               )}
             </div>
           )}
+
+          {isOnlyFansConversation ? (
+            <div className="rounded-md border border-border bg-muted/20 p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Ariadne trace before send</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Per-recipient trace run ({traceEnabled ? 'enabled' : 'disabled'}) — billed separately.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={traceEnabled ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setTraceEnabled((v) => !v)}
+                >
+                  {traceEnabled ? 'Trace ON' : 'Trace OFF'}
+                </Button>
+              </div>
+              {traceEnabled ? (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Trace source video</Label>
+                    <Select value={traceContentId} onValueChange={setTraceContentId}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {traceVaultRows.map((row) => (
+                          <SelectItem key={row.id} value={row.id}>
+                            {(row.title || 'Untitled').slice(0, 46)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Recipient key override (optional)</Label>
+                    <Input
+                      value={traceRecipientKey}
+                      onChange={(e) => setTraceRecipientKey(e.target.value)}
+                      className="h-8 text-xs"
+                      placeholder={conversation.user.username || String(conversation.user.id)}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex min-w-0 items-end gap-2">
             <div className="flex shrink-0 flex-col gap-1.5">
@@ -1884,7 +2006,7 @@ export function ChatWindow({
                 }}
                 rows={1}
                 className={cn(
-                  'min-h-[3.25rem] resize-y bg-input pr-11 text-sm leading-relaxed sm:min-h-[3.75rem] sm:pr-12 sm:text-sm',
+                  'min-h-[80px] resize-y rounded-xl bg-input pr-11 text-sm leading-relaxed sm:pr-12 sm:text-sm',
                   divineComposerHighlight &&
                     'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
                 )}
@@ -1942,5 +2064,6 @@ export function ChatWindow({
         />
       )}
     </Card>
+    </motion.div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ type ConversationRailProps = {
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  searchInputRef?: RefObject<HTMLInputElement | null>
 }
 
 export function ConversationRail({
@@ -52,6 +53,7 @@ export function ConversationRail({
   hasMore,
   loadingMore,
   onLoadMore,
+  searchInputRef,
 }: ConversationRailProps) {
   const parentRef = useRef<HTMLDivElement>(null)
 
@@ -90,11 +92,13 @@ export function ConversationRail({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card transition-[width] duration-300 ease-out',
-        expanded ? 'w-[min(20rem,44vw)] min-w-[min(20rem,44vw)]' : 'w-[3.75rem] min-w-[3.75rem]',
+        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 transition-[width,box-shadow] duration-300 ease-out',
+        expanded
+          ? 'w-[min(18rem,34vw)] min-w-[15rem] xl:w-[min(20rem,30vw)] xl:min-w-[17rem]'
+          : 'w-[3.75rem] min-w-[3.75rem]',
       )}
     >
-      <div className="flex shrink-0 items-center justify-center border-b border-border p-1.5">
+      <div className="flex shrink-0 items-center justify-center border-b border-border/70 p-1.5">
         <Button
           type="button"
           variant="ghost"
@@ -119,12 +123,13 @@ export function ConversationRail({
             onPlatformChange={onPlatformChange}
             tag={tag}
             onTagChange={onTagChange}
-            className="shrink-0 px-2 pt-1"
+            className="shrink-0 px-2.5 pt-1"
           />
-          <div className="shrink-0 border-b border-border px-2 py-2">
+          <div className="shrink-0 border-b border-border/70 px-2.5 py-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder="Search name…"
                 className="h-9 bg-input pl-8 text-sm"
                 value={searchQuery}
@@ -135,7 +140,7 @@ export function ConversationRail({
         </>
       )}
 
-      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto p-1.5">
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
         {conversations.length === 0 ? (
           <p className="px-1 py-4 text-center text-xs text-muted-foreground">
             {searchQuery.trim()

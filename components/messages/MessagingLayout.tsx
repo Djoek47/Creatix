@@ -8,11 +8,19 @@ import { cn } from '@/lib/utils'
 type MessagingLayoutProps = {
   focusMode: boolean
   leftPane?: ReactNode
+  /** When false, the left rail is avatar-only; outer column must not reserve extra width. */
+  leftRailExpanded?: boolean
   centerPane: ReactNode
   rightPane?: ReactNode
 }
 
-export function MessagingLayout({ focusMode, leftPane, centerPane, rightPane }: MessagingLayoutProps) {
+export function MessagingLayout({
+  focusMode,
+  leftPane,
+  leftRailExpanded = true,
+  centerPane,
+  rightPane,
+}: MessagingLayoutProps) {
   const { reduced } = useUiMotionPreferences()
   const panelTransition = uiPanelTransition(reduced)
 
@@ -39,7 +47,12 @@ export function MessagingLayout({ focusMode, leftPane, centerPane, rightPane }: 
             animate={{ opacity: 1, x: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, x: -10 }}
             transition={panelTransition}
-            className={cn('hidden min-h-0 md:flex md:basis-[20%] md:max-w-[22%] md:min-w-[13rem]')}
+            className={cn(
+              'hidden min-h-0 md:flex',
+              leftRailExpanded
+                ? 'md:basis-[20%] md:max-w-[22%] md:min-w-[13rem]'
+                : 'md:max-w-none md:min-w-0 md:w-auto md:shrink-0 md:basis-auto md:flex-none',
+            )}
           >
             {leftPane}
           </motion.aside>

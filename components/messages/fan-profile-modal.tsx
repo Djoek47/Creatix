@@ -125,7 +125,7 @@ export function FanProfileModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[min(92dvh,900px)] w-[min(100vw-1.5rem,56rem)] max-w-5xl overflow-y-auto p-4 sm:max-w-5xl sm:p-6">
         <DialogHeader>
           <DialogTitle className="sr-only">Fan profile</DialogTitle>
           <DialogDescription className="sr-only">
@@ -367,7 +367,7 @@ export function FanProfileModal({
                 When the API returns their about text, we use it for creator detection. Fetch sparingly (cached ~24h).
               </p>
               {data.platformAbout?.trim() ? (
-                <p className="max-h-28 overflow-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                <p className="max-h-[min(40vh,18rem)] overflow-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
                   {data.platformAbout}
                 </p>
               ) : (
@@ -521,7 +521,7 @@ export function FanProfileModal({
           {data?.aiSummary?.summaryJson != null && (
             <div className="space-y-2">
               <p className="text-sm font-semibold">AI summary</p>
-              <pre className="max-h-40 overflow-auto rounded-md bg-muted/50 p-3 text-xs whitespace-pre-wrap break-words">
+              <pre className="max-h-[min(50vh,28rem)] overflow-auto rounded-md bg-muted/50 p-3 text-xs whitespace-pre-wrap break-words">
                 {JSON.stringify(data.aiSummary.summaryJson, null, 2)}
               </pre>
               {data.aiSummary.lastAnalyzedAt && (
@@ -535,7 +535,7 @@ export function FanProfileModal({
           {data?.threadInsight?.threadSnapshotExcerpt && (
             <div className="space-y-2">
               <p className="text-sm font-semibold">Thread snapshot (excerpt)</p>
-              <p className="max-h-40 overflow-auto rounded-md bg-muted/30 p-3 text-xs whitespace-pre-wrap text-muted-foreground">
+              <p className="max-h-[min(50vh,28rem)] overflow-auto rounded-md bg-muted/30 p-3 text-xs whitespace-pre-wrap text-muted-foreground">
                 {data.threadInsight.threadSnapshotExcerpt}
               </p>
               {data.threadInsight.lastThreadRefreshAt && (

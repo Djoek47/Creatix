@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
-import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
@@ -33,7 +32,6 @@ import {
   ArrowLeft,
   BarChart3,
   MessageSquare,
-  Megaphone,
   PanelLeft,
   User,
   Search,
@@ -531,12 +529,6 @@ function MessagesLayoutContent({
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               </Button>
-              <Button variant="outline" size="sm" className="hidden gap-1.5 sm:inline-flex" asChild>
-                <Link href="/dashboard/messages/mass">
-                  <Megaphone className="h-4 w-4" />
-                  Mass page
-                </Link>
-              </Button>
               <Button
                 variant="outline"
                 size="icon"
@@ -597,6 +589,7 @@ function MessagesLayoutContent({
             <motion.div layout transition={panelTransition} className="min-h-0 flex flex-1">
               <MessagingLayout
                 focusMode={focusMode}
+                leftRailExpanded={chatsRailExpanded}
                 leftPane={
                   !isMobile ? (
                     <ConversationRail

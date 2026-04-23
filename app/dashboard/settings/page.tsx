@@ -979,7 +979,7 @@ export default function SettingsPage() {
                         </Badge>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Random product tips while you use the dashboard (auto-dismiss after you read). The full numbered list lives on the Community tips page — {getCirceTipCount()} tips total.
+                        Random creator-economy insights while you use the dashboard (auto-dismiss after you read). The full numbered list lives on the Community tips page — {getCirceTipCount()} insights total.
                       </p>
                     </div>
                     <Switch

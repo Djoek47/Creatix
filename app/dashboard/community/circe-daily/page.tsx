@@ -33,20 +33,27 @@ export default function CirceDailyTipsPage() {
     <div className="mx-auto max-w-3xl space-y-8 p-4 pb-14 sm:p-6">
       <CirceDailyScrollToTip />
       <p className="text-sm text-muted-foreground leading-relaxed">
-        One highlighted tip each day; full archive below.{' '}
+        One highlighted insight each day; full archive below.{' '}
         <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
           Community board
         </Link>
         .
       </p>
 
-      <Card className="circe-tip-card-glow border-circe bg-gradient-to-br from-circe via-card to-card shadow-xl">
+      <Card className="circe-tip-floating-card text-card-foreground shadow-2xl">
         <CardHeader>
-          <div className="flex items-center gap-2 text-circe-light">
-            <Sparkles className="h-5 w-5" />
-            <CardTitle className="text-lg">Today&apos;s tip</CardTitle>
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-serif text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary/90">
+                Today&apos;s insight
+              </p>
+              <CardTitle className="mt-0.5 text-lg font-semibold leading-tight">Circe daily</CardTitle>
+              <CardDescription>Insight {todayIdx + 1} of {total} — rotates daily</CardDescription>
+            </div>
           </div>
-          <CardDescription>Tip #{todayIdx + 1} of {total} — rotates daily</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <h2 className="text-xl font-semibold text-foreground">{today.title}</h2>
@@ -56,14 +63,14 @@ export default function CirceDailyTipsPage() {
       </Card>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-medium">All tips</h2>
+        <h2 className="text-lg font-medium">All insights</h2>
         <ul className="space-y-4">
           {CIRCE_DAILY_TIPS.map((tip, i) => (
             <li key={tip.id} id={`tip-${tip.id}`} className="scroll-mt-24">
               <Card className={i === todayIdx ? 'ring-1 ring-circe/40' : ''}>
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-normal text-muted-foreground">
-                    Tip {i + 1} of {total}
+                    Insight {i + 1} of {total}
                   </CardDescription>
                   <CardTitle className="text-base pt-1">{tip.title}</CardTitle>
                 </CardHeader>

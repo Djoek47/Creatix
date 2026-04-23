@@ -200,7 +200,7 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-6 overflow-y-auto p-4">
+      <nav className="sidebar-nav-scroll flex-1 space-y-4 overflow-y-auto p-4">
         {/* Dashboard, Content, Messages - Black light/White dark */}
         <div className="space-y-1">
           {silverNavigation.map((item) => (

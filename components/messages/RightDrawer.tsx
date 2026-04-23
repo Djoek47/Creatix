@@ -43,8 +43,12 @@ export function RightDrawer({ conversation, onOpenFanProfile }: RightDrawerProps
         </div>
       </motion.div>
       <div className="mt-3.5 space-y-2">
-        <Button className="w-full" variant="outline" onClick={onOpenFanProfile}>
-          Open full profile
+        <Button
+          className="w-full"
+          variant="outline"
+          onClick={onOpenFanProfile}
+        >
+          View full profile
         </Button>
       </div>
     </Card>

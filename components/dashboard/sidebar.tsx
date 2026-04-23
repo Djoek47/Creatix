@@ -60,9 +60,19 @@ const venusNavigation: NavItem[] = [
   { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
-/** Slightly above text-sm (~9%) for readability; shared across every rail link */
-const sidebarLinkText = 'text-[0.95rem] leading-snug'
-const sidebarIconBox = 'h-[1.125rem] w-[1.125rem]'
+/** Base desktop rail sizing (keeps current look on roomy screens). */
+const SIDEBAR_SIZE = {
+  cozy: {
+    linkText: 'text-[0.95rem] leading-snug',
+    iconBox: 'h-[1.125rem] w-[1.125rem]',
+    sectionLabel: 'text-[0.7rem]',
+  },
+  compact: {
+    linkText: 'text-[0.875rem] leading-snug',
+    iconBox: 'h-4 w-4',
+    sectionLabel: 'text-[0.66rem]',
+  },
+} as const
 
 // Silver themed navigation
 const silverNavigation: NavItem[] = [
@@ -130,12 +140,14 @@ function NavLink({
   item, 
   variant = 'default', 
   pathname, 
-  collapsed 
+  collapsed,
+  compactDensity,
 }: { 
   item: NavItem
   variant?: NavVariant
   pathname: string
   collapsed: boolean
+  compactDensity: boolean
 }) {
   const isActive =
     item.href === '/dashboard/fans'
@@ -151,13 +163,13 @@ function NavLink({
       data-tour={item.href}
       className={cn(
         'group flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-2 font-medium transition-colors',
-        sidebarLinkText,
+        compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
         isActive ? styles.active : styles.inactive
       )}
     >
       <Icon
         className={cn(
-          sidebarIconBox,
+          compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
           'flex-shrink-0',
           isAiStudio ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate') : isActive && styles.icon,
         )}
@@ -188,6 +200,7 @@ function NavLink({
 export function DashboardSidebar({ profile }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [compactDensity, setCompactDensity] = useState(false)
   const isMessagesRoute = pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')
 
   useEffect(() => {
@@ -203,6 +216,17 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       window.removeEventListener('messages:open-chats-menu', onOpenChatsMenu as EventListener)
     }
   }, [isMessagesRoute])
+
+  useEffect(() => {
+    const checkDensity = () => {
+      const shortScreen = window.innerHeight < 860
+      const narrowScreen = window.innerWidth < 1320
+      setCompactDensity(shortScreen || narrowScreen)
+    }
+    checkDensity()
+    window.addEventListener('resize', checkDensity)
+    return () => window.removeEventListener('resize', checkDensity)
+  }, [])
 
   const handleRealmReload = () => {
     const hue = document.documentElement.classList.contains('dark') ? 'purple' : 'gold'
@@ -245,14 +269,28 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         {/* Dashboard, Content, Messages - Black light/White dark — compact, same size as rest */}
         <div className="space-y-0.5">
           {silverNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="default" pathname={pathname} collapsed={collapsed} />
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="default"
+              pathname={pathname}
+              collapsed={collapsed}
+              compactDensity={compactDensity}
+            />
           ))}
         </div>
 
         {/* AI Studio — gold + purple glow; rainbow on hover */}
         <div className="space-y-0.5">
           {aiStudioNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="ai-studio" pathname={pathname} collapsed={collapsed} />
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="ai-studio"
+              pathname={pathname}
+              collapsed={collapsed}
+              compactDensity={compactDensity}
+            />
           ))}
         </div>
 
@@ -260,14 +298,31 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         <div className="space-y-0.5">
           {!collapsed && (
             <div className="flex items-center gap-1.5 px-2.5 py-0.5">
-              <Moon className={`${sidebarIconBox} text-circe-light`} />
-              <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-circe-light/70">
+              <Moon
+                className={cn(
+                  compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+                  'text-circe-light',
+                )}
+              />
+              <span
+                className={cn(
+                  compactDensity ? SIDEBAR_SIZE.compact.sectionLabel : SIDEBAR_SIZE.cozy.sectionLabel,
+                  'font-medium uppercase leading-none tracking-wide text-circe-light/70',
+                )}
+              >
                 Circe
               </span>
             </div>
           )}
           {circeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="circe"
+              pathname={pathname}
+              collapsed={collapsed}
+              compactDensity={compactDensity}
+            />
           ))}
         </div>
 
@@ -275,14 +330,31 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         <div className="space-y-0.5">
           {!collapsed && (
             <div className="flex items-center gap-1.5 px-2.5 py-0.5">
-              <Sun className={`${sidebarIconBox} text-gold`} />
-              <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-gold/70">
+              <Sun
+                className={cn(
+                  compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+                  'text-gold',
+                )}
+              />
+              <span
+                className={cn(
+                  compactDensity ? SIDEBAR_SIZE.compact.sectionLabel : SIDEBAR_SIZE.cozy.sectionLabel,
+                  'font-medium uppercase leading-none tracking-wide text-gold/70',
+                )}
+              >
                 Venus
               </span>
             </div>
           )}
           {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="venus"
+              pathname={pathname}
+              collapsed={collapsed}
+              compactDensity={compactDensity}
+            />
           ))}
         </div>
       </nav>
@@ -290,13 +362,25 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
       <div className="shrink-0 space-y-0.5 border-t border-sidebar-border px-2 py-1.5">
         {bottomNavigation.map((item) => (
-          <NavLink key={item.name} item={item} variant="default" pathname={pathname} collapsed={collapsed} />
+          <NavLink
+            key={item.name}
+            item={item}
+            variant="default"
+            pathname={pathname}
+            collapsed={collapsed}
+            compactDensity={compactDensity}
+          />
         ))}
 
-        {/* User info - Gold in light mode, Purple in dark mode */}
-        {!collapsed && profile && (
+        {/* Hide low-priority identity block on tight viewports so nav never crops. */}
+        {!collapsed && profile && !compactDensity && (
           <div className="mt-1.5 rounded-md bg-sidebar-accent/30 p-2">
-            <p className={`truncate font-medium leading-tight text-amber-600 dark:text-circe-light ${sidebarLinkText}`}>
+            <p
+              className={cn(
+                'truncate font-medium leading-tight text-amber-600 dark:text-circe-light',
+                SIDEBAR_SIZE.cozy.linkText,
+              )}
+            >
               {profile.full_name || 'Divine Creator'}
             </p>
             <p className="truncate text-[0.8rem] leading-tight text-amber-600/70 dark:text-circe-light/70">

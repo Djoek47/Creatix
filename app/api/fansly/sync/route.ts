@@ -55,11 +55,13 @@ export async function POST(request: NextRequest) {
 
     // Store analytics snapshot
     const today = new Date().toISOString().split('T')[0]
+    const fanslyFollows = profile.followersCount ?? (followers as { count?: number }).count ?? 0
     await supabase.from('analytics_snapshots').upsert({
       user_id: user.id,
       platform: 'fansly',
       date: today,
       total_fans: fans.count || 0,
+      total_follows: Math.max(0, Number(fanslyFollows) || 0),
       new_fans: 0,
       churned_fans: 0,
       revenue: earnings.total || 0,

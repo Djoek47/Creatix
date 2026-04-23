@@ -25,13 +25,10 @@ import {
   MessagesSquare,
   Activity,
   LucideIcon,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
-import { useEffect, useState } from 'react'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 
 interface MobileSidebarProps {
@@ -49,18 +46,18 @@ interface NavItem {
 const circeNavigation: NavItem[] = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
-]
-const circeAdvancedNavigation: NavItem[] = [
   { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-]
-const venusAdvancedNavigation: NavItem[] = [
   { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
+
+/** Match desktop sidebar: ~9% larger than text-sm; icons scale with row */
+const mobileNavText = 'text-[0.95rem] leading-snug'
+const mobileNavIcon = 'h-[1.125rem] w-[1.125rem]'
 
 const silverNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -84,21 +81,6 @@ const bottomNavigation: NavItem[] = [
 
 export function MobileSidebar({ profile }: MobileSidebarProps) {
   const pathname = usePathname()
-  const [circeExpanded, setCirceExpanded] = useState(
-    pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/'),
-  )
-  const [venusExpanded, setVenusExpanded] = useState(
-    pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/'),
-  )
-
-  useEffect(() => {
-    if (pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/')) {
-      setCirceExpanded(true)
-    }
-    if (pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/')) {
-      setVenusExpanded(true)
-    }
-  }, [pathname])
 
   const handleRealmReload = () => {
     const hue = document.documentElement.classList.contains('dark') ? 'purple' : 'gold'
@@ -107,7 +89,10 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
   }
 
   const NavLink = ({ item, variant = 'default' }: { item: NavItem, variant?: 'default' | 'circe' | 'venus' | 'ai-studio' }) => {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+    const isActive =
+      item.href === '/dashboard/fans'
+        ? pathname === '/dashboard/fans'
+        : pathname === item.href || pathname.startsWith(item.href + '/')
     const isAiStudio = variant === 'ai-studio'
     
     const variantStyles = {
@@ -146,12 +131,14 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
           href={item.href}
           data-tour={item.href}
           className={cn(
-            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
+            'flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2.5 font-medium transition-colors',
+            mobileNavText,
             isActive ? styles.active : styles.inactive
           )}
         >
           <item.icon className={cn(
-            'h-5 w-5 flex-shrink-0', 
+            mobileNavIcon,
+            'flex-shrink-0',
             isActive && styles.icon,
             isAiStudio && 'animate-hue-rotate'
           )} />
@@ -166,7 +153,7 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
               {item.name}
             </span>
             {item.beta ? (
-              <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[10px] uppercase tracking-wide text-amber-500">
+              <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
                 Beta
               </span>
             ) : null}
@@ -193,95 +180,67 @@ export function MobileSidebar({ profile }: MobileSidebarProps) {
             className="flex-shrink-0 rounded-full"
             priority
           />
-          <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
+          <span className="font-serif text-[0.8rem] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
             CIRCE ET VENUS
           </span>
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="sidebar-nav-scroll flex-1 space-y-4 overflow-y-auto p-4">
+      <nav className="sidebar-nav-scroll flex-1 space-y-3 overflow-y-auto p-4">
         {/* Dashboard, Content, Messages - Black light/White dark */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {silverNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="default" />
           ))}
         </div>
 
         {/* AI Studio - Rainbow/Multicolor */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {aiStudioNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="ai-studio" />
           ))}
         </div>
 
         {/* Circe's Domain */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Moon className="h-4 w-4 text-circe-light" />
-            <span className="text-xs font-medium uppercase tracking-wider text-circe-light/70">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2 px-3 py-1">
+            <Moon className={`${mobileNavIcon} text-circe-light`} />
+            <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-circe-light/70">
               Circe
             </span>
           </div>
           {circeNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="circe" />
           ))}
-          <button
-            type="button"
-            onClick={() => setCirceExpanded((v) => !v)}
-            className="flex min-h-[40px] w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium uppercase tracking-wide text-circe-light/70 transition-colors hover:bg-circe/10 hover:text-circe-light"
-            aria-expanded={circeExpanded}
-            aria-label={circeExpanded ? 'Hide Circe advanced items' : 'Show Circe advanced items'}
-          >
-            <span>More</span>
-            {circeExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          {circeExpanded &&
-            circeAdvancedNavigation.map((item) => (
-              <NavLink key={item.name} item={item} variant="circe" />
-            ))}
         </div>
 
         {/* Venus's Domain - Gold */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Sun className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-            <span className="text-xs font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-500/70">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2 px-3 py-1">
+            <Sun className={`${mobileNavIcon} text-amber-500 dark:text-amber-400`} />
+            <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-amber-600/70 dark:text-amber-500/70">
               Venus
             </span>
           </div>
           {venusNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="venus" />
           ))}
-          <button
-            type="button"
-            onClick={() => setVenusExpanded((v) => !v)}
-            className="flex min-h-[40px] w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium uppercase tracking-wide text-amber-600/70 transition-colors hover:bg-amber-500/10 hover:text-amber-500 dark:text-amber-500/70 dark:hover:text-amber-400"
-            aria-expanded={venusExpanded}
-            aria-label={venusExpanded ? 'Hide Venus advanced items' : 'Show Venus advanced items'}
-          >
-            <span>More</span>
-            {venusExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          {venusExpanded &&
-            venusAdvancedNavigation.map((item) => (
-              <NavLink key={item.name} item={item} variant="venus" />
-            ))}
         </div>
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-border p-4">
+      <div className="space-y-0.5 border-t border-border p-4">
         {bottomNavigation.map((item) => (
           <NavLink key={item.name} item={item} variant="default" />
         ))}
 
         {profile && (
-          <div className="mt-4 rounded-lg bg-muted/50 p-3">
-            <p className="truncate text-sm font-medium text-amber-600 dark:text-circe-light">
+          <div className="mt-2 rounded-lg bg-muted/50 p-2.5">
+            <p className={`truncate font-medium text-amber-600 dark:text-circe-light ${mobileNavText}`}>
               {profile.full_name || 'Divine Creator'}
             </p>
-            <p className="truncate text-xs text-amber-600/70 dark:text-circe-light/70">
+            <p className="truncate text-[0.8rem] leading-tight text-amber-600/70 dark:text-circe-light/70">
               {profile.email}
             </p>
           </div>

@@ -408,7 +408,9 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE VIEW public.credit_wallet_reconciliation AS
+-- security_invoker: evaluate with caller's privileges and enforce RLS (not view owner)
+CREATE OR REPLACE VIEW public.credit_wallet_reconciliation
+WITH (security_invoker = true) AS
 SELECT
   w.user_id,
   w.included_credits_remaining,

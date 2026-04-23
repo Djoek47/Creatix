@@ -24,7 +24,14 @@ import { LayoutGrid, Table2 } from 'lucide-react'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
-export type AudienceFilter = 'all' | 'whales' | 'creators' | 'fans'
+export type AudienceFilter =
+  | 'all'
+  | 'whales'
+  | 'creators'
+  | 'paying_creators'
+  | 'advertisements'
+  | 'freeloaders'
+  | 'fans'
 
 export type PlatformScope = 'all' | 'onlyfans' | 'fansly'
 
@@ -45,6 +52,8 @@ interface FansPageClientProps {
   analyticsTotalFans?: number
   /** Latest Circe snapshot total_fans per platform (analytics_snapshots). */
   snapshotFansByPlatform?: Record<string, number>
+  /** Free / non-sub follows per platform (e.g. OF free followers, Fansly followers). */
+  snapshotFollowsByPlatform?: Record<string, number>
 }
 
 export function FansPageClient({
@@ -55,6 +64,7 @@ export function FansPageClient({
   hasFanPlatformsConnected,
   analyticsTotalFans = 0,
   snapshotFansByPlatform = {},
+  snapshotFollowsByPlatform = {},
 }: FansPageClientProps) {
   const searchParams = useSearchParams()
 
@@ -228,6 +238,15 @@ export function FansPageClient({
       const a = f.audience
       if (audienceFilter === 'whales') return a?.isWhaleOrVip === true
       if (audienceFilter === 'creators') return a?.isCreatorLikely === true
+      if (audienceFilter === 'paying_creators') {
+        return Boolean(a?.badges?.some((b) => b.key === 'paying_creator'))
+      }
+      if (audienceFilter === 'advertisements') {
+        return Boolean(a?.badges?.some((b) => b.key === 'advertisement'))
+      }
+      if (audienceFilter === 'freeloaders') {
+        return Boolean(a?.badges?.some((b) => b.key === 'freeloader'))
+      }
       if (audienceFilter === 'fans') return !(a?.isCreatorLikely ?? false)
       return true
     })
@@ -288,6 +307,9 @@ export function FansPageClient({
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="whales">Whale / VIP</SelectItem>
               <SelectItem value="creators">Creator signal</SelectItem>
+              <SelectItem value="paying_creators">Paying creator</SelectItem>
+              <SelectItem value="advertisements">Advertisement</SelectItem>
+              <SelectItem value="freeloaders">Freeloader</SelectItem>
               <SelectItem value="fans">Typical fans</SelectItem>
             </SelectContent>
           </Select>
@@ -305,6 +327,7 @@ export function FansPageClient({
         stats={stats}
         platformScope={platformScope}
         snapshotFansByPlatform={snapshotFansByPlatform}
+        snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>

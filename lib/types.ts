@@ -2,6 +2,7 @@
 
 import type { AudienceBadge } from '@/lib/fans/audience-classification'
 import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import type { FanProfileType } from '@/lib/fans/profile-types'
 
 export type Platform = 'onlyfans' | 'fansly' | 'manyvids' | 'mym' | 'loyalfans'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
@@ -114,10 +115,8 @@ export interface Fan {
   updated_at: string
   /** Server-derived when loading /dashboard/fans from DB + thread insights. */
   audience?: FanAudienceMeta
-  /**
-   * Optional manual profile type for CRM (badges + filters). `auto` = use spend + thread insights.
-   */
-  audience_profile_override?: 'auto' | 'whale' | 'creator' | 'fan' | null
+  /** Optional explicit manual profile type for CRM (null = backend-derived). */
+  audience_profile_override?: FanProfileType | null
 }
 
 export interface Content {

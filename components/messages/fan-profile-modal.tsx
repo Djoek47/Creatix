@@ -24,6 +24,7 @@ import {
   type AudienceProfileValue,
 } from '@/components/fans/fan-profile-type-select'
 import { cn } from '@/lib/utils'
+import type { FanProfileType } from '@/lib/fans/profile-types'
 
 type FanProfileModalProps = {
   open: boolean
@@ -195,12 +196,24 @@ export function FanProfileModal({
               <div className="space-y-1.5 rounded-md border border-border bg-muted/25 p-2.5">
                 <Label className="text-[11px] font-medium">CRM profile type</Label>
                 <p className="text-[10px] text-muted-foreground">
-                  Same control as Fans — overrides auto whale / creator signals for this thread.
+                  Explicit CRM type. The backend keeps evolving signals in sync when no manual override exists.
                 </p>
                 <FanProfileTypeSelect
-                  value={(data?.audienceProfileOverride ?? 'auto') as AudienceProfileValue}
+                  value={
+                    ((data?.audienceProfileOverride ?? data?.profileType ?? 'fan') as FanProfileType) as AudienceProfileValue
+                  }
                   disabled={profileTypeSaving || loading || !fanId}
                   onChange={async (v) => {
+                    if (!data) return
+                    const prev = data
+                    const optimistic = {
+                      ...data,
+                      audienceProfileOverride: v,
+                      profileType: v,
+                      profileTypeSource: 'manual' as const,
+                      profileTypeReason: 'Manual override has priority',
+                    }
+                    setData(optimistic)
                     setProfileTypeSaving(true)
                     setError(null)
                     try {
@@ -211,7 +224,7 @@ export function FanProfileModal({
                         body: JSON.stringify({
                           fanId,
                           platform,
-                          audience_profile_override: v === 'auto' ? null : v,
+                          audience_profile_override: v,
                         }),
                       })
                       const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
@@ -220,13 +233,19 @@ export function FanProfileModal({
                       if (!res.ok) throw new Error(json.error || 'Failed to save profile type')
                       setData(json)
                     } catch (e) {
+                      setData(prev)
                       setError(e instanceof Error ? e.message : 'Save failed')
                     } finally {
                       setProfileTypeSaving(false)
                     }
                   }}
-                  className="w-full max-w-[260px]"
+                  className="w-full"
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  Active type: <span className="font-medium text-foreground">{data?.profileType?.replace(/_/g, ' ')}</span>
+                  {' · '}
+                  <span className="uppercase tracking-wide">{data?.profileTypeSource}</span>
+                </p>
               </div>
 
               {data?.crm != null && (
@@ -366,6 +385,12 @@ export function FanProfileModal({
               <p className="text-[11px] text-muted-foreground">
                 When the API returns their about text, we use it for creator detection. Fetch sparingly (cached ~24h).
               </p>
+              {data.platformAboutSource !== 'none' ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Source: {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Serper fallback'} · freshness:{' '}
+                  {data.platformAboutFreshness}
+                </p>
+              ) : null}
               {data.platformAbout?.trim() ? (
                 <p className="max-h-[min(40vh,18rem)] overflow-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
                   {data.platformAbout}
@@ -410,7 +435,7 @@ export function FanProfileModal({
                       Fetching…
                     </>
                   ) : (
-                    'Refresh from OnlyFans'
+                    'Refresh bio'
                   )}
                 </Button>
               </div>

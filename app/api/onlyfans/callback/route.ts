@@ -10,6 +10,7 @@ import {
   inferCreatorPageModelFromApiPayload,
   shouldApplyApiInferenceForCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { onlyFansSubscribersAndFollows } from '@/lib/onlyfans/onlyfans-snapshot-audience'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -163,6 +164,7 @@ async function syncOnlyFansData(request: NextRequest, userId: string, accountId:
         .eq('platform', 'onlyfans')
     }
 
+    const { follows: onlyFansFollows } = onlyFansSubscribersAndFollows(stats, accountRaw)
     const today = new Date().toISOString().split('T')[0]
     await supabase.from('analytics_snapshots').upsert(
       {
@@ -170,6 +172,7 @@ async function syncOnlyFansData(request: NextRequest, userId: string, accountId:
         platform: 'onlyfans',
         date: today,
         total_fans: stats?.fans?.total ?? 0,
+        total_follows: onlyFansFollows,
         new_fans: stats?.fans?.new ?? 0,
         churned_fans: stats?.fans?.expired ?? 0,
         revenue: earningsResult?.total ?? 0,

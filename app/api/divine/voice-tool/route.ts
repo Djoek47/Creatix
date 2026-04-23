@@ -223,6 +223,7 @@ export async function POST(req: NextRequest) {
         ...base,
         ...refined.patch,
         version: 1,
+        consentFanFacingDrafts: true,
         aiInterviewSummary: refined.summary,
         aiInterviewAt: new Date().toISOString(),
         interviewTranscript: transcript,

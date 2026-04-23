@@ -5,6 +5,8 @@ import {
   resolveCreatorLikelyFromInsight,
 } from '@/lib/fans/audience-classification'
 import { avatarUrlFromInsightProfileJson } from '@/lib/fans/avatar-from-profile-json'
+import { isFanProfileType } from '@/lib/fans/profile-types'
+import { deriveProfileType } from '@/lib/fans/profile-evolution'
 
 /** Apply manual CRM profile type from `fan.audience_profile_override`. */
 export function applyAudienceProfileOverride(
@@ -13,7 +15,7 @@ export function applyAudienceProfileOverride(
   tierForAudience: string,
 ): FanAudienceMeta {
   const o = fan.audience_profile_override
-  if (!o || o === 'auto') return base
+  if (!isFanProfileType(o)) return base
 
   if (o === 'whale') {
     const tier = fan.total_spent >= 500 ? 'vip' : 'whale'
@@ -24,6 +26,7 @@ export function applyAudienceProfileOverride(
         totalSpent: Math.max(fan.total_spent, 100),
         tier,
         creatorLikely: base.isCreatorLikely,
+        profileType: 'whale',
       }),
     }
   }
@@ -36,18 +39,21 @@ export function applyAudienceProfileOverride(
         totalSpent: fan.total_spent,
         tier: tierForAudience,
         creatorLikely: true,
+        profileType: 'creator',
       }),
     }
   }
 
-  if (o === 'fan') {
+  if (o === 'fan' || o === 'advertisement' || o === 'freeloader' || o === 'paying_creator') {
+    const creatorLikely = o === 'paying_creator'
     return {
       isWhaleOrVip: isWhaleOrVipAudience(fan.total_spent, tierForAudience),
-      isCreatorLikely: false,
+      isCreatorLikely: creatorLikely,
       badges: buildAudienceBadges({
         totalSpent: fan.total_spent,
         tier: tierForAudience,
-        creatorLikely: false,
+        creatorLikely,
+        profileType: o,
       }),
     }
   }
@@ -88,7 +94,7 @@ export function audienceMetaWithProfileOverride(
     is_blocked: false,
     created_at: '',
     updated_at: '',
-    audience_profile_override,
+    audience_profile_override: isFanProfileType(audience_profile_override) ? audience_profile_override : null,
   }
   return applyAudienceProfileOverride(stub, base, tierForAudience)
 }
@@ -123,13 +129,34 @@ export function mergeThreadInsightsIntoFan(
   const tierForAudience = tierOverride?.trim() || spendDerived || fan.tier
 
   const baseAudience: FanAudienceMeta = {
+    ...(function () {
+      const subscriptionStartIso =
+        typeof fan.subscription_start === 'string' && fan.subscription_start ? fan.subscription_start : null
+      let tenureDays: number | null = null
+      if (subscriptionStartIso) {
+        const t = new Date(subscriptionStartIso).getTime()
+        if (!Number.isNaN(t)) tenureDays = Math.max(0, Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000)))
+      }
+      const evolved = deriveProfileType({
+        manualOverride: null,
+        totalSpent: fan.total_spent,
+        fanTenureDays: tenureDays,
+        creatorLikely,
+        hasPpvSignalFromFan: false,
+        adPatternScore: 0,
+        outboundSellingScore: 0,
+      })
+      return {
+        badges: buildAudienceBadges({
+          totalSpent: fan.total_spent,
+          tier: tierForAudience,
+          creatorLikely,
+          profileType: evolved.profileType,
+        }),
+      }
+    })(),
     isWhaleOrVip: isWhaleOrVipAudience(fan.total_spent, tierForAudience),
     isCreatorLikely: creatorLikely,
-    badges: buildAudienceBadges({
-      totalSpent: fan.total_spent,
-      tier: tierForAudience,
-      creatorLikely,
-    }),
   }
 
   const insightAvatar = avatarUrlFromInsightProfileJson(insight?.profile_json)

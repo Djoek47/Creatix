@@ -318,6 +318,19 @@ export async function POST(
 
     await upsertOnlyFansDmMessageCache(supabase, user.id, fanId, [result])
 
+    if (typeof price === 'number' && price > 0) {
+      await supabase
+        .from('fans')
+        .update({
+          audience_profile_override: 'paying_creator',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('platform', 'onlyfans')
+        .eq('platform_fan_id', String(fanId))
+        .is('audience_profile_override', null)
+    }
+
     logMessageSendEvent({
       userId: user.id,
       platform: 'onlyfans',

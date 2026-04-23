@@ -18,15 +18,15 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created
 -- Enable RLS
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- RLS policies
+-- RLS policies — (select auth.uid()) = single initplan per query, not per row
 CREATE POLICY notifications_select_own ON notifications
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY notifications_insert_own ON notifications
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY notifications_update_own ON notifications
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING ((select auth.uid()) = user_id);
 
 CREATE POLICY notifications_delete_own ON notifications
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE USING ((select auth.uid()) = user_id);

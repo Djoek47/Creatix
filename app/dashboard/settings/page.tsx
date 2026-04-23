@@ -50,6 +50,11 @@ import {
   requestTipPopupPreview,
 } from '@/lib/community/tip-popup-prefs'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import {
+  DEFAULT_MIMIC_PROFILE,
+  parseMimicProfile,
+  type MimicProfileV1,
+} from '@/lib/divine/mimic-types'
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'integrations' | 'data' | 'preferences'
 
@@ -108,6 +113,9 @@ export default function SettingsPage() {
     tiktok: false,
   })
   const [tipPopupsEnabled, setTipPopupsEnabled] = useState(true)
+  const [mimicProfile, setMimicProfile] = useState<MimicProfileV1>(DEFAULT_MIMIC_PROFILE)
+  const [mimicSaving, setMimicSaving] = useState(false)
+  const [mimicSaveMessage, setMimicSaveMessage] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
@@ -171,6 +179,12 @@ export default function SettingsPage() {
         setMessagingAutoMarkReadOnOpen(mr.auto_mark_on_open === true)
       }
 
+      const mimicRes = await fetch('/api/divine/mimic-profile', { credentials: 'include' })
+      if (mimicRes.ok) {
+        const mimicData = (await mimicRes.json()) as { mimic_profile?: unknown }
+        setMimicProfile(parseMimicProfile(mimicData.mimic_profile) ?? DEFAULT_MIMIC_PROFILE)
+      }
+
       setLoading(false)
     }
     
@@ -216,6 +230,29 @@ export default function SettingsPage() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  async function handleMimicDraftToggle(nextChecked: boolean) {
+    setMimicSaving(true)
+    setMimicSaveMessage(null)
+    const nextProfile: MimicProfileV1 = { ...mimicProfile, consentFanFacingDrafts: nextChecked }
+    try {
+      const res = await fetch('/api/divine/mimic-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextProfile),
+      })
+      const data = (await res.json().catch(() => ({}))) as { mimic_profile?: unknown; error?: string }
+      if (!res.ok) {
+        throw new Error(data.error || 'Unable to update Mimic settings')
+      }
+      setMimicProfile(parseMimicProfile(data.mimic_profile) ?? nextProfile)
+      setMimicSaveMessage('Mimic setting saved.')
+    } catch (e) {
+      setMimicSaveMessage(e instanceof Error ? e.message : 'Could not save Mimic setting.')
+    } finally {
+      setMimicSaving(false)
+    }
   }
 
   if (loading) {
@@ -934,6 +971,38 @@ export default function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <Separator />
+                <div className="space-y-4 rounded-lg border border-sky-500/25 bg-sky-500/[0.04] p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Allow fan-facing drafts (Mimic beta)</p>
+                        <Badge variant="outline" className="border-sky-500/30 text-sky-600 dark:text-sky-300">
+                          Mimic
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Enables Mimic to draft fan-facing replies for review in Divine and Messages. Drafts are still
+                        review-first unless you separately change review policy in Divine tools.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={mimicProfile.consentFanFacingDrafts === true}
+                      disabled={mimicSaving}
+                      onCheckedChange={(checked) => void handleMimicDraftToggle(checked)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    For best results, complete your{' '}
+                    <Link href="/dashboard/divine-manager?section=mimic" className="underline underline-offset-2">
+                      Mimic Test in Divine Manager
+                    </Link>{' '}
+                    so drafts match your real tone.
+                  </p>
+                  {mimicSaveMessage ? (
+                    <p className="text-xs text-muted-foreground">{mimicSaveMessage}</p>
+                  ) : null}
                 </div>
                 <Separator />
                 <div className="space-y-4">

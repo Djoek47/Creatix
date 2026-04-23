@@ -307,6 +307,14 @@ Return ONLY JSON:
 Focus on: ${flavor}`
   }
 
+  const identityLine =
+    ctx.creatorPronouns || ctx.creatorGenderIdentity
+      ? `Creator identity:
+- Pronouns: ${ctx.creatorPronouns || 'not specified'}
+- Gender identity: ${ctx.creatorGenderIdentity || 'not specified'}
+Always use these pronouns for the creator and never misgender them.`
+      : ''
+
   const commerce =
     ctx.fanCommerceContext?.trim() ? `Fan subscription / feed access (CRM):\n${ctx.fanCommerceContext.trim()}\n` : ''
   const creatorPage =
@@ -317,6 +325,8 @@ Focus on: ${flavor}`
 Platform: ${ctx.platform}
 Fan handle: @${ctx.fan.username || 'fan'}
 
+${identityLine}
+
 ${nicheLine}
 ${creatorPage}${commerce}${safety}
 
@@ -325,10 +335,10 @@ ${conversation}
 
 ${instruction}`
 
+  const selectedModel = ctx.mode === 'scan' ? 'openai/gpt-4o-mini' : 'openai/gpt-4o'
   const { text, usage } = await generateText({
-    // Use Vercel AI Gateway model alias (this is what you had working before)
-    model: gateway('openai/gpt-4o-mini'),
-    temperature: 0.5,
+    model: gateway(selectedModel),
+    temperature: ctx.mode === 'scan' ? 0.35 : 0.62,
     maxTokens: 800,
     prompt: userPrompt,
   })
@@ -338,7 +348,7 @@ ${instruction}`
       userId: ctx.userId,
       feature: `message_suggestions/${ctx.mode}`,
       provider: 'gateway',
-      model: 'openai/gpt-4o-mini',
+      model: selectedModel,
       usage: {
         inputTokens: usage?.inputTokens,
         outputTokens: usage?.outputTokens,

@@ -187,6 +187,19 @@ export async function POST(request: NextRequest) {
               ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
               : []
 
+          if (typeof price === 'number' && price > 0 && targetUserIds.length > 0) {
+            await supabase
+              .from('fans')
+              .update({
+                audience_profile_override: 'paying_creator',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', user.id)
+              .eq('platform', 'onlyfans')
+              .in('platform_fan_id', targetUserIds)
+              .is('audience_profile_override', null)
+          }
+
           if (traceEnabled) {
             if (!traceContentId) {
               results.onlyfans = {

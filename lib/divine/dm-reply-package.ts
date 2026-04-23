@@ -3,24 +3,17 @@
  * Used by /api/divine/dm-reply-suggestions and divine-manager-chat (no extra HTTP hop).
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import {
   generateMessageSuggestionsWithGrok,
   generateMessageSuggestionsWithOpenAI,
 } from '@/lib/ai/message-suggestions'
-import type { NormalizedChatMessage } from '@/lib/ai/message-suggestions'
-import {
-  formatThreadTextForAi,
-  normalizeSortedRawOfMessages,
-} from '@/lib/divine/of-thread-text'
 import { refreshFanThreadInsight, upsertFanThreadInsightSnapshot } from '@/lib/divine/fan-thread-insight'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
-import {
-  formatCreatorOnlyFansPageModelForAi,
-  parseOnlyFansCreatorPageModel,
-} from '@/lib/onlyfans/creator-page-model'
 import { logUsageEvent } from '@/lib/usage/server-log'
+import {
+  loadOnlyFansMessagingContext,
+  updateOnlyFansSuggestionMemory,
+} from '@/lib/divine/onlyfans-messaging-context'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt'
 
@@ -71,77 +64,22 @@ export async function fetchDmReplySuggestionsPackage(
   const fanId = body.fanId ?? body.fan_id
   if (!fanId) return { error: 'fanId required' }
 
-  const { data: connection } = await supabase
-    .from('platform_connections')
-    .select('access_token, onlyfans_creator_page_model')
-    .eq('user_id', userId)
-    .eq('platform', 'onlyfans')
-    .eq('is_connected', true)
-    .maybeSingle()
-
-  if (!connection?.access_token) {
-    return { error: 'OnlyFans not connected' }
+  const context = await loadOnlyFansMessagingContext(supabase, userId, body)
+  if ('error' in context) {
+    return { error: context.error }
   }
-
-  const api = createOnlyFansAPI(connection.access_token)
-  const [threadRes, convRes] = await Promise.all([
-    api.getMessages(String(fanId), { limit: 80 }),
-    api.getConversations({ limit: 60 }),
-  ])
-  const fanFromConv = (convRes.conversations || []).find((c: any) => String(c.user?.id) === String(fanId))
-  const fanName = body.name ?? fanFromConv?.user?.name ?? null
-  const fan = {
-    id: fanId,
-    username: body.username ?? fanFromConv?.user?.username ?? 'fan',
-    name: fanName,
-  }
-  const fanForAi = {
-    id: fanId,
-    username: fan.username,
-    ...(fanName != null && fanName !== '' ? { name: fanName } : {}),
-  }
-
-  const { data: crmFan } = await supabase
-    .from('fans')
-    .select('subscription_account_type, subscription_price, subscription_status')
-    .eq('user_id', userId)
-    .eq('platform', 'onlyfans')
-    .eq('platform_fan_id', String(fanId))
-    .maybeSingle()
-  const crm = crmFan as {
-    subscription_account_type?: string | null
-    subscription_price?: string | number | null
-    subscription_status?: string | null
-  } | null
-  const fanCommerceContext =
-    crm != null
-      ? formatFanCommerceContextForAi({
-          subscriptionAccountType: (crm.subscription_account_type as SubscriptionAccountType) || 'unknown',
-          subscriptionPrice:
-            crm.subscription_price != null && !Number.isNaN(Number(crm.subscription_price))
-              ? Number(crm.subscription_price)
-              : null,
-          subscriptionStatus: crm.subscription_status,
-        })
-      : undefined
-  const creatorPageContext = formatCreatorOnlyFansPageModelForAi(
-    parseOnlyFansCreatorPageModel(
-      (connection as { onlyfans_creator_page_model?: string | null } | null)?.onlyfans_creator_page_model,
-    ),
-  )
-  const rawMessages = (threadRes.messages || []).sort((a: any, b: any) =>
-    new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime(),
-  )
-  const messages: NormalizedChatMessage[] = normalizeSortedRawOfMessages(rawMessages)
-
-  const threadPreview =
-    messages.length > 0
-      ? formatThreadTextForAi(messages, {
-          lastN: 50,
-          lineMax: 800,
-          maxTotalChars: 12000,
-        })
-      : ''
+  const {
+    fan,
+    fanForAi,
+    messages,
+    threadPreview,
+    threadSupplement,
+    fanCommerceContext,
+    creatorPageContext,
+    niches,
+    boundaries,
+    latestFanMessageAt,
+  } = context
 
   if (messages.length === 0) {
     return {
@@ -158,43 +96,6 @@ export async function fetchDmReplySuggestionsPackage(
       threadPreview: '',
     }
   }
-
-  const { data: settings } = await supabase
-    .from('divine_manager_settings')
-    .select('persona')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const persona = (settings?.persona as Record<string, unknown>) ?? {}
-  const niches = (persona.niches as string[]) ?? []
-  const boundaries = (persona.boundaries as string[]) ?? []
-
-  const [{ data: insightRow }, { data: fanSumRow }] = await Promise.all([
-    supabase
-      .from('fan_thread_insights')
-      .select('thread_snapshot_text, updated_at')
-      .eq('user_id', userId)
-      .eq('platform', 'onlyfans')
-      .eq('platform_fan_id', String(fanId))
-      .maybeSingle(),
-    supabase
-      .from('fan_ai_summaries')
-      .select('summary_json, updated_at')
-      .eq('user_id', userId)
-      .eq('platform_fan_id', String(fanId))
-      .maybeSingle(),
-  ])
-
-  const supplementParts: string[] = []
-  if (fanSumRow && (fanSumRow as { summary_json?: unknown }).summary_json != null) {
-    const j = (fanSumRow as { summary_json: unknown }).summary_json
-    supplementParts.push(
-      `Fan AI summary (from profile):\n${typeof j === 'string' ? j : JSON.stringify(j).slice(0, 1800)}`,
-    )
-  }
-  if (threadPreview.length < 400 && insightRow?.thread_snapshot_text?.trim()) {
-    supplementParts.push(`Stored thread snapshot (last Divine scan):\n${insightRow.thread_snapshot_text.slice(0, 2500)}`)
-  }
-  const threadSupplement = supplementParts.length ? supplementParts.join('\n\n') : undefined
 
   const ctxBase = {
     platform: 'onlyfans' as const,
@@ -318,13 +219,6 @@ Flirt reply sample: ${flirtSample || 'none'}`,
       platform: 'onlyfans',
     })
     if (err.error) console.warn('[fan_thread_insights]', err.error)
-    const latestFanMessageAt = (() => {
-      for (let i = messages.length - 1; i >= 0; i -= 1) {
-        const m = messages[i] as { from?: string; createdAt?: string | null }
-        if (m.from === 'fan' && m.createdAt) return m.createdAt
-      }
-      return null
-    })()
     const refreshed = await refreshFanThreadInsight(supabase, userId, String(fanId), {
       force: true,
       skipDebounce: true,
@@ -332,6 +226,7 @@ Flirt reply sample: ${flirtSample || 'none'}`,
       mode: 'manual_scan',
       latestFanMessageAt,
     })
+    await updateOnlyFansSuggestionMemory(supabase, userId, String(fanId), messages)
     const insuff = refreshed.ok && refreshed.insufficientData === true
     return {
       scan,
@@ -347,6 +242,7 @@ Flirt reply sample: ${flirtSample || 'none'}`,
     }
   }
 
+  await updateOnlyFansSuggestionMemory(supabase, userId, String(fanId), messages)
   return {
     scan,
     circeSuggestions,

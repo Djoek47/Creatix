@@ -4,8 +4,22 @@ import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { extractAboutFromOnlyFansFanPayload } from '@/lib/onlyfans/extract-fan-about'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { SerperProvider } from '@/lib/leaks/search-providers'
+import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
+import { CREDITS_ONLYFANS_BIO_FALLBACK } from '@/lib/billing/credit-economics'
 
 export const maxDuration = 60
+
+function parseSerperAbout(results: Array<{ title?: string; link: string; snippet?: string }>): string | null {
+  for (const r of results) {
+    const link = String(r.link || '').toLowerCase()
+    if (!link.includes('onlyfans.com')) continue
+    const snippet = String(r.snippet || '').trim()
+    if (snippet && snippet.length >= 20) return snippet.slice(0, 2000)
+  }
+  const fallback = results.find((r) => String(r.snippet || '').trim().length >= 20)
+  return fallback?.snippet?.trim().slice(0, 2000) ?? null
+}
 
 /**
  * POST { fanId: platform_fan_id } — fetch OnlyFans /fans/{id} and store platform_about when the API exposes it.
@@ -28,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const { data: fanRow, error: fanErr } = await supabase
       .from('fans')
-      .select('platform_about_fetched_at, platform_fan_id')
+      .select('platform_about, platform_about_fetched_at, platform_about_source, platform_about_refreshed_at, platform_fan_id, username')
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('platform_fan_id', fanId)
@@ -39,7 +53,14 @@ export async function POST(req: NextRequest) {
     // Profile UI can load from recents/thread tables without a `fans` row; align with PATCH
     // /api/divine/fan-profile so "Refresh from OnlyFans" still persists platform_about.
     let resolvedFanRow = fanRow as
-      | { platform_about_fetched_at?: string | null; platform_fan_id?: string }
+      | {
+          platform_about?: string | null
+          platform_about_fetched_at?: string | null
+          platform_about_refreshed_at?: string | null
+          platform_about_source?: string | null
+          platform_fan_id?: string
+          username?: string | null
+        }
       | null
     if (!resolvedFanRow) {
       const recent = await getFanRecentById(supabase, user.id, fanId, 'onlyfans')
@@ -64,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
       const { data: again, error: againErr } = await supabase
         .from('fans')
-        .select('platform_about_fetched_at, platform_fan_id')
+      .select('platform_about, platform_about_fetched_at, platform_about_source, platform_about_refreshed_at, platform_fan_id, username')
         .eq('user_id', user.id)
         .eq('platform', 'onlyfans')
         .eq('platform_fan_id', fanId)
@@ -73,14 +94,27 @@ export async function POST(req: NextRequest) {
       if (!again) {
         return NextResponse.json({ error: 'Fan not found in CRM' }, { status: 404 })
       }
-      resolvedFanRow = again as { platform_about_fetched_at?: string | null; platform_fan_id?: string }
+      resolvedFanRow = again as {
+        platform_about?: string | null
+        platform_about_fetched_at?: string | null
+        platform_about_refreshed_at?: string | null
+        platform_about_source?: string | null
+        platform_fan_id?: string
+        username?: string | null
+      }
     }
 
     const lastAt = resolvedFanRow.platform_about_fetched_at
     if (!force && lastAt) {
       const t = new Date(lastAt).getTime()
       if (!Number.isNaN(t) && Date.now() - t < 24 * 60 * 60 * 1000) {
-        return NextResponse.json({ success: true, skipped: true, reason: 'fetched_within_24h' })
+        return NextResponse.json({
+          success: true,
+          state: 'cached',
+          source: resolvedFanRow.platform_about_source ?? 'none',
+          about: resolvedFanRow.platform_about ?? null,
+          reason: 'fetched_within_24h',
+        })
       }
     }
 
@@ -107,14 +141,51 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const about = extractAboutFromOnlyFansFanPayload(raw)
+    const aboutFromApi = extractAboutFromOnlyFansFanPayload(raw)
+    let resolvedAbout = aboutFromApi
+    let source: 'of_api' | 'serper' | 'none' = aboutFromApi?.trim() ? 'of_api' : 'none'
     const now = new Date().toISOString()
+
+    if (!resolvedAbout?.trim()) {
+      const serperKey = process.env.SERPER_API_KEY
+      if (serperKey) {
+        const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_ONLYFANS_BIO_FALLBACK)
+        if (!gate.ok) return insufficientAiCreditsResponse(gate.used, gate.limit)
+
+        const username =
+          typeof (resolvedFanRow as { username?: string | null }).username === 'string'
+            ? (resolvedFanRow as { username?: string | null }).username?.trim()
+            : ''
+        const query = username
+          ? `site:onlyfans.com "${username}" bio profile`
+          : `site:onlyfans.com "${fanId}" bio profile`
+        try {
+          const provider = new SerperProvider(serperKey)
+          const results = await provider.search(query, { limit: 6, page: 1 })
+          const serperAbout = parseSerperAbout(results)
+          if (serperAbout) {
+            const debit = await consumeAiCredits(supabase, user.id, CREDITS_ONLYFANS_BIO_FALLBACK, {
+              reasonCode: 'onlyfans_bio_serper_fallback',
+              reasonRef: fanId,
+              metadata: { fanId, query, tool: 'onlyfans-bio-fallback' },
+            })
+            if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
+            resolvedAbout = serperAbout
+            source = 'serper'
+          }
+        } catch {
+          // keep source as none and return not_found if no API about text
+        }
+      }
+    }
 
     const { error: upErr } = await supabase
       .from('fans')
       .update({
-        platform_about: about,
+        platform_about: resolvedAbout,
         platform_about_fetched_at: now,
+        platform_about_source: source === 'none' ? null : source,
+        platform_about_refreshed_at: now,
         updated_at: now,
       })
       .eq('user_id', user.id)
@@ -133,8 +204,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      about: about ?? null,
-      aboutLength: about?.length ?? 0,
+      state:
+        source === 'of_api' ? 'of_api_used' : source === 'serper' ? 'serper_fallback_used' : 'not_found',
+      source,
+      about: resolvedAbout ?? null,
+      aboutLength: resolvedAbout?.length ?? 0,
     })
   } catch (e) {
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import type { Fan } from '@/lib/types'
 import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import { isFanProfileType } from '@/lib/fans/profile-types'
 
 function numOrNull(v: unknown): number | null {
   if (v == null || v === '') return null
@@ -46,7 +47,7 @@ export function normalizeFanFromRow(row: Record<string, unknown>): Fan {
     updated_at: (row.updated_at ?? row.created_at ?? new Date().toISOString()) as string,
     audience_profile_override: (() => {
       const v = row.audience_profile_override
-      if (v === 'auto' || v === 'whale' || v === 'creator' || v === 'fan') return v
+      if (isFanProfileType(v)) return v
       return null
     })(),
   }

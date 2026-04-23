@@ -61,6 +61,13 @@ import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
+type BillingCreditSnapshot = {
+  wallet?: {
+    totalRemaining?: number
+    includedRemaining?: number
+    purchasedRemaining?: number
+  }
+}
 
 function isDmSendSource(s: string): s is DmSendSource {
   return (
@@ -501,6 +508,11 @@ export function ChatWindow({
   const [purgingCacheIds, setPurgingCacheIds] = useState<Set<string>>(() => new Set())
   /** Loaded when opening an OnlyFans thread; drives auto mark-as-read + per-thread override UI. */
   const [messagingReadPrefs, setMessagingReadPrefs] = useState<MessagingReadPreferences | null>(null)
+  const [creditSnapshot, setCreditSnapshot] = useState<{
+    totalRemaining: number
+    includedRemaining: number
+    purchasedRemaining: number
+  } | null>(null)
 
   const divineComposerHighlight = useMemo(() => {
     if (!conversation) return false
@@ -529,6 +541,26 @@ export function ChatWindow({
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
+  const refreshCreditSnapshot = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing/credit-snapshot', { credentials: 'include' })
+      if (!res.ok) return
+      const json = (await res.json().catch(() => ({}))) as BillingCreditSnapshot
+      const wallet = json.wallet
+      setCreditSnapshot({
+        totalRemaining: Number(wallet?.totalRemaining ?? 0),
+        includedRemaining: Number(wallet?.includedRemaining ?? 0),
+        purchasedRemaining: Number(wallet?.purchasedRemaining ?? 0),
+      })
+    } catch {
+      // ignore snapshot failures in chat UI
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!aiSectionOpen) return
+    void refreshCreditSnapshot()
+  }, [aiSectionOpen, refreshCreditSnapshot, conversation?.user?.id])
 
   useEffect(() => {
     if (!traceEnabled || !isOnlyFansConversation) return
@@ -917,6 +949,7 @@ export function ChatWindow({
       setError(err instanceof Error ? err.message : 'Failed to generate suggestions')
     } finally {
       setSuggestionsLoading(null)
+      void refreshCreditSnapshot()
     }
   }
 
@@ -1675,9 +1708,16 @@ export function ChatWindow({
                 </Button>
               </CollapsibleTrigger>
               <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
+              <Badge variant="outline" className="shrink-0 gap-1 border-amber-500/30 bg-amber-500/[0.08] text-[10px]">
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                {creditSnapshot ? `${creditSnapshot.totalRemaining} credits left` : 'AI credits'}
+              </Badge>
             </div>
             <CollapsibleContent>
               <div className="space-y-2 overflow-y-auto bg-muted/15 px-3 py-2 pb-3 sm:px-4 sm:py-3">
+              <p className="text-[10px] leading-snug text-muted-foreground/90">
+                Each Scan, Circe, Venus, Flirt, or Mimic run uses 1 credit (about one-third of a standard messaging pass).
+              </p>
               {scanInsights && (
                 <div className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
                   <div className="flex items-center justify-between gap-2">

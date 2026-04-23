@@ -15,8 +15,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Moon,
   Sun,
   Star,
@@ -48,23 +46,23 @@ interface NavItem {
   beta?: boolean
 }
 
-// Circe's domain - Retention, Analytics, Protection (Purple)
+// Circe's domain (Purple) — all items always visible
 const circeNavigation: NavItem[] = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Protection', href: '/dashboard/protection', icon: Shield },
-]
-const circeAdvancedNavigation: NavItem[] = [
   { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
-// Venus's domain - Growth, Attraction, Reputation (White)
+// Venus's domain (Gold) — all items always visible
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-]
-const venusAdvancedNavigation: NavItem[] = [
   { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
+
+/** Slightly above text-sm (~9%) for readability; shared across every rail link */
+const sidebarLinkText = 'text-[0.95rem] leading-snug'
+const sidebarIconBox = 'h-[1.125rem] w-[1.125rem]'
 
 // Silver themed navigation
 const silverNavigation: NavItem[] = [
@@ -152,13 +150,15 @@ function NavLink({
       href={item.href}
       data-tour={item.href}
       className={cn(
-        'group flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium leading-tight transition-colors',
+        'group flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-2 font-medium transition-colors',
+        sidebarLinkText,
         isActive ? styles.active : styles.inactive
       )}
     >
       <Icon
         className={cn(
-          'h-4 w-4 flex-shrink-0',
+          sidebarIconBox,
+          'flex-shrink-0',
           isAiStudio ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate') : isActive && styles.icon,
         )}
       />
@@ -175,7 +175,7 @@ function NavLink({
             {item.name}
           </span>
           {item.beta ? (
-            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[10px] uppercase tracking-wide text-amber-500">
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
               Beta
             </span>
           ) : null}
@@ -188,12 +188,6 @@ function NavLink({
 export function DashboardSidebar({ profile }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
-  const [circeExpanded, setCirceExpanded] = useState(
-    pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/'),
-  )
-  const [venusExpanded, setVenusExpanded] = useState(
-    pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/'),
-  )
   const isMessagesRoute = pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')
 
   useEffect(() => {
@@ -209,15 +203,6 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       window.removeEventListener('messages:open-chats-menu', onOpenChatsMenu as EventListener)
     }
   }, [isMessagesRoute])
-
-  useEffect(() => {
-    if (pathname === '/dashboard/retention/churn' || pathname.startsWith('/dashboard/retention/churn/')) {
-      setCirceExpanded(true)
-    }
-    if (pathname === '/dashboard/commenter' || pathname.startsWith('/dashboard/commenter/')) {
-      setVenusExpanded(true)
-    }
-  }, [pathname])
 
   const handleRealmReload = () => {
     const hue = document.documentElement.classList.contains('dark') ? 'purple' : 'gold'
@@ -248,7 +233,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
             priority
           />
           {!collapsed && (
-            <span className="font-serif text-xs font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
+            <span className="font-serif text-[0.8rem] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
               CIRCE ET VENUS
             </span>
           )}
@@ -275,8 +260,8 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         <div className="space-y-0.5">
           {!collapsed && (
             <div className="flex items-center gap-1.5 px-2.5 py-0.5">
-              <Moon className="h-3.5 w-3.5 text-circe-light" />
-              <span className="text-xs font-medium uppercase leading-none tracking-wide text-circe-light/70">
+              <Moon className={`${sidebarIconBox} text-circe-light`} />
+              <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-circe-light/70">
                 Circe
               </span>
             </div>
@@ -284,30 +269,14 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           {circeNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
           ))}
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={() => setCirceExpanded((v) => !v)}
-              className="flex min-h-8 w-full items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium uppercase leading-tight tracking-wide text-circe-light/70 transition-colors hover:bg-circe/10 hover:text-circe-light"
-              aria-expanded={circeExpanded}
-              aria-label={circeExpanded ? 'Hide Circe advanced items' : 'Show Circe advanced items'}
-            >
-              <span>More</span>
-              {circeExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          {circeExpanded &&
-            circeAdvancedNavigation.map((item) => (
-              <NavLink key={item.name} item={item} variant="circe" pathname={pathname} collapsed={collapsed} />
-            ))}
         </div>
 
         {/* Venus's Domain */}
         <div className="space-y-0.5">
           {!collapsed && (
             <div className="flex items-center gap-1.5 px-2.5 py-0.5">
-              <Sun className="h-3.5 w-3.5 text-gold" />
-              <span className="text-xs font-medium uppercase leading-none tracking-wide text-gold/70">
+              <Sun className={`${sidebarIconBox} text-gold`} />
+              <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-gold/70">
                 Venus
               </span>
             </div>
@@ -315,22 +284,6 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           {venusNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
           ))}
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={() => setVenusExpanded((v) => !v)}
-              className="flex min-h-8 w-full items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium uppercase leading-tight tracking-wide text-gold/70 transition-colors hover:bg-gold/10 hover:text-gold"
-              aria-expanded={venusExpanded}
-              aria-label={venusExpanded ? 'Hide Venus advanced items' : 'Show Venus advanced items'}
-            >
-              <span>More</span>
-              {venusExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          {venusExpanded &&
-            venusAdvancedNavigation.map((item) => (
-              <NavLink key={item.name} item={item} variant="venus" pathname={pathname} collapsed={collapsed} />
-            ))}
         </div>
       </nav>
 
@@ -343,10 +296,10 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         {/* User info - Gold in light mode, Purple in dark mode */}
         {!collapsed && profile && (
           <div className="mt-1.5 rounded-md bg-sidebar-accent/30 p-2">
-            <p className="truncate text-sm font-medium leading-tight text-amber-600 dark:text-circe-light">
+            <p className={`truncate font-medium leading-tight text-amber-600 dark:text-circe-light ${sidebarLinkText}`}>
               {profile.full_name || 'Divine Creator'}
             </p>
-            <p className="truncate text-xs leading-tight text-amber-600/70 dark:text-circe-light/70">
+            <p className="truncate text-[0.8rem] leading-tight text-amber-600/70 dark:text-circe-light/70">
               {profile.email}
             </p>
           </div>

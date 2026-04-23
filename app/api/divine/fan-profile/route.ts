@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { buildUnifiedFanProfile } from '@/lib/divine/fan-profile-server'
 import { getFanRecentById } from '@/lib/divine/fan-recents-server'
+import { isFanProfileType } from '@/lib/fans/profile-types'
 
 /**
  * GET ?fanId=&platform=onlyfans — aggregated fan core + thread insight + AI summary + creator detector (profile UI).
@@ -74,9 +75,9 @@ export async function PATCH(req: NextRequest) {
     let audienceProfileOverride: string | null | undefined = undefined
     if (body.audience_profile_override !== undefined) {
       const v = body.audience_profile_override
-      if (v === null || v === '' || v === 'auto') {
+      if (v === null || v === '') {
         audienceProfileOverride = null
-      } else if (v === 'whale' || v === 'creator' || v === 'fan') {
+      } else if (isFanProfileType(v)) {
         audienceProfileOverride = v
       } else {
         return NextResponse.json({ error: 'audience_profile_override invalid' }, { status: 400 })

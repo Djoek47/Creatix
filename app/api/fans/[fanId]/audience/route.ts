@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-const ALLOWED = new Set(['auto', 'whale', 'creator', 'fan'])
+import { isFanProfileType } from '@/lib/fans/profile-types'
 
 export async function PATCH(
   _request: Request,
@@ -24,11 +23,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid audience_profile_override' }, { status: 400 })
   }
   const s = raw === null || raw === undefined ? '' : String(raw).trim()
-  if (s !== '' && !ALLOWED.has(s)) {
+  if (s !== '' && !isFanProfileType(s)) {
     return NextResponse.json({ error: 'Invalid audience_profile_override' }, { status: 400 })
   }
 
-  const val = s === '' || s === 'auto' ? null : s
+  const val = s === '' ? null : s
 
   const { error } = await supabase
     .from('fans')

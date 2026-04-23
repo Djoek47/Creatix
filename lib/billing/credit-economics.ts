@@ -58,15 +58,20 @@ export function creditsForProviderUsdEstimate(providerUsd: number): number {
 /** Product-level overrides (routes + Divine tools). Aligned to PROVIDER_USD_ESTIMATE. */
 export const CREDITS_DIVINE_CHAT_MESSAGE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.chatMiniTurn)
 export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
-export const CREDITS_MESSAGE_GENERATION_BUNDLE = 5
+/** Scan + Circe + Venus + Flirt in one sync package. */
+export const CREDITS_MESSAGE_GENERATION_BUNDLE = CREDITS_MESSAGE_GENERATION_LIGHT * 4
 export const CREDITS_MESSAGE_SEND_PLATFORM = 1
 export const CREDITS_DMCA_CLAIM = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.dmcaClaimPrep)
 export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperLeakScanRun)
+export const CREDITS_ONLYFANS_BIO_FALLBACK = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
 
 const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'leak-scanner': CREDITS_LEAK_SCAN,
   'divine-chat': CREDITS_DIVINE_CHAT_MESSAGE,
   'mass-dm-composer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
+  'mass-dm-audience-suggester': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'mass-dm-fan-captions': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'mass-dm-ppv-pricing': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'creator-mood-pulse': creditsForProviderUsdEstimate(0.004),
   'revenue-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'pricing-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
@@ -75,6 +80,7 @@ const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'frame-studio': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
   'ariadne-trace': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneEmbed),
   'ariadne-detect': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneDetect),
+  'onlyfans-bio-fallback': CREDITS_ONLYFANS_BIO_FALLBACK,
 }
 
 export type SubscriptionRowForCredits = {

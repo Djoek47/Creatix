@@ -13,6 +13,10 @@ import {
   hasEnoughAiCredits,
   insufficientAiCreditsResponse,
 } from '@/lib/billing/consume-ai-credits'
+import {
+  loadOnlyFansMessagingContext,
+  updateOnlyFansSuggestionMemory,
+} from '@/lib/divine/onlyfans-messaging-context'
 
 type Mode = 'scan' | 'circe' | 'venus' | 'flirt' | 'mimic'
 
@@ -52,11 +56,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unsupported mode' }, { status: 400 })
     }
 
-    // Short-circuit if there is no conversation history
-    const messages = (body.messages || []).filter(
+    const clientMessages = (body.messages || []).filter(
       (m) => m && typeof m.text === 'string' && m.text.trim().length > 0
     )
-    if (messages.length === 0) {
+    if (body.platform !== 'onlyfans' && clientMessages.length === 0) {
       return NextResponse.json(
         { mode, model: null, insights: null, suggestions: [] },
         { status: 200 }
@@ -130,29 +133,62 @@ export async function POST(req: NextRequest) {
 
     const nonMimicMode: Exclude<Mode, 'mimic'> = mode
 
+    let messages = clientMessages
+    let fanForModel = body.fan
+    let threadSupplement: string | undefined
+    let fanCommerceContext: string | undefined
+    let creatorPageContext: string | undefined
+    let niches = body.niches
+    let boundaries = body.boundaries
+
+    if (body.platform === 'onlyfans') {
+      const context = await loadOnlyFansMessagingContext(supabase, user.id, {
+        fanId: String(body.fan.id),
+        username: body.fan.username,
+        name: body.fan.name,
+      })
+      if ('error' in context) {
+        return NextResponse.json({ error: context.error }, { status: context.notFound ? 404 : 400 })
+      }
+      messages = context.messages
+      fanForModel = context.fanForAi
+      threadSupplement = context.threadSupplement
+      fanCommerceContext = context.fanCommerceContext
+      creatorPageContext = context.creatorPageContext
+      niches = context.niches
+      boundaries = context.boundaries
+    }
+
+    if (messages.length === 0) {
+      return NextResponse.json(
+        { mode, model: null, insights: null, suggestions: [] },
+        { status: 200 }
+      )
+    }
+
     const ctx = {
       mode: nonMimicMode,
       platform: body.platform,
-      fan: body.fan,
+      fan: fanForModel,
       messages,
       tonePreferences: body.tonePreferences,
-      niches: body.niches,
-      boundaries: body.boundaries,
+      niches,
+      boundaries,
       flirtControls: body.flirtControls,
       creatorPronouns: body.creatorPronouns,
       creatorGenderIdentity: body.creatorGenderIdentity,
+      threadSupplement,
+      fanCommerceContext,
+      creatorPageContext,
       userId: user.id,
     }
 
     let result
-    if (isPro && xaiKey) {
-      // Pro users with Grok configured → prefer Grok
-      result = await generateMessageSuggestionsWithGrok(xaiKey, ctx)
-    } else if (openaiKey) {
-      // Free or Pro without Grok but OpenAI is configured → use OpenAI
+    if (openaiKey) {
       result = await generateMessageSuggestionsWithOpenAI(ctx)
+    } else if (isPro && xaiKey) {
+      result = await generateMessageSuggestionsWithGrok(xaiKey, ctx)
     } else {
-      // Fallback: OpenAI not configured but Grok is – use Grok even for non‑Pro
       result = await generateMessageSuggestionsWithGrok(xaiKey!, ctx)
     }
 
@@ -163,6 +199,9 @@ export async function POST(req: NextRequest) {
       metadata: { endpoint: '/api/ai/message-suggestions', mode },
     })
     if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
+    if (body.platform === 'onlyfans') {
+      await updateOnlyFansSuggestionMemory(supabase, user.id, String(body.fan.id), messages)
+    }
 
     return NextResponse.json(result)
   } catch (error: any) {

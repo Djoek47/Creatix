@@ -15,6 +15,15 @@ function formatNumber(amount: number): string {
 
 type PlatformScope = 'all' | 'onlyfans' | 'fansly'
 
+/** First number = synced fan/subscriber count; second = free / non-sub follows when the API provides it. */
+function platformSublabel(name: 'OF' | 'Fansly', fans: number, follows: number): string {
+  if (fans <= 0 && follows <= 0) return ''
+  if (follows > 0) {
+    return `${name} ${formatNumber(fans)} · ${formatNumber(follows)} follows`
+  }
+  return `${name} ${formatNumber(fans)}`
+}
+
 interface FansStatsProps {
   stats: {
     totalFans: number
@@ -24,23 +33,32 @@ interface FansStatsProps {
   }
   platformScope?: PlatformScope
   snapshotFansByPlatform?: Record<string, number>
+  snapshotFollowsByPlatform?: Record<string, number>
 }
 
 export function FansStats({
   stats,
   platformScope = 'all',
   snapshotFansByPlatform = {},
+  snapshotFollowsByPlatform = {},
 }: FansStatsProps) {
   const ofSnap = snapshotFansByPlatform.onlyfans ?? 0
   const flSnap = snapshotFansByPlatform.fansly ?? 0
+  const ofFollows = snapshotFollowsByPlatform.onlyfans ?? 0
+  const flFollows = snapshotFollowsByPlatform.fansly ?? 0
   const showBreakdown =
-    platformScope === 'all' && (ofSnap > 0 || flSnap > 0)
+    platformScope === 'all' && (ofSnap > 0 || flSnap > 0 || ofFollows > 0 || flFollows > 0)
+  const totalFansSublabel = showBreakdown
+    ? [platformSublabel('OF', ofSnap, ofFollows), platformSublabel('Fansly', flSnap, flFollows)]
+        .filter((s) => s.length > 0)
+        .join(' · ')
+    : undefined
 
   const cards = [
     {
       title: 'Total Fans',
       value: formatNumber(stats.totalFans),
-      sublabel: showBreakdown ? `OF ${formatNumber(ofSnap)} · Fansly ${formatNumber(flSnap)}` : undefined,
+      sublabel: totalFansSublabel,
       icon: Users,
       color: 'text-chart-1',
       bgColor: 'bg-chart-1/10',

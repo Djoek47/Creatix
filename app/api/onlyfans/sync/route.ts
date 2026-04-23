@@ -9,6 +9,7 @@ import {
   inferCreatorPageModelFromApiPayload,
   shouldApplyApiInferenceForCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { onlyFansSubscribersAndFollows } from '@/lib/onlyfans/onlyfans-snapshot-audience'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -123,6 +124,9 @@ export async function POST(request: NextRequest) {
       (earningsData?.total ?? 0) ||
       (stats.earnings?.thisMonth ?? 0) ||
       0
+
+    const accountMerged = { ...(userData as object), ...(accountProfile as object) }
+    const { follows: onlyFansFollows } = onlyFansSubscribersAndFollows(stats, accountMerged)
     
     // Use total conversations as a proxy for message activity
     // messages_received = unread count (new messages waiting)
@@ -132,6 +136,7 @@ export async function POST(request: NextRequest) {
       platform: 'onlyfans',
       date: today,
       total_fans: totalFans,
+      total_follows: onlyFansFollows,
       new_fans: stats.fans.new || 0,
       churned_fans: stats.fans.expired || 0,
       revenue: revenueToday || revenueFallbackTotal,
@@ -159,6 +164,7 @@ export async function POST(request: NextRequest) {
           date: point.date,
           revenue: point.amount || 0,
           total_fans: stats.fans.total,
+          total_follows: 0,
           new_fans: 0,
           churned_fans: 0,
           messages_received: 0,

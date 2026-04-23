@@ -4,6 +4,7 @@
  */
 import type { CreatorDetectorSignal } from '@/lib/divine/creator-detector'
 import { detectCreatorLikelyFromText } from '@/lib/divine/creator-detector'
+import type { FanProfileType } from '@/lib/fans/profile-types'
 
 export const FAN_SPEND_WHALE_MIN_USD = 100
 export const FAN_SPEND_VIP_MIN_USD = 500
@@ -43,7 +44,7 @@ export function audienceWhaleLabel(totalSpent: number, tier: string): WhaleSpend
 }
 
 export type AudienceBadge = {
-  key: 'whale' | 'creator' | 'fan'
+  key: 'whale' | 'creator' | 'fan' | 'paying_creator' | 'advertisement' | 'freeloader'
   label: string
   className: string
 }
@@ -54,11 +55,18 @@ export const AUDIENCE_BADGE_CREATOR =
   'border-red-500/45 bg-red-500/10 text-red-100 dark:text-red-200'
 export const AUDIENCE_BADGE_FAN =
   'border-emerald-500/45 bg-emerald-500/10 text-emerald-100 dark:text-emerald-200'
+export const AUDIENCE_BADGE_PAYING_CREATOR =
+  'border-fuchsia-500/45 bg-fuchsia-500/10 text-fuchsia-100 dark:text-fuchsia-200'
+export const AUDIENCE_BADGE_ADVERTISEMENT =
+  'border-amber-500/45 bg-amber-500/10 text-amber-100 dark:text-amber-200'
+export const AUDIENCE_BADGE_FREELOADER =
+  'border-slate-500/45 bg-slate-500/10 text-slate-100 dark:text-slate-200'
 
 export type AudienceClassificationInput = {
   totalSpent: number
   tier: string
   creatorLikely: boolean
+  profileType?: FanProfileType | null
 }
 
 /**
@@ -66,7 +74,45 @@ export type AudienceClassificationInput = {
  * Whale and creator can both show (dual tags).
  */
 export function buildAudienceBadges(input: AudienceClassificationInput): AudienceBadge[] {
+  if (input.profileType === 'paying_creator') {
+    return [
+      {
+        key: 'paying_creator',
+        label: 'Paying creator',
+        className: AUDIENCE_BADGE_PAYING_CREATOR,
+      },
+    ]
+  }
+  if (input.profileType === 'advertisement') {
+    return [
+      {
+        key: 'advertisement',
+        label: 'Advertisement',
+        className: AUDIENCE_BADGE_ADVERTISEMENT,
+      },
+    ]
+  }
+  if (input.profileType === 'freeloader') {
+    return [
+      {
+        key: 'freeloader',
+        label: 'Freeloader',
+        className: AUDIENCE_BADGE_FREELOADER,
+      },
+    ]
+  }
+  if (input.profileType === 'fan') {
+    return [{ key: 'fan', label: 'Typical fan', className: AUDIENCE_BADGE_FAN }]
+  }
+  if (input.profileType === 'creator') {
+    return [{ key: 'creator', label: 'Creator signal', className: AUDIENCE_BADGE_CREATOR }]
+  }
+
   const badges: AudienceBadge[] = []
+  if (input.profileType === 'whale') {
+    badges.push({ key: 'whale', label: 'Whale', className: AUDIENCE_BADGE_WHALE })
+    return badges
+  }
   const whaleLabel = audienceWhaleLabel(input.totalSpent, input.tier)
   if (whaleLabel) {
     badges.push({
@@ -123,10 +169,13 @@ export function classifyAudience(input: AudienceClassificationInput): {
   isCreatorLikely: boolean
 } {
   const whaleLabel = audienceWhaleLabel(input.totalSpent, input.tier)
+  const forcedCreator = input.profileType === 'creator' || input.profileType === 'paying_creator'
+  const forcedNonCreator =
+    input.profileType === 'fan' || input.profileType === 'advertisement' || input.profileType === 'freeloader'
   return {
     badges: buildAudienceBadges(input),
-    isWhaleOrVip: whaleLabel != null,
+    isWhaleOrVip: input.profileType === 'whale' || whaleLabel != null,
     whaleLabel,
-    isCreatorLikely: input.creatorLikely,
+    isCreatorLikely: forcedCreator ? true : forcedNonCreator ? false : input.creatorLikely,
   }
 }

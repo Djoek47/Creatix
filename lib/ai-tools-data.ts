@@ -125,6 +125,39 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hiddenFromLibrary: true,
   },
   {
+    id: 'mass-dm-audience-suggester',
+    name: 'Mass DM Audience Suggester',
+    description: 'Ranks the best fan cohort for a campaign goal',
+    longDescription:
+      'Power-user helper for Mass Campaigns. Reviews CRM + thread context and suggests who to target first for retention, conversion, or PPV goals.',
+    category: 'engagement',
+    credits: 4,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
+    id: 'mass-dm-fan-captions',
+    name: 'Mass DM Fan Captions',
+    description: 'Per-fan campaign copy from CRM + thread context',
+    longDescription:
+      'Builds per-recipient DM copy for a selected campaign audience, using fan profile and thread signals for personalized variants.',
+    category: 'engagement',
+    credits: 3,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
+    id: 'mass-dm-ppv-pricing',
+    name: 'Mass DM PPV Pricing',
+    description: 'Per-fan PPV pricing from spend and campaign targets',
+    longDescription:
+      'Suggests individualized PPV prices from fan spend, profile signals, and a campaign-level revenue target with a minimum floor.',
+    category: 'analytics',
+    credits: 4,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
     id: 'viral-predictor',
     name: 'Viral Predictor',
     description: 'Content success prediction',

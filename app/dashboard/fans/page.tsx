@@ -25,7 +25,7 @@ export default async function FansPage() {
       .in('platform', ['onlyfans', 'fansly']),
     supabase
       .from('analytics_snapshots')
-      .select('platform,total_fans,date')
+      .select('platform,total_fans,total_follows,date')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(30),
@@ -48,7 +48,10 @@ export default async function FansPage() {
   const hasFanslyConnected = connections?.some((c: { platform: string }) => c.platform === 'fansly') ?? false
 
   // Mirror dashboard logic: derive total fans from the latest snapshot per platform
-  const latestByPlatform = new Map<string, { platform: string; total_fans?: number | null; date: string }>()
+  const latestByPlatform = new Map<
+    string,
+    { platform: string; total_fans?: number | null; total_follows?: number | null; date: string }
+  >()
   ;(analytics || []).forEach((a: any) => {
     if (!latestByPlatform.has(a.platform) || new Date(a.date) > new Date(latestByPlatform.get(a.platform)!.date)) {
       latestByPlatform.set(a.platform, a)
@@ -57,8 +60,10 @@ export default async function FansPage() {
   const analyticsTotalFans =
     Array.from(latestByPlatform.values()).reduce((sum, a) => sum + (a.total_fans || 0), 0) || 0
   const snapshotFansByPlatform: Record<string, number> = {}
+  const snapshotFollowsByPlatform: Record<string, number> = {}
   latestByPlatform.forEach((a, key) => {
     snapshotFansByPlatform[key] = a.total_fans ?? 0
+    snapshotFollowsByPlatform[key] = a.total_follows ?? 0
   })
 
   return (
@@ -71,6 +76,7 @@ export default async function FansPage() {
         hasFanPlatformsConnected={hasFanPlatformsConnected}
         analyticsTotalFans={analyticsTotalFans}
         snapshotFansByPlatform={snapshotFansByPlatform}
+        snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />
     </Suspense>
   )

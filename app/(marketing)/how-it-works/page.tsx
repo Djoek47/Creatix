@@ -1,4 +1,4 @@
-﻿import { Link2, Mic, Sparkles, TrendingUp } from 'lucide-react'
+import { Link2, Mic, Sparkles, TrendingUp } from 'lucide-react'
 import type { Metadata } from 'next'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'

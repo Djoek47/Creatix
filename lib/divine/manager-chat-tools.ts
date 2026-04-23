@@ -27,7 +27,7 @@ import {
   toCandidates,
   truncatePreservingLookupMeta,
 } from '@/lib/divine/divine-lookup-meta'
-import { loadDivineDmThread } from '@/lib/divine/divine-dm-thread'
+import { loadOnlyFansMessagingContext } from '@/lib/divine/onlyfans-messaging-context'
 import { isDivineFullAccess, DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { draftFanReplyWithMimic } from '@/lib/divine/draft-fan-reply'
@@ -727,16 +727,18 @@ export async function runContextTool(
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
-      const out = await loadDivineDmThread(ctx.supabase, ctx.userId, String(fanId), 50)
-      if (!out.ok) {
-        if (out.notFound) return out.error || `This fan's thread is no longer available on OnlyFans.`
-        if (out.error === 'OnlyFans not connected') {
+      const threadCtx = await loadOnlyFansMessagingContext(ctx.supabase, ctx.userId, {
+        fanId: String(fanId),
+      })
+      if ('error' in threadCtx) {
+        if (threadCtx.notFound) return threadCtx.error || `This fan's thread is no longer available on OnlyFans.`
+        if (threadCtx.error === 'OnlyFans not connected') {
           return 'OnlyFans is not connected. Connect OnlyFans in Settings → Integrations.'
         }
-        return out.error
+        return threadCtx.error
       }
-      const thread = out.thread.slice(-40).map((m) => `${m.from}: ${m.text.slice(0, 400)}`)
-      return thread.length ? `Thread:\n${thread.join('\n')}` : 'No messages in thread.'
+      const preview = threadCtx.threadPreview.trim()
+      return preview ? `Thread:\n${preview}` : 'No messages in thread.'
     }
     if (name === 'get_reply_suggestions') {
       if (!ctx) return 'Context unavailable.'

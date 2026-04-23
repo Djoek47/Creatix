@@ -73,7 +73,7 @@ export function MessagingLayout({
             animate={{ opacity: 1, x: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, x: 10 }}
             transition={panelTransition}
-            className={cn('hidden min-h-0 lg:flex lg:basis-[19%] lg:max-w-[22%] lg:min-w-[13rem]')}
+            className={cn('hidden min-h-0 lg:flex lg:basis-[21%] lg:max-w-[25%] lg:min-w-[15rem]')}
           >
             {rightPane}
           </motion.aside>

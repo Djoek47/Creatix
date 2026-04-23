@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { UIMessage } from 'ai'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidSubscription } from '@/lib/billing'
+import type { BrandWatermarkDefaults } from '@/lib/brand/brand-profile-types'
 import presetsData from '@/lib/data/frame-edit-presets.json'
 
 const CREATIX = process.env.NEXT_PUBLIC_CREATIX_APP_URL || 'https://www.circeetvenus.com'
@@ -65,12 +66,35 @@ export function EditorApp() {
       })
   }, [authReady, sessionUserId])
 
+  useEffect(() => {
+    if (!authReady) return
+    let cancelled = false
+    void fetch('/api/brand/profile', { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) return null
+        return res.json()
+      })
+      .then((data) => {
+        if (cancelled || !data?.profile?.watermarkDefaults) return
+        const defaults = data.profile.watermarkDefaults as BrandWatermarkDefaults
+        setBrandWatermarkDefaults(defaults)
+        if (defaults.traceRecipientPrefix) {
+          setTraceRecipientKey((prev) => (prev.trim() ? prev : `${defaults.traceRecipientPrefix}-`))
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [authReady])
+
   const [exportStatus, setExportStatus] = useState<string | null>(null)
   const [exportBusy, setExportBusy] = useState(false)
   const [traceRecipientKey, setTraceRecipientKey] = useState('')
   const [traceBatchRaw, setTraceBatchRaw] = useState('')
   const [traceBusy, setTraceBusy] = useState(false)
   const [traceStatus, setTraceStatus] = useState<string | null>(null)
+  const [brandWatermarkDefaults, setBrandWatermarkDefaults] = useState<BrandWatermarkDefaults | null>(null)
 
   const canManualExport = hasVaultBridge
   const tracedExportEnabled = process.env.NEXT_PUBLIC_FRAMER_TRACED_EXPORT_ENABLED === 'true'
@@ -143,6 +167,7 @@ export function EditorApp() {
           lineage: {
             pipelineVersion: 'frame-editor',
             encoderProfile: 'h264-main',
+            brandWatermarkDefaults: brandWatermarkDefaults || undefined,
           },
         }),
       })
@@ -150,7 +175,7 @@ export function EditorApp() {
       if (!res.ok) throw new Error(payload.error || `Trace export failed (${res.status})`)
       return payload.payloadId || '(unknown payload id)'
     },
-    [contentId, exportToken],
+    [brandWatermarkDefaults, contentId, exportToken],
   )
 
   const handleSingleTrace = useCallback(async () => {
@@ -488,6 +513,11 @@ export function EditorApp() {
               </p>
               {tracedExportEnabled ? (
                 <div className="mb-3 space-y-3">
+                  {brandWatermarkDefaults ? (
+                    <p className="text-muted-foreground rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+                      Brand defaults loaded: {brandWatermarkDefaults.placement} placement, {brandWatermarkDefaults.opacityPct}% opacity, {brandWatermarkDefaults.scalePct}% scale.
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <input
                       value={traceRecipientKey}

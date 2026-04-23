@@ -5,6 +5,7 @@ import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-ty
 import type { FanProfileType } from '@/lib/fans/profile-types'
 
 export type Platform = 'onlyfans' | 'fansly' | 'manyvids' | 'mym' | 'loyalfans'
+export type CreatorStatusPreset = 'available' | 'away' | 'busy' | 'dnd' | 'custom'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
 export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 export type ConversationStatus = 'active' | 'pending' | 'archived'

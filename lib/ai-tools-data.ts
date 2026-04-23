@@ -158,6 +158,30 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hiddenFromLibrary: true,
   },
   {
+    id: 'brand-uniformity',
+    name: 'Brand Uniformity',
+    description: 'Creator brand profile for cross-tool consistency',
+    longDescription:
+      'Beta tool for defining your creator brand identity (voice, colors, logos, watermark defaults) and reusing it across captioning, ideation, and publishing flows.',
+    category: 'content',
+    badge: 'Beta',
+    credits: 1,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
+    id: 'brand-lint',
+    name: 'Brand Lint',
+    description: 'Scores copy against your brand profile',
+    longDescription:
+      'Checks draft copy against Brand Uniformity settings and suggests compliant rewrites before publish.',
+    category: 'content',
+    badge: 'Beta',
+    credits: 1,
+    hasRunner: true,
+    hiddenFromLibrary: true,
+  },
+  {
     id: 'viral-predictor',
     name: 'Viral Predictor',
     description: 'Content success prediction',

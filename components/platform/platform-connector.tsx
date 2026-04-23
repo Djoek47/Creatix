@@ -39,6 +39,13 @@ import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
 import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 import {
+  CREATOR_STATUS_PRESETS,
+  formatCreatorStatusLabel,
+  normalizeCreatorStatusDetail,
+  normalizeCreatorStatusPreset,
+  type CreatorStatusPreset,
+} from '@/lib/creator-platform-status'
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -57,6 +64,8 @@ interface PlatformConnection {
   platform_username: string | null
   is_connected: boolean
   last_sync_at: string | null
+  creator_status_preset?: string | null
+  creator_status_detail?: string | null
   niches?: string[] | null
   onlyfans_creator_page_model?: string | null
   onlyfans_creator_page_model_source?: string | null
@@ -153,6 +162,11 @@ interface PlatformConnectorProps {
   compact?: boolean
 }
 
+type PlatformStatusDraft = {
+  preset: CreatorStatusPreset
+  detail: string
+}
+
 export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   const [connections, setConnections] = useState<PlatformConnection[]>([])
   const [loading, setLoading] = useState(true)
@@ -189,6 +203,8 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   } | null>(null)
   const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
   const [savingOfPageModel, setSavingOfPageModel] = useState(false)
+  const [statusDrafts, setStatusDrafts] = useState<Record<string, PlatformStatusDraft>>({})
+  const [savingStatusByPlatform, setSavingStatusByPlatform] = useState<Record<string, boolean>>({})
 
   const supabase = createClient()
 
@@ -217,6 +233,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     }
   }
 
+  const draftFromConnection = (connection: PlatformConnection | undefined): PlatformStatusDraft => ({
+    preset: normalizeCreatorStatusPreset(connection?.creator_status_preset),
+    detail: normalizeCreatorStatusDetail(connection?.creator_status_detail) ?? '',
+  })
+
   const loadConnections = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
@@ -230,7 +251,15 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         .maybeSingle(),
     ])
 
-    setConnections(data || [])
+    const nextConnections = (data || []) as PlatformConnection[]
+    setConnections(nextConnections)
+    setStatusDrafts((prev) => {
+      const next: Record<string, PlatformStatusDraft> = {}
+      for (const row of nextConnections) {
+        next[row.platform] = prev[row.platform] ?? draftFromConnection(row)
+      }
+      return next
+    })
     if (subRow) {
       setBillingSub({
         plan_id: subRow.plan_id ?? null,
@@ -398,6 +427,112 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
   const getConnection = (platformId: string) =>
     connections.find(c => c.platform === platformId)
+
+  const getStatusDraft = (platformId: string) =>
+    statusDrafts[platformId] ?? draftFromConnection(getConnection(platformId))
+
+  const updateStatusDraft = (
+    platformId: string,
+    patch: Partial<PlatformStatusDraft>,
+  ) => {
+    setStatusDrafts((prev) => {
+      const current = prev[platformId] ?? draftFromConnection(getConnection(platformId))
+      return {
+        ...prev,
+        [platformId]: { ...current, ...patch },
+      }
+    })
+  }
+
+  const savePlatformStatus = async (platformId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const draft = getStatusDraft(platformId)
+    const preset = normalizeCreatorStatusPreset(draft.preset)
+    const detail = normalizeCreatorStatusDetail(draft.detail)
+
+    if (preset === 'custom' && !detail) {
+      setError('Custom status requires a detail message.')
+      return
+    }
+
+    setSavingStatusByPlatform((prev) => ({ ...prev, [platformId]: true }))
+    setError(null)
+    try {
+      const { error: upErr } = await supabase
+        .from('platform_connections')
+        .update({
+          creator_status_preset: preset,
+          creator_status_detail: detail,
+        })
+        .eq('user_id', user.id)
+        .eq('platform', platformId)
+        .eq('is_connected', true)
+      if (upErr) throw new Error(upErr.message)
+      await loadConnections()
+      setSuccess(`Saved ${platformId} status.`)
+      setTimeout(() => setSuccess(null), 2500)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save platform status')
+    } finally {
+      setSavingStatusByPlatform((prev) => ({ ...prev, [platformId]: false }))
+    }
+  }
+
+  const renderStatusEditor = (platformId: string, compactView = false) => {
+    const draft = getStatusDraft(platformId)
+    const saving = savingStatusByPlatform[platformId] === true
+    const preview = formatCreatorStatusLabel(draft.preset, draft.detail)
+    const isCustom = draft.preset === 'custom'
+
+    return (
+      <div className={cn('space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3', compactView && 'p-2.5')}>
+        <Label className={cn('text-xs font-medium text-muted-foreground', compactView && 'text-[11px]')}>
+          Status for this platform
+        </Label>
+        <Select
+          value={draft.preset}
+          onValueChange={(v) => updateStatusDraft(platformId, { preset: normalizeCreatorStatusPreset(v) })}
+          disabled={saving}
+        >
+          <SelectTrigger className={cn('h-9 text-sm bg-background', compactView && 'h-8 text-xs')}>
+            <SelectValue placeholder="Choose status" />
+          </SelectTrigger>
+          <SelectContent>
+            {CREATOR_STATUS_PRESETS.map((preset) => (
+              <SelectItem key={preset} value={preset}>
+                {preset === 'dnd' ? 'Do not disturb' : preset[0].toUpperCase() + preset.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          value={draft.detail}
+          onChange={(e) => updateStatusDraft(platformId, { detail: e.target.value.slice(0, 120) })}
+          placeholder={isCustom ? 'Type custom status...' : 'Optional detail (e.g. back at 6pm)'}
+          className={cn('h-9', compactView && 'h-8 text-xs')}
+          disabled={saving}
+          maxLength={120}
+        />
+        <div className="flex items-center justify-between gap-2">
+          <p className={cn('line-clamp-1 text-xs text-muted-foreground', compactView && 'text-[11px]')}>
+            {preview ?? 'No status set'}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn('h-8 gap-1.5', compactView && 'h-7 px-2 text-[11px]')}
+            onClick={() => savePlatformStatus(platformId)}
+            disabled={saving || (isCustom && !draft.detail.trim())}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Settings2 className="h-3.5 w-3.5" />}
+            Save
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const toggleNiche = async (platformId: string, niche: NicheKey) => {
     const connection = getConnection(platformId)
@@ -802,6 +937,14 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                           {connected ? 'Connected' : 'Click to connect'}
                         </p>
                       )}
+                      {connected ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatCreatorStatusLabel(
+                            connection?.creator_status_preset,
+                            connection?.creator_status_detail,
+                          ) ?? 'Available'}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -1033,6 +1176,8 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                           </Select>
                         </div>
                       ) : null}
+
+                      {renderStatusEditor(platform.id)}
 
                       {platform.id === 'onlyfans' &&
                       adultPlatformBilling?.onlyFansAccessBlocked ? (

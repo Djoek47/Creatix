@@ -520,6 +520,24 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            <Card className="border-border bg-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-semibold">
+                  <Sparkles className="h-5 w-5" />
+                  Brand Uniformity
+                  <Badge variant="secondary">Beta</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Define your creator brand once and reuse it in captions, ideas, and watermark defaults.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard/brand-uniformity">Open Brand Uniformity</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Cosmic Birthday Section */}
             {user && (
               <BirthdaySettings userId={user.id} hasBirthdaySet={hasBirthdaySet} />

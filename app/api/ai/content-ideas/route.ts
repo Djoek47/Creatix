@@ -5,6 +5,8 @@ import {
   chargeAiToolCreditsAfterSuccess,
   requireAiToolSessionAndCredits,
 } from '@/lib/ai/assert-ai-tool-access'
+import { getBrandContext } from '@/lib/brand/get-brand-context'
+import { evaluateBrandTextCompliance } from '@/lib/brand/brand-governance'
 
 export const maxDuration = 30
 
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest) {
   const { supabase, userId, cost } = access.data
 
   const { niche, platform, currentTrends } = await req.json().catch(() => ({}))
+  const brandContext = await getBrandContext(supabase, userId)
 
   const systemPrompt = `You are a content strategist for adult content creators on platforms like ${platform || 'OnlyFans'}.
 
@@ -40,7 +43,9 @@ Generate creative, engaging content ideas that:
 4. Are diverse in content type
 5. Include seasonal opportunities
 
-Focus on tasteful, high-quality content ideas that build audience and drive subscriptions.`
+Focus on tasteful, high-quality content ideas that build audience and drive subscriptions.
+${brandContext?.compact ? `\nBrand context to follow:\n${brandContext.compact}` : ''}
+`
 
   let output: z.infer<typeof contentIdeasSchema>
   try {
@@ -70,5 +75,21 @@ Include a mix of content types and engagement levels.`,
   const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
   if (!charged.ok) return charged.response
 
-  return Response.json(output)
+  const complianceText = [
+    output.content,
+    ...output.ideas.map((x) => `${x.title}\n${x.description}`),
+    ...output.suggestions,
+  ].join('\n')
+  const compliance = evaluateBrandTextCompliance(brandContext?.full ?? null, complianceText)
+  if (compliance.blocked) {
+    return Response.json(
+      { error: 'Output blocked by Brand Uniformity policy.', violations: compliance.violations },
+      { status: 422 },
+    )
+  }
+
+  return Response.json({
+    ...output,
+    brandWarnings: [...compliance.violations, ...compliance.warnings],
+  })
 }

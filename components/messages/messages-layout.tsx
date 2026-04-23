@@ -37,6 +37,7 @@ import {
   Search,
   Maximize2,
   Minimize2,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import type {
@@ -48,6 +49,39 @@ import type {
 type MessagesView = 'conversations' | 'insights'
 
 const INBOX_LIMIT = 40
+const MESSAGE_WORKSPACE_PREFS_KEY = 'messages-workspace-layout-prefs-v1'
+
+type WorkspaceTag = {
+  id: string
+  label: string
+  value: number
+  enabled?: boolean
+}
+
+type WorkspaceStatsPayload = {
+  kpis: {
+    totalConversations: number
+    responseRate: number
+    avgResponseTimeSeconds: number | null
+    avgResponseTimeLabel: string
+    messagesToday: number
+  }
+  customTags: WorkspaceTag[]
+  fanContext: {
+    fanId: string
+    platform: string
+    username: string | null
+    displayName: string | null
+    avatarUrl: string | null
+    totalSpent: number
+    memberSince: string | null
+    lastActive: string | null
+    totalMessages: number
+    responseRate: number | null
+    avgResponseTimeLabel: string | null
+    recentOrders: Array<{ id: string; title: string; amount: number }>
+  } | null
+}
 
 const SEGMENT_LABEL: Record<InboxSegment, string> = {
   all: 'All',
@@ -116,10 +150,42 @@ function MessagesLayoutContent({
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
-  const [rightDrawerOpen, setRightDrawerOpen] = useState(false)
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(true)
+  const [kpiStripVisible, setKpiStripVisible] = useState(true)
+  const [workspaceStats, setWorkspaceStats] = useState<WorkspaceStatsPayload | null>(null)
+  const [workspaceStatsLoading, setWorkspaceStatsLoading] = useState(false)
+  const [workspaceTagVisibility, setWorkspaceTagVisibility] = useState<Record<string, boolean>>({})
   const inboxSearchInputRef = useRef<HTMLInputElement>(null)
   const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(MESSAGE_WORKSPACE_PREFS_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        rightDrawerOpen?: boolean
+        chatsRailExpanded?: boolean
+        kpiStripVisible?: boolean
+      }
+      if (typeof parsed.rightDrawerOpen === 'boolean') setRightDrawerOpen(parsed.rightDrawerOpen)
+      if (typeof parsed.chatsRailExpanded === 'boolean') setChatsRailExpanded(parsed.chatsRailExpanded)
+      if (typeof parsed.kpiStripVisible === 'boolean') setKpiStripVisible(parsed.kpiStripVisible)
+    } catch {
+      // ignore local preference read issues
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        MESSAGE_WORKSPACE_PREFS_KEY,
+        JSON.stringify({ rightDrawerOpen, chatsRailExpanded, kpiStripVisible }),
+      )
+    } catch {
+      // ignore local preference write issues
+    }
+  }, [rightDrawerOpen, chatsRailExpanded, kpiStripVisible])
 
   const [segment, setSegment] = useState<InboxSegment>('all')
   const [sort, setSort] = useState<InboxSort>('recent')
@@ -298,8 +364,49 @@ function MessagesLayoutContent({
     void loadInbox({ append: true })
   }, [loadInbox, loadingMore, hasMoreInbox])
 
+  const loadWorkspaceStats = useCallback(async () => {
+    setWorkspaceStatsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (selectedConversation?.user?.id) {
+        params.set('fanId', String(selectedConversation.user.id))
+        params.set('platform', selectedConversation.platform)
+      }
+      const query = params.toString()
+      const res = await fetch(`/api/messages/workspace-stats${query ? `?${query}` : ''}`, {
+        credentials: 'include',
+      })
+      const data = (await res.json().catch(() => ({}))) as WorkspaceStatsPayload & { error?: string }
+      if (!res.ok || data.error) return
+      setWorkspaceStats(data)
+      setWorkspaceTagVisibility((prev) => {
+        const next = { ...prev }
+        for (const tag of data.customTags ?? []) {
+          if (next[tag.id] === undefined) next[tag.id] = tag.enabled !== false
+        }
+        return next
+      })
+    } finally {
+      setWorkspaceStatsLoading(false)
+    }
+  }, [selectedConversation?.user?.id, selectedConversation?.platform])
+
+  useEffect(() => {
+    void loadWorkspaceStats()
+  }, [loadWorkspaceStats, conversations.length])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === '[' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault()
+        setChatsRailExpanded(false)
+        return
+      }
+      if (event.key === ']' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault()
+        if (!isMobile) setRightDrawerOpen((v) => !v)
+        return
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         if (view !== 'conversations') setView('conversations')
@@ -538,6 +645,17 @@ function MessagesLayoutContent({
               >
                 {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
+              {!focusMode ? (
+                <Button
+                  variant={kpiStripVisible ? 'secondary' : 'outline'}
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setKpiStripVisible((v) => !v)}
+                  title={kpiStripVisible ? 'Hide workspace stats strip' : 'Show workspace stats strip'}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              ) : null}
               {!isMobile && selectedConversation && !focusMode ? (
                 <Button
                   variant={rightDrawerOpen ? 'secondary' : 'outline'}
@@ -635,11 +753,76 @@ function MessagesLayoutContent({
                     <RightDrawer
                       conversation={selectedConversation}
                       onOpenFanProfile={() => setFanProfileOpen(true)}
+                      fanContext={
+                        workspaceStats?.fanContext &&
+                        String(workspaceStats.fanContext.fanId) === String(selectedConversation.user.id)
+                          ? workspaceStats.fanContext
+                          : null
+                      }
                     />
                   ) : null
                 }
               />
             </motion.div>
+            {!focusMode && kpiStripVisible ? (
+              <div className="rounded-xl border border-border/70 bg-card/85 px-3 py-2 shadow-sm">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Total conversations</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums">
+                      {workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Response rate</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums">
+                      {workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Avg. response time</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums">
+                      {workspaceStats?.kpis.avgResponseTimeLabel ?? '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Messages today</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums">
+                      {workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {(workspaceStats?.customTags ?? []).map((tag) => {
+                    const visible = workspaceTagVisibility[tag.id] !== false
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
+                          visible
+                            ? 'border-border/70 bg-muted/20 text-muted-foreground hover:bg-accent'
+                            : 'border-dashed border-border/50 bg-background/40 text-muted-foreground/60',
+                        )}
+                        onClick={() =>
+                          setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))
+                        }
+                        title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
+                      >
+                        <span className="font-medium text-foreground">{tag.label}:</span> {tag.value}
+                      </button>
+                    )
+                  })}
+                  {workspaceStatsLoading ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Updating metrics
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {isMobile && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">

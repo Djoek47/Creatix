@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { formatCreatorStatusLabel } from '@/lib/creator-platform-status'
 const OnlyFansLogo = ({ className }: { className?: string }) => (
   <img src="/onlyfans-logo.png" alt="OnlyFans" className={cn('h-4 w-4', className)} />
 )
@@ -33,6 +34,8 @@ interface Connection {
   platform: string
   platform_username?: string
   last_sync_at?: string
+  creator_status_preset?: string | null
+  creator_status_detail?: string | null
 }
 
 function formatLastSync(dateStr?: string) {
@@ -58,7 +61,7 @@ export function ConnectedPlatforms() {
     const { data } = await supabase
       .from('platform_connections')
       .select(
-        'platform, platform_username, last_sync_at, access_token, platform_user_id, observed_revenue_onlyfans_account_id, is_connected',
+        'platform, platform_username, last_sync_at, access_token, platform_user_id, observed_revenue_onlyfans_account_id, is_connected, creator_status_preset, creator_status_detail',
       )
       .eq('user_id', user.id)
       .eq('is_connected', true)
@@ -167,6 +170,11 @@ export function ConnectedPlatforms() {
                 <p className="mt-1 text-muted-foreground">
                   Last synced: {formatLastSync(conn.last_sync_at)}
                 </p>
+                {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail) ? (
+                  <p className="mt-0.5 text-muted-foreground">
+                    Status: {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail)}
+                  </p>
+                ) : null}
                 <p className="mt-0.5 font-medium text-primary">Click to refresh</p>
               </TooltipContent>
             </Tooltip>

@@ -21,6 +21,10 @@ function parseSerperAbout(results: Array<{ title?: string; link: string; snippet
   return fallback?.snippet?.trim().slice(0, 2000) ?? null
 }
 
+function isMissingFansColumnError(message: string): boolean {
+  return /column .*fans\./i.test(message)
+}
+
 /**
  * POST { fanId: platform_fan_id } — fetch OnlyFans /fans/{id} and store platform_about when the API exposes it.
  */
@@ -179,7 +183,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { error: upErr } = await supabase
+    let { error: upErr } = await supabase
       .from('fans')
       .update({
         platform_about: resolvedAbout,
@@ -191,6 +195,19 @@ export async function POST(req: NextRequest) {
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('platform_fan_id', fanId)
+
+    if (upErr && isMissingFansColumnError(upErr.message ?? '')) {
+      ;({ error: upErr } = await supabase
+        .from('fans')
+        .update({
+          platform_about: resolvedAbout,
+          platform_about_fetched_at: now,
+          updated_at: now,
+        })
+        .eq('user_id', user.id)
+        .eq('platform', 'onlyfans')
+        .eq('platform_fan_id', fanId))
+    }
 
     if (upErr) {
       if (upErr.message.includes('platform_about')) {

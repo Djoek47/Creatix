@@ -13,6 +13,7 @@ import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
 import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
+import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
 
 interface MassMessageRequest {
   message: string
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
               : []
 
           if (typeof price === 'number' && price > 0 && targetUserIds.length > 0) {
-            await supabase
+            let updateRes = await supabase
               .from('fans')
               .update({
                 audience_profile_override: 'paying_creator',
@@ -198,6 +199,19 @@ export async function POST(request: NextRequest) {
               .eq('platform', 'onlyfans')
               .in('platform_fan_id', targetUserIds)
               .is('audience_profile_override', null)
+
+            if (updateRes.error && /fans_audience_profile_override_check/i.test(updateRes.error.message ?? '')) {
+              updateRes = await supabase
+                .from('fans')
+                .update({
+                  audience_profile_override: toLegacyAudienceProfileType('paying_creator'),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('platform', 'onlyfans')
+                .in('platform_fan_id', targetUserIds)
+                .is('audience_profile_override', null)
+            }
           }
 
           if (traceEnabled) {

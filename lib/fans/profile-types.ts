@@ -15,3 +15,14 @@ export function isFanProfileType(value: unknown): value is FanProfileType {
 }
 
 export type AudienceProfileOverride = FanProfileType | null
+
+/**
+ * Backward-compatible mapping for older DB constraints that still only allow:
+ * fan | whale | creator.
+ */
+export function toLegacyAudienceProfileType(value: FanProfileType): 'fan' | 'whale' | 'creator' {
+  if (value === 'fan' || value === 'whale' || value === 'creator') return value
+  if (value === 'paying_creator') return 'creator'
+  if (value === 'advertisement' || value === 'freeloader') return 'fan'
+  return 'fan'
+}

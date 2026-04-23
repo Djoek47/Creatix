@@ -89,6 +89,30 @@ export async function buildUnifiedFanProfile(
       }
     : null
 
+  const fanSelectNew =
+    'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, platform_about_source, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at'
+  const fanSelectLegacy =
+    'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at'
+
+  const fanCrmPromise = (async () => {
+    const newRes = await supabase
+      .from('fans')
+      .select(fanSelectNew)
+      .eq('user_id', userId)
+      .eq('platform', platform)
+      .eq('platform_fan_id', fanId)
+      .maybeSingle()
+    if (!newRes.error) return newRes
+    if (!/platform_about_source/i.test(newRes.error.message ?? '')) return newRes
+    return supabase
+      .from('fans')
+      .select(fanSelectLegacy)
+      .eq('user_id', userId)
+      .eq('platform', platform)
+      .eq('platform_fan_id', fanId)
+      .maybeSingle()
+  })()
+
   const [{ data: ins }, { data: sum }, { data: fanCrm }, { data: dmRow }, { data: churnSnap }] = await Promise.all([
     supabase
       .from('fan_thread_insights')
@@ -107,15 +131,7 @@ export async function buildUnifiedFanProfile(
           .eq('platform_fan_id', fanId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase
-      .from('fans')
-      .select(
-        'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, platform_about_source, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at',
-      )
-      .eq('user_id', userId)
-      .eq('platform', platform)
-      .eq('platform_fan_id', fanId)
-      .maybeSingle(),
+    fanCrmPromise,
     supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', userId).maybeSingle(),
     supabase
       .from('fan_churn_snapshots')

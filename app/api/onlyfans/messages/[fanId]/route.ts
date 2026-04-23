@@ -20,6 +20,7 @@ import {
   hasEnoughAiCredits,
   insufficientAiCreditsResponse,
 } from '@/lib/billing/consume-ai-credits'
+import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
 import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 
 class OnlyFansNotConnectedError extends Error {
@@ -319,7 +320,7 @@ export async function POST(
     await upsertOnlyFansDmMessageCache(supabase, user.id, fanId, [result])
 
     if (typeof price === 'number' && price > 0) {
-      await supabase
+      let updateRes = await supabase
         .from('fans')
         .update({
           audience_profile_override: 'paying_creator',
@@ -329,6 +330,19 @@ export async function POST(
         .eq('platform', 'onlyfans')
         .eq('platform_fan_id', String(fanId))
         .is('audience_profile_override', null)
+
+      if (updateRes.error && /fans_audience_profile_override_check/i.test(updateRes.error.message ?? '')) {
+        updateRes = await supabase
+          .from('fans')
+          .update({
+            audience_profile_override: toLegacyAudienceProfileType('paying_creator'),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+          .eq('platform', 'onlyfans')
+          .eq('platform_fan_id', String(fanId))
+          .is('audience_profile_override', null)
+      }
     }
 
     logMessageSendEvent({

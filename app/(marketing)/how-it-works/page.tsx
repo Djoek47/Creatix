@@ -19,7 +19,7 @@ export const metadata: Metadata = buildPublicMetadata({
 })
 
 const steps = [
-  { number: '01', title: 'Sign up', desc: '14-day trial. No card.', icon: Sparkles },
+  { number: '01', title: 'Sign up', desc: '2-day trial. Card required.', icon: Sparkles },
   { number: '02', title: 'Connect', desc: 'OnlyFans and/or Fansly.', icon: Link2 },
   { number: '03', title: 'Speak', desc: 'Divine Manager runs it.', icon: Mic },
   { number: '04', title: 'Grow', desc: 'Retention, fans, revenue.', icon: TrendingUp },

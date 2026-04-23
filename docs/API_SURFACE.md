@@ -30,6 +30,7 @@
 | `app/api/social/*` | Social connect, reputation, mentions, scans. |
 | `app/api/stripe/*` | Stripe webhooks and billing-related server paths. |
 | `app/api/user/*` | User API keys, notification preferences, identity scan. |
+| `app/api/ariadne/*` | Ariadne forensic trace APIs: embed, detect, export listing, and evidence retrieval bundles. |
 | `app/api/contact` | Contact form (if enabled). |
 | `app/api/chat` | Generic chat route (if used). |
 
@@ -55,3 +56,4 @@ When you add a **new public API** or change **auth requirements**, add one line 
 - `POST app/api/ai/fantasy-writer` — optional `calendarEventSummary`, `scheduledContentSummary`, `fanProfileSummary` (with `scenario` / `tone` / `platform`); at least one of scenario or any summary must be provided.
 - `POST app/api/ai/mimic-test-realtime` — WebRTC SDP handshake for Realtime Mimic interrogatory voice sessions (intro + adaptive Q/A flow).
 - `POST app/api/divine/voice-tool` — now also supports Mimic voice tools: `mimic_record_answer` (live transcript persistence) and `mimic_finalize_interview` (profile refinement + persist to `divine_manager_settings.mimic_profile`).
+- `GET app/api/ariadne/exports/[id]/evidence` — session auth; returns authoritative evidence package: canonical trace export, immutable hash chain, and latest detect events. Markit service calls can use `v1.1` signed headers on write endpoints (`POST /api/ariadne/embed`, `POST /api/ariadne/detect`) with nonce + idempotency replay protection.

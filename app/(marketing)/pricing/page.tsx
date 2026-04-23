@@ -21,11 +21,11 @@ export default function PricingPage() {
     {
       question: 'How do AI credits work?',
       answer:
-        'Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: 100 credits/mo.',
+        'Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: 250 credits total.',
     },
     {
       question: 'Free trial?',
-      answer: '14 days. No card required. Upgrade or cancel anytime in Settings → Billing.',
+      answer: '2 days. Credit card required. Upgrade or cancel anytime in Settings → Billing.',
     },
     {
       question: 'Change plans later?',

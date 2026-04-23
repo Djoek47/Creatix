@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   effectiveMonthlyCreditLimit,
-  TRIAL_AI_CREDITS_LIMIT,
   type SubscriptionRowForCredits,
 } from '@/lib/billing/credit-economics'
 
@@ -14,6 +13,7 @@ type WalletRow = {
 }
 
 type SubscriptionCycleRow = SubscriptionRowForCredits & {
+  status?: string | null
   current_period_start?: string | null
   current_period_end?: string | null
   ai_credits_limit?: number | null
@@ -101,7 +101,7 @@ async function readSubscriptionCycle(
   const { data } = await supabase
     .from('subscriptions')
     .select(
-      'plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats,current_period_start,current_period_end,ai_credits_limit,ai_credits_used',
+      'plan_id,status,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats,current_period_start,current_period_end,ai_credits_limit,ai_credits_used',
     )
     .eq('user_id', userId)
     .maybeSingle()
@@ -127,17 +127,23 @@ export function purchasedTopupExpiryFromSubscription(sub: SubscriptionCycleRow |
 async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: string): Promise<void> {
   const [wallet, sub] = await Promise.all([readWalletRow(supabase, userId), readSubscriptionCycle(supabase, userId)])
   const { start, end } = cycleWindow(sub)
+  const status = String(sub?.status ?? '').toLowerCase()
+  const isCreditEligible = status === 'active' || status === 'trialing'
   const nowMs = Date.now()
   const walletCycleEndMs = wallet?.included_cycle_end ? new Date(wallet.included_cycle_end).getTime() : 0
-  const cycleNeedsReset = !wallet || !wallet.included_cycle_end || walletCycleEndMs <= nowMs
+  const hasIncludedCredits = Number(wallet?.included_credits_remaining ?? 0) > 0
+  const cycleNeedsReset =
+    !wallet || !wallet.included_cycle_end || walletCycleEndMs <= nowMs || (!isCreditEligible && hasIncludedCredits)
 
   if (!cycleNeedsReset) return
 
-  const limit = sub
+  const limit = !isCreditEligible
+    ? 0
+    : sub
     ? effectiveMonthlyCreditLimit(sub)
     : Number.isFinite(Number(sub?.ai_credits_limit)) && Number(sub?.ai_credits_limit) > 0
       ? Number(sub?.ai_credits_limit)
-      : TRIAL_AI_CREDITS_LIMIT
+      : 0
 
   await supabase
     .from('credit_wallets')
@@ -151,6 +157,8 @@ async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: strin
       },
       { onConflict: 'user_id' },
     )
+
+  if (limit <= 0) return
 
   await supabase.rpc('grant_credit_wallet', {
     p_user_id: userId,

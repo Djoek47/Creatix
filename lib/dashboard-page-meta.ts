@@ -190,6 +190,9 @@ export function shouldShowDashboardRouteHero(pathname: string | null): boolean {
   if (pathname === '/dashboard/divine-manager' || pathname.startsWith('/dashboard/divine-manager/')) {
     return false
   }
+  if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {
+    return false
+  }
   if (pathname === '/dashboard/guide' || pathname.startsWith('/dashboard/guide/')) return false
   return true
 }

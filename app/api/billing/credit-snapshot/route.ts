@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       supabase
         .from('subscriptions')
         .select(
-          'plan_id,ai_credits_used,ai_credits_limit,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
+          'plan_id,status,ai_credits_used,ai_credits_limit,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
         )
         .eq('user_id', user.id)
         .maybeSingle(),
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 
     const row = (subscription ?? {}) as {
       plan_id?: string | null
+      status?: string | null
       ai_credits_used?: number | null
       ai_credits_limit?: number | null
       billing_variant?: string | null
@@ -37,7 +38,10 @@ export async function GET(req: NextRequest) {
     }
 
     const aiCreditsUsed = Number(row.ai_credits_used ?? 0)
-    const aiCreditsLimitEffective = effectiveMonthlyCreditLimit({
+    const status = String(row.status ?? '').toLowerCase()
+    const canUseIncludedCredits = status === 'active' || status === 'trialing'
+    const aiCreditsLimitEffective = canUseIncludedCredits
+      ? effectiveMonthlyCreditLimit({
       plan_id: row.plan_id,
       billing_variant: row.billing_variant,
       revenue_tier: row.revenue_tier,
@@ -45,7 +49,8 @@ export async function GET(req: NextRequest) {
       billing_focus_platforms: row.billing_focus_platforms,
       billing_seats: row.billing_seats,
       ai_credits_limit: row.ai_credits_limit,
-    })
+        })
+      : 0
 
     return NextResponse.json({
       wallet,

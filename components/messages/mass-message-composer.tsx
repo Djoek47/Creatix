@@ -23,6 +23,14 @@ interface ConnectedPlatform {
   is_connected: boolean
 }
 
+type VaultVideoRow = {
+  id: string
+  title: string | null
+  content_type: string
+  file_url: string | null
+  vault_storage_path?: string | null
+}
+
 export type MassMessageComposerProps = {
   /** When false, data loading and list fetches are skipped */
   active: boolean
@@ -52,6 +60,12 @@ export function MassMessageComposer({
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isSending, setIsSending] = useState(false)
+  const [traceEnabled, setTraceEnabled] = useState(false)
+  const [traceContentId, setTraceContentId] = useState('')
+  const [traceRecipientKeyPrefix, setTraceRecipientKeyPrefix] = useState('mass')
+  const [recipientIdsCsv, setRecipientIdsCsv] = useState('')
+  const [traceVaultRows, setTraceVaultRows] = useState<VaultVideoRow[]>([])
+  const [traceVaultLoading, setTraceVaultLoading] = useState(false)
   const [ofUserLists, setOfUserLists] = useState<{ id: string; name: string }[]>([])
   const [selectedListIds, setSelectedListIds] = useState<string[]>([])
   const [listsLoading, setListsLoading] = useState(false)
@@ -89,6 +103,11 @@ export function MassMessageComposer({
         setMessage('')
         setPrice('')
         setMediaIds([])
+        setTraceEnabled(false)
+        setTraceContentId('')
+        setTraceRecipientKeyPrefix('mass')
+        setRecipientIdsCsv('')
+        setTraceVaultRows([])
         setSelectedListIds([])
         setOfUserLists([])
       }
@@ -124,6 +143,31 @@ export function MassMessageComposer({
     }
     if (active) void loadOfLists()
   }, [active, platforms])
+
+  useEffect(() => {
+    if (!active || !traceEnabled) return
+    let cancelled = false
+    setTraceVaultLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch('/api/content/vault')
+        const json = (await res.json()) as { items?: VaultVideoRow[] }
+        if (!res.ok || cancelled) return
+        const list = Array.isArray(json.items) ? json.items : []
+        const videos = list.filter((row) => row.content_type === 'video' && (row.file_url || row.vault_storage_path))
+        if (cancelled) return
+        setTraceVaultRows(videos)
+        if (!traceContentId && videos.length > 0) setTraceContentId(videos[0].id)
+      } catch {
+        if (!cancelled) setTraceVaultRows([])
+      } finally {
+        if (!cancelled) setTraceVaultLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [active, traceEnabled, traceContentId])
 
   const togglePlatform = (platform: string) => {
     setPlatforms((prev) => (prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]))
@@ -165,6 +209,12 @@ export function MassMessageComposer({
       price?: number
       mediaIds?: string[]
       userLists?: string[]
+      userIds?: string[]
+      trace?: {
+        enabled: boolean
+        contentId: string
+        recipientKeyPrefix?: string
+      }
     } = {
       message,
       platforms,
@@ -173,6 +223,18 @@ export function MassMessageComposer({
     if (priceNum != null && !Number.isNaN(priceNum) && priceNum >= 0) body.price = priceNum
     if (mediaIds.length > 0) body.mediaIds = mediaIds
     if (platforms.includes('onlyfans') && selectedListIds.length > 0) body.userLists = selectedListIds
+    const explicitRecipientIds = recipientIdsCsv
+      .split(/[\s,]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+    if (explicitRecipientIds.length > 0) body.userIds = explicitRecipientIds
+    if (traceEnabled) {
+      body.trace = {
+        enabled: true,
+        contentId: traceContentId,
+        recipientKeyPrefix: traceRecipientKeyPrefix.trim() || undefined,
+      }
+    }
 
     try {
       const response = await fetch('/api/messages/mass', {
@@ -284,6 +346,61 @@ export function MassMessageComposer({
             Media upload is available when OnlyFans is selected. Fansly media can be added when supported.
           </p>
         )}
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-medium text-foreground">Ariadne trace per recipient</p>
+            <p className="text-xs text-muted-foreground">
+              When enabled, each recipient ID generates a unique traced file and credit charge.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={traceEnabled ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setTraceEnabled((v) => !v)}
+          >
+            {traceEnabled ? 'Trace ON' : 'Trace OFF'}
+          </Button>
+        </div>
+        {traceEnabled ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Trace source video</Label>
+              <Select value={traceContentId} onValueChange={setTraceContentId}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {traceVaultRows.map((row) => (
+                    <SelectItem key={row.id} value={row.id}>
+                      {(row.title || 'Untitled').slice(0, 50)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Recipient key prefix</Label>
+              <Input
+                value={traceRecipientKeyPrefix}
+                onChange={(e) => setTraceRecipientKeyPrefix(e.target.value)}
+                placeholder="mass"
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs">Recipient IDs (required for exact per-recipient trace)</Label>
+              <Textarea
+                value={recipientIdsCsv}
+                onChange={(e) => setRecipientIdsCsv(e.target.value)}
+                className="min-h-20"
+                placeholder="Paste OnlyFans user IDs, comma or line separated"
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -401,7 +518,12 @@ export function MassMessageComposer({
       <Button
         className="w-full gap-2"
         onClick={handleSend}
-        disabled={isSending || !message || platforms.length === 0}
+        disabled={
+          isSending ||
+          !message ||
+          platforms.length === 0 ||
+          (traceEnabled && (!traceContentId || recipientIdsCsv.trim().length === 0))
+        }
         style={{
           background: platforms.length > 0 && message ? 'linear-gradient(135deg, #00AFF0, #009FFF)' : undefined,
         }}

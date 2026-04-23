@@ -155,24 +155,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
         setPlatformSelection(new Set(['onlyfans']))
       }
     } else {
-      const trialEnd = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: newSub } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: userId,
-          plan_id: 'divine-trial',
-          status: 'trial',
-          ai_credits_used: 0,
-          ai_credits_limit: 250,
-          storage_used_mb: 0,
-          storage_limit_mb: 5000,
-          trial_ends_at: trialEnd,
-          current_period_end: trialEnd,
-        })
-        .select()
-        .single()
-
-      if (newSub) setSubData(newSub as SubscriptionData)
+      // Do not bootstrap trial credits client-side. Trial credits are only activated
+      // by Stripe webhook after card setup (status becomes "trialing").
+      setSubData(null)
     }
 
     let walletSnap: WalletSnapshot | null = null

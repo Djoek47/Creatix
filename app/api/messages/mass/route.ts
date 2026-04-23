@@ -12,6 +12,7 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
+import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 
 interface MassMessageRequest {
   message: string
@@ -22,6 +23,13 @@ interface MassMessageRequest {
   filter?: 'all' | 'active' | 'expired' | 'renewing'
   /** OnlyFans user list ids (OnlyFansAPI mass messaging). */
   userLists?: string[]
+  /** Optional explicit recipient fan ids for per-recipient trace and targeting. */
+  userIds?: string[]
+  trace?: {
+    enabled?: boolean
+    contentId?: string
+    recipientKeyPrefix?: string
+  }
 }
 
 // POST: Send mass message to all subscribers across platforms
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: MassMessageRequest = await request.json()
-    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists } = body
+    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists, userIds, trace } = body
 
     const trimmed = message?.trim()
     const hasText = typeof trimmed === 'string' && trimmed.length > 0
@@ -78,6 +86,9 @@ export async function POST(request: NextRequest) {
 
     let totalSent = 0
     let totalFailed = 0
+    let traceGenerated = 0
+    let traceFailed = 0
+    const traceErrors: string[] = []
 
     // Send to each platform
     for (const platform of platforms) {
@@ -153,6 +164,10 @@ export async function POST(request: NextRequest) {
               Array.isArray(userLists) && userLists.length > 0
                 ? userLists.filter((id) => typeof id === 'string' && id.length > 0)
                 : undefined,
+            userIds:
+              Array.isArray(userIds) && userIds.length > 0
+                ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
+                : undefined,
           })
 
           results.onlyfans = {
@@ -164,6 +179,59 @@ export async function POST(request: NextRequest) {
 
           totalSent += result.sent || 0
           totalFailed += result.failed || 0
+
+          const traceEnabled = Boolean(trace?.enabled)
+          const traceContentId = typeof trace?.contentId === 'string' ? trace.contentId.trim() : ''
+          const targetUserIds =
+            Array.isArray(userIds) && userIds.length > 0
+              ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
+              : []
+
+          if (traceEnabled) {
+            if (!traceContentId) {
+              results.onlyfans = {
+                success: false,
+                sent: result.sent,
+                failed: result.failed,
+                error: 'Ariadne trace enabled, but no trace contentId was provided.',
+              }
+            } else if (targetUserIds.length === 0) {
+              results.onlyfans = {
+                success: false,
+                sent: result.sent,
+                failed: result.failed,
+                error: 'Ariadne trace per recipient requires explicit recipient IDs (userIds).',
+              }
+            } else {
+              for (const recipientFanId of targetUserIds) {
+                const recipientKeyPrefix =
+                  typeof trace?.recipientKeyPrefix === 'string' && trace.recipientKeyPrefix.trim()
+                    ? trace.recipientKeyPrefix.trim()
+                    : 'mass'
+                const traceOut = await createAriadneTraceExport({
+                  supabase,
+                  userId: user.id,
+                  contentId: traceContentId,
+                  recipientKey: `${recipientKeyPrefix}:${recipientFanId}`,
+                  source: 'mass_dm',
+                  recipient: {
+                    platform: 'onlyfans',
+                    platformFanId: recipientFanId,
+                  },
+                  origin: {
+                    massBatchId: result.id != null ? String(result.id) : undefined,
+                  },
+                  updateContentRow: false,
+                })
+                if (traceOut.ok) {
+                  traceGenerated += 1
+                } else {
+                  traceFailed += 1
+                  traceErrors.push(`${recipientFanId}: ${traceOut.error}`)
+                }
+              }
+            }
+          }
         }
       } catch (error) {
         results[platform] = {
@@ -180,7 +248,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         platform: 'multi',
         source: 'mass_dm',
-        metadata: { totalSent, totalFailed, platforms: [...platforms] },
+        metadata: { totalSent, totalFailed, platforms: [...platforms], traceGenerated, traceFailed },
       })
       bumpSubscriptionMessagesSent(user.id, totalSent)
     }
@@ -192,7 +260,13 @@ export async function POST(request: NextRequest) {
       message: allSuccessful 
         ? `Successfully sent to ${totalSent} subscribers`
         : `Sent to ${totalSent} subscribers, ${totalFailed} failed`,
-      results
+      results,
+      trace: {
+        enabled: Boolean(trace?.enabled),
+        generated: traceGenerated,
+        failed: traceFailed,
+        errors: traceErrors.slice(0, 20),
+      },
     })
 
   } catch (error) {

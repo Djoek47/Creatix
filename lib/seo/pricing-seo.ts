@@ -24,7 +24,7 @@ export function buildPricingMetaDescription(): string {
   const uniMin = low.prices.unified
   const uniMax = high.prices.unified
   const mv = BUNDLE_ADDONS.MV_FLAT
-  return `Creator CRM pricing by monthly revenue: OnlyFans Focus $${ofMin}–$${ofMax}/mo, Unified $${uniMin}–$${uniMax}/mo, ManyVids Focus $${mv}/mo. Bundles: OF+Fansly +$${BUNDLE_ADDONS.FL_ON_OF}, OF+MV +$${BUNDLE_ADDONS.MV_ON_OF}, Unified +$${BUNDLE_ADDONS.UNIFIED_ON_OF} on OF base. 14-day trial, per-seat billing.`
+  return `Creator CRM pricing by monthly revenue: OnlyFans Focus $${ofMin}–$${ofMax}/mo, Unified $${uniMin}–$${uniMax}/mo, ManyVids Focus $${mv}/mo. Bundles: OF+Fansly +$${BUNDLE_ADDONS.FL_ON_OF}, OF+MV +$${BUNDLE_ADDONS.MV_ON_OF}, Unified +$${BUNDLE_ADDONS.UNIFIED_ON_OF} on OF base. 2-day trial (card required), per-seat billing.`
 }
 
 /** Short line for landing / cross-links (keep under ~120 chars). */

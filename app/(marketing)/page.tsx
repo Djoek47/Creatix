@@ -12,7 +12,7 @@ import { MarketingModeProvider } from '@/components/marketing/marketing-mode-con
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
 
-const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. 14-day trial. ${buildHomePricingTeaserLine()}`
+const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. 2-day trial (card required). ${buildHomePricingTeaserLine()}`
 
 export const metadata: Metadata = {
   ...buildPublicMetadata({

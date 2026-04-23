@@ -95,7 +95,7 @@ export default function SignUpPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Join the Divine Realm</CardTitle>
             <CardDescription>
-              Begin your 14-day celestial trial
+              Begin your 2-day celestial trial (card required)
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -18,6 +18,16 @@ Per-recipient **forensic traceability** for vault-exported video: embed a signed
 3. Join to `ariadne_exports` by `payload_id` / `content_id`.
 4. Persist detect run metadata in `ariadne_detect_events` (`none` | `unregistered` | `registered`) for evidence timelines.
 
+### Append-v1 classification states
+
+- `no_marker`
+- `marker_invalid_signature`
+- `marker_expired`
+- `marker_valid_unregistered`
+- `marker_valid_registered`
+
+All detect responses include additive `confidence` and `reason` fields.
+
 ## Service contract (`v1.1`)
 
 - Service-to-service calls (Markit -> Creatix) use signed headers:
@@ -29,6 +39,12 @@ Per-recipient **forensic traceability** for vault-exported video: embed a signed
 - Idempotency:
   - write endpoints cache prior responses in `ariadne_idempotency_keys`
   - repeated idempotency keys return the same payload without creating duplicate forensic rows
+
+## v2 roadmap surfaces
+
+- Async embed queue endpoint: `POST /api/ariadne/embed-v2`
+- Robust detector endpoint: `POST /api/ariadne/detect-v2`
+- Canonical evidence packet endpoint: `GET /api/ariadne/evidence/:exportId`
 
 ## Limitations
 

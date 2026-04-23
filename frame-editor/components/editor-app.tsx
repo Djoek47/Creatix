@@ -22,6 +22,7 @@ export function EditorApp() {
   const importUrl = sp.get('importUrl') || ''
   const exportUrl = sp.get('exportUrl') || ''
   const exportToken = sp.get('exportToken') || ''
+  const contentId = sp.get('contentId') || ''
 
   const hasVaultBridge = Boolean(importUrl && exportUrl && exportToken)
 
@@ -66,8 +67,14 @@ export function EditorApp() {
 
   const [exportStatus, setExportStatus] = useState<string | null>(null)
   const [exportBusy, setExportBusy] = useState(false)
+  const [traceRecipientKey, setTraceRecipientKey] = useState('')
+  const [traceBatchRaw, setTraceBatchRaw] = useState('')
+  const [traceBusy, setTraceBusy] = useState(false)
+  const [traceStatus, setTraceStatus] = useState<string | null>(null)
 
   const canManualExport = hasVaultBridge
+  const tracedExportEnabled = process.env.NEXT_PUBLIC_FRAMER_TRACED_EXPORT_ENABLED === 'true'
+  const canTrace = tracedExportEnabled && Boolean(contentId && traceRecipientKey.trim())
 
   const pushFile = useCallback(
     async (file: File) => {
@@ -118,6 +125,70 @@ export function EditorApp() {
       setExportBusy(false)
     }
   }, [hasVaultBridge, importUrl, pushFile])
+
+  const runTraceExport = useCallback(
+    async (recipientKey: string) => {
+      if (!contentId || !exportToken) throw new Error('Missing contentId/exportToken for traced export')
+      const res = await fetch(`${CREATIX}/api/ariadne/embed`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${exportToken}`,
+          'x-idempotency-key': `frame_editor_trace:${contentId}:${recipientKey}`,
+        },
+        body: JSON.stringify({
+          contentId,
+          recipientKey,
+          source: 'frame_export',
+          lineage: {
+            pipelineVersion: 'frame-editor',
+            encoderProfile: 'h264-main',
+          },
+        }),
+      })
+      const payload = (await res.json().catch(() => ({}))) as { error?: string; payloadId?: string }
+      if (!res.ok) throw new Error(payload.error || `Trace export failed (${res.status})`)
+      return payload.payloadId || '(unknown payload id)'
+    },
+    [contentId, exportToken],
+  )
+
+  const handleSingleTrace = useCallback(async () => {
+    const key = traceRecipientKey.trim()
+    if (!key) return
+    setTraceBusy(true)
+    setTraceStatus(null)
+    try {
+      const payloadId = await runTraceExport(key)
+      setTraceStatus(`Traced export created for ${key}. Payload: ${payloadId}`)
+    } catch (error) {
+      setTraceStatus(error instanceof Error ? error.message : 'Traced export failed')
+    } finally {
+      setTraceBusy(false)
+    }
+  }, [runTraceExport, traceRecipientKey])
+
+  const handleBatchTrace = useCallback(async () => {
+    const keys = traceBatchRaw
+      .split(/\r?\n/)
+      .map((k) => k.trim())
+      .filter(Boolean)
+    if (!keys.length) return
+    setTraceBusy(true)
+    setTraceStatus(null)
+    try {
+      const results: string[] = []
+      for (const key of keys) {
+        const payloadId = await runTraceExport(key)
+        results.push(`${key} -> ${payloadId}`)
+      }
+      setTraceStatus(`Batch traced exports complete:\n${results.join('\n')}`)
+    } catch (error) {
+      setTraceStatus(error instanceof Error ? error.message : 'Batch traced export failed')
+    } finally {
+      setTraceBusy(false)
+    }
+  }, [runTraceExport, traceBatchRaw])
 
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([])
@@ -415,6 +486,52 @@ export function EditorApp() {
                 so leaked copies can be traced — aligned with DMCA workflows. Not a visible watermark; designed for
                 detection after re-encode. Configure recipient keys from the vault / Ariadne flows on the main site.
               </p>
+              {tracedExportEnabled ? (
+                <div className="mb-3 space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={traceRecipientKey}
+                      onChange={(e) => setTraceRecipientKey(e.target.value)}
+                      placeholder="Recipient key (single export)"
+                      className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                      style={{ borderColor: 'var(--border)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSingleTrace()}
+                      disabled={!canTrace || traceBusy}
+                      className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-xs font-medium disabled:opacity-40"
+                    >
+                      Export traced copy
+                    </button>
+                  </div>
+                  <textarea
+                    value={traceBatchRaw}
+                    onChange={(e) => setTraceBatchRaw(e.target.value)}
+                    placeholder="Batch traced variants: one recipient key per line"
+                    rows={4}
+                    className="w-full rounded-lg border px-3 py-2 text-xs"
+                    style={{ borderColor: 'var(--border)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleBatchTrace()}
+                    disabled={!traceBatchRaw.trim() || traceBusy || !contentId || !exportToken}
+                    className="rounded-lg border px-3 py-2 text-xs disabled:opacity-40"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    Batch export traced variants
+                  </button>
+                  {traceStatus ? (
+                    <p
+                      className="text-muted-foreground whitespace-pre-wrap rounded border p-2 text-xs"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      {traceStatus}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <a
                 href={`${CREATIX}/dashboard/ai-studio`}
                 className="text-[var(--circe-light)] text-sm underline"

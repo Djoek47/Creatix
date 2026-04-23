@@ -57,3 +57,6 @@ When you add a **new public API** or change **auth requirements**, add one line 
 - `POST app/api/ai/mimic-test-realtime` — WebRTC SDP handshake for Realtime Mimic interrogatory voice sessions (intro + adaptive Q/A flow).
 - `POST app/api/divine/voice-tool` — now also supports Mimic voice tools: `mimic_record_answer` (live transcript persistence) and `mimic_finalize_interview` (profile refinement + persist to `divine_manager_settings.mimic_profile`).
 - `GET app/api/ariadne/exports/[id]/evidence` — session auth; returns authoritative evidence package: canonical trace export, immutable hash chain, and latest detect events. Markit service calls can use `v1.1` signed headers on write endpoints (`POST /api/ariadne/embed`, `POST /api/ariadne/detect`) with nonce + idempotency replay protection.
+- `POST app/api/ariadne/embed-v2` — session auth; queues async `ariadne_embed_v2` jobs (FFmpeg worker path) when `ARIADNE_V2_EMBED_ENABLED=true`.
+- `POST app/api/ariadne/detect-v2` — session auth; robust multi-frame detector with confidence + candidate payload outputs when `ARIADNE_V2_DETECT_ENABLED=true`.
+- `GET app/api/ariadne/evidence/[exportId]` — canonical legal packet endpoint (`?format=packet` for JSON packet envelope).

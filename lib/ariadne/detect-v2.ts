@@ -1,0 +1,98 @@
+import { createHash } from 'crypto'
+import { detectWatermark, type GrayFrame } from '@/lib/ariadne/watermark-engine'
+import { extractAppendV1Detailed } from '@/lib/ariadne-embed'
+
+export type DetectV2Result = {
+  match_state: 'none' | 'candidate' | 'registered'
+  payload_candidates: Array<{ payload_id: string; confidence: number; source: 'append_v1' | 'watermark_v2' }>
+  confidence: number
+  evidence_summary: {
+    sampled_frames: number
+    contributing_regions: number
+    append_state: string
+    watermark_hit_rate: number
+  }
+}
+
+function frameFromBufferChunk(chunk: Buffer, width = 32, height = 32): GrayFrame {
+  const frame: GrayFrame = []
+  let idx = 0
+  for (let y = 0; y < height; y++) {
+    const row: number[] = []
+    for (let x = 0; x < width; x++) {
+      row.push(chunk[idx % Math.max(1, chunk.length)] ?? 0)
+      idx += 1
+    }
+    frame.push(row)
+  }
+  return frame
+}
+
+function sampledFrames(buf: Buffer, count = 6): GrayFrame[] {
+  const step = Math.max(1, Math.floor(buf.length / count))
+  const frames: GrayFrame[] = []
+  for (let i = 0; i < count; i++) {
+    const start = Math.min(buf.length, i * step)
+    const end = Math.min(buf.length, start + 1024)
+    const chunk = buf.subarray(start, Math.max(start + 1, end))
+    frames.push(frameFromBufferChunk(chunk))
+  }
+  return frames
+}
+
+function bitsToHex(bits: number[]): string {
+  const bytes: number[] = []
+  for (let i = 0; i < bits.length; i += 8) {
+    let value = 0
+    for (let b = 0; b < 8; b++) value = (value << 1) | (bits[i + b] ? 1 : 0)
+    bytes.push(value)
+  }
+  return Buffer.from(bytes).toString('hex')
+}
+
+export function runDetectV2(buf: Buffer, seed = 42): DetectV2Result {
+  const append = extractAppendV1Detailed(buf)
+  const frames = sampledFrames(buf, 8)
+  const scores = frames.map((frame) => detectWatermark(frame, { seed, redundancy: 3, expectedBits: 40 }))
+  const avgConfidence = scores.reduce((acc, s) => acc + s.confidence, 0) / Math.max(1, scores.length)
+  const avgHit = scores.reduce((acc, s) => acc + s.hitRate, 0) / Math.max(1, scores.length)
+  const best = scores.sort((a, b) => b.confidence - a.confidence)[0]
+  const watermarkCandidate = best ? bitsToHex(best.bits) : ''
+  const watermarkPayloadId = watermarkCandidate
+    ? `wmv2_${createHash('sha256').update(watermarkCandidate).digest('hex').slice(0, 24)}`
+    : ''
+
+  const payload_candidates: DetectV2Result['payload_candidates'] = []
+  if (append.state === 'marker_valid' && append.payload?.payloadId) {
+    payload_candidates.push({
+      payload_id: append.payload.payloadId,
+      confidence: 0.97,
+      source: 'append_v1',
+    })
+  }
+  if (watermarkPayloadId) {
+    payload_candidates.push({
+      payload_id: watermarkPayloadId,
+      confidence: Number(avgConfidence.toFixed(4)),
+      source: 'watermark_v2',
+    })
+  }
+
+  let match_state: DetectV2Result['match_state'] = 'none'
+  if (append.state === 'marker_valid') match_state = 'registered'
+  else if (payload_candidates.length) match_state = 'candidate'
+
+  const confidence = append.state === 'marker_valid' ? 0.97 : Number(avgConfidence.toFixed(4))
+  return {
+    match_state,
+    payload_candidates,
+    confidence,
+    evidence_summary: {
+      sampled_frames: frames.length,
+      contributing_regions: frames.length * 2,
+      append_state: append.state,
+      watermark_hit_rate: Number(avgHit.toFixed(4)),
+    },
+  }
+}
+

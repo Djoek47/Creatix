@@ -20,6 +20,13 @@ export interface AriadnePayloadV1 {
   sig: string
 }
 
+export type AppendV1ExtractState =
+  | 'no_marker'
+  | 'marker_invalid_json'
+  | 'marker_invalid_signature'
+  | 'marker_expired'
+  | 'marker_valid'
+
 function signPayload(parts: string[]): string {
   const msg = parts.join('|')
   return createHmac('sha256', getAriadneSecret()).update(msg, 'utf8').digest('base64url')
@@ -55,6 +62,18 @@ export function verifyAriadnePayload(p: Partial<AriadnePayloadV1>): p is Ariadne
   return true
 }
 
+function verifyAriadnePayloadDetailed(
+  p: Partial<AriadnePayloadV1>,
+): { ok: true; payload: AriadnePayloadV1 } | { ok: false; state: 'marker_invalid_signature' | 'marker_expired' } {
+  if (!p || p.v !== 1 || !p.payloadId || !p.recipientKey || !p.contentId || !p.userId || !p.exp || !p.sig) {
+    return { ok: false, state: 'marker_invalid_signature' }
+  }
+  const expected = signPayload([p.payloadId, p.recipientKey, p.contentId, p.userId, String(p.exp), 'v1'])
+  if (expected !== p.sig) return { ok: false, state: 'marker_invalid_signature' }
+  if (p.exp < Math.floor(Date.now() / 1000)) return { ok: false, state: 'marker_expired' }
+  return { ok: true, payload: p as AriadnePayloadV1 }
+}
+
 export function sha256Hex(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex')
 }
@@ -81,17 +100,31 @@ function extractBalancedJson(buf: Buffer, start: number): string | null {
 
 /** Extract marker from buffer; returns null if not found or invalid. */
 export function extractAppendV1(buf: Buffer): AriadnePayloadV1 | null {
+  const detailed = extractAppendV1Detailed(buf)
+  if (detailed.state !== 'marker_valid') return null
+  return detailed.payload
+}
+
+export function extractAppendV1Detailed(
+  buf: Buffer,
+):
+  | {
+      state: AppendV1ExtractState
+      payload: AriadnePayloadV1 | null
+    }
+  | { state: 'marker_invalid_json'; payload: null } {
   const magic = MARKER_PREFIX
   const idx = buf.lastIndexOf(magic)
-  if (idx < 0) return null
+  if (idx < 0) return { state: 'no_marker', payload: null }
   const jsonStart = idx + magic.length
   const raw = extractBalancedJson(buf, jsonStart)
-  if (!raw) return null
+  if (!raw) return { state: 'marker_invalid_json', payload: null }
   try {
     const p = JSON.parse(raw) as Partial<AriadnePayloadV1>
-    if (!verifyAriadnePayload(p)) return null
-    return p
+    const verified = verifyAriadnePayloadDetailed(p)
+    if (!verified.ok) return { state: verified.state, payload: null }
+    return { state: 'marker_valid', payload: verified.payload }
   } catch {
-    return null
+    return { state: 'marker_invalid_json', payload: null }
   }
 }

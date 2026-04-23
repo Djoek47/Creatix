@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { extractAppendV1, sha256Hex } from '@/lib/ariadne-embed'
+import { extractAppendV1Detailed, sha256Hex } from '@/lib/ariadne-embed'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import {
   isServiceRequest,
@@ -22,9 +22,32 @@ export const runtime = 'nodejs'
 const DETECT_MAX_BYTES = 120 * 1024 * 1024
 const endpoint = '/api/ariadne/detect'
 
+type DetectMatchState =
+  | 'no_marker'
+  | 'marker_invalid_signature'
+  | 'marker_expired'
+  | 'marker_valid_unregistered'
+  | 'marker_valid_registered'
+
 function confidenceGatePassed(matchState: 'none' | 'unregistered' | 'registered'): boolean {
   if (!isAriadneDetectConfidenceGatingEnabled()) return true
   return matchState === 'registered'
+}
+
+function detectConfidenceAndReason(matchState: DetectMatchState): { confidence: number; reason: string } {
+  switch (matchState) {
+    case 'marker_valid_registered':
+      return { confidence: 0.99, reason: 'valid signature and canonical export mapping found' }
+    case 'marker_valid_unregistered':
+      return { confidence: 0.55, reason: 'valid marker but no canonical row for requesting account' }
+    case 'marker_expired':
+      return { confidence: 0.35, reason: 'marker signature valid but payload expired' }
+    case 'marker_invalid_signature':
+      return { confidence: 0.1, reason: 'marker present but signature invalid' }
+    case 'no_marker':
+    default:
+      return { confidence: 0.02, reason: 'no ariadne marker found' }
+  }
 }
 
 /**
@@ -32,6 +55,7 @@ function confidenceGatePassed(matchState: 'none' | 'unregistered' | 'registered'
  */
 export async function POST(request: NextRequest) {
   let serviceHeaders: ParsedServiceHeaders | null = null
+  const userIdempotencyKey = request.headers.get('x-idempotency-key')?.trim() || null
   const isSvcReq = isServiceRequest(request)
   if (isSvcReq && !isMarkitAriadneServiceModeEnabled()) {
     return NextResponse.json({ error: 'Markit Ariadne service mode is disabled' }, { status: 403 })
@@ -61,6 +85,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(replay.response_body, { status: replay.status_code })
     }
     serviceHeaders = parsed.headers
+  } else if (userIdempotencyKey) {
+    const replay = await getIdempotencyResult({
+      endpoint,
+      idempotencyKey: userIdempotencyKey,
+      serviceName: 'user',
+    })
+    if (replay) {
+      return NextResponse.json(replay.response_body, { status: replay.status_code })
+    }
   }
 
   const supabase = await createRouteHandlerClient(request)
@@ -104,7 +137,7 @@ export async function POST(request: NextRequest) {
   }
 
   const buf = Buffer.from(await file.arrayBuffer())
-  const extracted = extractAppendV1(buf)
+  const extracted = extractAppendV1Detailed(buf)
 
   const service = createServiceRoleClient()
   const fileSha = sha256Hex(buf)
@@ -130,37 +163,63 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  if (!extracted) {
+  if (extracted.state !== 'marker_valid') {
+    const matchState: DetectMatchState =
+      extracted.state === 'marker_expired'
+        ? 'marker_expired'
+        : extracted.state === 'marker_invalid_signature'
+          ? 'marker_invalid_signature'
+          : 'no_marker'
+    const signal = detectConfidenceAndReason(matchState)
     const debit = await consumeAiCredits(supabase, user.id, toolCost, {
       reasonCode: 'ariadne_detect',
-      reasonRef: `ariadne_detect:none:${Date.now()}`,
+      reasonRef: `ariadne_detect:${matchState}:${fileSha}`,
+      idempotencyKey: `ariadne_detect:${user.id}:${matchState}:${fileSha}`,
       metadata: {
         tool: 'ariadne-detect',
-        match: false,
+        match_state: matchState,
+        confidence: signal.confidence,
+        reason: signal.reason,
       },
     })
     if (!debit.ok) {
       return NextResponse.json({ error: 'Credit debit failed' }, { status: 500 })
     }
     const responseBody = {
-      match: false,
+      match:
+        matchState === 'marker_valid_registered'
+          ? true
+          : matchState === 'marker_valid_unregistered'
+            ? 'unregistered'
+            : false,
+      matchState,
       algorithmVersion: null,
-      message: 'No Ariadne append-v1 marker found in this file.',
+      message:
+        matchState === 'marker_expired'
+          ? 'Ariadne marker found but expired.'
+          : matchState === 'marker_invalid_signature'
+            ? 'Ariadne marker found but signature is invalid.'
+            : 'No Ariadne append-v1 marker found in this file.',
+      confidence: signal.confidence,
+      reason: signal.reason,
       creditsCharged: toolCost,
     }
     await persistDetectEvent({
       matchState: 'none',
       metadata: {
         tool: 'ariadne-detect',
+        match_state: matchState,
+        confidence: signal.confidence,
+        reason: signal.reason,
         content_id: contentId,
         suspected_export_id: suspectedExportId,
       },
     })
-    if (serviceHeaders) {
+    if (serviceHeaders || userIdempotencyKey) {
       await storeIdempotencyResult({
         endpoint,
-        idempotencyKey: serviceHeaders.idempotencyKey,
-        serviceName: serviceHeaders.serviceName,
+        idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
+        serviceName: serviceHeaders?.serviceName ?? 'user',
         userId: user.id,
         statusCode: 200,
         responseBody,
@@ -175,17 +234,25 @@ export async function POST(request: NextRequest) {
       'id, content_id, content_title, recipient_key, recipient_fan_id, recipient_platform, recipient_platform_fan_id, recipient_username, recipient_display_name, source, origin_message_id, origin_mass_batch_id, export_path, algorithm_version, created_at, payload_id',
     )
     .eq('user_id', user.id)
-    .eq('payload_id', extracted.payloadId)
+    .eq('payload_id', extracted.payload.payloadId)
     .maybeSingle()
+
+  const unregisteredState: DetectMatchState = 'marker_valid_unregistered'
+  const registeredState: DetectMatchState = 'marker_valid_registered'
+  const unregisteredSignal = detectConfidenceAndReason(unregisteredState)
+  const registeredSignal = detectConfidenceAndReason(registeredState)
 
   const debit = await consumeAiCredits(supabase, user.id, toolCost, {
     reasonCode: 'ariadne_detect',
-    reasonRef: `ariadne_detect:${extracted.payloadId}`,
-    idempotencyKey: `ariadne_detect:${user.id}:${extracted.payloadId}`,
+    reasonRef: `ariadne_detect:${extracted.payload.payloadId}`,
+    idempotencyKey: `ariadne_detect:${user.id}:${extracted.payload.payloadId}`,
     metadata: {
       tool: 'ariadne-detect',
       match: !(expErr || !exp),
-      payload_id: extracted.payloadId,
+      match_state: expErr || !exp ? unregisteredState : registeredState,
+      confidence: expErr || !exp ? unregisteredSignal.confidence : registeredSignal.confidence,
+      reason: expErr || !exp ? unregisteredSignal.reason : registeredSignal.reason,
+      payload_id: extracted.payload.payloadId,
       export_id: exp?.id ?? null,
       content_id: exp?.content_id ?? null,
       recipient_key: exp?.recipient_key ?? null,
@@ -198,24 +265,30 @@ export async function POST(request: NextRequest) {
   if (expErr || !exp) {
     const responseBody = {
       match: 'unregistered',
-      payload: extracted,
+      matchState: unregisteredState,
+      payload: extracted.payload,
+      confidence: unregisteredSignal.confidence,
+      reason: unregisteredSignal.reason,
       message: 'Marker decoded but no matching export row for your account (wrong account or old export).',
       creditsCharged: toolCost,
     }
     await persistDetectEvent({
-      payloadId: extracted.payloadId,
+      payloadId: extracted.payload.payloadId,
       matchState: 'unregistered',
       metadata: {
         tool: 'ariadne-detect',
+        match_state: unregisteredState,
+        confidence: unregisteredSignal.confidence,
+        reason: unregisteredSignal.reason,
         content_id: contentId,
         suspected_export_id: suspectedExportId,
       },
     })
-    if (serviceHeaders) {
+    if (serviceHeaders || userIdempotencyKey) {
       await storeIdempotencyResult({
         endpoint,
-        idempotencyKey: serviceHeaders.idempotencyKey,
-        serviceName: serviceHeaders.serviceName,
+        idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
+        serviceName: serviceHeaders?.serviceName ?? 'user',
         userId: user.id,
         statusCode: 200,
         responseBody,
@@ -226,28 +299,34 @@ export async function POST(request: NextRequest) {
 
   const responseBody = {
     match: true,
+    matchState: registeredState,
     export: exp,
-    payload: extracted,
+    payload: extracted.payload,
+    confidence: registeredSignal.confidence,
+    reason: registeredSignal.reason,
     creditsCharged: toolCost,
     dmcaHint:
       'Use recipient_key and content_id with Protection / DMCA workflows; cross-reference leak alerts for the same file hash when v2 lands.',
   }
   await persistDetectEvent({
     exportId: exp.id,
-    payloadId: extracted.payloadId,
+    payloadId: extracted.payload.payloadId,
     matchState: 'registered',
     metadata: {
       tool: 'ariadne-detect',
+      match_state: registeredState,
+      confidence: registeredSignal.confidence,
+      reason: registeredSignal.reason,
       export_id: exp.id,
       content_id: contentId,
       suspected_export_id: suspectedExportId,
     },
   })
-  if (serviceHeaders) {
+  if (serviceHeaders || userIdempotencyKey) {
     await storeIdempotencyResult({
       endpoint,
-      idempotencyKey: serviceHeaders.idempotencyKey,
-      serviceName: serviceHeaders.serviceName,
+      idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
+      serviceName: serviceHeaders?.serviceName ?? 'user',
       userId: user.id,
       statusCode: 200,
       responseBody,

@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
 
   const endpoint = '/api/ariadne/embed'
   const serviceRequest = isServiceRequest(request)
+  const userIdempotencyKey = request.headers.get('x-idempotency-key')?.trim() || null
   if (serviceRequest && !isMarkitAriadneServiceModeEnabled()) {
     return jc({ error: 'Markit Ariadne service mode is disabled' }, 403)
   }
@@ -110,6 +111,15 @@ export async function POST(request: NextRequest) {
       return jc(replay.response_body, replay.status_code)
     }
     serviceHeaders = parsed.headers
+  } else if (userIdempotencyKey) {
+    const replay = await getIdempotencyResult({
+      endpoint,
+      idempotencyKey: userIdempotencyKey,
+      serviceName: 'user',
+    })
+    if (replay) {
+      return jc(replay.response_body, replay.status_code)
+    }
   }
 
   const supabase = await createRouteHandlerClient(request)
@@ -164,11 +174,11 @@ export async function POST(request: NextRequest) {
     lineage: out.lineage,
   }
 
-  if (serviceHeaders) {
+  if (serviceHeaders || userIdempotencyKey) {
     await storeIdempotencyResult({
       endpoint,
-      idempotencyKey: serviceHeaders.idempotencyKey,
-      serviceName: serviceHeaders.serviceName,
+      idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
+      serviceName: serviceHeaders?.serviceName ?? 'user',
       userId,
       statusCode: 200,
       responseBody,

@@ -25,7 +25,6 @@ import {
   Music,
   Eye,
   Moon,
-  Heart,
   MessagesSquare,
   ListTree,
   Calendar,
@@ -55,12 +54,11 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'competitor-analysis': Eye,
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
-  'standard-of-attraction': Heart,
 }
 
 const CATEGORIES: { id: 'all' | AIToolCategory; name: string }[] = [
   { id: 'all', name: 'All' },
-  { id: 'content', name: 'Content' },
+  { id: 'content', name: 'Content Calendar' },
   { id: 'engagement', name: 'Engage' },
   { id: 'analytics', name: 'Analytics' },
   { id: 'protection', name: 'Shield' },

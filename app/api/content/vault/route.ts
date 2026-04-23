@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
       platforms: [],
       tags: [],
       status: 'draft',
+      source_platform: 'app_upload',
     })
-    .select('id, title, content_type, status, thumbnail_url, file_url, external_preview_url, updated_at')
+    .select('id, title, content_type, status, source_platform, thumbnail_url, file_url, external_preview_url, updated_at')
     .single()
 
   if (error) {

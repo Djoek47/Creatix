@@ -58,6 +58,18 @@ type OfPost = {
   media: { id: string; type: string; url: string }[]
 }
 
+type VaultQuota = {
+  usageBytes: number
+  quotaBytes: number
+  remainingBytes: number
+  usagePercent: number
+  recommendedPerUserMb: number
+}
+
+function mb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader()
@@ -97,6 +109,8 @@ export function MediaVaultHub() {
   const [frameBusy, setFrameBusy] = useState(false)
   const [frameMsg, setFrameMsg] = useState<string | null>(null)
   const [replaceBusy, setReplaceBusy] = useState(false)
+  const [vaultQuota, setVaultQuota] = useState<VaultQuota | null>(null)
+  const [vaultCategory, setVaultCategory] = useState<'all' | 'app' | 'of'>('all')
 
   const loadVault = useCallback(async () => {
     setLoading(true)
@@ -175,6 +189,21 @@ export function MediaVaultHub() {
     void loadOfPosts()
   }, [])
 
+  const loadQuota = useCallback(async () => {
+    try {
+      const res = await fetch('/api/content/vault/storage-quota', { credentials: 'include' })
+      if (!res.ok) return
+      const json = (await res.json()) as VaultQuota
+      if (typeof json?.quotaBytes === 'number') setVaultQuota(json)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadQuota()
+  }, [loadQuota])
+
   const openRow = (r: VaultContentRow, opts?: { resetFrameMsg?: boolean }) => {
     setSelected(r)
     if (opts?.resetFrameMsg !== false) setFrameMsg(null)
@@ -242,6 +271,7 @@ export function MediaVaultHub() {
         return
       }
       await loadVault()
+      await loadQuota()
     } finally {
       setLinking(null)
     }
@@ -346,6 +376,12 @@ export function MediaVaultHub() {
   const thumbFor = (r: VaultContentRow) =>
     r.thumbnail_url || r.file_url || r.external_preview_url || null
 
+  const filteredRows = rows.filter((r) => {
+    if (vaultCategory === 'of') return r.source_platform === 'onlyfans'
+    if (vaultCategory === 'app') return r.source_platform !== 'onlyfans'
+    return true
+  })
+
   const isPhoto = (r: VaultContentRow) =>
     r.content_type === 'photo' || (r.content_type !== 'video' && !r.content_type?.includes('video'))
 
@@ -407,6 +443,7 @@ export function MediaVaultHub() {
         return
       }
       await loadVault()
+      await loadQuota()
       if (j.content?.id) {
         const { data } = await supabase
           .from('content')
@@ -436,6 +473,19 @@ export function MediaVaultHub() {
             Creatix library plus OnlyFans posts. Add <strong>sales notes</strong> and <strong>teaser tags</strong> so
             Divine Manager can recommend the right PPVs in DMs—same data as vault tools.
           </CardDescription>
+          {vaultQuota ? (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-100">
+                App vault usage: {mb(vaultQuota.usageBytes)} / {mb(vaultQuota.quotaBytes)}
+              </Badge>
+              <Badge variant="outline" className="border-border/70">
+                Remaining: {mb(vaultQuota.remainingBytes)}
+              </Badge>
+              <Badge variant="outline" className="border-border/70">
+                Recommended on free tier: {vaultQuota.recommendedPerUserMb} MB/user
+              </Badge>
+            </div>
+          ) : null}
         </CardHeader>
       </Card>
 
@@ -448,6 +498,17 @@ export function MediaVaultHub() {
         </TabsList>
 
         <TabsContent value="creatix" className="mt-4 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant={vaultCategory === 'all' ? 'default' : 'outline'} onClick={() => setVaultCategory('all')}>
+              All vault
+            </Button>
+            <Button type="button" size="sm" variant={vaultCategory === 'app' ? 'default' : 'outline'} onClick={() => setVaultCategory('app')}>
+              App uploads
+            </Button>
+            <Button type="button" size="sm" variant={vaultCategory === 'of' ? 'default' : 'outline'} onClick={() => setVaultCategory('of')}>
+              OnlyFans linked
+            </Button>
+          </div>
           <Card className="border-dashed border-primary/25">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Add to Creatix vault</CardTitle>
@@ -464,19 +525,19 @@ export function MediaVaultHub() {
             <div className="flex justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : rows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                No vault items yet. Link OnlyFans posts or add content from{' '}
+                No matching vault items yet. Link OnlyFans posts or add content from{' '}
                 <Link href="/dashboard/content" className="text-primary underline">
-                  Content
+                  Content Calendar
                 </Link>
                 .
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <button
                   key={r.id}
                   type="button"
@@ -502,6 +563,11 @@ export function MediaVaultHub() {
                     {r.source_platform === 'onlyfans' && (
                       <Badge className="absolute right-2 top-2 text-[10px]" variant="secondary">
                         OF
+                      </Badge>
+                    )}
+                    {r.source_platform !== 'onlyfans' && (
+                      <Badge className="absolute right-2 top-2 text-[10px]" variant="outline">
+                        App
                       </Badge>
                     )}
                   </div>

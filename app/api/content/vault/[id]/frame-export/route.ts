@@ -3,13 +3,22 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
 import {
+  DEFAULT_VAULT_USER_QUOTA_MB,
   isAllowedVaultVideoMime,
+  resolveVaultUserQuotaBytes,
   vaultExportObjectPath,
   VAULT_EXPORT_MAX_BYTES,
   VAULT_MEDIA_BUCKET,
 } from '@/lib/frame-vault-media'
 
 export const runtime = 'nodejs'
+
+function objectSizeBytes(metadata: unknown): number {
+  if (!metadata || typeof metadata !== 'object') return 0
+  const raw = (metadata as { size?: unknown }).size
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
 
 /**
  * Upload edited video: either Frame service (X-Frame-Export-Secret + exportToken) or logged-in user (session).
@@ -81,13 +90,56 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   const { data: row, error: fetchErr } = await service
     .from('content')
-    .select('id')
+    .select('id,vault_storage_path')
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle()
 
   if (fetchErr || !row) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const quotaBytes = resolveVaultUserQuotaBytes()
+  const currentPath = (row as { vault_storage_path?: string | null }).vault_storage_path ?? null
+  const [{ data: objects, error: objectsErr }, { data: existingObj }] = await Promise.all([
+    service
+      .schema('storage')
+      .from('objects')
+      .select('name,metadata')
+      .eq('bucket_id', VAULT_MEDIA_BUCKET)
+      .like('name', `${userId}/%`),
+    currentPath
+      ? service
+          .schema('storage')
+          .from('objects')
+          .select('metadata')
+          .eq('bucket_id', VAULT_MEDIA_BUCKET)
+          .eq('name', currentPath)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  if (objectsErr) {
+    return NextResponse.json({ error: objectsErr.message || 'Could not verify vault usage' }, { status: 500 })
+  }
+
+  let usageBytes = 0
+  for (const item of (objects ?? []) as Array<{ metadata?: unknown }>) {
+    usageBytes += objectSizeBytes(item.metadata)
+  }
+  const existingBytes = objectSizeBytes((existingObj as { metadata?: unknown } | null)?.metadata)
+  const projectedBytes = usageBytes - existingBytes + file.size
+  if (projectedBytes > quotaBytes) {
+    return NextResponse.json(
+      {
+        error: `Vault storage limit reached (${Math.round(quotaBytes / (1024 * 1024))} MB per user).`,
+        code: 'vault_storage_limit_reached',
+        usageBytes,
+        quotaBytes,
+        recommendedPerUserMb: DEFAULT_VAULT_USER_QUOTA_MB,
+      },
+      { status: 413 },
+    )
   }
 
   const path = vaultExportObjectPath(userId, id, file.name || 'export.mp4')
@@ -118,6 +170,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
   const patch: Record<string, unknown> = {
     file_url: signed.signedUrl,
     vault_storage_path: path,
+    source_platform: 'app_upload',
     updated_at: new Date().toISOString(),
   }
 
@@ -131,6 +184,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   if (updErr || !updated) {
     return NextResponse.json({ error: updErr?.message || 'Update failed' }, { status: 500 })
+  }
+
+  if (currentPath && currentPath !== path) {
+    void service.storage.from(VAULT_MEDIA_BUCKET).remove([currentPath])
   }
 
   return NextResponse.json({

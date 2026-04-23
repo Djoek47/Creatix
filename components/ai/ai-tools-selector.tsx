@@ -33,7 +33,6 @@ import {
   TrendingDown,
   TrendingUp,
   Send,
-  Heart,
   Eye,
   ExternalLink,
   ListTree,
@@ -135,13 +134,6 @@ const PRO_TOOL_ROWS = [
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/30',
-  },
-  {
-    id: 'standard-of-attraction',
-    icon: Heart,
-    color: 'text-gold',
-    bgColor: 'bg-gold/10',
-    borderColor: 'border-gold/30',
   },
   {
     id: 'competitor-analysis',

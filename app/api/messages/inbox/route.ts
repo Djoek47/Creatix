@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import {
   fetchCrmMapForFanIds,
@@ -190,6 +194,16 @@ export async function GET(request: NextRequest) {
             { status: 429 },
           )
         }
+        if (isOnlyFansUpstreamTransientError(msg)) {
+          return NextResponse.json(
+            {
+              error:
+                'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+              code: 'ONLYFANS_UPSTREAM',
+            },
+            { status: 503 },
+          )
+        }
         throw e
       }
     } else if (platform === 'fansly') {
@@ -235,6 +249,16 @@ export async function GET(request: NextRequest) {
               { status: 429 },
             )
           }
+          if (isOnlyFansUpstreamTransientError(msg)) {
+            return NextResponse.json(
+              {
+                error:
+                  'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+                code: 'ONLYFANS_UPSTREAM',
+              },
+              { status: 503 },
+            )
+          }
           if (msg.includes('ONLYFANS_SESSION_EXPIRED')) {
             await supabase
               .from('platform_connections')
@@ -252,7 +276,11 @@ export async function GET(request: NextRequest) {
               { status: 401 },
             )
           }
-          errors.push('onlyfans_fetch_failed')
+          if (isOnlyFansUpstreamTransientError(msg)) {
+            errors.push('onlyfans_upstream_transient')
+          } else {
+            errors.push('onlyfans_fetch_failed')
+          }
         }
       } else {
         errors.push('onlyfans_disconnected')
@@ -341,6 +369,16 @@ export async function GET(request: NextRequest) {
           code: 'ONLYFANS_RATE_LIMIT',
         },
         { status: 429 },
+      )
+    }
+    if (isOnlyFansUpstreamTransientError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+          code: 'ONLYFANS_UPSTREAM',
+        },
+        { status: 503 },
       )
     }
     return NextResponse.json(

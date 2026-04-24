@@ -17,6 +17,18 @@ export function isOnlyFansRateLimitError(message: string): boolean {
   )
 }
 
+/**
+ * Partner / OnlyFans.com flaky responses (e.g. ONLYFANS_COM_ERROR, generic 403).
+ * Not a session expiry — retry later; prefer cached data when the UI already has it.
+ */
+export function isOnlyFansUpstreamTransientError(message: string): boolean {
+  const m = message.toLowerCase()
+  if (m.includes('onlyfans_com_error')) return true
+  if (m.includes('[403]') && m.includes('unknown error')) return true
+  if (m.includes('real performer account')) return true
+  return false
+}
+
 interface OnlyFansAPIOptions {
   accountId?: string
 }

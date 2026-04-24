@@ -316,9 +316,14 @@ function MessagesLayoutContent({
             setError(
               'OnlyFans session expired. Reconnect OnlyFans in Settings to load messages.',
             )
-          } else if (res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT') {
+          } else if (
+            res.status === 429 ||
+            data.code === 'ONLYFANS_RATE_LIMIT' ||
+            res.status === 503 ||
+            data.code === 'ONLYFANS_UPSTREAM'
+          ) {
             setError(
-              'OnlyFans is temporarily limiting requests. Wait 30–60 seconds, then refresh. Your list is unchanged.',
+              'OnlyFans is having a temporary issue (rate limit or upstream). Wait a minute, then refresh. Your list is unchanged.',
             )
           } else {
             setError(msg)

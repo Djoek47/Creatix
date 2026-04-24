@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import {
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
   onlyFansBillingGateResponse,
@@ -83,6 +87,17 @@ export async function GET(request: NextRequest) {
           code: 'ONLYFANS_RATE_LIMIT',
         },
         { status: 429 },
+      )
+    }
+
+    if (isOnlyFansUpstreamTransientError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'OnlyFans had a temporary glitch. Wait a minute and try again. If this keeps happening, reconnect OnlyFans in Settings.',
+          code: 'ONLYFANS_UPSTREAM',
+        },
+        { status: 503 },
       )
     }
 

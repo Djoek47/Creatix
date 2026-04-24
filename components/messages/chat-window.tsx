@@ -1025,20 +1025,26 @@ export function ChatWindow({
 
         if (!res.ok) {
           const rateLimited = res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT'
-          if (rateLimited) {
+          const upstreamGlitch =
+            res.status === 503 || data.code === 'ONLYFANS_UPSTREAM'
+          if (rateLimited || upstreamGlitch) {
             onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
           }
           throw new Error(
             data.error ||
               (rateLimited
                 ? 'OnlyFans is temporarily limiting requests. Wait a minute, then try again.'
-                : 'Failed to load messages'),
+                : upstreamGlitch
+                  ? 'OnlyFans had a temporary glitch. Wait a minute, then try again.'
+                  : 'Failed to load messages'),
           )
         }
 
         const staleRateLimit =
           data.code === 'ONLYFANS_RATE_LIMIT' && (data.stale === true || data.source === 'cache')
-        if (staleRateLimit) {
+        const staleUpstream =
+          data.code === 'ONLYFANS_UPSTREAM' && (data.stale === true || data.source === 'cache')
+        if (staleRateLimit || staleUpstream) {
           onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
         }
 
@@ -1133,7 +1139,12 @@ export function ChatWindow({
         } catch {
           return
         }
-        if (res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT') {
+        if (
+          res.status === 429 ||
+          data.code === 'ONLYFANS_RATE_LIMIT' ||
+          res.status === 503 ||
+          data.code === 'ONLYFANS_UPSTREAM'
+        ) {
           onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
           return
         }

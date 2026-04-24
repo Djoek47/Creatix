@@ -1,29 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import {
-  HeartPulse,
-  MoonStar,
-  ShieldCheck,
-  MessageSquareHeart,
-  Sparkles,
-  Loader2,
-  ArrowUpRight,
-} from 'lucide-react'
-import { CreatorMoodPulse } from '@/components/wellbeing/creator-mood-pulse'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2, ArrowUpRight, Sparkles, AlertCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { AmbientLayer } from '@/components/wellbeing/ambient-layer'
+import { MoodConstellation } from '@/components/wellbeing/mood-constellation'
+import { GlowCorePanel } from '@/components/wellbeing/glow-core-panel'
+import { GoldenHourTimeline } from '@/components/wellbeing/golden-hour-timeline'
+import { PerfectShotCarousel } from '@/components/wellbeing/perfect-shot-carousel'
+import { PositionCompass } from '@/components/wellbeing/position-compass'
+import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-
-const CosmicCalendar = dynamic(
-  () => import('@/components/content/cosmic-calendar').then((m) => m.CosmicCalendar),
-  { ssr: false },
-)
+import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
+import { fadeInUp } from '@/lib/wellbeing/motion'
 
 type Conv = {
-  user?: { name?: string; username?: string }
   lastMessage?: { text?: string }
   unreadCount?: number
 }
@@ -32,20 +26,13 @@ type MimicProfile = {
   tabooTopics?: string[]
   bannedPhrases?: string[]
   escalateOnKeywords?: string[]
-  toneWarmth?: number
-  humorLevel?: number
-  flirtCeiling?: number
 }
 
 function scoreMessagePressure(conversations: Conv[], mimic: MimicProfile | null) {
   const unread = conversations.reduce((s, c) => s + Number(c.unreadCount || 0), 0)
-  const texts = conversations
-    .map((c) => String(c.lastMessage?.text || '').toLowerCase())
-    .filter(Boolean)
-
-  const stressWords = ['urgent', 'now', 'angry', 'hate', 'refund', 'scam', 'wtf', 'mad', 'why no reply']
+  const texts = conversations.map((c) => String(c.lastMessage?.text || '').toLowerCase()).filter(Boolean)
+  const stressWords = ['urgent', 'now', 'angry', 'refund', 'scam', 'wtf']
   const stressHits = texts.reduce((s, t) => s + (stressWords.some((w) => t.includes(w)) ? 1 : 0), 0)
-
   const boundaryWords = [
     ...(mimic?.tabooTopics ?? []),
     ...(mimic?.bannedPhrases ?? []),
@@ -53,45 +40,56 @@ function scoreMessagePressure(conversations: Conv[], mimic: MimicProfile | null)
   ]
     .map((s) => String(s || '').toLowerCase().trim())
     .filter(Boolean)
-    .slice(0, 80)
-
   const boundaryHits = texts.reduce(
     (s, t) => s + (boundaryWords.some((w) => w.length > 2 && t.includes(w)) ? 1 : 0),
     0,
   )
-
-  const pressure = Math.min(100, unread * 4 + stressHits * 10 + boundaryHits * 12)
-  return { unread, stressHits, boundaryHits, pressure }
+  return Math.min(100, unread * 4 + stressHits * 10 + boundaryHits * 12)
 }
 
 export function WellbeingDashboard() {
   const [loading, setLoading] = useState(true)
-  const [mimicProfile, setMimicProfile] = useState<MimicProfile | null>(null)
-  const [conversations, setConversations] = useState<Conv[]>([])
+  const [insight, setInsight] = useState<GlowInsightsPayload | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [messagePressure, setMessagePressure] = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       setLoading(true)
+      setError(null)
       try {
-        const [mimicRes, ofRes, fsRes] = await Promise.all([
+        const [insightRes, mimicRes, ofRes, fsRes] = await Promise.all([
+          fetch('/api/wellbeing/glow-insights', { credentials: 'include' }),
           fetch('/api/divine/mimic-profile').catch(() => null),
           fetch('/api/onlyfans/conversations').catch(() => null),
           fetch('/api/fansly/conversations').catch(() => null),
         ])
-
-        const [mimicJson, ofJson, fsJson] = await Promise.all([
+        const [insightJson, mimicJson, ofJson, fsJson] = await Promise.all([
+          insightRes.json().catch(() => ({})),
           mimicRes?.ok ? mimicRes.json() : Promise.resolve({}),
           ofRes?.ok ? ofRes.json() : Promise.resolve({ conversations: [] }),
           fsRes?.ok ? fsRes.json() : Promise.resolve({ conversations: [] }),
         ])
-
-        if (cancelled) return
-        setMimicProfile((mimicJson?.mimic_profile as MimicProfile) ?? null)
-        setConversations([
-          ...((ofJson?.conversations as Conv[]) ?? []),
-          ...((fsJson?.conversations as Conv[]) ?? []),
-        ])
+        if (!cancelled) {
+          if (!insightRes.ok) {
+            setError(
+              typeof insightJson?.error === 'string'
+                ? insightJson.error
+                : 'Glow insights unavailable. Set a location in Settings.',
+            )
+          } else {
+            setInsight(insightJson as GlowInsightsPayload)
+          }
+          const conversations = [
+            ...(((ofJson as { conversations?: Conv[] }).conversations ?? []) as Conv[]),
+            ...(((fsJson as { conversations?: Conv[] }).conversations ?? []) as Conv[]),
+          ]
+          const mimic = ((mimicJson as { mimic_profile?: MimicProfile }).mimic_profile ?? null) as
+            | MimicProfile
+            | null
+          setMessagePressure(scoreMessagePressure(conversations, mimic))
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -102,138 +100,90 @@ export function WellbeingDashboard() {
     }
   }, [])
 
-  const pulse = useMemo(
-    () => scoreMessagePressure(conversations, mimicProfile),
-    [conversations, mimicProfile],
-  )
+  const unifiedSentence = useMemo(() => {
+    if (!insight) return null
+    return `Message pressure ${messagePressure}/100. ${insight.insightSentence}`
+  }, [insight, messagePressure])
 
-  const wellbeingBand =
-    pulse.pressure < 25 ? 'grounded' : pulse.pressure < 55 ? 'active' : pulse.pressure < 80 ? 'loaded' : 'overloaded'
-
-  const ritual = useMemo(() => {
-    if (wellbeingBand === 'grounded')
-      return 'You are in a stable zone. Run one high-value conversation and schedule one soft recovery break.'
-    if (wellbeingBand === 'active')
-      return 'You are in productive flow. Clear unread from top spenders first, then take a 5-minute screen reset.'
-    if (wellbeingBand === 'loaded')
-      return 'Cognitive load is rising. Pause non-urgent replies, run Divine suggestions only for priority fans, and hydrate.'
-    return 'High load detected. Do not mass-reply manually right now. Focus on 3 critical threads, then take a full 10-minute reset.'
-  }, [wellbeingBand])
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <Badge variant="outline" className="capitalize gap-1.5">
-          <HeartPulse className="h-3.5 w-3.5" aria-hidden />
-          State: {wellbeingBand}
-        </Badge>
-      </div>
+    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/50 p-5 md:p-7">
+      <AmbientLayer glowScore={insight?.glowScore ?? 40} />
+      <div className="relative z-10 space-y-6">
+        <motion.section {...fadeInUp} className="space-y-3">
+          <Badge variant="outline" className="border-amber-400/40 bg-amber-300/10 text-amber-700 dark:text-amber-300">
+            Flow State System
+          </Badge>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Well-being, tuned to light and rhythm.</h1>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            A calm intelligence layer for your body state, message load, and atmospheric glow windows.
+          </p>
+          {unifiedSentence ? (
+            <p className="max-w-3xl rounded-xl border border-border/60 bg-background/70 px-4 py-3 text-sm">
+              {unifiedSentence}
+            </p>
+          ) : null}
+        </motion.section>
 
-      <CreatorMoodPulse />
+        <motion.section {...fadeInUp}>
+          <MoodConstellation />
+        </motion.section>
 
-      {loading ? (
-        <Card>
-          <CardContent className="py-10 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-1 border-primary/30">
+        {error || !insight ? (
+          <Card className="border-amber-500/30 bg-amber-500/10">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <MessageSquareHeart className="h-4 w-4 text-primary" />
-                Message Pressure Index
-              </CardTitle>
-              <CardDescription>Unread + intensity + boundary collision signals</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-3xl font-bold">{pulse.pressure}/100</p>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p>Unread conversations impact: {pulse.unread}</p>
-                <p>Stress-word hits: {pulse.stressHits}</p>
-                <p>Boundary-trigger hits: {pulse.boundaryHits}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2 border-circe/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShieldCheck className="h-4 w-4 text-circe-light" />
-                Nervous System Ritual (AI-guided)
+                <AlertCircle className="h-4 w-4" />
+                Location setup required
               </CardTitle>
               <CardDescription>
-                Creative recovery protocol generated from your live messaging load.
+                {error ||
+                  'Add your location in Settings to unlock golden-hour predictions and positioning guidance.'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm">{ritual}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/dashboard/messages">
-                    Prioritize messages
-                    <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/dashboard/divine-manager?section=mimic">
-                    Tune boundaries
-                    <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/dashboard/community/circe-daily">
-                    Daily Circe tip
-                    <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </div>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/settings?tab=profile">
+                  Open Settings
+                  <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
-        </div>
-      )}
+        ) : (
+          <>
+            <motion.section {...fadeInUp} className="grid gap-4 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <GlowCorePanel insight={insight} />
+              </div>
+              <PositionCompass positioning={insight.positioning} />
+            </motion.section>
 
-      <Card className="border-venus/30 bg-gradient-to-br from-venus/5 to-transparent">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-venus" />
-            Profile-Calibrated Wellness
-          </CardTitle>
-          <CardDescription>
-            Drawn from your Mimic profile scanning signals so the recommendations match your voice + limits.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-md border border-border p-3">
-            <p className="text-xs text-muted-foreground">Tone Warmth</p>
-            <p className="text-lg font-semibold">{mimicProfile?.toneWarmth ?? 3}/5</p>
-          </div>
-          <div className="rounded-md border border-border p-3">
-            <p className="text-xs text-muted-foreground">Humor Level</p>
-            <p className="text-lg font-semibold">{mimicProfile?.humorLevel ?? 2}/5</p>
-          </div>
-          <div className="rounded-md border border-border p-3">
-            <p className="text-xs text-muted-foreground">Flirt Ceiling</p>
-            <p className="text-lg font-semibold">{mimicProfile?.flirtCeiling ?? 2}/5</p>
-          </div>
-        </CardContent>
-      </Card>
+            <motion.section {...fadeInUp}>
+              <GoldenHourTimeline timeline={insight.timeline} />
+            </motion.section>
 
-      <Card className="border-primary/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MoonStar className="h-4 w-4 text-primary" />
-            Cosmic Well-being Lab
-          </CardTitle>
-          <CardDescription>
-            Use the cosmic calendar and location-aware tools to plan low-stress, high-energy creation windows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CosmicCalendar />
-        </CardContent>
-      </Card>
+            <motion.section {...fadeInUp}>
+              <PerfectShotCarousel days={insight.perfectShotDays} />
+            </motion.section>
+
+            <motion.section {...fadeInUp} className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                Contextual action capsules
+              </div>
+              <FloatingActionCapsules actions={insight.actionCapsules} />
+            </motion.section>
+          </>
+        )}
+      </div>
     </div>
   )
 }

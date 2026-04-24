@@ -94,6 +94,13 @@ const WORKING_TOOL_ROWS = [
     bgColor: 'bg-rose-500/10',
     borderColor: 'border-rose-500/30',
   },
+  {
+    id: 'brand-uniformity',
+    icon: Sparkles,
+    color: 'text-fuchsia-500',
+    bgColor: 'bg-fuchsia-500/10',
+    borderColor: 'border-fuchsia-500/30',
+  },
 ] as const
 
 const workingTools = WORKING_TOOL_ROWS.map((row) => {
@@ -1397,6 +1404,10 @@ export function AIToolsSelector({
                   <Card
                     className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
                     onClick={() => {
+                      if (tool.id === 'brand-uniformity') {
+                        window.location.href = '/dashboard/brand-uniformity'
+                        return
+                      }
                       if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
                       setSelectedTool(tool)
                     }}

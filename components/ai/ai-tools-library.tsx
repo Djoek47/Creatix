@@ -54,6 +54,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'competitor-analysis': Eye,
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
+  'brand-uniformity': Sparkles,
+  'brand-lint': PenTool,
 }
 
 const CATEGORIES: { id: 'all' | AIToolCategory; name: string }[] = [

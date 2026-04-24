@@ -39,6 +39,7 @@ const TikTokLogo = () => (
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from 'next-themes'
 import { BirthdaySettings } from '@/components/settings/birthday-settings'
+import { LocationVaultSettings } from '@/components/settings/location-vault-settings'
 import { BillingSection } from '@/components/settings/billing-section'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
@@ -66,6 +67,8 @@ export default function SettingsPage() {
     avatar_url: string
     timezone?: string
     has_birthday_set?: boolean
+    has_location_set?: boolean
+    location_hint?: string | null
     gender_identity?: string | null
     pronouns?: string | null
     pronouns_custom?: string | null
@@ -542,6 +545,9 @@ export default function SettingsPage() {
             {user && (
               <BirthdaySettings userId={user.id} hasBirthdaySet={hasBirthdaySet} />
             )}
+
+            {/* Well-being location vault */}
+            {user ? <LocationVaultSettings userId={user.id} /> : null}
           </>
           )}
 

@@ -55,6 +55,10 @@ export interface Profile {
   encrypted_birthday: string | null
   birthday_passphrase_hash: string | null
   has_birthday_set: boolean
+  encrypted_location?: string | null
+  has_location_set?: boolean
+  location_hint?: string | null
+  location_updated_at?: string | null
   /** Prior platform handles for leak search (rebrands) */
   former_usernames?: string[] | null
   /** Manual content title hints for leak search */

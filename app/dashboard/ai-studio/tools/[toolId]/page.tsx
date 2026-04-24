@@ -43,6 +43,9 @@ function ToolRunnerInner() {
     if (toolId === 'frame-studio') {
       router.replace('/dashboard/ai-studio')
     }
+    if (toolId === 'brand-uniformity' || toolId === 'brand-lint') {
+      router.replace('/dashboard/brand-uniformity')
+    }
   }, [toolId, router])
 
   if (toolId === 'caption-generator') {
@@ -64,7 +67,9 @@ function ToolRunnerInner() {
     toolId === 'dmca-automator' ||
     toolId === 'circe-protection-shield' ||
     toolId === 'ariadne-trace' ||
-    toolId === 'frame-studio'
+    toolId === 'frame-studio' ||
+    toolId === 'brand-uniformity' ||
+    toolId === 'brand-lint'
   ) {
     return null
   }

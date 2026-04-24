@@ -167,7 +167,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     badge: 'Beta',
     credits: 1,
     hasRunner: true,
-    hiddenFromLibrary: true,
+    hiddenFromLibrary: false,
   },
   {
     id: 'brand-lint',
@@ -179,7 +179,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     badge: 'Beta',
     credits: 1,
     hasRunner: true,
-    hiddenFromLibrary: true,
+    hiddenFromLibrary: false,
   },
   {
     id: 'viral-predictor',

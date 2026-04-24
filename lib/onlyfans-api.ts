@@ -5,6 +5,8 @@
  * Base URL: https://app.onlyfansapi.com/api
  */
 
+import { onlyFansRequestWithPolicy } from '@/lib/onlyfans-request-policy'
+
 const ONLYFANS_API_BASE = 'https://app.onlyfansapi.com/api'
 
 /** Cloudflare / OnlyFans-API rate limit — callers should back off and show a friendly message. */
@@ -415,17 +417,28 @@ class OnlyFansAPI {
     }
     url += endpoint
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
+    const response = await onlyFansRequestWithPolicy({
+      url,
+      init: {
+        ...options,
+        headers,
+      },
+      accountId: this.accountId,
     })
 
     const json = await response.json().catch(() => null)
+    const retryAfter = response.headers.get('retry-after')
 
     // OnlyFans API sometimes returns 200 with an error payload. Normalize both cases here.
     if (!response.ok || (json && typeof json === 'object' && (json as any).error)) {
       const errorCode = (json as any)?.error as string | undefined
       const message = (json as any)?.message || (json as any)?.description || errorCode
+
+      if (response.status === 429) {
+        throw new Error(
+          `ONLYFANS_RATE_LIMIT:${typeof message === 'string' && message ? message : 'Too many requests'}${retryAfter ? `|retry_after=${retryAfter}` : ''}`,
+        )
+      }
 
       // Special case: session expired -> needs re-authentication
       if (errorCode === 'SESSION_EXPIRED:NEEDS_REAUTHENTICATION') {
@@ -448,14 +461,24 @@ class OnlyFansAPI {
       ...(options.headers as Record<string, string> | undefined),
     }
     const url = `${ONLYFANS_API_BASE}${path.startsWith('/') ? path : `/${path}`}`
-    const response = await fetch(url, { ...options, headers })
+    const response = await onlyFansRequestWithPolicy({
+      url,
+      init: { ...options, headers },
+      accountId: this.accountId,
+    })
     const json = await response.json().catch(() => null)
+    const retryAfter = response.headers.get('retry-after')
     if (!response.ok || (json && typeof json === 'object' && (json as { error?: unknown }).error)) {
       const errorCode = (json as { error?: string })?.error
       const message =
         (json as { message?: string })?.message ||
         (json as { description?: string })?.description ||
         errorCode
+      if (response.status === 429) {
+        throw new Error(
+          `ONLYFANS_RATE_LIMIT:${typeof message === 'string' && message ? message : 'Too many requests'}${retryAfter ? `|retry_after=${retryAfter}` : ''}`,
+        )
+      }
       if (errorCode === 'SESSION_EXPIRED:NEEDS_REAUTHENTICATION') {
         throw new Error('ONLYFANS_SESSION_EXPIRED:NEEDS_REAUTHENTICATION')
       }
@@ -747,6 +770,7 @@ class OnlyFansAPI {
     offset?: number
     order?: 'recent' | 'old'
     query?: string
+    unreadOnly?: boolean
   }): Promise<{ 
     conversations: {
       user: Fan
@@ -760,6 +784,7 @@ class OnlyFansAPI {
     if (params?.offset) queryParams.set('offset', params.offset.toString())
     if (params?.order) queryParams.set('order', params.order)
     if (params?.query) queryParams.set('query', params.query)
+    if (params?.unreadOnly) queryParams.set('unreadOnly', 'true')
     
     const response = await this.request<{ data: any[] }>(`/chats?${queryParams.toString()}`)
     

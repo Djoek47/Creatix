@@ -113,6 +113,11 @@ export async function GET(request: NextRequest) {
     }
 
     const errors: string[] = []
+    const providerErrors: Partial<Record<'onlyfans' | 'fansly', string>> = {}
+    const noteProviderError = (provider: 'onlyfans' | 'fansly', code: string) => {
+      errors.push(code)
+      if (!providerErrors[provider]) providerErrors[provider] = code
+    }
 
     async function loadOnlyFans(): Promise<RawConv[]> {
       const { data: connection } = await supabase
@@ -124,7 +129,7 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!connection?.access_token) {
-        errors.push('onlyfans_disconnected')
+        noteProviderError('onlyfans', 'onlyfans_disconnected')
         return []
       }
 
@@ -145,7 +150,7 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!connection?.access_token) {
-        errors.push('fansly_disconnected')
+        noteProviderError('fansly', 'fansly_disconnected')
         return []
       }
 
@@ -184,7 +189,12 @@ export async function GET(request: NextRequest) {
         throw e
       }
     } else if (platform === 'fansly') {
-      raw = await loadFansly()
+      try {
+        raw = await loadFansly()
+      } catch {
+        noteProviderError('fansly', 'fansly_fetch_failed')
+        raw = []
+      }
       hasMore = raw.length >= limit
     } else {
       const pool = Math.min(120, Math.max(limit + offset + 20, limit * 2))
@@ -224,11 +234,11 @@ export async function GET(request: NextRequest) {
               .eq('platform', 'onlyfans')
             await clearOnlyFansDmMessageCacheForUser(supabase, userId)
           } else {
-            errors.push('onlyfans_fetch_failed')
+            noteProviderError('onlyfans', 'onlyfans_fetch_failed')
           }
         }
       } else {
-        errors.push('onlyfans_disconnected')
+        noteProviderError('onlyfans', 'onlyfans_disconnected')
       }
 
       if (fsConn?.access_token) {
@@ -240,10 +250,10 @@ export async function GET(request: NextRequest) {
             ...chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null),
           )
         } catch {
-          errors.push('fansly_fetch_failed')
+          noteProviderError('fansly', 'fansly_fetch_failed')
         }
       } else {
-        errors.push('fansly_disconnected')
+        noteProviderError('fansly', 'fansly_disconnected')
       }
 
       parts.sort((a, b) => {
@@ -302,6 +312,13 @@ export async function GET(request: NextRequest) {
         platform,
         segment,
         sort,
+        degraded: Object.keys(providerErrors).length > 0,
+        partial:
+          platform === 'all' &&
+          Object.keys(providerErrors).length > 0 &&
+          enriched.length > 0,
+        provider_errors:
+          Object.keys(providerErrors).length > 0 ? providerErrors : undefined,
         errors: errors.length ? errors : undefined,
       },
     })

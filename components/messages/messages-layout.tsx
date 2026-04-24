@@ -48,6 +48,12 @@ import type {
 } from '@/lib/messages/inbox-crm'
 
 type MessagesView = 'conversations' | 'insights'
+type InboxMeta = {
+  degraded?: boolean
+  partial?: boolean
+  provider_errors?: Partial<Record<'onlyfans' | 'fansly', string>>
+  errors?: string[]
+}
 
 const INBOX_LIMIT = 40
 const MESSAGE_WORKSPACE_PREFS_KEY = 'messages-workspace-layout-prefs-v1'
@@ -147,6 +153,7 @@ function MessagesLayoutContent({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [inboxMeta, setInboxMeta] = useState<InboxMeta | null>(null)
   const [fanProfileOpen, setFanProfileOpen] = useState(false)
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
@@ -307,6 +314,7 @@ function MessagesLayoutContent({
           message?: string
           hasMore?: boolean
           nextOffset?: number
+          meta?: InboxMeta
         }
 
         if (!res.ok) {
@@ -319,10 +327,12 @@ function MessagesLayoutContent({
           } else {
             setError(msg)
           }
+          setInboxMeta(null)
           return
         }
 
         const rows = data.conversations ?? []
+        setInboxMeta(data.meta ?? null)
         listOffsetRef.current =
           typeof data.nextOffset === 'number' ? data.nextOffset : offset + rows.length
         setHasMoreInbox(Boolean(data.hasMore))
@@ -369,6 +379,7 @@ function MessagesLayoutContent({
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load conversations')
+        setInboxMeta(null)
       } finally {
         setLoading(false)
         setRefreshing(false)
@@ -733,6 +744,14 @@ function MessagesLayoutContent({
           )}
         </div>
       </div>
+      ) : null}
+
+      {view === 'conversations' && inboxMeta?.degraded ? (
+        <div className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          {inboxMeta.partial
+            ? 'Inbox is partially loaded. One provider is degraded; showing available conversations.'
+            : 'A provider is currently degraded, which may affect inbox freshness.'}
+        </div>
       ) : null}
 
       {hideMessagesToolbar ? (

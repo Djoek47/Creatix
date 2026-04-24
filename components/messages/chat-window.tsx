@@ -458,6 +458,7 @@ export function ChatWindow({
   const fadeTransition = uiFadeTransition(reduced)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<OnlyFansMessage[]>([])
+  const [threadStaleReason, setThreadStaleReason] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -540,6 +541,7 @@ export function ChatWindow({
   const composerTypeAbortRef = useRef<AbortController | null>(null)
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
+  const lastGoodMessagesByConversationRef = useRef<Record<string, OnlyFansMessage[]>>({})
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
   const refreshCreditSnapshot = useCallback(async () => {
     try {
@@ -980,11 +982,17 @@ export function ChatWindow({
   useEffect(() => {
     if (!conversation) {
       setMessages([])
+      setThreadStaleReason(null)
       setMessagingReadPrefs(null)
       return
     }
 
-    setMessages([])
+    const conversationKey = `${conversation.platform}:${String(conversation.user.id)}`
+    const cachedMessages = lastGoodMessagesByConversationRef.current[conversationKey]
+    if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
+      setMessages(cachedMessages)
+    }
+    setThreadStaleReason(null)
     setDmSendSourceByMessageId({})
     const loadMessages = async () => {
       setLoading(true)
@@ -997,7 +1005,13 @@ export function ChatWindow({
           return
         }
         const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
-        let data: { error?: string; code?: string; messages?: OnlyFansMessage[] } = {}
+        let data: {
+          error?: string
+          code?: string
+          messages?: OnlyFansMessage[]
+          source?: 'cache' | 'onlyfans'
+          stale?: boolean
+        } = {}
         try {
           data = (await res.json()) as typeof data
         } catch {
@@ -1017,7 +1031,14 @@ export function ChatWindow({
           )
         }
 
-        setMessages(normalizeAndSortMessages(data.messages || []))
+        const normalized = normalizeAndSortMessages(data.messages || [])
+        setMessages(normalized)
+        lastGoodMessagesByConversationRef.current[conversationKey] = normalized
+        if (data.stale === true || data.source === 'cache') {
+          setThreadStaleReason('Showing cached messages while OnlyFans refreshes in the background.')
+        } else {
+          setThreadStaleReason(null)
+        }
 
         const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
         const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
@@ -1051,6 +1072,9 @@ export function ChatWindow({
           .catch(() => undefined)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load messages')
+        if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
+          setThreadStaleReason('Showing last known messages because live refresh failed.')
+        }
       } finally {
         setLoading(false)
       }
@@ -1376,9 +1400,22 @@ export function ChatWindow({
                     return
                   }
                   setLoading(true)
-                  fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
-                    .then((res) => res.json())
-                    .then((data) => setMessages(normalizeAndSortMessages(data.messages || [])))
+                fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
+                  .then((res) => res.json())
+                  .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
+                    const normalized = normalizeAndSortMessages(data.messages || [])
+                    setMessages(normalized)
+                    lastGoodMessagesByConversationRef.current[
+                      `${conversation.platform}:${String(conversation.user.id)}`
+                    ] = normalized
+                    if (data.stale === true || data.source === 'cache') {
+                      setThreadStaleReason(
+                        'Showing cached messages while OnlyFans refreshes in the background.',
+                      )
+                    } else {
+                      setThreadStaleReason(null)
+                    }
+                  })
                     .finally(() => setLoading(false))
                 }}
               >
@@ -1466,6 +1503,11 @@ export function ChatWindow({
           className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
         >
         <div className="p-3.5 sm:p-4">
+        {threadStaleReason ? (
+          <div className="mb-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            {threadStaleReason}
+          </div>
+        ) : null}
         {loading ? (
           <div className="flex min-h-[200px] items-center justify-center sm:min-h-[240px]">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1486,7 +1528,18 @@ export function ChatWindow({
                 setLoading(true)
                 fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
                   .then(res => res.json())
-                  .then(data => setMessages(normalizeAndSortMessages(data.messages || [])))
+                  .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
+                    const normalized = normalizeAndSortMessages(data.messages || [])
+                    setMessages(normalized)
+                    lastGoodMessagesByConversationRef.current[
+                      `${conversation.platform}:${String(conversation.user.id)}`
+                    ] = normalized
+                    if (data.stale === true || data.source === 'cache') {
+                      setThreadStaleReason('Showing cached messages while OnlyFans refreshes in the background.')
+                    } else {
+                      setThreadStaleReason(null)
+                    }
+                  })
                   .catch(e => setError(e.message))
                   .finally(() => setLoading(false))
               }}

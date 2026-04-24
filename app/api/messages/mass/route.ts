@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
 
     let totalSent = 0
     let totalFailed = 0
+    let onlyFansRateLimited = false
     let traceGenerated = 0
     let traceFailed = 0
     const traceErrors: string[] = []
@@ -261,9 +262,19 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        const rateLimited = isOnlyFansRateLimitError(msg)
         results[platform] = {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to send'
+          error: rateLimited
+            ? 'OnlyFans is temporarily limiting requests. Please retry shortly.'
+            : error instanceof Error
+              ? error.message
+              : 'Failed to send'
+        }
+        if (rateLimited) {
+          onlyFansRateLimited = true
+          results[platform].error += ' [ONLYFANS_RATE_LIMIT]'
         }
       }
     }
@@ -280,7 +291,7 @@ export async function POST(request: NextRequest) {
       bumpSubscriptionMessagesSent(user.id, totalSent)
     }
 
-    return NextResponse.json({
+    const payload = {
       success: allSuccessful,
       totalSent,
       totalFailed,
@@ -294,7 +305,15 @@ export async function POST(request: NextRequest) {
         failed: traceFailed,
         errors: traceErrors.slice(0, 20),
       },
-    })
+    }
+    if (totalSent === 0 && onlyFansRateLimited) {
+      return NextResponse.json(
+        { ...payload, code: 'ONLYFANS_RATE_LIMIT' },
+        { status: 429 },
+      )
+    }
+
+    return NextResponse.json(payload)
 
   } catch (error) {
     console.error('Mass message error:', error)

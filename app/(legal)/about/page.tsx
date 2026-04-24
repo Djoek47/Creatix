@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Moon, Sun, Star, Shield, TrendingUp, Heart, Sparkles } from 'lucide-react'
+import { ArrowLeft, Moon, Sun, Star, Shield, Heart, Sparkles } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
@@ -164,30 +164,6 @@ export default function AboutPage() {
                 <p className="mt-3 text-sm text-muted-foreground">{member.description}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="border-y border-border bg-card/30 py-16">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="grid gap-8 text-center md:grid-cols-4">
-            <div>
-              <div className="text-3xl font-bold text-primary">10K+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Creators</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">$50M+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Revenue Managed</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">1M+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Messages Automated</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">99.9%</div>
-              <div className="mt-1 text-sm text-muted-foreground">Uptime</div>
-            </div>
           </div>
         </div>
       </section>

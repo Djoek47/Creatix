@@ -23,6 +23,14 @@ import {
 } from '@/lib/dashboard/notification-ui-bridge'
 import { executeNotificationSecretaryBriefing } from '@/lib/divine/notification-secretary-briefing-client'
 import { stripHtml } from '@/lib/html-utils'
+import {
+  applyPullNotificationOverlay,
+  clearPullDismissed,
+  countPullDismissed,
+  dismissPullNotification,
+  markAllPullNotificationsRead,
+  markPullNotificationRead,
+} from '@/lib/platform-pull-notification-state'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -100,7 +108,7 @@ export function Notifications() {
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
   const supabase = createClient()
 
-  const loadOnlyFansPull = useCallback(async () => {
+  const loadOnlyFansPull = useCallback(async (uid: string | null) => {
     try {
       const res = await fetch('/api/onlyfans/notifications')
       const json = await res.json().catch(() => ({}))
@@ -139,13 +147,13 @@ export function Notifications() {
         avatar_url: null,
         origin: 'platform_pull' as const,
       }))
-      setOfPullNotifications(ofNotifs)
+      setOfPullNotifications(applyPullNotificationOverlay(uid, ofNotifs))
     } catch {
       setOfPullNotifications([])
     }
   }, [])
 
-  const loadFanslyPull = useCallback(async () => {
+  const loadFanslyPull = useCallback(async (uid: string | null) => {
     try {
       const res = await fetch('/api/fansly/notifications')
       const json = await res.json().catch(() => ({}))
@@ -184,7 +192,7 @@ export function Notifications() {
         avatar_url: null,
         origin: 'platform_pull' as const,
       }))
-      setFanslyPullNotifications(fsNotifs)
+      setFanslyPullNotifications(applyPullNotificationOverlay(uid, fsNotifs))
     } catch {
       setFanslyPullNotifications([])
     }
@@ -262,8 +270,8 @@ export function Notifications() {
 
   useEffect(() => {
     if (!open || !userId) return
-    void loadOnlyFansPull()
-    void loadFanslyPull()
+    void loadOnlyFansPull(userId)
+    void loadFanslyPull(userId)
   }, [open, userId, loadOnlyFansPull, loadFanslyPull])
 
   const liveDb = useMemo(
@@ -351,6 +359,7 @@ export function Notifications() {
     setFanslyPullNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
 
     if (id.startsWith('of-') || id.startsWith('fs-')) {
+      if (userId) markPullNotificationRead(userId, id)
       return
     }
 
@@ -369,6 +378,12 @@ export function Notifications() {
 
   const markAllAsRead = async () => {
     if (tab === 'live') {
+      if (userId) {
+        markAllPullNotificationsRead(userId, [
+          ...ofPullNotifications.map((n) => n.id),
+          ...fanslyPullNotifications.map((n) => n.id),
+        ])
+      }
       setOfPullNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
       setFanslyPullNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     }
@@ -408,6 +423,7 @@ export function Notifications() {
     setFanslyPullNotifications((prev) => prev.filter((n) => n.id !== id))
 
     if (id.startsWith('of-') || id.startsWith('fs-')) {
+      if (userId) dismissPullNotification(userId, id)
       return
     }
 
@@ -437,6 +453,7 @@ export function Notifications() {
   }
 
   const channelUnread = displayed.filter((n) => !n.read).length
+  const pullDismissedCount = userId ? countPullDismissed(userId) : 0
 
   if (!mounted) {
     return (
@@ -516,6 +533,27 @@ export function Notifications() {
 
           <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="live" className="m-0">
+              {userId && pullDismissedCount > 0 ? (
+                <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/25 px-3 py-2">
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {pullDismissedCount} platform alert{pullDismissedCount === 1 ? '' : 's'} hidden. Restore them
+                    below when you want them back in this list.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 shrink-0 whitespace-nowrap px-2 text-[11px]"
+                    onClick={() => {
+                      clearPullDismissed(userId)
+                      void loadOnlyFansPull(userId)
+                      void loadFanslyPull(userId)
+                    }}
+                  >
+                    Show again
+                  </Button>
+                </div>
+              ) : null}
               {liveList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
@@ -683,15 +721,30 @@ function NotificationRow({
       </div>
       <div className="flex flex-shrink-0 gap-1">
         {!notification.read && (
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => markAsRead(notification.id)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void markAsRead(notification.id)
+            }}
+          >
             <Check className="h-3 w-3" />
           </Button>
         )}
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           className="h-6 w-6 text-muted-foreground hover:text-destructive"
-          onClick={() => removeNotification(notification.id)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            void removeNotification(notification.id)
+          }}
         >
           <X className="h-3 w-3" />
         </Button>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, Mail, MapPin, Clock, MessageSquare, Shield, CreditCard, Loader2, Check } from 'lucide-react'
+import { ArrowLeft, Send, MapPin, Clock, MessageSquare, Shield, CreditCard, Loader2, Check } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
@@ -133,23 +133,18 @@ export default function ContactPage() {
               </Card>
             ))}
 
-            {/* Office Info */}
             <Card className="border-border bg-card">
               <CardHeader>
-                <CardTitle className="text-base">Office Location</CardTitle>
+                <CardTitle className="text-base">Location</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                  <span>123 Creator Way, Suite 400<br />Los Angeles, CA 90001</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  <span>hello@circeetvenus.com</span>
+                  <span>Montreal, Quebec, Canada</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>Mon-Fri 9am-6pm PST</span>
+                  <span>Every day · 9am–6pm EST</span>
                 </div>
               </CardContent>
             </Card>

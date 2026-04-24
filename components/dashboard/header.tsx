@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles, Wand2, CircleDot } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles, Wand2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -25,6 +25,7 @@ import { StartTourButton } from '@/components/tour/start-tour-button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
+import { HeaderPlatformStatusMenuSection } from '@/components/dashboard/header-platform-status-menu'
 import { getDashboardPageAriaLabel } from '@/lib/dashboard-page-meta'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +38,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const onWellBeingPage =
     pathname === '/dashboard/well-being' || pathname.startsWith('/dashboard/well-being/')
@@ -156,7 +158,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
         {/* User menu (far right) */}
         {mounted ? (
-          <DropdownMenu>
+          <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -171,7 +173,12 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" sideOffset={6} forceMount>
+            <DropdownMenuContent
+              className="w-[min(100vw-2rem,22rem)] max-w-[22rem] sm:w-80"
+              align="end"
+              sideOffset={6}
+              forceMount
+            >
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
@@ -183,15 +190,12 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard/settings?tab=integrations"
-                  className="flex cursor-pointer items-center"
-                >
-                  <CircleDot className="mr-2 h-4 w-4" />
-                  Set platform status
-                </Link>
-              </DropdownMenuItem>
+              {userMenuOpen ? (
+                <>
+                  <HeaderPlatformStatusMenuSection />
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings" className="flex cursor-pointer items-center">
                   <User className="mr-2 h-4 w-4" />

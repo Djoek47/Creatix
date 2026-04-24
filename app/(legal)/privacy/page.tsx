@@ -169,7 +169,6 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="mt-2 list-none space-y-1 text-muted-foreground">
               <li>Email: privacy@circeetvenus.com</li>
-              <li>Address: 123 Creator Way, Suite 400, Los Angeles, CA 90001</li>
             </ul>
           </section>
         </div>

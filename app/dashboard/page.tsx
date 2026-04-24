@@ -43,6 +43,8 @@ export default async function DashboardPage() {
 
   // Check if user has any connected platforms
   const hasConnectedPlatforms = (platformConnections?.length || 0) > 0
+  const connectedOnlyFans = platformConnections?.some((c) => c.platform === 'onlyfans') ?? false
+  const connectedFansly = platformConnections?.some((c) => c.platform === 'fansly') ?? false
 
   const planLabel = getDashboardPlanLabel(subscription ?? null)
   const revenueTier =
@@ -119,6 +121,8 @@ export default async function DashboardPage() {
           stats={stats}
           analytics={analytics || []}
           hasConnectedPlatforms={hasConnectedPlatforms}
+          connectedOnlyFans={connectedOnlyFans}
+          connectedFansly={connectedFansly}
           fans={fans || []}
           totalFans={totalFans}
           leakAlerts={leakAlerts || []}

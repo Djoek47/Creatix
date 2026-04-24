@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import {
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
   onlyFansBillingGateResponse,
@@ -73,6 +73,16 @@ export async function GET(request: NextRequest) {
             'Your OnlyFans session with our data partner expired. Please reconnect OnlyFans from your dashboard to continue syncing messages.',
         },
         { status: 401 }
+      )
+    }
+
+    if (isOnlyFansRateLimitError(message)) {
+      return NextResponse.json(
+        {
+          error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and try again.',
+          code: 'ONLYFANS_RATE_LIMIT',
+        },
+        { status: 429 },
       )
     }
 

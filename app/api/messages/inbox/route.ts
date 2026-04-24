@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import {
   fetchCrmMapForFanIds,
@@ -181,13 +181,23 @@ export async function GET(request: NextRequest) {
             { status: 401 },
           )
         }
+        if (isOnlyFansRateLimitError(msg)) {
+          return NextResponse.json(
+            {
+              error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+              code: 'ONLYFANS_RATE_LIMIT',
+            },
+            { status: 429 },
+          )
+        }
         throw e
       }
     } else if (platform === 'fansly') {
       raw = await loadFansly()
       hasMore = raw.length >= limit
     } else {
-      const pool = Math.min(120, Math.max(limit + offset + 20, limit * 2))
+      // Smaller OnlyFans chat list pulls reduce Cloudflare / partner rate limits (GET /chats).
+      const pool = Math.min(55, Math.max(offset + limit + 8, limit + 12))
       const { data: ofConn } = await supabase
         .from('platform_connections')
         .select('access_token')
@@ -216,6 +226,15 @@ export async function GET(request: NextRequest) {
           )
         } catch (e) {
           const msg = e instanceof Error ? e.message : ''
+          if (isOnlyFansRateLimitError(msg)) {
+            return NextResponse.json(
+              {
+                error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+                code: 'ONLYFANS_RATE_LIMIT',
+              },
+              { status: 429 },
+            )
+          }
           if (msg.includes('ONLYFANS_SESSION_EXPIRED')) {
             await supabase
               .from('platform_connections')
@@ -223,9 +242,17 @@ export async function GET(request: NextRequest) {
               .eq('user_id', userId)
               .eq('platform', 'onlyfans')
             await clearOnlyFansDmMessageCacheForUser(supabase, userId)
-          } else {
-            errors.push('onlyfans_fetch_failed')
+            return NextResponse.json(
+              {
+                error: 'OnlyFans session expired',
+                code: 'ONLYFANS_SESSION_EXPIRED',
+                message:
+                  'Your OnlyFans session with our data partner expired. Please reconnect OnlyFans from your dashboard.',
+              },
+              { status: 401 },
+            )
           }
+          errors.push('onlyfans_fetch_failed')
         }
       } else {
         errors.push('onlyfans_disconnected')
@@ -307,6 +334,15 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
+    if (isOnlyFansRateLimitError(message)) {
+      return NextResponse.json(
+        {
+          error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+          code: 'ONLYFANS_RATE_LIMIT',
+        },
+        { status: 429 },
+      )
+    }
     return NextResponse.json(
       { error: 'Failed to load inbox', details: message },
       { status: 500 },

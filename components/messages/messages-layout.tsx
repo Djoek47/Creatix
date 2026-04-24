@@ -316,6 +316,10 @@ function MessagesLayoutContent({
             setError(
               'OnlyFans session expired. Reconnect OnlyFans in Settings to load messages.',
             )
+          } else if (res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT') {
+            setError(
+              'OnlyFans is temporarily limiting requests. Wait 30–60 seconds, then refresh. Your list is unchanged.',
+            )
           } else {
             setError(msg)
           }
@@ -377,6 +381,9 @@ function MessagesLayoutContent({
     },
     [segment, sort, inboxPlatform, tag, searchDebounced],
   )
+
+  const loadInboxRef = useRef(loadInbox)
+  loadInboxRef.current = loadInbox
 
   useEffect(() => {
     void loadInbox()
@@ -840,7 +847,7 @@ function MessagesLayoutContent({
                     conversation={selectedConversation}
                     userId={userId}
                     chatterDraftOutboxId={chatterDraftOutboxId}
-                    onMessageSent={() => void loadInbox({ refresh: true })}
+                    onMessageSent={() => void loadInboxRef.current({ refresh: true })}
                     onOpenFanProfile={() => setFanProfileOpen(true)}
                     nullConversationTitle={emptyInboxChatTitle}
                     nullConversationDescription={emptyInboxChatDescription}

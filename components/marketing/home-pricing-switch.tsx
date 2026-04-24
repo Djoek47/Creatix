@@ -9,7 +9,7 @@ import { useMarketingMode } from '@/components/marketing/marketing-mode-context'
 
 export function HomePricingSwitch() {
   const { mode } = useMarketingMode()
-  if (mode === 'pro') return <LandingPricingSection />
+  if (mode === 'pro') return <LandingPricingSection embedded />
   const fromPrice = PRICING_TIERS[0]?.prices.of ?? 39
 
   return (

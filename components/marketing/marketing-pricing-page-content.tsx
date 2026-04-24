@@ -20,11 +20,11 @@ function PricingFaqs() {
     {
       question: 'How do AI credits work?',
       answer:
-        'Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: 250 credits total.',
+        `Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: ${TRIAL_AI_CREDITS_LIMIT} credits total.`,
     },
     {
       question: 'Free trial?',
-      answer: '2 days. Credit card required. Upgrade or cancel anytime in Settings → Billing.',
+      answer: 'See current trial terms when you sign up. Upgrade or cancel anytime in Settings → Billing.',
     },
     ...(mode === 'pro'
       ? [
@@ -202,6 +202,9 @@ function PricingPageBody() {
             <PricingModelHeadline as="h1" />
             <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground sm:text-lg">
               Pick your band. Pick your platforms. That’s it.
+            </p>
+            <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">
+              Toggle <span className="font-medium text-foreground">Pro</span> for the full matrix and trial comparison.
             </p>
           </MotionReveal>
         </div>

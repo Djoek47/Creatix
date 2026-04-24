@@ -12,7 +12,7 @@ import { MarketingModeProvider } from '@/components/marketing/marketing-mode-con
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
 
-const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. 2-day trial (card required). ${buildHomePricingTeaserLine()}`
+const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. ${PRICING_MODEL_TRIAL_LINE} ${buildHomePricingTeaserLine()}`
 
 export const metadata: Metadata = {
   ...buildPublicMetadata({
@@ -79,7 +79,7 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">{PRICING_MODEL_TRIAL_LINE}</p>
+            <p className="mt-3 text-xs text-muted-foreground">{PRICING_MODEL_TRIAL_LINE}</p>
           </MotionReveal>
         </div>
       </section>
@@ -169,4 +169,3 @@ export default function LandingPage() {
     </main>
   )
 }
-

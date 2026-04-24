@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
@@ -40,7 +40,7 @@ export function MarketingModeProvider({
   return <MarketingModeContext.Provider value={value}>{children}</MarketingModeContext.Provider>
 }
 
-export function useMarketingMode() {
+export function useMarketingMode(): MarketingModeContextValue {
   const ctx = useContext(MarketingModeContext)
   if (!ctx) {
     throw new Error('useMarketingMode must be used within MarketingModeProvider')

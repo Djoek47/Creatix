@@ -41,7 +41,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
+      <section className="px-4 pb-24 sm:px-6 sm:pb-28">
         <div className="mx-auto max-w-5xl">
           <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
             {steps.map((step) => (

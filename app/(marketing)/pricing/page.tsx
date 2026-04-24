@@ -1,9 +1,11 @@
-﻿import type { Metadata } from 'next'
+import type { Metadata } from 'next'
 import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 import { buildPricingMetaDescription, buildPricingKeywords } from '@/lib/seo/pricing-seo'
 import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
 import { MarketingPricingPageContent } from '@/components/marketing/marketing-pricing-page-content'
+import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
+import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
 
 export const metadata: Metadata = buildPublicMetadata({
   path: '/pricing',
@@ -12,30 +14,30 @@ export const metadata: Metadata = buildPublicMetadata({
   keywords: buildPricingKeywords(),
 })
 
-export default function PricingPage() {
-  const faqs = [
-    {
-      question: 'Focus vs Unified?',
-      answer: 'Focus = 1–2 platforms. Unified = all three. Price follows your monthly revenue band.',
-    },
-    {
-      question: 'How do AI credits work?',
-      answer:
-        'Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: 250 credits total.',
-    },
-    {
-      question: 'Free trial?',
-      answer: '2 days. Credit card required. Upgrade or cancel anytime in Settings → Billing.',
-    },
-    {
-      question: 'Change plans later?',
-      answer: 'Yes. Swap platforms, Focus, Unified, or band in Settings → Billing.',
-    },
-  ]
+const pricingJsonLdFaqs = [
+  {
+    question: 'Focus vs Unified?',
+    answer: 'Focus = 1–2 platforms. Unified = all three. Price follows your monthly revenue band.',
+  },
+  {
+    question: 'How do AI credits work?',
+    answer:
+      `Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: ${TRIAL_AI_CREDITS_LIMIT} credits total.`,
+  },
+  {
+    question: 'Free trial?',
+    answer: PRICING_MODEL_TRIAL_LINE + ' Upgrade or cancel anytime in Settings → Billing.',
+  },
+  {
+    question: 'Change plans later?',
+    answer: 'Yes. Swap platforms, Focus, Unified, or band in Settings → Billing.',
+  },
+]
 
+export default function PricingPage() {
   return (
     <>
-      <PricingJsonLd faqs={faqs} />
+      <PricingJsonLd faqs={pricingJsonLdFaqs} />
       <main className="relative z-10 pt-14 sm:pt-16">
         <MarketingModeProvider>
           <MarketingPricingPageContent />

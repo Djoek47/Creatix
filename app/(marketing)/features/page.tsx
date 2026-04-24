@@ -1,4 +1,4 @@
-﻿import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
+import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import {
   Shield,
   Users,

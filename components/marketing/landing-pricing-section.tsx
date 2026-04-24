@@ -37,7 +37,12 @@ const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
   manyvids: '$39 flat',
 }
 
-export function LandingPricingSection() {
+type Props = {
+  /** When true, no outer `<section id="pricing">` — parent supplies layout. */
+  embedded?: boolean
+}
+
+export function LandingPricingSection({ embedded = false }: Props) {
   const [tierIndex, setTierIndex] = useState(4)
   const [platformSelection, setPlatformSelection] = useState<Set<AdultBillingPlatform>>(
     () => new Set(['onlyfans']),
@@ -71,14 +76,16 @@ export function LandingPricingSection() {
 
   const includedPaidCredits = includedCreditsForMarketing(price, 1)
 
-  return (
-    <section id="pricing" className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-4xl">
+  const inner = (
+    <div className="mx-auto max-w-4xl">
+      {!embedded && (
         <div className="text-center">
-          <PricingModelHeadline className="mx-auto max-w-3xl" />
+          <PricingModelHeadline className="mx-auto max-w-4xl" />
         </div>
+      )}
 
-        <div className="mt-8 rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/10 to-card p-6 sm:p-8">
+      <div className={cn(!embedded && 'mt-10', embedded && 'mt-0')}>
+        <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/10 to-card p-6 sm:p-8">
           <p className="text-sm font-medium text-muted-foreground">Your plan</p>
           <div className="mt-4 flex flex-col gap-4">
             <div className="space-y-2">
@@ -100,6 +107,9 @@ export function LandingPricingSection() {
             </div>
             <div className="space-y-2">
               <Label className="text-foreground">Adult platforms</Label>
+              <p className="text-xs text-muted-foreground">
+                Check 1–2 for Focus. Check all three for Unified pricing.
+              </p>
               <div className="flex flex-wrap gap-3">
                 {ADULT_BILLING_PLATFORMS.map((p) => (
                   <label
@@ -140,7 +150,7 @@ export function LandingPricingSection() {
             </p>
             <p className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground/90">
               <span className="font-medium text-primary">Paid:</span>{' '}
-              {includedPaidCredits.toLocaleString()} AI credits/mo (20% of subscription, $1 = 100 credits).
+              {includedPaidCredits.toLocaleString()} AI credits / mo (20% of ${price} · $1 = 100 credits)
             </p>
             <ul className="mt-6 grid gap-2 sm:grid-cols-2">
               {PAID_TIER_FEATURES.map((f) => (
@@ -165,6 +175,16 @@ export function LandingPricingSection() {
           </div>
         </div>
       </div>
+    </div>
+  )
+
+  if (embedded) {
+    return inner
+  }
+
+  return (
+    <section id="pricing" className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-24">
+      {inner}
     </section>
   )
 }

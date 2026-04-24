@@ -11,6 +11,22 @@ import {
 } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
 
+type ConversationsPayload = {
+  conversations: unknown[]
+  total: number
+  stale?: true
+  code?: 'ONLYFANS_RATE_LIMIT' | 'ONLYFANS_UPSTREAM'
+}
+
+const CONVERSATION_MIN_REFRESH_MS = 30_000
+const CONVERSATION_RATE_LIMIT_BACKOFF_MS = 90_000
+const CONVERSATION_CACHE_TTL_MS = 5 * 60_000
+
+const conversationsCache = new Map<
+  string,
+  { payload: ConversationsPayload; fetchedAt: number; rateLimitedUntil?: number }
+>()
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)
@@ -43,13 +59,35 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
+    const cacheKey = `${user.id}:${limit}:${offset}:${unreadOnly ? 'unread' : 'all'}`
+    const now = Date.now()
+    const cached = conversationsCache.get(cacheKey)
+    if (cached) {
+      if (now - cached.fetchedAt > CONVERSATION_CACHE_TTL_MS) {
+        conversationsCache.delete(cacheKey)
+      } else if (cached.rateLimitedUntil && cached.rateLimitedUntil > now) {
+        return NextResponse.json(
+          {
+            ...cached.payload,
+            stale: true as const,
+            code: 'ONLYFANS_RATE_LIMIT' as const,
+            error: 'OnlyFans is temporarily limiting chats. Reusing recent conversations.',
+            retry_after_ms: cached.rateLimitedUntil - now,
+          },
+          { status: 200 },
+        )
+      } else if (now - cached.fetchedAt < CONVERSATION_MIN_REFRESH_MS) {
+        return NextResponse.json({ ...cached.payload, stale: true as const })
+      }
+    }
 
     const result = await api.getConversations({ limit, offset, unreadOnly })
-
-    return NextResponse.json({
+    const payload: ConversationsPayload = {
       conversations: result.conversations || [],
       total: result.total || 0,
-    })
+    }
+    conversationsCache.set(cacheKey, { payload, fetchedAt: now })
+    return NextResponse.json(payload)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
 
@@ -81,6 +119,36 @@ export async function GET(request: NextRequest) {
     }
 
     if (isOnlyFansRateLimitError(message)) {
+      try {
+        const supabase = await createRouteHandlerClient(request)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { searchParams } = new URL(request.url)
+          const limit = parseInt(searchParams.get('limit') || '50')
+          const offset = parseInt(searchParams.get('offset') || '0')
+          const unreadOnly = searchParams.get('unreadOnly') === 'true'
+          const cacheKey = `${user.id}:${limit}:${offset}:${unreadOnly ? 'unread' : 'all'}`
+          const cached = conversationsCache.get(cacheKey)
+          if (cached) {
+            conversationsCache.set(cacheKey, {
+              ...cached,
+              rateLimitedUntil: Date.now() + CONVERSATION_RATE_LIMIT_BACKOFF_MS,
+            })
+            return NextResponse.json(
+              {
+                ...cached.payload,
+                stale: true as const,
+                code: 'ONLYFANS_RATE_LIMIT' as const,
+                error: 'OnlyFans is temporarily limiting chats. Reusing recent conversations.',
+                retry_after_ms: CONVERSATION_RATE_LIMIT_BACKOFF_MS,
+              },
+              { status: 200 },
+            )
+          }
+        }
+      } catch {
+        // If cache lookup fails, fall back to standard rate-limit response below.
+      }
       return NextResponse.json(
         {
           error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and try again.',

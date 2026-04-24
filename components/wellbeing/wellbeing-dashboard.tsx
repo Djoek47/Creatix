@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Loader2, ArrowUpRight, Sparkles, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AmbientLayer } from '@/components/wellbeing/ambient-layer'
@@ -11,12 +12,23 @@ import { GoldenHourTimeline } from '@/components/wellbeing/golden-hour-timeline'
 import { PerfectShotCarousel } from '@/components/wellbeing/perfect-shot-carousel'
 import { PositionCompass } from '@/components/wellbeing/position-compass'
 import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
-import { CosmicCalendar } from '@/components/content/cosmic-calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 import { fadeInUp } from '@/lib/wellbeing/motion'
+
+const CosmicCalendar = dynamic(
+  () => import('@/components/content/cosmic-calendar').then((mod) => mod.CosmicCalendar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-border/60 bg-card/30 p-6 text-sm text-muted-foreground">
+        Loading cosmic calendar...
+      </div>
+    ),
+  },
+)
 
 type Conv = {
   lastMessage?: { text?: string }

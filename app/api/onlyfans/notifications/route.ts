@@ -8,6 +8,21 @@ import {
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 type PartnerErrKind = 'session' | 'rate' | 'upstream' | 'other'
+type NotificationsPayload = {
+  counts: { total?: number; unread?: number }
+  notifications: Awaited<ReturnType<ReturnType<typeof createOnlyFansAPI>['listNotifications']>>['notifications']
+  stale?: true
+  code?: 'ONLYFANS_UPSTREAM' | 'ONLYFANS_RATE_LIMIT'
+}
+
+const NOTIFICATION_MIN_REFRESH_MS = 60_000
+const RATE_LIMIT_BACKOFF_MS = 90_000
+const NOTIFICATION_CACHE_TTL_MS = 5 * 60_000
+
+const notificationsCache = new Map<
+  string,
+  { payload: NotificationsPayload; fetchedAt: number; rateLimitedUntil?: number }
+>()
 
 function classifyOnlyFansPartnerError(message: string): PartnerErrKind {
   if (message.includes('ONLYFANS_SESSION_EXPIRED')) return 'session'
@@ -46,6 +61,27 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '25', 10), 50)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
     const tab = searchParams.get('tab') || undefined
+    const cacheKey = `${user.id}:${limit}:${offset}:${tab ?? 'all'}`
+    const now = Date.now()
+    const cached = notificationsCache.get(cacheKey)
+    if (cached) {
+      if (now - cached.fetchedAt > NOTIFICATION_CACHE_TTL_MS) {
+        notificationsCache.delete(cacheKey)
+      } else if (cached.rateLimitedUntil && cached.rateLimitedUntil > now) {
+        return NextResponse.json(
+          {
+            ...cached.payload,
+            stale: true as const,
+            code: 'ONLYFANS_RATE_LIMIT' as const,
+            error: 'OnlyFans is temporarily limiting requests. Reusing recent notifications.',
+            retry_after_ms: cached.rateLimitedUntil - now,
+          },
+          { status: 200 },
+        )
+      } else if (now - cached.fetchedAt < NOTIFICATION_MIN_REFRESH_MS) {
+        return NextResponse.json({ ...cached.payload, stale: true as const })
+      }
+    }
 
     const api = createOnlyFansAPI()
     api.setAccountId(connection.access_token)
@@ -81,6 +117,22 @@ export async function GET(request: NextRequest) {
     if (countsFailed && listFailed) {
       const kinds = [countsKind, listKind].filter((k): k is PartnerErrKind => k != null)
       if (kinds.includes('rate')) {
+        if (cached) {
+          notificationsCache.set(cacheKey, {
+            ...cached,
+            rateLimitedUntil: now + RATE_LIMIT_BACKOFF_MS,
+          })
+          return NextResponse.json(
+            {
+              ...cached.payload,
+              stale: true as const,
+              code: 'ONLYFANS_RATE_LIMIT' as const,
+              error: 'OnlyFans is temporarily limiting requests. Reusing recent notifications.',
+              retry_after_ms: RATE_LIMIT_BACKOFF_MS,
+            },
+            { status: 200 },
+          )
+        }
         return NextResponse.json(
           {
             error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and try again.',
@@ -112,13 +164,18 @@ export async function GET(request: NextRequest) {
         : countsKind === 'rate' || listKind === 'rate'
           ? 'ONLYFANS_RATE_LIMIT'
           : undefined
-
-    return NextResponse.json({
+    const payload: NotificationsPayload = {
       counts: counts ?? { total: 0, unread: 0 },
       notifications,
       ...(stale ? { stale: true as const } : {}),
       ...(code ? { code } : {}),
+    }
+    notificationsCache.set(cacheKey, {
+      payload,
+      fetchedAt: now,
+      ...(code === 'ONLYFANS_RATE_LIMIT' ? { rateLimitedUntil: now + RATE_LIMIT_BACKOFF_MS } : {}),
     })
+    return NextResponse.json(payload)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch notifications'
     if (message.includes('ONLYFANS_SESSION_EXPIRED')) {

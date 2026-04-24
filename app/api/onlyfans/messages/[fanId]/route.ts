@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse, after } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import {
   clearOnlyFansDmMessageCacheForUser,
   loadOnlyFansDmMessageCache,
@@ -35,20 +39,23 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ fanId: string }> }
 ) {
+  const { fanId } = await params
+  const supabase = await createRouteHandlerClient(request)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const billingBlock = await onlyFansBillingGateResponse(supabase)
+  if (billingBlock) return billingBlock
+
+  const { searchParams } = new URL(request.url)
+  const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '100', 10)), 100)
+
   try {
-    const { fanId } = await params
-    const supabase = await createRouteHandlerClient(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const billingBlock = await onlyFansBillingGateResponse(supabase)
-    if (billingBlock) return billingBlock
-
-    const { searchParams } = new URL(request.url)
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '100', 10)), 100)
     const before = searchParams.get('before') || undefined
     const forceRefresh = searchParams.get('refresh') === '1'
 
@@ -180,14 +187,33 @@ export async function GET(
     console.error('Failed to fetch messages:', error)
     const msg = error instanceof Error ? error.message : String(error)
     const rateLimited = isOnlyFansRateLimitError(msg)
+    const upstreamTransient = isOnlyFansUpstreamTransientError(msg)
+    if (rateLimited || upstreamTransient) {
+      const readLimit = Math.min(OF_DM_CACHE_READ_MAX, Math.max(limit, 100))
+      const { messages: cached } = await loadOnlyFansDmMessageCache(supabase, user.id, fanId, readLimit)
+      if (cached.length > 0) {
+        return NextResponse.json({
+          messages: sortOnlyFansMessagesAsc(cached),
+          source: 'cache',
+          stale: true,
+          code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : 'ONLYFANS_UPSTREAM',
+        })
+      }
+    }
     return NextResponse.json(
       {
         error: rateLimited
           ? 'OnlyFans is temporarily limiting requests. Wait a minute, then refresh or reopen this chat.'
-          : 'Failed to load messages',
-        code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : undefined,
+          : upstreamTransient
+            ? 'OnlyFans had a temporary glitch. Wait a minute, then refresh or reopen this chat.'
+            : 'Failed to load messages',
+        code: rateLimited
+          ? 'ONLYFANS_RATE_LIMIT'
+          : upstreamTransient
+            ? 'ONLYFANS_UPSTREAM'
+            : undefined,
       },
-      { status: rateLimited ? 429 : 500 },
+      { status: rateLimited ? 429 : upstreamTransient ? 503 : 500 },
     )
   }
 }

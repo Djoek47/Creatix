@@ -490,6 +490,9 @@ export function ChatWindow({
   const pollStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** Pause OnlyFans message polling after 429 until this timestamp (ms). */
   const onlyFansPollBackoffUntilRef = useRef(0)
+  /** Latest OnlyFans thread load request — avoids clearing messages when a stale load finishes. */
+  const onlyFansLoadThreadSeqRef = useRef(0)
+  const onlyFansThreadKeyRef = useRef<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
   const [niches, setNiches] = useState<string[]>([])
   const [boundaries, setBoundaries] = useState<string[]>([])
@@ -981,6 +984,7 @@ export function ChatWindow({
   // Load messages when conversation changes
   useEffect(() => {
     if (!conversation) {
+      onlyFansThreadKeyRef.current = null
       setMessages([])
       setThreadStaleReason(null)
       setMessagingReadPrefs(null)
@@ -989,17 +993,25 @@ export function ChatWindow({
 
     const conversationKey = `${conversation.platform}:${String(conversation.user.id)}`
     const cachedMessages = lastGoodMessagesByConversationRef.current[conversationKey]
-    if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
-      setMessages(cachedMessages)
+    const threadKey = `${conversation.platform}:${conversation.user.id}`
+    if (threadKey !== onlyFansThreadKeyRef.current) {
+      onlyFansThreadKeyRef.current = threadKey
+      if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
+        setMessages(cachedMessages)
+      } else {
+        setMessages([])
+      }
+      setDmSendSourceByMessageId({})
     }
     setThreadStaleReason(null)
-    setDmSendSourceByMessageId({})
     const loadMessages = async () => {
+      const seq = ++onlyFansLoadThreadSeqRef.current
       setLoading(true)
       setError(null)
 
       try {
         if (conversation.platform !== 'onlyfans') {
+          if (seq !== onlyFansLoadThreadSeqRef.current) return
           setMessages([])
           setError('Fansly thread view is not available yet on web messages.')
           return
@@ -1009,7 +1021,7 @@ export function ChatWindow({
           error?: string
           code?: string
           messages?: OnlyFansMessage[]
-          source?: 'cache' | 'onlyfans'
+          source?: 'cache' | 'onlyfans' | string
           stale?: boolean
         } = {}
         try {
@@ -1018,17 +1030,31 @@ export function ChatWindow({
           data = {}
         }
 
+        if (seq !== onlyFansLoadThreadSeqRef.current) return
+
         if (!res.ok) {
           const rateLimited = res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT'
-          if (rateLimited) {
+          const upstreamGlitch =
+            res.status === 503 || data.code === 'ONLYFANS_UPSTREAM'
+          if (rateLimited || upstreamGlitch) {
             onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
           }
           throw new Error(
             data.error ||
               (rateLimited
                 ? 'OnlyFans is temporarily limiting requests. Wait a minute, then try again.'
-                : 'Failed to load messages'),
+                : upstreamGlitch
+                  ? 'OnlyFans had a temporary glitch. Wait a minute, then try again.'
+                  : 'Failed to load messages'),
           )
+        }
+
+        const staleRateLimit =
+          data.code === 'ONLYFANS_RATE_LIMIT' && (data.stale === true || data.source === 'cache')
+        const staleUpstream =
+          data.code === 'ONLYFANS_UPSTREAM' && (data.stale === true || data.source === 'cache')
+        if (staleRateLimit || staleUpstream) {
+          onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
         }
 
         const normalized = normalizeAndSortMessages(data.messages || [])
@@ -1071,19 +1097,23 @@ export function ChatWindow({
           )
           .catch(() => undefined)
       } catch (err) {
+        if (seq !== onlyFansLoadThreadSeqRef.current) return
         setError(err instanceof Error ? err.message : 'Failed to load messages')
         if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
           setThreadStaleReason('Showing last known messages because live refresh failed.')
         }
       } finally {
-        setLoading(false)
+        if (seq === onlyFansLoadThreadSeqRef.current) {
+          setLoading(false)
+        }
       }
     }
 
     loadMessages()
     // Prefer id + platform over full `conversation` so parents that pass inline objects
     // (or stale memo) cannot retrigger this effect every render (React #185).
-  }, [conversation?.user?.id, conversation?.platform, onMessageSent])
+    // Do not depend on `onMessageSent` — parent identity changes must not wipe the thread.
+  }, [conversation?.user?.id, conversation?.platform])
 
   // After paint: snap to bottom when opening a long thread; otherwise only follow if near bottom. Skip when the list fits (no overflow).
   useLayoutEffect(() => {
@@ -1128,7 +1158,12 @@ export function ChatWindow({
         } catch {
           return
         }
-        if (res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT') {
+        if (
+          res.status === 429 ||
+          data.code === 'ONLYFANS_RATE_LIMIT' ||
+          res.status === 503 ||
+          data.code === 'ONLYFANS_UPSTREAM'
+        ) {
           onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
           return
         }

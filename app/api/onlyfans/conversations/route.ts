@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import {
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
   onlyFansBillingGateResponse,
@@ -76,16 +80,30 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const rateLimited = isOnlyFansRateLimitError(message)
+    if (isOnlyFansRateLimitError(message)) {
+      return NextResponse.json(
+        {
+          error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and try again.',
+          code: 'ONLYFANS_RATE_LIMIT',
+        },
+        { status: 429 },
+      )
+    }
+
+    if (isOnlyFansUpstreamTransientError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'OnlyFans had a temporary glitch. Wait a minute and try again. If this keeps happening, reconnect OnlyFans in Settings.',
+          code: 'ONLYFANS_UPSTREAM',
+        },
+        { status: 503 },
+      )
+    }
+
     return NextResponse.json(
-      {
-        error: rateLimited
-          ? 'OnlyFans is temporarily limiting requests. Please retry in a moment.'
-          : 'Failed to fetch conversations',
-        details: message,
-        code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : undefined,
-      },
-      { status: rateLimited ? 429 : 500 }
+      { error: 'Failed to fetch conversations', details: message },
+      { status: 500 },
     )
   }
 }

@@ -213,6 +213,8 @@ export type DashboardWidgetsGridProps = {
   stats: React.ComponentProps<typeof StatsCards>['stats']
   analytics: React.ComponentProps<typeof RevenueChart>['analytics']
   hasConnectedPlatforms: boolean
+  connectedOnlyFans?: boolean
+  connectedFansly?: boolean
   fans: React.ComponentProps<typeof RecentFans>['fans']
   totalFans: number
   leakAlerts: React.ComponentProps<typeof AlertsWidget>['leakAlerts']
@@ -225,6 +227,8 @@ export function DashboardWidgetsGrid({
   stats,
   analytics,
   hasConnectedPlatforms,
+  connectedOnlyFans = false,
+  connectedFansly = false,
   fans,
   totalFans,
   leakAlerts,
@@ -437,7 +441,12 @@ export function DashboardWidgetsGrid({
         <WidgetShell>
           <DragStrip label="Revenue" />
           <div className="w-full min-w-0">
-            <RevenueChart analytics={analytics} hasConnectedPlatforms={hasConnectedPlatforms} />
+            <RevenueChart
+              analytics={analytics}
+              hasConnectedPlatforms={hasConnectedPlatforms}
+              connectedOnlyFans={connectedOnlyFans}
+              connectedFansly={connectedFansly}
+            />
           </div>
         </WidgetShell>
       ),

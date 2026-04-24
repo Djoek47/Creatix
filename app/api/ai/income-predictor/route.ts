@@ -2,6 +2,7 @@ import { generateText, Output } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { normalizeAnalyticsForecastBody } from '@/lib/onlyfans-analytics-payload'
 import { withDefaultAccountIds } from '@/lib/onlyfans-api-route'
 import { loadAdultPlatformBillingContext } from '@/lib/billing/onlyfans-billing-gate'
 import { assessGoalRealism } from '@/lib/income-predictor/realism'
@@ -101,12 +102,14 @@ export async function POST(req: NextRequest) {
       const api = createOnlyFansAPI()
       api.setAccountId(billingCtx.onlyfansAccessToken)
       const horizon_months = calendarMode === 'week' ? 1 : 3
-      const payload = withDefaultAccountIds(
-        {
-          forecast_metric: 'revenue',
-          horizon_months,
-        },
-        billingCtx.onlyfansAccessToken,
+      const payload = normalizeAnalyticsForecastBody(
+        withDefaultAccountIds(
+          {
+            forecast_metric: 'revenue',
+            horizon_months,
+          },
+          billingCtx.onlyfansAccessToken,
+        ),
       )
       partnerForecastRaw = await api.analyticsRevenueForecast(payload)
     } catch (e) {

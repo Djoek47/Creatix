@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  ArrowRight,
   Calendar,
   Camera,
   Crown,
@@ -111,9 +112,16 @@ export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
           <Button
             asChild
             size="sm"
-            className="shrink-0 bg-gradient-to-r from-circe to-venus text-white hover:opacity-90"
+            variant="outline"
+            className="group shrink-0 h-9 rounded-full border-gold/35 bg-background/70 px-4 font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-gold/55 hover:bg-gold/[0.08] hover:text-foreground hover:shadow-md focus-visible:ring-gold/30 dark:bg-background/40 dark:hover:bg-gold/[0.12]"
           >
-            <Link href={toolHref(toolId)}>Open tool</Link>
+            <Link href={toolHref(toolId)} className="inline-flex items-center gap-1.5">
+              Open tool
+              <ArrowRight
+                className="size-3.5 opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
+                aria-hidden
+              />
+            </Link>
           </Button>
         </CardHeader>
       </Card>

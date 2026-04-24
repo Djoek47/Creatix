@@ -29,7 +29,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Caption Generator',
     description: 'Captions, posts & short video beats',
     longDescription:
-      'Upload a photo or short video (we analyze a key frame), or describe content with text or voice. AI sees the image when provided and returns platform-ready captions, hashtags, and PPV copy. For video, you can also ask for hook → beats → on-screen text → CTA in one pass—this replaces the old standalone “Video Script AI” tool.',
+      'Upload a photo or short clip (we look at a key frame), or describe what you are posting in text or voice. You get ready-to-post captions, hashtags, and PPV wording. For video, you can ask for a simple arc in one go: hook, beats, on-screen text, and a closing call-to-action.',
     category: 'content',
     badge: 'Popular',
     credits: 1,
@@ -54,7 +54,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'AI Chatter',
     description: 'Per-fan DM automation (OnlyFans)',
     longDescription:
-      'Configure per-fan automations on the AI Chatter dashboard: Mimic-aware drafts, queue/review by default, optional opt-in auto-send with beta acknowledgment. Opens from AI Studio → Tools or /dashboard/ai-studio/chatter.',
+      'Set up per-fan DM help on the AI Chatter page: drafts that match how you usually sound, a queue so you review before anything goes out, and an optional beta path to send automatically if you turn it on. Open it from AI Studio under Tools, or from your dashboard’s AI Chatter section.',
     category: 'engagement',
     badge: 'Beta',
     credits: 1,
@@ -65,7 +65,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Commenter',
     description: 'Post comments: CRM signals, personas, safety',
     longDescription:
-      'Full UI at **Dashboard → Commenter** (/dashboard/commenter). Ingests OnlyFans post/story/stream comments via webhooks and optional API sync. AI scores connotation, enriches fan profiles, drafts Circe (purple), Venus (gold), Flirt (pink), and Professional (neutral) public replies plus a Best pick — review only; copy to OnlyFans yourself. Flags stalking or high-risk comments for Divine notifications. Optional bolder monetization: divine_manager_settings.automation_rules JSON key commenter.sales_intensity to "bold". **Housekeeping** (smart list sync) lives on the same page.',
+      'Work from the Commenter page on your dashboard. It pulls comments on your posts, stories, and streams so you can see who said what and how heated or positive it feels. You get several suggested public replies in different tones—playful, warm, flirty, or straight professional—plus one “best” blend to start from. Nothing posts for you: you copy what you like into OnlyFans. Odd or worrying threads can surface as Divine alerts so you do not miss them. If you want replies to lean a bit harder into upsell, you can turn that up in Divine Manager under automation settings for Commenter. Fan list housekeeping tools sit on the same page when you want lists to stay in sync with how people behave.',
     category: 'engagement',
     badge: 'MVP',
     credits: 0,
@@ -76,7 +76,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Housekeeping',
     description: 'Auto-classify fans: spend, threads & freeloaders',
     longDescription:
-      '**Smart classify** keeps fans sorted by **lifetime spend**, **DM/thread activity** (recent chat, “active chatter”), cold/low-engagement, and **freeloaders** (new vs long-tenure splits). Rules live in **Fans → Arrangements** (`housekeeping_lists`) and the **Housekeeping** section on **Dashboard → Commenter** — map each segment to OnlyFans user lists and Fansly CRM tags. Cron `housekeeping-fan-lists` syncs platforms so whales, spenders, subscribers-without-upsell, recent subs, and freeloader buckets stay current. Pair with Commenter so public-comment signals feed the same CRM.',
+      'Keeps your audience buckets honest: who spends, who chats often, who has gone quiet, and who looks like a freeloader versus a real prospect. You choose what each bucket means under Fans → Arrangements, then tie buckets to your OnlyFans lists and Fansly tags. The same housekeeping panel lives on the Commenter page. A background job refreshes those lists on a schedule so whales, steady spenders, and “needs attention” groups stay up to date without you micromanaging spreadsheets. Works best alongside Commenter so what fans do in public and in DMs lines up in one place.',
     category: 'engagement',
     badge: 'MVP',
     credits: 0,
@@ -97,7 +97,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Whale Whisperer',
     description: 'VIP draft-only chatter',
     longDescription:
-      'Opens AI Chatter in Whale whisper mode: same thread + Mimic context as chatter, but nothing auto-sends—every line is queued for you to send from Messages. Add VIP fans from the Fans table or Chatter dashboard.',
+      'Opens AI Chatter in a VIP-only mode: same thread and “sounds like me” context as regular chatter, but every line waits in a queue for you to send from Messages—nothing goes out on its own. Add your top fans from the Fans table or from the Chatter dashboard.',
     category: 'engagement',
     credits: 2,
     hasRunner: true,
@@ -107,7 +107,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Price Optimizer',
     description: 'Optimal pricing suggestions',
     longDescription:
-      'Suggests subscription, PPV, and custom pricing angles from your context. **Not shown in the AI Studio grid** — use **Divine Manager** (chat or voice: `run_ai_studio_tool` with `toolId` `price-optimizer` or `pricing-optimizer`) to run it.',
+      'Suggests angles for subscription price, PPV, and customs from your situation and goals. It does not appear as its own tile in the AI Studio grid—ask Divine Manager in chat or voice to run the price optimizer for you.',
     category: 'analytics',
     credits: 4,
     hasRunner: true,
@@ -118,7 +118,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'DM Bundle Pricing',
     description: 'PPV / paid DM bundle price and copy',
     longDescription:
-      'Suggests bundle price points and fan-facing teaser copy from your goal, fan context, and vault metadata. **Not shown in the AI Studio grid** — use **Divine Manager** (`recommend_dm_bundle` or `run_ai_studio_tool` with `toolId` `dm-bundle-pricing`).',
+      'Suggests bundle prices and the short teaser text fans see, using your goal, who you are messaging, and what is in your vault. It is not a separate tile in AI Studio—ask Divine Manager to recommend a DM bundle.',
     category: 'engagement',
     credits: 1,
     hasRunner: true,
@@ -186,7 +186,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Viral Predictor',
     description: 'Content success prediction',
     longDescription:
-      'Scores likely engagement before you post. **Hidden from the AI Studio grid** — use **Divine Manager** (`predict_viral` / `run_ai_studio_tool` with `toolId` `viral-predictor`) or voice mode.',
+      'Gives a quick read on how strong a post might perform before you publish. It is not listed as its own card in AI Studio—ask Divine Manager (chat or voice) to run a viral prediction.',
     category: 'analytics',
     badge: 'Beta',
     credits: 3,
@@ -199,7 +199,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     description: "Who's at risk — Circe's Oracle for retention",
     badge: 'Circe Pro',
     longDescription:
-      '**Circe\'s Oracle** merged here: predict which fans are most likely to churn and what to do next. Hub: **Dashboard → Retention** schedules batch digests (expiring subs + quiet actives), Divine notifications, and stored reports. In AI Studio, run a single-fan deep dive with CRM + thread context (same engine as before—now one tool).',
+      'Surfaces who is slipping away and what to try next—expiring subs, gone-quiet regulars, and similar patterns. The Retention area on your dashboard can send batch digests, Divine alerts, and saved reports. From AI Studio you can still run a one-fan deep dive with the same signals you already trust.',
     category: 'analytics',
     credits: 3,
     hasRunner: true,
@@ -209,7 +209,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Retention content tease',
     description: 'Future-drop & calendar teasers for churn risk',
     longDescription:
-      'On **Dashboard → Retention**, add optional calendar notes and run a batch digest: Circe suggests feed/story/DM teasers for subscribers at risk, aligned with your upcoming content. Uses the same credits per run as background Churn Predictor.',
+      'On the Retention page, add a few notes about what is coming on your calendar, then run a batch pass: you get concrete teaser ideas for the feed, stories, or DMs aimed at people who look ready to drift—timed around what you plan to post. Each run uses the same credits as the churn predictor background pass.',
     category: 'analytics',
     credits: 3,
     hasRunner: true,
@@ -219,7 +219,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Income Predictor',
     description: 'Partner forecast + cadence + next-month goals',
     longDescription:
-      'Merges the OnlyFans partner statistical forecast with your synced snapshots, post rate, weekly/monthly cadence buckets, leak context, and goal realism (including intermediate revenue bands). Hub: **Dashboard → Analytics → Income Predictor**.',
+      'Combines partner-side revenue forecasting with what we already know from your synced numbers, how often you post, weekly and monthly rhythm, leak stress, and whether your goals are realistic—including gentler stepping-stone targets if a jump looks too steep. Open it from Analytics → Income Predictor on the dashboard.',
     category: 'analytics',
     badge: 'Beta',
     credits: 4,
@@ -262,7 +262,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Competitor Analysis',
     description: 'You vs peers in your band & one tier up',
     longDescription:
-      'Pro-only: **compares you to competitors** using your CRM-imported fan count against **anonymized Creatix cohort bands** (same stat range as you, then **one tier above**), plus optional live web discovery (Serper), the shared best-practices library, and Community tips. Name public @handles or positioning notes so the run can contrast peers in your band vs the next tier up. No paywalled scraping or private competitor metrics.',
+      'For Pro: compares you to other creators in a similar-size band, then to the next band up, using anonymized cohort stats from Creatix—not anyone’s private revenue. You can add public @handles or short positioning notes so the run has real names to contrast. Optional web discovery and our shared tips library fill in context. We do not break into paywalled sites or steal private metrics.',
     category: 'premium',
     isPro: true,
     credits: 12,
@@ -298,7 +298,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Frame Studio',
     description: 'Creatix-branded video editor (Frame fork)',
     longDescription:
-      'Opens the **Media & vault** hub where you can launch the Frame bridge, replace video, and use vault presets. Deploy your Frame fork separately and set `NEXT_PUBLIC_FRAME_URL` on Vercel. Divine can deep-link here.',
+      'Opens Media & Vault, where you can launch the Frame bridge, swap video, and use saved presets. If you self-host Frame, point the app at your deployment in environment settings so the button opens your editor. Divine can drop you straight on this hub when you ask.',
     category: 'content',
     badge: 'Beta',
     credits: 2,
@@ -309,7 +309,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Frame AI Assist',
     description: 'Editing and pacing copilot for Frame',
     longDescription:
-      'Server-side assistant via `POST /api/frame/ai/assist` — same billing as other AI tools. Call from the Frame deployment with `Authorization: Bearer <exportToken>` from `frame-session`, or from the logged-in dashboard.',
+      'A server-side editing and pacing copilot for Frame, billed like our other AI tools. Your Frame deployment or the logged-in dashboard can call it with the usual session or export token your setup already uses.',
     category: 'content',
     credits: 2,
     hasRunner: true,
@@ -320,7 +320,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Ariadne Trace',
     description: 'Per-recipient forensic marker on exported video',
     longDescription:
-      'Embeds a signed **append-v1** marker in vault video (MVP) so leaks can be traced to a recipient key. Use **Media & vault → Ariadne** for existing library files; Frame export can call the same API. See [`docs/ariadne-technical-spec.md`](../docs/ariadne-technical-spec.md).',
+      'Embeds a discreet marker in exported vault video so if a clip leaks you have a stronger clue which copy or recipient it came from. Use Media & Vault → Ariadne on files you already store; Frame export can use the same flow. Technical details live in the Ariadne spec in the repo docs if you need them.',
     category: 'protection',
     badge: 'Pro',
     credits: 8,
@@ -331,7 +331,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Ariadne Detect',
     description: 'Decode marker from a suspected leak file',
     longDescription:
-      'Upload a video file; we scan for an Ariadne append-v1 payload and match it to your export records. Powers future DMCA pre-fill. **API:** `POST /api/ariadne/detect` (multipart).',
+      'Upload a suspected leak file; we look for an Ariadne marker and match it to your export history when possible—useful evidence before you draft a notice. Integrations can call the detect endpoint the same way the dashboard does.',
     category: 'protection',
     credits: 4,
     hasRunner: true,

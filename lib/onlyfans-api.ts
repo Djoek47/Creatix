@@ -9,6 +9,13 @@ import { onlyFansRequestWithPolicy } from '@/lib/onlyfans-request-policy'
 
 const ONLYFANS_API_BASE = 'https://app.onlyfansapi.com/api'
 
+/** Partner caps paginated fan list `limit` at 20 per HTTP request (active/all/expired/latest/top). */
+const OF_FAN_LIST_PAGE_MAX = 20
+
+function capOnlyFansFanListLimit(limit: number): number {
+  return Math.min(OF_FAN_LIST_PAGE_MAX, Math.max(1, Math.floor(limit)))
+}
+
 /** Cloudflare / OnlyFans-API rate limit — callers should back off and show a friendly message. */
 export function isOnlyFansRateLimitError(message: string): boolean {
   const m = message.toLowerCase()
@@ -17,6 +24,18 @@ export function isOnlyFansRateLimitError(message: string): boolean {
     m.includes('too many requests') ||
     (m.includes('cf:') && m.includes('onlyfans'))
   )
+}
+
+/**
+ * Partner / OnlyFans.com flaky responses (e.g. ONLYFANS_COM_ERROR, generic 403).
+ * Not a session expiry — retry later; prefer cached data when the UI already has it.
+ */
+export function isOnlyFansUpstreamTransientError(message: string): boolean {
+  const m = message.toLowerCase()
+  if (m.includes('onlyfans_com_error')) return true
+  if (m.includes('[403]') && m.includes('unknown error')) return true
+  if (m.includes('real performer account')) return true
+  return false
 }
 
 interface OnlyFansAPIOptions {
@@ -545,10 +564,11 @@ class OnlyFansAPI {
   /**
    * List active fans - GET /api/{account}/fans/active
    * Paginated; newest first.
+   * Partner caps `limit` at **20** per request.
    */
   async getFansActive(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/active${suffix}`)
@@ -559,7 +579,7 @@ class OnlyFansAPI {
    */
   async getFansAll(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/all${suffix}`)
@@ -570,7 +590,7 @@ class OnlyFansAPI {
    */
   async getFansExpired(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/expired${suffix}`)
@@ -586,7 +606,7 @@ class OnlyFansAPI {
     filter?: 'total' | 'only_new' | 'only_renewals'
   }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     if (params?.filter) q.set('filter', params.filter)
     const suffix = q.toString() ? `?${q.toString()}` : ''
@@ -603,7 +623,7 @@ class OnlyFansAPI {
     sort?: 'total' | 'subscriptions' | 'tips' | 'messages' | 'posts' | 'streams'
   }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     if (params?.sort) q.set('sort', params.sort)
     const suffix = q.toString() ? `?${q.toString()}` : ''

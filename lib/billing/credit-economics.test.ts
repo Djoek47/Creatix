@@ -5,7 +5,7 @@
  * Aligns with subscriptionFinancialFieldsFromMerged / syncSubscriptionCreditsFromPlanAction (same formula).
  *
  * Example monthly USD by tier (Focus OF single line, from REVENUE_TIERS / getMonthlyPriceUsd):
- * tier 0 → $39 → 20% = $7.80 → 780 credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
+ * tier 0 → OnlyFans list price from matrix → 20% → credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
  */
 import assert from 'node:assert/strict'
 import {

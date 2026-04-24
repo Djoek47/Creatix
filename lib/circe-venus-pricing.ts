@@ -6,12 +6,13 @@
  * LOGIC RULES
  * -----------
  * - OF     : base price, scales by revenue tier (`RAW_TIERS`)
- * - FL     : OF × 0.9, capped at $200 (`flOverride` on top tier)
+ * - FL     : OF × 0.9, capped at $200 — or `flOverride` when set (lowest bands may pin Fansly for API cost)
  * - MV     : flat $39 (ManyVids)
- * - OF+FL  : OF + $20
- * - OF+MV  : OF + $15
- * - FL+MV  : FL + $8
- * - Unified: OF + $25 (all three; cheaper than buying each line solo)
+ * - OF+FL  : OF + $20 (default); **Tiers 0–1** may set `bundleList` to raise **combined** list prices only (API cost),
+ *   without changing solo OnlyFans / Fansly bases.
+ * - OF+MV  : OF + $15 (default); tier 0–1 overrides when set
+ * - FL+MV  : FL + $8 (default); tier 0–1 overrides when set
+ * - Unified: OF + $25 (default); tier 0–1 overrides when set
  */
 
 export type PlatformCombo =
@@ -52,17 +53,44 @@ function pct(savings: number, soloSum: number): number {
   return Math.round((savings / soloSum) * 100)
 }
 
+type BundleKey = 'of_fl' | 'of_mv' | 'fl_mv' | 'unified'
+
 interface TierInput {
   label: string
   revenueMin: number | null
   revenueMax: number | null
   of: number
   flOverride?: number
+  /** When set, these **bundle / unified** list prices replace OF + global add-ons for this band (solo OF/FL unchanged). */
+  bundleList?: Partial<Record<BundleKey, number>>
 }
 
 const RAW_TIERS: TierInput[] = [
-  { label: 'Under $1k', revenueMin: null, revenueMax: 1000, of: 39 },
-  { label: '$1k – $5k', revenueMin: 1000, revenueMax: 5000, of: 50 },
+  {
+    label: 'Under $1k',
+    revenueMin: null,
+    revenueMax: 1000,
+    of: 39,
+    flOverride: 35,
+    bundleList: {
+      of_fl: 62,
+      of_mv: 57,
+      fl_mv: 46,
+      unified: 69,
+    },
+  },
+  {
+    label: '$1k – $5k',
+    revenueMin: 1000,
+    revenueMax: 5000,
+    of: 50,
+    bundleList: {
+      of_fl: 73,
+      of_mv: 68,
+      fl_mv: 56,
+      unified: 80,
+    },
+  },
   { label: '$5k – $7.5k', revenueMin: 5000, revenueMax: 7500, of: 75 },
   { label: '$7.5k – $10k', revenueMin: 7500, revenueMax: 10000, of: 100 },
   { label: '$10k – $15k', revenueMin: 10000, revenueMax: 15000, of: 125 },
@@ -75,13 +103,13 @@ const RAW_TIERS: TierInput[] = [
 ]
 
 export const PRICING_TIERS: readonly PricingTier[] = RAW_TIERS.map((input, tierIndex) => {
-  const { label, revenueMin, revenueMax, of, flOverride } = input
+  const { label, revenueMin, revenueMax, of, flOverride, bundleList } = input
   const fl = flPrice(of, flOverride)
   const mv = MV_FLAT
-  const of_fl = of + ADDON_FL
-  const of_mv = of + ADDON_MV_ON_OF
-  const fl_mv = fl + ADDON_MV_ON_FL
-  const unified = of + ADDON_UNIFIED
+  const of_fl = bundleList?.of_fl ?? of + ADDON_FL
+  const of_mv = bundleList?.of_mv ?? of + ADDON_MV_ON_OF
+  const fl_mv = bundleList?.fl_mv ?? fl + ADDON_MV_ON_FL
+  const unified = bundleList?.unified ?? of + ADDON_UNIFIED
 
   const soloOFFL = of + fl
   const soloOFMV = of + mv

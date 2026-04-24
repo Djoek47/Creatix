@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import {
   REVENUE_TIERS,
+  getTierByIndex,
   getMonthlyPriceUsd,
   focusFanslyUsd,
   focusPlatformDisplayName,
@@ -130,6 +131,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [creditTimeline, setCreditTimeline] = useState<CreditTimelineRow[]>([])
   const prevTotalRef = useRef<number | null>(null)
   const supabase = createClient()
+  const lowestRevenueTier = getTierByIndex(0)
 
   const loadSubscriptionData = useCallback(async (): Promise<WalletSnapshot | null> => {
     if (!userId) return null
@@ -732,10 +734,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader>
           <CardTitle className="font-semibold">Plans & Pricing</CardTitle>
           <CardDescription>
-            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base;
-            Fansly line is ~10% below base, <strong>capped at $200/mo</strong>; ManyVids <strong>solo</strong> is{' '}
-            <strong>$39/mo</strong> (any tier). Two-platform Focus uses fixed bundle prices (OF+FL, OF+MV, FL+MV).
-            Pick <strong>all three</strong> for <strong>Unified</strong> (OF base + $25 for your band).{' '}
+            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base; Fansly
+            follows the Fansly line (about <strong>10% below</strong> the OnlyFans base on most bands,{' '}
+            <strong>capped at $200/mo</strong> — the lowest band lists{' '}
+            <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OnlyFans and{' '}
+            <strong>{lowestRevenueTier ? focusFanslyUsd(lowestRevenueTier) : 0}</strong> Fansly). ManyVids{' '}
+            <strong>solo</strong> is <strong>$39/mo</strong> (any tier).
+            Two-platform Focus uses banded list prices (defaults: OnlyFans + <strong>${BUNDLE_ADDONS.FL_ON_OF}</strong>{' '}
+            with Fansly, OnlyFans + <strong>${BUNDLE_ADDONS.MV_ON_OF}</strong> with ManyVids, Fansly line +{' '}
+            <strong>${BUNDLE_ADDONS.MV_ON_FL}</strong> with ManyVids; the <strong>under $1k</strong> band uses the
+            amounts in the table below). <strong>Unified</strong> (all three) is banded too — from{' '}
+            <strong>${lowestRevenueTier?.multiPriceUsd ?? 0}/mo</strong> on the lowest band.{' '}
             <strong>Seats</strong> = managers on the same creator account (price × seats). Connected OnlyFans /
             Fansly earnings may adjust your band on the next invoice (see pricing FAQ).
           </CardDescription>

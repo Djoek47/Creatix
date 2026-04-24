@@ -40,6 +40,13 @@ function nearestAqiValue(byIsoTime: Map<string, number>, targetIso: string): num
   return picked
 }
 
+function parseLocationFallback(raw: unknown): { encrypted: string; hint: string } | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Record<string, unknown>
+  if (typeof row.encrypted !== 'string' || typeof row.hint !== 'string') return null
+  return { encrypted: row.encrypted, hint: row.hint }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)
@@ -54,14 +61,20 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!profile?.has_location_set || !profile?.encrypted_location) {
+    const fallback = parseLocationFallback(
+      ((user.user_metadata ?? {}) as Record<string, unknown>).location_vault,
+    )
+    const encryptedLocation = profile?.encrypted_location ?? fallback?.encrypted ?? null
+    const locationHint = profile?.location_hint ?? fallback?.hint ?? null
+
+    if (!encryptedLocation) {
       return NextResponse.json(
         { error: 'Location not set. Add your location in Settings to enable glow insights.' },
         { status: 404 },
       )
     }
 
-    const location = decryptLocationPayload(user.id, String(profile.encrypted_location))
+    const location = decryptLocationPayload(user.id, String(encryptedLocation))
     const [forecast, aqi] = await Promise.all([
       fetchOpenMeteoForecast(location.latitude, location.longitude),
       fetchOpenMeteoAqi(location.latitude, location.longitude),
@@ -131,7 +144,7 @@ export async function GET(request: NextRequest) {
     const bestFacingDirection = azimuthToCompass(azimuthDeg)
 
     const payload: GlowInsightsPayload = {
-      locationHint: profile.location_hint || location.label,
+      locationHint: locationHint || location.label,
       glowScore,
       nextGoldenHour: {
         start: humanTime(nextGolden.startIso),

@@ -7,7 +7,7 @@ export type StoredLocationPayload = {
   timezone?: string
   latitude: number
   longitude: number
-  source: 'manual'
+  source: 'manual' | 'geolocation' | 'preset'
   savedAt: string
 }
 

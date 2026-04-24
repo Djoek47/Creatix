@@ -3,7 +3,9 @@ export type CreditPlanCreatorSize = 'solo' | 'small_team' | 'agency'
 
 export type CreditPlanInput = {
   monthlyCreditsAvailable: number
+  purchasedCreditsAvailable?: number
   creatorSize: CreditPlanCreatorSize
+  focusMode?: 'balanced' | 'premium'
   priorities: CreditPlanPriority[]
   targetActivityVolume: {
     messages?: number
@@ -22,6 +24,23 @@ export type CreditPlanOutput = {
   }>
   projectedMonthlySpend: number
   estimatedDaysToDepletion: number
+  projectedMonthlyDemandCredits: number
+  projectedPurchasedDraw: number
+  recommendedScans: {
+    dmcaPerMonth: number
+    dmcaPerWeek: number
+    reputationPerMonth: number
+    reputationPerWeek: number
+  }
+  walletStrategy: {
+    includedCredits: number
+    purchasedCredits: number
+    totalCredits: number
+    includedUtilizationPct: number
+    purchasedReserveAfterPlan: number
+    purchasedUsageRecommended: number
+  }
+  insightLine: string
   safeModeSuggestion: string | null
 }
 
@@ -50,9 +69,15 @@ function expectedDemand(input: CreditPlanInput): Record<CreditPlanPriority, numb
 
 export function buildCreditPlan(input: CreditPlanInput): CreditPlanOutput {
   const credits = Math.max(0, Math.floor(input.monthlyCreditsAvailable))
+  const purchasedCredits = Math.max(0, Math.floor(input.purchasedCreditsAvailable ?? 0))
+  const focusMode = input.focusMode === 'premium' ? 'premium' : 'balanced'
   const weightBase = { ...DEFAULT_WEIGHTS[input.creatorSize] }
   if (input.priorities.length > 0) {
     for (const p of input.priorities) weightBase[p] += 0.15
+  }
+  if (focusMode === 'premium') {
+    weightBase.dmca += 0.16
+    weightBase.reputation += 0.14
   }
 
   const totalWeight = Object.values(weightBase).reduce((a, b) => a + b, 0) || 1
@@ -85,19 +110,52 @@ export function buildCreditPlan(input: CreditPlanInput): CreditPlanOutput {
   }
 
   const projectedMonthlySpend = allocations.reduce((sum, a) => sum + a.credits, 0)
+  const projectedMonthlyDemandCredits = (Object.keys(demand) as CreditPlanPriority[]).reduce(
+    (sum, category) => sum + demand[category] * CATEGORY_COST[category],
+    0,
+  )
+  const projectedPurchasedDraw = Math.max(0, projectedMonthlyDemandCredits - projectedMonthlySpend)
   const dailyBurn = projectedMonthlySpend / 30
   const estimatedDaysToDepletion = dailyBurn > 0 ? Math.max(1, Math.floor(credits / dailyBurn)) : 30
+  const includedUtilizationPct = credits > 0 ? Math.min(100, Math.round((projectedMonthlySpend / credits) * 100)) : 0
+  const purchasedUsageRecommended = Math.min(purchasedCredits, projectedPurchasedDraw)
+  const purchasedReserveAfterPlan = Math.max(0, purchasedCredits - purchasedUsageRecommended)
+  const dmcaPerMonth = demand.dmca
+  const reputationPerMonth = demand.reputation
+  const dmcaPerWeek = Math.max(1, Math.ceil(dmcaPerMonth / 4))
+  const reputationPerWeek = Math.max(1, Math.ceil(reputationPerMonth / 4))
   const safeModeSuggestion =
     projectedMonthlySpend > credits
       ? 'Projected overrun. Prioritize DM growth + chat, and reduce DMCA/reputation scan frequency this month.'
       : estimatedDaysToDepletion < 20
         ? 'Tight runway. Keep leak scans for high-risk signals only and use lightweight message generation.'
         : null
+  const insightLine =
+    focusMode === 'premium'
+      ? `Premium guardrail: run about ${dmcaPerWeek} leak scans/week and ${reputationPerWeek} reputation sweeps/week, spending expiring monthly credits first and topping up from purchased reserve only when needed.`
+      : `Balanced guardrail: target about ${dmcaPerWeek} leak scans/week and ${reputationPerWeek} reputation sweeps/week while keeping a purchased-credit reserve for spikes.`
 
   return {
     allocations,
     projectedMonthlySpend,
     estimatedDaysToDepletion,
+    projectedMonthlyDemandCredits,
+    projectedPurchasedDraw,
+    recommendedScans: {
+      dmcaPerMonth,
+      dmcaPerWeek,
+      reputationPerMonth,
+      reputationPerWeek,
+    },
+    walletStrategy: {
+      includedCredits: credits,
+      purchasedCredits,
+      totalCredits: credits + purchasedCredits,
+      includedUtilizationPct,
+      purchasedReserveAfterPlan,
+      purchasedUsageRecommended,
+    },
+    insightLine,
     safeModeSuggestion,
   }
 }

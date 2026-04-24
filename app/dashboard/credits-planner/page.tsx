@@ -15,7 +15,7 @@ export default function CreditsPlannerPage() {
         <div>
           <h1 className="font-serif text-2xl font-semibold">Credits Planner</h1>
           <p className="text-sm text-muted-foreground">
-            Plan monthly allocation for DM growth, protection, and chat support.
+            Smart monthly planner that scans fans + revenue and optimizes premium protection spend.
           </p>
         </div>
       </div>

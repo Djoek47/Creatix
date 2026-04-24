@@ -18,6 +18,8 @@ type OnlyFansNotification = {
 export function OnlyFansNotificationsCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Shown when API returned partial data (e.g. counts OK, list failed) after upstream glitch. */
+  const [partialHint, setPartialHint] = useState<string | null>(null)
   const [counts, setCounts] = useState<Record<string, unknown> | null>(null)
   const [notifications, setNotifications] = useState<OnlyFansNotification[]>([])
   const [marking, setMarking] = useState(false)
@@ -27,18 +29,39 @@ export function OnlyFansNotificationsCard() {
     async function load() {
       setLoading(true)
       setError(null)
+      setPartialHint(null)
       try {
         const res = await fetch('/api/onlyfans/notifications')
-        const json = await res.json()
+        const json = (await res.json()) as {
+          error?: string
+          code?: string
+          counts?: Record<string, unknown> | null
+          notifications?: OnlyFansNotification[]
+          stale?: boolean
+        }
         if (!res.ok || json.error) {
           if (!cancelled) {
-            setError(json.error || 'Failed to load OnlyFans notifications')
+            const soft =
+              res.status === 503 ||
+              res.status === 429 ||
+              json.code === 'ONLYFANS_UPSTREAM' ||
+              json.code === 'ONLYFANS_RATE_LIMIT'
+            setError(
+              soft
+                ? 'OnlyFans is having a temporary issue loading notifications. Try again in a minute.'
+                : json.error || 'Failed to load OnlyFans notifications',
+            )
             setCounts(null)
             setNotifications([])
           }
           return
         }
         if (!cancelled) {
+          setPartialHint(
+            json.stale && (json.code === 'ONLYFANS_UPSTREAM' || json.code === 'ONLYFANS_RATE_LIMIT')
+              ? 'OnlyFans had a temporary glitch on one feed — counts or list may be incomplete. Try again in a minute.'
+              : null,
+          )
           setCounts(json.counts || null)
           setNotifications(json.notifications || [])
         }
@@ -118,6 +141,9 @@ export function OnlyFansNotificationsCard() {
           <p className="text-xs text-muted-foreground">{error}</p>
         ) : (
           <>
+            {partialHint ? (
+              <p className="text-xs text-amber-700 dark:text-amber-500/90">{partialHint}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               Unread: <span className="font-medium">{unread}</span>
             </p>

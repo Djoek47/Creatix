@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
 import { Button } from '@/components/ui/button'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
+import { MarketingFooterThemeIcon } from '@/components/marketing/marketing-footer-theme-icon'
 import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
@@ -89,26 +90,29 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                 One workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection — with voice-first Divine Manager.
               </p>
             </div>
-            <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {item.label}
+            <div className="flex w-full flex-col items-center gap-4 sm:w-auto sm:items-end">
+              <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm sm:justify-end">
+                {nav.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">
+                  About
                 </Link>
-              ))}
-              <Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">
-                About
-              </Link>
-              <Link href="/privacy" className="text-muted-foreground transition-colors hover:text-primary">
-                Privacy
-              </Link>
-              <Link href="/terms" className="text-muted-foreground transition-colors hover:text-primary">
-                Terms
-              </Link>
-            </nav>
+                <Link href="/privacy" className="text-muted-foreground transition-colors hover:text-primary">
+                  Privacy
+                </Link>
+                <Link href="/terms" className="text-muted-foreground transition-colors hover:text-primary">
+                  Terms
+                </Link>
+              </nav>
+              <MarketingFooterThemeIcon />
+            </div>
           </div>
           <FooterSupportSocial className="mt-8" />
           <div className="mt-8 border-t border-border/30 pt-8 text-center">

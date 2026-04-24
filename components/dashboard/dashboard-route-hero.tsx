@@ -2,10 +2,17 @@
 
 import { usePathname } from 'next/navigation'
 import { resolveDashboardPageMeta, shouldShowDashboardRouteHero } from '@/lib/dashboard-page-meta'
+import { useMessagesFocusChromeOptional } from '@/components/messages/messages-focus-chrome-context'
 import { PenTool, Sparkles } from 'lucide-react'
 
 export function DashboardRouteHero() {
   const pathname = usePathname()
+  const focusChrome = useMessagesFocusChromeOptional()
+  const zenMessages =
+    focusChrome?.focusMode === true &&
+    (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) &&
+    !pathname.startsWith('/dashboard/messages/mass')
+  if (zenMessages) return null
   if (!shouldShowDashboardRouteHero(pathname)) return null
   const meta = resolveDashboardPageMeta(pathname)
   if (!meta) return null

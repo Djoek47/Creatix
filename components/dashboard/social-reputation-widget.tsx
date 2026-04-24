@@ -19,6 +19,10 @@ import {
   RefreshCw,
   Newspaper,
   AtSign,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
+  ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -94,7 +98,7 @@ const SOCIAL_PLATFORMS = [
   { id: 'twitter', name: 'X (Twitter)', color: '#000000', icon: TwitterIcon },
 ]
 
-export function SocialReputationWidget() {
+export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' | 'compact' }) {
   const [profiles, setProfiles] = useState<SocialProfile[]>([])
   const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,6 +112,7 @@ export function SocialReputationWidget() {
   const [lastScanSummary, setLastScanSummary] = useState<string | null>(null)
   const [useAllHandles, setUseAllHandles] = useState(true)
   const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
+  const [unreviewedCount, setUnreviewedCount] = useState<number | null>(null)
   const supabase = createClient()
   const { handles: identityHandles, reload: reloadIdentity } = useScanIdentity()
 
@@ -116,6 +121,25 @@ export function SocialReputationWidget() {
     loadConnectedPlatforms()
     loadSubscription()
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      const { count } = await supabase
+        .from('reputation_mentions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_reviewed', false)
+      if (!cancelled) setUnreviewedCount(count ?? 0)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase])
 
   useEffect(() => {
     if (identityHandles.length) {
@@ -412,6 +436,71 @@ export function SocialReputationWidget() {
       case 'negative': return 'text-red-500 bg-red-500/10'
       default: return 'text-yellow-500 bg-yellow-500/10'
     }
+  }
+
+  const identityCount = identityHandles.length
+  const trackedProfiles = profiles.length
+  const ofConnected = connectedPlatforms.some((p) => p.platform === 'onlyfans')
+  const fsConnected = connectedPlatforms.some((p) => p.platform === 'fansly')
+
+  if (variant === 'compact') {
+    return (
+      <Card className="overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="text-base font-semibold tracking-tight">Social & reputation</CardTitle>
+          <CardDescription className="text-sm leading-relaxed">
+            Scans, mentions, and handles — open the full hub to work the full funnel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Handles</p>
+                  <p className="text-lg font-semibold tabular-nums">{identityCount}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Tracked</p>
+                  <p className="text-lg font-semibold tabular-nums">{trackedProfiles}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OF</p>
+                  <p className="text-lg font-semibold">{ofConnected ? 'On' : '—'}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fansly</p>
+                  <p className="text-lg font-semibold">{fsConnected ? 'On' : '—'}</p>
+                </div>
+              </div>
+              {unreviewedCount != null && unreviewedCount > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{unreviewedCount}</span> mention
+                  {unreviewedCount === 1 ? '' : 's'} to review in Venus’ watch.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">No unreviewed mentions right now.</p>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button className="rounded-full sm:flex-1" asChild>
+                  <Link href="/dashboard/social#reputation" className="gap-2">
+                    Open Social hub
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </Button>
+                <Button variant="outline" className="rounded-full sm:flex-1" asChild>
+                  <Link href="/dashboard/settings?tab=integrations">Integrations</Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

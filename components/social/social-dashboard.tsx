@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
-import { SocialPromotion } from '@/components/social/social-promotion'
+import { SocialHub } from '@/components/social/social-hub'
+import type { SocialConnectionRow } from '@/components/social/social-connected-links'
 
-/** Shared server content for Social and Community dashboard routes. */
+/** Server entry: loads connected platforms and renders the full Social hub client shell. */
 export async function SocialDashboard() {
   const supabase = await createClient()
   const {
@@ -16,5 +17,5 @@ export async function SocialDashboard() {
     .eq('user_id', user.id)
     .eq('is_connected', true)
 
-  return <SocialPromotion connections={connections || []} />
+  return <SocialHub connections={(connections || []) as SocialConnectionRow[]} />
 }

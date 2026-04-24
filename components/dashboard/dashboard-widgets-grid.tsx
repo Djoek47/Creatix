@@ -55,7 +55,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: Layout = [
   { i: 'messageActivity', x: 0, y: 14, w: 4, h: 6, minW: 3, minH: 4 },
   { i: 'alertsColumn', x: 4, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
   { i: 'recentFans', x: 0, y: 20, w: 12, h: 5, minW: 6, minH: 4 },
-  { i: 'socialRep', x: 0, y: 25, w: 12, h: 5, minW: 6, minH: 3 },
+  { i: 'socialRep', x: 0, y: 25, w: 12, h: 4, minW: 6, minH: 3 },
   { i: 'aegis', x: 0, y: 30, w: 6, h: 4, minW: 4, minH: 3 },
 ]
 
@@ -83,7 +83,7 @@ const WIDGET_OPTIONS: { id: string; label: string; hint?: string; optional?: boo
   { id: 'messageActivity', label: 'Conversations' },
   { id: 'alertsColumn', label: 'Alerts & OnlyFans' },
   { id: 'recentFans', label: 'Recent fans' },
-  { id: 'socialRep', label: 'Social reputation' },
+  { id: 'socialRep', label: 'Social hub (summary)', hint: 'Full scans and handles live on Social.' },
   { id: 'aegis', label: 'Circe Aegis', hint: 'Protection / leak scans', optional: true },
 ]
 
@@ -483,7 +483,7 @@ export function DashboardWidgetsGrid({
         <WidgetShell>
           <DragStrip label="Social reputation" />
           <div className="w-full min-w-0">
-            <SocialReputationWidget />
+            <SocialReputationWidget variant="compact" />
           </div>
         </WidgetShell>
       ),

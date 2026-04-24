@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
-import { DashboardHeader } from '@/components/dashboard/header'
+import { DashboardMessagesChrome } from '@/components/dashboard/dashboard-messages-chrome'
+import { MessagesFocusChromeProvider } from '@/components/messages/messages-focus-chrome-context'
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
@@ -62,12 +63,11 @@ export default async function DashboardLayout({
               <div className="hidden h-full min-h-0 md:flex md:flex-col">
                 <DashboardSidebar user={user} profile={profile} />
               </div>
-              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-                <DashboardHeader user={user} profile={profile} />
-                <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+              <MessagesFocusChromeProvider>
+                <DashboardMessagesChrome user={user} profile={profile}>
                   <DashboardMainShell>{children}</DashboardMainShell>
-                </main>
-              </div>
+                </DashboardMessagesChrome>
+              </MessagesFocusChromeProvider>
             </div>
             <VoiceControlPopup />
             <CirceTipPopupHost />

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,8 @@ import { ExternalLink, Loader2, Plus, Trash2, ChevronUp, ChevronDown, Share2 } f
 type CommunityLink = { id: string; label: string; url: string }
 
 export function CommunityLinksManager() {
+  const pathname = usePathname()
+  const onSocialPage = pathname === '/dashboard/social'
   const [links, setLinks] = useState<CommunityLink[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -108,12 +111,21 @@ export function CommunityLinksManager() {
             Discord, Telegram, link-in-bio tools, or anywhere your fans find you.
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/social" className="gap-2">
-            <Share2 className="h-4 w-4" />
-            Social only
-          </Link>
-        </Button>
+        {!onSocialPage ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/social" className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Open Social hub
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard" className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

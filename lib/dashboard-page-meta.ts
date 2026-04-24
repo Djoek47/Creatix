@@ -126,9 +126,10 @@ const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/social',
     meta: {
-      eyebrow: 'Signal',
-      title: 'Social ascent',
-      subtitle: 'Grow beyond the paywall — X, Instagram, TikTok in one orbit.',
+      eyebrow: 'Growth',
+      title: 'Social hub',
+      subtitle:
+        'Draft posts that pull to OnlyFans and Fansly, curate your link-in-bio stack, and run reputation scans in one calm workspace.',
     },
   },
   {

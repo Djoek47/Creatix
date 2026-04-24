@@ -40,6 +40,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
+import { useMessagesFocusChrome } from '@/components/messages/messages-focus-chrome-context'
 import type {
   InboxSegment,
   InboxSort,
@@ -149,7 +150,7 @@ function MessagesLayoutContent({
   const [fanProfileOpen, setFanProfileOpen] = useState(false)
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
-  const [focusMode, setFocusMode] = useState(false)
+  const { focusMode, setFocusMode } = useMessagesFocusChrome()
   const [rightDrawerOpen, setRightDrawerOpen] = useState(true)
   const [kpiStripVisible, setKpiStripVisible] = useState(true)
   const [workspaceStats, setWorkspaceStats] = useState<WorkspaceStatsPayload | null>(null)
@@ -208,9 +209,9 @@ function MessagesLayoutContent({
     }
   }, [pathname])
 
-  /** Mobile: open sheet. Desktop: toggle chat rail expand (collapse dashboard when expanding). */
+  /** Mobile / desktop focus: inbox sheet. Desktop normal: toggle chat rail width. */
   const openChatsMenu = useCallback(() => {
-    if (isMobile) {
+    if (isMobile || focusMode) {
       setConversationMenuOpen(true)
       dispatchCollapseDashboardSidebar()
     } else {
@@ -220,7 +221,7 @@ function MessagesLayoutContent({
         return next
       })
     }
-  }, [isMobile, dispatchCollapseDashboardSidebar])
+  }, [isMobile, focusMode, dispatchCollapseDashboardSidebar])
 
   useEffect(() => {
     setFanProfileOpen(false)
@@ -240,6 +241,28 @@ function MessagesLayoutContent({
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [focusMode])
+
+  useEffect(() => {
+    if (!focusMode) return
+    setChatsRailExpanded(false)
+    setRightDrawerOpen(false)
+    setConversationMenuOpen(false)
+  }, [focusMode])
+
+  useEffect(() => {
+    if (!focusMode) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (conversationMenuOpen) {
+        setConversationMenuOpen(false)
+        e.preventDefault()
+        return
+      }
+      setFocusMode(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focusMode, setFocusMode, conversationMenuOpen])
 
   useEffect(() => {
     const onSidebarExpanded = () => {
@@ -561,9 +584,48 @@ function MessagesLayoutContent({
           : 'Your inbox is empty — new threads appear when fans message you. Tap Refresh to pull the latest from the platform.'
       : undefined
 
+  const hideMessagesToolbar = focusMode && !isMobile
+  const showMobileFocusStrip = focusMode && isMobile
+
   return (
-    <div className="flex h-[calc(100dvh-5.9rem)] max-h-[calc(100dvh-5.9rem)] min-h-0 flex-col">
-      {/* Header: back on mobile when chat open, title, view toggle, actions */}
+    <div
+      className={cn(
+        'flex min-h-0 flex-col',
+        focusMode ? 'h-full max-h-full flex-1' : 'h-[calc(100dvh-5.9rem)] max-h-[calc(100dvh-5.9rem)]',
+      )}
+    >
+      {showMobileFocusStrip && view === 'conversations' ? (
+        <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2 sm:mb-3">
+          <div className="flex items-center gap-2">
+            {selectedConversation ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 flex-shrink-0"
+                onClick={openChatsMenu}
+                aria-label="Back to conversations"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={openChatsMenu}>
+              <PanelLeft className="h-3.5 w-3.5" />
+              Chats
+            </Button>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-9 gap-1.5 shrink-0"
+            onClick={() => setFocusMode(false)}
+          >
+            <Minimize2 className="h-4 w-4" />
+            Exit focus
+          </Button>
+        </div>
+      ) : null}
+
+      {!hideMessagesToolbar ? (
       <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {selectedConversation && view === 'conversations' && (
@@ -671,6 +733,38 @@ function MessagesLayoutContent({
           )}
         </div>
       </div>
+      ) : null}
+
+      {hideMessagesToolbar ? (
+        <div
+          className={cn(
+            'pointer-events-none fixed inset-x-0 top-0 z-50 flex gap-2 px-3 pt-3 md:px-4 md:pt-4',
+            'md:pl-[calc(4rem+0.75rem)]',
+          )}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="pointer-events-auto h-9 gap-1.5 shadow-md"
+            onClick={() => setConversationMenuOpen(true)}
+            title="Open inbox"
+          >
+            <PanelLeft className="h-4 w-4" />
+            Chats
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="pointer-events-auto ml-auto h-9 gap-1.5 shadow-md"
+            onClick={() => setFocusMode(false)}
+          >
+            <Minimize2 className="h-4 w-4" />
+            Exit focus
+          </Button>
+        </div>
+      ) : null}
 
       <AnimatePresence mode="wait" initial={false}>
         {view === 'insights' ? (
@@ -691,7 +785,11 @@ function MessagesLayoutContent({
             animate={{ opacity: 1, y: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8 }}
             transition={fadeTransition}
-            className="flex min-h-0 flex-1 flex-col gap-2.5"
+            className={cn(
+              'flex min-h-0 flex-1 flex-col',
+              !focusMode && 'gap-2.5',
+              hideMessagesToolbar && 'pt-12',
+            )}
           >
             {selectedConversation ? (
               <FanProfileModal
@@ -709,7 +807,7 @@ function MessagesLayoutContent({
                 focusMode={focusMode}
                 leftRailExpanded={chatsRailExpanded}
                 leftPane={
-                  !isMobile ? (
+                  !isMobile && !focusMode ? (
                     <ConversationRail
                       conversations={conversations}
                       selectedKey={
@@ -823,7 +921,7 @@ function MessagesLayoutContent({
                 </div>
               </div>
             ) : null}
-            {isMobile && (
+            {(isMobile || focusMode) && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">
                   <SheetHeader className="border-b border-border shrink-0 px-3 pt-4">

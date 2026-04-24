@@ -24,15 +24,22 @@ export function MessagingLayout({
   const { reduced } = useUiMotionPreferences()
   const panelTransition = uiPanelTransition(reduced)
 
+  /** Full-screen fan conversation: chat only (app sidebar stays in dashboard layout). */
   if (focusMode) {
     return (
       <motion.div
-        className="flex min-h-0 flex-1"
+        className="flex min-h-0 min-w-0 flex-1"
         initial={false}
         animate={{ opacity: 1 }}
         transition={panelTransition}
       >
-        {centerPane}
+        <motion.section
+          layout
+          transition={panelTransition}
+          className="flex min-h-0 min-w-0 flex-1"
+        >
+          {centerPane}
+        </motion.section>
       </motion.div>
     )
   }

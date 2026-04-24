@@ -96,7 +96,8 @@ export async function POST(_request: NextRequest, ctx: { params: Promise<{ id: s
   const postBody = await readAttributionPostBody(_request)
   const idempotencyKey = computeLeakAttributionIdempotencyKey(user.id, alertId, _request, postBody)
 
-  const sourceUrl = row.source_url.trim()  if (!/^https?:\/\//i.test(sourceUrl)) {
+  const sourceUrl = row.source_url.trim()
+  if (!/^https?:\/\//i.test(sourceUrl)) {
     return NextResponse.json({ error: 'Leak URL is not fetchable' }, { status: 400 })
   }
 

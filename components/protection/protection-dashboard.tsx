@@ -46,12 +46,16 @@ import {
 import { isPaidPlanId } from '@/lib/billing/access'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { LeakMediaType, LeakSeverity } from '@/lib/types'
+import { ProtectionModeToggle } from '@/components/protection/protection-mode-toggle'
+import { ProtectionEasyHandles } from '@/components/protection/protection-easy-handles'
 
 type Props = {
   activeAlerts: LeakAlert[]
   /** Pre-filled from profile; user can edit before scanning */
   suggestedAlias?: string | null
 }
+
+const PROTECTION_UI_MODE_KEY = 'protection_ui_mode'
 
 function parseAliases(raw: string): string[] {
   return raw
@@ -342,7 +346,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [aegisLastRun, setAegisLastRun] = useState<string | null>(null)
 
   const { handles: identityHandles, contentTitles } = useScanIdentity()
-  const [useAllLeakHandles] = useState(false)
+  const [uiMode, setUiMode] = useState<'easy' | 'pro'>('easy')
+  const [useAllLeakHandles, setUseAllLeakHandles] = useState(true)
   const [selectedLeakHandles, setSelectedLeakHandles] = useState<Set<string>>(new Set())
   const [focusContentId, setFocusContentId] = useState<string>('')
   const [focusTitleFilter, setFocusTitleFilter] = useState('')
@@ -389,6 +394,12 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const v = window.localStorage.getItem(PROTECTION_UI_MODE_KEY)
+    if (v === 'pro') setUiMode('pro')
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     if (leakHandlesInit.current) return
     leakHandlesInit.current = true
     try {
@@ -402,6 +413,56 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       // ignore malformed storage
     }
   }, [identityHandles])
+
+  useEffect(() => {
+    if (!identityHandles.length) return
+    if (useAllLeakHandles) {
+      setSelectedLeakHandles(new Set(identityHandles.map((h) => h.value)))
+      return
+    }
+    setSelectedLeakHandles((prev) => {
+      const allowed = new Set(identityHandles.map((h) => h.value))
+      return new Set(Array.from(prev).filter((h) => allowed.has(h)))
+    })
+  }, [identityHandles, useAllLeakHandles])
+
+  const persistUiMode = useCallback((mode: 'easy' | 'pro') => {
+    setUiMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(PROTECTION_UI_MODE_KEY, mode)
+    }
+  }, [])
+
+  const handleToggleLeakHandle = useCallback((value: string) => {
+    setSelectedLeakHandles((prev) => {
+      const next = new Set(prev)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(next)))
+      }
+      return next
+    })
+  }, [])
+
+  const handleUseAllLeakHandlesChange = useCallback((enabled: boolean) => {
+    setUseAllLeakHandles(enabled)
+  }, [])
+
+  const handleSelectAllLeakHandles = useCallback(() => {
+    const all = displayHandles.map((h) => h.value)
+    setSelectedLeakHandles(new Set(all))
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify(all))
+    }
+  }, [displayHandles])
+
+  const handleClearLeakHandles = useCallback(() => {
+    setSelectedLeakHandles(new Set())
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify([]))
+    }
+  }, [])
 
   const severityColors: Record<string, string> = {
     critical: 'bg-destructive/20 text-destructive border-destructive/30',
@@ -684,6 +745,16 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   return (
     <div className="space-y-4 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-background p-3.5">
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold text-foreground">Protection workspace</p>
+          <p className="text-xs text-muted-foreground">
+            Easy keeps setup minimal. Pro unlocks advanced identity and filter controls.
+          </p>
+        </div>
+        <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0 self-start" />
+      </div>
+
       <p className="text-xs text-muted-foreground">
         Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.
       </p>
@@ -727,6 +798,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </p>
       </div>
 
+      {uiMode === 'pro' ? (
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="outline" type="button" className="flex w-full items-center justify-between gap-2 text-sm">
@@ -775,7 +847,9 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           </div>
         </CollapsibleContent>
       </Collapsible>
+      ) : null}
 
+      {uiMode === 'pro' ? (
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
           <Checkbox
@@ -831,6 +905,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           Delete saved identities
         </Button>
       </div>
+      ) : null}
 
       <div className="flex items-start gap-2">
         <Checkbox
@@ -844,32 +919,30 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         </label>
       </div>
 
-      {displayHandles.length > 0 && (
+      {uiMode === 'easy' ? (
+        <ProtectionEasyHandles
+          handles={displayHandles}
+          useAll={useAllLeakHandles}
+          onUseAllChange={handleUseAllLeakHandlesChange}
+          selected={selectedLeakHandles}
+          onToggle={handleToggleLeakHandle}
+          onSelectAll={handleSelectAllLeakHandles}
+          onClearSelection={handleClearLeakHandles}
+          extraInput={aliasInput}
+          onExtraInputChange={setAliasInput}
+        />
+      ) : displayHandles.length > 0 ? (
         <ScanHandlePicker
           handles={displayHandles}
           useAll={useAllLeakHandles}
-          onUseAllChange={(v) => {
-            if (!v) return
-          }}
+          onUseAllChange={handleUseAllLeakHandlesChange}
           selected={selectedLeakHandles}
-          onToggle={(value) => {
-            setSelectedLeakHandles((prev) => {
-              const next = new Set(prev)
-              if (next.has(value)) next.delete(value)
-              else next.add(value)
-              if (typeof window !== 'undefined') {
-                window.localStorage.setItem(
-                  'protection_selected_handles',
-                  JSON.stringify(Array.from(next)),
-                )
-              }
-              return next
-            })
-          }}
+          onToggle={handleToggleLeakHandle}
           idPrefix="leak-scan"
         />
-      )}
+      ) : null}
 
+      {uiMode === 'pro' ? (
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Optional: one library item (adds its title to the scan)</Label>
@@ -900,6 +973,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           />
         </div>
       </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -913,7 +987,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               }
             >
               {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Invoke Scan
+              {uiMode === 'easy' ? 'Invoke Scan' : 'Invoke Pro Scan'}
             </Button>
             <Button
               variant="outline"

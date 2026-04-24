@@ -35,6 +35,8 @@ type CreateAriadneTraceInput = {
     encoderProfile?: string
   }
   updateContentRow?: boolean
+  /** M2M Markit path: skip user-credit check and debit (billed to platform / policy). */
+  billingMode?: 'user_credits' | 'service_m2m'
 }
 
 type CreateAriadneTraceResult =
@@ -75,15 +77,18 @@ export async function createAriadneTraceExport(input: CreateAriadneTraceInput): 
   }
 
   const toolCost = getCreditsForToolId('ariadne-trace')
-  const gate = await hasEnoughAiCredits(input.supabase, input.userId, toolCost)
-  if (!gate.ok) {
-    return {
-      ok: false,
-      status: 402,
-      error: 'Insufficient AI credits',
-      code: 'ai_credits_exhausted',
-      used: gate.used,
-      limit: gate.limit,
+  const useUserCredits = input.billingMode !== 'service_m2m'
+  if (useUserCredits) {
+    const gate = await hasEnoughAiCredits(input.supabase, input.userId, toolCost)
+    if (!gate.ok) {
+      return {
+        ok: false,
+        status: 402,
+        error: 'Insufficient AI credits',
+        code: 'ai_credits_exhausted',
+        used: gate.used,
+        limit: gate.limit,
+      }
     }
   }
 
@@ -256,34 +261,36 @@ export async function createAriadneTraceExport(input: CreateAriadneTraceInput): 
   }
 
   const reasonRef = `ariadne:${payload.payloadId}`
-  const debit = await consumeAiCredits(input.supabase, input.userId, toolCost, {
-    reasonCode: 'ariadne_trace',
-    reasonRef,
-    idempotencyKey: `${reasonRef}:${input.userId}`,
-    metadata: {
-      tool: 'ariadne-trace',
-      payload_id: payload.payloadId,
-      content_id: input.contentId,
-      source: input.source,
-      recipient_key: recipientKey,
-      recipient_fan_id: recipientFanId,
-      recipient_platform: recipientPlatform,
-      recipient_platform_fan_id: recipientPlatformFanId,
-      origin_message_id: input.origin?.messageId ?? null,
-      origin_mass_batch_id: input.origin?.massBatchId ?? null,
-      export_path: exportPath,
-    },
-  })
+  if (useUserCredits) {
+    const debit = await consumeAiCredits(input.supabase, input.userId, toolCost, {
+      reasonCode: 'ariadne_trace',
+      reasonRef,
+      idempotencyKey: `${reasonRef}:${input.userId}`,
+      metadata: {
+        tool: 'ariadne-trace',
+        payload_id: payload.payloadId,
+        content_id: input.contentId,
+        source: input.source,
+        recipient_key: recipientKey,
+        recipient_fan_id: recipientFanId,
+        recipient_platform: recipientPlatform,
+        recipient_platform_fan_id: recipientPlatformFanId,
+        origin_message_id: input.origin?.messageId ?? null,
+        origin_mass_batch_id: input.origin?.massBatchId ?? null,
+        export_path: exportPath,
+      },
+    })
 
-  if (!debit.ok) {
-    return { ok: false, status: 500, error: 'Credit debit failed after embed' }
+    if (!debit.ok) {
+      return { ok: false, status: 500, error: 'Credit debit failed after embed' }
+    }
   }
 
   return {
     ok: true,
     payloadId: payload.payloadId,
     exportId: exportRow.id,
-    creditsCharged: toolCost,
+    creditsCharged: useUserCredits ? toolCost : 0,
     downloadUrl: signed.signedUrl,
     exportPath,
     contentId: input.contentId,

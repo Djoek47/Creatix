@@ -7,6 +7,8 @@ import {
 } from '@/lib/dmca/create-draft-claim'
 import { CREDITS_DMCA_CLAIM } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
+import { formatAriadneAttributionForDmcaAppend } from '@/lib/dmca/ariadne-dmca-snippet'
+import type { MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
 
 // POST: Generate a pre-filled DMCA claim
 export async function POST(request: NextRequest) {
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
       return insufficientAiCreditsResponse(gate.used, gate.limit)
     }
 
-    const body: Partial<DMCAClaimData> = await request.json()
+    const body: Partial<DMCAClaimData> & { ariadneAttributionEvidence?: unknown } = await request.json()
 
     // Get user profile for pre-filling
     const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single()
@@ -37,6 +39,26 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .eq('is_connected', true)
 
+    const baseDescription =
+      body.contentDescription ||
+      'Original adult content created exclusively for my subscribers on my official platform profile.'
+
+    let contentDescription = baseDescription
+    const ev = body.ariadneAttributionEvidence
+    if (
+      ev &&
+      typeof ev === 'object' &&
+      'is_markit' in ev &&
+      typeof (ev as MarkitAttributionResult).is_markit === 'boolean' &&
+      'detection_method' in ev &&
+      typeof (ev as MarkitAttributionResult).confidence === 'number'
+    ) {
+      const a = ev as MarkitAttributionResult
+      contentDescription =
+        `${baseDescription.trim()}\n\n---\n` +
+        formatAriadneAttributionForDmcaAppend(a)
+    }
+
     // Build the pre-filled claim data
     const claimData: DMCAClaimData = {
       claimantName: body.claimantName || profile?.full_name || user.email?.split('@')[0] || '',
@@ -46,9 +68,7 @@ export async function POST(request: NextRequest) {
       copyrightOwner: body.copyrightOwner || connections?.[0]?.platform_username || profile?.full_name || '',
       infringingUrl: body.infringingUrl || '',
       originalContentUrl: body.originalContentUrl || '',
-      contentDescription:
-        body.contentDescription ||
-        'Original adult content created exclusively for my subscribers on my official platform profile.',
+      contentDescription,
       platform: body.platform || connections?.[0]?.platform || 'onlyfans',
       platformUsername: body.platformUsername || connections?.[0]?.platform_username || '',
       leakAlertId: body.leakAlertId,

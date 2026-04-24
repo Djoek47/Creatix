@@ -2,6 +2,8 @@
 
 This contract defines how Markit calls Creatix Ariadne APIs while Creatix remains the authority for attribution and evidence.
 
+**V4 integration** (rollout label, same `v1.1` headers): see [`markit-ariadne-v4.md`](./markit-ariadne-v4.md) for actor binding, user-scoped idempotency, embed credit bypass for M2M, and Frame detect CORS/token.
+
 ## Base
 
 - Base URL: `https://<creatix-host>/api/ariadne`
@@ -22,6 +24,7 @@ Service calls must send all headers below:
 - `x-creatix-nonce`: unique random nonce
 - `x-idempotency-key`: unique idempotency key per write intent
 - `x-creatix-signature`: HMAC SHA-256 (hex)
+- `x-creatix-actor-user-id`: UUID of the creator account to scope reads/writes
 
 Signature input (exact pipe-delimited order):
 
@@ -78,7 +81,7 @@ Creates a traced export and canonical `ariadne_exports` row.
   "exportId": "uuid",
   "algorithmVersion": "append-v1",
   "downloadUrl": "https://...",
-  "creditsCharged": 8,
+  "creditsCharged": 0,
   "source": "frame_export",
   "contentId": "uuid",
   "recipientKey": "string",
@@ -86,9 +89,12 @@ Creates a traced export and canonical `ariadne_exports` row.
     "jobId": "mk_123",
     "pipelineVersion": "markit-2026-04-21",
     "encoderProfile": "h264-main"
-  }
+  },
+  "billingMode": "service"
 }
 ```
+
+`billingMode` is present on responses: `user_credits` for session/export-token embeds (positive `creditsCharged`), `service` for M2M embeds (`creditsCharged` is `0`).
 
 ## `POST /api/ariadne/detect`
 
@@ -113,7 +119,10 @@ Optional metadata fields:
 
 ## `GET /api/ariadne/exports`
 
-List canonical exports for signed-in creator.
+List canonical exports for the resolved actor:
+
+- user session path: signed-in creator
+- service-auth path: `x-creatix-actor-user-id`
 
 Query params:
 
@@ -121,7 +130,7 @@ Query params:
 
 ## `GET /api/ariadne/exports/:id`
 
-Returns one export + signed download URL.
+Returns one export + signed download URL (actor-scoped as above).
 
 ## `GET /api/ariadne/exports/:id/evidence`
 
@@ -131,6 +140,15 @@ Returns evidence bundle:
 - immutable hash fields
 - latest detect events
 - signed artifact URL
+
+## Billing semantics
+
+- `POST /api/ariadne/embed`
+  - user-session or export-token path: normal Ariadne trace credit usage.
+  - service-auth path: billed/controlled by service policy (no end-user credit debit).
+- `POST /api/ariadne/detect`
+  - user-session path: debits `ariadne-detect`.
+  - service-auth path: no end-user credit debit; response includes `billingMode: "service"`.
 
 ## Error Contract
 

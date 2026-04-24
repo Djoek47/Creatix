@@ -7,6 +7,7 @@ import {
   sha256Hex,
   signServiceMessage,
 } from '@/lib/ariadne/service-auth'
+import { scopeIdempotencyKey } from '@/lib/ariadne/service-request-store'
 
 function run() {
   process.env.MARKIT_ARIADNE_SHARED_SECRET = 'markit-contract-test-secret-12345'
@@ -37,6 +38,9 @@ function run() {
 
   assert.equal(ARIADNE_CONTRACT_VERSION, 'v1.1')
   assert.equal(serviceReplayWindowSec(), 300)
+
+  const u = '11111111-1111-4111-8111-111111111111'
+  assert.equal(scopeIdempotencyKey({ userId: u, rawKey: 'a' }), `${u}::a`)
 
   console.log('service-auth.test.ts: all assertions passed')
 }

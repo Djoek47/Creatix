@@ -94,11 +94,14 @@ export function EditorApp() {
   const [traceBatchRaw, setTraceBatchRaw] = useState('')
   const [traceBusy, setTraceBusy] = useState(false)
   const [traceStatus, setTraceStatus] = useState<string | null>(null)
+  const [detectFile, setDetectFile] = useState<File | null>(null)
+  const [detectBusy, setDetectBusy] = useState(false)
+  const [detectResult, setDetectResult] = useState<string | null>(null)
   const [brandWatermarkDefaults, setBrandWatermarkDefaults] = useState<BrandWatermarkDefaults | null>(null)
 
   const canManualExport = hasVaultBridge
   const tracedExportEnabled = process.env.NEXT_PUBLIC_FRAMER_TRACED_EXPORT_ENABLED === 'true'
-  const canTrace = tracedExportEnabled && Boolean(contentId && traceRecipientKey.trim())
+  const canTrace = tracedExportEnabled && Boolean(contentId && exportToken && traceRecipientKey.trim())
 
   const pushFile = useCallback(
     async (file: File) => {
@@ -192,6 +195,34 @@ export function EditorApp() {
       setTraceBusy(false)
     }
   }, [runTraceExport, traceRecipientKey])
+
+  const canRunDetect = tracedExportEnabled && Boolean(contentId && exportToken && detectFile)
+
+  const runDetect = useCallback(async () => {
+    if (!contentId || !exportToken || !detectFile) return
+    setDetectBusy(true)
+    setDetectResult(null)
+    try {
+      const form = new FormData()
+      form.set('file', detectFile)
+      form.set('contentId', contentId)
+      const res = await fetch(`${CREATIX}/api/ariadne/detect`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${exportToken}`,
+          'x-idempotency-key': `frame_editor_detect:${contentId}:${detectFile.name}:${detectFile.size}`,
+        },
+        body: form,
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; match?: unknown; message?: string }
+      if (!res.ok) throw new Error(data.error || `Trace verification failed (${res.status})`)
+      setDetectResult(JSON.stringify(data, null, 2))
+    } catch (error) {
+      setDetectResult(error instanceof Error ? error.message : 'Trace verification failed')
+    } finally {
+      setDetectBusy(false)
+    }
+  }, [CREATIX, contentId, exportToken, detectFile])
 
   const handleBatchTrace = useCallback(async () => {
     const keys = traceBatchRaw
@@ -559,6 +590,41 @@ export function EditorApp() {
                     >
                       {traceStatus}
                     </p>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    Trace verification (leak check)
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Upload a re-encoded clip or leak sample; Creatix decodes the append-v1 marker (uses your vault
+                    bridge token, same as traced export).
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        setDetectFile(f ?? null)
+                        setDetectResult(null)
+                      }}
+                      className="text-xs file:mr-2 file:rounded file:border-0 file:bg-primary/20 file:px-2 file:py-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void runDetect()}
+                      disabled={!canRunDetect || detectBusy}
+                      className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-xs font-medium disabled:opacity-40"
+                    >
+                      {detectBusy ? 'Verifying…' : 'Run verification'}
+                    </button>
+                  </div>
+                  {detectResult ? (
+                    <pre
+                      className="text-muted-foreground max-h-48 overflow-auto whitespace-pre-wrap rounded border p-2 text-[11px] leading-relaxed"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      {detectResult}
+                    </pre>
                   ) : null}
                 </div>
               ) : null}

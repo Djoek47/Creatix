@@ -7,6 +7,7 @@ async function run() {
   const contentId = process.env.ARIADNE_E2E_CONTENT_ID
   const recipientKey = process.env.ARIADNE_E2E_RECIPIENT_KEY || 'markit-e2e-recipient'
   const detectFile = process.env.ARIADNE_E2E_DETECT_FILE
+  const actorUserId = process.env.ARIADNE_E2E_ACTOR_USER_ID
 
   if (!baseUrl || !contentId || !detectFile) {
     console.log(
@@ -15,7 +16,14 @@ async function run() {
     return
   }
 
-  const client = new MarkitCreatixAriadneClient({ baseUrl })
+  if (!actorUserId) {
+    console.log(
+      'Set ARIADNE_E2E_ACTOR_USER_ID to your Supabase user UUID (required for M2M service-auth embed/detect/exports in MARKIT_ARIADNE_SERVICE_MODE).',
+    )
+    return
+  }
+
+  const client = new MarkitCreatixAriadneClient({ baseUrl, actorUserId })
 
   const embed = (await client.embed({
     contentId,

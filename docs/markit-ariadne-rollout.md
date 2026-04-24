@@ -20,13 +20,15 @@ This rollout keeps Creatix authoritative while letting Markit service calls ramp
   - primary confidence gating flag for escalation policy.
 - `FRAMER_TRACED_EXPORT_ENABLED`
   - enables editor one-click and batch traced export actions.
+- `ARIADNE_M2M_DEBUG_LOG` (optional)
+  - internal: verbose M2M-related logs in staging.
 
 ## Staged ramp
 
 1. **Internal only**
    - `MARKIT_ARIADNE_SERVICE_MODE=true`
    - Markit traffic from one internal workspace.
-   - Monitor: auth failures, nonce replay rejects, duplicate idempotency rates.
+   - Monitor: auth failures, nonce replay rejects, duplicate idempotency rates, missing actor-user-id rejects.
 2. **Beta creators**
    - Keep signed service auth required.
    - Enable selected creator allowlist in Markit side.
@@ -50,5 +52,6 @@ If Markit error rate spikes:
 
 - No replayed nonce accepted.
 - No duplicate forensic row for same idempotency key.
+- Service read endpoints (`/exports`, `/exports/:id`, `/exports/:id/evidence`) succeed only with valid actor binding.
 - Credits debited exactly once per trace/detect execution intent.
 - Evidence endpoint returns hash chain and detect timeline for legal review.

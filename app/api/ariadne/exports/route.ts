@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  getServiceActorUserId,
+  isServiceRequest,
+  parseServiceHeaders,
+  verifyServiceSignature,
+} from '@/lib/ariadne/service-auth'
+import { registerServiceNonce } from '@/lib/ariadne/service-request-store'
+import { isMarkitAriadneServiceModeEnabled } from '@/lib/ariadne/feature-flags'
 
 function parseCursor(raw: string | null): number {
   if (!raw) return 0
@@ -8,11 +16,48 @@ function parseCursor(raw: string | null): number {
 }
 
 export async function GET(request: NextRequest) {
+  const serviceRequest = isServiceRequest(request)
+  if (serviceRequest && !isMarkitAriadneServiceModeEnabled()) {
+    return NextResponse.json(
+      { error: 'Markit Ariadne service mode is disabled', code: 'service_mode_disabled' },
+      { status: 403 },
+    )
+  }
+
+  let userId: string | null = null
+  if (serviceRequest) {
+    const parsed = parseServiceHeaders(request)
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status })
+    const verified = verifyServiceSignature({
+      request,
+      headers: parsed.headers,
+      bodySha256: '',
+    })
+    if (!verified.ok) return NextResponse.json({ error: verified.error }, { status: verified.status })
+    const nonceStatus = await registerServiceNonce({
+      serviceName: parsed.headers.serviceName,
+      nonce: parsed.headers.nonce,
+      requestPath: '/api/ariadne/exports',
+      idempotencyKey: parsed.headers.idempotencyKey,
+    })
+    if (!nonceStatus.ok) {
+      return NextResponse.json({ error: nonceStatus.error }, { status: nonceStatus.status })
+    }
+    userId = getServiceActorUserId(parsed.headers)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'service_actor_required' },
+        { status: 401 },
+      )
+    }
+  }
+
   const supabase = await createRouteHandlerClient(request)
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId && user) userId = user.id
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const limit = Math.min(Math.max(1, Number.parseInt(searchParams.get('limit') || '25', 10)), 100)
@@ -26,7 +71,7 @@ export async function GET(request: NextRequest) {
     .select(
       'id, user_id, content_id, content_title, recipient_key, recipient_fan_id, recipient_platform, recipient_platform_fan_id, recipient_username, recipient_display_name, source, origin_message_id, origin_mass_batch_id, export_path, payload_id, algorithm_version, job_id, pipeline_version, encoder_profile, created_at',
     )
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .range(cursor, cursor + limit)

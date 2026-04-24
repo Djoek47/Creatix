@@ -17,8 +17,11 @@
     "test:credit-planner": "tsx lib/billing/credit-planner.test.ts",
     "test:ariadne-append-v1-classification": "tsx lib/ariadne/append-v1-classification.test.ts",
     "test:ariadne-service-auth": "tsx lib/ariadne/service-auth.test.ts",
+    "test:attribution-bits": "tsx lib/ariadne/payload-id-bits.test.ts",
+    "test:attribution-harness": "tsx scripts/run-attribution-harness.ts",
     "test:ariadne-watermark-engine": "tsx lib/ariadne/watermark-engine/watermark-engine.test.ts",
     "test:ariadne-markit-e2e-smoke": "tsx scripts/ariadne-markit-e2e-smoke.ts",
+    "markit:v4-api-reference": "node scripts/markit-v4-api-reference.mjs",
     "test:ariadne-v2-benchmark": "tsx scripts/ariadne-v2-benchmark.ts",
     "test:dmca-host": "tsx lib/dmca/host-report-destinations.test.ts",
     "mobile": "npm run start --prefix apps/mobile"

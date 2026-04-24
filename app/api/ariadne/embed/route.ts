@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
 import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import {
+  getServiceActorUserId,
   isServiceRequest,
   parseServiceHeaders,
   type ParsedServiceHeaders,
@@ -14,6 +15,7 @@ import { isMarkitAriadneServiceModeEnabled } from '@/lib/ariadne/feature-flags'
 import {
   getIdempotencyResult,
   registerServiceNonce,
+  scopeIdempotencyKey,
   storeIdempotencyResult,
 } from '@/lib/ariadne/service-request-store'
 
@@ -40,9 +42,9 @@ export async function POST(request: NextRequest) {
 
   const endpoint = '/api/ariadne/embed'
   const serviceRequest = isServiceRequest(request)
-  const userIdempotencyKey = request.headers.get('x-idempotency-key')?.trim() || null
+  const userIdempotencyKeyRaw = request.headers.get('x-idempotency-key')?.trim() || null
   if (serviceRequest && !isMarkitAriadneServiceModeEnabled()) {
-    return jc({ error: 'Markit Ariadne service mode is disabled' }, 403)
+    return jc({ error: 'Markit Ariadne service mode is disabled', code: 'service_mode_disabled' }, 403)
   }
   let bodyRaw = ''
   let body: {
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
       displayName?: string
     }
     origin?: { messageId?: string; massBatchId?: string }
-    lineage?: { jobId?: string; pipelineVersion?: string; encoderProfile?: string }
+    lineage?: { jobId?: string; pipelineVersion?: string; encoderProfile?: string; brandWatermarkDefaults?: unknown }
     updateContentRow?: boolean
   }
   try {
@@ -85,7 +87,10 @@ export async function POST(request: NextRequest) {
     return jc({ error: 'contentId and recipient identity are required' }, 400)
   }
 
+  const supabase = await createRouteHandlerClient(request)
+  let userId: string | null = null
   let serviceHeaders: ParsedServiceHeaders | null = null
+
   if (serviceRequest) {
     const parsed = parseServiceHeaders(request)
     if (!parsed.ok) return jc({ error: parsed.error }, parsed.status)
@@ -95,6 +100,11 @@ export async function POST(request: NextRequest) {
       bodySha256: sha256Hex(bodyRaw),
     })
     if (!verified.ok) return jc({ error: verified.error }, verified.status)
+    const actor = getServiceActorUserId(parsed.headers)
+    if (!actor) {
+      return jc({ error: 'Unauthorized', code: 'service_actor_required' }, 401)
+    }
+    userId = actor
     const nonceStatus = await registerServiceNonce({
       serviceName: parsed.headers.serviceName,
       nonce: parsed.headers.nonce,
@@ -102,40 +112,45 @@ export async function POST(request: NextRequest) {
       idempotencyKey: parsed.headers.idempotencyKey,
     })
     if (!nonceStatus.ok) return jc({ error: nonceStatus.error }, nonceStatus.status)
+    const idem = scopeIdempotencyKey({ userId, rawKey: parsed.headers.idempotencyKey })
     const replay = await getIdempotencyResult({
       endpoint,
-      idempotencyKey: parsed.headers.idempotencyKey,
+      idempotencyKey: idem,
       serviceName: parsed.headers.serviceName,
     })
     if (replay) {
       return jc(replay.response_body, replay.status_code)
     }
     serviceHeaders = parsed.headers
-  } else if (userIdempotencyKey) {
-    const replay = await getIdempotencyResult({
-      endpoint,
-      idempotencyKey: userIdempotencyKey,
-      serviceName: 'user',
-    })
-    if (replay) {
-      return jc(replay.response_body, replay.status_code)
+  } else {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const tok = authHeader.slice(7).trim()
+      const p = verifyExportToken(tok)
+      if (p && p.contentId === contentId) userId = p.userId
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!userId && user) userId = user.id
+    if (!userId) {
+      return jc({ error: 'Unauthorized', code: 'unauthorized' }, 401)
+    }
+    if (userIdempotencyKeyRaw) {
+      const idem = scopeIdempotencyKey({ userId, rawKey: userIdempotencyKeyRaw })
+      const replay = await getIdempotencyResult({
+        endpoint,
+        idempotencyKey: idem,
+        serviceName: 'user',
+      })
+      if (replay) {
+        return jc(replay.response_body, replay.status_code)
+      }
     }
   }
 
-  const supabase = await createRouteHandlerClient(request)
-  let userId: string | null = null
-  const authHeader = request.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    const tok = authHeader.slice(7).trim()
-    const p = verifyExportToken(tok)
-    if (p && p.contentId === contentId) userId = p.userId
-  }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!userId && user) userId = user.id
   if (!userId) {
-    return jc({ error: 'Unauthorized' }, 401)
+    return jc({ error: 'Unauthorized', code: serviceHeaders ? 'service_actor_required' : 'unauthorized' }, 401)
   }
 
   const out = await createAriadneTraceExport({
@@ -146,8 +161,15 @@ export async function POST(request: NextRequest) {
     source,
     recipient: body.recipient,
     origin: body.origin,
-    lineage: body.lineage,
+    lineage: body.lineage
+      ? {
+          jobId: body.lineage.jobId,
+          pipelineVersion: body.lineage.pipelineVersion,
+          encoderProfile: body.lineage.encoderProfile,
+        }
+      : undefined,
     updateContentRow: source === 'vault_standalone' ? body.updateContentRow !== false : false,
+    billingMode: serviceHeaders ? 'service_m2m' : 'user_credits',
   })
   if (!out.ok) {
     return jc(
@@ -168,17 +190,29 @@ export async function POST(request: NextRequest) {
     algorithmVersion: 'append-v1',
     downloadUrl: out.downloadUrl,
     creditsCharged: out.creditsCharged,
+    billingMode: serviceHeaders ? 'service' : 'user_credits',
     source: out.source,
     contentId: out.contentId,
     recipientKey: out.recipientKey,
     lineage: out.lineage,
   }
 
-  if (serviceHeaders || userIdempotencyKey) {
+  if (serviceHeaders) {
+    const idem = scopeIdempotencyKey({ userId, rawKey: serviceHeaders.idempotencyKey })
     await storeIdempotencyResult({
       endpoint,
-      idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
-      serviceName: serviceHeaders?.serviceName ?? 'user',
+      idempotencyKey: idem,
+      serviceName: serviceHeaders.serviceName,
+      userId,
+      statusCode: 200,
+      responseBody,
+    })
+  } else if (userIdempotencyKeyRaw) {
+    const idem = scopeIdempotencyKey({ userId, rawKey: userIdempotencyKeyRaw })
+    await storeIdempotencyResult({
+      endpoint,
+      idempotencyKey: idem,
+      serviceName: 'user',
       userId,
       statusCode: 200,
       responseBody,

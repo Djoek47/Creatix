@@ -9,6 +9,8 @@ const NONCE_HEADER = 'x-creatix-nonce'
 const SIGNATURE_HEADER = 'x-creatix-signature'
 const IDEMPOTENCY_HEADER = 'x-idempotency-key'
 const CONTRACT_VERSION_HEADER = 'x-ariadne-contract-version'
+const ACTOR_USER_ID_HEADER = 'x-creatix-actor-user-id'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function boolEnv(value: string | undefined): boolean {
   if (!value) return false
@@ -68,6 +70,7 @@ export type ParsedServiceHeaders = {
   nonce: string
   signature: string
   idempotencyKey: string
+  actorUserId: string | null
 }
 
 export type ServiceAuthValidationResult =
@@ -81,6 +84,7 @@ export function parseServiceHeaders(request: NextRequest): ServiceAuthValidation
   const nonce = request.headers.get(NONCE_HEADER)?.trim() || ''
   const signature = request.headers.get(SIGNATURE_HEADER)?.trim() || ''
   const idempotencyKey = request.headers.get(IDEMPOTENCY_HEADER)?.trim() || ''
+  const actorUserIdRaw = request.headers.get(ACTOR_USER_ID_HEADER)?.trim() || ''
 
   if (!serviceName && !signature && !timestamp && !nonce) {
     return { ok: false, status: 401, error: 'Missing service auth headers' }
@@ -90,6 +94,11 @@ export function parseServiceHeaders(request: NextRequest): ServiceAuthValidation
   }
   if (!serviceName || !timestamp || !nonce || !signature || !idempotencyKey) {
     return { ok: false, status: 400, error: 'Incomplete service auth headers' }
+  }
+  const actorUserId =
+    actorUserIdRaw.length > 0 && UUID_RE.test(actorUserIdRaw) ? actorUserIdRaw : null
+  if (actorUserIdRaw.length > 0 && !actorUserId) {
+    return { ok: false, status: 400, error: 'Invalid actor user id header' }
   }
 
   return {
@@ -101,6 +110,7 @@ export function parseServiceHeaders(request: NextRequest): ServiceAuthValidation
       nonce,
       signature,
       idempotencyKey,
+      actorUserId,
     },
   }
 }
@@ -142,5 +152,9 @@ export function verifyServiceSignature(input: {
     return { ok: false, status: 401, error: 'Invalid service signature format' }
   }
   return { ok: true, headers: input.headers }
+}
+
+export function getServiceActorUserId(headers: ParsedServiceHeaders): string | null {
+  return headers.actorUserId
 }
 

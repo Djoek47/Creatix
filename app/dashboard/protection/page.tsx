@@ -12,6 +12,7 @@ import type { DmcaClaim, LeakAlert } from '@/lib/types'
 import { ProtectionDashboard } from '@/components/protection/protection-dashboard'
 import { ProtectionHero } from '@/components/protection/protection-hero'
 import { ProtectionResolvedArchive } from '@/components/protection/protection-resolved-archive'
+import { MarkitAttributionPanel } from '@/components/protection/markit-attribution-panel'
 import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 
 export default async function ProtectionPage() {
@@ -105,6 +106,10 @@ export default async function ProtectionPage() {
           </CardContent>
         </Card>
       </div>
+
+      <section className="space-y-3">
+        <MarkitAttributionPanel />
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-0.5">

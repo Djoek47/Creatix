@@ -35,3 +35,18 @@ export function isFramerTracedExportEnabled(): boolean {
   return envBool(process.env.FRAMER_TRACED_EXPORT_ENABLED, false)
 }
 
+/** Extra V4 request/response fields in logs (internal staging). */
+export function isAriadneM2MDebugLoggingEnabled(): boolean {
+  return envBool(process.env.ARIADNE_M2M_DEBUG_LOG, false)
+}
+
+/** Enables POST /api/ariadne/test/run (harness, no production traffic). */
+export function isAriadneAttributionTestApiEnabled(): boolean {
+  return envBool(process.env.ARIADNE_ATTRIBUTION_TEST_API, false)
+}
+
+/** When true, progressive leak scan runs ffmpeg to decode real video frames (requires FFMPEG_PATH or `ffmpeg` on PATH). */
+export function isAriadneFfmpegLeakScanEnabled(): boolean {
+  return envBool(process.env.ARIADNE_FFMPEG_LEAK_SCAN, false)
+}
+

@@ -1,6 +1,14 @@
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { serviceReplayWindowSec } from '@/lib/ariadne/service-auth'
 
+/**
+ * Scopes idempotency keys per end-user to prevent cross-tenant replay collisions
+ * (same Markit idempotency id used for two different creator accounts).
+ */
+export function scopeIdempotencyKey(input: { userId: string; rawKey: string }): string {
+  return `${input.userId}::${input.rawKey}`
+}
+
 export async function registerServiceNonce(input: {
   serviceName: string
   nonce: string
@@ -48,9 +56,9 @@ export async function storeIdempotencyResult(input: {
   userId: string | null
   statusCode: number
   responseBody: unknown
-}) {
+}): Promise<void> {
   const supabase = createServiceRoleClient()
-  await supabase.from('ariadne_idempotency_keys').insert({
+  const { error } = await supabase.from('ariadne_idempotency_keys').insert({
     user_id: input.userId,
     endpoint: input.endpoint,
     idempotency_key: input.idempotencyKey,
@@ -58,5 +66,12 @@ export async function storeIdempotencyResult(input: {
     status_code: input.statusCode,
     response_body: (input.responseBody ?? {}) as Record<string, unknown>,
   })
+  if (error?.code === '23505') {
+    // Lost race to another in-flight idempotent request — first writer wins.
+    return
+  }
+  if (error) {
+    console.warn('[ariadne_idempotency] insert failed', error.message)
+  }
 }
 

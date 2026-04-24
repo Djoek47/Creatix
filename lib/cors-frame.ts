@@ -9,7 +9,7 @@ export function applyFrameCorsHeaders(request: NextRequest, response: NextRespon
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     response.headers.set(
       'Access-Control-Allow-Headers',
-      'Authorization, Content-Type, Range',
+      'Authorization, Content-Type, Range, x-idempotency-key',
     )
     response.headers.set('Access-Control-Max-Age', '86400')
   }

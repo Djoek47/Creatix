@@ -31,8 +31,10 @@ import {
   RotateCcw,
   Copy,
   Mail,
+  ScanSearch,
 } from 'lucide-react'
 import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
+import type { LeakAttributionApiResponse, MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
 import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
@@ -362,6 +364,11 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [filterText, setFilterText] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [verifyLoadingId, setVerifyLoadingId] = useState<string | null>(null)
+  const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null)
+  const [attributionByAlertId, setAttributionByAlertId] = useState<
+    Record<string, LeakAttributionApiResponse>
+  >({})
+  const [attributionErrorByAlertId, setAttributionErrorByAlertId] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (urlFiltersSynced.current) return
@@ -580,6 +587,40 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     })
   }, [sortedAlerts, severityFilters, mediaFilter, filterText])
 
+  const runLeakUrlAttribution = useCallback(
+    async (alert: LeakAlert) => {
+      setTraceLoadingId(alert.id)
+      setAttributionErrorByAlertId((prev) => {
+        const next = { ...prev }
+        delete next[alert.id]
+        return next
+      })
+      try {
+        const res = await fetch(`/api/leaks/alerts/${alert.id}/attribution`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': crypto.randomUUID(),
+          },
+          body: JSON.stringify({}),
+        })
+        const data = (await res.json().catch(() => ({}))) as LeakAttributionApiResponse & { error?: string }
+        if (!res.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Attribution scan failed')
+        }
+        setAttributionByAlertId((prev) => ({ ...prev, [alert.id]: data }))
+      } catch (e) {
+        setAttributionErrorByAlertId((prev) => ({
+          ...prev,
+          [alert.id]: e instanceof Error ? e.message : 'Attribution scan failed',
+        }))
+      } finally {
+        setTraceLoadingId(null)
+      }
+    },
+    [],
+  )
+
   const verifyLeakPage = useCallback(
     async (alertId: string) => {
       setVerifyLoadingId(alertId)
@@ -690,6 +731,11 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }
 
+  const stripLeakAttributionForDmca = (r: LeakAttributionApiResponse): MarkitAttributionResult => {
+    const { creditsCharged: _c, leak_alert_id: _l, fetched_url: _f, ...rest } = r
+    return rest
+  }
+
   const startDmcaFromAlert = async (alert: LeakAlert) => {
     setSelectedAlert(alert)
     setDmcaOpen(true)
@@ -698,10 +744,15 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     setNoticeText('')
     setProofPaths([])
     try {
+      const trace = attributionByAlertId[alert.id]
+      const body: Record<string, unknown> = { leakAlertId: alert.id }
+      if (trace) {
+        body.ariadneAttributionEvidence = stripLeakAttributionForDmca(trace)
+      }
       const res = await fetch('/api/dmca/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leakAlertId: alert.id }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (res.ok) {
@@ -1314,10 +1365,60 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                     Re-verify page
                   </Button>
                 ) : null}
-                <Button size="sm" onClick={() => startDmcaFromAlert(alert)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={traceLoadingId === alert.id}
+                  onClick={() => void runLeakUrlAttribution(alert)}
+                >
+                  {traceLoadingId === alert.id ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanSearch className="mr-2 h-4 w-4" />
+                  )}
+                  Trace to recipient
+                </Button>
+                <Button size="sm" onClick={() => void startDmcaFromAlert(alert)}>
                   Download DMCA
                 </Button>
               </div>
+              {attributionErrorByAlertId[alert.id] ? (
+                <p className="text-xs text-destructive">{attributionErrorByAlertId[alert.id]}</p>
+              ) : null}
+              {attributionByAlertId[alert.id] ? (
+                <div className="rounded-md border border-border/80 bg-muted/15 p-3 text-xs space-y-1.5">
+                  <p className="font-medium text-foreground">Ariadne trace (leak URL)</p>
+                  <p className="text-muted-foreground">
+                    {attributionByAlertId[alert.id].is_markit
+                      ? 'Possible Markit marker found.'
+                      : 'No strong Markit marker on this sample (re-encoded video may hide microdots).'}
+                  </p>
+                  <ul className="list-inside list-disc text-muted-foreground space-y-0.5">
+                    <li>Method: {attributionByAlertId[alert.id].detection_method}</li>
+                    <li>Confidence: {attributionByAlertId[alert.id].confidence}</li>
+                    {attributionByAlertId[alert.id].watermark_id ? (
+                      <li>Payload id: {attributionByAlertId[alert.id].watermark_id}</li>
+                    ) : null}
+                    {attributionByAlertId[alert.id].user_id ? (
+                      <li>Recipient id: {attributionByAlertId[alert.id].user_id}</li>
+                    ) : null}
+                    {attributionByAlertId[alert.id].evidence?.export?.id ? (
+                      <li>Export: {attributionByAlertId[alert.id].evidence?.export?.id}</li>
+                    ) : null}
+                    <li>Credits: {attributionByAlertId[alert.id].creditsCharged}</li>
+                  </ul>
+                  {attributionByAlertId[alert.id].warnings?.length ? (
+                    <p className="text-amber-600 dark:text-amber-400">
+                      {attributionByAlertId[alert.id].warnings?.join(' ')}
+                    </p>
+                  ) : null}
+                  <p className="text-[11px] text-muted-foreground">
+                    Open <span className="font-medium">Download DMCA</span> to merge this summary into your notice
+                    description.
+                  </p>
+                </div>
+              ) : null}
             </div>
           )
         })}
@@ -1340,6 +1441,12 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               Review your DMCA draft for this leak. Attach proof files, then download the notice to send it to the host
               yourself—Creatix does not submit notices automatically.
             </DialogDescription>
+            {selectedAlert && attributionByAlertId[selectedAlert.id] ? (
+              <p className="text-xs text-muted-foreground pt-1">
+                The description field in the notice below includes your last “Trace to recipient” summary for this
+                leak row.
+              </p>
+            ) : null}
           </DialogHeader>
 
           {selectedAlert ? (

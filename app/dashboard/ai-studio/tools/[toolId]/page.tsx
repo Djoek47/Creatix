@@ -43,8 +43,11 @@ function ToolRunnerInner() {
     if (toolId === 'frame-studio') {
       router.replace('/dashboard/ai-studio')
     }
-    if (toolId === 'brand-uniformity' || toolId === 'brand-lint') {
+    if (toolId === 'brand-uniformity') {
       router.replace('/dashboard/brand-uniformity')
+    }
+    if (toolId === 'credits-planner') {
+      router.replace('/dashboard/credits-planner')
     }
   }, [toolId, router])
 
@@ -69,7 +72,7 @@ function ToolRunnerInner() {
     toolId === 'ariadne-trace' ||
     toolId === 'frame-studio' ||
     toolId === 'brand-uniformity' ||
-    toolId === 'brand-lint'
+    toolId === 'credits-planner'
   ) {
     return null
   }

@@ -11,6 +11,7 @@ import { GoldenHourTimeline } from '@/components/wellbeing/golden-hour-timeline'
 import { PerfectShotCarousel } from '@/components/wellbeing/perfect-shot-carousel'
 import { PositionCompass } from '@/components/wellbeing/position-compass'
 import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
+import { CosmicCalendar } from '@/components/content/cosmic-calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -73,11 +74,7 @@ export function WellbeingDashboard() {
         ])
         if (!cancelled) {
           if (!insightRes.ok) {
-            setError(
-              typeof insightJson?.error === 'string'
-                ? insightJson.error
-                : 'Glow insights unavailable. Set a location in Settings.',
-            )
+            setError(typeof insightJson?.error === 'string' ? insightJson.error : 'Glow insights unavailable.')
           } else {
             setInsight(insightJson as GlowInsightsPayload)
           }
@@ -130,22 +127,31 @@ export function WellbeingDashboard() {
               {unifiedSentence}
             </p>
           ) : null}
+          {insight?.insightSource && insight.insightSource !== 'location' ? (
+            <p className="max-w-3xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+              {insight.insightSource === 'birthday'
+                ? 'Running in birthday-calibrated mode. Weather precision unlocks once location is added.'
+                : 'Running in baseline mode without location. Add birthday or location to personalize further.'}
+            </p>
+          ) : null}
+          {insight?.setupHint ? (
+            <p className="max-w-3xl text-xs text-muted-foreground">{insight.setupHint}</p>
+          ) : null}
         </motion.section>
 
         <motion.section {...fadeInUp}>
           <MoodConstellation />
         </motion.section>
 
-        {error || !insight ? (
+        {!insight ? (
           <Card className="border-amber-500/30 bg-amber-500/10">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <AlertCircle className="h-4 w-4" />
-                Location setup required
+                Insight feed temporarily unavailable
               </CardTitle>
               <CardDescription>
-                {error ||
-                  'Add your location in Settings to unlock golden-hour predictions and positioning guidance.'}
+                {error || 'Please refresh in a moment.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -183,6 +189,14 @@ export function WellbeingDashboard() {
             </motion.section>
           </>
         )}
+
+        <motion.section {...fadeInUp} className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Sparkles className="h-4 w-4 text-violet-400" />
+            Cosmic calendar + moon rhythm
+          </div>
+          <CosmicCalendar />
+        </motion.section>
       </div>
     </div>
   )

@@ -47,6 +47,113 @@ function parseLocationFallback(raw: unknown): { encrypted: string; hint: string 
   return { encrypted: row.encrypted, hint: row.hint }
 }
 
+function getMoonPhaseIndex(date: Date) {
+  const knownNewMoon = new Date('2024-01-11')
+  const lunarCycle = 29.53
+  const daysSinceNew = Math.floor((date.getTime() - knownNewMoon.getTime()) / (1000 * 60 * 60 * 24))
+  const daysIntoPhase = ((daysSinceNew % lunarCycle) + lunarCycle) % lunarCycle
+  return Math.floor((daysIntoPhase / lunarCycle) * 8) % 8
+}
+
+function buildFallbackPayload(hasBirthday: boolean): GlowInsightsPayload {
+  const now = new Date()
+  const baseWindowStart = new Date(now)
+  baseWindowStart.setHours(19, 0, 0, 0)
+  if (baseWindowStart.getTime() < now.getTime()) {
+    baseWindowStart.setDate(baseWindowStart.getDate() + 1)
+  }
+  const baseWindowEnd = new Date(baseWindowStart.getTime() + 45 * 60 * 1000)
+  const baseMoonIndex = getMoonPhaseIndex(baseWindowStart)
+  const moonBoost = [8, 12, 16, 20, 24, 18, 14, 10][baseMoonIndex] ?? 12
+  const baseScore = Math.min(92, 56 + moonBoost)
+  const perfectShotDays: PerfectShotDay[] = Array.from({ length: 5 }).map((_, index) => {
+    const dayDate = new Date(baseWindowStart)
+    dayDate.setDate(dayDate.getDate() + index)
+    const phaseIdx = getMoonPhaseIndex(dayDate)
+    const score = Math.max(52, Math.min(95, 54 + ([8, 12, 16, 20, 24, 18, 14, 10][phaseIdx] ?? 12) + (4 - index) * 2))
+    const start = new Date(dayDate)
+    start.setHours(18, 50, 0, 0)
+    const end = new Date(start.getTime() + 45 * 60 * 1000)
+    return {
+      date: dayDate.toISOString().split('T')[0],
+      dayLabel: dayDate.toLocaleDateString([], { weekday: 'short' }),
+      score,
+      bestWindowStart: start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      bestWindowEnd: end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      reason: hasBirthday ? 'Moon-phase rhythm aligned with your birthday profile.' : 'Balanced evening light and moon rhythm.',
+      skyGradient: score > 80 ? 'from-amber-200 via-rose-200 to-violet-300' : 'from-amber-100 via-sky-100 to-violet-200',
+      cloudCover: 35,
+      humidity: 52,
+      visibilityKm: 10,
+    }
+  })
+  const topDay = [...perfectShotDays].sort((a, b) => b.score - a.score)[0]
+  return {
+    insightSource: hasBirthday ? 'birthday' : 'baseline',
+    locationHint: hasBirthday ? 'Birthday-calibrated mode' : 'Calm baseline mode',
+    glowScore: baseScore,
+    nextGoldenHour: {
+      start: baseWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      end: baseWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      minutesUntil: Math.max(0, Math.round((baseWindowStart.getTime() - now.getTime()) / 60000)),
+    },
+    timeline: [
+      {
+        key: 'sunrise',
+        label: 'Body wake',
+        time: 'Morning reset',
+        type: 'sunrise',
+      },
+      {
+        key: 'golden_start',
+        label: 'Creative rise',
+        time: baseWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        type: 'golden_start',
+      },
+      {
+        key: 'sunset',
+        label: 'Peak expression',
+        time: topDay.bestWindowStart,
+        type: 'sunset',
+      },
+      {
+        key: 'golden_end',
+        label: 'Soft close',
+        time: baseWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        type: 'golden_end',
+      },
+    ],
+    perfectShotDays,
+    positioning: {
+      azimuthDeg: 255,
+      bestFacingDirection: 'West-Southwest',
+      environments: ['Window light', 'Open skyline', 'Reflective surfaces'],
+    },
+    actionCapsules: [
+      {
+        id: 'calm_prep',
+        label: '5-min nervous system reset',
+        detail: 'Breath + hydrate before your creative window.',
+      },
+      {
+        id: 'capture_window',
+        label: `Capture during ${topDay.dayLabel}`,
+        detail: `${topDay.bestWindowStart} - ${topDay.bestWindowEnd}`,
+      },
+      {
+        id: 'calendar_mode',
+        label: hasBirthday ? 'Use moon calendar mode' : 'Add birthday for deeper lunar guidance',
+        detail: hasBirthday ? 'Your lunar rhythm is active in this fallback mode.' : 'You still get baseline guidance without location.',
+      },
+    ],
+    insightSentence: hasBirthday
+      ? `Birthday-calibrated mode is active. Lunar rhythm suggests strongest output on ${topDay.dayLabel} during ${topDay.bestWindowStart}-${topDay.bestWindowEnd}.`
+      : `Location is optional. Baseline mode still maps your next high-output window at ${topDay.bestWindowStart}-${topDay.bestWindowEnd}.`,
+    setupHint: 'Add location in Settings for precise weather and azimuth intelligence.',
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)
@@ -57,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('encrypted_location, has_location_set, location_hint')
+      .select('encrypted_location, has_location_set, location_hint, has_birthday_set')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -68,10 +175,7 @@ export async function GET(request: NextRequest) {
     const locationHint = profile?.location_hint ?? fallback?.hint ?? null
 
     if (!encryptedLocation) {
-      return NextResponse.json(
-        { error: 'Location not set. Add your location in Settings to enable glow insights.' },
-        { status: 404 },
-      )
+      return NextResponse.json(buildFallbackPayload(Boolean(profile?.has_birthday_set)))
     }
 
     const location = decryptLocationPayload(user.id, String(encryptedLocation))
@@ -144,6 +248,7 @@ export async function GET(request: NextRequest) {
     const bestFacingDirection = azimuthToCompass(azimuthDeg)
 
     const payload: GlowInsightsPayload = {
+      insightSource: 'location',
       locationHint: locationHint || location.label,
       glowScore,
       nextGoldenHour: {
@@ -201,6 +306,7 @@ export async function GET(request: NextRequest) {
         },
       ],
       insightSentence: `High-output window: glow score ${glowScore}. Best capture angle is ${bestFacingDirection}; strongest sky diffusion on ${topDay.dayLabel}.`,
+      setupHint: undefined,
       updatedAt: new Date().toISOString(),
     }
 

@@ -30,6 +30,7 @@ import {
   Calendar,
   TrendingUp,
   Sparkles,
+  BarChart3,
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
@@ -56,7 +57,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
   'brand-uniformity': Sparkles,
-  'brand-lint': PenTool,
+  'credits-planner': BarChart3,
 }
 
 const CATEGORIES: { id: 'all' | AIToolCategory; name: string }[] = [

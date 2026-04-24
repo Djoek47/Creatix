@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { MessageSquare, Sparkles, Shield, HeartPulse, LayoutDashboard } from 'lucide-react'
+import {
+  MessageSquare,
+  Sparkles,
+  Shield,
+  HeartPulse,
+  LayoutDashboard,
+  BarChart3,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
 
@@ -36,6 +43,14 @@ const tiles = [
     accent: 'from-venus/15 to-venus/5 border-venus/25 hover:border-venus/45',
     iconClass: 'text-venus',
   },
+  {
+    href: '/dashboard/credits-planner',
+    title: 'Credits Planner',
+    description: 'Smart premium credit allocation',
+    icon: BarChart3,
+    accent: 'from-gold/15 to-purple-500/5 border-gold/25 hover:border-gold/45',
+    iconClass: 'text-gold',
+  },
 ] as const
 
 export type DashboardCommandTilesProps = {
@@ -53,7 +68,7 @@ export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTil
 
   return (
     <div className="space-y-3">
-      <div className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-4', tierSheen)}>
+      <div className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-5', tierSheen)}>
         {tiles.map((tile) => {
           const boosted =
             (accent === 'circe' && tile.href === '/dashboard/messages') ||

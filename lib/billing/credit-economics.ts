@@ -73,7 +73,7 @@ const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'mass-dm-fan-captions': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'mass-dm-ppv-pricing': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'brand-uniformity': creditsForProviderUsdEstimate(0.008),
-  'brand-lint': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
+  'credits-planner': 0,
   'creator-mood-pulse': creditsForProviderUsdEstimate(0.004),
   'revenue-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'pricing-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),

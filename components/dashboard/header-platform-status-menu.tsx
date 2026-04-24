@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Settings2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu'
+import { DropdownMenuLabel } from '@/components/ui/dropdown-menu'
 import {
   CREATOR_STATUS_PRESETS,
   formatCreatorStatusLabel,
@@ -47,7 +47,9 @@ export function HeaderPlatformStatusMenuSection() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [activePlatform, setActivePlatform] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const detailInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -78,6 +80,12 @@ export function HeaderPlatformStatusMenuSection() {
       nextDrafts[row.platform] = draftFromRow(row)
     }
     setDrafts(nextDrafts)
+    setActivePlatform((prev) => {
+      if (prev && list.some((row) => row.platform === prev)) return prev
+      if (list.some((row) => row.platform === 'onlyfans')) return 'onlyfans'
+      if (list.some((row) => row.platform === 'fansly')) return 'fansly'
+      return list[0]?.platform ?? null
+    })
   }, [])
 
   useEffect(() => {
@@ -142,14 +150,24 @@ export function HeaderPlatformStatusMenuSection() {
     }
   }
 
+  const editableRow = useMemo(() => {
+    if (!rows.length) return null
+    if (activePlatform) {
+      const selected = rows.find((row) => row.platform === activePlatform)
+      if (selected) return selected
+    }
+    return rows[0]
+  }, [activePlatform, rows])
+
   return (
     <>
       <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
         Platform status
       </DropdownMenuLabel>
-      <DropdownMenuItem
-        onSelect={(e) => e.preventDefault()}
-        className="cursor-default flex-col items-stretch gap-3 rounded-md px-2 py-2.5 focus:bg-transparent data-[highlighted]:bg-transparent"
+      <div
+        className="flex cursor-default flex-col items-stretch gap-3 rounded-md px-2 py-2.5"
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
@@ -178,7 +196,37 @@ export function HeaderPlatformStatusMenuSection() {
                 {error}
               </p>
             ) : null}
-            {rows.map((row) => {
+            {rows.length > 1 ? (
+              <div className="flex items-center gap-1.5">
+                {rows.map((row) => {
+                  const ui = PLATFORM_UI[row.platform] ?? {
+                    label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                    accent: 'var(--primary)',
+                  }
+                  const isActive = (activePlatform ?? editableRow?.platform) === row.platform
+                  return (
+                    <Button
+                      key={`switch-${row.platform}`}
+                      type="button"
+                      size="sm"
+                      variant={isActive ? 'secondary' : 'ghost'}
+                      className="h-8 gap-1.5 px-2 text-[11px]"
+                      onClick={() => setActivePlatform(row.platform)}
+                    >
+                      {ui.logoSrc ? (
+                        <img src={ui.logoSrc} alt="" className="h-4 w-4 shrink-0 object-contain" />
+                      ) : (
+                        <span className="text-[10px] font-semibold">{ui.label.slice(0, 2).toUpperCase()}</span>
+                      )}
+                      {ui.label}
+                    </Button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {editableRow ? (() => {
+              const row = editableRow
               const ui = PLATFORM_UI[row.platform] ?? {
                 label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
                 accent: 'var(--primary)',
@@ -217,14 +265,18 @@ export function HeaderPlatformStatusMenuSection() {
                   </label>
                   <select
                     id={`header-status-preset-${row.platform}`}
-                    className="mb-1.5 h-8 w-full rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+                    className="mb-1.5 h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-xs outline-none [color-scheme:light] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 dark:[color-scheme:dark]"
                     value={draft.preset}
                     disabled={busy}
-                    onChange={(e) =>
-                      patchDraft(row.platform, {
-                        preset: normalizeCreatorStatusPreset(e.target.value),
-                      })
-                    }
+                    onChange={(e) => {
+                      const nextPreset = normalizeCreatorStatusPreset(e.target.value)
+                      patchDraft(row.platform, { preset: nextPreset })
+                      if (nextPreset === 'custom') {
+                        setTimeout(() => {
+                          detailInputRefs.current[row.platform]?.focus()
+                        }, 0)
+                      }
+                    }}
                   >
                     {CREATOR_STATUS_PRESETS.map((p) => (
                       <option key={p} value={p}>
@@ -237,6 +289,9 @@ export function HeaderPlatformStatusMenuSection() {
                   </label>
                   <Input
                     id={`header-status-detail-${row.platform}`}
+                    ref={(node) => {
+                      detailInputRefs.current[row.platform] = node
+                    }}
                     value={draft.detail}
                     onChange={(e) =>
                       patchDraft(row.platform, { detail: e.target.value.slice(0, 120) })
@@ -248,6 +303,19 @@ export function HeaderPlatformStatusMenuSection() {
                     disabled={busy}
                     maxLength={120}
                   />
+                  {isCustom ? (
+                    <p className="mb-2 text-[11px] text-muted-foreground">
+                      Save custom note templates in{' '}
+                      <Link
+                        href="/dashboard/settings?tab=integrations"
+                        className="font-medium text-primary underline-offset-2 hover:underline"
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        Settings → Integrations
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
                   <div className="flex justify-end">
                     <Button
                       type="button"
@@ -267,7 +335,7 @@ export function HeaderPlatformStatusMenuSection() {
                   </div>
                 </div>
               )
-            })}
+            })() : null}
             <p className="text-[11px] leading-snug text-muted-foreground">
               More options in{' '}
               <Link
@@ -281,7 +349,7 @@ export function HeaderPlatformStatusMenuSection() {
             </p>
           </div>
         )}
-      </DropdownMenuItem>
+      </div>
     </>
   )
 }

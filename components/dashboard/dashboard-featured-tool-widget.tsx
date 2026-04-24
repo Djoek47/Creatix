@@ -49,6 +49,7 @@ const ICON_BY_TOOL: Partial<Record<string, LucideIcon>> = {
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
   'standard-of-attraction': Heart,
+  'credits-planner': TrendingUp,
 }
 
 function toolHref(toolId: string): string {

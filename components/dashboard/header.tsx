@@ -158,7 +158,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
         {/* User menu (far right) */}
         {mounted ? (
-          <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+          <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"

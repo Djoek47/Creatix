@@ -24,6 +24,7 @@ export type PositioningHints = {
 }
 
 export type GlowInsightsPayload = {
+  insightSource?: 'location' | 'birthday' | 'baseline'
   locationHint: string
   glowScore: number
   nextGoldenHour: {
@@ -45,5 +46,6 @@ export type GlowInsightsPayload = {
     detail: string
   }>
   insightSentence: string
+  setupHint?: string
   updatedAt: string
 }

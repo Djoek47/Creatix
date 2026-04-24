@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Sparkles, Shield, Crown, MessageCircle, Radar } from 'lucide-react'
+import type { CreditPlanPriority } from '@/lib/billing/credit-planner'
 
 type PlannerResult = {
   allocations: Array<{

@@ -38,37 +38,54 @@ function pathAllowsPopup(pathname: string | null): boolean {
 export function CirceTipPopupHost() {
   const pathname = usePathname()
   const [visible, setVisible] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
   const [tip, setTip] = useState<CirceDailyTip | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closeAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const scheduleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scheduleGeneration = useRef(0)
 
   const clearTimers = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    if (closeAnimTimerRef.current) clearTimeout(closeAnimTimerRef.current)
     if (tickRef.current) clearInterval(tickRef.current)
     if (scheduleRef.current) clearTimeout(scheduleRef.current)
     closeTimerRef.current = null
+    closeAnimTimerRef.current = null
     tickRef.current = null
     scheduleRef.current = null
+  }, [])
+
+  const finalizeDismiss = useCallback((recordShown: boolean) => {
+    setVisible(false)
+    setTip(null)
+    setIsClosing(false)
+    if (recordShown && typeof window !== 'undefined') {
+      writeTipPopupLastShownAt(Date.now())
+    }
   }, [])
 
   const dismiss = useCallback(
     (recordShown: boolean) => {
       clearTimers()
-      setVisible(false)
-      setTip(null)
-      if (recordShown && typeof window !== 'undefined') {
-        writeTipPopupLastShownAt(Date.now())
+      if (!visible) {
+        finalizeDismiss(recordShown)
+        return
       }
+      setIsClosing(true)
+      closeAnimTimerRef.current = setTimeout(() => {
+        finalizeDismiss(recordShown)
+      }, 320)
     },
-    [clearTimers],
+    [clearTimers, finalizeDismiss, visible],
   )
 
   const showWithTip = useCallback(
     (next: CirceDailyTip, recordCooldownOnClose: boolean) => {
       clearTimers()
+      setIsClosing(false)
       setTip(next)
       setVisible(true)
       const totalMs = readingDurationMs(next.body)
@@ -153,7 +170,11 @@ export function CirceTipPopupHost() {
       role="status"
       aria-live="polite"
     >
-      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div
+        className={`w-full max-w-md ${
+          isClosing ? 'circe-tip-anim-out' : 'circe-tip-anim-in'
+        }`}
+      >
         <Card
           data-slot="card"
           className="circe-tip-floating-card pointer-events-auto relative w-full overflow-hidden p-0 text-card-foreground shadow-2xl"

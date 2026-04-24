@@ -15,9 +15,12 @@ const IV_BYTES = 12
 const TAG_BYTES = 16
 
 function getVaultSecret() {
-  const secret = process.env.LOCATION_VAULT_SECRET
+  const secret =
+    process.env.LOCATION_VAULT_SECRET ||
+    process.env.FRAME_BRIDGE_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!secret || secret.trim().length < 16) {
-    throw new Error('LOCATION_VAULT_SECRET is missing or too short')
+    throw new Error('Location vault secret is missing or too short')
   }
   return secret
 }

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
 import { LandingPricingSection } from '@/components/marketing/landing-pricing-section'
 import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { ArrowRight } from 'lucide-react'
@@ -147,10 +146,16 @@ export function HomePricingSwitch() {
         <p className="mt-3 text-[11px] text-muted-foreground/80">Hover a platform. Or wait — it cycles every ten seconds.</p>
 
         <div className="mt-8 flex justify-center">
-          <Link href="/pricing">
-            <Button size="lg" variant="outline" className="h-11 gap-2 rounded-full border-border/60 px-8">
-              See pricing <ArrowRight className="h-4 w-4 opacity-70" />
-            </Button>
+          <Link
+            href="/pricing"
+            className={cn(
+              'cta-pricing-shimmer inline-flex h-12 items-center justify-center gap-2 rounded-full px-10 text-sm font-medium',
+              'ring-1 ring-black/5 transition-[transform,box-shadow] dark:ring-white/10',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
+          >
+            See pricing
+            <ArrowRight className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
           </Link>
         </div>
       </div>

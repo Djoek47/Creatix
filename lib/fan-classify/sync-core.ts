@@ -207,8 +207,9 @@ async function syncLegacyOnlyFansSegment(
       if (chats.length < page) break
     }
     let off2 = 0
+    const activeFanPage = 20 // partner max per GET /fans/active
     for (let pageIdx = 0; pageIdx < 40; pageIdx++) {
-      const pack = await api.getFansActive({ limit: page, offset: off2 })
+      const pack = await api.getFansActive({ limit: activeFanPage, offset: off2 })
       const raw = pack.data || []
       if (raw.length === 0) break
       for (const row of raw) {
@@ -217,8 +218,8 @@ async function syncLegacyOnlyFansSegment(
         const sp = Number(r.totalSpent ?? 0)
         if (id && !activeIds.has(id) && sp <= coldMax) desired.add(id)
       }
-      off2 += page
-      if (raw.length < page) break
+      off2 += activeFanPage
+      if (raw.length < activeFanPage) break
     }
   }
 

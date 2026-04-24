@@ -5,6 +5,7 @@ import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { extractAppendV1Detailed, sha256Hex } from '@/lib/ariadne-embed'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import {
+  getServiceActorUserId,
   isServiceRequest,
   parseServiceHeaders,
   type ParsedServiceHeaders,
@@ -58,7 +59,10 @@ export async function POST(request: NextRequest) {
   const userIdempotencyKey = request.headers.get('x-idempotency-key')?.trim() || null
   const isSvcReq = isServiceRequest(request)
   if (isSvcReq && !isMarkitAriadneServiceModeEnabled()) {
-    return NextResponse.json({ error: 'Markit Ariadne service mode is disabled' }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Markit Ariadne service mode is disabled', code: 'service_mode_disabled' },
+      { status: 403 },
+    )
   }
   if (isSvcReq) {
     const parsed = parseServiceHeaders(request)
@@ -97,20 +101,28 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createRouteHandlerClient(request)
+  let userId: string | null = null
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (user) userId = user.id
+  if (!userId && serviceHeaders) userId = getServiceActorUserId(serviceHeaders)
+  if (!userId) {
+    return NextResponse.json(
+      { error: 'Unauthorized', code: isSvcReq ? 'service_actor_required' : 'unauthorized' },
+      { status: 401 },
+    )
   }
 
   const toolCost = getCreditsForToolId('ariadne-detect')
-  const gate = await hasEnoughAiCredits(supabase, user.id, toolCost)
-  if (!gate.ok) {
-    return NextResponse.json(
-      { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-      { status: 402 },
-    )
+  if (!isSvcReq) {
+    const gate = await hasEnoughAiCredits(supabase, userId, toolCost)
+    if (!gate.ok) {
+      return NextResponse.json(
+        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
+        { status: 402 },
+      )
+    }
   }
 
   const ct = request.headers.get('content-type') || ''
@@ -150,7 +162,7 @@ export async function POST(request: NextRequest) {
     metadata?: Record<string, unknown>
   }) => {
     await service.from('ariadne_detect_events').insert({
-      user_id: user.id,
+      user_id: userId,
       export_id: input.exportId ?? null,
       payload_id: input.payloadId ?? null,
       match_state: input.matchState,
@@ -171,10 +183,12 @@ export async function POST(request: NextRequest) {
           ? 'marker_invalid_signature'
           : 'no_marker'
     const signal = detectConfidenceAndReason(matchState)
-    const debit = await consumeAiCredits(supabase, user.id, toolCost, {
+    const debit = isSvcReq
+      ? { ok: true as const }
+      : await consumeAiCredits(supabase, userId, toolCost, {
       reasonCode: 'ariadne_detect',
       reasonRef: `ariadne_detect:${matchState}:${fileSha}`,
-      idempotencyKey: `ariadne_detect:${user.id}:${matchState}:${fileSha}`,
+      idempotencyKey: `ariadne_detect:${userId}:${matchState}:${fileSha}`,
       metadata: {
         tool: 'ariadne-detect',
         match_state: matchState,
@@ -203,6 +217,7 @@ export async function POST(request: NextRequest) {
       confidence: signal.confidence,
       reason: signal.reason,
       creditsCharged: toolCost,
+      billingMode: isSvcReq ? 'service' : 'user_credits',
     }
     await persistDetectEvent({
       matchState: 'none',
@@ -220,7 +235,7 @@ export async function POST(request: NextRequest) {
         endpoint,
         idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
         serviceName: serviceHeaders?.serviceName ?? 'user',
-        userId: user.id,
+        userId,
         statusCode: 200,
         responseBody,
       })
@@ -233,7 +248,7 @@ export async function POST(request: NextRequest) {
     .select(
       'id, content_id, content_title, recipient_key, recipient_fan_id, recipient_platform, recipient_platform_fan_id, recipient_username, recipient_display_name, source, origin_message_id, origin_mass_batch_id, export_path, algorithm_version, created_at, payload_id',
     )
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('payload_id', extracted.payload.payloadId)
     .maybeSingle()
 
@@ -242,10 +257,12 @@ export async function POST(request: NextRequest) {
   const unregisteredSignal = detectConfidenceAndReason(unregisteredState)
   const registeredSignal = detectConfidenceAndReason(registeredState)
 
-  const debit = await consumeAiCredits(supabase, user.id, toolCost, {
+  const debit = isSvcReq
+    ? { ok: true as const }
+    : await consumeAiCredits(supabase, userId, toolCost, {
     reasonCode: 'ariadne_detect',
     reasonRef: `ariadne_detect:${extracted.payload.payloadId}`,
-    idempotencyKey: `ariadne_detect:${user.id}:${extracted.payload.payloadId}`,
+    idempotencyKey: `ariadne_detect:${userId}:${extracted.payload.payloadId}`,
     metadata: {
       tool: 'ariadne-detect',
       match: !(expErr || !exp),
@@ -271,6 +288,7 @@ export async function POST(request: NextRequest) {
       reason: unregisteredSignal.reason,
       message: 'Marker decoded but no matching export row for your account (wrong account or old export).',
       creditsCharged: toolCost,
+      billingMode: isSvcReq ? 'service' : 'user_credits',
     }
     await persistDetectEvent({
       payloadId: extracted.payload.payloadId,
@@ -289,7 +307,7 @@ export async function POST(request: NextRequest) {
         endpoint,
         idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
         serviceName: serviceHeaders?.serviceName ?? 'user',
-        userId: user.id,
+        userId,
         statusCode: 200,
         responseBody,
       })
@@ -305,6 +323,7 @@ export async function POST(request: NextRequest) {
     confidence: registeredSignal.confidence,
     reason: registeredSignal.reason,
     creditsCharged: toolCost,
+    billingMode: isSvcReq ? 'service' : 'user_credits',
     dmcaHint:
       'Use recipient_key and content_id with Protection / DMCA workflows; cross-reference leak alerts for the same file hash when v2 lands.',
   }
@@ -327,7 +346,7 @@ export async function POST(request: NextRequest) {
       endpoint,
       idempotencyKey: serviceHeaders?.idempotencyKey ?? userIdempotencyKey ?? '',
       serviceName: serviceHeaders?.serviceName ?? 'user',
-      userId: user.id,
+      userId,
       statusCode: 200,
       responseBody,
     })

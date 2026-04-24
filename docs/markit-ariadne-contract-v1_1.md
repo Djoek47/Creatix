@@ -22,6 +22,7 @@ Service calls must send all headers below:
 - `x-creatix-nonce`: unique random nonce
 - `x-idempotency-key`: unique idempotency key per write intent
 - `x-creatix-signature`: HMAC SHA-256 (hex)
+- `x-creatix-actor-user-id`: UUID of the creator account to scope reads/writes
 
 Signature input (exact pipe-delimited order):
 
@@ -113,7 +114,10 @@ Optional metadata fields:
 
 ## `GET /api/ariadne/exports`
 
-List canonical exports for signed-in creator.
+List canonical exports for the resolved actor:
+
+- user session path: signed-in creator
+- service-auth path: `x-creatix-actor-user-id`
 
 Query params:
 
@@ -121,7 +125,7 @@ Query params:
 
 ## `GET /api/ariadne/exports/:id`
 
-Returns one export + signed download URL.
+Returns one export + signed download URL (actor-scoped as above).
 
 ## `GET /api/ariadne/exports/:id/evidence`
 
@@ -131,6 +135,15 @@ Returns evidence bundle:
 - immutable hash fields
 - latest detect events
 - signed artifact URL
+
+## Billing semantics
+
+- `POST /api/ariadne/embed`
+  - user-session or export-token path: normal Ariadne trace credit usage.
+  - service-auth path: billed/controlled by service policy (no end-user credit debit).
+- `POST /api/ariadne/detect`
+  - user-session path: debits `ariadne-detect`.
+  - service-auth path: no end-user credit debit; response includes `billingMode: "service"`.
 
 ## Error Contract
 

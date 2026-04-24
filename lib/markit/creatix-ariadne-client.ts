@@ -42,15 +42,18 @@ export type MarkitDetectRequest = {
 type AriadneClientConfig = {
   baseUrl: string
   serviceName?: string
+  actorUserId?: string
 }
 
 export class MarkitCreatixAriadneClient {
   private readonly baseUrl: string
   private readonly serviceName: string
+  private readonly actorUserId?: string
 
   constructor(config: AriadneClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '')
     this.serviceName = config.serviceName?.trim() || 'markit'
+    this.actorUserId = config.actorUserId?.trim() || undefined
   }
 
   async embed(input: MarkitEmbedRequest) {
@@ -94,23 +97,44 @@ export class MarkitCreatixAriadneClient {
   }
 
   async listExports(query?: URLSearchParams) {
+    const path = '/api/ariadne/exports'
     const suffix = query?.toString() ? `?${query.toString()}` : ''
     const res = await fetch(`${this.baseUrl}/api/ariadne/exports${suffix}`, {
       method: 'GET',
+      headers: this.serviceHeaders({
+        pathname: path,
+        method: 'GET',
+        bodySha256: '',
+        json: false,
+      }),
     })
     return this.readJson(res)
   }
 
   async getExport(id: string) {
-    const res = await fetch(`${this.baseUrl}/api/ariadne/exports/${id}`, {
+    const path = `/api/ariadne/exports/${id}`
+    const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'GET',
+      headers: this.serviceHeaders({
+        pathname: path,
+        method: 'GET',
+        bodySha256: '',
+        json: false,
+      }),
     })
     return this.readJson(res)
   }
 
   async getEvidence(id: string) {
-    const res = await fetch(`${this.baseUrl}/api/ariadne/exports/${id}/evidence`, {
+    const path = `/api/ariadne/exports/${id}/evidence`
+    const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'GET',
+      headers: this.serviceHeaders({
+        pathname: path,
+        method: 'GET',
+        bodySha256: '',
+        json: false,
+      }),
     })
     return this.readJson(res)
   }
@@ -144,6 +168,7 @@ export class MarkitCreatixAriadneClient {
       'x-idempotency-key': idempotencyKey,
       'x-creatix-signature': signature,
     }
+    if (this.actorUserId) headers['x-creatix-actor-user-id'] = this.actorUserId
     if (input.json) headers['content-type'] = 'application/json'
     return headers
   }

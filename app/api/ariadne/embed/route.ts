@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
 import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import {
+  getServiceActorUserId,
   isServiceRequest,
   parseServiceHeaders,
   type ParsedServiceHeaders,
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
   const serviceRequest = isServiceRequest(request)
   const userIdempotencyKey = request.headers.get('x-idempotency-key')?.trim() || null
   if (serviceRequest && !isMarkitAriadneServiceModeEnabled()) {
-    return jc({ error: 'Markit Ariadne service mode is disabled' }, 403)
+    return jc({ error: 'Markit Ariadne service mode is disabled', code: 'service_mode_disabled' }, 403)
   }
   let bodyRaw = ''
   let body: {
@@ -134,8 +135,15 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!userId && user) userId = user.id
+  if (!userId && serviceHeaders) userId = getServiceActorUserId(serviceHeaders)
   if (!userId) {
-    return jc({ error: 'Unauthorized' }, 401)
+    return jc(
+      {
+        error: 'Unauthorized',
+        code: serviceHeaders ? 'service_actor_required' : 'unauthorized',
+      },
+      401,
+    )
   }
 
   const out = await createAriadneTraceExport({

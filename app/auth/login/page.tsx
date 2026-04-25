@@ -10,10 +10,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  buildMarkitHandoffWithSessionHash,
-  getPostPasswordLoginDestination,
-} from '@/lib/auth/post-login-redirect'
 import { cn } from '@/lib/utils'
 
 export default function LoginPage() {
@@ -34,7 +30,7 @@ export default function LoginPage() {
     setLoading(true)
 
     const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -45,26 +41,7 @@ export default function LoginPage() {
       return
     }
 
-    if (!data.session) {
-      setError('No session returned')
-      setLoading(false)
-      return
-    }
-
-    const nextParam =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('next')
-        : null
-    const markitBases = process.env.NEXT_PUBLIC_MARKIT_APP_URL || ''
-    const dest = getPostPasswordLoginDestination(nextParam, markitBases)
-
-    if (dest.kind === 'markit_handoff') {
-      const href = buildMarkitHandoffWithSessionHash(dest.href, data.session)
-      window.location.assign(href)
-      return
-    }
-
-    router.push(dest.path)
+    router.push('/dashboard')
     router.refresh()
   }
 

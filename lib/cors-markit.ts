@@ -2,14 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * CORS for browser clients on Markit (cross-origin POST to Creatix Realtime with Bearer).
- * Set `NEXT_PUBLIC_MARKIT_URL` to the Markit origin (no trailing slash), e.g. https://markit.example.com
+ * Set `NEXT_PUBLIC_MARKIT_URL` to the Markit origin(s), comma-separated, no trailing slashes
+ * (e.g. `https://markit.com,https://markit-fawn.vercel.app`).
  */
+function parseMarkitOrigins(): string[] {
+  const raw = (process.env.NEXT_PUBLIC_MARKIT_URL || '').trim()
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+}
+
 function allowedMarkitOrigin(request: NextRequest): string | null {
-  const markit = (process.env.NEXT_PUBLIC_MARKIT_URL || '').replace(/\/$/, '')
-  if (!markit) return null
-  const origin = request.headers.get('origin')
-  if (!origin) return null
-  if (origin === markit || origin.startsWith(`${markit}/`)) return origin
+  const origins = parseMarkitOrigins()
+  if (origins.length === 0) return null
+  const requestOrigin = request.headers.get('origin')
+  if (!requestOrigin) return null
+  for (const markit of origins) {
+    if (requestOrigin === markit || requestOrigin.startsWith(`${markit}/`)) return requestOrigin
+  }
   return null
 }
 

@@ -14,6 +14,18 @@ import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
+import {
+  parseDivineVoiceFromStripeMetadata,
+  subscriptionStripeHasDivineVoicePrice,
+} from '@/lib/billing/premium-divine'
+
+/** Only touch DB column when checkout metadata explicitly includes divineVoicePremium (avoids wiping on unrelated checkouts). */
+function divineVoicePatchFromCheckoutMeta(meta: Record<string, string> | undefined) {
+  if (!meta || !Object.prototype.hasOwnProperty.call(meta, 'divineVoicePremium')) {
+    return {}
+  }
+  return { divine_voice_premium: parseDivineVoiceFromStripeMetadata(meta) }
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -80,7 +92,7 @@ async function upsertSubscriptionByUserId(
   const { data: existing } = await supabase
     .from('subscriptions')
     .select(
-      'plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
+      'plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats,divine_voice_premium',
     )
     .eq('user_id', userId)
     .maybeSingle()
@@ -92,6 +104,7 @@ async function upsertSubscriptionByUserId(
     billing_focus_platform?: string | null
     billing_focus_platforms?: string[] | null
     billing_seats?: number | null
+    divine_voice_premium?: boolean | null
   } | null
 
   const merged: SubscriptionRowForCredits = {
@@ -253,6 +266,7 @@ export async function POST(req: NextRequest) {
                   cancel_at_period_end: false,
                 }
               : {}),
+            ...divineVoicePatchFromCheckoutMeta(meta),
             ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
             ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
             ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
@@ -289,6 +303,7 @@ export async function POST(req: NextRequest) {
 
         await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
           stripe_subscription_id: sub.id,
+          divine_voice_premium: subscriptionStripeHasDivineVoicePrice(sub),
           ...(planId ? { plan_id: planId } : {}),
           ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
           ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),

@@ -6,6 +6,7 @@ import {
   managerTalkativenessVoiceScriptLine,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
 
 type VoiceMode = 'intro' | 'ongoing' | 'what_next'
 
@@ -19,6 +20,18 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: subVoice } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,divine_voice_premium')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!hasDivineVoicePremium(subVoice as SubscriptionRowForPremiumDivine | null)) {
+      return NextResponse.json(
+        { error: 'Divine voice requires Premium.', code: 'divine_voice_premium_required' },
+        { status: 403 },
+      )
     }
 
     const body = await req.json().catch(() => ({}))

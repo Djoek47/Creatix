@@ -10,6 +10,7 @@ import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
+import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
 import { CirceTipPopupHost } from '@/components/community/circe-tip-popup'
 import { ProtocolTasksProvider } from '@/components/divine/protocol-tasks-context'
 import { DashboardDocumentScrollLock } from '@/components/dashboard/dashboard-document-scroll-lock'
@@ -45,6 +46,13 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
+  const { data: subRow } = await supabase
+    .from('subscriptions')
+    .select('plan_id,status,divine_voice_premium')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const divineVoicePremium = hasDivineVoicePremium(subRow as SubscriptionRowForPremiumDivine | null)
+
   return (
     <OnboardingProvider 
       userId={user.id} 
@@ -55,7 +63,7 @@ export default async function DashboardLayout({
         {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
         <DivinePanelWrapper user={user}>
           <ProtocolTasksProvider>
-          <VoiceSessionProvider>
+          <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
             <DashboardDocumentScrollLock />
             <DashboardRealmEntrance />
             <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">

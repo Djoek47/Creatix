@@ -7,6 +7,7 @@ import {
 } from '@/lib/ai/message-suggestions'
 import { runMimicMessageSuggestion } from '@/lib/ai/run-mimic-message-suggestion'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { getDivineVoicePremiumForUserId } from '@/lib/billing/premium-divine'
 import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
 import {
   consumeAiCredits,
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const premiumOpenAi = await getDivineVoicePremiumForUserId(supabase, user.id)
     const ctx = {
       mode: nonMimicMode,
       platform: body.platform,
@@ -181,6 +183,7 @@ export async function POST(req: NextRequest) {
       fanCommerceContext,
       creatorPageContext,
       userId: user.id,
+      premiumOpenAi,
     }
 
     let result

@@ -64,6 +64,8 @@ export type SuggestionRequestContext = {
   creatorGenderIdentity?: string
   /** Set for admin usage attribution (dm-reply package / API route). */
   userId?: string
+  /** When true, use the stronger OpenAI model (Divine Premium tier); otherwise `gpt-4o-mini`. */
+  premiumOpenAi?: boolean
 }
 
 function buildConversationPreview(ctx: SuggestionRequestContext): string {
@@ -335,7 +337,7 @@ ${conversation}
 
 ${instruction}`
 
-  const selectedModel = ctx.mode === 'scan' ? 'openai/gpt-4o-mini' : 'openai/gpt-4o'
+  const selectedModel = ctx.premiumOpenAi ? 'openai/gpt-4o' : 'openai/gpt-4o-mini'
   const { text, usage } = await generateText({
     model: gateway(selectedModel),
     temperature: ctx.mode === 'scan' ? 0.35 : 0.62,

@@ -16,10 +16,28 @@ import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
 import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
 import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 import { logUsageEvent } from '@/lib/usage/server-log'
+import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
+import { checkDivineVoiceRealtimeMonthCap } from '@/lib/billing/divine-voice-fairuse'
+import { applyMarkitCorsHeaders, markitCorsOptions } from '@/lib/cors-markit'
 
 export const maxDuration = 30
 
+export async function OPTIONS(req: NextRequest) {
+  return markitCorsOptions(req)
+}
+
 type FocusedFan = { id?: string; username?: string | null; name?: string | null }
+
+type DivineRealtimeContext = {
+  surface?: string
+  importUrl?: string
+  timelineSummary?: string
+}
+
+function jsonCors(request: NextRequest, data: Record<string, unknown>, status: number) {
+  const res = NextResponse.json(data, { status })
+  return applyMarkitCorsHeaders(request, res)
+}
 
 /**
  * POST: create a full-duplex Realtime (WebRTC) session with Divine Manager context.
@@ -35,7 +53,7 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return jsonCors(req, { error: 'Unauthorized' }, 401)
     }
 
     // Realtime API requires an OpenAI API key (sk-...). Do NOT use Vercel AI Gateway key (vck_...) here —
@@ -44,12 +62,29 @@ export async function POST(req: NextRequest) {
       process.env.OPENAI_BASE_URL?.replace(/\/$/, '') || 'https://api.openai.com'
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey || !apiKey.startsWith('sk-')) {
-      return NextResponse.json(
+      return jsonCors(
+        req,
         {
           error:
             'Realtime requires OPENAI_API_KEY (OpenAI key starting with sk-). Do not use the Vercel AI Gateway key here.',
         },
-        { status: 503 },
+        503,
+      )
+    }
+
+    const { data: subRow } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,divine_voice_premium')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!hasDivineVoicePremium(subRow as SubscriptionRowForPremiumDivine | null)) {
+      console.warn(
+        JSON.stringify({ route: 'divine-manager-realtime', event: 'premium_denied', userId: user.id }),
+      )
+      return jsonCors(
+        req,
+        { error: 'Divine voice requires Premium.', code: 'divine_voice_premium_required' },
+        403,
       )
     }
 
@@ -58,6 +93,7 @@ export async function POST(req: NextRequest) {
     let divineSessionId: string | undefined
     let notificationSecretaryMode = false
     let notificationSecretaryLines: string[] = []
+    let clientContext: DivineRealtimeContext | undefined
     const contentType = req.headers.get('content-type') || ''
     if (contentType.startsWith('application/json')) {
       const body = (await req.json().catch(() => ({}))) as {
@@ -66,10 +102,12 @@ export async function POST(req: NextRequest) {
         mode?: string
         notification_secretary?: { lines?: string[] }
         divine_session_id?: string
+        context?: DivineRealtimeContext
       }
       sdp = body.sdp
       focusedFan = body.focusedFan
       divineSessionId = typeof body.divine_session_id === 'string' ? body.divine_session_id : undefined
+      clientContext = body.context
       if (body.mode === 'notification_secretary' && Array.isArray(body.notification_secretary?.lines)) {
         notificationSecretaryMode = true
         notificationSecretaryLines = body.notification_secretary!.lines!
@@ -82,14 +120,26 @@ export async function POST(req: NextRequest) {
     }
 
     if (!sdp?.trim()) {
-      return NextResponse.json({ error: 'Missing SDP body' }, { status: 400 })
+      return jsonCors(req, { error: 'Missing SDP body' }, 400)
+    }
+
+    const capCheck = await checkDivineVoiceRealtimeMonthCap(user.id)
+    if (!capCheck.ok) {
+      return jsonCors(
+        req,
+        {
+          error: 'Divine voice monthly session limit reached. Try again next month or contact support.',
+          code: capCheck.code,
+        },
+        429,
+      )
     }
 
     const sid = divineSessionId?.trim()
     if (sid) {
       const claim = await claimDivineSessionLease(supabase, user.id, sid)
       if (!claim.ok) {
-        return NextResponse.json({ error: claim.message }, { status: 403 })
+        return jsonCors(req, { error: claim.message }, 403)
       }
     }
 
@@ -206,6 +256,16 @@ export async function POST(req: NextRequest) {
 
     const protocolTasksBlock = `\n\nToday’s Plan & protocol rail: Same task list as the dashboard. Use notifications_panel to open or close the notifications popover (open true/false), optional tab live or divine, optional scrollToId with a CRM notification UUID. Use creator_task_add with priority_tier: 1=notifications (importance) first, 2=DMs/messaging, 3=protection/reputation, 4=content/posting (optional suggested_post_window for best visibility). Optional plan_date YYYY-MM-DD (UTC). Incomplete tasks from a prior day become leftovers on the next day. creator_task_set_status (task_id, status pending|executing|done|failed) updates the floating list. For in-app Divine-tab CRM notifications: divine_crm_notifications_mark_read marks read (keeps row); divine_crm_notifications_remove or protocol_complete_for_notification removes from the bell and marks linked protocol tasks done.`
 
+    const markitContextBlock =
+      clientContext?.surface === 'markit'
+        ? `\n\nSURFACE: Markit video editor. The creator is in the in-browser video editor (not the main dashboard). Import: ${String(clientContext.importUrl || 'none').slice(0, 500)}. Timeline: ${String(clientContext.timelineSummary || 'n/a').slice(0, 1200)}. Prefer concise, edit-focused answers; if a tool or flow only exists in the main app, say so and suggest they open the dashboard.`
+        : ''
+
+    const voiceSurface: 'dashboard' | 'markit' = clientContext?.surface === 'markit' ? 'markit' : 'dashboard'
+    console.info(
+      JSON.stringify({ route: 'divine-manager-realtime', event: 'session_negotiate', surface: voiceSurface, userId: user.id }),
+    )
+
     const instructions = `You are the Divine Manager, a Jarvis-style voice companion for a creator. You speak in real time over voice. Be a calm, confident manager. Never role-play as the creator; never claim to have already sent messages or changed prices. You only describe what you see and what you recommend. Respect boundaries and platform safety. Avoid explicit or illegal content.
 
 Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flirtyLevel ?? 'mild'}. Boundaries: ${(persona.boundaries ?? []).join('; ') || 'none specified'}.
@@ -234,7 +294,7 @@ DM name lookup: Tool output includes spellback ("I heard …") and [divine_looku
 
 Speak in second person ("you"). Keep replies actionable but advisory. Be concise; this is a live conversation. Text chat has the full tool list; voice uses the same server-side tools—if something fails, suggest using Divine text chat for that action.
 
-    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${protocolTasksBlock}${secretaryBlock}`
+    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${markitContextBlock}${protocolTasksBlock}${secretaryBlock}`
 
     const tools = [
       {
@@ -1225,10 +1285,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
     if (!res.ok) {
       const errText = await res.text()
       console.error('[divine-manager-realtime] OpenAI error:', res.status, errText)
-      return NextResponse.json(
-        { error: 'Realtime session failed', details: errText.slice(0, 200) },
-        { status: res.status === 401 ? 503 : res.status }
-      )
+      return jsonCors(req, { error: 'Realtime session failed', details: errText.slice(0, 200) }, res.status === 401 ? 503 : res.status)
     }
 
     const answerSdp = await res.text()
@@ -1241,16 +1298,20 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
       metadata: {
         kind: 'webrtc_sdp_exchange',
+        surface: voiceSurface,
         note: 'Token/cost for Realtime is session-based; see OpenAI usage dashboard. Client also reports voice state time to admin.',
       },
     })
 
-    return new NextResponse(answerSdp, {
-      headers: { 'Content-Type': 'application/sdp' },
-    })
+    return applyMarkitCorsHeaders(
+      req,
+      new NextResponse(answerSdp, {
+        headers: { 'Content-Type': 'application/sdp' },
+      }),
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Realtime session failed'
     console.error('[divine-manager-realtime]', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return jsonCors(req, { error: message }, 500)
   }
 }

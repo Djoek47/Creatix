@@ -118,6 +118,8 @@ export type VoiceSessionContextValue = {
   forceEndVoiceCall: () => void
   /** Last ~30s of the staged silence protocol (47s + 60s) — crown shows rainbow. */
   silenceProtocolRainbowActive: boolean
+  /** OpenAI Realtime + TTS; same tier as premium messaging (paid + add-on, unless env grant). */
+  divineVoicePremium: boolean
 }
 
 const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
@@ -126,7 +128,14 @@ export function useVoiceSession(): VoiceSessionContextValue | null {
   return useContext(VoiceSessionContext)
 }
 
-export function VoiceSessionProvider({ children }: { children: ReactNode }) {
+export function VoiceSessionProvider({
+  children,
+  divineVoicePremium = false,
+}: {
+  children: ReactNode
+  /** Set from server; when false, voice calls are disabled (Premium add-on + paid plan). */
+  divineVoicePremium?: boolean
+}) {
   const divinePanel = useDivinePanel()
   const [status, setStatus] = useState<VoiceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -467,6 +476,11 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     realtimeBodyExtras?: Record<string, unknown>
   }) => {
     if (status === 'connecting' || status === 'connected') return
+    if (!divineVoicePremium) {
+      setError('Divine voice is on Premium — includes Markit and the dashboard.')
+      setStatus('idle')
+      return
+    }
     realtimePathRef.current = opts?.realtimePath || '/api/ai/divine-manager-realtime'
     toolPathRef.current = opts?.toolPath || '/api/divine/voice-tool'
     getToolBodyExtrasRef.current = typeof opts?.getToolBodyExtras === 'function' ? opts.getToolBodyExtras : () => ({})
@@ -880,7 +894,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       setStatus('error')
       playCue('error')
     }
-  }, [endVoiceCall, playCue, status, divinePanel, sendBriefingQuestion, refreshVoiceHangupPolicy])
+  }, [endVoiceCall, playCue, status, divinePanel, sendBriefingQuestion, refreshVoiceHangupPolicy, divineVoicePremium])
 
   /** Arm optional idle disconnect + staged silence watchdog when connected. */
   useEffect(() => {
@@ -1146,6 +1160,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     canManualHangup,
     forceEndVoiceCall,
     silenceProtocolRainbowActive,
+    divineVoicePremium,
   }
 
   return (

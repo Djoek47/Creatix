@@ -79,6 +79,7 @@ export function VoiceControlPopup() {
     voiceVizRef,
     voiceSurfaceState,
     canManualHangup,
+    divineVoicePremium,
   } = voice
 
   const messagesRoute = pathname?.startsWith('/dashboard/messages') === true
@@ -144,15 +145,28 @@ export function VoiceControlPopup() {
               <p className="text-[11px] text-muted-foreground leading-snug">
                 Voice as primary — or jump to text chat and tools.
               </p>
-              <Button
-                className="w-full gap-2 bg-gradient-to-r from-amber-600 to-purple-600 text-white hover:from-amber-500 hover:to-purple-500"
-                onClick={() => {
-                  void startVoiceFromLauncher()
-                }}
-              >
-                <Mic className="h-4 w-4 shrink-0" aria-hidden />
-                Start voice call
-              </Button>
+              {divineVoicePremium ? (
+                <Button
+                  className="w-full gap-2 bg-gradient-to-r from-amber-600 to-purple-600 text-white hover:from-amber-500 hover:to-purple-500"
+                  onClick={() => {
+                    void startVoiceFromLauncher()
+                  }}
+                >
+                  <Mic className="h-4 w-4 shrink-0" aria-hidden />
+                  Start voice call
+                </Button>
+              ) : (
+                <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Divine voice is on Premium — includes Markit and the dashboard.
+                  </p>
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link href="/dashboard/settings?tab=billing" onClick={() => setLauncherOpen(false)}>
+                      View plans
+                    </Link>
+                  </Button>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
                   <Link href="/dashboard/divine-manager?section=text" onClick={() => setLauncherOpen(false)}>
@@ -239,14 +253,19 @@ export function VoiceControlPopup() {
           <button
             type="button"
             onClick={() => {
+              if (!divineVoicePremium) {
+                setExpanded(true)
+                void startVoiceCall()
+                return
+              }
               void handleCrownClickInstant()
             }}
             className={cn(
               crownClassName,
               'rounded-l-none rounded-r-full border-l-0',
             )}
-            aria-label="Start Divine voice call"
-            title="Start Divine voice call"
+            aria-label={divineVoicePremium ? 'Start Divine voice call' : 'Divine voice — Premium'}
+            title={divineVoicePremium ? 'Start Divine voice call' : 'Divine voice — Premium required'}
           >
             <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
           </button>
@@ -333,9 +352,15 @@ export function VoiceControlPopup() {
                 className="hidden shrink-0 self-center rounded-md bg-muted sm:block"
               />
               {!isActive ? (
-                <Button size="sm" className="h-8 shrink-0 self-center text-xs" onClick={() => { void startVoiceCall() }}>
-                  Start call
-                </Button>
+                divineVoicePremium ? (
+                  <Button size="sm" className="h-8 shrink-0 self-center text-xs" onClick={() => { void startVoiceCall() }}>
+                    Start call
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" className="h-8 shrink-0 self-center text-xs" asChild>
+                    <Link href="/dashboard/settings?tab=billing">Premium</Link>
+                  </Button>
+                )
               ) : (
                 <div className="flex shrink-0 flex-col items-end gap-1 self-center">
                   <div className="flex items-center gap-1">

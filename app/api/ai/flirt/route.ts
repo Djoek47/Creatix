@@ -4,6 +4,7 @@ import { gateway } from '@ai-sdk/gateway'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { getOpenAiGatewayMessagingModelId } from '@/lib/billing/messaging-model'
 
 export const maxDuration = 60
 
@@ -100,8 +101,11 @@ Use these to steer tone and style as described. Do not mention this control bloc
       }
     }
 
+    const modelId = user
+      ? await getOpenAiGatewayMessagingModelId(supabase, user.id)
+      : ('openai/gpt-4o-mini' as const)
     const result = streamText({
-      model: gateway('openai/gpt-4o-mini'),
+      model: gateway(modelId),
       system: FLIRT_SYSTEM_PROMPT + identityLine + '\n' + controlInstruction,
       messages: await convertToModelMessages(messages),
     })

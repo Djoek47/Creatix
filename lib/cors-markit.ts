@@ -20,7 +20,7 @@ export function applyMarkitCorsHeaders(request: NextRequest, response: NextRespo
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     response.headers.set(
       'Access-Control-Allow-Headers',
-      'Authorization, Content-Type, x-idempotency-key',
+      'Authorization, Content-Type, x-idempotency-key, Cache-Control, Accept',
     )
     response.headers.set('Access-Control-Max-Age', '86400')
   }

@@ -81,54 +81,38 @@ export default function LandingPage() {
                   name: 'OnlyFans',
                   logoSrc: ONLYFANS_LOGO_SRC,
                   delay: '0s',
-                  /** Wordmark: wide box (not square) so the lockup is not cropped */
-                  logoWidthPx: 118,
-                  logoHeightPx: 30,
-                  markBadge:
-                    'ring-1 ring-sky-400/35 shadow-[0_0_20px_-6px_rgba(56,189,248,0.5),0_0_10px_-4px_rgba(14,165,233,0.35)]',
+                  logoWidthPx: 200,
+                  logoHeightPx: 52,
                 },
                 {
                   name: 'Fansly',
                   logoSrc: FANSLY_LOGO_SRC,
                   delay: '0.9s',
-                  logoWidthPx: 100,
-                  logoHeightPx: 30,
-                  markBadge:
-                    'ring-1 ring-violet-400/40 shadow-[0_0_20px_-6px_rgba(139,92,246,0.55),0_0_10px_-4px_rgba(167,139,250,0.35)]',
+                  logoWidthPx: 180,
+                  logoHeightPx: 52,
                 },
               ].map((platform) => {
                 const w = platform.logoWidthPx
                 const h = platform.logoHeightPx
-                const badgeSlotW = Math.max(112, w)
-                const badgeSlotH = 40
                 return (
-                <div
-                  key={platform.name}
-                  className="marketing-float group relative flex h-11 max-h-11 min-h-11 shrink-0 items-center gap-2.5 overflow-visible rounded-full border border-primary/25 bg-card/60 px-3 backdrop-blur-sm"
-                  style={{ animationDelay: platform.delay }}
-                >
-                  <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                  <span
-                    className={`relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-full px-1.5 text-[10px] font-semibold text-foreground ${platform.markBadge}`}
-                    style={{
-                      width: badgeSlotW,
-                      height: badgeSlotH,
-                      minWidth: badgeSlotW,
-                      minHeight: badgeSlotH,
-                    }}
+                  <div
+                    key={platform.name}
+                    className="marketing-float group relative flex min-h-11 shrink-0 items-center gap-3 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3.5 backdrop-blur-sm sm:gap-3.5 sm:pl-2.5 sm:pr-4"
+                    style={{ animationDelay: platform.delay }}
                   >
+                    <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                     <Image
                       src={platform.logoSrc}
                       alt={`${platform.name} logo`}
                       width={w}
                       height={h}
-                      className="pointer-events-none z-10 h-7 w-auto max-w-full object-contain object-left"
+                      className="relative z-10 h-[3.25rem] w-auto shrink-0 object-contain object-left sm:h-14"
+                      sizes="(max-width: 640px) 160px, 200px"
                     />
-                  </span>
-                  <span className="relative text-xs font-medium text-foreground/90 sm:text-sm">
-                    Compatible with <span className="text-primary">{platform.name}</span>
-                  </span>
-                </div>
+                    <span className="relative text-xs font-medium text-foreground/90 sm:text-sm">
+                      Compatible with <span className="text-primary">{platform.name}</span>
+                    </span>
+                  </div>
                 )
               })}
             </div>

@@ -92,18 +92,17 @@ export function ConversationRail({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 transition-[width,box-shadow] duration-300 ease-out',
-        expanded
-          ? 'w-[min(18rem,34vw)] min-w-[15rem] xl:w-[min(20rem,30vw)] xl:min-w-[17rem]'
-          : 'w-[3.75rem] min-w-[3.75rem]',
+        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-sm transition-[width,box-shadow] duration-300 ease-out',
+        /* Fixed readable width — inbox chrome stays legible; center chat gets all remaining flex space */
+        expanded ? 'w-64 min-w-64 max-w-64 sm:w-[17rem] sm:min-w-[17rem] sm:max-w-[17rem]' : 'w-[3.75rem] min-w-[3.75rem] max-w-[3.75rem]',
       )}
     >
-      <div className="flex shrink-0 items-center justify-center border-b border-border/70 p-1.5">
+      <div className="flex shrink-0 items-center justify-center border-b border-border/60 py-1.5">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0"
+          className="h-9 w-9 shrink-0 rounded-full"
           onClick={toggle}
           aria-label={expanded ? 'Collapse conversation list' : 'Expand conversation list'}
           title={expanded ? 'Collapse conversation list' : 'Expand conversation list'}
@@ -123,15 +122,15 @@ export function ConversationRail({
             onPlatformChange={onPlatformChange}
             tag={tag}
             onTagChange={onTagChange}
-            className="shrink-0 px-2.5 pt-1"
+            className="shrink-0 px-3 pt-2"
           />
-          <div className="shrink-0 border-b border-border/70 px-2.5 py-2">
+          <div className="shrink-0 border-b border-border/60 px-3 py-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={searchInputRef}
                 placeholder="Search name…"
-                className="h-9 bg-input pl-8 text-sm"
+                className="h-9 rounded-xl bg-background/80 pl-9 text-sm"
                 value={searchQuery}
                 onChange={(e) => onSearchQueryChange(e.target.value)}
               />

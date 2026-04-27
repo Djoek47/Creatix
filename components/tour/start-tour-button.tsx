@@ -1,48 +1,39 @@
 'use client'
 
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { BookOpen } from 'lucide-react'
-import { useTour } from './tour-provider'
-import { getTourForPath } from '@/lib/tour-config'
-import { usePathname } from 'next/navigation'
-import { useMemo } from 'react'
+import { Sparkles } from 'lucide-react'
+import { fullAppWelcomeTour } from '@/lib/tour-full-app-welcome'
 import { useTourCompleted } from './use-tour-completed'
 import { cn } from '@/lib/utils'
 
+const LIVE_TOUR_HREF = '/dashboard/welcome?openTour=1'
+
+/**
+ * Same entry as Guide “Launch live tour”: navigates to Welcome with ?openTour=1 so the full-app tour auto-starts.
+ */
 export function StartTourButton({ className }: { className?: string }) {
-  const pathname = usePathname()
-  const { startTour } = useTour() ?? {}
-  const config = useMemo(() => getTourForPath(pathname ?? '/dashboard'), [pathname])
-  const tourId = config?.tourId
-  const completed = useTourCompleted(tourId)
-  const hasSteps = (config?.steps.length ?? 0) > 0
-
-  if (!hasSteps || !startTour) return null
-
-  const isFullWelcome = pathname === '/dashboard/welcome'
-  const label = completed ? 'Launch Tour' : 'Start Tour'
-  const title = completed
-    ? isFullWelcome
-      ? 'Run the full live app tour again (navigates real pages with highlights)'
-      : 'Launch the live page tour again (spotlight steps for this screen)'
-    : isFullWelcome
-      ? 'Start the full live app tour (navigates real pages with highlights)'
-      : 'Start the live page tour (spotlight steps for this screen)'
+  const completed = useTourCompleted(fullAppWelcomeTour.tourId)
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      asChild
       className={cn(
-        className,
+        'gap-2 shadow-lg shadow-primary/15',
         !completed && 'tour-start-prompt',
+        className,
       )}
       data-tour="header-start-tour"
-      onClick={startTour}
-      title={title}
+      title={
+        completed
+          ? 'Run the full live app tour again (navigates real pages with highlights)'
+          : 'Start the full live app tour (navigates real pages with highlights)'
+      }
     >
-      <BookOpen className="h-4 w-4 mr-1.5" aria-hidden />
-      {label}
+      <Link href={LIVE_TOUR_HREF}>
+        <Sparkles className="h-4 w-4" aria-hidden />
+        {completed ? 'Launch live tour' : 'Start live tour'}
+      </Link>
     </Button>
   )
 }

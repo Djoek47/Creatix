@@ -627,45 +627,27 @@
   animation: marketing-pulse-glow 4s ease-in-out infinite;
 }
 
-/* Divine Manager — premium page background (light: subtle cream/gold edge; dark: deep with hint of circe/gold) */
+/* Divine Manager — calm surface (minimal lift from canvas; no decorative color wash) */
 .divine-page-bg {
-  background: radial-gradient(ellipse 120% 80% at 50% 0%, oklch(0.98 0.02 85 / 0.4), var(--background) 50%);
+  background: var(--background);
   min-height: 100%;
 }
 
 .dark .divine-page-bg {
-  background: radial-gradient(ellipse 100% 60% at 50% 100%, oklch(0.55 0.2 295 / 0.08), var(--background) 40%),
-    radial-gradient(ellipse 80% 40% at 80% 0%, oklch(0.78 0.14 85 / 0.06), transparent 50%),
-    var(--background);
+  background: var(--background);
   min-height: 100%;
 }
 
-/* Divine Manager — elevated card (gold/circe accent, top line, soft shadow) */
+/* Divine Manager — quiet cards (standard edge + hairline shadow; no gradient cap) */
 .divine-card {
-  border-width: 1px;
-  border-color: oklch(0.78 0.14 85 / 0.25);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.04), 0 0 0 1px oklch(0.78 0.14 85 / 0.06);
+  border: 1px solid oklch(0 0 0 / 0.06);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
   position: relative;
 }
 
-.divine-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, var(--gold), var(--circe));
-}
-
 .dark .divine-card {
-  border-color: oklch(0.55 0.2 295 / 0.2);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 0 0 1px oklch(0.55 0.2 295 / 0.1);
-}
-
-.dark .divine-card::before {
-  opacity: 0.9;
+  border-color: oklch(1 0 0 / 0.09);
+  box-shadow: none;
 }
 
 /* Optional: subtle gold shimmer for hero crown or active segment */

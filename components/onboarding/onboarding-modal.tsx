@@ -56,7 +56,8 @@ function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
       <p className="mb-4 max-w-md text-muted-foreground">
         For a <strong className="text-foreground">single walkthrough of every major area</strong> (sidebar, AI Studio,
         retention, protection, and more), take the full app tour—about thirty short steps. You can also use{' '}
-        <strong className="text-foreground">Start Tour</strong> in the header on any page for a quick refresher there.
+        <strong className="text-foreground">Start live tour</strong> in the header on any page to run the same full tour
+        again.
       </p>
       <Button
         type="button"

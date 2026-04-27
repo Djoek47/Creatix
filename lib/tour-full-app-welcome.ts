@@ -26,7 +26,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-03',
       title: 'Dashboard home',
       description:
-        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start Tour or Launch Tour in the header for a short live pass on the page you are on.',
+        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start live tour or Launch live tour in the header to run this same full tour again from any page.',
       path: '/dashboard',
       targetSelector: '[data-tour="/dashboard"]',
     },
@@ -237,7 +237,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-31',
       title: 'Header: live tour',
       description:
-        'On any page, the live tour in the header: Start Tour first, then Launch Tour for another pass. On mobile, the menu’s tour control covers the same if the header button is hidden.',
+        'On any page, Start live tour or Launch live tour in the header opens this full tour again (via Welcome). On small screens, use the menu if the header control is hidden.',
       path: '/dashboard',
       targetSelector: '[data-tour="header-start-tour"]',
       targetSelectorFallback: '[data-tour="header-start-tour-mobile"]',
@@ -246,7 +246,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-32',
       title: 'You are oriented',
       description:
-        'Explore the sidebar in any order. In each area, use Start Tour or Launch Tour in the header for a live pass on that screen. Open Guide anytime for detail.',
+        'Explore the sidebar in any order. Replay this tour anytime from the header or Guide. Open Guide for depth and troubleshooting.',
       path: '/dashboard/welcome',
       targetSelector: '[data-tour="welcome-card"]',
     },

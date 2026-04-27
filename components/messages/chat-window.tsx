@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,7 @@ import {
   type MessagingReadPreferences,
 } from '@/lib/messaging-read-preferences'
 import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
@@ -483,6 +485,8 @@ export function ChatWindow({
   const [traceRecipientKey, setTraceRecipientKey] = useState('')
   const [traceVaultRows, setTraceVaultRows] = useState<VaultVideoRow[]>([])
   const [traceVaultLoading, setTraceVaultLoading] = useState(false)
+  /** Mobile: Ariadne block collapsed by default to preserve composer space. */
+  const [aridaneMobileOpen, setAriadneMobileOpen] = useState(false)
   const chatFileInputRef = useRef<HTMLInputElement>(null)
   const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | 'mimic' | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -501,6 +505,7 @@ export function ChatWindow({
   const [creatorPronouns, setCreatorPronouns] = useState<string | null>(null)
   const [creatorGenderIdentity, setCreatorGenderIdentity] = useState<string | null>(null)
   const pathname = usePathname()
+  const isMobile = useIsMobile()
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
@@ -635,6 +640,7 @@ export function ChatWindow({
   }, [chatterDraftOutboxId, conversation?.user.id, conversation?.platform])
 
   useEffect(() => {
+    if (isMobile) return
     const hasAiContent =
       scanInsights ||
       activePanel ||
@@ -643,7 +649,11 @@ export function ChatWindow({
       (flirtSuggestions && flirtSuggestions.length > 0) ||
       (mimicSuggestions && mimicSuggestions.length > 0)
     if (hasAiContent) setAiSectionOpen(true)
-  }, [scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions, mimicSuggestions])
+  }, [isMobile, scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions, mimicSuggestions])
+
+  useEffect(() => {
+    setAriadneMobileOpen(false)
+  }, [conversation?.user.id, conversation?.platform])
 
   const prevConvIdForScrollRef = useRef<string | undefined>(undefined)
   const didSnapBottomForConvRef = useRef<string | null>(null)
@@ -2035,52 +2045,125 @@ export function ChatWindow({
           )}
 
           {isOnlyFansConversation ? (
-            <div className="rounded-md border border-border bg-muted/20 p-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-medium text-foreground">Ariadne trace before send</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Per-recipient trace run ({traceEnabled ? 'enabled' : 'disabled'}) — billed separately.
-                  </p>
+            isMobile ? (
+              <Collapsible open={aridaneMobileOpen} onOpenChange={setAriadneMobileOpen}>
+                <div className="overflow-hidden rounded-md border border-border bg-muted/20">
+                  <div className="flex items-stretch gap-1.5 p-2">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto min-h-0 flex-1 flex-col items-start gap-0.5 px-2 py-1.5 text-left"
+                        aria-expanded={aridaneMobileOpen}
+                      >
+                        <span className="flex w-full items-center gap-1.5">
+                          {aridaneMobileOpen ? (
+                            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+                          )}
+                          <span className="text-xs font-medium text-foreground">Ariadne trace</span>
+                        </span>
+                        <span className="pl-5 text-[10px] text-muted-foreground">
+                          {traceEnabled ? 'Enabled · expand for video' : 'Off — expand for details'}
+                        </span>
+                      </Button>
+                    </CollapsibleTrigger>
+                    <Button
+                      type="button"
+                      variant={traceEnabled ? 'secondary' : 'outline'}
+                      size="sm"
+                      className="shrink-0 self-center"
+                      onClick={() => setTraceEnabled((v) => !v)}
+                    >
+                      {traceEnabled ? 'On' : 'Off'}
+                    </Button>
+                  </div>
+                  <CollapsibleContent>
+                    <div className="space-y-2 border-t border-border/50 px-2 pb-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        Per-recipient trace run — billed separately from send.
+                      </p>
+                      {traceEnabled ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Trace source video</Label>
+                            <Select value={traceContentId} onValueChange={setTraceContentId}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {traceVaultRows.map((row) => (
+                                  <SelectItem key={row.id} value={row.id}>
+                                    {(row.title || 'Untitled').slice(0, 46)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Recipient key override (optional)</Label>
+                            <Input
+                              value={traceRecipientKey}
+                              onChange={(e) => setTraceRecipientKey(e.target.value)}
+                              className="h-8 text-xs"
+                              placeholder={conversation.user.username || String(conversation.user.id)}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CollapsibleContent>
                 </div>
-                <Button
-                  type="button"
-                  variant={traceEnabled ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setTraceEnabled((v) => !v)}
-                >
-                  {traceEnabled ? 'Trace ON' : 'Trace OFF'}
-                </Button>
+              </Collapsible>
+            ) : (
+              <div className="rounded-md border border-border bg-muted/20 p-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Ariadne trace before send</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Per-recipient trace run ({traceEnabled ? 'enabled' : 'disabled'}) — billed separately.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={traceEnabled ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => setTraceEnabled((v) => !v)}
+                  >
+                    {traceEnabled ? 'Trace ON' : 'Trace OFF'}
+                  </Button>
+                </div>
+                {traceEnabled ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Trace source video</Label>
+                      <Select value={traceContentId} onValueChange={setTraceContentId}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {traceVaultRows.map((row) => (
+                            <SelectItem key={row.id} value={row.id}>
+                              {(row.title || 'Untitled').slice(0, 46)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Recipient key override (optional)</Label>
+                      <Input
+                        value={traceRecipientKey}
+                        onChange={(e) => setTraceRecipientKey(e.target.value)}
+                        className="h-8 text-xs"
+                        placeholder={conversation.user.username || String(conversation.user.id)}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              {traceEnabled ? (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Trace source video</Label>
-                    <Select value={traceContentId} onValueChange={setTraceContentId}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {traceVaultRows.map((row) => (
-                          <SelectItem key={row.id} value={row.id}>
-                            {(row.title || 'Untitled').slice(0, 46)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Recipient key override (optional)</Label>
-                    <Input
-                      value={traceRecipientKey}
-                      onChange={(e) => setTraceRecipientKey(e.target.value)}
-                      className="h-8 text-xs"
-                      placeholder={conversation.user.username || String(conversation.user.id)}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            )
           ) : null}
 
           <div className="flex min-w-0 items-end gap-2">

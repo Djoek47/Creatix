@@ -3,11 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
-import {
-  effectiveMonthlyCreditLimit,
-  formatToolCreditCost,
-  getCreditsForToolId,
-} from '@/lib/billing/credit-economics'
+import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -57,6 +53,7 @@ import {
 } from '@/components/ai/caption-media-utils'
 import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import {
   fetchCrmFansHybrid,
   crmFanToChurnRow,
@@ -325,41 +322,22 @@ export function AIToolsSelector({
   )
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
-  const [aiCreditsUsed, setAiCreditsUsed] = useState(0)
-  const [aiCreditsLimit, setAiCreditsLimit] = useState(100)
   const [toolRunError, setToolRunError] = useState<string | null>(null)
   const [toolRunCreditGateCredits, setToolRunCreditGateCredits] = useState<number | null>(null)
   const supabase = createClient()
+  const { wallet: creditWallet, loading: creditWalletLoading, refresh: refreshCreditWallet } = useCreditSnapshot()
   
   // Check subscription status
   const loadSubscription = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     
-    const { data } = await supabase
-      .from('subscriptions')
-      .select(
-        'plan_id, ai_credits_used, ai_credits_limit, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
-      )
-      .eq('user_id', user.id)
-      .single()
-    
+    const { data } = await supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).single()
+
     if (data) {
       const planId = (data as { plan_id?: string | null }).plan_id as string | null | undefined
       const normalized = planId?.toLowerCase() || null
       setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
-      setAiCreditsUsed(data.ai_credits_used || 0)
-      setAiCreditsLimit(
-        effectiveMonthlyCreditLimit({
-          plan_id: data.plan_id,
-          billing_variant: (data as { billing_variant?: string | null }).billing_variant,
-          revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
-          billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
-          billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
-          billing_seats: (data as { billing_seats?: number | null }).billing_seats,
-          ai_credits_limit: data.ai_credits_limit,
-        }),
-      )
     }
   }, [supabase])
   
@@ -778,6 +756,7 @@ export function AIToolsSelector({
           setToolRunCreditGateCredits(getCreditsForToolId(selectedTool.id))
           setResult(null)
           void loadSubscription()
+          void refreshCreditWallet()
           return
         }
         const msg =
@@ -792,6 +771,8 @@ export function AIToolsSelector({
 
       setToolRunCreditGateCredits(null)
       setResult(data)
+      void loadSubscription()
+      void refreshCreditWallet()
     } catch (error) {
       console.error('Tool error:', error)
       setToolRunError(error instanceof Error ? error.message : 'Something went wrong')
@@ -1592,13 +1573,15 @@ export function AIToolsSelector({
               )}
             </div>
             
-            {/* Credits Display */}
-            <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-center justify-between">
+            {/* Credits — wallet total (same source as chat / billing) */}
+            <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-sm">AI Credits</span>
+                <Zap className="h-4 w-4 text-primary" aria-hidden />
+                <span className="text-sm">Credits available</span>
               </div>
-              <span className="font-medium">{aiCreditsUsed}/{aiCreditsLimit}</span>
+              <span className="font-medium tabular-nums">
+                {creditWalletLoading ? '…' : (creditWallet?.totalRemaining ?? 0).toLocaleString()}
+              </span>
             </div>
           </ScrollArea>
         </CardContent>
@@ -1648,10 +1631,25 @@ export function AIToolsSelector({
               ) : null}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
             <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
-            <Badge variant="outline" className="gap-1">
-              <Zap className="h-3 w-3" />
+            <Link
+              href="/dashboard/settings?tab=billing"
+              title="Billing — top up or view usage"
+              className="inline-flex"
+            >
+              <Badge
+                variant="secondary"
+                className="gap-1 tabular-nums font-medium text-foreground hover:bg-secondary/80"
+              >
+                <Zap className="h-3 w-3 opacity-80" aria-hidden />
+                {creditWalletLoading
+                  ? '…'
+                  : `${(creditWallet?.totalRemaining ?? 0).toLocaleString()} available`}
+              </Badge>
+            </Link>
+            <Badge variant="outline" className="gap-1 tabular-nums">
+              <Zap className="h-3 w-3" aria-hidden />
               {effectiveRunnerId
                 ? formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))
                 : formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}

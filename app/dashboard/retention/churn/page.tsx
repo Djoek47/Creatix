@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { format, isValid, parseISO } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,10 +15,20 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, RadioTower, Sparkles, BarChart3, Bell, ListTodo, Calendar, ScanLine } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import {
+  parseCalendarTeaserStored,
+  serializeCalendarTeaserStored,
+} from '@/lib/circe-churn/calendar-teaser-notes-format'
+import { Loader2, RadioTower, BarChart3, Bell, ListTodo, Calendar as CalendarIcon, ScanLine, Plus, X } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+
+type TeaserRow = { id: string; date: Date | undefined; text: string }
+
+const MAX_CAL_TEASER_ROWS = 24
 
 export default function ChurnPredictorHubPage() {
   const [loading, setLoading] = useState(true)
@@ -38,7 +49,9 @@ export default function ChurnPredictorHubPage() {
   const [linkMgr, setLinkMgr] = useState(true)
   const [linkProto, setLinkProto] = useState(true)
   const [teaseFutureContent, setTeaseFutureContent] = useState(true)
-  const [calendarTeaserNotes, setCalendarTeaserNotes] = useState('')
+  const [teaserRows, setTeaserRows] = useState<TeaserRow[]>(() => [
+    { id: crypto.randomUUID(), date: undefined, text: '' },
+  ])
 
   const [scanning, setScanning] = useState(false)
 
@@ -74,7 +87,19 @@ export default function ChurnPredictorHubPage() {
       setLinkMgr(s.link_divine_manager_tasks !== false)
       setLinkProto(s.link_protocol_tasks !== false)
       setTeaseFutureContent(s.tease_future_content !== false)
-      setCalendarTeaserNotes(s.calendar_teaser_notes?.trim() ? String(s.calendar_teaser_notes) : '')
+      const lines = parseCalendarTeaserStored(s.calendar_teaser_notes)
+      setTeaserRows(
+        lines.length > 0
+          ? lines.map((l) => {
+              let date: Date | undefined
+              if (l.date) {
+                const d = parseISO(l.date)
+                date = isValid(d) ? d : undefined
+              }
+              return { id: crypto.randomUUID(), date, text: l.text }
+            })
+          : [{ id: crypto.randomUUID(), date: undefined, text: '' }],
+      )
       setLastRunAt(s.last_run_at)
       setLastError(s.last_run_error)
       setDigest(s.last_digest_markdown ?? null)
@@ -84,6 +109,32 @@ export default function ChurnPredictorHubPage() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  const serializedCalendarTeasers = serializeCalendarTeaserStored(
+    teaserRows.map((r) => ({
+      date: r.date ? format(r.date, 'yyyy-MM-dd') : '',
+      text: r.text,
+    })),
+  )
+
+  const patchTeaserRow = useCallback((id: string, patch: Partial<Pick<TeaserRow, 'date' | 'text'>>) => {
+    setTeaserRows((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  }, [])
+
+  const addTeaserRow = useCallback(() => {
+    setTeaserRows((rows) =>
+      rows.length >= MAX_CAL_TEASER_ROWS
+        ? rows
+        : [...rows, { id: crypto.randomUUID(), date: undefined, text: '' }],
+    )
+  }, [])
+
+  const removeTeaserRow = useCallback((id: string) => {
+    setTeaserRows((rows) => {
+      const next = rows.filter((r) => r.id !== id)
+      return next.length > 0 ? next : [{ id: crypto.randomUUID(), date: undefined, text: '' }]
+    })
   }, [])
 
   useEffect(() => {
@@ -120,7 +171,7 @@ export default function ChurnPredictorHubPage() {
           link_divine_manager_tasks: linkMgr,
           link_protocol_tasks: linkProto,
           tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
+          calendar_teaser_notes: serializedCalendarTeasers,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -149,7 +200,7 @@ export default function ChurnPredictorHubPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
+          calendar_teaser_notes: serializedCalendarTeasers,
         }),
       })
       if (!saveFirst.ok) {
@@ -187,39 +238,42 @@ export default function ChurnPredictorHubPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pb-10">
-      <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/50 via-background to-fuchsia-950/30 p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-200/90">
-              <Sparkles className="h-3 w-3 text-amber-300/90" />
-              Pro · background job · same credit model as manual runs
-            </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Churn Predictor</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              While you are offline, Circe scans CRM fans whose subscriptions are ending soon or who have gone quiet in
-              DMs. She batches them into one retention digest: likely reasons they drift, treats (including ideas to
-              unlock or gift past PPV), and draft messages—plus Divine notifications when a run completes.
+      <header className="border-b border-border/80 pb-10">
+        <div className="flex flex-col gap-10 sm:flex-row sm:items-end sm:justify-between sm:gap-12">
+          <div className="max-w-lg space-y-5">
+            <p className="text-[13px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Pro · Background · Same credits as manual
             </p>
+            <div className="space-y-3">
+              <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Churn Predictor
+              </h1>
+              <p className="text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+                Spots fans before they slip away. One digest—why they may be drifting, what to try, and drafts to send.
+                Notified when it&apos;s ready.
+              </p>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
             <Button
               type="button"
-              className="shrink-0 bg-violet-600 text-white hover:bg-violet-500"
+              size="lg"
+              className="h-11 rounded-full px-6 font-medium"
               disabled={scanning}
               onClick={() => void runScanNow()}
             >
               {scanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanLine className="mr-2 h-4 w-4" />}
               Scan now
             </Button>
-            <Button asChild variant="secondary" className="shrink-0 border border-white/10">
+            <Button asChild variant="outline" size="lg" className="h-11 rounded-full border-border/80 bg-transparent px-6 font-medium shadow-none">
               <Link href="/dashboard/ai-studio/tools/churn-predictor">
-                <BarChart3 className="mr-2 h-4 w-4" />
+                <BarChart3 className="mr-2 h-4 w-4 opacity-70" />
                 Deep dive one fan
               </Link>
             </Button>
           </div>
         </div>
-      </div>
+      </header>
 
       {error ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -228,38 +282,96 @@ export default function ChurnPredictorHubPage() {
       ) : null}
 
       <section id="future-tease">
-        <Card className="border-border border-amber-500/15 bg-amber-500/[0.03]">
-          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <div className="rounded-lg bg-amber-500/15 p-2">
-              <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <CardTitle className="text-lg">Future content &amp; calendar teases</CardTitle>
-              <CardDescription>
-                For fans at risk of churning, batch digests can include teaser lines (feed, story, DM) and calendar-style
-                hints — pair with your real schedule so Circe does not invent drops.
-              </CardDescription>
-            </div>
-            <Switch
-              checked={teaseFutureContent}
-              onCheckedChange={setTeaseFutureContent}
-              aria-label="Include future content teasers in digest"
-            />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="cal-notes">Upcoming drops &amp; calendar (optional)</Label>
-              <Textarea
-                id="cal-notes"
-                placeholder="e.g. Fri: themed set · Sun evening live · next week: collab — anything you want teasers to align with"
-                value={calendarTeaserNotes}
-                onChange={(e) => setCalendarTeaserNotes(e.target.value.slice(0, 4000))}
-                className="min-h-[100px] resize-y"
-                disabled={!teaseFutureContent}
+        <Card className="border-border/80 bg-muted/10 shadow-none">
+          <CardHeader className="space-y-0 pb-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-xl space-y-1.5">
+                <CardTitle className="font-serif text-xl font-semibold tracking-tight">Content calendar</CardTitle>
+                <CardDescription className="text-[15px] leading-relaxed">
+                  Add dated plans so churn digests can reference real drops—not invented ones.
+                </CardDescription>
+              </div>
+              <Switch
+                checked={teaseFutureContent}
+                onCheckedChange={setTeaseFutureContent}
+                aria-label="Include future content teasers in digest"
+                className="shrink-0 data-[state=checked]:bg-foreground"
               />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-0">
+            <div className="space-y-3">
+              {teaserRows.map((row) => (
+                <div
+                  key={row.id}
+                  className={cn(
+                    'flex flex-col gap-2 sm:flex-row sm:items-center',
+                    !teaseFutureContent && 'pointer-events-none opacity-45',
+                  )}
+                >
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!teaseFutureContent}
+                        className={cn(
+                          'h-10 w-full shrink-0 justify-start rounded-full border-border/80 px-3.5 font-normal shadow-none sm:w-[10.5rem]',
+                          !row.date && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-55" aria-hidden />
+                        {row.date ? format(row.date, 'MMM d, yyyy') : 'Date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto overflow-hidden border-border/60 p-0 shadow-md" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={row.date}
+                        onSelect={(d) => patchTeaserRow(row.id, { date: d })}
+                        captionLayout="dropdown"
+                        fromYear={new Date().getFullYear()}
+                        toYear={new Date().getFullYear() + 2}
+                        className="rounded-lg"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    value={row.text}
+                    onChange={(e) => patchTeaserRow(row.id, { text: e.target.value.slice(0, 500) })}
+                    placeholder="What's planned that day"
+                    disabled={!teaseFutureContent}
+                    className="h-10 flex-1 rounded-full border-border/80 bg-background/80 shadow-none"
+                    aria-label={`Plan for ${row.date ? format(row.date, 'yyyy-MM-dd') : 'undated row'}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={!teaseFutureContent || teaserRows.length <= 1}
+                    className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                    onClick={() => removeTeaserRow(row.id)}
+                    aria-label="Remove row"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!teaseFutureContent || teaserRows.length >= MAX_CAL_TEASER_ROWS}
+                className="h-9 w-fit gap-1.5 rounded-full px-3 text-muted-foreground hover:text-foreground"
+                onClick={addTeaserRow}
+              >
+                <Plus className="h-4 w-4" />
+                Add date
+              </Button>
               <p className="text-xs text-muted-foreground">
-                Saved with <span className="font-medium text-foreground">Save</span> below, or automatically when you
-                press Scan now.
+                Saved with <span className="text-foreground">Save</span> or when you run <span className="text-foreground">Scan now</span>.
               </p>
             </div>
           </CardContent>
@@ -274,9 +386,12 @@ export default function ChurnPredictorHubPage() {
           <div className="flex-1">
             <CardTitle className="text-lg">Background radar</CardTitle>
             <CardDescription>
-              Hourly cron checks your UTC slot; daily/weekly cadence controls how often a run actually fires. Each run
-              charges <span className="font-medium text-foreground">{creditsPerRun} AI credits</span> when fans match
-              your rules (same family as the 2-credit manual Churn Predictor).
+              When this is on, Circe can look for at-risk fans on the schedule you set below—daily, weekly, or off. You
+              only use{' '}
+              <span className="font-medium text-foreground">
+                {creditsPerRun} AI credit{creditsPerRun === 1 ? '' : 's'}
+              </span>{' '}
+              when a run actually finds fans that match your rules—the same cost as tapping Scan now yourself.
             </CardDescription>
           </div>
           <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Churn background enabled" />

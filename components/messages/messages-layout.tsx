@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
@@ -122,6 +122,76 @@ function pickConversationForDeepLink(
   return sameId[0]
 }
 
+function WorkspaceKpiPanel({
+  workspaceStats,
+  workspaceStatsLoading,
+  workspaceTagVisibility,
+  setWorkspaceTagVisibility,
+}: {
+  workspaceStats: WorkspaceStatsPayload | null
+  workspaceStatsLoading: boolean
+  workspaceTagVisibility: Record<string, boolean>
+  setWorkspaceTagVisibility: Dispatch<SetStateAction<Record<string, boolean>>>
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/85 px-3 py-2 shadow-sm">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Total conversations</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Response rate</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Avg. response time</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {workspaceStats?.kpis.avgResponseTimeLabel ?? '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Messages today</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—'}
+          </p>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {(workspaceStats?.customTags ?? []).map((tag) => {
+          const visible = workspaceTagVisibility[tag.id] !== false
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
+                visible
+                  ? 'border-border/70 bg-muted/20 text-muted-foreground hover:bg-accent'
+                  : 'border-dashed border-border/50 bg-background/40 text-muted-foreground/60',
+              )}
+              onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
+              title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
+            >
+              <span className="font-medium text-foreground">{tag.label}:</span> {tag.value}
+            </button>
+          )
+        })}
+        {workspaceStatsLoading ? (
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Updating metrics
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function MessagesLayoutContent({
   userId,
   initialFanId,
@@ -160,6 +230,8 @@ function MessagesLayoutContent({
   const { focusMode, setFocusMode } = useMessagesFocusChrome()
   const [rightDrawerOpen, setRightDrawerOpen] = useState(true)
   const [kpiStripVisible, setKpiStripVisible] = useState(true)
+  /** Mobile: workspace KPIs open in a sheet (never the bottom strip). */
+  const [kpiStatsSheetOpen, setKpiStatsSheetOpen] = useState(false)
   const [workspaceStats, setWorkspaceStats] = useState<WorkspaceStatsPayload | null>(null)
   const [workspaceStatsLoading, setWorkspaceStatsLoading] = useState(false)
   const [workspaceTagVisibility, setWorkspaceTagVisibility] = useState<Record<string, boolean>>({})
@@ -611,11 +683,12 @@ function MessagesLayoutContent({
   const hideMessagesToolbar = focusMode && !isMobile
   const showMobileFocusStrip = focusMode && isMobile
 
+  const showKpiStripInline = !focusMode && kpiStripVisible && !isMobile
+
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-col',
-        focusMode ? 'h-full max-h-full flex-1' : 'h-[calc(100dvh-5.9rem)] max-h-[calc(100dvh-5.9rem)]',
+        'flex w-full min-h-0 flex-1 flex-col',
       )}
     >
       {showMobileFocusStrip && view === 'conversations' ? (
@@ -663,7 +736,7 @@ function MessagesLayoutContent({
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          {view === 'conversations' && (
+          {view === 'conversations' && (!selectedConversation || !isMobile) && (
             <Button
               variant="outline"
               size="sm"
@@ -680,8 +753,8 @@ function MessagesLayoutContent({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex rounded-md border border-border p-0.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0 sm:gap-2">
+          <div className="hidden rounded-md border border-border p-0.5 sm:flex">
             <Button
               variant={view === 'conversations' ? 'secondary' : 'ghost'}
               size="sm"
@@ -701,12 +774,36 @@ function MessagesLayoutContent({
               Insights
             </Button>
           </div>
+          <div className="flex rounded-md border border-border p-0.5 sm:hidden">
+            <Button
+              type="button"
+              variant={view === 'conversations' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setView('conversations')}
+              aria-label="Chats"
+              title="Chats"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={view === 'insights' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setView('insights')}
+              aria-label="Insights"
+              title="Insights"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+          </div>
           {view === 'conversations' && (
             <>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-10 w-10"
+                className="hidden h-10 w-10 md:flex"
                 onClick={openChatsMenu}
                 aria-label="Open conversations menu"
                 title="Open conversations menu"
@@ -733,11 +830,22 @@ function MessagesLayoutContent({
               </Button>
               {!focusMode ? (
                 <Button
-                  variant={kpiStripVisible ? 'secondary' : 'outline'}
+                  variant={
+                    (isMobile ? kpiStatsSheetOpen : kpiStripVisible) ? 'secondary' : 'outline'
+                  }
                   size="icon"
                   className="h-10 w-10"
-                  onClick={() => setKpiStripVisible((v) => !v)}
-                  title={kpiStripVisible ? 'Hide workspace stats strip' : 'Show workspace stats strip'}
+                  onClick={() => {
+                    if (isMobile) setKpiStatsSheetOpen(true)
+                    else setKpiStripVisible((v) => !v)
+                  }}
+                  title={
+                    isMobile
+                      ? 'Workspace stats'
+                      : kpiStripVisible
+                        ? 'Hide workspace stats strip'
+                        : 'Show workspace stats strip'
+                  }
                 >
                   <SlidersHorizontal className="h-4 w-4" />
                 </Button>
@@ -894,65 +1002,32 @@ function MessagesLayoutContent({
                 }
               />
             </motion.div>
-            {!focusMode && kpiStripVisible ? (
-              <div className="rounded-xl border border-border/70 bg-card/85 px-3 py-2 shadow-sm">
-                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Total conversations</p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                      {workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Response rate</p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                      {workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Avg. response time</p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                      {workspaceStats?.kpis.avgResponseTimeLabel ?? '—'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Messages today</p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">
-                      {workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {(workspaceStats?.customTags ?? []).map((tag) => {
-                    const visible = workspaceTagVisibility[tag.id] !== false
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
-                          visible
-                            ? 'border-border/70 bg-muted/20 text-muted-foreground hover:bg-accent'
-                            : 'border-dashed border-border/50 bg-background/40 text-muted-foreground/60',
-                        )}
-                        onClick={() =>
-                          setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))
-                        }
-                        title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
-                      >
-                        <span className="font-medium text-foreground">{tag.label}:</span> {tag.value}
-                      </button>
-                    )
-                  })}
-                  {workspaceStatsLoading ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Updating metrics
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+            {showKpiStripInline ? (
+              <WorkspaceKpiPanel
+                workspaceStats={workspaceStats}
+                workspaceStatsLoading={workspaceStatsLoading}
+                workspaceTagVisibility={workspaceTagVisibility}
+                setWorkspaceTagVisibility={setWorkspaceTagVisibility}
+              />
             ) : null}
+            {isMobile && !focusMode && (
+              <Sheet open={kpiStatsSheetOpen} onOpenChange={setKpiStatsSheetOpen}>
+                <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+                  <SheetHeader className="shrink-0 border-b border-border px-3 pt-4">
+                    <SheetTitle>Workspace stats</SheetTitle>
+                    <SheetDescription>Response and volume metrics for this inbox.</SheetDescription>
+                  </SheetHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 pt-2">
+                    <WorkspaceKpiPanel
+                      workspaceStats={workspaceStats}
+                      workspaceStatsLoading={workspaceStatsLoading}
+                      workspaceTagVisibility={workspaceTagVisibility}
+                      setWorkspaceTagVisibility={setWorkspaceTagVisibility}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
             {(isMobile || focusMode) && (
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">
@@ -1012,8 +1087,8 @@ function MessagesLayoutContent({
 
 function MessagesLoadingShell() {
   return (
-    <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+    <div className="flex min-h-0 flex-1 items-center justify-center py-12">
+      <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
     </div>
   )
 }

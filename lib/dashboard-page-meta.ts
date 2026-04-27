@@ -9,8 +9,8 @@ export type DashboardPageMeta = {
   /** Primary page title (matches visible <h1> in DashboardRouteHero) */
   title: string
   subtitle: string
-  /** Gold/purple glow mark + spectrum hover (AI Studio routes) */
-  heroVariant?: 'default' | 'ai-tools'
+  /** `ai-tools` = gold/purple glow; `minimal` = calm typography only */
+  heroVariant?: 'default' | 'ai-tools' | 'minimal'
 }
 
 type Entry = { prefix: string; meta: DashboardPageMeta }
@@ -78,9 +78,10 @@ const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/content-library',
     meta: {
-      eyebrow: 'Archive',
+      eyebrow: 'Library',
       title: 'Content library',
-      subtitle: 'Every asset you’ve blessed — search, reuse, and ship faster.',
+      subtitle: 'Vault, platform feeds, and metadata Divine uses for DMs and PPV timing.',
+      heroVariant: 'minimal',
     },
   },
   {
@@ -112,7 +113,8 @@ const ENTRIES: Entry[] = [
     meta: {
       eyebrow: 'Equilibrium',
       title: 'Well-being',
-      subtitle: 'Pressure, boundaries, and breath — stay magnetic without burning out.',
+      subtitle: 'Light, load, and boundaries—stay consistent without burning out.',
+      heroVariant: 'minimal',
     },
   },
   {

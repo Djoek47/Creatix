@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Sheet,
@@ -462,89 +461,100 @@ export function MediaVaultHub() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Media &amp; Vault
-          </CardTitle>
-          <CardDescription>
-            Creatix library plus OnlyFans posts. Add <strong>sales notes</strong> and <strong>teaser tags</strong> so
-            Divine Manager can recommend the right PPVs in DMs—same data as vault tools.
-          </CardDescription>
-          {vaultQuota ? (
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-100">
-                App vault usage: {mb(vaultQuota.usageBytes)} / {mb(vaultQuota.quotaBytes)}
-              </Badge>
-              <Badge variant="outline" className="border-border/70">
-                Remaining: {mb(vaultQuota.remainingBytes)}
-              </Badge>
-              <Badge variant="outline" className="border-border/70">
-                Recommended on free tier: {vaultQuota.recommendedPerUserMb} MB/user
-              </Badge>
-            </div>
-          ) : null}
-        </CardHeader>
-      </Card>
+    <div className="space-y-10">
+      {vaultQuota ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Storage {mb(vaultQuota.usageBytes)} of {mb(vaultQuota.quotaBytes)} · {mb(vaultQuota.remainingBytes)} left · Free
+          tier guide ~{vaultQuota.recommendedPerUserMb} MB per user
+        </p>
+      ) : null}
 
       <Tabs defaultValue="creatix" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="creatix">Creatix vault</TabsTrigger>
-          <TabsTrigger value="onlyfans" onClick={() => ofPosts.length === 0 && void loadOfPosts()}>
-            OnlyFans feed
+        <TabsList className="inline-flex h-10 w-full max-w-lg rounded-full bg-muted/40 p-1 sm:w-auto">
+          <TabsTrigger
+            value="creatix"
+            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+          >
+            Vault
           </TabsTrigger>
-          <TabsTrigger value="fansly">Fansly feed</TabsTrigger>
+          <TabsTrigger
+            value="onlyfans"
+            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+            onClick={() => ofPosts.length === 0 && void loadOfPosts()}
+          >
+            OnlyFans
+          </TabsTrigger>
+          <TabsTrigger
+            value="fansly"
+            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+          >
+            Fansly
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="creatix" className="mt-4 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant={vaultCategory === 'all' ? 'default' : 'outline'} onClick={() => setVaultCategory('all')}>
-              All vault
-            </Button>
-            <Button type="button" size="sm" variant={vaultCategory === 'app' ? 'default' : 'outline'} onClick={() => setVaultCategory('app')}>
-              App uploads
-            </Button>
-            <Button type="button" size="sm" variant={vaultCategory === 'of' ? 'default' : 'outline'} onClick={() => setVaultCategory('of')}>
-              OnlyFans linked
-            </Button>
+        <TabsContent value="creatix" className="mt-8 space-y-8">
+          <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
+            {(
+              [
+                ['all', 'All'],
+                ['app', 'Uploads'],
+                ['of', 'Linked'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setVaultCategory(key)}
+                className={cn(
+                  'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  vaultCategory === key
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <Card className="border-dashed border-primary/25">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Add to Creatix vault</CardTitle>
-              <CardDescription>
-                Create a draft photo or video row here. For videos, you can attach an MP4 now or later (Replace video in
-                the item).
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <VaultQuickAdd onSuccess={() => void loadVault()} />
-            </CardContent>
-          </Card>
+
+          <section className="rounded-2xl border border-border/80 bg-card/30 p-5 sm:p-6">
+            <div className="mb-5 space-y-1">
+              <h2 className="text-base font-semibold tracking-tight text-foreground">New item</h2>
+              <p className="text-sm text-muted-foreground">
+                Draft a photo or video. Attach video now or from the item detail sheet later.
+              </p>
+            </div>
+            <VaultQuickAdd onSuccess={() => void loadVault()} />
+          </section>
+
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex justify-center py-20">
+              <div
+                className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
+                style={{ animationDuration: '0.85s' }}
+                role="status"
+                aria-label="Loading vault"
+              />
             </div>
           ) : filteredRows.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                No matching vault items yet. Link OnlyFans posts or add content from{' '}
-                <Link href="/dashboard/content" className="text-primary underline">
-                  Content Calendar
-                </Link>
-                .
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-dashed border-border/80 py-14 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet.{' '}
+                <Link href="/dashboard/content" className="font-medium text-foreground underline-offset-4 hover:underline">
+                  Open calendar
+                </Link>{' '}
+                or add an item above.
+              </p>
+            </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               {filteredRows.map((r) => (
                 <button
                   key={r.id}
                   type="button"
                   onClick={() => openRow(r)}
                   className={cn(
-                    'flex flex-col overflow-hidden rounded-lg border border-border bg-card text-left transition hover:border-primary/40',
+                    'group flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card text-left transition-colors hover:border-foreground/15',
                   )}
                 >
                   <div className="relative aspect-video bg-muted">
@@ -561,19 +571,19 @@ export function MediaVaultHub() {
                         <ImageIcon className="h-10 w-10 text-muted-foreground" />
                       </div>
                     )}
-                    {r.source_platform === 'onlyfans' && (
-                      <Badge className="absolute right-2 top-2 text-[10px]" variant="secondary">
-                        OF
-                      </Badge>
-                    )}
-                    {r.source_platform !== 'onlyfans' && (
-                      <Badge className="absolute right-2 top-2 text-[10px]" variant="outline">
-                        App
-                      </Badge>
-                    )}
+                    <span
+                      className={cn(
+                        'absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+                        r.source_platform === 'onlyfans'
+                          ? 'bg-background/85 text-foreground shadow-sm'
+                          : 'bg-background/85 text-muted-foreground shadow-sm',
+                      )}
+                    >
+                      {r.source_platform === 'onlyfans' ? 'OF' : 'App'}
+                    </span>
                   </div>
-                  <div className="space-y-1 p-3">
-                    <p className="line-clamp-2 text-sm font-medium">{r.title}</p>
+                  <div className="space-y-1 p-3.5">
+                    <p className="line-clamp-2 text-sm font-medium leading-snug">{r.title}</p>
                     <p className="text-xs text-muted-foreground capitalize">
                       {r.content_type} · {r.status}
                     </p>
@@ -584,21 +594,26 @@ export function MediaVaultHub() {
           )}
         </TabsContent>
 
-        <TabsContent value="onlyfans" className="mt-4 space-y-4">
+        <TabsContent value="onlyfans" className="mt-8 space-y-4">
           {ofLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex justify-center py-16">
+              <div
+                className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
+                style={{ animationDuration: '0.85s' }}
+                role="status"
+                aria-label="Loading feed"
+              />
             </div>
           ) : ofError ? (
-            <p className="text-sm text-muted-foreground">{ofError}</p>
+            <p className="rounded-xl border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{ofError}</p>
           ) : (
             <ScrollArea className="h-[min(60vh,520px)] pr-3">
               <div className="space-y-3">
                 {ofPosts.map((p) => {
                   const prev = p.media?.[0]?.url
                   return (
-                    <Card key={p.id}>
-                      <CardContent className="flex gap-3 p-3">
+                    <Card key={p.id} className="rounded-2xl border-border/80 shadow-none">
+                      <CardContent className="flex gap-3 p-3.5">
                         <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md bg-muted">
                           {prev ? (
                             <Image src={prev} alt="" fill className="object-cover" unoptimized />
@@ -615,8 +630,8 @@ export function MediaVaultHub() {
                           </p>
                           <Button
                             size="sm"
-                            variant="secondary"
-                            className="mt-2 gap-1"
+                            variant="outline"
+                            className="mt-2 gap-1 rounded-full"
                             disabled={linking === p.id}
                             onClick={() => void linkOfPost(p)}
                           >
@@ -637,21 +652,21 @@ export function MediaVaultHub() {
           )}
         </TabsContent>
 
-        <TabsContent value="fansly" className="mt-4">
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Fansly feed is coming soon. For now, add and manage items from <span className="font-medium text-foreground">Creatix vault</span>.
-            </CardContent>
-          </Card>
+        <TabsContent value="fansly" className="mt-8">
+          <div className="rounded-2xl border border-border/80 py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              Fansly feed is not available yet. Use the <span className="font-medium text-foreground">Vault</span> tab.
+            </p>
+          </div>
         </TabsContent>
       </Tabs>
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
+        <SheetContent className="flex w-full flex-col overflow-y-auto border-l border-border/80 sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>Describe for Divine</SheetTitle>
+            <SheetTitle className="font-serif text-xl font-semibold tracking-tight">Item details</SheetTitle>
             <SheetDescription>
-              Private metadata for DM and PPV recommendations—not shown to fans.
+              Titles, sales notes, and tags for recommendations—private to you.
             </SheetDescription>
           </SheetHeader>
           {selected && (

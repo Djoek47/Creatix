@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Loader2, ArrowUpRight, Sparkles, AlertCircle, Gift, Info } from 'lucide-react'
+import { ArrowUpRight, Gift, Info } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AmbientLayer } from '@/components/wellbeing/ambient-layer'
 import { MoodConstellation } from '@/components/wellbeing/mood-constellation'
@@ -14,7 +14,6 @@ import { PositionCompass } from '@/components/wellbeing/position-compass'
 import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 import { fadeInUp } from '@/lib/wellbeing/motion'
@@ -24,8 +23,8 @@ const CosmicCalendar = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="rounded-2xl border border-border/60 bg-card/30 p-6 text-sm text-muted-foreground">
-        Loading cosmic calendar...
+      <div className="rounded-2xl border border-border/60 bg-muted/10 px-5 py-8 text-sm text-muted-foreground">
+        Loading calendar…
       </div>
     ),
   },
@@ -115,59 +114,69 @@ export function WellbeingDashboard() {
     return `Message pressure ${messagePressure}/100. ${insight.insightSentence}`
   }, [insight, messagePressure])
 
+  const baselineNote = useMemo(() => {
+    if (!insight?.insightSource || insight.insightSource === 'location') return null
+    if (insight.insightSource === 'birthday') {
+      return 'Birthday-calibrated. Add location in Settings for weather-aware detail.'
+    }
+    return 'Baseline mode without location. Add birthday or location in Settings to personalize.'
+  }, [insight])
+
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-6 px-6">
+        <div
+          className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
+          style={{ animationDuration: '0.85s' }}
+          role="status"
+          aria-label="Loading"
+        />
+        <p className="text-sm text-muted-foreground">Preparing your readout…</p>
       </div>
     )
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/50 p-5 md:p-7">
+    <div className="relative mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border/50 bg-card/25 p-6 sm:p-8">
       <AmbientLayer glowScore={insight?.glowScore ?? 40} />
-      <div className="relative z-10 space-y-6">
-        <motion.section {...fadeInUp} className="space-y-3">
-          <Badge variant="outline" className="border-amber-400/40 bg-amber-300/10 text-amber-700 dark:text-amber-300">
-            Flow State System
-          </Badge>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Well-being, tuned to light and rhythm.</h1>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            A calm intelligence layer for your body state, message load, and atmospheric glow windows.
-          </p>
-          {unifiedSentence ? (
-            <p className="max-w-3xl rounded-xl border border-border/60 bg-background/70 px-4 py-3 text-sm">
-              {unifiedSentence}
+      <div className="relative z-10 space-y-10 sm:space-y-12">
+        <motion.section {...fadeInUp} className="space-y-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Flow state</p>
+            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+              Inbox load, light windows, and positioning—updated when you open this page.
             </p>
-          ) : null}
-          {insight?.insightSource && insight.insightSource !== 'location' ? (
-            <p className="max-w-3xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
-              {insight.insightSource === 'birthday'
-                ? 'Running in birthday-calibrated mode. Weather precision unlocks once location is added.'
-                : 'Running in baseline mode without location. Add birthday or location to personalize further.'}
-            </p>
-          ) : null}
-          {insight?.setupHint ? (
-            <p className="max-w-3xl text-xs text-muted-foreground">{insight.setupHint}</p>
-          ) : null}
+          </div>
+
+          {(unifiedSentence || baselineNote || insight?.setupHint) && (
+            <div className="space-y-3 rounded-2xl border border-border/70 bg-background/60 px-4 py-4 backdrop-blur-sm">
+              {unifiedSentence ? <p className="text-sm leading-relaxed text-foreground">{unifiedSentence}</p> : null}
+              {baselineNote ? <p className="text-xs leading-relaxed text-muted-foreground">{baselineNote}</p> : null}
+              {insight?.setupHint ? (
+                <p className="text-xs leading-relaxed text-muted-foreground">{insight.setupHint}</p>
+              ) : null}
+            </div>
+          )}
         </motion.section>
 
         <motion.section {...fadeInUp}>
-          <Card className="relative h-full overflow-hidden border border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-500/35 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)]">
-            <CardContent className="p-4 pt-5">
-              <div className="flex items-start gap-1 sm:gap-2">
+          <Card className="rounded-2xl border-border/70 shadow-none transition-colors hover:bg-muted/[0.04]">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-3">
                 <Link
                   href="/dashboard/ai-studio/gifts"
-                  className="group flex min-w-0 flex-1 items-start gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+                  className="group flex min-w-0 flex-1 items-start gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   data-tour="well-being-gift-wishlist"
                 >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 transition-all duration-300 group-hover:from-pink-500/20 group-hover:via-amber-400/15 group-hover:to-cyan-500/15 group-hover:ring-purple-400/25">
-                    <Gift className="ai-tools-lib-icon h-5 w-5" aria-hidden />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-muted/20">
+                    <Gift className="h-4 w-4 text-muted-foreground" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1 py-0.5">
-                    <h2 className="ai-tools-lib-title text-[15px] font-semibold leading-tight">Gift wishlist</h2>
-                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                      Your saved gift links—so fans and AI have real products to talk about.
+                    <h2 className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">
+                      Gift wishlist
+                    </h2>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Saved links fans and AI can reference when gifting comes up.
                     </p>
                   </div>
                 </Link>
@@ -177,7 +186,7 @@ export function WellbeingDashboard() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                      className="h-8 w-8 shrink-0 rounded-full text-muted-foreground"
                       aria-label="How Gift wishlist works"
                     >
                       <Info className="h-4 w-4" />
@@ -186,10 +195,9 @@ export function WellbeingDashboard() {
                   <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] text-sm" align="end" sideOffset={6}>
                     <p className="font-medium text-foreground">How it works</p>
                     <p className="mt-2 text-muted-foreground">
-                      Add any product links you like. We try to load title, price, and details when a store allows
-                      it—you can always edit. Chatter, Divine Manager, and Gift Suggester can use that context when
-                      a fan wants to send a gift. Managing the list is free; use Gift Suggester from Divine Manager
-                      (1 credit) when you want AI-ranked picks.
+                      Add product links you like. We load title and price when the store allows—you can edit anytime.
+                      Chatter, Divine Manager, and Gift Suggester can use this context. Managing the list is free; Gift
+                      Suggester uses credits when you run it.
                     </p>
                   </PopoverContent>
                 </Popover>
@@ -203,18 +211,13 @@ export function WellbeingDashboard() {
         </motion.section>
 
         {!insight ? (
-          <Card className="border-amber-500/30 bg-amber-500/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <AlertCircle className="h-4 w-4" />
-                Insight feed temporarily unavailable
-              </CardTitle>
-              <CardDescription>
-                {error || 'Please refresh in a moment.'}
-              </CardDescription>
+          <Card className="rounded-2xl border-destructive/25 bg-destructive/[0.04]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold tracking-tight">Insights unavailable</CardTitle>
+              <CardDescription>{error || 'Please try again in a moment.'}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="rounded-full">
                 <Link href="/dashboard/settings?tab=profile">
                   Open Settings
                   <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
@@ -224,8 +227,8 @@ export function WellbeingDashboard() {
           </Card>
         ) : (
           <>
-            <motion.section {...fadeInUp} className="grid gap-4 xl:grid-cols-3">
-              <div className="xl:col-span-2">
+            <motion.section {...fadeInUp} className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
                 <GlowCorePanel insight={insight} />
               </div>
               <PositionCompass positioning={insight.positioning} />
@@ -240,24 +243,17 @@ export function WellbeingDashboard() {
             </motion.section>
 
             <motion.section {...fadeInUp} className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="h-4 w-4 text-amber-400" />
-                Contextual action capsules
-              </div>
+              <h3 className="text-sm font-semibold tracking-tight text-foreground">Suggestions</h3>
               <FloatingActionCapsules actions={insight.actionCapsules} />
             </motion.section>
           </>
         )}
 
         <motion.section {...fadeInUp} className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Sparkles className="h-4 w-4 text-violet-400" />
-            Cosmic calendar + moon rhythm
-          </div>
+          <h3 className="text-sm font-semibold tracking-tight text-foreground">Calendar &amp; moon</h3>
           <CosmicCalendar />
         </motion.section>
       </div>
     </div>
   )
 }
-

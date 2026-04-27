@@ -37,14 +37,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import {
   REVENUE_TIERS,
-  getTierByIndex,
   getMonthlyPriceUsd,
   focusFanslyUsd,
   focusPlatformDisplayName,
   twoPlatformFocusUsd,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
-import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
 import {
   ADULT_BILLING_PLATFORMS,
   sortFocusPlatforms,
@@ -54,6 +52,7 @@ import {
 import { PAID_PLAN_ID, isPaidPlanId, PROTECTION_PLAN_ID, TRIAL_PLAN_ID, isProtectionEntitled } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
+import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
 interface BillingSectionProps {
   userId?: string
@@ -121,7 +120,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
     () => new Set(['onlyfans']),
   )
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
-  const [checkoutSeats, setCheckoutSeats] = useState(DEFAULT_BILLING_SEATS)
+  const [checkoutQuoteVariant, setCheckoutQuoteVariant] = useState<BillingVariant>('single')
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
   const [creditPulse, setCreditPulse] = useState<'consume' | 'grant' | null>(null)
   const [customTopupAmount, setCustomTopupAmount] = useState<string>('20')
@@ -133,8 +132,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [creditTimeline, setCreditTimeline] = useState<CreditTimelineRow[]>([])
   const prevTotalRef = useRef<number | null>(null)
   const supabase = createClient()
-  const lowestRevenueTier = getTierByIndex(0)
-
   const loadSubscriptionData = useCallback(async (): Promise<WalletSnapshot | null> => {
     if (!userId) return null
 
@@ -148,14 +145,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
       if (typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10) {
         setCheckoutTierIndex(row.revenue_tier)
       }
-      const bs = (row as SubscriptionData).billing_seats
-      if (typeof bs === 'number' && bs >= 1) setCheckoutSeats(Math.min(MAX_BILLING_SEATS, bs))
       if (row.billing_variant === 'multi') {
+        setCheckoutQuoteVariant('multi')
         setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
       } else if (row.billing_variant === 'single') {
+        setCheckoutQuoteVariant('single')
         const allowed = resolveAllowedFocusPlatforms(row.billing_focus_platforms, row.billing_focus_platform)
         setPlatformSelection(new Set(allowed))
       } else {
+        setCheckoutQuoteVariant('single')
         setPlatformSelection(new Set(['onlyfans']))
       }
     } else {
@@ -299,6 +297,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
     loadSubscription()
   }, [loadSubscriptionData])
 
+  useEffect(() => {
+    if (checkoutQuoteVariant !== 'multi') return
+    setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
+  }, [checkoutQuoteVariant])
+
   const handleManageBilling = async () => {
     setLoadingPortal(true)
     try {
@@ -363,14 +366,12 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const tierRow = REVENUE_TIERS.find((t) => t.tierIndex === checkoutTierIndex)
   const focusCheckoutUsd =
     tierRow && focusCheckoutList
-      ? getMonthlyPriceUsd('single', checkoutTierIndex, focusCheckoutList) * checkoutSeats
+      ? getMonthlyPriceUsd('single', checkoutTierIndex, focusCheckoutList)
       : 0
-  const unifiedCheckoutUsd = (tierRow?.multiPriceUsd ?? 0) * checkoutSeats
+  const unifiedCheckoutUsd = tierRow?.multiPriceUsd ?? 0
 
   const seatMultiplier =
-    typeof subData?.billing_seats === 'number' && subData.billing_seats >= 1
-      ? subData.billing_seats
-      : DEFAULT_BILLING_SEATS
+    typeof subData?.billing_seats === 'number' && subData.billing_seats >= 1 ? subData.billing_seats : 1
 
   const subscribedMonthlyUsd =
     paidActive && subData
@@ -756,91 +757,56 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <Card id="revenue-pricing" className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="font-semibold">Plans & Pricing</CardTitle>
+          <CardTitle className="font-semibold">Plans &amp; pricing</CardTitle>
           <CardDescription>
-            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: one platform, or a two-platform pair
-            with the banded list price (lowest band: <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OnlyFans /{' '}
-            <strong>{lowestRevenueTier ? focusFanslyUsd(lowestRevenueTier) : 0}</strong> Fansly / legacy ManyVids pairs
-            in the table). <strong>Bundled</strong> = OnlyFans + Fansly from{' '}
-            <strong>${lowestRevenueTier?.multiPriceUsd ?? 0}/mo</strong> on the lowest band.{' '}
-            <strong>Protection &amp; Anti-Piracy</strong> is a separate <strong>$25/mo</strong> add-on below.{' '}
-            <strong>Seats</strong> multiply the main plan price. Earnings data may move your band on the next invoice.
+            Same estimate as <Link href="/pricing" className="text-primary underline-offset-4 hover:underline">public pricing</Link>
+            . Choose checkout below when you are ready—tiers match Stripe.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="space-y-2 max-w-md flex-1">
-              <Label>Monthly revenue band</Label>
-              <Select
-                value={String(checkoutTierIndex)}
-                onValueChange={(v) => setCheckoutTierIndex(Number.parseInt(v, 10))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REVENUE_TIERS.map((t) => (
-                    <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 w-full max-w-[12rem]">
-              <Label>Seats (managers)</Label>
-              <Select
-                value={String(checkoutSeats)}
-                onValueChange={(v) => setCheckoutSeats(Math.min(MAX_BILLING_SEATS, Math.max(1, Number.parseInt(v, 10))))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: MAX_BILLING_SEATS }, (_, i) => i + 1).map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n} seat{n === 1 ? '' : 's'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <CardContent className="space-y-8">
+          <PricingPageCalculator
+            surface="settings"
+            controlled={{
+              tierIndex: checkoutTierIndex,
+              onTierIndexChange: setCheckoutTierIndex,
+              variant: checkoutQuoteVariant,
+              onVariantChange: (v) => {
+                setCheckoutQuoteVariant(v)
+                if (v === 'multi') setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
+              },
+              platformSelection,
+              togglePlatform,
+              setPlatformSelection,
+            }}
+          />
 
-          <p className="text-sm font-medium text-foreground">Platforms for this quote</p>
-          <div className="flex flex-wrap gap-4">
-            {ADULT_BILLING_PLATFORMS.map((p) => (
-              <label
-                key={p}
-                className={cn(
-                  'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
-                  platformSelection.has(p)
-                    ? 'border-primary/50 bg-primary/10'
-                    : 'border-border hover:bg-muted/40',
-                )}
-              >
-                <Checkbox
-                  checked={platformSelection.has(p)}
-                  onCheckedChange={() => togglePlatform(p)}
-                  aria-label={focusPlatformDisplayName(p)}
-                />
-                <span className="font-medium">{focusPlatformDisplayName(p)}</span>
-                <Badge variant="outline" className="text-[10px]">
-                  {PLATFORM_BADGE[p]}
-                </Badge>
-              </label>
-            ))}
+          <div className="flex flex-col gap-2 border-t border-border/30 pt-6 sm:flex-row sm:items-center sm:gap-4">
+            <span className="text-xs text-muted-foreground">Legacy Focus</span>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={platformSelection.has('manyvids')}
+                onCheckedChange={() => {
+                  setCheckoutQuoteVariant('single')
+                  togglePlatform('manyvids')
+                }}
+                aria-label="ManyVids"
+              />
+              <span className="font-medium">{focusPlatformDisplayName('manyvids')}</span>
+              <Badge variant="outline" className="text-[10px]">
+                {PLATFORM_BADGE.manyvids}
+              </Badge>
+            </label>
+            <p className="text-xs text-muted-foreground sm:ml-auto sm:max-w-md">
+              Bundled above is OnlyFans + Fansly only. ManyVids uses banded pair pricing from the matrix.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Select 1–2 for Focus, or use <strong className="text-foreground">Bundled</strong> (OnlyFans + Fansly) in the
-            second card. ManyVids pair pricing is legacy/limited; for broad non-API coverage use Protection ($25/mo).
-          </p>
 
           <div className="grid gap-6 lg:grid-cols-1">
             <div
               className={cn(
-                'rounded-xl border-2 p-6 shadow-sm',
+                'rounded-xl border-2 p-6 shadow-sm transition-[box-shadow]',
                 'border-amber-500/35 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-950/15',
+                checkoutQuoteVariant === 'single' && 'ring-1 ring-foreground/10 dark:ring-foreground/20',
               )}
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
@@ -869,7 +835,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   billingVariant="single"
                   tierIndex={checkoutTierIndex}
                   focusPlatforms={focusCheckoutList ?? undefined}
-                  seats={checkoutSeats}
                   disabled={!focusCheckoutList}
                   onComplete={handleCheckoutComplete}
                   buttonText={
@@ -885,9 +850,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
             <div
               className={cn(
-                'relative rounded-xl border-2 p-6 pt-8 shadow-md',
+                'relative rounded-xl border-2 p-6 pt-8 shadow-md transition-[box-shadow]',
                 'border-amber-500/40 bg-zinc-950 text-zinc-100 dark:bg-zinc-950',
                 'ring-1 ring-dashed ring-amber-500/30',
+                checkoutQuoteVariant === 'multi' && 'ring-2 ring-amber-400/35',
               )}
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -951,7 +917,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   productId={PAID_PLAN_ID}
                   billingVariant="multi"
                   tierIndex={checkoutTierIndex}
-                  seats={checkoutSeats}
                   onComplete={handleCheckoutComplete}
                   buttonText={
                     paidActive

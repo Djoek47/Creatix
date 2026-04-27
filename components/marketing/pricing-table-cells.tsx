@@ -16,7 +16,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
       <span
         className={cn(
           'text-base font-semibold tabular-nums sm:text-lg',
-          isUnified ? 'font-bold text-fuchsia-200' : 'text-foreground',
+          isUnified ? 'font-bold text-fuchsia-900 dark:text-fuchsia-200' : 'text-foreground',
         )}
       >
         ${price}
@@ -24,7 +24,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
       <span
         className={cn(
           'text-[10px] font-medium leading-tight sm:text-xs',
-          isUnified ? 'text-fuchsia-300/95' : 'text-emerald-400/95',
+          isUnified ? 'text-fuchsia-800 dark:text-fuchsia-300/95' : 'text-emerald-400/95',
         )}
       >
         (−${save}, {pct}%)

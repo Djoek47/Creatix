@@ -91,7 +91,7 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
         <div className="space-y-1.5">
           <Label className={compact ? 'text-xs' : undefined}>Type</Label>
           <Select value={kind} onValueChange={(v) => setKind(v as 'video' | 'photo')} disabled={busy}>
-            <SelectTrigger>
+            <SelectTrigger className="rounded-xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -128,7 +128,7 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
           {err}
         </p>
       )}
-      <Button type="button" className="gap-2" disabled={busy} onClick={() => void submit()}>
+      <Button type="button" className="gap-2 rounded-full px-6" disabled={busy} onClick={() => void submit()}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         Add to vault
       </Button>

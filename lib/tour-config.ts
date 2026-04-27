@@ -506,9 +506,9 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'header-tour',
-        title: 'Shorter page tours',
+        title: 'Header: full live tour',
         description:
-          'On other screens, use the live tour in the header: Start Tour until you have opened it once, then Launch Tour for a spotlight pass on that page. Switch routes and open it again for area-specific tips.',
+          'On any page, the header’s Start live tour / Launch live tour runs the same full live tour you can start from Welcome (with auto-start).',
       },
     ],
   },

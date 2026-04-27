@@ -21,45 +21,38 @@ export function MoodConstellation() {
 
   const stateSentence = useMemo(() => {
     const stressDisplay = 100 - stress
-    return `Mood: ${mood}. Energy ${energy}, stress ${stressDisplay}, focus ${focus}.`
+    return `Mood: ${mood}. Energy ${energy}, ease ${stressDisplay}, focus ${focus}.`
   }, [mood, energy, stress, focus])
 
   return (
-    <Card className="border-border/60 bg-card/80 backdrop-blur">
-      <CardHeader>
-        <CardTitle className="text-lg">Mood Constellation</CardTitle>
-        <CardDescription>Select your state and gently calibrate your creative system.</CardDescription>
+    <Card className="rounded-2xl border-border/70 bg-card/40 shadow-none backdrop-blur-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold tracking-tight">Mood</CardTitle>
+        <CardDescription className="text-sm">How you feel right now—local only, adjusts the readout below.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="flex flex-wrap gap-2">
+      <CardContent className="space-y-6">
+        <div className="flex flex-wrap gap-1.5">
           {MOODS.map((item) => {
             const active = mood === item.id
             return (
               <motion.button
                 key={item.id}
                 type="button"
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ scale: 1.03 }}
-                transition={{ duration: 0.2, ease: sereneEase }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.15, ease: sereneEase }}
                 onClick={() => setMood(item.id)}
+                aria-pressed={active}
                 aria-label={`${item.label} mood`}
-                className={`relative inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors ${
+                className={
                   active
-                    ? 'border-amber-400/70 bg-amber-300/20 text-foreground'
-                    : 'border-border/60 bg-background/70 text-muted-foreground'
-                }`}
+                    ? 'inline-flex items-center gap-1.5 rounded-full border border-foreground/20 bg-foreground px-3 py-1.5 text-sm font-medium text-background'
+                    : 'inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/15 hover:text-foreground'
+                }
               >
-                <span className="relative z-10 text-base leading-none" aria-hidden>
+                <span className="text-base leading-none" aria-hidden>
                   {item.emoji}
                 </span>
-                <span className="relative z-10">{item.label}</span>
-                {active ? (
-                  <motion.span
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-300/25 to-violet-300/20"
-                    layoutId="mood-active"
-                    transition={{ duration: 0.28, ease: sereneEase }}
-                  />
-                ) : null}
+                {item.label}
               </motion.button>
             )
           })}
@@ -90,10 +83,10 @@ function FluidMeter({
 }) {
   const shown = reverse ? 100 - value : value
   return (
-    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
       <div className="mb-2 flex items-center justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{shown}</span>
+        <span className="tabular-nums font-medium text-foreground">{shown}</span>
       </div>
       <input
         type="range"
@@ -101,10 +94,10 @@ function FluidMeter({
         max={100}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer accent-violet-500"
+        className="h-2 w-full cursor-pointer accent-foreground"
       />
       <motion.div
-        className="mt-2 h-2 rounded-full bg-gradient-to-r from-amber-300/70 via-violet-300/70 to-fuchsia-300/70"
+        className="mt-2 h-1 rounded-full bg-foreground/15"
         animate={{ width: `${shown}%` }}
         transition={{ duration: 0.28, ease: sereneEase }}
       />

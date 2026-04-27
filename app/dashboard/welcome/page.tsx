@@ -19,6 +19,7 @@ export default function WelcomeTourPage() {
   const searchParams = useSearchParams()
   const { startTour } = useTour() ?? {}
   const startedRef = useRef(false)
+  const fullTourDone = useTourCompleted(fullAppWelcomeTour.tourId)
 
   useEffect(() => {
     if (startedRef.current) return
@@ -44,7 +45,9 @@ export default function WelcomeTourPage() {
           </CardTitle>
           <CardDescription>
             The live tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with
-            highlights. The header’s Start Tour or Launch Tour is the same for a quick pass on any page.
+            highlights. Use <strong className="text-foreground">Start live tour</strong> or{' '}
+            <strong className="text-foreground">Launch live tour</strong> in the header for the same full pass from any
+            page.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

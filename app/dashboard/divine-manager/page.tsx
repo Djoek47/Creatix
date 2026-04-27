@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Crown, Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
@@ -803,9 +803,19 @@ export default function DivineManagerPage() {
 
   if (loading) {
     return (
-      <div className="divine-page-bg flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading your Divine Manager…</p>
+      <div className="divine-page-bg flex min-h-[min(100dvh,52rem)] flex-col items-center justify-center px-6">
+        <div className="flex w-full max-w-xs flex-col items-center gap-8">
+          <div
+            className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/35 motion-safe:animate-spin"
+            style={{ animationDuration: '0.85s' }}
+            role="status"
+            aria-label="Loading"
+          />
+          <div className="space-y-2 text-center">
+            <p className="font-serif text-xl font-medium tracking-tight text-foreground sm:text-2xl">Divine Manager</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Preparing your workspace…</p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -814,18 +824,17 @@ export default function DivineManagerPage() {
   if (!settings) {
     return (
       <div className="divine-page-bg min-h-full">
-        <div className="divine-fade-in max-w-3xl mx-auto space-y-8 pb-12 px-4 pt-2">
-          <div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight flex items-center gap-2">
-              <Crown className="h-8 w-8 text-primary divine-shine" />
-              Set up your Divine Manager
+        <div className="divine-fade-in mx-auto max-w-2xl space-y-10 px-4 pb-16 pt-8 sm:px-6">
+          <header className="space-y-2">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Set up Divine Manager
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Four steps to a manager that speaks your brand.
+            <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+              Four steps. Everything here can be changed later.
             </p>
-          </div>
+          </header>
 
-          <Card className="divine-card">
+          <Card className="divine-card rounded-2xl shadow-sm">
           <CardHeader>
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2" role="group" aria-label="Setup progress">
@@ -1242,61 +1251,59 @@ export default function DivineManagerPage() {
 
   return (
     <div className="divine-page-bg min-h-full">
-      <div className="divine-fade-in max-w-4xl mx-auto space-y-10 pb-12 px-4 pt-2">
-        <div className="mb-10 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.06] via-card to-purple-500/[0.07] px-5 py-6 shadow-[0_0_40px_-12px_rgba(168,85,247,0.22),0_0_28px_-14px_rgba(251,191,36,0.12)] dark:border-purple-500/20 dark:from-purple-950/35 dark:via-card dark:to-amber-950/20">
-            <div className="constellation-bg pointer-events-none absolute inset-0 opacity-[0.28] dark:opacity-[0.18]" />
-            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 to-purple-600/15 shadow-[0_0_20px_-6px_rgba(168,85,247,0.35)]">
-                  <Crown className="ai-tools-brand-icon h-7 w-7" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="font-serif text-3xl font-semibold tracking-tight">
-                      <span className="ai-tools-wordmark">Divine Manager</span>
-                    </h1>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide border-amber-500/35 text-foreground">
-                      BETA
-                    </Badge>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Early access</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Your full-time AI manager — voice, text, tools, and protocol tasks in one orbit.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Archetype: {settings.manager_archetype || 'hermes'} · Use the floating crown for voice (launcher first, unless you enable instant start in Voice Control).
-                  </p>
-                </div>
-              </div>
+      <div className="divine-fade-in mx-auto max-w-2xl space-y-12 px-4 pb-20 pt-8 sm:px-6">
+        <header className="space-y-8">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
+                Divine Manager
+              </h1>
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Beta</span>
             </div>
+            <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+              Voice, chat, and background tasks—one place to steer how your manager works.
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              <span className="text-foreground/80">{settings.manager_archetype || 'hermes'}</span>
+              <span className="mx-2 text-border" aria-hidden>
+                ·
+              </span>
+              Tap the crown to talk; optional instant start lives in Voice Control.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="border-amber-500/25 bg-card/50" asChild>
-              <Link href="/dashboard/ai-studio?tab=tools">AI Studio</Link>
+          <nav className="flex flex-wrap items-center gap-x-3 gap-y-2" aria-label="Shortcuts">
+            <Button type="button" size="sm" className="h-9 rounded-full px-5" onClick={() => setTextSheetOpen(true)}>
+              Message
             </Button>
-            <Button variant="outline" size="sm" className="border-purple-500/20 bg-card/50" asChild>
-              <Link href="/dashboard/commenter">Housekeeping</Link>
-            </Button>
-            <Button variant="outline" size="sm" className="border-amber-500/20 bg-card/50" asChild>
-              <Link href="/dashboard/protection">Protection</Link>
-            </Button>
-            <Button variant="outline" size="sm" className="border-purple-500/15 bg-card/50" asChild>
-              <Link href="/dashboard/mentions">Mentions</Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-border"
-              type="button"
-              onClick={() => setTextSheetOpen(true)}
+            <span className="hidden text-muted-foreground/30 sm:inline" aria-hidden>
+              |
+            </span>
+            <Link
+              href="/dashboard/ai-studio?tab=tools"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
             >
-              Text Divine
-            </Button>
-          </div>
-        </div>
-
-        <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent dark:via-purple-500/20" aria-hidden />
+              AI Studio
+            </Link>
+            <Link
+              href="/dashboard/commenter"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Housekeeping
+            </Link>
+            <Link
+              href="/dashboard/protection"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Protection
+            </Link>
+            <Link
+              href="/dashboard/mentions"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Mentions
+            </Link>
+          </nav>
+        </header>
 
         {settings.beta_acknowledged && mode !== 'off' ? (
           <div id="divine-section-protocol" className="scroll-mt-24">
@@ -1308,12 +1315,11 @@ export default function DivineManagerPage() {
           <MimicTestWizard />
         </div>
 
-        <Card id="divine-section-alerts" className="divine-card scroll-mt-24">
+        <Card id="divine-section-alerts" className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <CardTitle className="font-serif text-lg">Urgent alerts &amp; jobs</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-tight">Alerts &amp; jobs</CardTitle>
             <CardDescription>
-              Large tips can create Divine tasks. DMCA and sensitive flows default to confirmation-first. Job toggles
-              reserve future vault/mass-DM automation (cron uses scheduled tasks).
+              Tip thresholds, DMCA confirmations, and scheduled job flags for semi-automatic runs.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1439,13 +1445,10 @@ export default function DivineManagerPage() {
           </CardContent>
         </Card>
 
-        <Card className="divine-card scroll-mt-24">
+        <Card className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <CardTitle className="font-serif text-lg">Divine messaging</CardTitle>
-            <CardDescription>
-              Composer fill, optional countdown auto-send, floating DM hub, and price-optimizer bias for bundle
-              suggestions.
-            </CardDescription>
+            <CardTitle className="text-base font-semibold tracking-tight">Messaging</CardTitle>
+            <CardDescription>How Divine opens chats, delays sends, and prices bundles in DMs.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 max-w-md">
@@ -1517,7 +1520,7 @@ export default function DivineManagerPage() {
         </Card>
 
         {pendingIntentId && (
-          <Card className="divine-card border-primary/40 bg-primary/5">
+          <Card className="divine-card rounded-2xl border-primary/30 bg-primary/[0.04]">
             <CardContent className="pt-4">
               <p className="text-sm font-medium text-foreground">Action requires your confirmation</p>
               <p className="text-xs text-muted-foreground mt-1">{pendingIntentSummary ?? 'Divine wants to run an action. Confirm to proceed.'}</p>
@@ -1534,17 +1537,21 @@ export default function DivineManagerPage() {
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5" role="group" aria-label="Manager mode">
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="inline-flex rounded-full border border-border/80 bg-muted/20 p-1"
+            role="group"
+            aria-label="Manager mode"
+          >
             {(['off', 'suggest_only', 'semi_auto'] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => handleUpdateMode(m)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   mode === m
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {MODE_LABELS[m]}
@@ -1571,16 +1578,16 @@ export default function DivineManagerPage() {
       <DivineManagerProtocolTasksCard />
 
       {settings.beta_acknowledged && mode !== 'off' && (
-        <Card id="divine-section-voice" className="divine-card scroll-mt-24">
+        <Card id="divine-section-voice" className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="font-serif text-lg flex items-center gap-2">
-                  <Mic className="h-5 w-5 text-primary" />
-                  Voice Control
+                <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                  <Mic className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  Voice
                 </CardTitle>
                 <CardDescription>
-                  Live briefings and voice call. Upload a photo, then talk—Divine will analyze, caption, post, and message fans.
+                  Briefings, live calls, photo workflows, and voice-driven actions.
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -2059,13 +2066,13 @@ export default function DivineManagerPage() {
         </Card>
       )}
 
-      <Card className="divine-card">
+      <Card className="divine-card rounded-2xl">
         <CardHeader>
-          <CardTitle className="font-serif text-lg flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-primary" />
-            Your preferences
+          <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Preferences
           </CardTitle>
-          <CardDescription>Persona, goals, and automation. Editable in a future update.</CardDescription>
+          <CardDescription>Persona, voice, and background automation.</CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p><span className="font-medium text-foreground">Tone:</span> {String(settings.persona?.tone ?? '—')} · Flirty: {String(settings.persona?.flirtyLevel ?? '—')}</p>

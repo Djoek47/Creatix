@@ -45,7 +45,7 @@ export function MessagingLayout({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 gap-2.5 xl:gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-2 sm:gap-3">
       <AnimatePresence initial={false}>
         {leftPane ? (
           <motion.aside
@@ -55,10 +55,9 @@ export function MessagingLayout({
             exit={reduced ? { opacity: 0 } : { opacity: 0, x: -10 }}
             transition={panelTransition}
             className={cn(
-              'hidden min-h-0 md:flex',
-              leftRailExpanded
-                ? 'md:basis-[20%] md:max-w-[22%] md:min-w-[13rem]'
-                : 'md:max-w-none md:min-w-0 md:w-auto md:shrink-0 md:basis-auto md:flex-none',
+              'hidden min-h-0 min-w-0 overflow-hidden md:flex md:shrink-0',
+              /* Width comes from ConversationRail; avoid % basis that squeezed the rail below its content */
+              leftRailExpanded ? 'md:w-auto md:max-w-none' : 'md:w-auto',
             )}
           >
             {leftPane}
@@ -68,7 +67,7 @@ export function MessagingLayout({
       <motion.section
         layout
         transition={panelTransition}
-        className="flex min-h-0 flex-1"
+        className="flex min-h-0 min-w-0 flex-1"
       >
         {centerPane}
       </motion.section>
@@ -80,7 +79,9 @@ export function MessagingLayout({
             animate={{ opacity: 1, x: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, x: 10 }}
             transition={panelTransition}
-            className={cn('hidden min-h-0 lg:flex lg:basis-[21%] lg:max-w-[25%] lg:min-w-[15rem]')}
+            className={cn(
+              'hidden min-h-0 w-[min(18rem,92vw)] shrink-0 overflow-hidden lg:flex lg:max-w-sm xl:w-80',
+            )}
           >
             {rightPane}
           </motion.aside>

@@ -21,13 +21,17 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
     (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) &&
     !pathname.startsWith('/dashboard/messages/mass')
   const zenMessages = focusMode && isMessagesInbox
+  const messagesTightLayout = isMessagesInbox && !zenMessages
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {!zenMessages ? <DashboardHeader user={user} profile={profile} /> : null}
       <main
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6',
+          'min-h-0 flex-1 overflow-x-hidden',
+          messagesTightLayout &&
+            'flex flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom,0px)]',
+          !messagesTightLayout && !zenMessages && 'overflow-y-auto p-4 sm:p-6',
           zenMessages && 'overflow-hidden p-0 sm:p-0',
         )}
       >

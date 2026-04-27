@@ -44,7 +44,7 @@ export function InboxFiltersBar({
   className,
 }: InboxFiltersBarProps) {
   return (
-    <div className={cn('flex flex-col gap-2 border-b border-border pb-2', className)}>
+    <div className={cn('flex flex-col gap-3 border-b border-border/60 pb-3', className)}>
       <div className="flex flex-wrap gap-1">
         {SEGMENTS.map(({ id, label }) => (
           <Button
@@ -52,16 +52,16 @@ export function InboxFiltersBar({
             type="button"
             variant={segment === id ? 'secondary' : 'ghost'}
             size="sm"
-            className="h-7 rounded-full px-2.5 text-xs"
+            className="h-7 shrink-0 whitespace-nowrap rounded-full px-2.5 text-[11px] font-medium"
             onClick={() => onSegmentChange(id)}
           >
             {label}
           </Button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-2">
         <Select value={platform} onValueChange={(v) => onPlatformChange(v as InboxPlatformFilter)}>
-          <SelectTrigger className="h-8 w-[min(100%,9rem)] text-xs">
+          <SelectTrigger className="h-9 w-full min-w-0 rounded-xl text-xs">
             <SelectValue placeholder="Platform" />
           </SelectTrigger>
           <SelectContent>
@@ -71,7 +71,7 @@ export function InboxFiltersBar({
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => onSortChange(v as InboxSort)}>
-          <SelectTrigger className="h-8 w-[min(100%,8.5rem)] text-xs">
+          <SelectTrigger className="h-9 w-full min-w-0 rounded-xl text-xs">
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
@@ -81,8 +81,8 @@ export function InboxFiltersBar({
           </SelectContent>
         </Select>
         <Input
-          placeholder="Tag / note…"
-          className="h-8 min-w-[6rem] flex-1 text-xs"
+          placeholder="Tag or note…"
+          className="h-9 min-w-0 w-full rounded-xl text-xs"
           value={tag}
           onChange={(e) => onTagChange(e.target.value)}
         />

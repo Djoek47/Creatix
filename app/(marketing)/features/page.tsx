@@ -8,6 +8,7 @@ import {
   Sparkles,
   Eye,
   Calendar,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
@@ -81,13 +82,35 @@ const features = [
   },
 ]
 
-const extendedFeatureBullets = [
-  'Mass DM prep with per-fan caption and PPV suggestions',
-  'Whale watch + churn surfaces for retention timing',
-  'OnlyFans/Fansly sync controls with status indicators',
-  'Profile and platform status snapshots in one menu',
-  'Protection scans + mention workflows in the same orbit',
-  'Billing-aware mode switches for Focus vs Bundled paths',
+/** In-product depth — no boxes; rhythm and dividers only. */
+const shippedCapabilityLines = [
+  'Mass messaging with per-fan captions, PPV hints, and send prep',
+  'Whale watch and churn surfaces so retention timing stays visible',
+  'OnlyFans and Fansly sync with clear connection status',
+  'Profile and platform health in one header menu',
+  'Protection scans and mention review in the same workflow',
+  'Billing-aware paths — Focus vs bundled — without switching accounts',
+]
+
+/** Early access; appears as tools mature. */
+const betaCapabilities: { title: string; description: string }[] = [
+  {
+    title: 'Ariadne',
+    description:
+      'Discrete markers on vault exports and leak detection when you need to trace a clip back to a copy or recipient.',
+  },
+  {
+    title: 'Retention radar',
+    description: 'Scheduled churn scans and batch digests that run while you are away — credits only when fans match.',
+  },
+  {
+    title: 'Studio frontier',
+    description: 'New models and specialist tools land in AI Studio first, then graduate to the default library.',
+  },
+  {
+    title: 'Frame & Markit',
+    description: 'Optional handoff to the frame editor when your stack includes Markit — same session, fewer tab hops.',
+  },
 ]
 
 export default function FeaturesPage() {
@@ -142,23 +165,63 @@ export default function FeaturesPage() {
           </MotionStagger>
 
           <MotionReveal delay={0.08}>
-            <details className="group mt-7 rounded-2xl border border-border/60 bg-card/40 p-5 backdrop-blur-sm open:border-primary/35">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground marker:content-none">
-                Explore all capabilities
-                <span className="rounded-full border border-border/70 bg-muted/35 px-2 py-0.5 text-xs text-muted-foreground transition group-open:rotate-180">
-                  ˅
+            <details className="group mt-16 border-t border-border/40 pt-12 sm:mt-20 sm:pt-14">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-6 marker:content-none [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0 space-y-1 text-left">
+                  <h2 className="font-serif text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
+                    All capabilities
+                  </h2>
+                  <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+                    The surface stays calm. Underneath is the full workspace — most of it reveals itself once your
+                    platforms are connected.
+                  </p>
+                </div>
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/50 bg-background/50 text-muted-foreground transition duration-300 ease-out group-open:rotate-180"
+                  aria-hidden
+                >
+                  <ChevronDown className="h-5 w-5" strokeWidth={1.5} />
                 </span>
               </summary>
-              <p className="mt-2 text-xs text-muted-foreground">
-                More tools are available in-app and appear contextually when your integrations are connected.
-              </p>
-              <ul className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                {extendedFeatureBullets.map((line) => (
-                  <li key={line} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2">
-                    {line}
-                  </li>
-                ))}
-              </ul>
+
+              <div className="mt-10 grid gap-12 lg:grid-cols-2 lg:gap-0 lg:divide-x lg:divide-border/30">
+                <div className="lg:pr-12">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                    In the product
+                  </p>
+                  <ul className="mt-6 space-y-0">
+                    {shippedCapabilityLines.map((line) => (
+                      <li
+                        key={line}
+                        className="border-t border-border/25 py-4 text-[15px] leading-relaxed text-foreground/85 first:border-t-0 first:pt-0"
+                      >
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="lg:pl-12">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                    Beta &amp; ahead
+                  </p>
+                  <ul className="mt-6 space-y-0">
+                    {betaCapabilities.map(({ title, description }) => (
+                      <li
+                        key={title}
+                        className="border-t border-border/25 py-5 first:border-t-0 first:pt-0"
+                      >
+                        <p className="text-[15px] font-medium leading-snug text-foreground">{title}</p>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-8 text-xs leading-relaxed text-muted-foreground/90">
+                    Beta areas can change behavior or eligibility as we tighten quality. Nothing here is a promise of
+                    future pricing or availability.
+                  </p>
+                </div>
+              </div>
             </details>
           </MotionReveal>
         </div>

@@ -17,6 +17,20 @@ export function DashboardRouteHero() {
   const meta = resolveDashboardPageMeta(pathname)
   if (!meta) return null
 
+  if (meta.heroVariant === 'minimal') {
+    return (
+      <header className="mb-8 sm:mb-10">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{meta.eyebrow}</p>
+        <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
+          {meta.title}
+        </h1>
+        {meta.subtitle ? (
+          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{meta.subtitle}</p>
+        ) : null}
+      </header>
+    )
+  }
+
   const aiTools = meta.heroVariant === 'ai-tools'
 
   if (aiTools) {

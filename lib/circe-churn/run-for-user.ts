@@ -8,6 +8,7 @@ import {
   extractChurnFanSignalsFromDigest,
   normalizeRiskLevel,
 } from '@/lib/circe-churn/parse-digest-json'
+import { formatCalendarTeaserNotesForPrompt } from '@/lib/circe-churn/calendar-teaser-notes-format'
 
 export type CirceChurnSettingsRow = {
   user_id: string
@@ -341,7 +342,7 @@ export async function runCirceChurnForUser(
       ? `
 
 Creator upcoming content / calendar notes (optional — use only for teaser ideas; if empty, suggest generic angles):
-${(settings.calendar_teaser_notes || '').trim() || '(not provided)'}`
+${formatCalendarTeaserNotesForPrompt(settings.calendar_teaser_notes)}`
       : ''
 
   let digest = ''

@@ -90,7 +90,9 @@ function PricingProSections() {
                         <th className="p-3 text-left font-serif font-semibold sm:p-4">Revenue tier</th>
                         <th className="p-3 text-right font-medium sm:p-4">OnlyFans</th>
                         <th className="p-3 text-right font-medium sm:p-4">Fansly</th>
-                        <th className="p-3 text-right font-medium text-fuchsia-200 sm:p-4">Bundled (OnlyFans + Fansly)</th>
+                        <th className="p-3 text-right font-medium text-fuchsia-900 dark:text-fuchsia-200 sm:p-4">
+                          Bundled (OnlyFans + Fansly)
+                        </th>
                       </tr>
                     </thead>
                     <tbody>

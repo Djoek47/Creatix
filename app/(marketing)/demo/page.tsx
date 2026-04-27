@@ -73,25 +73,37 @@ const steps = [
 
 const demoFlows = [
   {
-    label: 'Flow 01',
-    title: 'Inbox to Upsell in 90 seconds',
+    label: 'Story 01',
+    title: 'Inbox to upsell in 90 seconds',
     detail:
-      'Segment high-intent fans, generate personalized responses, and queue premium offer follow-ups.',
-    bullets: ['Intent scoring appears in DM thread', 'Offer templates adapt to fan profile', 'Follow-ups auto-schedule'],
+      'Segment high-intent fans, draft personalized replies, and queue premium follow-ups without leaving the thread.',
+    bullets: [
+      'Intent surfaces beside the conversation',
+      'Offers respect fan context and tier',
+      'Follow-ups land on your schedule',
+    ],
   },
   {
-    label: 'Flow 02',
-    title: 'Protection incident response',
+    label: 'Story 02',
+    title: 'Protection, end to end',
     detail:
-      'Start from a leak alert and walk through evidence packaging, legal-ready exports, and takedown drafting.',
-    bullets: ['Leak source and spread map', 'DMCA packet generated with one review', 'Status tracking from report to removal'],
+      'From leak alert to evidence you can stand behind: packaging, exports, and takedown drafts in one deliberate path.',
+    bullets: [
+      'Source and spread, visible at a glance',
+      'DMCA packet ready after one review pass',
+      'Status from report through removal',
+    ],
   },
   {
-    label: 'Flow 03',
-    title: 'Weekly growth command center',
+    label: 'Story 03',
+    title: 'A weekly command view',
     detail:
-      'Review account health with KPI snapshots, identify churn risk, and trigger next-best actions instantly.',
-    bullets: ['Revenue, retention, and fan velocity panels', 'At-risk segment recommendations', 'One-click action runbooks'],
+      'Account health, churn risk, and the next best move—presented as a single calm read, not a wall of widgets.',
+    bullets: [
+      'Revenue, retention, and velocity in one frame',
+      'At-risk segments called out plainly',
+      'Runbooks you can trigger in a click',
+    ],
   },
 ]
 
@@ -169,17 +181,35 @@ export default function DemoPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-16 sm:px-6 sm:pb-20">
-        <div className="mx-auto max-w-6xl">
-          <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06}>
+      <section className="px-4 pb-16 sm:px-6 sm:pb-20" aria-labelledby="demo-capabilities-heading">
+        <div className="mx-auto max-w-6xl border-t border-border/30 pt-14 sm:pt-20">
+          <MotionReveal>
+            <p className="text-center text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+              Surface area
+            </p>
+            <h2
+              id="demo-capabilities-heading"
+              className="mx-auto mt-3 max-w-2xl text-center font-serif text-3xl font-medium tracking-tight text-foreground sm:text-[2rem] sm:leading-tight"
+            >
+              One workspace. Six responsibilities.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-center text-[15px] leading-relaxed text-muted-foreground">
+              No decoration for its own sake—only what you actually operate.
+            </p>
+          </MotionReveal>
+          <MotionStagger className="mt-14 grid gap-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-10 lg:gap-y-14" stagger={0.05}>
             {capabilities.map((item) => (
               <MotionStaggerItem key={item.title}>
-                <article className="h-full rounded-2xl border border-border/60 bg-card/45 p-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
-                  <div className="mb-4 inline-flex rounded-xl bg-primary/15 p-3 text-primary">
-                    <item.icon className="h-5 w-5" aria-hidden />
+                <article className="flex gap-4">
+                  <item.icon
+                    className="mt-0.5 h-5 w-5 shrink-0 text-foreground/40"
+                    strokeWidth={1.25}
+                    aria-hidden
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-[17px] font-medium leading-snug tracking-tight text-foreground">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
                   </div>
-                  <h2 className="font-serif text-xl font-semibold">{item.title}</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
                 </article>
               </MotionStaggerItem>
             ))}
@@ -187,25 +217,42 @@ export default function DemoPage() {
         </div>
       </section>
 
-      <section id="demo-flows" className="px-4 pb-20 sm:px-6 sm:pb-24">
-        <div className="mx-auto max-w-6xl">
-          <MotionReveal className="mb-8 text-center">
-            <h2 className="font-serif text-3xl font-semibold sm:text-4xl">
-              Three demo stories, built for decision makers.
+      <section id="demo-flows" className="px-4 pb-20 sm:px-6 sm:pb-24" aria-labelledby="demo-flows-heading">
+        <div className="mx-auto max-w-6xl border-t border-border/30 pt-14 sm:pt-20">
+          <MotionReveal>
+            <p className="text-center text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+              Narratives
+            </p>
+            <h2
+              id="demo-flows-heading"
+              className="mx-auto mt-3 max-w-3xl text-center font-serif text-3xl font-medium tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight"
+            >
+              Three stories for decision-makers.
             </h2>
+            <p className="mx-auto mt-4 max-w-xl text-center text-[15px] leading-relaxed text-muted-foreground">
+              Walkthroughs with weight—growth, protection, and command—not mockups.
+            </p>
           </MotionReveal>
-          <MotionStagger className="grid gap-6 lg:grid-cols-3" stagger={0.08}>
-            {demoFlows.map((flow) => (
+          <MotionStagger className="mt-16 grid gap-12 lg:mt-20 lg:grid-cols-3 lg:gap-0" stagger={0.06}>
+            {demoFlows.map((flow, index) => (
               <MotionStaggerItem key={flow.title}>
-                <article className="h-full rounded-3xl border border-primary/25 bg-gradient-to-br from-card/90 via-card/70 to-primary/[0.06] p-6 shadow-lg shadow-primary/5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary/85">{flow.label}</p>
-                  <h3 className="mt-3 font-serif text-2xl font-semibold leading-tight">{flow.title}</h3>
-                  <p className="mt-3 text-sm text-muted-foreground">{flow.detail}</p>
-                  <ul className="mt-5 space-y-2.5">
+                <article
+                  className={
+                    index > 0 ? 'lg:border-l lg:border-border/25 lg:pl-10' : ''
+                  }
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">{flow.label}</p>
+                  <h3 className="mt-5 font-serif text-2xl font-medium leading-[1.2] tracking-tight text-foreground sm:text-[1.65rem]">
+                    {flow.title}
+                  </h3>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">{flow.detail}</p>
+                  <ul className="mt-8 space-y-3 border-t border-border/20 pt-8">
                     {flow.bullets.map((bullet) => (
-                      <li key={bullet} className="flex items-start gap-2 text-sm text-foreground/90">
-                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        <span>{bullet}</span>
+                      <li
+                        key={bullet}
+                        className="border-l-2 border-foreground/10 pl-4 text-sm leading-relaxed text-foreground/85"
+                      >
+                        {bullet}
                       </li>
                     ))}
                   </ul>

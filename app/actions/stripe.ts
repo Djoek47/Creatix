@@ -150,6 +150,13 @@ export async function startCheckoutSession(productId: string) {
         userId: user.id,
         type: 'trial_setup',
         trialDays: String(TRIAL_DURATION_DAYS),
+        trialSource: 'card_required',
+        trialConversionPlanId: PAID_PLAN_ID,
+        trialConversionVariant: 'single',
+        trialConversionTier: '0',
+        trialConversionFocusPlatforms: 'onlyfans',
+        trialConversionFocusPlatform: 'onlyfans',
+        trialConversionSeats: String(DEFAULT_BILLING_SEATS),
       },
     })
     if (!session.client_secret) {
@@ -217,8 +224,8 @@ export async function startCreditTopupCheckout(packId: string) {
 
 export async function startCustomCreditTopupCheckout(amountUsd: number) {
   const normalizedAmount = Number(amountUsd)
-  if (!Number.isFinite(normalizedAmount) || normalizedAmount < 25) {
-    throw new Error('Custom top-up minimum is $25')
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount < 20) {
+    throw new Error('Custom top-up minimum is $20')
   }
   const roundedUsd = Math.round(normalizedAmount)
   const amountCents = roundedUsd * 100
@@ -442,6 +449,7 @@ function parseStripeSubscriptionMeta(sub: {
   items?: Stripe.ApiList<Stripe.SubscriptionItem> | null
 }): {
   planId: string | undefined
+  trialSource: string | null
   billing_variant: string | null
   revenue_tier: number | null
   revenue_band_label: string | null
@@ -451,6 +459,7 @@ function parseStripeSubscriptionMeta(sub: {
 } {
   const m = sub.metadata || {}
   const productId = (m.productId as string | undefined) || undefined
+  const trialSource = typeof m.trialSource === 'string' && m.trialSource.length > 0 ? m.trialSource : null
   const billing_variant =
     m.billingVariant === 'single' || m.billingVariant === 'multi' ? m.billingVariant : null
   const tierRaw = m.revenueTier
@@ -487,6 +496,7 @@ function parseStripeSubscriptionMeta(sub: {
 
   return {
     planId: productId,
+    trialSource,
     billing_variant,
     revenue_tier: Number.isFinite(revenue_tier) ? revenue_tier : null,
     revenue_band_label,
@@ -548,7 +558,11 @@ export async function getSubscriptionStatus() {
           })
           const planIdFromMetadata = parsed.planId || data.plan_id
           const normalizedPlan =
-            planIdFromMetadata && isPaidPlanId(planIdFromMetadata) ? PAID_PLAN_ID : planIdFromMetadata
+            stripeSub.status === 'trialing' && parsed.trialSource === 'card_required'
+              ? 'divine-trial'
+              : planIdFromMetadata && isPaidPlanId(planIdFromMetadata)
+                ? PAID_PLAN_ID
+                : planIdFromMetadata
           const period = getSubscriptionPeriodSeconds(stripeSub)
 
           await upsertSubscriptionRow(user.id, {

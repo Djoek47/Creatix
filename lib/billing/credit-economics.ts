@@ -20,7 +20,7 @@ export const CREDIT_USD_VALUE = 0.01
 export const CREDITS_PER_SUBSCRIPTION_USD = 20
 
 /** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
-export const TRIAL_AI_CREDITS_LIMIT = 250
+export const TRIAL_AI_CREDITS_LIMIT = 100
 
 /** $25/mo Protection (`cev-protection`): fixed monthly AI pool (not 20% of $25). */
 export const PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS = 800

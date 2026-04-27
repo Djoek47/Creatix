@@ -99,6 +99,10 @@ export default function SignUpPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 p-3 text-xs text-amber-100">
+              Card required to activate trial credits. Your free trial starts after Stripe card setup, then auto-renews
+              unless canceled before renewal.
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">

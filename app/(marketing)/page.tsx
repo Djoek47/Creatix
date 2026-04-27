@@ -83,7 +83,7 @@ export default function LandingPage() {
                   /** 25% larger than prior 37.5px; overflows fixed pill via slot + overflow-visible */
                   logoSizePx: 37.5 * 1.25,
                   markBadge:
-                    'bg-sky-950/45 ring-1 ring-sky-400/35 shadow-[0_0_20px_-6px_rgba(56,189,248,0.5),0_0_10px_-4px_rgba(14,165,233,0.35)]',
+                    'ring-1 ring-sky-400/35 shadow-[0_0_20px_-6px_rgba(56,189,248,0.5),0_0_10px_-4px_rgba(14,165,233,0.35)]',
                 },
                 {
                   name: 'Fansly',
@@ -92,7 +92,7 @@ export default function LandingPage() {
                   delay: '0.9s',
                   logoSizePx: 37.5,
                   markBadge:
-                    'bg-violet-950/50 ring-1 ring-violet-400/40 shadow-[0_0_20px_-6px_rgba(139,92,246,0.55),0_0_10px_-4px_rgba(167,139,250,0.35)]',
+                    'ring-1 ring-violet-400/40 shadow-[0_0_20px_-6px_rgba(139,92,246,0.55),0_0_10px_-4px_rgba(167,139,250,0.35)]',
                 },
               ].map((platform) => {
                 const logoPx = platform.logoSizePx
@@ -260,7 +260,7 @@ export default function LandingPage() {
       <MarketingModeProvider>
         <section className="px-4 pb-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl justify-end">
-            <ProModeToggle className="mb-4" />
+            <ProModeToggle className="mb-4" proLabel="Complete" proAccent="logo" />
           </div>
         </section>
         <HomePricingSwitch />

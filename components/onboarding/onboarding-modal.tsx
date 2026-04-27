@@ -74,13 +74,17 @@ function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
       <div className="flex flex-wrap justify-center gap-2">
         <Badge variant="outline" className="gap-1">
           <Zap className="h-3 w-3" />
-          100 AI Credits
+          100 AI credits (after card setup)
         </Badge>
         <Badge variant="outline" className="gap-1">
           <Star className="h-3 w-3" />
-          14-Day Pro Trial
+          2-day trial (card required)
         </Badge>
       </div>
+      <p className="mt-3 max-w-md text-xs text-muted-foreground">
+        Trial credits are unlocked only after Stripe card setup and the subscription auto-renews unless canceled before
+        trial end.
+      </p>
       <Link href="/dashboard/guide" className="mt-4 inline-flex items-center gap-2 text-sm text-primary hover:underline">
         <BookOpen className="h-4 w-4" />
         Open the Guide for detailed help

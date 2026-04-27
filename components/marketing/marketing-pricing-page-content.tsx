@@ -202,7 +202,7 @@ function PricingPageBody() {
 
       <section className="px-4 pb-2 sm:px-6">
         <div className="mx-auto flex max-w-6xl justify-end">
-          <ProModeToggle className="mb-4" />
+          <ProModeToggle className="mb-4" proLabel="Matrix" proAccent="rainbow" />
         </div>
       </section>
 

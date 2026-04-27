@@ -14,6 +14,7 @@ import { isPaidPlanId, isProtectionPlanId, PAID_PLAN_ID } from '@/lib/billing/ac
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
+import { checkoutProductDescription, checkoutProductName, getMonthlyPriceCents } from '@/lib/pricing-matrix'
 import {
   parseDivineVoiceFromStripeMetadata,
   subscriptionStripeHasDivineVoicePrice,
@@ -250,7 +251,126 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id
         const meta = session.metadata as Record<string, string> | undefined
+        const isTrialSetup = meta?.type === 'trial_setup'
         const isCreditTopup = meta?.type === 'credit_topup'
+        if (isTrialSetup && userId && customerId) {
+          const { data: existingSubRow } = await supabase
+            .from('subscriptions')
+            .select('stripe_subscription_id,status,plan_id')
+            .eq('user_id', userId)
+            .maybeSingle()
+          const existingTrial = existingSubRow as {
+            stripe_subscription_id?: string | null
+            status?: string | null
+            plan_id?: string | null
+          } | null
+          if (
+            existingTrial?.stripe_subscription_id &&
+            (existingTrial.status === 'trialing' || existingTrial.status === 'active')
+          ) {
+            await upsertSubscriptionByUserId(supabase, userId, {
+              stripe_customer_id: customerId,
+              plan_id: existingTrial.plan_id ?? 'divine-trial',
+              status: existingTrial.status ?? 'trialing',
+            })
+            break
+          }
+
+          const setupIntentId =
+            typeof session.setup_intent === 'string' ? session.setup_intent : session.setup_intent?.id
+          if (!setupIntentId) break
+
+          const setupIntent = await getStripe().setupIntents.retrieve(setupIntentId)
+          const paymentMethodId =
+            typeof setupIntent.payment_method === 'string'
+              ? setupIntent.payment_method
+              : setupIntent.payment_method?.id
+          if (!paymentMethodId) break
+
+          const conversionVariant = meta?.trialConversionVariant === 'multi' ? 'multi' : 'single'
+          const conversionTierRaw = Number.parseInt(meta?.trialConversionTier ?? '0', 10)
+          const conversionTier =
+            Number.isFinite(conversionTierRaw) && conversionTierRaw >= 0 && conversionTierRaw <= 10
+              ? conversionTierRaw
+              : 0
+          const conversionFocusPlatforms =
+            conversionVariant === 'single'
+              ? parseFocusPlatformsFromComma(meta?.trialConversionFocusPlatforms ?? 'onlyfans') ?? ['onlyfans']
+              : null
+          const conversionSeatsRaw = Number.parseInt(meta?.trialConversionSeats ?? '1', 10)
+          const conversionSeats =
+            Number.isFinite(conversionSeatsRaw) && conversionSeatsRaw >= 1
+              ? Math.min(50, conversionSeatsRaw)
+              : 1
+
+          const paidMeta = {
+            productId: meta?.trialConversionPlanId || PAID_PLAN_ID,
+            billingVariant: conversionVariant,
+            revenueTier: String(conversionTier),
+            revenueBandLabel: '',
+            focusPlatforms:
+              conversionVariant === 'single' ? (conversionFocusPlatforms ?? ['onlyfans']).join(',') : '',
+            focusPlatform:
+              conversionVariant === 'single'
+                ? meta?.trialConversionFocusPlatform || conversionFocusPlatforms?.[0] || 'onlyfans'
+                : '',
+            seats: String(conversionSeats),
+            trialSource: meta?.trialSource || 'card_required',
+          }
+
+          const createdSub = await getStripe().subscriptions.create(
+            {
+              customer: customerId,
+              default_payment_method: paymentMethodId,
+              trial_period_days: TRIAL_DURATION_DAYS,
+              items: [
+                {
+                  price_data: {
+                    currency: 'usd',
+                    product_data: {
+                      name: checkoutProductName(
+                        conversionVariant,
+                        conversionTier,
+                        conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+                      ),
+                      description: checkoutProductDescription(
+                        conversionVariant,
+                        conversionTier,
+                        conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+                      ),
+                    },
+                    unit_amount: getMonthlyPriceCents(
+                      conversionVariant,
+                      conversionTier,
+                      conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+                    ),
+                    recurring: { interval: 'month' },
+                  },
+                  quantity: conversionSeats,
+                },
+              ],
+              metadata: paidMeta,
+            },
+            { idempotencyKey: `trial_setup:${session.id}` },
+          )
+
+          const period = getSubscriptionPeriodSeconds(createdSub)
+          await upsertSubscriptionByUserId(supabase, userId, {
+            stripe_customer_id: customerId,
+            stripe_subscription_id: createdSub.id,
+            plan_id: 'divine-trial',
+            status: createdSub.status,
+            ...(period
+              ? {
+                  current_period_start: new Date(period.start * 1000).toISOString(),
+                  current_period_end: new Date(period.end * 1000).toISOString(),
+                  trial_ends_at: new Date(period.end * 1000).toISOString(),
+                }
+              : {}),
+            cancel_at_period_end: createdSub.cancel_at_period_end,
+          })
+          break
+        }
         if (isCreditTopup && userId) {
           const credits = Number.parseInt(meta?.credits ?? '0', 10)
           if (Number.isFinite(credits) && credits > 0) {
@@ -330,7 +450,10 @@ export async function POST(req: NextRequest) {
           await patchProtectionSubscription(supabase, customerId, sub)
           break
         }
-        const planId = normalizePlanId(rawPlan)
+        const planId =
+          sub.status === 'trialing' && sub.metadata?.trialSource === 'card_required'
+            ? 'divine-trial'
+            : normalizePlanId(rawPlan)
         const tierMeta = metaPatch(sub.metadata as Record<string, string>)
         const period = getSubscriptionPeriodSeconds(sub)
         const lineQty = sub.items?.data?.[0]?.quantity

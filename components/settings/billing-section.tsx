@@ -50,8 +50,8 @@ import {
   resolveAllowedFocusPlatforms,
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
-import { PAID_PLAN_ID, isPaidPlanId, PROTECTION_PLAN_ID, isProtectionEntitled } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
+import { PAID_PLAN_ID, isPaidPlanId, PROTECTION_PLAN_ID, TRIAL_PLAN_ID, isProtectionEntitled } from '@/lib/billing/access'
+import { effectiveMonthlyCreditLimit, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
 
 interface BillingSectionProps {
@@ -123,7 +123,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [checkoutSeats, setCheckoutSeats] = useState(DEFAULT_BILLING_SEATS)
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
   const [creditPulse, setCreditPulse] = useState<'consume' | 'grant' | null>(null)
-  const [customTopupAmount, setCustomTopupAmount] = useState<string>('25')
+  const [customTopupAmount, setCustomTopupAmount] = useState<string>('20')
   const [paymentState, setPaymentState] = useState<'idle' | 'processing' | 'success' | 'pending'>('idle')
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
@@ -391,9 +391,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
   const aiCreditsUsed = subData?.ai_credits_used || 0
   const aiCreditsLimit = useMemo(
-    () => (subData ? effectiveMonthlyCreditLimit(subData) : 100),
+    () => (subData ? effectiveMonthlyCreditLimit(subData) : 0),
     [subData],
   )
+  const statusValue = String(subData?.status ?? subscription?.status ?? '').toLowerCase()
+  const creditsEligible = statusValue === 'active' || statusValue === 'trialing'
+  const trialActivated = statusValue === 'trialing' && (subData?.plan_id ?? subscription?.planId) === TRIAL_PLAN_ID
+  const trialPendingCard =
+    (subData?.plan_id ?? subscription?.planId) === TRIAL_PLAN_ID && !trialActivated
+  const visibleCreditsRemaining = creditsEligible
+    ? (wallet?.totalRemaining ?? Math.max(0, aiCreditsLimit - aiCreditsUsed))
+    : 0
   const storageUsedGB = (subData?.storage_used_mb || 0) / 1000
   const storageLimitGB = (subData?.storage_limit_mb || 5000) / 1000
   const dbPeriodEnd = subData?.current_period_end ? new Date(subData.current_period_end) : null
@@ -403,7 +411,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
     ? Math.max(0, Math.ceil((effectivePeriodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 14
   const customTopupUsd = Number.parseInt(customTopupAmount, 10)
-  const customTopupValid = Number.isFinite(customTopupUsd) && customTopupUsd >= 25
+  const customTopupValid = Number.isFinite(customTopupUsd) && customTopupUsd >= 20
   const lastSyncedLabel = lastSyncedAt
     ? `${lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
     : 'Not synced yet'
@@ -515,11 +523,21 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <Zap className="mx-auto h-6 w-6 text-primary" />
               <p className="mt-2 font-medium">AI Credits</p>
               <p className="text-2xl font-bold">
-                {wallet?.totalRemaining ?? Math.max(0, aiCreditsLimit - aiCreditsUsed)} remaining
+                {visibleCreditsRemaining} remaining
               </p>
               <p className="text-xs text-muted-foreground">
                 Included: {wallet?.includedRemaining ?? 0} · Purchased: {wallet?.purchasedRemaining ?? 0}
               </p>
+              {trialActivated ? (
+                <p className="text-xs text-muted-foreground">
+                  Trial allocation active: {TRIAL_AI_CREDITS_LIMIT} included credits (card verified).
+                </p>
+              ) : null}
+              {trialPendingCard ? (
+                <p className="text-xs text-amber-300">
+                  Trial credits unlock after card setup via Stripe (no credits are granted before activation).
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 $1 = 100 credits ($0.01 each). Monthly pool ≈ 20% of your subscription (USD), e.g. $100/mo →
                 ~2,000 credits. Each tool debits based on estimated provider cost.
@@ -633,19 +651,19 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <div className="grid gap-3 sm:grid-cols-3">
             <Checkout
               productId="credit-topup-2000"
-              buttonText="Buy 2,000 · $20"
+              buttonText="Buy 500 · $5"
               buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-5000"
-              buttonText="Buy 5,000 · $50"
+              buttonText="Buy 1,000 · $10"
               buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-10000"
-              buttonText="Buy 10,000 · $100"
+              buttonText="Buy 2,000 · $20"
               buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
               onComplete={handleCheckoutComplete}
             />
@@ -657,14 +675,18 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 <Input
                   id="custom-topup"
                   type="number"
-                  min={25}
+                  min={5}
                   step={1}
                   value={customTopupAmount}
                   onChange={(e) => setCustomTopupAmount(e.target.value)}
+                  onBlur={(e) => {
+                    const v = Number.parseInt(e.target.value, 10)
+                    if (Number.isFinite(v) && v < 5) setCustomTopupAmount('5')
+                  }}
                   className="bg-background/70"
-                  placeholder="25"
+                  placeholder="20"
                 />
-                <p className="text-xs text-muted-foreground">Minimum $25 (100 credits per $1)</p>
+                <p className="text-xs text-muted-foreground">Minimum $20 for checkout (100 credits per $1)</p>
               </div>
               <Checkout
                 productId="credit-topup-custom"
@@ -673,7 +695,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 buttonText={
                   customTopupValid
                     ? `Buy custom · $${customTopupUsd} · ${(customTopupUsd * 100).toLocaleString()} credits`
-                    : 'Enter at least $25'
+                    : 'Enter at least $20'
                 }
                 buttonClassName="billing-topup-button w-full bg-gradient-to-r from-purple-600 via-amber-500 to-purple-600 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:brightness-110 active:translate-y-px active:scale-[0.99]"
                 onComplete={handleCheckoutComplete}
@@ -996,7 +1018,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
       <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="font-semibold">Trial</CardTitle>
-          <CardDescription>Start lean. Upgrade when you want full power.</CardDescription>
+          <CardDescription>
+            Card-required trial: add your payment method first, then your trial credits become active.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border p-4">
@@ -1006,6 +1030,19 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <p className="text-sm text-muted-foreground">{PRODUCTS[0]?.description}</p>
             </div>
             <Badge variant="outline">$0</Badge>
+          </div>
+          <div className="mt-4">
+            <Checkout
+              productId={TRIAL_PLAN_ID}
+              onComplete={handleCheckoutComplete}
+              buttonText="Start free trial (card required)"
+              buttonClassName="w-full"
+              disabled={trialActivated}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Trial starts after card setup in Stripe. By starting, you authorize automatic billing after the trial
+              period unless canceled before renewal.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -26,6 +26,7 @@ import {
 } from '@/lib/billing/platform-variant'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
+import { getAppUrl } from '@/lib/site-url'
 
 const TRIAL_DURATION_DAYS = 2
 
@@ -376,7 +377,7 @@ export async function createCustomerPortalSession() {
 
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circe-venus.vercel.app'
+  const appUrl = getAppUrl()
 
   const stripe = getStripe()
   const session = await stripe.billingPortal.sessions.create({
@@ -410,7 +411,7 @@ export async function createCustomerPortalSessionForFlow(
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circe-venus.vercel.app'
+  const appUrl = getAppUrl()
   const return_url = `${appUrl}/dashboard/settings?tab=billing`
 
   const subscriptionId = subRow?.stripe_subscription_id || undefined

@@ -183,7 +183,7 @@ function PricingPageBody() {
 
   return (
     <>
-      <section className="relative overflow-hidden px-4 pb-10 pt-12 sm:px-6 sm:pb-14 sm:pt-20">
+      <section className="relative overflow-hidden px-4 pb-6 pt-12 sm:px-6 sm:pb-8 sm:pt-20">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute left-1/2 top-0 h-[480px] w-full max-w-3xl -translate-x-1/2 rounded-full bg-gradient-to-b from-primary/20 via-circe/15 to-transparent blur-3xl" />
         </div>
@@ -194,7 +194,7 @@ function PricingPageBody() {
               Pick your band. Pick your platforms. That’s it.
             </p>
             <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">
-              Toggle <span className="font-medium text-foreground">Pro</span> for the full matrix and trial comparison.
+              Toggle <span className="font-medium text-foreground">Matrix</span> for the full matrix and trial comparison.
             </p>
           </MotionReveal>
         </div>

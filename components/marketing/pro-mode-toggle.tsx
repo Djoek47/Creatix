@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -34,7 +34,7 @@ export function ProModeToggle({ className }: { className?: string }) {
         aria-pressed={mode === 'pro'}
         onClick={() => setMode('pro')}
       >
-        Pro
+        Matrix
       </Button>
     </div>
   )

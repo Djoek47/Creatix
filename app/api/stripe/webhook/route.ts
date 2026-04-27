@@ -319,37 +319,38 @@ export async function POST(req: NextRequest) {
             trialSource: meta?.trialSource || 'card_required',
           }
 
+          /** Stripe SDK `PriceData` typing omits inline `product_data` for subscription items; runtime API accepts it. */
+          const trialItem = {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: checkoutProductName(
+                  conversionVariant,
+                  conversionTier,
+                  conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+                ),
+                description: checkoutProductDescription(
+                  conversionVariant,
+                  conversionTier,
+                  conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+                ),
+              },
+              unit_amount: getMonthlyPriceCents(
+                conversionVariant,
+                conversionTier,
+                conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+              ),
+              recurring: { interval: 'month' },
+            },
+            quantity: conversionSeats,
+          } as unknown as Stripe.SubscriptionCreateParams.Item
+
           const createdSub = await getStripe().subscriptions.create(
             {
               customer: customerId,
               default_payment_method: paymentMethodId,
               trial_period_days: TRIAL_DURATION_DAYS,
-              items: [
-                {
-                  price_data: {
-                    currency: 'usd',
-                    product_data: {
-                      name: checkoutProductName(
-                        conversionVariant,
-                        conversionTier,
-                        conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
-                      ),
-                      description: checkoutProductDescription(
-                        conversionVariant,
-                        conversionTier,
-                        conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
-                      ),
-                    },
-                    unit_amount: getMonthlyPriceCents(
-                      conversionVariant,
-                      conversionTier,
-                      conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
-                    ),
-                    recurring: { interval: 'month' },
-                  },
-                  quantity: conversionSeats,
-                },
-              ],
+              items: [trialItem],
               metadata: paidMeta,
             },
             { idempotencyKey: `trial_setup:${session.id}` },

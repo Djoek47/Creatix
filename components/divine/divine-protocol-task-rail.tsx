@@ -52,10 +52,14 @@ export function DivineProtocolTaskRail() {
   const hasOpenWork = openTasks.length > 0
   /** When the panel is open, always use the full header for clarity. */
   const level: DisplayLevel = menuOpen ? 0 : displayLevel
-  const cycleLevel = (e: MouseEvent) => {
+  const onHeaderSizeButtonClick = (e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setDisplayLevel((d) => ((d + 1) % 3) as DisplayLevel)
+    if (menuOpen) {
+      setMenuOpen(false)
+      return
+    }
+    setDisplayLevel((d) => ((d + 1) % 2) as DisplayLevel)
   }
 
   const { runBriefingUnified, briefingLoading, briefingHint } = useDivineProtocolBriefing(
@@ -80,17 +84,26 @@ export function DivineProtocolTaskRail() {
 
   const triggerMeta = (compact: boolean) => {
     if (showEmptyShell) {
-      return <span className={compact ? 'text-[10px] text-muted-foreground' : 'text-[11px] text-muted-foreground'}>— none open</span>
+      return (
+        <span className={cn('text-muted-foreground/80 tabular-nums', compact ? 'text-[11px]' : 'text-[12px]')}>
+          None open
+        </span>
+      )
     }
     if (hasOpenWork) {
       return (
-        <span className={cn('text-muted-foreground tabular-nums', compact ? 'text-[10px]' : 'text-[11px]')}>
+        <span className={cn('text-muted-foreground/85 tabular-nums', compact ? 'text-[11px]' : 'text-[12px]')}>
           {openTasks.length} open
         </span>
       )
     }
     if (loading) {
-      return <span className="text-[10px] text-muted-foreground">Loading…</span>
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/75">
+          <Loader2 className="h-3 w-3 animate-spin opacity-70" aria-hidden />
+          Loading
+        </span>
+      )
     }
     return null
   }
@@ -99,12 +112,12 @@ export function DivineProtocolTaskRail() {
   if (showEmptyShell && !menuOpen) {
     const lv = displayLevel
     return (
-      <div className="divine-protocol-stack-shell flex w-fit max-w-[min(92vw,400px)] items-center gap-0.5">
+      <div className="divine-protocol-stack-shell flex w-fit max-w-[min(92vw,400px)] items-center gap-1">
         <button
           type="button"
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-muted/50 hover:text-foreground"
           onClick={cycleLevel}
-          title="Header: full labels — minimal dot (cycles)"
+          title="Compact header — full header (cycles)"
         >
           <Layers2 className="h-3.5 w-3.5" aria-hidden />
           <span className="sr-only">Cycle header size</span>
@@ -112,21 +125,21 @@ export function DivineProtocolTaskRail() {
         <button
           type="button"
           className={cn(
-            'inline-flex items-center justify-between border border-dashed border-amber-500/25 bg-card/70 text-left text-xs backdrop-blur-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40',
-            lv === 1 ? 'h-8 min-w-8 rounded-full p-0.5' : 'max-w-full gap-2 rounded-lg px-3 py-2',
+            'inline-flex items-center justify-between border border-border/50 bg-card/85 text-left shadow-sm backdrop-blur-xl transition-colors duration-200 hover:bg-card/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+            lv === 1 ? 'h-9 min-w-9 rounded-full p-0' : 'max-w-full gap-3 rounded-2xl px-4 py-2.5',
           )}
           onClick={() => setMenuOpen(true)}
           aria-label={lv === 1 ? 'Protocols and tasks — no open work' : 'Open protocols and tasks panel, none open'}
         >
           {lv === 1 ? (
             <span
-              className="mx-auto block h-2.5 w-2.5 rounded-full bg-circe shadow-[0_0_8px_rgba(147,51,234,0.45)]"
+              className="mx-auto block h-2 w-2 rounded-full bg-muted-foreground/35 ring-1 ring-border/60"
               aria-hidden
             />
           ) : (
             <>
-              <span className="font-medium text-foreground">Protocols &amp; tasks</span>
-              <span className="text-[11px] text-muted-foreground">Show panel</span>
+              <span className="text-[13px] font-semibold tracking-tight text-foreground">Protocols &amp; tasks</span>
+              <span className="text-[12px] text-muted-foreground/80">Open</span>
             </>
           )}
         </button>
@@ -137,11 +150,9 @@ export function DivineProtocolTaskRail() {
   return (
     <div
       className={cn(
-        'divine-protocol-stack-shell overflow-hidden rounded-lg backdrop-blur-sm',
+        'divine-protocol-stack-shell overflow-hidden rounded-2xl border border-border/50 bg-card/90 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)]',
         menuOpen && !showEmptyShell ? 'w-[min(92vw,400px)]' : 'w-fit max-w-[min(92vw,400px)]',
-        showEmptyShell
-          ? 'border border-dashed border-amber-500/20 bg-card/60'
-          : 'flex max-h-[min(40vh,320px)] flex-col border border-amber-500/15 bg-card/95 shadow-md',
+        showEmptyShell ? 'border-dashed border-border/45 bg-card/75' : 'flex max-h-[min(40vh,320px)] flex-col',
       )}
     >
       <Collapsible
@@ -149,24 +160,24 @@ export function DivineProtocolTaskRail() {
         onOpenChange={setMenuOpen}
         className={cn(!showEmptyShell && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
       >
-        <div className="flex min-h-7 items-center justify-end gap-0.5 px-2 pt-1">
+        <div className="flex min-h-9 items-center justify-end gap-1 px-3 pt-3">
           <button
             type="button"
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-            onClick={cycleLevel}
-            title="Header: full labels — minimal dot (cycles)"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-muted/45 hover:text-foreground"
+            onClick={onHeaderSizeButtonClick}
+            title={menuOpen ? 'Collapse panel' : 'Compact header — full header (cycles)'}
           >
             <Layers2 className="h-3.5 w-3.5" aria-hidden />
-            <span className="sr-only">Cycle header size</span>
+            <span className="sr-only">{menuOpen ? 'Collapse protocols panel' : 'Cycle header size'}</span>
           </button>
           <CollapsibleTrigger asChild>
             <button
               type="button"
               className={cn(
-                'text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40',
+                'text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
                 level === 1
-                  ? 'inline-flex min-h-8 min-w-8 items-center justify-center rounded-full p-0.5 hover:bg-muted/35'
-                  : 'inline-flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 hover:bg-muted/35',
+                  ? 'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full hover:bg-muted/40'
+                  : 'inline-flex w-fit max-w-full items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-muted/35',
               )}
               aria-label={
                 level === 1
@@ -179,25 +190,22 @@ export function DivineProtocolTaskRail() {
               {level === 1 ? (
                 hasOpenWork ? (
                   <span
-                    className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-600 bg-[length:200%_200%] animate-gradient-x shadow-[0_0_10px_rgba(192,38,211,0.5)]"
+                    className="h-2 w-2 rounded-full bg-primary ring-2 ring-primary/25 dark:bg-venus dark:ring-venus/25"
                     aria-hidden
                   />
                 ) : (
-                  <span
-                    className="h-2.5 w-2.5 rounded-full bg-circe shadow-[0_0_8px_rgba(147,51,234,0.45)]"
-                    aria-hidden
-                  />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/35 ring-1 ring-border/50" aria-hidden />
                 )
               ) : (
                 <>
                   <ChevronDown
                     className={cn(
-                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                      'h-4 w-4 shrink-0 text-muted-foreground/80 transition-transform duration-200 ease-out',
                       menuOpen ? 'rotate-0' : '-rotate-90',
                     )}
                     aria-hidden
                   />
-                  <span className="text-xs font-medium">Protocols &amp; tasks</span>
+                  <span className="text-[13px] font-semibold tracking-tight text-foreground">Protocols &amp; tasks</span>
                   {triggerMeta(false)}
                 </>
               )}
@@ -208,63 +216,74 @@ export function DivineProtocolTaskRail() {
           className={cn(!showEmptyShell && 'min-h-0 flex-1 overflow-hidden data-[state=open]:flex data-[state=open]:flex-col')}
         >
           {showEmptyShell ? (
-            <div className="flex flex-col items-end gap-1 px-3 pb-2 pt-0 text-right">
+            <div className="flex flex-col items-stretch gap-3 px-4 pb-4 pt-1">
               <Button
                 type="button"
-                variant="secondary"
                 size="sm"
-                className="h-7 gap-1 text-[11px]"
+                className="h-9 w-full justify-center gap-2 rounded-xl bg-foreground text-[13px] font-medium text-background shadow-none transition-opacity hover:bg-foreground/88 disabled:opacity-45"
                 disabled={briefingLoading}
                 onClick={() => void runBriefingUnified()}
               >
-                {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Divine realtime briefing
+                {briefingLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                )}
+                Realtime briefing
               </Button>
               {briefingHint ? (
-                <p className="max-w-[280px] text-[10px] text-muted-foreground">{briefingHint}</p>
+                <p className="text-[12px] leading-relaxed text-muted-foreground/85">{briefingHint}</p>
               ) : (
-                <p className="max-w-[280px] text-[10px] text-muted-foreground">
-                  Same as the bell: human-style voice + secretary panel. New briefings add protocol tasks linked to each
-                  notification until you mark them handled. Collapse this bar when empty to hide it completely.
+                <p className="text-[12px] leading-relaxed text-muted-foreground/80">
+                  Voice + secretary panel, same as the bell. New briefings add tasks until you mark them done. Collapse
+                  when empty to tuck this away.
                 </p>
               )}
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex flex-shrink-0 items-center justify-end gap-1 border-b border-amber-500/10 px-3 pb-2">
+              <div className="flex flex-shrink-0 items-center justify-end gap-2 border-b border-border/40 px-4 pb-3 pt-1">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-[10px]"
+                  className="h-9 rounded-xl px-3 text-[12px] font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => void refresh()}
                 >
                   Refresh
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
                   size="sm"
-                  className="h-7 gap-1 text-[10px]"
+                  className="h-9 gap-2 rounded-xl bg-foreground px-3.5 text-[12px] font-medium text-background shadow-none hover:bg-foreground/88 disabled:opacity-45"
                   disabled={briefingLoading}
                   onClick={() => void runBriefingUnified()}
                 >
-                  {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {briefingLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                  )}
                   Realtime briefing
                 </Button>
               </div>
               {briefingHint ? (
-                <p className="border-b border-border px-3 py-1.5 text-[10px] text-muted-foreground">{briefingHint}</p>
+                <p className="border-b border-border/35 px-4 py-2.5 text-[12px] leading-snug text-muted-foreground/85">
+                  {briefingHint}
+                </p>
               ) : null}
               {error ? (
-                <p className="px-3 py-2 text-[10px] text-destructive">
+                <p className="px-4 py-3 text-[12px] text-destructive">
                   Could not load tasks ({error}). Run DB migration 046.
                 </p>
               ) : null}
               <ScrollArea className="min-h-0 flex-1">
-                <div className="flex flex-col gap-2 p-2">
+                <div className="flex flex-col gap-2 p-3">
                   {loading && !openTasks.length ? (
-                    <p className="px-1 text-center text-[11px] text-muted-foreground">Loading…</p>
+                    <div className="flex flex-col items-center justify-center gap-2 py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" aria-hidden />
+                      <p className="text-[12px] text-muted-foreground/75">Loading tasks</p>
+                    </div>
                   ) : (
                     <ProtocolOpenTasksList tasks={openTasks} textAlign="right" />
                   )}

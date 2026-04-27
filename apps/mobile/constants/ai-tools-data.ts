@@ -59,7 +59,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Commenter',
     description: 'Post comments: CRM signals, personas, safety',
     longDescription:
-      'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, safety flags, and Housekeeping (smart lists).',
+      'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, safety flags, and Fan Atlas (smart lists).',
     category: 'engagement',
     badge: 'MVP',
     credits: 0,
@@ -67,12 +67,12 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   },
   {
     id: 'housekeeping',
-    name: 'Housekeeping',
-    description: 'Auto-classify fans: spend, threads & freeloaders',
+    name: 'Fan Atlas',
+    description: 'Map fans into segments: spend, threads & intent',
     longDescription:
       'Web-only: Smart classify — spend, DM/thread activity, cold fans, and freeloader segments — synced to OnlyFans lists & Fansly tags. Open /dashboard/commenter?section=housekeeping or Fans → Arrangements (housekeeping_lists).',
     category: 'engagement',
-    badge: 'MVP',
+    badge: 'Beta',
     credits: 0,
     hasRunner: true,
   },

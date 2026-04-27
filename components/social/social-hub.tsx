@@ -49,43 +49,46 @@ export function SocialHub({ connections }: { connections: SocialConnectionRow[] 
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
+    <div className="w-full space-y-8 sm:space-y-10">
       <Tabs value={tab} onValueChange={onTabChange} className="w-full space-y-8">
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-1.5 shadow-sm sm:p-1">
-          <TabsList className="grid h-auto w-full grid-cols-1 gap-1 bg-transparent p-0 sm:grid-cols-3">
+        <div className="rounded-full border border-border/60 bg-muted/15 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-1 gap-0.5 bg-transparent p-0 sm:grid-cols-3">
             <TabsTrigger
               value="create"
               className={cn(
-                'rounded-xl py-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm',
-                'data-[state=inactive]:text-muted-foreground',
+                'rounded-full py-2.5 text-sm font-medium transition-colors',
+                'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground/90',
               )}
             >
               <span className="flex items-center justify-center gap-2">
-                <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+                <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                 Create
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="links"
               className={cn(
-                'rounded-xl py-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm',
-                'data-[state=inactive]:text-muted-foreground',
+                'rounded-full py-2.5 text-sm font-medium transition-colors',
+                'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground/90',
               )}
             >
               <span className="flex items-center justify-center gap-2">
-                <Link2 className="h-4 w-4 shrink-0" aria-hidden />
+                <Link2 className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                 Link hub
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="reputation"
               className={cn(
-                'rounded-xl py-3 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm',
-                'data-[state=inactive]:text-muted-foreground',
+                'rounded-full py-2.5 text-sm font-medium transition-colors',
+                'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground/90',
               )}
             >
               <span className="flex items-center justify-center gap-2">
-                <Radar className="h-4 w-4 shrink-0" aria-hidden />
+                <Radar className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
                 Reputation
               </span>
             </TabsTrigger>

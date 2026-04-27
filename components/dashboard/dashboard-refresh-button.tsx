@@ -14,13 +14,13 @@ const PLATFORM_META: Record<
     src: ONLYFANS_LOGO_SRC,
     short: 'OnlyFans',
     label: 'OnlyFans',
-    ring: 'shadow-[0_0_14px_rgba(0,175,240,0.55)]',
+    ring: 'ring-1 ring-sky-500/35 bg-muted/40',
   },
   fansly: {
     src: FANSLY_LOGO_SRC,
     short: 'FL',
     label: 'Fansly',
-    ring: 'shadow-[0_0_14px_rgba(0,159,255,0.5)]',
+    ring: 'ring-1 ring-blue-400/35 bg-muted/40',
   },
 }
 
@@ -34,14 +34,14 @@ function PlatformPulse({
   const meta = PLATFORM_META[platform] ?? {
     short: platform.slice(0, 2).toUpperCase(),
     label: platform,
-    ring: 'shadow-md',
+    ring: 'ring-1 ring-border/50',
   }
   return (
     <span
       className={cn(
         'relative flex h-7 min-w-[2.5rem] max-w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-background/90 px-0.5 transition-all duration-300 ease-out',
-        active && cn('z-[1] scale-110 border-transparent', meta.ring),
-        !active && 'scale-90 opacity-45',
+        active && cn('z-[1] scale-105 border-transparent', meta.ring),
+        !active && 'scale-95 opacity-50',
       )}
       aria-hidden
     >
@@ -52,7 +52,7 @@ function PlatformPulse({
       )}
       {active ? (
         <span
-          className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-amber-400/25 via-purple-500/30 to-amber-500/20 opacity-90 animate-pulse"
+          className="pointer-events-none absolute inset-0 rounded-md bg-foreground/5 opacity-100 motion-safe:animate-pulse"
           aria-hidden
         />
       ) : null}
@@ -60,39 +60,8 @@ function PlatformPulse({
   )
 }
 
-function GlowChrome({
-  busy,
-  children,
-  className,
-}: {
-  busy: boolean
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <span className={cn('group/refresh relative inline-flex rounded-full', className)}>
-      {/* Animated conic ring — gold / purple */}
-      <span
-        className={cn(
-          'pointer-events-none absolute -inset-[2px] rounded-full opacity-0 blur-[1px] transition-opacity duration-500',
-          'bg-[conic-gradient(from_0deg,#fbbf24_0deg,#c084fc_120deg,#f59e0b_220deg,#a855f7_300deg,#fbbf24_360deg)]',
-          busy ? 'opacity-90 refresh-conic-ring' : 'group-hover/refresh:opacity-70',
-        )}
-      />
-      <span
-        className={cn(
-          'pointer-events-none absolute -inset-px rounded-full opacity-0 transition-opacity duration-300',
-          'bg-gradient-to-r from-amber-400/35 via-purple-500/40 to-amber-400/35',
-          busy ? 'opacity-100 animate-pulse' : 'group-hover/refresh:opacity-100',
-        )}
-      />
-      <span className="relative z-[1] rounded-full bg-card/95 p-px dark:bg-card/90">{children}</span>
-    </span>
-  )
-}
-
 const shellButtonClass =
-  'relative overflow-hidden border border-border/70 bg-gradient-to-b from-background to-muted/30 text-foreground shadow-sm transition-all duration-300 ease-out hover:border-amber-500/35 hover:shadow-[0_0_20px_-4px_rgba(251,191,36,0.35),0_0_24px_-6px_rgba(168,85,247,0.28)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60 dark:border-border/80 dark:from-input/40 dark:to-input/20 dark:hover:border-purple-400/30'
+  'group/refresh relative overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-500/[0.16] via-purple-500/[0.1] to-violet-600/[0.14] text-amber-950 shadow-[0_0_22px_-8px_rgba(251,191,36,0.32),0_0_20px_-10px_rgba(168,85,247,0.22)] transition-all duration-300 hover:border-amber-400/55 hover:from-amber-500/[0.22] hover:via-purple-500/[0.14] hover:to-violet-600/[0.18] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 dark:border-amber-400/35 dark:from-amber-400/[0.12] dark:via-purple-500/[0.1] dark:to-violet-600/[0.14] dark:text-amber-50 dark:shadow-[0_0_26px_-8px_rgba(192,132,252,0.28),0_0_22px_-10px_rgba(251,191,36,0.2)] dark:hover:border-amber-300/50'
 
 /**
  * Syncs all connected platforms (same pattern as ConnectedPlatforms), then full page reload
@@ -175,105 +144,75 @@ export function DashboardRefreshButton() {
 
   return (
     <>
-      <GlowChrome busy={busy} className="hidden sm:inline-flex">
-        <button
-          type="button"
-          title={title}
-          aria-busy={busy}
-          aria-label={label}
-          disabled={busy}
-          onClick={() => void handleRefresh()}
-          className={cn(
-            shellButtonClass,
-            'inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-medium',
-            busy && 'min-w-[9.5rem] cursor-wait',
-          )}
-        >
-          <span
-            className={cn(
-              'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500',
-              busy
-                ? 'opacity-100 refresh-hover-sheen'
-                : 'refresh-hover-sheen group-hover/refresh:opacity-100',
-            )}
+      <button
+        type="button"
+        title={title}
+        aria-busy={busy}
+        aria-label={label}
+        disabled={busy}
+        onClick={() => void handleRefresh()}
+        className={cn(
+          shellButtonClass,
+          'hidden h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium sm:inline-flex',
+          busy && 'min-w-[9.5rem] cursor-wait',
+        )}
+      >
+        {busy ? (
+          platforms.length > 0 ? (
+            <>
+              <span className="flex items-center gap-1 pr-0.5">
+                {platforms.map((p, i) => (
+                  <PlatformPulse key={p} platform={p} active={i === activeIndex} />
+                ))}
+              </span>
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-800 dark:text-amber-200" aria-hidden />
+            </>
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin text-amber-800 dark:text-amber-200" aria-hidden />
+          )
+        ) : (
+          <RefreshCw
+            className="h-4 w-4 shrink-0 text-amber-800 transition-transform duration-500 ease-out group-hover/refresh:-rotate-45 group-hover/refresh:text-violet-700 dark:text-amber-200 dark:group-hover/refresh:text-fuchsia-300"
+            aria-hidden
           />
-          <span className="relative z-[1] flex items-center gap-2">
-            {busy ? (
-              platforms.length > 0 ? (
-                <>
-                  <span className="flex items-center gap-1 pr-0.5">
-                    {platforms.map((p, i) => (
-                      <PlatformPulse key={p} platform={p} active={i === activeIndex} />
-                    ))}
-                  </span>
-                  <Loader2
-                    className="h-4 w-4 shrink-0 animate-spin text-primary"
-                    aria-hidden
-                  />
-                </>
-              ) : (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
-              )
-            ) : (
-              <RefreshCw
-                className="h-4 w-4 shrink-0 text-primary transition-transform duration-700 ease-out group-hover/refresh:rotate-[-200deg] group-hover/refresh:text-amber-600 dark:group-hover/refresh:text-amber-400"
-                aria-hidden
-              />
-            )}
-            <span className="tabular-nums">{busy ? 'Syncing…' : 'Refresh data'}</span>
-          </span>
-        </button>
-      </GlowChrome>
+        )}
+        <span className="tabular-nums text-amber-950 dark:text-amber-50">{busy ? 'Syncing…' : 'Refresh data'}</span>
+      </button>
 
-      <GlowChrome busy={busy} className="sm:hidden">
-        <button
-          type="button"
-          title={title}
-          aria-busy={busy}
-          aria-label={label}
-          disabled={busy}
-          onClick={() => void handleRefresh()}
-          className={cn(
-            shellButtonClass,
-            'grid h-11 w-11 min-h-[44px] min-w-[44px] place-items-center rounded-full',
-          )}
-        >
-          <span
-            className={cn(
-              'pointer-events-none absolute inset-0 rounded-full opacity-0 transition-opacity duration-500',
-              busy
-                ? 'opacity-100 refresh-hover-sheen'
-                : 'refresh-hover-sheen group-hover/refresh:opacity-100',
-            )}
-          />
-          <span className="relative z-[1] flex flex-col items-center gap-0.5">
-            {busy ? (
-              platforms.length > 0 ? (
-                <>
-                  <span className="flex items-center gap-0.5">
-                    {platforms.slice(0, 3).map((p) => (
-                      <span key={p} className="scale-90">
-                        <PlatformPulse
-                          platform={p}
-                          active={p === platforms[activeIndex]}
-                        />
-                      </span>
-                    ))}
+      <button
+        type="button"
+        title={title}
+        aria-busy={busy}
+        aria-label={label}
+        disabled={busy}
+        onClick={() => void handleRefresh()}
+        className={cn(
+          shellButtonClass,
+          'grid h-11 w-11 min-h-[44px] min-w-[44px] place-items-center rounded-full sm:hidden',
+        )}
+      >
+        {busy ? (
+          platforms.length > 0 ? (
+            <span className="flex flex-col items-center gap-0.5">
+              <span className="flex items-center gap-0.5">
+                {platforms.slice(0, 3).map((p) => (
+                  <span key={p} className="scale-90">
+                    <PlatformPulse platform={p} active={p === platforms[activeIndex]} />
                   </span>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
-                </>
-              ) : (
-                <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
-              )
-            ) : (
-              <RefreshCw
-                className="h-5 w-5 text-primary transition-transform duration-700 ease-out group-hover/refresh:rotate-[-200deg]"
-                aria-hidden
-              />
-            )}
-          </span>
-        </button>
-      </GlowChrome>
+                ))}
+              </span>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-800 dark:text-amber-200" aria-hidden />
+            </span>
+          ) : (
+            <Loader2 className="h-5 w-5 animate-spin text-amber-800 dark:text-amber-200" aria-hidden />
+          )
+        ) : (
+          <RefreshCw
+            className="h-5 w-5 text-amber-800 transition-transform duration-500 ease-out group-hover/refresh:-rotate-45 group-hover/refresh:text-violet-700 dark:text-amber-200 dark:group-hover/refresh:text-fuchsia-300"
+            aria-hidden
+          />
+        )}
+      </button>
     </>
   )
 }

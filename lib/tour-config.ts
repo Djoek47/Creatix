@@ -74,7 +74,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'map-venus',
         title: 'Venus: growth',
         description:
-          'Under Venus: Fans CRM, Housekeeping (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
+          'Under Venus: Fans CRM, Commenter + Fan Atlas (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
       },
       {
         id: 'map-community-guide',
@@ -172,13 +172,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tiers',
         title: 'Spend tiers',
         description:
-          'Whales, VIPs, and regulars help you prioritize outreach. Align with Housekeeping and Churn for the same fans across the product.',
+          'Whales, VIPs, and regulars help you prioritize outreach. Align with Fan Atlas and Churn for the same fans across the product.',
       },
       {
         id: 'classify',
         title: 'Classification & lists',
         description:
-          'Use fan classification or smart lists on the Housekeeping page to keep CRM segments aligned with OnlyFans lists.',
+          'Use fan classification or smart lists on the Commenter page (Fan Atlas) to keep CRM segments aligned with OnlyFans lists.',
       },
       {
         id: 'add',
@@ -418,7 +418,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'grid',
         title: 'Tools library',
         description:
-          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Housekeeping, Retention, Protection).',
+          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Fan Atlas, Retention, Protection).',
       },
       {
         id: 'credits',
@@ -586,7 +586,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'workflow',
         title: 'Workflow',
         description:
-          'Pair with Housekeeping for public replies and with Divine for suggested responses where enabled.',
+          'Pair with Commenter for public replies and with Divine for suggested responses where enabled.',
       },
     ],
   },
@@ -626,7 +626,7 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'feed',
-        title: 'Housekeeping',
+        title: 'Commenter',
         description:
           'Sync post and story comments from OnlyFans via webhooks and API. Review each fan comment with AI safety and persona reply drafts.',
       },
@@ -638,7 +638,7 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'housekeeping',
-        title: 'Smart lists',
+        title: 'Fan Atlas',
         description:
           'Smart classify: auto-segment fans by spend, thread/DM activity, cold fans, and freeloaders — then sync those segments to OnlyFans lists and Fansly tags. Configure under Fans → Arrangements or here.',
       },

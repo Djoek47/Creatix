@@ -1397,16 +1397,27 @@ export function ChatWindow({
     const title = nullConversationTitle ?? 'Select a conversation'
     const description = nullConversationDescription
     return (
-      <Card className="flex min-h-0 flex-1 items-center justify-center rounded-xl border-border/80 bg-card/95">
-        <div className="flex max-w-md flex-col items-center px-4 text-center text-muted-foreground">
-          <svg className="mb-4 h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      <Card
+        className={cn(
+          'flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-white/40 bg-white/55 py-0 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.3)] backdrop-blur-2xl backdrop-saturate-150',
+          'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_24px_68px_-30px_rgba(0,0,0,0.55)]',
+        )}
+      >
+        <div className="flex max-w-md flex-col items-center px-8 py-12 text-center">
+          <svg
+            className="mb-5 h-14 w-14 text-muted-foreground/55"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          <p className="text-sm font-medium text-foreground">{title}</p>
+          <p className="text-[1.0625rem] font-semibold tracking-tight text-foreground">{title}</p>
           {description ? (
-            <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-3 text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
           ) : (
-            <p className="mt-1 text-sm">to start messaging</p>
+            <p className="mt-2 text-[0.9375rem] text-muted-foreground">to start messaging</p>
           )}
         </div>
       </Card>
@@ -1422,9 +1433,14 @@ export function ChatWindow({
       transition={fadeTransition}
       className="flex min-h-0 flex-1"
     >
-    <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden rounded-xl border-border/80 bg-card/95 py-0 shadow-sm">
+    <Card
+      className={cn(
+        'flex min-h-0 flex-1 flex-col gap-0 overflow-hidden rounded-2xl border border-white/40 bg-white/55 py-0 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.3)] backdrop-blur-2xl backdrop-saturate-150',
+        'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_24px_68px_-30px_rgba(0,0,0,0.55)]',
+      )}
+    >
       {/* Label + thread actions (menu only — no separate “Thread tools” bar) */}
-      <div className="z-10 shrink-0 border-b border-border/60 bg-card/95 px-3.5 py-2.5 sm:px-4">
+      <div className="z-10 shrink-0 border-b border-border/35 bg-background/25 px-3.5 py-2.5 backdrop-blur-md sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase leading-normal tracking-[0.14em] text-muted-foreground">
             Fan conversation

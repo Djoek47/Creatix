@@ -25,7 +25,7 @@ export function PlatformBreakdown({ analytics }: PlatformBreakdownProps) {
 
   if (platformData.length === 0 || total === 0) {
     return (
-      <Card className="border-border bg-card">
+      <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
         <CardHeader>
           <CardTitle>Platform Breakdown</CardTitle>
           <CardDescription>Revenue distribution by platform</CardDescription>
@@ -40,7 +40,7 @@ export function PlatformBreakdown({ analytics }: PlatformBreakdownProps) {
   }
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
       <CardHeader>
         <CardTitle>Platform Breakdown</CardTitle>
         <CardDescription>Revenue distribution by platform</CardDescription>

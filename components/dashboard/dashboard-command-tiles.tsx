@@ -67,8 +67,8 @@ const tileStagger = {
   show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
 }
 const tileItem = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } },
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.44, ease: [0.25, 0.1, 0.25, 1] as const } },
 }
 
 export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier = false }: DashboardCommandTilesProps) {
@@ -78,16 +78,16 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
     : [...tiles]
   const tierSheen =
     tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 8
-      ? 'shadow-[0_0_40px_-12px_rgba(168,85,247,0.25)]'
+      ? 'shadow-[0_0_48px_-16px_rgba(168,85,247,0.18)]'
       : tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 4
-        ? 'shadow-[0_0_36px_-14px_rgba(234,179,8,0.2)]'
-        : 'shadow-[0_0_32px_-14px_rgba(6,182,212,0.18)]'
+        ? 'shadow-[0_0_44px_-18px_rgba(234,179,8,0.14)]'
+        : 'shadow-[0_0_40px_-18px_rgba(6,182,212,0.12)]'
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <motion.div
         className={cn(
-          'grid gap-3 sm:grid-cols-2',
+          'grid gap-3.5 sm:grid-cols-2 sm:gap-4',
           tilesActive.length <= 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-5',
           tierSheen,
         )}
@@ -105,27 +105,29 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
             <Link
               href={tile.href}
               className={cn(
-                'group relative block overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-shadow duration-300 md:p-5',
-                'shadow-sm hover:shadow-lg hover:shadow-amber-500/5',
-                'hover:-translate-y-0.5 motion-safe:transition-transform motion-safe:duration-300',
+                'group relative block overflow-hidden rounded-[1.25rem] border border-white/40 bg-white/38 p-5 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,border-color] duration-300 md:p-6',
+                'dark:border-white/[0.09] dark:bg-slate-950/38 dark:shadow-[0_16px_48px_-28px_rgba(0,0,0,0.5)]',
+                'hover:border-white/55 hover:shadow-[0_20px_50px_-22px_rgba(15,23,42,0.28)] dark:hover:border-white/[0.14]',
+                'bg-gradient-to-br',
                 tile.accent,
-                boosted && 'ring-1 ring-gold/30 md:scale-[1.01]',
+                boosted && 'ring-1 ring-gold/25 dark:ring-gold/30',
               )}
             >
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-violet-500/6 via-transparent to-amber-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-amber-400/10 to-fuchsia-500/10 blur-2xl transition-opacity group-hover:opacity-100" />
-              <div className="relative flex items-start gap-3">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-violet-500/[0.04] via-transparent to-amber-500/[0.05] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+              <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-amber-400/[0.08] to-fuchsia-500/[0.07] blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+              <div className="relative flex items-start gap-4">
                 <div
                   className={cn(
-                    'rounded-xl border border-border/50 bg-background/70 p-2.5 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-[1.05] group-hover:shadow-md',
+                    'rounded-2xl border border-white/50 bg-background/50 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.35)] backdrop-blur-md transition-[transform,box-shadow] duration-300 dark:border-white/[0.10] dark:bg-white/[0.06]',
+                    'group-hover:shadow-md',
                     tile.iconClass,
                   )}
                 >
                   <tile.icon className="h-5 w-5" aria-hidden />
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold tracking-tight">{tile.title}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{tile.description}</p>
+                <div className="min-w-0 pt-0.5">
+                  <p className="text-[15px] font-semibold tracking-tight text-foreground">{tile.title}</p>
+                  <p className="mt-1 text-[13px] leading-snug text-muted-foreground/90">{tile.description}</p>
                 </div>
               </div>
             </Link>
@@ -134,10 +136,10 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
         })}
       </motion.div>
       {!nonApiProtectionTier ? (
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-1">
           <Link
             href="/dashboard/divine-manager"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:border-border hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-border/35 bg-background/50 px-3.5 py-1.5 text-[12px] font-medium text-muted-foreground shadow-sm backdrop-blur-md transition-colors duration-200 hover:border-border/55 hover:bg-background/65 hover:text-foreground dark:border-white/[0.10] dark:bg-white/[0.05]"
           >
             <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
             Divine Manager

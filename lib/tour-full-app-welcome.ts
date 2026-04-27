@@ -174,15 +174,15 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-22',
       title: 'Fan classification',
       description:
-        'Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Housekeeping segments.',
+        'Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Fan Atlas segments.',
       path: '/dashboard/fans',
       targetSelector: '[data-tour="fans-classify"]',
     },
     {
       id: 'full-23',
-      title: 'Housekeeping',
+      title: 'Commenter',
       description:
-        'Post and story comments from OnlyFans: persona drafts (Circe, Venus, Flirt, Pro), safety flags, review-before-post. Smart classify: spend, thread activity, freeloader buckets—sync to OnlyFans lists and Fansly tags from Fans → Arrangements or this page.',
+        'Post and story comments from OnlyFans: persona drafts (Circe, Venus, Flirt, Pro), safety flags, review-before-post. Fan Atlas (smart classify): spend, thread activity, freeloader buckets—sync to OnlyFans lists and Fansly tags from Fans → Arrangements or this page.',
       path: '/dashboard/commenter',
       targetSelector: '[data-tour="/dashboard/commenter"]',
     },
@@ -221,7 +221,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-29',
       title: 'Settings',
       description:
-        'Integrations (OnlyFans, Fansly, billing), preferences, security, housekeeping list rules at a glance—connect accounts early for accurate CRM.',
+        'Integrations (OnlyFans, Fansly, billing), preferences, security, Fan Atlas list rules at a glance—connect accounts early for accurate CRM.',
       path: '/dashboard/settings',
       targetSelector: '[data-tour="/dashboard/settings"]',
     },

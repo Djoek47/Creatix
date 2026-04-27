@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemedLogo } from '@/components/themed-logo'
+import { SidebarBrandLockup } from '@/components/dashboard/sidebar-brand-lockup'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -53,7 +53,7 @@ const circeNavigation: NavItem[] = [
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
+  { name: 'Fan Atlas', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
 /** Match desktop sidebar: ~9% larger than text-sm; icons scale with row */
@@ -111,30 +111,25 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
     
     const variantStyles = {
       default: {
-        // Black in light mode, white/silver in dark mode
-        active: 'bg-foreground/10 text-foreground',
-        inactive: 'text-foreground/70 hover:bg-foreground/5 hover:text-foreground',
-        icon: 'text-foreground'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-foreground/48 group-hover:text-foreground/78',
       },
       circe: {
-        active: 'bg-circe/20 text-circe-light',
-        inactive: 'text-foreground/70 hover:bg-circe/10 hover:text-circe-light',
-        icon: 'text-circe-light'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-circe-light/42 group-hover:text-circe-light/72',
       },
       venus: {
-        // Gold on hover only (idle neutral like default; active = amber)
-        active: 'bg-amber-500/20 text-amber-500 dark:text-amber-400',
-        inactive:
-          'text-foreground/70 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400',
-        icon: 'text-amber-500 dark:text-amber-400'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-gold/45 group-hover:text-gold/78',
       },
       'ai-studio': {
-        // Rainbow/multicolor — gradient always on; stronger when active / hover
-        active: 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 animate-gradient-x',
-        inactive:
-          'bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 hover:from-pink-500/15 hover:via-purple-500/15 hover:to-cyan-500/15',
-        icon: 'text-purple-500'
-      }
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
+      },
     }
     
     const styles = variantStyles[variant]
@@ -146,30 +141,23 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
           data-tour={item.href}
           className={cn(
             compactMobile
-              ? 'flex min-h-10 items-center gap-2 rounded-lg px-2.5 py-2 font-medium transition-colors'
-              : 'flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 py-2.5 font-medium transition-colors',
+              ? 'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors duration-150 ease-out'
+              : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
             navTextClass,
             isActive ? styles.active : styles.inactive
           )}
         >
-          <item.icon className={cn(
-            navIconClass,
-            'flex-shrink-0',
-            isActive && styles.icon,
-            isAiStudio && 'animate-hue-rotate'
-          )} />
+          <item.icon
+            className={cn(
+              navIconClass,
+              'flex-shrink-0 transition-colors duration-150 ease-out',
+              isActive ? 'text-foreground' : styles.icon,
+            )}
+          />
           <div className="flex min-w-0 items-center gap-2">
-            <span
-              className={cn(
-                isAiStudio &&
-                  'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent',
-                isAiStudio && !isActive && 'opacity-90',
-              )}
-            >
-              {item.name}
-            </span>
+            <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
             {item.beta ? (
-              <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
+              <span className="rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-2 py-0.5 text-[0.6rem] font-semibold uppercase leading-none tracking-[0.1em] text-amber-950/80 tabular-nums dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]">
                 Beta
               </span>
             ) : null}
@@ -181,48 +169,36 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
 
   return (
     <div className="flex h-full flex-col bg-card">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-        <button
-          type="button"
-          onClick={handleRealmReload}
-          className="flex w-full items-center gap-3 rounded-md py-1 text-left transition-colors hover:bg-muted/40"
-          aria-label="Reload dashboard with realm entrance"
-          title="Reload dashboard with realm entrance"
-        >
-          <ThemedLogo
-            width={36}
-            height={36}
-            className="flex-shrink-0 rounded-full"
-            priority
-          />
-          <span className="font-serif text-[0.8rem] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
-            CIRCE ET VENUS
-          </span>
-        </button>
-      </div>
+      <SidebarBrandLockup onRealmClick={handleRealmReload} variant="mobile" />
 
       {/* Navigation */}
-      <nav className={cn('sidebar-nav-scroll flex-1 overflow-y-auto', compactMobile ? 'space-y-2 p-3' : 'space-y-3 p-4')}>
-        {/* Dashboard, Content, Messages - Black light/White dark */}
-        <div className="space-y-0.5">
+      <nav
+        className={cn(
+          'sidebar-nav-scroll flex flex-1 flex-col gap-6 overflow-y-auto',
+          compactMobile ? 'p-3' : 'p-4',
+        )}
+      >
+        <div className="space-y-1">
           {silverNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="default" />
           ))}
         </div>
 
-        {/* AI Studio - Rainbow/Multicolor */}
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {aiStudioNavigation.map((item) => (
             <NavLink key={item.name} item={item} variant="ai-studio" />
           ))}
         </div>
 
-        {/* Circe's Domain */}
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 px-3 py-1">
-            <Moon className={cn(navIconClass, 'text-circe-light')} />
-            <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-circe-light/70">
+        <div className="space-y-1">
+          <div className="mb-0.5 flex items-center gap-2 px-1">
+            <Moon className={cn(compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5', 'shrink-0 text-circe-light/35')} aria-hidden />
+            <span
+              className={cn(
+                'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',
+                compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
+              )}
+            >
               Circe
             </span>
           </div>
@@ -231,11 +207,15 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
           ))}
         </div>
 
-        {/* Venus's Domain - Gold */}
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 px-3 py-1">
-            <Sun className={cn(navIconClass, 'text-amber-500 dark:text-amber-400')} />
-            <span className="text-[0.7rem] font-medium uppercase leading-none tracking-wide text-amber-600/70 dark:text-amber-500/70">
+        <div className="space-y-1">
+          <div className="mb-0.5 flex items-center gap-2 px-1">
+            <Sun className={cn(compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5', 'shrink-0 text-gold/38')} aria-hidden />
+            <span
+              className={cn(
+                'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',
+                compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
+              )}
+            >
               Venus
             </span>
           </div>
@@ -245,20 +225,26 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
         </div>
       </nav>
 
-      {/* Bottom */}
-      <div className={cn('space-y-0.5 border-t border-border', compactMobile ? 'p-3' : 'p-4')}>
-        {bottomNavigation.map((item) => (
-          <NavLink key={item.name} item={item} variant="default" />
-        ))}
+      <div
+        className={cn(
+          'border-t border-border/50 bg-gradient-to-b from-transparent to-muted/30',
+          compactMobile ? 'px-3 pb-3 pt-4' : 'px-4 pb-4 pt-5',
+        )}
+      >
+        <div className="space-y-1.5">
+          {bottomNavigation.map((item) => (
+            <NavLink key={item.name} item={item} variant="default" />
+          ))}
+        </div>
 
         {profile && !compactMobile && (
-          <div className="mt-2 rounded-lg bg-muted/50 p-2.5">
-            <p className={`truncate font-medium text-amber-600 dark:text-circe-light ${mobileNavText}`}>
-              {profile.full_name || 'Divine Creator'}
-            </p>
-            <p className="truncate text-[0.8rem] leading-tight text-amber-600/70 dark:text-circe-light/70">
-              {profile.email}
-            </p>
+          <div className="mt-4 border-t border-border/40 pt-4">
+            <div className="rounded-xl border border-border/50 bg-muted/35 p-3">
+              <p className={cn('truncate font-medium text-foreground', mobileNavText)}>
+                {profile.full_name || 'Divine Creator'}
+              </p>
+              <p className="truncate text-[0.8rem] leading-tight text-foreground/52">{profile.email}</p>
+            </div>
           </div>
         )}
       </div>

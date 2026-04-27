@@ -66,7 +66,7 @@ const STEP_UI: Record<
   'full-20': { subjectLabel: 'Aegis', theme: 'circe', iconKey: 'ShieldCheck' },
   'full-21': { subjectLabel: 'Fans CRM', theme: 'venus', iconKey: 'Users' },
   'full-22': { subjectLabel: 'Fan classification', theme: 'venus', iconKey: 'Filter' },
-  'full-23': { subjectLabel: 'Housekeeping', theme: 'venus', iconKey: 'MessageCircle' },
+  'full-23': { subjectLabel: 'Commenter', theme: 'venus', iconKey: 'MessageCircle' },
   'full-25': { subjectLabel: 'Mentions', theme: 'venus', iconKey: 'AtSign' },
   'full-26': { subjectLabel: 'Community', theme: 'venus', iconKey: 'UsersRound' },
   'full-27': { subjectLabel: 'Circe daily tips', theme: 'circe', iconKey: 'Sun' },

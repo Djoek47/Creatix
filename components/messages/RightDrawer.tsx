@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { cn } from '@/lib/utils'
 import type { Conversation } from './conversation-list'
 import {
   ChevronDown,
@@ -74,7 +75,12 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
   )
 
   return (
-    <Card className="flex min-h-0 w-full flex-col overflow-y-auto border-border bg-card/95 p-3.5 backdrop-blur-sm">
+    <Card
+      className={cn(
+        'flex min-h-0 w-full flex-col overflow-y-auto rounded-2xl border border-white/40 bg-white/55 p-3.5 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150',
+        'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_20px_58px_-28px_rgba(0,0,0,0.52)]',
+      )}
+    >
       <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Fan profile</p>
       <div className="space-y-2.5">
         <Collapsible open={profileOpen} onOpenChange={setProfileOpen}>

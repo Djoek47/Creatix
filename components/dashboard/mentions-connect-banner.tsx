@@ -1,24 +1,17 @@
 import Link from 'next/link'
 
-/** Single-line shortcuts — no card chrome */
+/** Short cross-link: Aegis vs on-demand web scan on Mentions */
 export function MentionsConnectBanner() {
   return (
-    <p className="text-xs text-muted-foreground">
-      <Link
-        href="/dashboard/settings?tab=integrations"
-        className="font-medium text-venus underline-offset-4 hover:underline"
-      >
-        Integrations
-      </Link>
-      <span className="mx-1.5 text-border" aria-hidden>
-        ·
-      </span>
+    <p className="max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">
       <Link
         href="/dashboard/protection/aegis"
-        className="font-medium text-foreground/90 underline-offset-4 hover:underline"
+        className="font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
       >
-        Leak scans (Aegis)
-      </Link>
+        Aegis
+      </Link>{' '}
+      performs comparable leak monitoring automatically, on a daily schedule—without running a manual web scan each
+      time.
     </p>
   )
 }

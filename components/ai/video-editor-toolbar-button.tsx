@@ -130,52 +130,71 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit a vault video</DialogTitle>
-          <DialogDescription>
-            Opens the Frame bridge in a new tab. Pick a video below, or add one to your Creatix vault first.
+      <DialogContent
+        overlayClassName="bg-zinc-950/40 backdrop-blur-[3px]"
+        className={cn(
+          'gap-0 overflow-hidden rounded-[1.35rem] border border-black/[0.06] p-0 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.38)] duration-300',
+          'max-w-[calc(100%-2rem)] sm:max-w-[440px]',
+          'bg-white/82 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/78 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.75)]',
+          '[&_[data-slot=dialog-close]]:top-5 [&_[data-slot=dialog-close]]:right-5 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:opacity-55 [&_[data-slot=dialog-close]]:ring-offset-transparent hover:[&_[data-slot=dialog-close]]:opacity-100 hover:[&_[data-slot=dialog-close]]:bg-muted/60',
+        )}
+      >
+        <DialogHeader className="space-y-3 px-8 pb-7 pt-9 text-left sm:space-y-3.5">
+          <DialogTitle className="text-[1.5rem] font-semibold leading-tight tracking-[-0.02em] sm:text-[1.625rem]">
+            Edit a vault video
+          </DialogTitle>
+          <DialogDescription className="text-[15px] leading-[1.55] text-muted-foreground/88">
+            Opens the Frame bridge in a new tab. Choose a video below, or add one to your vault first.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[min(70vh,480px)] pr-3">
-          <div className="space-y-4">
+        <ScrollArea className="max-h-[min(58vh,432px)] px-8 pb-2 [&_[data-slot=scroll-area-viewport]]:scroll-smooth">
+          <div className="space-y-8 pb-8 pr-3">
             {loading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex justify-center py-14">
+                <Loader2 className="h-7 w-7 animate-spin text-muted-foreground/35" />
               </div>
             ) : loadError ? (
-              <p className="text-sm text-destructive">{loadError}</p>
+              <p className="text-[15px] leading-snug text-destructive">{loadError}</p>
             ) : playable.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[15px] leading-[1.6] text-muted-foreground/88">
                 No videos with a hosted file yet. Create a vault item below and attach an MP4, or open an item in Media
                 &amp; vault and use Replace video.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="flex flex-col gap-2">
                 {playable.map((r) => (
                   <li key={r.id}>
-                    <Button
+                    <button
                       type="button"
-                      variant="secondary"
-                      className="h-auto w-full justify-between gap-2 py-2 text-left font-normal"
                       disabled={launchingId !== null}
                       onClick={() => void openEditor(r.id)}
-                    >
-                      <span className="line-clamp-2 min-w-0 flex-1">{r.title || 'Untitled'}</span>
-                      {launchingId === r.id ? (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                      ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">Open</span>
+                      className={cn(
+                        'flex w-full items-start justify-between gap-4 rounded-xl border border-border/50 bg-muted/25 px-4 py-3.5 text-left transition-[background-color,border-color,transform] duration-200',
+                        'hover:border-border/70 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        'disabled:pointer-events-none disabled:opacity-45',
+                        'active:scale-[0.99]',
                       )}
-                    </Button>
+                    >
+                      <span className="line-clamp-2 min-w-0 flex-1 text-[15px] font-medium leading-snug tracking-[-0.01em] text-foreground">
+                        {r.title || 'Untitled'}
+                      </span>
+                      {launchingId === r.id ? (
+                        <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground/60" />
+                      ) : (
+                        <span className="shrink-0 pt-0.5 text-[13px] font-medium text-muted-foreground/70">Open</span>
+                      )}
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
-            <div className="border-t border-border pt-4">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Add to Creatix vault</p>
+            <div className="border-t border-border/45 pt-8">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+                Add to vault
+              </p>
               <VaultQuickAdd
                 compact
+                presentation="modal"
                 onSuccess={() => {
                   void loadItems()
                 }}
@@ -184,7 +203,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
           </div>
         </ScrollArea>
         {launchMsg && (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
+          <p className="mx-8 mb-8 mt-1 rounded-xl border border-border/55 bg-muted/35 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
             {launchMsg}
           </p>
         )}

@@ -54,6 +54,9 @@ import { effectiveMonthlyCreditLimit, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billi
 import { cn } from '@/lib/utils'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
+const BILLING_GLASS =
+  'rounded-2xl border border-white/45 bg-white/55 py-0 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.52)]'
+
 interface BillingSectionProps {
   userId?: string
   userEmail?: string
@@ -420,9 +423,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
   if (loading) {
     return (
-      <Card className="border-border bg-card">
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Card className={BILLING_GLASS}>
+        <CardContent className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     )
@@ -430,38 +433,44 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
   return (
     <>
-      <Card className="border-border bg-card">
+      <Card className={BILLING_GLASS}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-semibold">
-            <CreditCard className="h-5 w-5" />
-            Plan & Billing
+          <CardTitle className="flex items-center gap-2 text-[1.0625rem] font-semibold tracking-tight">
+            <CreditCard className="h-5 w-5 opacity-70" />
+            Plan & billing
           </CardTitle>
+          <CardDescription>Current subscription, credits, and quick actions.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-6">
-            <div className="flex items-center justify-between">
+          <div className="rounded-xl border border-border/35 bg-background/35 p-5 backdrop-blur-sm sm:p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
-                <Badge className="mb-2 bg-primary/20 text-primary">
-                  {paidActive ? 'ACTIVE' : 'FREE TRIAL'}
+                <Badge variant="outline" className="mb-2 border-border/50 text-[10px] font-medium uppercase tracking-wider">
+                  {paidActive ? 'Active' : 'Trial / free'}
                 </Badge>
-                <h3 className="text-xl font-semibold">{currentPlan?.name || 'Divine Trial'}</h3>
+                <h3 className="text-lg font-semibold tracking-tight">{currentPlan?.name || 'Divine Trial'}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {paidActive
                     ? `Renews ${subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'soon'}`
                     : `Trial ends ${subData?.trial_ends_at ? new Date(subData.trial_ends_at).toLocaleDateString() : 'soon'}`}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold">
+              <div className="text-left sm:text-right">
+                <p className="text-2xl font-semibold tabular-nums tracking-tight">
                   {paidActive ? `$${subscribedMonthlyUsd ?? 0}` : `$${currentPlan?.priceMonthly ?? 0}`}
                 </p>
-                <p className="text-sm text-muted-foreground">/month</p>
+                <p className="text-sm text-muted-foreground">per month</p>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button onClick={handleManageBilling} disabled={loadingPortal} variant="outline">
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button
+                onClick={handleManageBilling}
+                disabled={loadingPortal}
+                variant="outline"
+                className="rounded-xl border-border/40"
+              >
                 {loadingPortal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Open Stripe Portal
+                Stripe customer portal
               </Button>
 
               {paidActive ? (
@@ -470,79 +479,75 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     onClick={() => openPortalFlow('payment_method_update')}
                     disabled={loadingPortal}
                     variant="outline"
+                    className="rounded-xl border-border/40"
                   >
-                    Payment Method
+                    Payment method
                   </Button>
                   {!subData?.cancel_at_period_end && (
                     <Button
                       onClick={() => openPortalFlow('subscription_cancel')}
                       disabled={loadingPortal}
-                      variant="destructive"
+                      variant="ghost"
+                      className="rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      Cancel Plan
+                      Cancel plan
                     </Button>
                   )}
                 </>
               ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById('revenue-pricing')?.scrollIntoView({ behavior: 'smooth' })
-                    }
-                  >
-                    Choose plan & subscribe
-                  </Button>
-                </>
+                <Button
+                  variant="default"
+                  className="rounded-xl bg-foreground text-background hover:opacity-90"
+                  onClick={() =>
+                    document.getElementById('revenue-pricing')?.scrollIntoView({ behavior: 'smooth' })
+                  }
+                >
+                  View plans
+                </Button>
               )}
             </div>
             {paidActive && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                To change band, Focus platforms, Bundled, or Protection, use checkout below (new session) or cancel and
-                resubscribe. The Stripe portal may not list every dynamic price.
+              <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+                To change revenue band, Focus platforms, or Bundled vs Focus, use the checkout blocks below. The portal
+                handles cards, invoices, and cancellation.
               </p>
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-lg border border-border p-4 text-center">
-              <Calendar className="mx-auto h-6 w-6 text-primary" />
-              <p className="mt-2 font-medium">Days Remaining</p>
-              <p className="text-2xl font-bold">{daysRemaining}</p>
-              <p className="text-sm text-muted-foreground">
-                {subData?.cancel_at_period_end ? 'until cancelled' : 'in period'}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm">
+              <Calendar className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Period</p>
+              <p className="text-xl font-semibold tabular-nums">{daysRemaining}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {subData?.cancel_at_period_end ? 'days until end' : 'days left'}
               </p>
             </div>
             <div
               className={cn(
-                'rounded-lg border border-border p-4 text-center transition-all',
-                creditPulse === 'consume' &&
-                  'border-amber-500/60 bg-amber-500/10 shadow-[0_0_24px_rgba(250,204,21,0.25)]',
-                creditPulse === 'grant' &&
-                  'border-violet-500/60 bg-violet-500/10 shadow-[0_0_24px_rgba(167,139,250,0.28)]',
+                'rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm transition-[box-shadow,border-color] duration-300',
+                creditPulse === 'consume' && 'border-amber-500/35 shadow-[0_0_20px_-8px_rgba(250,204,21,0.35)]',
+                creditPulse === 'grant' && 'border-violet-500/35 shadow-[0_0_20px_-8px_rgba(167,139,250,0.35)]',
               )}
             >
-              <Zap className="mx-auto h-6 w-6 text-primary" />
-              <p className="mt-2 font-medium">AI Credits</p>
-              <p className="text-2xl font-bold">
-                {visibleCreditsRemaining} remaining
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Included: {wallet?.includedRemaining ?? 0} · Purchased: {wallet?.purchasedRemaining ?? 0}
+              <Zap className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">AI credits</p>
+              <p className="text-xl font-semibold tabular-nums">{visibleCreditsRemaining}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {wallet?.includedRemaining ?? 0} incl. · {wallet?.purchasedRemaining ?? 0} purchased
               </p>
               {trialActivated ? (
-                <p className="text-xs text-muted-foreground">
-                  Trial allocation active: {TRIAL_AI_CREDITS_LIMIT} included credits (card verified).
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Trial pool: {TRIAL_AI_CREDITS_LIMIT} credits (card verified).
                 </p>
               ) : null}
               {trialPendingCard ? (
-                <p className="text-xs text-amber-300">
-                  Trial credits unlock after card setup via Stripe (no credits are granted before activation).
+                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-200/90">
+                  Credits activate after card setup in Stripe.
                 </p>
               ) : null}
-              <p className="text-xs text-muted-foreground">
-                $1 = 100 credits ($0.01 each). Monthly pool ≈ 20% of your subscription (USD), e.g. $100/mo →
-                ~2,000 credits. Each tool debits based on estimated provider cost.
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                100 credits per $1. Included monthly pool follows your plan; tools debit by estimated provider cost.
               </p>
               <Progress
                 value={
@@ -551,42 +556,43 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 className="mt-2 h-1"
               />
             </div>
-            <div className="rounded-lg border border-border p-4 text-center">
-              <Database className="mx-auto h-6 w-6 text-primary" />
-              <p className="mt-2 font-medium">Storage</p>
-              <p className="text-2xl font-bold">
-                {storageUsedGB.toFixed(1)}/{storageLimitGB}
+            <div className="rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm">
+              <Database className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Storage</p>
+              <p className="text-xl font-semibold tabular-nums">
+                {storageUsedGB.toFixed(1)} / {storageLimitGB}
               </p>
               <Progress value={(storageUsedGB / storageLimitGB) * 100} className="mt-2 h-1" />
             </div>
-            <div className="rounded-lg border border-border p-4 text-center">
-              <Mail className="mx-auto h-6 w-6 text-primary" />
-              <p className="mt-2 font-medium">Messages</p>
-              <p className="text-2xl font-bold">{messagesThisMonth.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">this month</p>
+            <div className="rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm">
+              <Mail className="mx-auto h-5 w-5 text-muted-foreground" />
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Messages</p>
+              <p className="text-xl font-semibold tabular-nums">{messagesThisMonth.toLocaleString()}</p>
+              <p className="text-[11px] text-muted-foreground">this month (est.)</p>
             </div>
           </div>
 
           {subData?.cancel_at_period_end && (
-            <div className="flex items-center gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <div className="flex-1">
-                <p className="font-medium text-amber-500">Subscription Canceling</p>
+            <div className="flex flex-col gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4 backdrop-blur-sm sm:flex-row sm:items-center">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">Subscription ending</p>
                 <p className="text-sm text-muted-foreground">
-                  Your subscription will end on{' '}
+                  Access continues through{' '}
                   {subData.current_period_end
                     ? new Date(subData.current_period_end).toLocaleDateString()
-                    : 'soon'}
-                  . You&apos;ll lose access to Pro features after this date.
+                    : 'the end of the period'}
+                  .
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
+                className="shrink-0 rounded-xl border-border/40"
                 onClick={() => openPortalFlow('subscription_update')}
                 disabled={loadingPortal}
               >
-                Resume
+                Resume billing
               </Button>
             </div>
           )}
@@ -594,10 +600,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
       </Card>
 
       {paymentState !== 'idle' && paymentMessage ? (
-        <Card className="billing-card-enter overflow-hidden border-amber-500/35 bg-gradient-to-br from-amber-500/12 via-purple-500/10 to-background">
-          <CardContent className="relative p-4">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(250,204,21,0.16),transparent_52%)]" />
-            <div className="relative flex items-start justify-between gap-3">
+        <Card
+          className={cn(
+            BILLING_GLASS,
+            'billing-card-enter overflow-hidden border-amber-500/20 bg-amber-500/[0.06] dark:bg-amber-500/[0.08]',
+          )}
+        >
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">
                   {paymentState === 'success'
@@ -606,30 +616,30 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       ? 'Payment recorded'
                       : 'Finalizing'}
                 </p>
-                <p className="text-sm text-muted-foreground">{paymentMessage}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{paymentMessage}</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+                className="shrink-0 rounded-xl border-border/40"
                 onClick={() => void handleForceRefresh()}
               >
                 {manualRefreshing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-                Refresh
+                Refresh balance
               </Button>
             </div>
           </CardContent>
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/35 bg-background/35 px-3 py-2.5 text-[12px] backdrop-blur-sm">
         <p className="text-muted-foreground">
-          Wallet synced: <span className="font-medium text-foreground">{lastSyncedLabel}</span>
+          Wallet updated <span className="font-medium text-foreground">{lastSyncedLabel}</span>
         </p>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="h-7 gap-1 border-amber-500/30 text-amber-100 hover:bg-amber-500/10"
+          className="h-8 gap-1.5 rounded-lg text-muted-foreground hover:text-foreground"
           onClick={() => void handleForceRefresh()}
           disabled={manualRefreshing}
         >
@@ -638,11 +648,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          Sync now
+          Sync
         </Button>
       </div>
 
-      <Card className="border-border bg-card">
+      <Card className={BILLING_GLASS}>
         <CardHeader>
           <CardTitle className="font-semibold">Top Up Credits</CardTitle>
           <CardDescription>
@@ -653,24 +663,24 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <div className="grid gap-3 sm:grid-cols-3">
             <Checkout
               productId="credit-topup-2000"
-              buttonText="Buy 500 · $5"
-              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
+              buttonText="500 credits · $5"
+              buttonClassName="billing-topup-button w-full rounded-xl bg-foreground font-medium text-background shadow-sm transition-opacity hover:opacity-90"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-5000"
-              buttonText="Buy 1,000 · $10"
-              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
+              buttonText="1,000 credits · $10"
+              buttonClassName="billing-topup-button w-full rounded-xl bg-foreground font-medium text-background shadow-sm transition-opacity hover:opacity-90"
               onComplete={handleCheckoutComplete}
             />
             <Checkout
               productId="credit-topup-10000"
-              buttonText="Buy 2,000 · $20"
-              buttonClassName="billing-topup-button w-full bg-gradient-to-r from-amber-500/90 to-purple-600/90 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:from-amber-400 hover:to-purple-500 active:translate-y-px active:scale-[0.99]"
+              buttonText="2,000 credits · $20"
+              buttonClassName="billing-topup-button w-full rounded-xl bg-foreground font-medium text-background shadow-sm transition-opacity hover:opacity-90"
               onComplete={handleCheckoutComplete}
             />
           </div>
-          <div className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-500/8 to-purple-500/8 p-4">
+          <div className="rounded-xl border border-border/35 bg-background/30 p-4 backdrop-blur-sm">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_1fr] sm:items-end">
               <div className="space-y-2">
                 <Label htmlFor="custom-topup">Custom amount</Label>
@@ -699,19 +709,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     ? `Buy custom · $${customTopupUsd} · ${(customTopupUsd * 100).toLocaleString()} credits`
                     : 'Enter at least $20'
                 }
-                buttonClassName="billing-topup-button w-full bg-gradient-to-r from-purple-600 via-amber-500 to-purple-600 text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:brightness-110 active:translate-y-px active:scale-[0.99]"
+                buttonClassName="billing-topup-button w-full rounded-xl bg-foreground font-medium text-background shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
                 onComplete={handleCheckoutComplete}
               />
             </div>
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 p-3">
+          <div className="flex flex-col justify-between gap-3 rounded-xl border border-border/35 bg-background/25 p-3 backdrop-blur-sm sm:flex-row sm:items-center">
             <div>
-              <p className="text-sm font-medium">Planner moved to Dashboard</p>
-              <p className="text-xs text-muted-foreground">
-                Open it from Dashboard quick actions for daily planning.
-              </p>
+              <p className="text-sm font-medium">Credits planner</p>
+              <p className="text-xs text-muted-foreground">Day-by-day planning lives on the dashboard.</p>
             </div>
-            <Button asChild variant="outline" className="gap-1">
+            <Button asChild variant="outline" className="gap-1.5 rounded-xl border-border/40">
               <Link href="/dashboard/credits-planner">
                 Open planner
                 <ArrowUpRight className="h-3.5 w-3.5" />
@@ -721,14 +729,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
+      <Card className={BILLING_GLASS}>
         <CardHeader>
           <CardTitle className="font-semibold">Credit Usage</CardTitle>
           <CardDescription>Where credits are going right now.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Top 5 debit categories</p>
+          <div className="rounded-xl border border-border/35 bg-background/25 p-3 text-sm backdrop-blur-sm">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Top debit reasons</p>
             {creditTopCategories.length === 0 ? (
               <p className="text-muted-foreground">No debit activity yet.</p>
             ) : (
@@ -739,8 +747,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
               ))
             )}
           </div>
-          <div className="rounded-lg border border-border p-3 text-sm">
-            <p className="mb-2 font-medium">Recent ledger timeline</p>
+          <div className="rounded-xl border border-border/35 bg-background/25 p-3 text-sm backdrop-blur-sm">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent ledger</p>
             {creditTimeline.length === 0 ? (
               <p className="text-muted-foreground">No transactions yet.</p>
             ) : (
@@ -755,7 +763,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card id="revenue-pricing" className="border-border bg-card">
+      <Card id="revenue-pricing" className={BILLING_GLASS}>
         <CardHeader>
           <CardTitle className="font-semibold">Plans &amp; pricing</CardTitle>
           <CardDescription>
@@ -804,20 +812,19 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <div className="grid gap-6 lg:grid-cols-1">
             <div
               className={cn(
-                'rounded-xl border-2 p-6 shadow-sm transition-[box-shadow]',
-                'border-amber-500/35 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-950/15',
-                checkoutQuoteVariant === 'single' && 'ring-1 ring-foreground/10 dark:ring-foreground/20',
+                'rounded-2xl border border-border/40 bg-background/40 p-6 shadow-sm backdrop-blur-md transition-[box-shadow,ring]',
+                checkoutQuoteVariant === 'single' && 'ring-1 ring-border/50',
               )}
             >
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
-                1–2 platforms
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Focus · 1–2 platforms
               </p>
-              <h3 className="mt-1 font-serif text-2xl font-semibold text-foreground">Focus plan</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Full Pro tools for the platforms you selected (up to two).
+              <h3 className="mt-2 text-xl font-semibold tracking-tight text-foreground">Focus</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Pro tools for the platforms you select (up to two).
               </p>
 
-              <p className="mt-4 text-2xl font-bold text-foreground">
+              <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight text-foreground">
                 ${focusCheckoutUsd}
                 <span className="text-base font-normal text-muted-foreground">/mo</span>
               </p>
@@ -843,31 +850,31 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       : `Subscribe — Focus — $${focusCheckoutUsd}/mo`
                   }
                   buttonVariant="default"
-                  buttonClassName="w-full border-2 border-amber-600/50 bg-transparent text-amber-900 hover:bg-amber-500/10 dark:border-amber-500/50 dark:text-amber-100"
+                  buttonClassName="w-full rounded-xl bg-foreground font-medium text-background shadow-sm hover:opacity-90"
                 />
               </div>
             </div>
 
             <div
               className={cn(
-                'relative rounded-xl border-2 p-6 pt-8 shadow-md transition-[box-shadow]',
-                'border-amber-500/40 bg-zinc-950 text-zinc-100 dark:bg-zinc-950',
-                'ring-1 ring-dashed ring-amber-500/30',
-                checkoutQuoteVariant === 'multi' && 'ring-2 ring-amber-400/35',
+                'relative rounded-2xl border border-white/12 bg-slate-950/55 p-6 pt-7 text-foreground shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)] backdrop-blur-xl transition-[box-shadow,ring] dark:bg-slate-950/65',
+                checkoutQuoteVariant === 'multi' && 'ring-1 ring-white/20',
               )}
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="border-amber-500/60 bg-amber-600/90 px-3 text-xs font-semibold text-white">
+                <Badge variant="outline" className="border-white/20 bg-background/80 px-3 text-[10px] font-medium text-foreground backdrop-blur-sm">
                   OnlyFans + Fansly
                 </Badge>
               </div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Bundled</p>
-              <h3 className="mt-1 font-serif text-2xl font-semibold text-white">Bundled plan</h3>
-              <p className="mt-1 text-sm text-zinc-400">OnlyFans and Fansly in one monthly price for this band.</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Bundled</p>
+              <h3 className="mt-2 text-xl font-semibold tracking-tight">Bundled</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Both platforms in one monthly price for your revenue band.
+              </p>
 
-              <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="flex h-9 min-w-[4.5rem] max-w-[5.5rem] items-center justify-center overflow-hidden rounded-md border-2 border-zinc-950 bg-zinc-950 px-0.5">
+                  <span className="flex h-9 min-w-[4.5rem] max-w-[5.5rem] items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/30 px-0.5">
                     <Image
                       src={ONLYFANS_LOGO_SRC}
                       alt="OnlyFans"
@@ -876,7 +883,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       className="h-5 w-auto max-w-full object-contain object-left"
                     />
                   </span>
-                  <span className="flex h-9 min-w-[3.5rem] max-w-[4.5rem] items-center justify-center overflow-hidden rounded-md border-2 border-zinc-950 bg-zinc-950 px-0.5">
+                  <span className="flex h-9 min-w-[3.5rem] max-w-[4.5rem] items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/30 px-0.5">
                     <Image
                       src={FANSLY_LOGO_SRC}
                       alt="Fansly"
@@ -887,27 +894,25 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-amber-200">Two platforms</p>
-                  <p className="text-xs text-zinc-500">
-                    Banded list price (not a simple +$ on OnlyFans from every cell)
-                  </p>
+                  <p className="text-sm font-medium">Two platforms</p>
+                  <p className="text-[11px] text-muted-foreground">Priced from the band matrix — not a simple add-on.</p>
                 </div>
                 <div
-                  className="flex size-8 shrink-0 items-center justify-center rounded border border-amber-500/60 bg-amber-500/20"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/[0.06]"
                   aria-hidden
                 >
-                  <Check className="h-4 w-4 text-amber-300" />
+                  <Check className="h-4 w-4 text-foreground/80" />
                 </div>
               </div>
 
-              <p className="mt-4 text-2xl font-bold text-white">
+              <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight">
                 ${unifiedCheckoutUsd}
-                <span className="text-base font-normal text-zinc-400">/mo</span>
+                <span className="text-base font-normal text-muted-foreground">/mo</span>
               </p>
               <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                 {PAID_TIER_FEATURES.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                  <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70" />
                     {f}
                   </li>
                 ))}
@@ -924,16 +929,16 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       : `Subscribe — Bundled — $${unifiedCheckoutUsd}/mo`
                   }
                   buttonVariant="default"
-                  buttonClassName="w-full bg-amber-600 text-white hover:bg-amber-600/90"
+                  buttonClassName="w-full rounded-xl border border-white/20 bg-white/90 font-medium text-slate-950 shadow-sm hover:bg-white"
                 />
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-xl border border-border/35 bg-background/20 backdrop-blur-sm">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40">
+                <tr className="border-b border-border/40 bg-background/40">
                   <th className="p-3 text-left font-medium">Revenue</th>
                   <th className="p-3 text-right font-medium">OnlyFans</th>
                   <th className="p-3 text-right font-medium">Fansly</th>
@@ -945,7 +950,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   <tr
                     key={row.tierIndex}
                     className={
-                      row.tierIndex === checkoutTierIndex ? 'bg-primary/5' : 'border-b border-border/60'
+                      row.tierIndex === checkoutTierIndex
+                        ? 'bg-foreground/[0.04]'
+                        : 'border-b border-border/40'
                     }
                   >
                     <td className="p-3">{row.label}</td>
@@ -962,7 +969,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card" id="protection-plan">
+      <Card className={BILLING_GLASS} id="protection-plan">
         <CardHeader>
           <CardTitle className="font-semibold">
             {getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}
@@ -993,7 +1000,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
+      <Card className={BILLING_GLASS}>
         <CardHeader>
           <CardTitle className="font-semibold">Trial</CardTitle>
           <CardDescription>
@@ -1001,7 +1008,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border p-4">
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border/35 bg-background/25 p-4 backdrop-blur-sm">
             <Sparkles className="h-8 w-8 text-muted-foreground" />
             <div className="flex-1">
               <h4 className="font-semibold">{PRODUCTS[0]?.name}</h4>
@@ -1025,16 +1032,21 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card">
+      <Card className={BILLING_GLASS}>
         <CardHeader>
           <CardTitle className="font-semibold">Invoices</CardTitle>
           <CardDescription>Open invoice history in Stripe.</CardDescription>
         </CardHeader>
         <CardContent>
           {paidActive ? (
-            <Button variant="outline" onClick={handleManageBilling} disabled={loadingPortal}>
+            <Button
+              variant="outline"
+              className="rounded-xl border-border/40"
+              onClick={handleManageBilling}
+              disabled={loadingPortal}
+            >
               {loadingPortal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Open Invoices
+              Open invoices
             </Button>
           ) : (
             <p className="py-8 text-center text-muted-foreground">No invoices yet</p>

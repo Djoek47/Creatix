@@ -18,10 +18,13 @@ type Props = {
   onSuccess?: () => void
   /** Tighter layout for dialogs */
   compact?: boolean
+  /** Calm typography and neutral primary action — for premium modal surfaces */
+  presentation?: 'inline' | 'modal'
   className?: string
 }
 
-export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
+export function VaultQuickAdd({ onSuccess, compact, presentation = 'inline', className }: Props) {
+  const isModal = presentation === 'modal'
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<'video' | 'photo'>('video')
   const [file, setFile] = useState<File | null>(null)
@@ -73,11 +76,27 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
     }
   }
 
+  const labelCls = isModal
+    ? 'text-[13px] font-medium text-foreground/80'
+    : compact
+      ? 'text-xs'
+      : undefined
+  const fieldCls = isModal
+    ? 'h-10 rounded-xl border-border/55 bg-muted/35 px-3.5 shadow-none transition-colors focus-visible:ring-1 md:text-[15px]'
+    : undefined
+  const helpCls = isModal ? 'text-[12px] leading-snug text-muted-foreground/75' : 'text-[11px] text-muted-foreground'
+
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className={cn('grid gap-3', compact ? 'sm:grid-cols-1' : 'sm:grid-cols-2')}>
-        <div className="space-y-1.5">
-          <Label htmlFor="vault-quick-title" className={compact ? 'text-xs' : undefined}>
+    <div className={cn(isModal ? 'space-y-5' : 'space-y-3', className)}>
+      <div
+        className={cn(
+          'grid gap-3',
+          compact && !isModal ? 'sm:grid-cols-1' : 'sm:grid-cols-2',
+          isModal && 'gap-4',
+        )}
+      >
+        <div className={cn('space-y-1.5', isModal && 'space-y-2')}>
+          <Label htmlFor="vault-quick-title" className={labelCls}>
             Title
           </Label>
           <Input
@@ -86,12 +105,13 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
             onChange={(e) => setTitle(e.target.value)}
             placeholder={kind === 'video' ? 'e.g. Gym clip — March' : 'e.g. Teaser still'}
             disabled={busy}
+            className={fieldCls}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label className={compact ? 'text-xs' : undefined}>Type</Label>
+        <div className={cn('space-y-1.5', isModal && 'space-y-2')}>
+          <Label className={labelCls}>Type</Label>
           <Select value={kind} onValueChange={(v) => setKind(v as 'video' | 'photo')} disabled={busy}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger className={cn('rounded-xl', isModal && 'h-10 w-full border-border/55 bg-muted/35 shadow-none md:text-[15px]')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -102,8 +122,8 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
         </div>
       </div>
       {kind === 'video' && (
-        <div className="space-y-1.5">
-          <Label htmlFor="vault-quick-file" className={compact ? 'text-xs' : undefined}>
+        <div className={cn('space-y-1.5', isModal && 'space-y-2')}>
+          <Label htmlFor="vault-quick-file" className={labelCls}>
             Video file (optional)
           </Label>
           <Input
@@ -116,19 +136,36 @@ export function VaultQuickAdd({ onSuccess, compact, className }: Props) {
               const f = e.target.files?.[0] ?? null
               setFile(f)
             }}
-            className="cursor-pointer text-sm"
+            className={cn('cursor-pointer text-sm', fieldCls, isModal && 'py-2 file:text-[13px]')}
           />
-          <p className="text-[11px] text-muted-foreground">
+          <p className={helpCls}>
             You can upload now or later from the item (Replace video).
           </p>
         </div>
       )}
       {err && (
-        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+        <p
+          className={cn(
+            'text-destructive',
+            isModal
+              ? 'rounded-xl border border-destructive/25 bg-destructive/5 px-3.5 py-2.5 text-[13px] leading-snug'
+              : 'rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs',
+          )}
+        >
           {err}
         </p>
       )}
-      <Button type="button" className="gap-2 rounded-full px-6" disabled={busy} onClick={() => void submit()}>
+      <Button
+        type="button"
+        disabled={busy}
+        onClick={() => void submit()}
+        className={cn(
+          'gap-2',
+          isModal
+            ? 'h-11 w-full rounded-xl bg-foreground font-medium text-background shadow-sm hover:bg-foreground/88 dark:hover:bg-foreground/90'
+            : 'rounded-full px-6',
+        )}
+      >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         Add to vault
       </Button>

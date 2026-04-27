@@ -293,7 +293,7 @@ export default function CommenterPage() {
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2">
             <Sparkles className="h-7 w-7 text-amber-500" />
-            Housekeeping
+            Commenter
             <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
               MVP
             </Badge>
@@ -316,12 +316,15 @@ export default function CommenterPage() {
         )}
       >
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2 font-semibold">
+          <CardTitle className="text-base flex flex-wrap items-center gap-2 font-semibold">
             <ListTree className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden />
-            Smart lists
+            Fan Atlas
+            <Badge variant="outline" className="text-[10px] font-medium">
+              Beta
+            </Badge>
           </CardTitle>
           <CardDescription>
-            Smart lists: sync OnlyFans user lists and Fansly CRM tags from your CRM rules (
+            Smart classify and list sync: OnlyFans user lists and Fansly CRM tags from your rules (
             <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
               Fans → Arrangements
             </Link>

@@ -497,10 +497,14 @@ export function Notifications() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="relative h-11 w-11 min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+      >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary dark:bg-circe text-[10px] font-bold text-primary-foreground dark:text-circe-foreground">
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -517,55 +521,78 @@ export function Notifications() {
       }}
     >
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-11 w-11 min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+        >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[min(80vh,400px)] min-h-0 w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96"
+        className={cn(
+          'flex max-h-[min(80vh,420px)] min-h-0 w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96',
+          'rounded-2xl border border-white/45 bg-white/72 text-popover-foreground shadow-[0_24px_80px_-24px_rgba(15,23,42,0.32)] backdrop-blur-2xl backdrop-saturate-150',
+          'dark:border-white/[0.10] dark:bg-slate-950/58 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.62)]',
+        )}
         align="end"
       >
         <Tabs
           value={tab}
           onValueChange={(v) => setTab(v as 'live' | 'divine')}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
         >
-          <div className="flex flex-shrink-0 flex-col gap-2 border-b border-border p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Notifications</h3>
+          <div className="flex flex-shrink-0 flex-col gap-3 border-b border-border/35 bg-foreground/[0.02] px-5 pb-4 pt-5 backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-[1.0625rem] font-semibold leading-none tracking-tight text-foreground">
+                Notifications
+              </h3>
               {channelUnread > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-auto px-2 py-1 text-xs"
+                  className="h-8 shrink-0 rounded-full border border-border/45 bg-background/45 px-3 text-[11px] font-medium text-foreground shadow-none transition-[background-color,border-color] duration-200 ease-out hover:bg-background/70"
                   onClick={markAllAsRead}
                 >
                   Mark tab read
                 </Button>
               )}
             </div>
-            <TabsList className="!h-auto min-h-0 grid w-full grid-cols-2 gap-1 overflow-visible py-1">
+            <TabsList className="!grid !h-auto min-h-0 w-full grid-cols-2 gap-1 overflow-visible rounded-xl border border-border/30 bg-background/35 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04]">
               <TabsTrigger
                 value="live"
-                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+                className={cn(
+                  '!h-auto min-h-[3.75rem] !items-start !justify-start flex-col gap-1 whitespace-normal rounded-lg border border-transparent py-2.5 pl-2.5 pr-2 text-left leading-snug transition-[background-color,box-shadow,border-color,color] duration-200 ease-out',
+                  'data-[state=active]:border-border/40 data-[state=active]:bg-background/88 data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                  'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
+                )}
               >
-                <span className="text-sm font-medium">Live</span>
-                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  OnlyFans + Fansly inbox (and saved webhooks)
+                <span className="text-[13px] font-semibold tracking-tight">Live</span>
+                <span className="flex min-w-0 flex-col gap-0.5 text-left">
+                  <span className="text-[11px] font-medium leading-snug text-foreground/78">
+                    OnlyFans & Fansly inbox
+                  </span>
+                  <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
+                    Saved webhooks
+                  </span>
                 </span>
               </TabsTrigger>
               <TabsTrigger
                 value="divine"
-                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+                className={cn(
+                  '!h-auto min-h-[3.75rem] !items-start !justify-start flex-col gap-1 whitespace-normal rounded-lg border border-transparent py-2.5 pl-2.5 pr-2 text-left leading-snug transition-[background-color,box-shadow,border-color,color] duration-200 ease-out',
+                  'data-[state=active]:border-border/40 data-[state=active]:bg-background/88 data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                  'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
+                )}
               >
-                <span className="text-sm font-medium">Divine</span>
-                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  Leaks · reputation · whales
+                <span className="text-[13px] font-semibold tracking-tight">Divine</span>
+                <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
+                  Leaks · reputation · whales · calendar
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -574,7 +601,7 @@ export function Notifications() {
           <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="live" className="m-0">
               {userId && pullDismissedCount > 0 ? (
-                <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/25 px-3 py-2">
+                <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-foreground/[0.025] px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-[11px] leading-snug text-muted-foreground">
                     {pullDismissedCount} platform alert{pullDismissedCount === 1 ? '' : 's'} hidden. Restore them
                     below when you want them back in this list.
@@ -604,7 +631,7 @@ export function Notifications() {
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/45">
                   {liveList.map((notification) => (
                     <NotificationRow
                       key={notification.id}
@@ -627,7 +654,7 @@ export function Notifications() {
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/45">
                   {divineList.map((notification) => (
                     <NotificationRow
                       key={notification.id}
@@ -644,18 +671,19 @@ export function Notifications() {
         </Tabs>
 
         {briefingText && (
-          <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Divine</p>
-            <p className="mt-1 whitespace-pre-wrap">{briefingText}</p>
+          <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border/40 bg-foreground/[0.02] px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm">
+            <p className="text-[11px] font-semibold tracking-tight text-foreground">Divine</p>
+            <p className="mt-1.5 whitespace-pre-wrap leading-relaxed">{briefingText}</p>
           </div>
         )}
 
-        <div className="flex flex-shrink-0 flex-col gap-1 border-t border-border p-2">
+        <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border/40 bg-foreground/[0.02] p-4 backdrop-blur-sm">
           <Button
             size="sm"
             className={cn(
-              'divine-notification-briefing-btn w-full gap-2 border-0 font-semibold',
-              'disabled:animate-none disabled:opacity-50 disabled:shadow-none',
+              'h-10 w-full gap-2 rounded-xl border-0 bg-foreground font-medium text-background shadow-sm',
+              'transition-opacity duration-200 ease-out hover:opacity-90',
+              'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
             )}
             disabled={briefingLoading || !userId || !divinePanel}
             onClick={() => void runBriefing()}
@@ -664,16 +692,21 @@ export function Notifications() {
               'Briefing…'
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden />
+                <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
                 Divine realtime briefing
               </>
             )}
           </Button>
-          <p className="px-1 text-center text-[10px] text-muted-foreground">
+          <p className="px-0.5 text-center text-[11px] leading-relaxed text-muted-foreground">
             Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
             confirm it is handled. Uses saved unread in this tab only.
           </p>
-          <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setOpen(false)} asChild>
+          <Button
+            variant="ghost"
+            className="h-9 w-full justify-center rounded-lg text-sm text-muted-foreground transition-colors duration-200 hover:bg-background/50 hover:text-foreground"
+            onClick={() => setOpen(false)}
+            asChild
+          >
             <a href="/dashboard/settings">View all settings</a>
           </Button>
         </div>
@@ -697,8 +730,8 @@ function NotificationRow({
     <div
       data-notification-id={notification.id}
       className={cn(
-        'relative flex gap-3 p-4 transition-colors hover:bg-muted/50',
-        !notification.read && 'bg-primary/5',
+        'relative flex gap-3 p-4 transition-colors duration-200 ease-out hover:bg-foreground/[0.04]',
+        !notification.read && 'bg-foreground/[0.03]',
       )}
     >
       <div className="mt-0.5 flex-shrink-0">

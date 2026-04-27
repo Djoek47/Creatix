@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Sparkles, ExternalLink } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowLeft, ArrowUpRight } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CirceDailyScrollToTip } from '@/components/community/circe-daily-scroll-to-tip'
 import {
@@ -10,15 +10,16 @@ import {
   getTodayCirceTip,
   type CirceDailyTip,
 } from '@/lib/community/circe-daily-tips'
+import { cn } from '@/lib/utils'
 
 function TipLink({ tip }: { tip: CirceDailyTip }) {
   if (!tip.link) return null
   const external = /^https?:\/\//i.test(tip.link.href)
   return (
-    <Button variant="outline" size="sm" className="mt-3 gap-1.5 border-circe/40 text-circe-light" asChild>
+    <Button variant="ghost" size="sm" className="mt-4 h-9 rounded-full px-3 text-[13px] font-medium text-foreground hover:bg-muted/50" asChild>
       <Link href={tip.link.href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
         {tip.link.label}
-        {external && <ExternalLink className="h-3 w-3 opacity-70" />}
+        {external ? <ArrowUpRight className="ml-1 h-3.5 w-3.5 opacity-60" /> : null}
       </Link>
     </Button>
   )
@@ -30,67 +31,79 @@ export default function CirceDailyTipsPage() {
   const total = getCirceTipCount()
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-4 pb-14 sm:p-6">
+    <div className="mx-auto max-w-2xl space-y-12 px-4 pb-20 pt-2 sm:px-6 sm:pt-4">
       <CirceDailyScrollToTip />
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        One highlighted insight each day; full archive below.{' '}
-        <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
-          Community board
-        </Link>
-        .
-      </p>
 
-      <Card className="circe-tip-floating-card text-card-foreground shadow-2xl">
-        <CardHeader>
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-serif text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-primary/90">
-                Today&apos;s insight
-              </p>
-              <CardTitle className="mt-0.5 text-lg font-semibold leading-tight">Circe daily</CardTitle>
-              <CardDescription>Insight {todayIdx + 1} of {total} — rotates daily</CardDescription>
-            </div>
+      <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground/85">
+        <Link
+          href="/dashboard/community"
+          className="inline-flex items-center gap-1.5 font-medium text-foreground/90 underline-offset-4 transition hover:underline"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />
+          Community
+        </Link>
+        <span className="text-border/80" aria-hidden>
+          /
+        </span>
+        <span className="text-muted-foreground">Circe daily</span>
+      </nav>
+
+      <header className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Archive</p>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
+          Research insights
+        </h1>
+        <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground/88">
+          Forty rotating notes on how creator businesses behave. Today’s pick follows the calendar; brief toasts while you
+          browse surface a random entry from the same set.
+        </p>
+      </header>
+
+      <Card className="circe-tip-floating-card">
+        <CardContent className="space-y-5 p-6 sm:p-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border/40 pb-4">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/75">Today (UTC)</p>
+            <p className="tabular-nums text-[13px] text-muted-foreground/85">
+              {todayIdx + 1} of {total}
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <h2 className="text-xl font-semibold text-foreground">{today.title}</h2>
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{today.body}</p>
+          <h2 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">{today.title}</h2>
+          <p className="text-[15px] leading-[1.6] text-muted-foreground/90 whitespace-pre-wrap">{today.body}</p>
           <TipLink tip={today} />
         </CardContent>
       </Card>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-medium">All insights</h2>
-        <ul className="space-y-4">
-          {CIRCE_DAILY_TIPS.map((tip, i) => (
-            <li key={tip.id} id={`tip-${tip.id}`} className="scroll-mt-24">
-              <Card className={i === todayIdx ? 'ring-1 ring-circe/40' : ''}>
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-normal text-muted-foreground">
-                    Insight {i + 1} of {total}
-                  </CardDescription>
-                  <CardTitle className="text-base pt-1">{tip.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{tip.body}</p>
-                  <TipLink tip={tip} />
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
+      <section className="space-y-6" aria-labelledby="all-insights">
+        <h2 id="all-insights" className="text-[15px] font-semibold tracking-tight text-foreground">
+          All {total} insights
+        </h2>
+        <ol className="space-y-0 divide-y divide-border/45 rounded-2xl border border-border/45 bg-card/30">
+          {CIRCE_DAILY_TIPS.map((tip, i) => {
+            const isToday = i === todayIdx
+            return (
+              <li
+                key={tip.id}
+                id={`tip-${tip.id}`}
+                className={cn('scroll-mt-28 px-5 py-6 sm:px-6', isToday && 'bg-muted/15')}
+              >
+                <p className="text-[12px] tabular-nums text-muted-foreground/75">
+                  {i + 1}
+                  <span className="text-muted-foreground/50"> / </span>
+                  {total}
+                  {isToday ? <span className="ml-2 font-medium text-foreground/80">· Today</span> : null}
+                </p>
+                <h3 className="mt-2 text-base font-semibold leading-snug text-foreground sm:text-[17px]">{tip.title}</h3>
+                <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground/88 whitespace-pre-wrap">{tip.body}</p>
+                <TipLink tip={tip} />
+              </li>
+            )
+          })}
+        </ol>
       </section>
 
-      <p className="text-center text-xs text-muted-foreground">
-        <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
-          ← Back to Community
-        </Link>
-        {' · '}
-        <Link href="/dashboard/guide#circe-daily-tips" className="text-primary underline hover:no-underline">
-          Mentioned in Guide
+      <p className="text-center text-[13px] text-muted-foreground/80">
+        <Link href="/dashboard/guide#circe-daily-tips" className="font-medium text-foreground/85 underline-offset-4 hover:underline">
+          Also in Guide
         </Link>
       </p>
     </div>

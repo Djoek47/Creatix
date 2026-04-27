@@ -290,7 +290,8 @@ export async function runDivineAiToolServer(
           body: JSON.stringify({
             calendarMode: params.calendarMode === 'week' ? 'week' : 'month',
             goalUsd: typeof params.goalUsd === 'number' ? params.goalUsd : undefined,
-            mode: params.mode === 'grow' ? 'grow' : 'maintain',
+            mode:
+              params.mode === 'grow' ? 'grow' : params.mode === 'next_tier' ? 'next_tier' : 'maintain',
           }),
         })
         const data = await res.json().catch(() => ({}))

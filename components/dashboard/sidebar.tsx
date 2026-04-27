@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemedLogo } from '@/components/themed-logo'
+import { SidebarBrandLockup } from '@/components/dashboard/sidebar-brand-lockup'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -60,7 +60,7 @@ const circeNavigation: NavItem[] = [
 const venusNavigation: NavItem[] = [
   { name: 'Fans', href: '/dashboard/fans', icon: Users },
   { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
+  { name: 'Fan Atlas', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
 /** Base desktop rail sizing (keeps current look on roomy screens). */
@@ -88,7 +88,6 @@ const silverNavigation: NavItem[] = [
   { name: 'Content library', href: '/dashboard/content-library', icon: Library },
 ]
 
-// AI Studio — gold/purple glow idle; rainbow gradient on hover
 const aiStudioNavigation: NavItem[] = [
   { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Star },
 ]
@@ -99,42 +98,39 @@ const bottomNavigation: NavItem[] = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
+/** Community preview — warm amber chip; readable on sidebar in light + dark. */
+const SIDEBAR_BETA_PILL =
+  'rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-2 py-0.5 text-[0.6rem] font-semibold uppercase leading-none tracking-[0.1em] text-amber-950/80 tabular-nums dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]'
+
+/** Shared motion: short, precise — no decorative easing. */
+const navEase = 'duration-150 ease-out'
+
+/** One surface language: neutral pills; section identity reads through icon tint only. */
 const variantStyles = {
   default: {
-    // Black in light mode, white/silver in dark mode
-    active: 'bg-sidebar-accent text-sidebar-foreground',
-    inactive: 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-    icon: 'text-sidebar-foreground'
+    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
+    inactive:
+      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
+    icon: 'text-sidebar-foreground/48 group-hover:text-sidebar-foreground/78',
   },
   circe: {
-    active: 'bg-circe/20 text-circe-light',
-    inactive: 'text-sidebar-foreground/70 hover:bg-circe/10 hover:text-circe-light',
-    icon: 'text-circe-light'
+    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
+    inactive:
+      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
+    icon: 'text-circe-light/42 group-hover:text-circe-light/72',
   },
   venus: {
-    // Gold on hover only (idle matches default sidebar; active = full gold)
-    active: 'bg-gold/20 text-gold',
-    inactive: 'text-sidebar-foreground/70 hover:bg-gold/10 hover:text-gold',
-    icon: 'text-gold'
+    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
+    inactive:
+      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
+    icon: 'text-gold/45 group-hover:text-gold/78',
   },
   'ai-studio': {
-    // Gold + purple glow idle; rainbow animated gradient on hover (group-hover)
-    active:
-      'group relative overflow-hidden transition-all duration-300 ' +
-      'bg-gradient-to-r from-amber-500/12 via-purple-500/15 to-violet-600/18 ' +
-      'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.28),0_0_14px_-2px_rgba(251,191,36,0.28),0_0_22px_-4px_rgba(168,85,247,0.38)] ' +
-      'hover:bg-gradient-to-r hover:from-pink-500/22 hover:via-fuchsia-500/22 hover:to-cyan-500/18 ' +
-      'hover:bg-[length:200%_200%] hover:animate-gradient-x ' +
-      'hover:shadow-[0_0_18px_rgba(236,72,153,0.42),0_0_24px_rgba(168,85,247,0.38),0_0_26px_rgba(34,211,238,0.32),0_0_16px_rgba(251,191,36,0.28)]',
+    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
     inactive:
-      'group relative overflow-hidden transition-all duration-300 ' +
-      'bg-gradient-to-r from-amber-500/8 via-transparent to-purple-500/12 ' +
-      'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2),0_0_12px_-2px_rgba(251,191,36,0.22),0_0_18px_-4px_rgba(147,51,234,0.28)] ' +
-      'hover:bg-gradient-to-r hover:from-pink-500/18 hover:via-purple-500/18 hover:to-cyan-500/15 ' +
-      'hover:bg-[length:200%_200%] hover:animate-gradient-x ' +
-      'hover:shadow-[0_0_16px_rgba(236,72,153,0.38),0_0_22px_rgba(168,85,247,0.34),0_0_24px_rgba(34,211,238,0.28)]',
-    icon: 'text-amber-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.55)] group-hover:text-purple-200 group-hover:drop-shadow-[0_0_12px_rgba(236,72,153,0.45)]'
-  }
+      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
+    icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
+  },
 } as const
 
 type NavVariant = keyof typeof variantStyles
@@ -161,11 +157,13 @@ function NavLink({
   const Icon = item.icon
 
   const linkClassName = cn(
-    'group flex min-h-9 items-center font-medium transition-colors',
+    'group flex min-h-10 items-center font-medium',
+    'transition-[background-color,color]',
+    navEase,
     compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
     collapsed
-      ? 'relative justify-center overflow-visible gap-0 rounded-md px-2 py-2'
-      : 'gap-2.5 rounded-md px-2.5 py-2',
+      ? 'relative justify-center overflow-visible gap-0 rounded-xl px-2 py-2'
+      : 'gap-3 rounded-xl px-3 py-2.5',
     isActive ? styles.active : styles.inactive,
   )
 
@@ -173,33 +171,23 @@ function NavLink({
     <>
       {collapsed && (
         <span
-          className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-0 rounded-md"
+          className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-0 rounded-xl"
           aria-hidden
         />
       )}
       <Icon
         className={cn(
-          'relative z-[1] flex-shrink-0',
+          'relative z-[1] flex-shrink-0 transition-colors',
+          navEase,
           compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-          isAiStudio
-            ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate')
-            : isActive && styles.icon,
+          isActive ? 'text-sidebar-foreground' : styles.icon,
         )}
       />
       {!collapsed && (
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              isAiStudio &&
-                'bg-gradient-to-r from-amber-500 via-purple-500 to-violet-500 bg-clip-text text-transparent transition-all duration-300 ' +
-                  'group-hover:from-pink-500 group-hover:via-purple-500 group-hover:to-cyan-500 group-hover:bg-[length:200%_200%] group-hover:animate-gradient-x',
-              isAiStudio && !isActive && 'opacity-90',
-            )}
-          >
-            {item.name}
-          </span>
+          <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
           {item.beta ? (
-            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
+            <span className="rounded-full bg-sidebar-foreground/[0.07] px-2 py-0.5 text-[0.6rem] font-medium uppercase leading-none tracking-[0.1em] text-sidebar-foreground/42 tabular-nums dark:bg-sidebar-foreground/[0.09]">
               Beta
             </span>
           ) : null}
@@ -225,13 +213,13 @@ function NavLink({
             side="right"
             sideOffset={8}
             className={cn(
-              'z-50 max-w-[16rem] origin-(--radix-tooltip-content-transform-origin) rounded-md border border-amber-500/25 bg-background/95 px-2.5 py-1.5 text-xs text-foreground shadow-lg backdrop-blur-sm',
+              'z-50 max-w-[16rem] origin-(--radix-tooltip-content-transform-origin) rounded-lg border border-border/50 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md',
               'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=right]:slide-in-from-left-2',
             )}
           >
             <span className="font-medium">{item.name}</span>
             {item.beta ? (
-              <span className="ml-1.5 text-[0.65rem] uppercase tracking-wide text-amber-500/90">
+              <span className="ml-1.5 rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-950/80 dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]">
                 Beta
               </span>
             ) : null}
@@ -309,38 +297,17 @@ export function DashboardSidebar({ profile }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'relative flex h-full min-h-0 flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
-        collapsed ? 'w-16' : 'w-64'
+        'relative isolate flex h-full min-h-0 flex-col overflow-visible border-r border-sidebar-border bg-sidebar transition-all duration-300',
+        collapsed ? 'w-16' : 'w-60'
       )}
     >
-      {/* Logo */}
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-sidebar-border px-3">
-        <button
-          type="button"
-          onClick={handleRealmReload}
-          className="flex min-h-0 w-full items-center gap-2 rounded-md py-0.5 text-left transition-colors hover:bg-sidebar-accent/40"
-          aria-label="Reload dashboard with realm entrance"
-          title="Reload dashboard with realm entrance"
-        >
-          <ThemedLogo
-            width={28}
-            height={28}
-            className="flex-shrink-0 rounded-full"
-            priority
-          />
-          {!collapsed && (
-            <span className="font-serif text-[0.8rem] font-semibold leading-tight tracking-wider text-primary dark:text-circe-light">
-              CIRCE ET VENUS
-            </span>
-          )}
-        </button>
-      </div>
+      <SidebarBrandLockup collapsed={collapsed} onRealmClick={handleRealmReload} variant="desktop" />
 
       {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
       <TooltipProvider delayDuration={0}>
-        <nav className="sidebar-nav-scroll min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-2 py-1.5">
-        {/* Dashboard, Content, Messages - Black light/White dark — compact, same size as rest */}
-        <div className="space-y-0.5">
+        <nav className="sidebar-nav-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-3 py-4">
+        {/* Primary destinations */}
+        <div className="space-y-1">
           {silverFiltered.map((item) => (
             <NavLink
               key={item.name}
@@ -353,8 +320,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           ))}
         </div>
 
-        {/* AI Studio — gold + purple glow; rainbow on hover */}
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {aiStudioFiltered.map((item) => (
             <NavLink
               key={item.name}
@@ -367,20 +333,20 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           ))}
         </div>
 
-        {/* Circe's Domain */}
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {!collapsed && (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5">
+            <div className="mb-0.5 flex items-center gap-2 px-1">
               <Moon
                 className={cn(
-                  compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-                  'text-circe-light',
+                  compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                  'shrink-0 text-circe-light/35',
                 )}
+                aria-hidden
               />
               <span
                 className={cn(
-                  compactDensity ? SIDEBAR_SIZE.compact.sectionLabel : SIDEBAR_SIZE.cozy.sectionLabel,
-                  'font-medium uppercase leading-none tracking-wide text-circe-light/70',
+                  'font-semibold uppercase leading-none tracking-[0.14em] text-sidebar-foreground/38',
+                  compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
                 Circe
@@ -399,20 +365,20 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           ))}
         </div>
 
-        {/* Venus's Domain */}
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {!collapsed && (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5">
+            <div className="mb-0.5 flex items-center gap-2 px-1">
               <Sun
                 className={cn(
-                  compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-                  'text-gold',
+                  compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                  'shrink-0 text-gold/38',
                 )}
+                aria-hidden
               />
               <span
                 className={cn(
-                  compactDensity ? SIDEBAR_SIZE.compact.sectionLabel : SIDEBAR_SIZE.cozy.sectionLabel,
-                  'font-medium uppercase leading-none tracking-wide text-gold/70',
+                  'font-semibold uppercase leading-none tracking-[0.14em] text-sidebar-foreground/38',
+                  compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
                 Venus
@@ -432,33 +398,31 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         </div>
         </nav>
 
-        {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
-        <div className="shrink-0 space-y-0.5 border-t border-sidebar-border px-2 py-1.5">
-        {bottomNavigation.map((item) => (
-          <NavLink
-            key={item.name}
-            item={item}
-            variant="default"
-            pathname={pathname}
-            collapsed={collapsed}
-            compactDensity={compactDensity}
-          />
-        ))}
+        {/* Bottom rail — secondary destinations; calmer than main nav */}
+        <div className="relative shrink-0 border-t border-sidebar-border/45 bg-gradient-to-b from-transparent to-sidebar-accent/10 px-3 pb-4 pt-5">
+        <div className="space-y-1.5">
+          {bottomNavigation.map((item) => (
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="default"
+              pathname={pathname}
+              collapsed={collapsed}
+              compactDensity={compactDensity}
+            />
+          ))}
+        </div>
 
-        {/* Hide low-priority identity block on tight viewports so nav never crops. */}
         {!collapsed && profile && !compactDensity && (
-          <div className="mt-1.5 rounded-md bg-sidebar-accent/30 p-2">
-            <p
-              className={cn(
-                'truncate font-medium leading-tight text-amber-600 dark:text-circe-light',
-                SIDEBAR_SIZE.cozy.linkText,
-              )}
-            >
+          <div className="mt-4 border-t border-sidebar-border/35 pt-4">
+          <div className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/22 p-3 transition-colors duration-200">
+            <p className={cn('truncate font-medium leading-tight text-sidebar-foreground', SIDEBAR_SIZE.cozy.linkText)}>
               {profile.full_name || 'Divine Creator'}
             </p>
-            <p className="truncate text-[0.8rem] leading-tight text-amber-600/70 dark:text-circe-light/70">
+            <p className="truncate text-[0.8rem] leading-tight text-sidebar-foreground/52">
               {profile.email}
             </p>
+          </div>
           </div>
         )}
         </div>
@@ -468,7 +432,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute -right-3 top-14 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar"
+        className="absolute -right-3 top-10 z-30 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar shadow-sm"
         onClick={() => {
           const next = !collapsed
           setCollapsed(next)

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles, Wand2 } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -29,6 +29,25 @@ import { HeaderPlatformStatusMenuSection } from '@/components/dashboard/header-p
 import { getDashboardPageAriaLabel } from '@/lib/dashboard-page-meta'
 import { cn } from '@/lib/utils'
 
+const userMenuContentClass = cn(
+  'w-[min(calc(100vw-2rem),22rem)] max-w-[22rem] sm:w-80',
+  'rounded-2xl border border-border/35 bg-popover/90 p-1.5 shadow-[0_16px_48px_-20px_rgba(0,0,0,0.4)] backdrop-blur-xl',
+  'dark:border-white/[0.08] dark:bg-popover/92 dark:shadow-[0_20px_50px_-18px_rgba(0,0,0,0.55)]',
+)
+
+const userMenuItemClass = cn(
+  'gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium leading-none tracking-tight',
+  'text-foreground/90 outline-none',
+  'focus:bg-muted/55 focus:text-foreground data-[highlighted]:bg-muted/55',
+)
+
+const userMenuIconWell = cn(
+  'flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40 dark:bg-muted/25',
+  '[&_svg]:text-muted-foreground',
+)
+
+const userMenuSeparatorClass = 'mx-2 my-1.5 h-px bg-border/35'
+
 interface HeaderProps {
   user: SupabaseUser
   profile: Profile | null
@@ -40,11 +59,34 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   const [mounted, setMounted] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  /** For avatar: extra emphasis when no photo and OnlyFans not linked */
+  const [onlyfansLinked, setOnlyfansLinked] = useState<boolean | null>(null)
   const onWellBeingPage =
     pathname === '/dashboard/well-being' || pathname.startsWith('/dashboard/well-being/')
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const supabase = createClient()
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser()
+      if (!u || !alive) return
+      const { data } = await supabase
+        .from('platform_connections')
+        .select('platform')
+        .eq('user_id', u.id)
+        .eq('is_connected', true)
+      const hasOf = (data ?? []).some((r: { platform?: string }) => r.platform === 'onlyfans')
+      if (alive) setOnlyfansLinked(hasOf)
+    })()
+    return () => {
+      alive = false
+    }
   }, [])
 
   const handleSignOut = async () => {
@@ -60,9 +102,12 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
     .join('')
     .toUpperCase() || user.email?.[0].toUpperCase() || 'U'
 
+  const showAvatarImage = Boolean(profile?.avatar_url)
+  const avatarFallbackEmphasis = !showAvatarImage && onlyfansLinked === false
+
   return (
-    <header className="flex h-14 items-center gap-2 border-b border-border bg-card px-4 sm:h-16 sm:gap-3 sm:px-6">
-      <div className="flex min-w-0 shrink-0 items-center gap-3">
+    <header className="dashboard-header-chrome flex h-14 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6">
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
         {/* Mobile menu button */}
         {mounted ? (
           <Sheet>
@@ -70,10 +115,10 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-11 w-11 min-h-[44px] min-w-[44px] md:hidden"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full transition-colors duration-300 hover:bg-primary/[0.1] dark:hover:bg-venus/[0.1] md:hidden"
                 data-tour="header-start-tour-mobile"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5 text-muted-foreground" />
                 <span className="sr-only">Open menu</span>
               </Button>
             </SheetTrigger>
@@ -89,72 +134,87 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         )}
 
         <span className="sr-only">{getDashboardPageAriaLabel(pathname)}</span>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 w-9 shrink-0 gap-2 rounded-full border-2 border-primary/40 bg-gradient-to-br from-primary/18 via-amber-500/12 to-primary/8 p-0 text-xs font-semibold shadow-sm transition hover:border-primary/55 hover:from-primary/24 hover:via-amber-500/18 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/45 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
-          asChild
-          title="AI Studio — tools library"
-        >
-          <Link
-            href="/dashboard/ai-studio/tools"
-            className="flex items-center justify-center gap-2"
-            aria-label="Open AI Studio tools"
+        <span className="header-tools-rainbow-wrap inline-flex rounded-full">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 w-9 shrink-0 gap-2 rounded-full border-0 bg-background/92 p-0 text-[13px] font-medium shadow-none ring-0 transition-colors duration-300 hover:bg-background dark:bg-card/88 dark:hover:bg-card/95 sm:h-9 sm:w-auto sm:px-3.5"
+            asChild
+            title="AI Studio — tools library"
           >
-            <Wand2 className="h-4 w-4 shrink-0 text-primary sm:hidden" aria-hidden />
-            <Sparkles className="hidden h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 sm:block" aria-hidden />
-            <span className="hidden sm:inline">Tools</span>
-          </Link>
-        </Button>
+            <Link
+              href="/dashboard/ai-studio/tools"
+              className="flex items-center justify-center gap-2"
+              aria-label="Open AI Studio tools"
+            >
+              <Sparkles
+                className="h-4 w-4 shrink-0 text-amber-600 motion-safe:animate-pulse drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:text-amber-300"
+                aria-hidden
+              />
+              <span className="hidden bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[13px] font-semibold text-transparent sm:inline dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300">
+                Tools
+              </span>
+            </Link>
+          </Button>
+        </span>
       </div>
 
-      <div className="min-w-0 flex-1" aria-hidden />
-
-      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-4">
-        {/* Search - hidden on mobile */}
-        <div className="relative hidden lg:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {/* Search — centered on large screens */}
+      <div className="mx-2 hidden min-w-0 flex-1 justify-center lg:flex">
+        <div className="relative w-full max-w-md xl:max-w-lg">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/55 dark:text-venus/55" />
           <Input
-            placeholder="Search fans, content..."
-            className="w-48 bg-input pl-9 xl:w-64"
+            placeholder="Search fans, content…"
+            className="h-10 w-full rounded-full border-border/45 bg-muted/25 pl-10 pr-4 text-[13px] shadow-none transition-all duration-300 placeholder:text-muted-foreground/55 focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/20 dark:focus-visible:border-venus/40 dark:focus-visible:ring-venus/15"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const q = searchQuery.trim()
                 if (!q) return
-                // For now, global search lands on Messages with the query,
-                // where the conversation list will pre-filter by ?search=
                 router.push(`/dashboard/messages?search=${encodeURIComponent(q)}`)
               }
             }}
           />
         </div>
+      </div>
 
-        {/* Live tour (Start Tour / Launch Tour) */}
-        <StartTourButton className="hidden sm:flex" />
+      <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1">
+        <StartTourButton className="hidden sm:inline-flex" />
 
-        {/* Theme Toggle */}
         <ThemeToggle />
 
         <DashboardRefreshButton />
 
-        <Button variant="ghost" size="icon" className="h-11 w-11 min-h-[44px] min-w-[44px] p-0 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0" asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full p-0 hover:bg-muted/35 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+          asChild
+        >
           <Link
             href="/dashboard/well-being"
             title="Well-being"
             aria-label="Well-being"
             className={cn(
-              'grid size-full place-items-center rounded-full border border-border bg-secondary/45 p-0 leading-none text-primary transition hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              onWellBeingPage && 'ring-2 ring-primary/45 ring-offset-2 ring-offset-card',
+              'grid size-full place-items-center rounded-full border border-amber-500/35 bg-amber-500/[0.08] p-0 leading-none transition-all duration-300 hover:border-amber-500/55 hover:bg-amber-500/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/35 dark:border-amber-400/30 dark:bg-amber-400/[0.1] dark:hover:border-amber-400/50 dark:hover:bg-amber-400/[0.16] dark:focus-visible:ring-amber-400/35',
+              onWellBeingPage &&
+                'border-amber-500/60 bg-amber-500/[0.18] ring-1 ring-amber-500/35 dark:border-amber-400/55 dark:bg-amber-400/[0.2] dark:ring-amber-300/35',
             )}
           >
-            <HeartPulse className="h-5 w-5 shrink-0" aria-hidden />
+            <HeartPulse
+              className="header-wellbeing-heartbeat h-[1.15rem] w-[1.15rem] shrink-0 sm:h-5 sm:w-5"
+              aria-hidden
+            />
           </Link>
         </Button>
 
-        {/* Notifications */}
         <Notifications />
+
+        <span
+          className="mx-0.5 hidden h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-primary/35 to-transparent dark:via-venus/35 sm:block"
+          aria-hidden
+        />
 
         {/* User menu (far right) */}
         {mounted ? (
@@ -162,55 +222,87 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+                className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full hover:bg-muted/35 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                 data-tour="header-user-menu"
               >
-                <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
+                <Avatar
+                  className={cn(
+                    'h-8 w-8 sm:h-9 sm:w-9',
+                    showAvatarImage
+                      ? 'ring-2 ring-amber-500/35 shadow-[0_0_22px_-6px_rgba(251,191,36,0.35),0_0_18px_-4px_rgba(168,85,247,0.25)] dark:ring-amber-300/40'
+                      : cn(
+                          'ring-2 ring-primary/55 shadow-[0_0_24px_-4px] shadow-primary/40 dark:ring-venus/55 dark:shadow-[0_0_26px_-4px_rgba(251,191,36,0.25)]',
+                          avatarFallbackEmphasis && 'ring-amber-500 dark:ring-amber-300',
+                        ),
+                  )}
+                >
                   <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
-                  <AvatarFallback className="bg-primary dark:bg-circe text-primary-foreground dark:text-circe-foreground text-xs sm:text-sm">
+                  <AvatarFallback
+                    className={cn(
+                      'text-[13px] font-semibold sm:text-sm',
+                      showAvatarImage
+                        ? 'bg-muted font-medium text-foreground'
+                        : cn(
+                            'bg-gradient-to-br from-amber-500 via-fuchsia-600 to-violet-700 text-white',
+                            'dark:from-amber-400 dark:via-fuchsia-500 dark:to-violet-600',
+                            avatarFallbackEmphasis && 'ring-2 ring-inset ring-white/25',
+                          ),
+                    )}
+                  >
                     {initials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-[min(100vw-2rem,22rem)] max-w-[22rem] sm:w-80"
+              className={userMenuContentClass}
               align="end"
-              sideOffset={6}
+              sideOffset={8}
               forceMount
             >
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
+              <DropdownMenuLabel className="px-3.5 pb-2 pt-2.5 font-normal">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">
                     {profile?.full_name || 'Creator'}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
-                  </p>
+                  <p className="truncate text-[12px] leading-snug text-muted-foreground/85">{user.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className={userMenuSeparatorClass} />
               {userMenuOpen ? (
                 <>
                   <HeaderPlatformStatusMenuSection />
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className={userMenuSeparatorClass} />
                 </>
               ) : null}
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings" className="flex cursor-pointer items-center">
-                  <User className="mr-2 h-4 w-4" />
+              <DropdownMenuItem asChild className={userMenuItemClass}>
+                <Link href="/dashboard/settings" className="flex w-full cursor-pointer items-center">
+                  <span className={userMenuIconWell}>
+                    <User className="size-4" strokeWidth={1.75} aria-hidden />
+                  </span>
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings" className="flex cursor-pointer items-center">
-                  <Settings className="mr-2 h-4 w-4" />
+              <DropdownMenuItem asChild className={userMenuItemClass}>
+                <Link href="/dashboard/settings" className="flex w-full cursor-pointer items-center">
+                  <span className={userMenuIconWell}>
+                    <Settings className="size-4" strokeWidth={1.75} aria-hidden />
+                  </span>
                   Settings
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
+              <DropdownMenuSeparator className={userMenuSeparatorClass} />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={handleSignOut}
+                className={cn(
+                  'gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium leading-none tracking-tight outline-none',
+                  'focus:bg-destructive/10 data-[highlighted]:bg-destructive/10',
+                )}
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 dark:bg-destructive/15 [&_svg]:text-destructive">
+                  <LogOut className="size-4" strokeWidth={1.75} aria-hidden />
+                </span>
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -220,8 +312,30 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
             variant="ghost"
             className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
           >
-            <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
-              <AvatarFallback className="bg-primary dark:bg-circe text-primary-foreground dark:text-circe-foreground text-xs sm:text-sm">
+            <Avatar
+              className={cn(
+                'h-8 w-8 sm:h-9 sm:w-9',
+                showAvatarImage
+                  ? 'ring-2 ring-amber-500/35 shadow-[0_0_22px_-6px_rgba(251,191,36,0.35),0_0_18px_-4px_rgba(168,85,247,0.25)] dark:ring-amber-300/40'
+                  : cn(
+                      'ring-2 ring-primary/55 shadow-[0_0_24px_-4px] shadow-primary/40 dark:ring-venus/55 dark:shadow-[0_0_26px_-4px_rgba(251,191,36,0.25)]',
+                      avatarFallbackEmphasis && 'ring-amber-500 dark:ring-amber-300',
+                    ),
+              )}
+            >
+              <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
+              <AvatarFallback
+                className={cn(
+                  'text-[13px] font-semibold sm:text-sm',
+                  showAvatarImage
+                    ? 'bg-muted font-medium text-foreground'
+                    : cn(
+                        'bg-gradient-to-br from-amber-500 via-fuchsia-600 to-violet-700 text-white',
+                        'dark:from-amber-400 dark:via-fuchsia-500 dark:to-violet-600',
+                        avatarFallbackEmphasis && 'ring-2 ring-inset ring-white/25',
+                      ),
+                )}
+              >
                 {initials}
               </AvatarFallback>
             </Avatar>

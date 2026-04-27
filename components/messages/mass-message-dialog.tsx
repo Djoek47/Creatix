@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ChevronDown, Megaphone, SlidersHorizontal } from 'lucide-react'
 import { MassMessageComposer } from '@/components/messages/mass-message-composer'
+import { cn } from '@/lib/utils'
 
 export function MassMessageDialog() {
   const [open, setOpen] = useState(false)
@@ -27,8 +28,11 @@ export function MassMessageDialog() {
       <div className="inline-flex items-stretch">
         <Button
           type="button"
-          className="h-10 gap-2 rounded-r-none pr-3"
-          variant="default"
+          variant="ghost"
+          className={cn(
+            'h-10 gap-2 rounded-l-xl rounded-r-none border-0 bg-foreground px-3.5 font-medium text-background shadow-sm',
+            'transition-opacity duration-200 ease-out hover:bg-foreground hover:opacity-90',
+          )}
           onClick={() => setOpen(true)}
         >
           <Megaphone className="h-4 w-4" />
@@ -38,8 +42,8 @@ export function MassMessageDialog() {
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
-              variant="default"
-              className="h-10 min-w-10 rounded-l-none border-l border-primary-foreground/25 px-2"
+              variant="ghost"
+              className="h-10 min-w-10 rounded-l-none rounded-r-xl border-0 border-l border-background/20 bg-foreground px-2 text-background shadow-sm transition-opacity duration-200 hover:bg-foreground hover:opacity-90"
               aria-label="More mass message options"
             >
               <ChevronDown className="h-4 w-4" />

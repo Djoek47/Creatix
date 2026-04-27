@@ -26,12 +26,9 @@ type Row = {
 
 type Draft = { preset: CreatorStatusPreset; detail: string }
 
-const PLATFORM_UI: Record<
-  string,
-  { label: string; logoSrc?: string; accent: string }
-> = {
-  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC, accent: '#00AFF0' },
-  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC, accent: '#009FFF' },
+const PLATFORM_UI: Record<string, { label: string; logoSrc?: string }> = {
+  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC },
+  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC },
 }
 
 function draftFromRow(row: Row): Draft {
@@ -161,25 +158,25 @@ export function HeaderPlatformStatusMenuSection() {
 
   return (
     <>
-      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+      <DropdownMenuLabel className="px-3.5 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/75">
         Platform status
       </DropdownMenuLabel>
       <div
-        className="flex cursor-default flex-col items-stretch gap-3 rounded-md px-2 py-2.5"
+        className="flex cursor-default flex-col items-stretch gap-3 rounded-xl px-2 pb-2 pt-0.5"
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            <span className="text-xs">Loading connections…</span>
+          <div className="flex items-center justify-center gap-2.5 py-5 text-[13px] font-normal text-muted-foreground/80">
+            <Loader2 className="size-4 shrink-0 animate-spin opacity-65" aria-hidden />
+            <span>Loading connections…</span>
           </div>
         ) : rows.length === 0 ? (
-          <p className="px-1 py-2 text-xs text-muted-foreground">
+          <p className="px-1.5 py-2 text-[12px] leading-relaxed text-muted-foreground/88">
             No connected platforms.{' '}
             <Link
               href="/dashboard/settings?tab=integrations"
-              className="font-medium text-primary underline-offset-2 hover:underline"
+              className="font-medium text-foreground/75 underline decoration-border/50 underline-offset-4 transition-colors hover:text-foreground"
               onPointerDown={(e) => e.stopPropagation()}
             >
               Connect in Settings
@@ -201,7 +198,6 @@ export function HeaderPlatformStatusMenuSection() {
                 {rows.map((row) => {
                   const ui = PLATFORM_UI[row.platform] ?? {
                     label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                    accent: 'var(--primary)',
                   }
                   const isActive = (activePlatform ?? editableRow?.platform) === row.platform
                   return (
@@ -229,7 +225,6 @@ export function HeaderPlatformStatusMenuSection() {
               const row = editableRow
               const ui = PLATFORM_UI[row.platform] ?? {
                 label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                accent: 'var(--primary)',
               }
               const draft = drafts[row.platform] ?? draftFromRow(row)
               const isCustom = draft.preset === 'custom'
@@ -239,7 +234,7 @@ export function HeaderPlatformStatusMenuSection() {
               return (
                 <div
                   key={row.platform}
-                  className="rounded-lg border border-border/70 bg-muted/15 p-2.5 shadow-xs"
+                  className="rounded-xl border border-border/30 bg-muted/20 p-2.5 dark:border-white/[0.06] dark:bg-muted/15"
                   onPointerDown={(e) => e.stopPropagation()}
                 >
                   <div className="mb-2 flex items-center gap-2">
@@ -247,17 +242,17 @@ export function HeaderPlatformStatusMenuSection() {
                       <img src={ui.logoSrc} alt="" className="h-5 w-auto max-w-[4.5rem] shrink-0 object-contain object-left" />
                     ) : (
                       <span
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background text-[10px] font-bold text-muted-foreground"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/45 bg-background/80 text-[10px] font-semibold text-muted-foreground"
                         aria-hidden
                       >
                         {ui.label.slice(0, 2).toUpperCase()}
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold leading-tight" style={{ color: ui.accent }}>
+                      <p className="truncate text-[12px] font-semibold leading-tight tracking-tight text-foreground/92">
                         {ui.label}
                       </p>
-                      <p className="truncate text-[11px] text-muted-foreground">{preview ?? '—'}</p>
+                      <p className="truncate text-[11px] text-muted-foreground/85">{preview ?? '—'}</p>
                     </div>
                   </div>
                   <label className="sr-only" htmlFor={`header-status-preset-${row.platform}`}>
@@ -304,11 +299,11 @@ export function HeaderPlatformStatusMenuSection() {
                     maxLength={120}
                   />
                   {isCustom ? (
-                    <p className="mb-2 text-[11px] text-muted-foreground">
+                    <p className="mb-2 text-[11px] text-muted-foreground/88">
                       Save custom note templates in{' '}
                       <Link
                         href="/dashboard/settings?tab=integrations"
-                        className="font-medium text-primary underline-offset-2 hover:underline"
+                        className="font-medium text-foreground/75 underline decoration-border/45 underline-offset-3 transition-colors hover:text-foreground"
                         onPointerDown={(e) => e.stopPropagation()}
                       >
                         Settings → Integrations
@@ -336,11 +331,11 @@ export function HeaderPlatformStatusMenuSection() {
                 </div>
               )
             })() : null}
-            <p className="text-[11px] leading-snug text-muted-foreground">
+            <p className="text-[11px] leading-snug text-muted-foreground/85">
               More options in{' '}
               <Link
                 href="/dashboard/settings?tab=integrations"
-                className="font-medium text-primary underline-offset-2 hover:underline"
+                className="font-medium text-foreground/75 underline decoration-border/45 underline-offset-3 transition-colors hover:text-foreground"
                 onPointerDown={(e) => e.stopPropagation()}
               >
                 Settings → Integrations

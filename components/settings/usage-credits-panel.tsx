@@ -49,6 +49,9 @@ type UsageDashboard = {
 
 const PACK_OPTIONS = PRODUCTS.filter((p) => p.id.startsWith('credit-topup-'))
 
+const USAGE_GLASS =
+  'rounded-2xl border border-white/45 bg-white/55 py-0 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.52)]'
+
 function formatUsdFromCents(cents: number): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(cents / 100)
 }
@@ -165,9 +168,9 @@ export function UsageCreditsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className={USAGE_GLASS}>
         <CardHeader>
-          <CardTitle>Usage & credits</CardTitle>
+          <CardTitle className="text-[1.0625rem] font-semibold tracking-tight">Usage & credits</CardTitle>
           <CardDescription>
             Total balance combines your monthly included allowance and purchased top-ups. Purchased credits roll for an
             extra month after your current cycle.
@@ -204,7 +207,7 @@ export function UsageCreditsPanel() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+          <div className="space-y-1 rounded-xl border border-border/35 bg-background/30 p-4 backdrop-blur-sm">
             <p className="text-sm font-medium">Monthly included allowance</p>
             <p className="text-sm text-muted-foreground">
               Used {aiCreditsUsed.toLocaleString()} of {aiCreditsLimitEffective.toLocaleString()} this cycle (
@@ -217,9 +220,9 @@ export function UsageCreditsPanel() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={USAGE_GLASS}>
         <CardHeader>
-          <CardTitle>Automatic top-up</CardTitle>
+          <CardTitle className="text-[1.0625rem] font-semibold tracking-tight">Automatic top-up</CardTitle>
           <CardDescription>
             When your total balance is at or below the threshold, we charge your saved card for the pack you choose.
             Credits are added after Stripe confirms payment (usually within a minute).

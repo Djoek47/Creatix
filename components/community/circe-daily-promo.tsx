@@ -1,9 +1,8 @@
 import Link from 'next/link'
-import { Moon, ChevronRight, Stars } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Moon, ArrowUpRight } from 'lucide-react'
 import { getCirceTipCount, getTodayCirceTip, getCirceTipIndexForToday } from '@/lib/community/circe-daily-tips'
 
-/** Featured strip — today’s rotating Circe tip, separate from the creator board. */
+/** Featured strip — today’s rotating insight; calm surface, separate from creator board. */
 export function CirceDailyPromo() {
   const tip = getTodayCirceTip()
   const idx = getCirceTipIndexForToday()
@@ -11,48 +10,57 @@ export function CirceDailyPromo() {
   const n = total > 0 ? Math.min(idx + 1, total) : 1
 
   return (
-    <div
-      className="group relative overflow-hidden rounded-2xl border border-circe/30 bg-gradient-to-b from-circe/[0.12] via-card to-card p-0 shadow-md ring-1 ring-circe/10"
+    <section
+      className="rounded-3xl border border-border/50 bg-card/55 p-6 shadow-none backdrop-blur-md sm:p-8 dark:bg-card/40"
       data-tour="community-circe-daily"
+      aria-labelledby="circe-daily-heading"
     >
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-400/20 blur-2xl transition-opacity group-hover:opacity-90"
-        aria-hidden
-      />
-      <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-circe via-amber-500/80 to-circe/40" />
-      <div className="relative p-5 sm:p-6 pl-6 sm:pl-7">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-circe/20 ring-1 ring-circe/30">
-              <Moon className="h-5 w-5 text-circe" aria-hidden />
+      <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
+        <div className="min-w-0 flex-1 space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex gap-4">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground ring-1 ring-border/50"
+                aria-hidden
+              >
+                <Moon className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85">
+                  Circe daily
+                </p>
+                <h2 id="circe-daily-heading" className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                  Product context
+                </h2>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-circe/90">Circe daily</p>
-              <p className="text-sm font-semibold text-foreground">A bit of product moonlight</p>
-            </div>
+            <p className="shrink-0 tabular-nums text-[13px] text-muted-foreground/90">
+              {n} <span className="text-muted-foreground/60">/</span> {total || '—'}
+            </p>
           </div>
-          <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/50 px-2.5 py-0.5 text-[10px] text-muted-foreground">
-            <Stars className="h-3 w-3 text-amber-500/90" />
-            Day {n} of {total || '—'}
+          <p className="max-w-xl text-[14px] leading-relaxed text-muted-foreground/88">
+            One research-backed insight per day (UTC). Different from creator-submitted tips below. Random brief cards may
+            also appear while you work—same archive.
+          </p>
+          <div className="space-y-3 border-t border-border/40 pt-6">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/75">Today</p>
+            <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground sm:text-xl">{tip.title}</h3>
+            <p className="max-w-2xl text-[15px] leading-[1.55] text-muted-foreground/90">{tip.body}</p>
           </div>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">Rotates with the clock — not the same as creator tips below.</p>
-        <div className="mt-4 space-y-2 rounded-xl border border-border/50 bg-background/50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Today</p>
-          <p className="text-base font-semibold leading-snug text-foreground">{tip.title}</p>
-          <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{tip.body}</p>
-        </div>
-        <Button
-          asChild
-          className="mt-4 w-full gap-2 border-circe/40 bg-circe/15 text-foreground hover:bg-circe/25 sm:w-auto"
-          variant="outline"
-        >
-          <Link href="/dashboard/community/circe-daily">
-            Full archive &amp; today&apos;s entry
-            <ChevronRight className="h-4 w-4" />
+        <div className="flex shrink-0 flex-col gap-3 sm:items-end sm:pt-1">
+          <Link
+            href="/dashboard/community/circe-daily"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border/55 bg-muted/25 px-5 text-[14px] font-medium text-foreground transition-colors hover:bg-muted/40 sm:min-w-[12rem]"
+          >
+            Archive
+            <ArrowUpRight className="h-4 w-4 opacity-70" aria-hidden />
           </Link>
-        </Button>
+          <p className="max-w-[14rem] text-center text-[12px] leading-snug text-muted-foreground/75 sm:text-right">
+            Full list, deep links, and today highlighted in context.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }

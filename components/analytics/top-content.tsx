@@ -20,7 +20,7 @@ export function TopContent({ content }: TopContentProps) {
 
   if (topContent.length === 0) {
     return (
-      <Card className="border-border bg-card">
+      <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
         <CardHeader>
           <CardTitle>Top Performing Content</CardTitle>
           <CardDescription>Your best content by engagement</CardDescription>
@@ -39,7 +39,7 @@ export function TopContent({ content }: TopContentProps) {
   }
 
   return (
-    <Card className="border-border bg-card">
+    <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
       <CardHeader>
         <CardTitle>Top Performing Content</CardTitle>
         <CardDescription>Your best content by engagement</CardDescription>

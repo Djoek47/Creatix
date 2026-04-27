@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Share2, Copy, ExternalLink, Check, Sparkles, MessageSquare, Hash, Loader2 } from 'lucide-react'
+import { Copy, ExternalLink, Check, Sparkles, Hash, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const DRAFT_KEY = 'circe-social-promo-draft-v1'
@@ -136,6 +136,11 @@ function clipForPreview(text: string, max: number) {
   return `${text.slice(0, Math.max(0, max - 1))}…`
 }
 
+/** Quiet fallback when live preview is unavailable — avoids error spam in the UI. */
+function templateAngleHint(idea: string) {
+  return clipForPreview(idea.replace(/\s+/g, ' ').trim(), 140)
+}
+
 function platformParamForApi(target: AiTarget) {
   if (target === 'youtube') return 'instagram'
   if (target === 'twitter') return 'twitter'
@@ -190,7 +195,9 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiTarget, setAiTarget] = useState<AiTarget>('twitter')
   const [captionOptions, setCaptionOptions] = useState<string[]>([])
-  const [linePreviews, setLinePreviews] = useState<Record<string, string | 'loading' | 'error'>>({})
+  /** AI-generated one-liners; missing key → show static angle hint. */
+  const [templatePreviews, setTemplatePreviews] = useState<Record<string, string>>({})
+  const [templatePreviewsLoading, setTemplatePreviewsLoading] = useState(false)
 
   useEffect(() => {
     try {
@@ -251,28 +258,31 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
 
   useEffect(() => {
     let cancelled = false
-    setLinePreviews({})
-    async function loadLinePreviews() {
-      for (const t of promoTemplates) {
-        if (cancelled) return
-        setLinePreviews((p) => ({ ...p, [t.name]: 'loading' }))
-        const brief = `Return a single very short teaser line (max 18 words) for a UI card under the title "${t.name}". Hint at the angle only. ${t.idea}`
-        try {
-          const { captions } = await fetchSocialCaptions(brief, aiTarget)
-          if (cancelled) return
-          const line = captions[0]
-          setLinePreviews((p) => ({
-            ...p,
-            [t.name]: line ? clipForPreview(line, 140) : 'error',
-          }))
-        } catch {
-          if (cancelled) return
-          setLinePreviews((p) => ({ ...p, [t.name]: 'error' }))
-        }
-        await new Promise((r) => setTimeout(r, 320))
+    setTemplatePreviewsLoading(true)
+    setTemplatePreviews({})
+
+    ;(async () => {
+      const results = await Promise.all(
+        promoTemplates.map(async (t) => {
+          const brief = `Return a single very short teaser line (max 18 words) for a UI card under the title "${t.name}". Hint at the angle only. ${t.idea}`
+          try {
+            const { captions } = await fetchSocialCaptions(brief, aiTarget)
+            const line = captions[0]?.trim()
+            return { name: t.name, line: line ? clipForPreview(line, 140) : null }
+          } catch {
+            return { name: t.name, line: null }
+          }
+        }),
+      )
+      if (cancelled) return
+      const next: Record<string, string> = {}
+      for (const { name, line } of results) {
+        if (line) next[name] = line
       }
-    }
-    void loadLinePreviews()
+      setTemplatePreviews(next)
+      setTemplatePreviewsLoading(false)
+    })()
+
     return () => {
       cancelled = true
     }
@@ -324,22 +334,24 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
     <div className="min-w-0 space-y-8">
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
-          <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" aria-hidden />
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1.5 pb-4 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 Post studio
               </CardTitle>
-              <CardDescription className="text-sm leading-relaxed">
-                Draft teasers that pull traffic toward OnlyFans and Fansly — tasteful, confident, on-brand.
+              <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
+                Draft teasers that point to OnlyFans and Fansly — clear hook, calm tone, on-brand.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-5 px-5 pb-6 sm:px-6 sm:pb-7">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground">AI target</Label>
+                  <Label className="text-[13px] font-medium text-foreground">AI target</Label>
                   <Select value={aiTarget} onValueChange={(v) => setAiTarget(v as AiTarget)}>
-                    <SelectTrigger className="rounded-xl" aria-label="AI target platform">
+                    <SelectTrigger
+                      className="h-10 rounded-xl border-border/80 bg-background/70 shadow-none"
+                      aria-label="AI target platform"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -354,16 +366,20 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                 </div>
                 <div className="flex items-end">
                   <Button
-                    variant="outline"
-                    className="w-full rounded-full"
+                    type="button"
+                    className={cn(
+                      'h-10 w-full rounded-xl text-[14px] font-medium shadow-none',
+                      'bg-foreground text-background hover:bg-foreground/88',
+                      'dark:bg-white dark:text-slate-950 dark:hover:bg-white/90',
+                      'disabled:opacity-50',
+                    )}
                     onClick={generateWithAI}
                     disabled={isGenerating}
-                    type="button"
                   >
                     {isGenerating ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin opacity-80" aria-hidden />
                     ) : (
-                      <Sparkles className="mr-2 h-4 w-4" aria-hidden />
+                      <Sparkles className="mr-2 h-4 w-4 opacity-80" aria-hidden />
                     )}
                     Generate with AI
                   </Button>
@@ -395,7 +411,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
               ) : null}
 
               <div className="space-y-2">
-                <Label htmlFor="social-post-body" className="text-sm font-medium">
+                <Label htmlFor="social-post-body" className="text-[13px] font-medium text-foreground">
                   Message
                 </Label>
                 <Textarea
@@ -403,7 +419,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                   placeholder="Write your teaser, hook, and CTA…"
                   value={postText}
                   onChange={(e) => setPostText(e.target.value)}
-                  className="min-h-36 rounded-xl border-border/80 text-[15px] leading-relaxed"
+                  className="min-h-36 rounded-xl border-border/80 bg-background/70 text-[15px] leading-relaxed shadow-none focus-visible:ring-foreground/15"
                 />
                 <p className="text-right text-xs text-muted-foreground">
                   {fullPostText.length} characters (with hashtags)
@@ -411,8 +427,8 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                  <Hash className="h-4 w-4 text-muted-foreground" aria-hidden />
+                <Label className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                  <Hash className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                   Hashtags
                 </Label>
                 <div className="flex flex-wrap gap-2">
@@ -430,7 +446,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                   ))}
                   <Input
                     placeholder="Add hashtag…"
-                    className="h-8 w-36 rounded-full text-sm"
+                    className="h-9 w-40 rounded-full border-border/80 bg-background/70 text-sm shadow-none"
                     aria-label="Add hashtag"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -446,7 +462,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="social-link-url" className="text-sm font-medium">
+                <Label htmlFor="social-link-url" className="text-[13px] font-medium text-foreground">
                   Link URL (optional)
                 </Label>
                 <Input
@@ -454,88 +470,95 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                   placeholder="https://…"
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
-                  className="rounded-xl"
+                  className="h-10 rounded-xl border-border/80 bg-background/70 shadow-none"
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="min-w-0 pb-3">
-              <CardTitle className="text-base font-semibold tracking-tight">Templates</CardTitle>
-              <CardDescription className="text-sm">
-                Preset = main idea. Lines preview from AI for the selected target; tap a card to load full copy.
+          <Card className="min-w-0 gap-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 py-0 shadow-none">
+            <CardHeader className="min-w-0 space-y-2 px-5 pb-2 pt-6 sm:px-6 sm:pt-7">
+              <CardTitle className="font-serif text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Templates
+              </CardTitle>
+              <CardDescription className="max-w-prose text-[15px] leading-relaxed text-muted-foreground">
+                Five starting angles. Tap a card to generate full copy for your AI target — or read the angle below while
+                previews load.
               </CardDescription>
             </CardHeader>
-            <CardContent className="min-w-0">
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                {promoTemplates.map((template) => (
-                  <Button
-                    key={template.name}
-                    type="button"
-                    variant="ghost"
-                    disabled={isGenerating}
-                    className={cn(
-                      'flex h-auto min-h-[4.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-1 overflow-hidden rounded-2xl border border-border/70 bg-background p-4 text-left shadow-xs whitespace-normal [text-wrap:pretty]',
-                      'hover:bg-zinc-950 hover:text-zinc-50',
-                      'dark:border-border/60 dark:bg-zinc-950/40 dark:hover:bg-black dark:hover:text-zinc-100',
-                    )}
-                    onClick={() => void applyTemplate(template)}
-                  >
-                    <span className="w-full min-w-0 font-medium leading-snug">{template.name}</span>
-                    <span className="line-clamp-3 w-full min-w-0 break-words text-left text-xs leading-relaxed text-muted-foreground dark:text-zinc-400">
-                      {linePreviews[template.name] === 'loading' ? (
-                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                          Preview…
-                        </span>
-                      ) : linePreviews[template.name] === 'error' ? (
-                        'Preview failed — tap to generate full copy'
-                      ) : typeof linePreviews[template.name] === 'string' ? (
-                        linePreviews[template.name]
-                      ) : (
-                        '…'
+            <CardContent className="min-w-0 px-5 pb-6 pt-2 sm:px-6 sm:pb-7">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                {promoTemplates.map((template) => {
+                  const hint = templateAngleHint(template.idea)
+                  const aiLine = templatePreviews[template.name] ?? null
+                  return (
+                    <Button
+                      key={template.name}
+                      type="button"
+                      variant="ghost"
+                      disabled={isGenerating}
+                      className={cn(
+                        'group flex h-auto min-h-[5.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-2 overflow-hidden rounded-xl border border-border/50 bg-background/40 p-5 text-left whitespace-normal [text-wrap:pretty]',
+                        'transition-[border-color,background-color,box-shadow] duration-200',
+                        'hover:border-border hover:bg-muted/20 hover:shadow-sm',
+                        'focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                       )}
-                    </span>
-                  </Button>
-                ))}
+                      onClick={() => void applyTemplate(template)}
+                    >
+                      <span className="w-full min-w-0 text-[15px] font-semibold leading-snug tracking-tight text-foreground">
+                        {template.name}
+                      </span>
+                      <span className="line-clamp-3 w-full min-w-0 text-left text-[13px] leading-relaxed text-muted-foreground">
+                        {templatePreviewsLoading ? (
+                          <span className="inline-flex items-center gap-2 text-muted-foreground/75">
+                            <span
+                              className="inline-block h-1 w-1 rounded-full bg-muted-foreground/45 motion-safe:animate-pulse"
+                              aria-hidden
+                            />
+                            <span>Loading preview</span>
+                          </span>
+                        ) : aiLine ? (
+                          <span className="text-foreground/85">{aiLine}</span>
+                        ) : (
+                          hint
+                        )}
+                      </span>
+                    </Button>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-                <Share2 className="h-4 w-4 text-muted-foreground" aria-hidden />
-                Share & copy
-              </CardTitle>
-              <CardDescription className="text-sm">Per-channel actions.</CardDescription>
+        <div className="space-y-5">
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1 pb-3 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight">Share & copy</CardTitle>
+              <CardDescription className="text-[15px] leading-relaxed">
+                Copy your draft or open a share window where the platform supports it.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 px-5 pb-6 sm:px-6 sm:pb-7">
               {socialPlatforms.map((platform) => {
                 const Icon = platform.icon
                 const shareUrl = platform.shareUrl?.(fullPostText, linkUrl)
                 return (
                   <div
                     key={platform.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/15 p-3"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/40 px-3 py-2.5"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                        style={{ backgroundColor: `${platform.color}18` }}
-                      >
-                        <Icon className="h-5 w-5" style={{ color: platform.color }} />
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/80">
+                        <Icon className="h-4 w-4 text-foreground/85" aria-hidden />
                       </div>
-                      <span className="truncate text-sm font-medium">{platform.name}</span>
+                      <span className="truncate text-sm font-medium text-foreground">{platform.name}</span>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-full"
+                        className="h-9 w-9 rounded-lg border-border/70 p-0 shadow-none"
                         type="button"
                         onClick={() => copyToClipboard(fullPostText, platform.id)}
                         aria-label={`Copy full post for ${platform.name}`}
@@ -549,7 +572,8 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                       {shareUrl ? (
                         <Button
                           size="sm"
-                          className="rounded-full"
+                          variant="outline"
+                          className="h-9 w-9 rounded-lg border-border/70 p-0 shadow-none"
                           type="button"
                           onClick={() => window.open(shareUrl, '_blank', 'width=600,height=400')}
                           aria-label={`Open ${platform.name} share window`}
@@ -564,18 +588,20 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="pb-3">
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1 pb-3 pt-6 sm:pt-7">
               <CardTitle className="text-base font-semibold tracking-tight">Length check</CardTitle>
-              <CardDescription className="text-sm">Rough fit vs typical limits.</CardDescription>
+              <CardDescription className="text-[15px] leading-relaxed">
+                Rough character fit vs common limits.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 px-5 pb-6 sm:px-6 sm:pb-7">
               {socialPlatforms.map((p) => {
                 const over = fullPostText.length > p.charLimit
                 return (
                   <div
                     key={`prev-${p.id}`}
-                    className="rounded-xl border border-border/60 bg-muted/20 p-3 text-xs leading-relaxed"
+                    className="rounded-xl border border-border/60 bg-background/40 p-3 text-xs leading-relaxed"
                   >
                     <div className="mb-1 flex items-center justify-between gap-2">
                       <span className="font-medium">{p.name}</span>
@@ -590,23 +616,23 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="pb-3">
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="pb-3 pt-6 sm:pt-7">
               <CardTitle className="text-base font-semibold tracking-tight">Live preview</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
+            <CardContent className="px-5 pb-6 sm:px-6 sm:pb-7">
+              <div className="rounded-xl border border-border/60 bg-background/50 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
                 {fullPostText || 'Your post will appear here…'}
               </div>
             </CardContent>
           </Card>
 
           {connectedPlatformLinks.filter((l) => l.url).length > 0 ? (
-            <Card className="overflow-hidden rounded-2xl border-primary/15 bg-primary/[0.03] shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Quick OnlyFans / Fansly</CardTitle>
+            <Card className="overflow-hidden rounded-2xl border border-dashed border-border/70 bg-muted/10 shadow-none">
+              <CardHeader className="pb-2 pt-5">
+                <CardTitle className="text-sm font-medium text-muted-foreground">OnlyFans & Fansly URLs</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+              <CardContent className="flex flex-wrap gap-2 px-5 pb-5 sm:px-6 sm:pb-6">
                 {connectedPlatformLinks
                   .filter((l) => l.url)
                   .map((link) => (
@@ -614,8 +640,8 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                       key={link.platform}
                       type="button"
                       size="sm"
-                      variant="secondary"
-                      className="rounded-full"
+                      variant="outline"
+                      className="rounded-full border-border/70 shadow-none"
                       onClick={() => copyToClipboard(link.url, `pf-${link.platform}`)}
                       aria-label={`Copy ${link.platform} URL`}
                     >

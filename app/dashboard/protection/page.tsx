@@ -104,7 +104,7 @@ export default async function ProtectionPage() {
 
       <section className="space-y-2">
         <h2 className="px-0.5 text-sm font-medium text-foreground sm:text-base">Run a scan</h2>
-        <div className="rounded-xl border border-border/60 bg-card/20 p-3 shadow-sm sm:p-4">
+        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm backdrop-blur-sm sm:p-6 dark:bg-card/20">
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading protection tools…</p>}>
             <ProtectionDashboard
               activeAlerts={activeAlerts as LeakAlert[]}

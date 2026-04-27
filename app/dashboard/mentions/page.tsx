@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent } from '@/components/ui/card'
 import { Bell, ThumbsUp, Minus, ThumbsDown } from 'lucide-react'
 import type { ReputationMention } from '@/lib/types'
 import { MentionsHeader } from '@/components/dashboard/mentions-header'
@@ -8,10 +7,13 @@ import { MentionsConnectBanner } from '@/components/dashboard/mentions-connect-b
 import { ReputationBriefingCard } from '@/components/dashboard/reputation-briefing-card'
 import { ReputationIdentityCard } from '@/components/dashboard/reputation-identity-card'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
+import { cn } from '@/lib/utils'
 
 export default async function MentionsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) return null
 
@@ -47,18 +49,27 @@ export default async function MentionsPage() {
     (profileRow as { reputation_display_name?: string | null } | null)?.reputation_display_name ?? null
 
   const allMentions = (mentions || []) as ReputationMention[]
-  const unreviewed = allMentions.filter(m => !m.is_reviewed)
-  const reviewed = allMentions.filter(m => m.is_reviewed)
+  const unreviewed = allMentions.filter((m) => !m.is_reviewed)
+  const reviewed = allMentions.filter((m) => m.is_reviewed)
 
-  const positiveCount = allMentions.filter(m => m.sentiment === 'positive').length
-  const neutralCount = allMentions.filter(m => m.sentiment === 'neutral').length
-  const negativeCount = allMentions.filter(m => m.sentiment === 'negative').length
+  const positiveCount = allMentions.filter((m) => m.sentiment === 'positive').length
+  const neutralCount = allMentions.filter((m) => m.sentiment === 'neutral').length
+  const negativeCount = allMentions.filter((m) => m.sentiment === 'negative').length
+
+  const statItems = [
+    { label: 'To review', value: unreviewed.length, icon: Bell, tone: 'text-foreground' as const },
+    { label: 'Positive', value: positiveCount, icon: ThumbsUp, tone: 'text-emerald-600 dark:text-emerald-400' as const },
+    { label: 'Neutral', value: neutralCount, icon: Minus, tone: 'text-muted-foreground' as const },
+    { label: 'Negative', value: negativeCount, icon: ThumbsDown, tone: 'text-destructive' as const },
+  ]
 
   return (
-    <div className="space-y-5 min-w-0">
+    <div className="mx-auto min-w-0 max-w-4xl space-y-10 sm:space-y-12">
       <MentionsHeader />
 
-      <MentionsConnectBanner />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground/85">
+        <MentionsConnectBanner />
+      </div>
 
       <ReputationIdentityCard
         initialManualHandles={initialManualHandles}
@@ -66,24 +77,21 @@ export default async function MentionsPage() {
         initialOnlyfans={initialOnlyfans}
       />
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/60 bg-border/30 sm:grid-cols-4">
-        {[
-          { label: 'To review', value: unreviewed.length, icon: Bell, iconClass: 'text-primary' },
-          { label: 'Positive', value: positiveCount, icon: ThumbsUp, iconClass: 'text-chart-2' },
-          { label: 'Neutral', value: neutralCount, icon: Minus, iconClass: 'text-muted-foreground' },
-          { label: 'Negative', value: negativeCount, icon: ThumbsDown, iconClass: 'text-destructive' },
-        ].map(({ label, value, icon: Icon, iconClass }) => (
-          <Card key={label} className="rounded-none border-0 bg-card/90 shadow-none">
-            <CardContent className="flex items-center gap-3 p-3 sm:p-4">
-              <Icon className={`h-4 w-4 shrink-0 ${iconClass}`} aria-hidden />
+      <section aria-label="Mention counts">
+        <div className="grid grid-cols-2 divide-x divide-border/40 rounded-2xl border border-border/50 bg-muted/10 sm:grid-cols-4 dark:bg-muted/5">
+          {statItems.map(({ label, value, icon: Icon, tone }) => (
+            <div key={label} className="flex items-center gap-3 px-4 py-4 sm:px-5 sm:py-5">
+              <Icon className={cn('h-4 w-4 shrink-0 opacity-80', tone)} aria-hidden />
               <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                <p className="text-lg font-bold tabular-nums leading-none sm:text-xl">{value}</p>
+                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">{label}</p>
+                <p className="mt-0.5 text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
+                  {value}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <ReputationBriefingCard
         initialBriefing={initialBriefing}

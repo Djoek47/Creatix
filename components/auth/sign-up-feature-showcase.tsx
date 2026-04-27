@@ -10,7 +10,7 @@ const FEATURE_ROTATE_MS = 5000
 
 const FEATURES: { icon: LucideIcon; text: string; color: string }[] = [
   { icon: Moon, text: 'Circe — retention, protection & analytics', color: 'text-circe' },
-  { icon: Sun, text: 'Venus — fans, mentions & housekeeping', color: 'text-venus' },
+  { icon: Sun, text: 'Venus — fans, mentions & Fan Atlas', color: 'text-venus' },
   { icon: Mic, text: 'Divine Manager — voice & chat', color: 'text-primary' },
   { icon: MessageSquare, text: 'Unified inbox — OnlyFans & Fansly', color: 'text-venus' },
   { icon: Shield, text: 'Leak alerts & DMCA drafts (you approve)', color: 'text-circe' },

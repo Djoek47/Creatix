@@ -59,6 +59,10 @@ import {
 } from '@/lib/divine/mimic-types'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
+import { cn } from '@/lib/utils'
+
+const SETTINGS_GLASS_CARD =
+  'rounded-2xl border border-white/45 bg-white/55 py-0 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.52)]'
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'usage' | 'integrations' | 'data' | 'preferences'
 
@@ -264,8 +268,15 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-[42vh] items-center justify-center px-2">
+        <div
+          className={cn(
+            SETTINGS_GLASS_CARD,
+            'flex w-full max-w-[360px] items-center justify-center border-dashed py-20',
+          )}
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Loading settings" />
+        </div>
       </div>
     )
   }
@@ -311,58 +322,79 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-4 min-w-0">
+    <div className="space-y-8">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-4 lg:gap-8">
         {/* Sidebar Navigation */}
-        <Card className="h-fit border-border bg-card lg:col-span-1 min-w-0">
-          <CardContent className="p-4">
+        <Card className={cn(SETTINGS_GLASS_CARD, 'h-fit min-w-0 lg:col-span-1')}>
+          <CardContent className="p-4 sm:p-5">
+            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Sections</p>
             <nav className="space-y-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex w-full min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    router.replace(`/dashboard/settings?tab=${tab.id}`, { scroll: false })
+                  }}
+                  className={cn(
+                    'flex w-full min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-[background-color,box-shadow,color] duration-200 ease-out',
                     activeTab === tab.id
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                  }`}
+                      ? 'bg-background/75 text-foreground shadow-sm ring-1 ring-border/40'
+                      : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+                  )}
                 >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
+                  <tab.icon className="h-4 w-4 shrink-0 opacity-80" />
                   {tab.label}
                 </button>
               ))}
             </nav>
-            <Separator className="my-4" />
-            <div className="space-y-1 text-sm">
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Terms of Service
+            <Separator className="my-4 bg-border/50" />
+            <div className="space-y-0.5 text-sm">
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                Terms
               </a>
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Privacy Policy
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                Privacy
               </a>
-              <a href="/contact" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Contact Support
+              <a
+                href="/contact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                Support
               </a>
               <Link
                 href="/dashboard/welcome?openTour=1"
-                className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg"
+                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
               >
-                <BookOpen className="h-3 w-3 flex-shrink-0" />
-                Full app tour
+                <BookOpen className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                App tour
               </Link>
             </div>
           </CardContent>
         </Card>
 
         {/* Main Content */}
-        <div className="space-y-6 lg:col-span-3 min-w-0 overflow-x-hidden">
+        <div className="min-w-0 space-y-6 overflow-x-hidden lg:col-span-3 lg:space-y-8">
           {/* Profile Section */}
           {activeTab === 'profile' && (
             <>
-            <Card className="border-border bg-card">
+            <Card className={SETTINGS_GLASS_CARD}>
               <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold">
                 <User className="h-5 w-5" />
@@ -482,26 +514,27 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Theme Toggle */}
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                <div className="flex items-center justify-between rounded-xl border border-border/35 bg-background/30 p-4 backdrop-blur-sm">
                   <div className="flex items-center gap-3">
                     {theme === 'dark' ? (
-                      <Moon className="h-5 w-5 text-circe" />
+                      <Moon className="h-5 w-5 text-muted-foreground" />
                     ) : (
-                      <Sun className="h-5 w-5 text-venus" />
+                      <Sun className="h-5 w-5 text-muted-foreground" />
                     )}
                     <div>
-                      <p className="font-medium">Theme</p>
+                      <p className="text-sm font-medium">Appearance</p>
                       <p className="text-sm text-muted-foreground">
-                        {theme === 'dark' ? 'Circe (Night Mode)' : 'Venus (Day Mode)'}
+                        {theme === 'dark' ? 'Dark' : 'Light'}
                       </p>
                     </div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="rounded-lg border-border/40"
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                   >
-                    Switch to {theme === 'dark' ? 'Venus' : 'Circe'}
+                    Use {theme === 'dark' ? 'light' : 'dark'}
                   </Button>
                 </div>
 
@@ -528,7 +561,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border bg-card">
+            <Card className={SETTINGS_GLASS_CARD}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-semibold">
                   <Sparkles className="h-5 w-5" />
@@ -558,7 +591,7 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           {activeTab === 'notifications' && (
-            <Card className="border-border bg-card">
+            <Card className={SETTINGS_GLASS_CARD}>
               <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold">
                 <Bell className="h-5 w-5" />
@@ -760,7 +793,7 @@ export default function SettingsPage() {
             <>
               <SecuritySettings />
 
-              <Card className="border-border bg-card">
+              <Card className={SETTINGS_GLASS_CARD}>
                 <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold">
                 <Globe className="h-5 w-5" />
@@ -807,7 +840,7 @@ export default function SettingsPage() {
                     fanPlatformConnected={integrations.onlyfans || integrations.fansly}
                   />
 
-                  <Card className="border-border bg-card">
+                  <Card className={SETTINGS_GLASS_CARD}>
                     <CardHeader>
                       <CardTitle className="font-semibold">Social Media</CardTitle>
                       <CardDescription>
@@ -852,7 +885,7 @@ export default function SettingsPage() {
                   </Card>
                 </>
               ) : (
-                <Card className="border-border bg-card">
+                <Card className={SETTINGS_GLASS_CARD}>
                   <CardHeader>
                     <CardTitle className="font-semibold">Creator API & integrations</CardTitle>
                     <CardDescription>{getNonApiUpgradeMessage()}</CardDescription>
@@ -870,7 +903,7 @@ export default function SettingsPage() {
           {/* Data & Privacy Section */}
           {activeTab === 'data' && (
             <>
-              <Card className="border-border bg-card">
+              <Card className={SETTINGS_GLASS_CARD}>
                 <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold">
                 <Database className="h-5 w-5" />
@@ -905,7 +938,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-card">
+              <Card className={SETTINGS_GLASS_CARD}>
                 <CardHeader>
                   <CardTitle className="font-semibold">Privacy Settings</CardTitle>
                   <CardDescription>Control how your data is used</CardDescription>
@@ -928,7 +961,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-destructive/50 bg-card">
+              <Card className={cn(SETTINGS_GLASS_CARD, 'border-destructive/35 ring-1 ring-destructive/10')}>
                 <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold text-destructive">
                 <AlertTriangle className="h-5 w-5" />
@@ -963,7 +996,7 @@ export default function SettingsPage() {
 
           {/* Preferences Section */}
           {activeTab === 'preferences' && (
-            <Card className="border-border bg-card">
+            <Card className={SETTINGS_GLASS_CARD}>
               <CardHeader>
 <CardTitle className="flex items-center gap-2 font-semibold">
                 <Settings2 className="h-5 w-5" />

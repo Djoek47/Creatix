@@ -7,6 +7,7 @@ import { MessagesFocusChromeProvider } from '@/components/messages/messages-focu
 import { OnboardingProvider } from '@/components/onboarding/onboarding-provider'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
+import { DashboardCelestialBackdrop } from '@/components/dashboard/dashboard-celestial-backdrop'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
@@ -72,9 +73,10 @@ export default async function DashboardLayout({
               <DashboardDocumentScrollLock />
               <DashboardRealmEntrance />
               <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />
-              <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">
+              <div className="relative flex h-dvh max-h-dvh min-h-0 overflow-hidden">
+                <DashboardCelestialBackdrop />
                 {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
-                <div className="hidden h-full min-h-0 md:flex md:flex-col">
+                <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">
                   <DashboardSidebar user={user} profile={profile} />
                 </div>
                 <MessagesFocusChromeProvider>

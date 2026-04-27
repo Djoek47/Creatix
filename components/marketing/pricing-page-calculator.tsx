@@ -82,7 +82,8 @@ export function PricingPageCalculator({
   const [tierIndexInternal, setTierIndexInternal] = useState(2)
   const [bandCyclePaused, setBandCyclePaused] = useState(false)
   const [planGlowPulse, setPlanGlowPulse] = useState(false)
-  const [multiLogoIndex, setMultiLogoIndex] = useState(0)
+  /** Multiplatform logo grid: `'all'` = four small together; `0..3` = spotlight one tile at a time (no overlap pop). */
+  const [multiLogoSpotlight, setMultiLogoSpotlight] = useState<'all' | number>('all')
   const planGlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [otherPlatformBundleEnabled, setOtherPlatformBundleEnabled] = useState(false)
   const [protectionOnly, setProtectionOnly] = useState(false)
@@ -144,12 +145,38 @@ export function PricingPageCalculator({
   }, [platformMotionKey])
 
   useEffect(() => {
-    if (surface === 'settings') return
-    const id = setInterval(() => {
-      setMultiLogoIndex((i) => (i + 1) % MULTIPLATFORM_LOGOS.length)
-    }, 2000)
-    return () => clearInterval(id)
-  }, [surface])
+    if (surface === 'settings' || reduceMotion) return
+    let cancelled = false
+    let step = 0
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const schedule = () => {
+      if (cancelled) return
+      if (step === 0) {
+        setMultiLogoSpotlight('all')
+        timeoutId = setTimeout(() => {
+          step = 1
+          schedule()
+        }, 1500)
+      } else if (step >= 1 && step <= MULTIPLATFORM_LOGOS.length) {
+        setMultiLogoSpotlight(step - 1)
+        timeoutId = setTimeout(() => {
+          step = step === MULTIPLATFORM_LOGOS.length ? 0 : step + 1
+          schedule()
+        }, 720)
+      }
+    }
+
+    schedule()
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [surface, reduceMotion])
+
+  useEffect(() => {
+    if (reduceMotion) setMultiLogoSpotlight('all')
+  }, [reduceMotion])
 
   const derivedTier = useMemo(() => {
     const n = Number.parseFloat(revenueInput.replace(/,/g, ''))
@@ -585,17 +612,20 @@ export function PricingPageCalculator({
       {showProtectionFooter ? (
         <div className="mt-10 border-t border-border/25 pt-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="grid h-[4.5rem] w-[4.5rem] shrink-0 grid-cols-2 gap-1 overflow-visible rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-1.5 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20">
+            <div className="grid h-[4.5rem] w-[4.5rem] shrink-0 grid-cols-2 gap-1 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-1.5 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20">
               {MULTIPLATFORM_LOGOS.map((src, idx) => {
-                const active = idx === multiLogoIndex
+                const quartet = multiLogoSpotlight === 'all'
+                const spotlighted = !quartet && multiLogoSpotlight === idx
+                const dimmed = !quartet && multiLogoSpotlight !== idx
                 return (
                   <span
                     key={src}
                     className={cn(
-                      'inline-flex items-center justify-center rounded-md bg-card/90 transition-all duration-500 ease-out',
-                      active
-                        ? 'z-10 scale-[1.38] overflow-visible ring-2 ring-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.55)]'
-                        : 'scale-[0.88] overflow-hidden opacity-45',
+                      'inline-flex min-h-0 min-w-0 items-center justify-center rounded-md bg-card/90 transition-all duration-500 ease-out',
+                      quartet && 'scale-[0.9] opacity-[0.72]',
+                      spotlighted &&
+                        'z-[1] scale-100 opacity-100 ring-2 ring-amber-400/75 shadow-[0_0_12px_rgba(251,191,36,0.35)]',
+                      dimmed && 'scale-[0.78] opacity-[0.28]',
                     )}
                   >
                     <Image
@@ -605,7 +635,9 @@ export function PricingPageCalculator({
                       height={40}
                       className={cn(
                         'object-contain transition-all duration-500 ease-out',
-                        active ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-[15px] w-[15px] sm:h-4 sm:w-4',
+                        quartet && 'h-[14px] w-[14px] sm:h-4 sm:w-4',
+                        spotlighted && 'h-7 w-7 sm:h-8 sm:w-8',
+                        dimmed && 'h-[11px] w-[11px] sm:h-3 sm:w-3',
                       )}
                     />
                   </span>

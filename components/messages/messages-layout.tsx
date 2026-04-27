@@ -134,34 +134,43 @@ function WorkspaceKpiPanel({
   setWorkspaceTagVisibility: Dispatch<SetStateAction<Record<string, boolean>>>
 }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-card/85 px-3 py-2 shadow-sm">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Total conversations</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
+    <div
+      className={cn(
+        'rounded-2xl border border-white/45 bg-white/60 px-4 py-3 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150',
+        'dark:border-white/[0.10] dark:bg-slate-950/50 dark:shadow-[0_24px_70px_-32px_rgba(0,0,0,0.55)]',
+      )}
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Total conversations
+          </p>
+          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
             {workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—'}
           </p>
         </div>
-        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Response rate</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
+        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Response rate</p>
+          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
             {workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—'}
           </p>
         </div>
-        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Avg. response time</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
+        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Avg. response time
+          </p>
+          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
             {workspaceStats?.kpis.avgResponseTimeLabel ?? '—'}
           </p>
         </div>
-        <div className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-2">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Messages today</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
+        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Messages today</p>
+          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
             {workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—'}
           </p>
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {(workspaceStats?.customTags ?? []).map((tag) => {
           const visible = workspaceTagVisibility[tag.id] !== false
           return (
@@ -169,10 +178,10 @@ function WorkspaceKpiPanel({
               key={tag.id}
               type="button"
               className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] transition-colors',
+                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition-[background-color,border-color,opacity] duration-200',
                 visible
-                  ? 'border-border/70 bg-muted/20 text-muted-foreground hover:bg-accent'
-                  : 'border-dashed border-border/50 bg-background/40 text-muted-foreground/60',
+                  ? 'border-border/40 bg-background/45 text-muted-foreground hover:bg-background/65'
+                  : 'border-dashed border-border/45 bg-background/25 text-muted-foreground/65 hover:bg-background/40',
               )}
               onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
               title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
@@ -182,8 +191,8 @@ function WorkspaceKpiPanel({
           )
         })}
         {workspaceStatsLoading ? (
-          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Updating metrics
           </span>
         ) : null}
@@ -685,12 +694,11 @@ function MessagesLayoutContent({
 
   const showKpiStripInline = !focusMode && kpiStripVisible && !isMobile
 
+  const toolbarIconBtn =
+    'rounded-xl border border-border/35 bg-background/40 shadow-sm backdrop-blur-md transition-[background-color,border-color,box-shadow] duration-200 ease-out hover:bg-background/60'
+
   return (
-    <div
-      className={cn(
-        'flex w-full min-h-0 flex-1 flex-col',
-      )}
-    >
+    <div className="flex w-full min-h-0 flex-1 flex-col px-0 sm:px-0.5">
       {showMobileFocusStrip && view === 'conversations' ? (
         <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2 sm:mb-3">
           <div className="flex items-center gap-2">
@@ -748,38 +756,53 @@ function MessagesLayoutContent({
             </Button>
           )}
           <div className="min-w-0">
-            <p className="truncate text-[12px] font-medium tracking-tight text-muted-foreground sm:text-[13px]">
+            <p className="truncate text-[13px] font-medium leading-snug tracking-tight text-foreground/80 sm:text-sm">
               {conversationsSubtitle}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0 sm:gap-2">
-          <div className="hidden rounded-md border border-border p-0.5 sm:flex">
+        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="hidden rounded-xl border border-border/30 bg-background/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04] sm:flex">
             <Button
-              variant={view === 'conversations' ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="sm"
-              className="h-8 gap-1.5"
+              className={cn(
+                'h-8 gap-1.5 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                view === 'conversations'
+                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
+                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+              )}
               onClick={() => setView('conversations')}
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Chats
             </Button>
             <Button
-              variant={view === 'insights' ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="sm"
-              className="h-8 gap-1.5"
+              className={cn(
+                'h-8 gap-1.5 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                view === 'insights'
+                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
+                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+              )}
               onClick={() => setView('insights')}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               Insights
             </Button>
           </div>
-          <div className="flex rounded-md border border-border p-0.5 sm:hidden">
+          <div className="flex rounded-xl border border-border/30 bg-background/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04] sm:hidden">
             <Button
               type="button"
-              variant={view === 'conversations' ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className={cn(
+                'h-9 w-9 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                view === 'conversations'
+                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
+                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+              )}
               onClick={() => setView('conversations')}
               aria-label="Chats"
               title="Chats"
@@ -788,9 +811,14 @@ function MessagesLayoutContent({
             </Button>
             <Button
               type="button"
-              variant={view === 'insights' ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className={cn(
+                'h-9 w-9 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                view === 'insights'
+                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
+                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+              )}
               onClick={() => setView('insights')}
               aria-label="Insights"
               title="Insights"
@@ -868,7 +896,12 @@ function MessagesLayoutContent({
       ) : null}
 
       {view === 'conversations' && inboxMeta?.degraded ? (
-        <div className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <div
+          className={cn(
+            'mb-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-[13px] leading-snug backdrop-blur-sm',
+            'text-amber-950/90 dark:border-amber-400/20 dark:bg-amber-400/[0.09] dark:text-amber-50/90',
+          )}
+        >
           {inboxMeta.partial
             ? 'Inbox is partially loaded. One provider is degraded; showing available conversations.'
             : 'A provider is currently degraded, which may affect inbox freshness.'}
@@ -927,7 +960,7 @@ function MessagesLayoutContent({
             transition={fadeTransition}
             className={cn(
               'flex min-h-0 flex-1 flex-col',
-              !focusMode && 'gap-2.5',
+              !focusMode && 'gap-3',
               hideMessagesToolbar && 'pt-12',
             )}
           >

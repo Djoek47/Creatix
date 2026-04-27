@@ -62,8 +62,8 @@ const ENTRIES: Entry[] = [
     meta: {
       eyebrow: 'Toolkit',
       title: 'AI tools',
-      subtitle: 'Search, filter, run — credits apply where marked.',
-      heroVariant: 'ai-tools',
+      subtitle: 'Browse, learn what each tool does, then open the one you need. Credits apply where noted.',
+      heroVariant: 'minimal',
     },
   },
   {
@@ -123,7 +123,8 @@ const ENTRIES: Entry[] = [
       eyebrow: 'Growth',
       title: 'Social hub',
       subtitle:
-        'Draft posts that pull to OnlyFans and Fansly, curate your link-in-bio stack, and run reputation scans in one calm workspace.',
+        'Draft posts for off-platform reach, manage link-in-bio, and run reputation scans — one quiet workspace.',
+      heroVariant: 'minimal',
     },
   },
   {
@@ -132,7 +133,8 @@ const ENTRIES: Entry[] = [
       eyebrow: 'Insight',
       title: 'Analytics',
       subtitle:
-        'Circe snapshots from your syncs, plus live OnlyFans partner metrics when you are connected — curves, mix, and the story the numbers whisper.',
+        'Synced snapshots and live partner metrics when connected — revenue, audience, and message activity in one view.',
+      heroVariant: 'minimal',
     },
   },
   {
@@ -158,14 +160,16 @@ const ENTRIES: Entry[] = [
       eyebrow: 'Mentions',
       title: 'Venus’ watch',
       subtitle: 'Indexed web mentions, sentiment, and a calm review queue.',
+      heroVariant: 'minimal',
     },
   },
   {
     prefix: '/dashboard/settings',
     meta: {
-      eyebrow: 'Sovereignty',
+      eyebrow: 'Account',
       title: 'Settings',
-      subtitle: 'Account, integrations, and the quiet switches that run your world.',
+      subtitle: 'Profile, billing, integrations, and privacy — one calm place.',
+      heroVariant: 'minimal',
     },
   },
   {

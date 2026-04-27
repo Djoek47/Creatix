@@ -109,12 +109,14 @@ export function VoiceControlPopup() {
   }
 
   const crownClassName = cn(
-    'divine-fab-crown divine-crown-trigger grid w-[4.125rem] min-w-[66px] shrink-0 place-items-center p-0 leading-none transition-colors',
+    'divine-fab-crown divine-crown-trigger grid w-[4.125rem] min-w-[66px] shrink-0 place-items-center p-0 leading-none',
+    'transition-[transform,box-shadow,filter,color] duration-200 ease-out',
+    'motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
     expanded
-      ? 'h-full min-h-[4.125rem] self-stretch rounded-none border-l border-white/15'
-      : 'h-[4.125rem] min-h-[66px] rounded-full border border-white/15 shadow-lg',
+      ? 'h-full min-h-[4.125rem] self-stretch rounded-none border-l border-black/10 dark:border-white/12'
+      : 'h-[4.125rem] min-h-[66px] rounded-full border border-black/[0.08] dark:border-white/[0.14]',
     crownStateClass,
-    'hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-0',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/18 focus-visible:ring-offset-0',
   )
 
   const renderCrownButton = () => {

@@ -18,8 +18,9 @@ export function StartTourButton({ className }: { className?: string }) {
   return (
     <Button
       asChild
+      variant="outline"
       className={cn(
-        'gap-2 shadow-lg shadow-primary/15',
+        'h-9 gap-2 rounded-full border-amber-500/50 bg-amber-400/[0.14] px-4 text-[13px] font-semibold text-amber-950 shadow-none transition-all duration-300 hover:border-amber-500/65 hover:bg-amber-400/[0.24] dark:border-amber-400/45 dark:bg-amber-400/[0.12] dark:text-amber-100 dark:hover:border-amber-300/60 dark:hover:bg-amber-400/[0.2]',
         !completed && 'tour-start-prompt',
         className,
       )}
@@ -30,8 +31,11 @@ export function StartTourButton({ className }: { className?: string }) {
           : 'Start the full live app tour (navigates real pages with highlights)'
       }
     >
-      <Link href={LIVE_TOUR_HREF}>
-        <Sparkles className="h-4 w-4" aria-hidden />
+      <Link href={LIVE_TOUR_HREF} className="flex items-center gap-2">
+        <Sparkles
+          className="h-4 w-4 shrink-0 text-amber-700 motion-safe:animate-pulse dark:text-amber-200"
+          aria-hidden
+        />
         {completed ? 'Launch live tour' : 'Start live tour'}
       </Link>
     </Button>

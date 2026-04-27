@@ -14,6 +14,7 @@ type Props = {
   idPrefix?: string
   /** Extra classes for the “All identities” checkbox (e.g. highlight glow). */
   allCheckboxClassName?: string
+  className?: string
 }
 
 export function ScanHandlePicker({
@@ -24,11 +25,17 @@ export function ScanHandlePicker({
   onToggle,
   idPrefix = 'scan-handle',
   allCheckboxClassName,
+  className,
 }: Props) {
   if (handles.length === 0) return null
 
   return (
-    <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
+    <div
+      className={cn(
+        'space-y-3 rounded-md border border-border bg-muted/20 p-3 text-xs',
+        className,
+      )}
+    >
       <div className="flex items-center gap-2">
         <Checkbox
           id={`${idPrefix}-all`}
@@ -36,7 +43,7 @@ export function ScanHandlePicker({
           onCheckedChange={(c) => onUseAllChange(c === true)}
           className={cn(allCheckboxClassName)}
         />
-        <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer font-medium">
+        <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer text-[13px] font-medium leading-snug">
           All identities
         </Label>
       </div>
@@ -51,7 +58,7 @@ export function ScanHandlePicker({
               />
               <Label
                 htmlFor={`${idPrefix}-${h.value}`}
-                className="cursor-pointer font-normal leading-tight"
+                className="cursor-pointer text-[13px] font-normal leading-snug"
               >
                 {h.label}
               </Label>

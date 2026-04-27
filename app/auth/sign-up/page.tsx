@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ThemedLogo } from '@/components/themed-logo'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
 import { SignUpFeatureShowcase } from '@/components/auth/sign-up-feature-showcase'
 import { createClient } from '@/lib/supabase/client'
@@ -20,12 +20,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,47 +56,66 @@ export default function SignUpPage() {
         <AuthScenicBackdrop />
       </div>
 
-      {/* Left — form */}
-      <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-12">
+      {/* Left — form (matches login glass + typography) */}
+      <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16 sm:px-6">
         <Link
           href="/"
-          className="absolute left-6 top-6 z-10 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:left-8 sm:top-8"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
+          <ArrowLeft className="h-4 w-4 opacity-70" />
+          Back
         </Link>
 
-        {/* Logo */}
-        <div className="relative z-10 mb-8 flex flex-col items-center gap-3">
-          <ThemedLogo
-            width={100}
-            height={100}
-            className="rounded-full"
-            priority
+        <div className="relative z-10 mb-10 flex flex-col items-center gap-5 sm:mb-12">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-[-3rem] rounded-[3rem] bg-gradient-to-b from-violet-500/[0.07] via-transparent to-transparent blur-3xl dark:from-amber-400/[0.06]"
           />
-          <h1 className={cn(
-            "font-serif text-xl font-bold tracking-wider text-primary",
-            mounted && "dark:text-circe-light"
-          )}>CIRCE ET VENUS</h1>
+          <ThemedLogo width={96} height={96} className="relative z-10 rounded-full" priority />
+          <div className="relative z-10 text-center">
+            <p className="font-serif text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+              Circe et Venus
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground/90">Creator workspace</p>
+          </div>
         </div>
 
-        <Card className="relative z-10 w-full max-w-md border-primary/20 bg-card">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Join the Divine Realm</CardTitle>
-            <CardDescription>
-              Begin your 2-day celestial trial (card required)
+        <Card
+          className={cn(
+            'relative z-10 w-full max-w-[420px] gap-0 overflow-hidden rounded-3xl py-0',
+            'border border-white/50 bg-white/55 shadow-[0_24px_80px_-20px_rgba(15,23,42,0.18)] backdrop-blur-2xl',
+            'dark:border-white/[0.12] dark:bg-slate-950/45 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] dark:backdrop-blur-2xl',
+          )}
+        >
+          <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
+            <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
+              Create your account
+            </CardTitle>
+            <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
+              Start with a 2-day trial. A card on file is required to activate billing after the trial.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="px-8 pb-10 pt-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-destructive/20 bg-destructive/[0.06] px-4 py-3.5 text-sm text-destructive"
+                >
+                  <div className="flex gap-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-medium leading-snug text-destructive">Unable to create your account</p>
+                      <p className="text-xs leading-relaxed text-destructive/85">{error}</p>
+                    </div>
+                  </div>
                 </div>
               )}
-              
+
               <div className="space-y-2">
-                <Label htmlFor="fullName">Your Name</Label>
+                <Label htmlFor="fullName" className="text-[13px] font-medium text-foreground">
+                  Name
+                </Label>
                 <Input
                   id="fullName"
                   type="text"
@@ -109,12 +123,15 @@ export default function SignUpPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="name"
+                  className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-[13px] font-medium text-foreground">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -122,48 +139,60 @@ export default function SignUpPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="email"
+                  className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-[13px] font-medium text-foreground">
+                  Password
+                </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Create a sacred password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="new-password"
+                  className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters
-                </p>
+                <p className="text-xs text-muted-foreground">At least 8 characters.</p>
               </div>
 
-              <Button type="submit" className={cn(
-                "w-full min-h-[44px] bg-primary hover:bg-primary/90 text-primary-foreground",
-                mounted && "dark:bg-circe dark:hover:bg-circe/90"
-              )} disabled={loading}>
+              <Button
+                type="submit"
+                disabled={loading}
+                className={cn(
+                  'h-12 w-full rounded-xl text-[15px] font-medium tracking-tight shadow-none',
+                  'bg-foreground text-background hover:bg-foreground/88',
+                  'dark:bg-white dark:text-slate-950 dark:hover:bg-white/90',
+                  'transition-[opacity,background-color,transform] duration-200 active:scale-[0.99]',
+                  'disabled:opacity-50',
+                )}
+              >
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Awakening the goddesses...
-                  </>
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin opacity-80" />
+                    Creating account…
+                  </span>
                 ) : (
-                  'Begin Your Journey'
+                  'Continue'
                 )}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already blessed by the goddesses?{' '}
-              <Link href="/auth/login" className="font-medium text-primary hover:underline">
-                Enter the realm
+            <p className="mt-8 text-center text-[15px] text-muted-foreground">
+              Already have an account?{' '}
+              <Link
+                href="/auth/login"
+                className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
+              >
+                Sign in
               </Link>
-            </div>
+            </p>
           </CardContent>
         </Card>
       </div>

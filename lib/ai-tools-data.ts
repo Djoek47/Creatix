@@ -67,7 +67,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Commenter',
     description: 'Post comments: CRM signals, personas, safety',
     longDescription:
-      'Work from the Commenter page on your dashboard. It pulls comments on your posts, stories, and streams so you can see who said what and how heated or positive it feels. You get several suggested public replies in different tones—playful, warm, flirty, or straight professional—plus one “best” blend to start from. Nothing posts for you: you copy what you like into OnlyFans. Odd or worrying threads can surface as Divine alerts so you do not miss them. If you want replies to lean a bit harder into upsell, you can turn that up in Divine Manager under automation settings for Commenter. Fan list housekeeping tools sit on the same page when you want lists to stay in sync with how people behave.',
+      'Work from the Commenter page on your dashboard. It pulls comments on your posts, stories, and streams so you can see who said what and how heated or positive it feels. You get several suggested public replies in different tones—playful, warm, flirty, or straight professional—plus one “best” blend to start from. Nothing posts for you: you copy what you like into OnlyFans. Odd or worrying threads can surface as Divine alerts so you do not miss them. If you want replies to lean a bit harder into upsell, you can turn that up in Divine Manager under automation settings for Commenter. Fan Atlas (smart list sync) lives on the same page when you want segments to stay honest.',
     category: 'engagement',
     badge: 'MVP',
     credits: 0,
@@ -75,12 +75,12 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   },
   {
     id: 'housekeeping',
-    name: 'Housekeeping',
-    description: 'Auto-classify fans: spend, threads & freeloaders',
+    name: 'Fan Atlas',
+    description: 'Map fans into segments: spend, threads & intent',
     longDescription:
-      'Keeps your audience buckets honest: who spends, who chats often, who has gone quiet, and who looks like a freeloader versus a real prospect. You choose what each bucket means under Fans → Arrangements, then tie buckets to your OnlyFans lists and Fansly tags. The same housekeeping panel lives on the Commenter page. A background job refreshes those lists on a schedule so whales, steady spenders, and “needs attention” groups stay up to date without you micromanaging spreadsheets. Works best alongside Commenter so what fans do in public and in DMs lines up in one place.',
+      'Keeps your audience buckets honest: who spends, who chats often, who has gone quiet, and who looks like a freeloader versus a real prospect. You choose what each bucket means under Fans → Arrangements, then tie buckets to your OnlyFans lists and Fansly tags. The same Fan Atlas panel lives on the Commenter page. A background job refreshes those lists on a schedule so whales, steady spenders, and “needs attention” groups stay up to date without you micromanaging spreadsheets. Works best alongside Commenter so what fans do in public and in DMs lines up in one place.',
     category: 'engagement',
-    badge: 'MVP',
+    badge: 'Beta',
     credits: 0,
     hasRunner: true,
   },

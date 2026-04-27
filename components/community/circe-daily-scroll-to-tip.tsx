@@ -12,9 +12,9 @@ export function CirceDailyScrollToTip() {
 
     const t = window.setTimeout(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      el.classList.add('ring-2', 'ring-circe/45', 'rounded-xl')
+      el.classList.add('ring-2', 'ring-ring/40', 'rounded-xl')
       window.setTimeout(() => {
-        el.classList.remove('ring-2', 'ring-circe/45', 'rounded-xl')
+        el.classList.remove('ring-2', 'ring-ring/40', 'rounded-xl')
       }, 2400)
     }, 120)
 

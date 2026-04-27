@@ -101,7 +101,7 @@ export async function runAiStudioToolServer(
       success: true,
       result: {
         content:
-          'Housekeeping runs Smart classify in the web app: Fans → Arrangements or Commenter → Housekeeping configure segments (spend tiers, active chat/thread activity, cold, freeloader new vs mature, spenders, recent subs). Cron housekeeping-fan-lists pushes matching fans to OnlyFans lists and Fansly CRM tags. No API execution here — open the dashboard to edit rules.',
+          'Fan Atlas runs Smart classify in the web app: Fans → Arrangements or Commenter → Fan Atlas configure segments (spend tiers, active chat/thread activity, cold, freeloader new vs mature, spenders, recent subs). Cron housekeeping-fan-lists pushes matching fans to OnlyFans lists and Fansly CRM tags. No API execution here — open the dashboard to edit rules.',
       },
     }
   }

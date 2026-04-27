@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AnalyticsSnapshot, Content } from '@/lib/types'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { AnalyticsCharts } from '@/components/analytics/analytics-charts'
 import { PlatformBreakdown } from '@/components/analytics/platform-breakdown'
 import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
 import Link from 'next/link'
-import { Activity, Link2, MessageCircle, Sparkles, TrendingUp } from 'lucide-react'
+import { Link2, MessageCircle, TrendingUp } from 'lucide-react'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 type Connection = {
@@ -19,13 +18,10 @@ type Connection = {
   last_sync_at?: string | null
 }
 
-const PLATFORM_META: Record<
-  string,
-  { label: string; logoSrc: string; ring: string; bg: string }
-> = {
-  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC, ring: 'ring-sky-500/40', bg: 'bg-sky-500/10' },
-  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC, ring: 'ring-blue-500/40', bg: 'bg-blue-500/10' },
-  mym: { label: 'MYM', logoSrc: '/mym-logo.png', ring: 'ring-zinc-500/40', bg: 'bg-zinc-950/40' },
+const PLATFORM_META: Record<string, { label: string; logoSrc: string }> = {
+  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC },
+  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC },
+  mym: { label: 'MYM', logoSrc: '/mym-logo.png' },
 }
 
 function formatNumber(amount: number): string {
@@ -119,148 +115,171 @@ export function AnalyticsDashboard({
   const showNone = () => setSelectedPlatforms([])
 
   return (
-    <div className="space-y-8 min-w-0">
-      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-circe/[0.03] p-5 sm:p-6">
-        <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-circe/10 blur-2xl" />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-circe">
-              <Activity className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-widest">Circe snapshot</span>
-            </div>
-            <h2 className="text-lg font-semibold sm:text-xl">What your synced numbers already tell us</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              These totals come from snapshots we save when you sync and when activity arrives from your connected
-              platforms. They anchor your dashboard charts — even when live numbers are still catching up.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
-            <Button asChild size="sm" variant="outline" className="gap-2">
-              <Link href="/dashboard/settings?tab=integrations">
-                <Link2 className="h-4 w-4" />
-                Integrations
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="gap-2">
-              <Link href="/dashboard/messages">
-                <MessageCircle className="h-4 w-4" />
-                Messages
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="gap-2 border-circe/40">
-              <Link href="/dashboard/analytics/income-predictor">
-                <TrendingUp className="h-4 w-4" />
-                Income Predictor
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="gap-2 bg-circe text-circe-foreground hover:bg-circe/90">
-              <Link href="/dashboard/retention/churn">
-                <Sparkles className="h-4 w-4" />
-                Churn predictor
-              </Link>
-            </Button>
-          </div>
+    <div className="min-w-0 space-y-8">
+      <section className="rounded-2xl border border-border/60 bg-card/25 px-5 py-5 sm:px-6 sm:py-6">
+        <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+          Figures below come from saved sync snapshots and activity from connected platforms. Use the filters to scope
+          charts; live OnlyFans partner data appears when your session is valid.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-9 gap-2 rounded-full border-border/70 shadow-none"
+          >
+            <Link href="/dashboard/settings?tab=integrations">
+              <Link2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              Integrations
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-9 gap-2 rounded-full border-border/70 shadow-none"
+          >
+            <Link href="/dashboard/messages">
+              <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              Messages
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-9 gap-2 rounded-full border-border/70 shadow-none"
+          >
+            <Link href="/dashboard/analytics/income-predictor">
+              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+              Income predictor
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-9 gap-2 rounded-full border-border/70 shadow-none"
+          >
+            <Link href="/dashboard/retention/churn">Churn predictor</Link>
+          </Button>
+        </div>
+      </section>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full border-border/70 px-3 text-xs shadow-none"
+            onClick={showAll}
+            disabled={!hasConnections}
+          >
+            All
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full px-3 text-xs text-muted-foreground"
+            onClick={showNone}
+            disabled={!hasConnections}
+          >
+            Clear
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {connectedPlatforms.map((platform) => {
+            const meta = PLATFORM_META[platform] || { label: platform, logoSrc: '' }
+            const selected = selectedPlatforms.includes(platform)
+            const lastSync = connections.find((c) => c.platform === platform)?.last_sync_at
+            return (
+              <button
+                key={platform}
+                type="button"
+                onClick={() => togglePlatform(platform)}
+                className={cn(
+                  'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                  selected
+                    ? 'border-foreground/20 bg-foreground/[0.06] text-foreground'
+                    : 'border-border/70 bg-background/60 text-muted-foreground hover:bg-muted/30 hover:text-foreground',
+                )}
+                aria-pressed={selected}
+                title={`${meta.label} • Last synced: ${formatLastSync(lastSync)}`}
+              >
+                {meta.logoSrc ? (
+                  <img
+                    src={meta.logoSrc}
+                    alt=""
+                    className="h-4 w-auto max-w-[4.25rem] object-contain object-center opacity-90"
+                  />
+                ) : null}
+                <span className="hidden sm:inline">{meta.label}</span>
+                <span className="tabular-nums text-[11px] text-muted-foreground sm:ml-0.5">
+                  {formatLastSync(lastSync)}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-end gap-4">
-        <div className="flex flex-col sm:items-end gap-2 flex-wrap w-full sm:w-auto">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={showAll} disabled={!hasConnections}>
-              All
-            </Button>
-            <Button size="sm" variant="ghost" onClick={showNone} disabled={!hasConnections}>
-              Clear
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {connectedPlatforms.map((platform) => {
-              const meta = PLATFORM_META[platform] || {
-                label: platform,
-                logoSrc: '',
-                ring: 'ring-border',
-                bg: 'bg-muted',
-              }
-              const selected = selectedPlatforms.includes(platform)
-              const lastSync = connections.find((c) => c.platform === platform)?.last_sync_at
-              return (
-                <button
-                  key={platform}
-                  type="button"
-                  onClick={() => togglePlatform(platform)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-2 text-sm transition',
-                    'border border-border hover:bg-muted/50',
-                    selected && 'ring-2 ring-offset-2 ring-offset-background',
-                    selected && meta.ring,
-                    selected && meta.bg,
-                  )}
-                  aria-pressed={selected}
-                  title={`${meta.label} • Last synced: ${formatLastSync(lastSync)}`}
-                >
-                  {meta.logoSrc ? (
-                    <img
-                      src={meta.logoSrc}
-                      alt={meta.label}
-                      className="h-4 w-auto max-w-[4.5rem] rounded-sm object-contain object-left"
-                    />
-                  ) : null}
-                  <span className="hidden sm:inline">{meta.label}</span>
-                  <Badge variant="secondary" className="ml-1 text-[10px]">
-                    {formatLastSync(lastSync)}
-                  </Badge>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card className="border-border/80 bg-card/90 lg:col-span-2 xl:col-span-2">
-          <CardHeader className="pb-2">
-            <CardDescription>Total revenue (30d window)</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none lg:col-span-2 xl:col-span-2">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Total revenue (30d)
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? `$${formatNumber(totals.totalRevenue)}` : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border/80 bg-card/90">
-          <CardHeader className="pb-2">
-            <CardDescription>Subscribers (latest)</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Subscribers (latest)
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? formatNumber(totals.totalFans) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border/80 bg-card/90">
-          <CardHeader className="pb-2">
-            <CardDescription>Messages in (30d)</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Messages in (30d)
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? formatNumber(totals.messagesReceived) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border/80 bg-card/90">
-          <CardHeader className="pb-2">
-            <CardDescription>Messages out (30d)</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Messages out (30d)
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? formatNumber(totals.messagesSent) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border/80 bg-card/90">
-          <CardHeader className="pb-2">
-            <CardDescription>Net new fans (30d)</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Net new fans (30d)
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? formatNumber(totals.newFans - totals.churned) : '—'}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-border/80 bg-card/90 sm:col-span-2 lg:col-span-2 xl:col-span-2">
-          <CardHeader className="pb-2">
-            <CardDescription>Avg response time</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+        <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none sm:col-span-2 lg:col-span-2 xl:col-span-2">
+          <CardHeader className="pb-3 pt-5">
+            <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Avg response time
+            </CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight sm:text-[1.65rem]">
               {hasConnections ? `${Math.round(totals.avgResponse)}m` : '—'}
             </CardTitle>
           </CardHeader>
@@ -270,16 +289,18 @@ export function AnalyticsDashboard({
       {hasOnlyFansConnected ? (
         <OnlyFansApiAnalytics />
       ) : (
-        <Card className="border-dashed border-border/80 bg-muted/20">
-          <CardHeader className="py-8 sm:py-10">
-            <CardTitle className="text-base font-medium">OnlyFans partner analytics</CardTitle>
-            <CardDescription className="text-sm leading-relaxed max-w-prose">
-              Connect OnlyFans under{' '}
-              <Link href="/dashboard/settings?tab=integrations" className="text-circe underline-offset-4 hover:underline">
+        <Card className="rounded-2xl border border-dashed border-border/70 bg-muted/15 shadow-none">
+          <CardHeader className="py-8 sm:py-9">
+            <CardTitle className="text-base font-semibold tracking-tight">OnlyFans partner analytics</CardTitle>
+            <CardDescription className="mt-2 max-w-prose text-[15px] leading-relaxed">
+              Connect OnlyFans in{' '}
+              <Link
+                href="/dashboard/settings?tab=integrations"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
                 Settings → Integrations
               </Link>{' '}
-              to unlock live earnings, forecasts, and transaction intelligence from the partner API. Until then, this
-              section stays hidden so you are not prompted with empty endpoints.
+              for live earnings and forecasts. This block stays empty until the partner session is active.
             </CardDescription>
           </CardHeader>
         </Card>

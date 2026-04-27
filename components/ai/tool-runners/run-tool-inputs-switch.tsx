@@ -25,6 +25,7 @@ import {
   PricingOptimizerInputsPro,
 } from '@/components/ai/tool-runners/pricing-optimizer-fields'
 import { DefaultToolRunnerInputs } from '@/components/ai/tool-runners/default-tool-inputs'
+import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
 
 export type RunToolInputsSwitchProps = {
   effectiveRunnerId: string
@@ -55,8 +56,8 @@ export type RunToolInputsSwitchProps = {
   churnFansFiltered: ChurnFanPickerRow[]
   churnExpiringOnly: boolean
   setChurnExpiringOnly: (v: boolean) => void
-  incomePredictorMode: 'maintain' | 'grow'
-  setIncomePredictorMode: (v: 'maintain' | 'grow') => void
+  incomePredictorMode: IncomePredictorFocusMode
+  setIncomePredictorMode: (v: IncomePredictorFocusMode) => void
   incomePredictorGoal: string
   setIncomePredictorGoal: (v: string) => void
   incomeCalendarMode: 'week' | 'month'

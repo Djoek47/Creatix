@@ -1288,7 +1288,7 @@ export default function DivineManagerPage() {
               href="/dashboard/commenter"
               className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
             >
-              Housekeeping
+              Commenter
             </Link>
             <Link
               href="/dashboard/protection"

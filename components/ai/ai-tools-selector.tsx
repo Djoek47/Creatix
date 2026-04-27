@@ -65,6 +65,7 @@ import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 
 import { formatFantasyRunnerDate } from '@/lib/calendar/format-fantasy-runner-date'
 import type { FantasyFanPickerRow, FantasyScheduledRow } from '@/components/ai/tool-runners/fantasy-writer-inputs'
+import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
 
 /** Visual-only fields; names/descriptions come from `getToolMeta` to match ALL_TOOLS_META. */
 const WORKING_TOOL_ROWS = [
@@ -405,7 +406,7 @@ export function AIToolsSelector({
   const [churnFanId, setChurnFanId] = useState<string>('manual')
   const [churnExpiringOnly, setChurnExpiringOnly] = useState(false)
   const [churnFans, setChurnFans] = useState<ChurnFanPickerRow[]>([])
-  const [incomePredictorMode, setIncomePredictorMode] = useState<'maintain' | 'grow'>('maintain')
+  const [incomePredictorMode, setIncomePredictorMode] = useState<IncomePredictorFocusMode>('maintain')
   const [incomePredictorGoal, setIncomePredictorGoal] = useState('')
   const [incomeCalendarMode, setIncomeCalendarMode] = useState<'week' | 'month'>('month')
   const [cupidTagChurn, setCupidTagChurn] = useState(true)
@@ -1434,10 +1435,10 @@ export function AIToolsSelector({
             <div className="mt-6">
               <div className="mb-3 flex items-center gap-2">
                 <ListTree className="h-4 w-4 text-amber-500/90" aria-hidden />
-                <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Housekeeping</h3>
+                <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Fan Atlas</h3>
               </div>
               <p className="mb-3 text-xs text-muted-foreground">
-                Web dashboard tools — same entries as AI Studio → Tools library. Housekeeping runs Smart classify (spend,
+                Web dashboard tools — same entries as AI Studio → Tools library. Fan Atlas runs Smart classify (spend,
                 threads, freeloaders) into OnlyFans lists and Fansly tags from Arrangements.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1487,7 +1488,7 @@ export function AIToolsSelector({
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1">
-                              <h3 className="text-sm font-semibold">Housekeeping</h3>
+                              <h3 className="text-sm font-semibold">Fan Atlas</h3>
                               <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                             </div>
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -1591,27 +1592,50 @@ export function AIToolsSelector({
   
   // Tool workspace view
   return (
-    <Card className={`min-w-0 border-primary/20 ${selectedTool.borderColor}`}>
-      <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
+    <Card
+      className={cn(
+        'min-w-0 gap-0 overflow-hidden rounded-2xl border py-0 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150',
+        'bg-white/52 text-card-foreground dark:bg-slate-950/50 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.55)]',
+        selectedTool.borderColor,
+      )}
+    >
+      <CardHeader className="gap-0 space-y-5 border-b border-border/25 px-6 pb-6 pt-8 dark:border-white/[0.06]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
             {backHref ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mt-0.5 h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                asChild
+              >
                 <Link href={backHref}>
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={resetTool}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mt-0.5 h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                onClick={resetTool}
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className={`rounded-lg p-2 ${selectedTool.bgColor} shrink-0`}>
+            <div
+              className={cn(
+                'shrink-0 rounded-2xl border border-white/35 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14)] backdrop-blur-sm dark:border-white/[0.10]',
+                selectedTool.bgColor,
+              )}
+            >
               <selectedTool.icon className={`h-5 w-5 ${selectedTool.color}`} />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-lg">{selectedTool.name}</CardTitle>
-              <CardDescription className="text-xs">
+              <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl sm:font-medium">
+                {selectedTool.name}
+              </CardTitle>
+              <CardDescription className="mt-2 max-w-prose text-sm leading-relaxed">
                 {selectedTool.longDescription}
               </CardDescription>
               {selectedTool.id === 'content-ideas' ? (
@@ -1631,7 +1655,7 @@ export function AIToolsSelector({
               ) : null}
             </div>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
             <Link
               href="/dashboard/settings?tab=billing"
@@ -1639,27 +1663,30 @@ export function AIToolsSelector({
               className="inline-flex"
             >
               <Badge
-                variant="secondary"
-                className="gap-1 tabular-nums font-medium text-foreground hover:bg-secondary/80"
+                variant="outline"
+                className="gap-1 rounded-full border-border/40 bg-background/45 px-3 py-1 tabular-nums text-[12px] font-normal text-foreground shadow-sm backdrop-blur-sm hover:bg-background/60 dark:border-white/[0.10] dark:bg-white/[0.06]"
               >
-                <Zap className="h-3 w-3 opacity-80" aria-hidden />
+                <Zap className="h-3 w-3 opacity-70" aria-hidden />
                 {creditWalletLoading
                   ? '…'
                   : `${(creditWallet?.totalRemaining ?? 0).toLocaleString()} available`}
               </Badge>
             </Link>
-            <Badge variant="outline" className="gap-1 tabular-nums">
-              <Zap className="h-3 w-3" aria-hidden />
+            <Badge
+              variant="outline"
+              className="gap-1 rounded-full border-border/40 bg-background/35 px-3 py-1 tabular-nums text-[12px] font-normal backdrop-blur-sm dark:border-white/[0.10] dark:bg-white/[0.05]"
+            >
+              <Zap className="h-3 w-3 opacity-70" aria-hidden />
               {effectiveRunnerId
                 ? formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))
                 : formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}
             </Badge>
           </div>
         </div>
-        <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/25 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Easy</span> keeps steps short;{' '}
-            <span className="font-medium text-foreground">Pro</span> shows every option. Credits apply when a run
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-muted/15 px-4 py-3.5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.04]">
+          <p className="text-[13px] leading-snug text-muted-foreground">
+            <span className="font-medium text-foreground">Easy</span> keeps steps short.{' '}
+            <span className="font-medium text-foreground">Pro</span> exposes every option. Credits apply when a run
             succeeds.
           </p>
           <EasyProModeToggle
@@ -1670,7 +1697,7 @@ export function AIToolsSelector({
           />
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 px-6 pb-8 pt-8">
         {toolRunCreditGateCredits != null ? (
           <InsufficientCreditsCallout
             requiredCredits={toolRunCreditGateCredits}
@@ -1706,7 +1733,7 @@ export function AIToolsSelector({
             (selectedTool.id === 'churn-predictor' && churnFanId === 'manual' && !fanMessage.trim()) ||
             (selectedTool.id === 'mass-dm-composer' && runnerMode === 'easy' && !campaignGoal.trim())
           }
-          className="w-full"
+          className="h-12 w-full rounded-xl text-[15px] font-medium tracking-tight shadow-sm transition-[transform,box-shadow] duration-200 hover:shadow-md active:scale-[0.99]"
         >
           {loading ? (
             <>
@@ -1715,7 +1742,7 @@ export function AIToolsSelector({
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Sparkles className="mr-2 h-4 w-4 opacity-90" />
               {runnerMode === 'easy' && effectiveRunnerId
                 ? `Generate — ${formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))}`
                 : 'Generate'}
@@ -1723,7 +1750,7 @@ export function AIToolsSelector({
           )}
         </Button>
         {runnerMode === 'easy' && effectiveRunnerId ? (
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground/90">
             This run uses {formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))} when it completes
             successfully.
           </p>
@@ -1733,10 +1760,10 @@ export function AIToolsSelector({
         {result && (
           <div
             className={cn(
-              'w-full self-start overflow-x-hidden rounded-lg border border-border',
+              'w-full self-start overflow-x-hidden rounded-2xl border border-border/40 bg-background/25 backdrop-blur-sm',
               selectedTool.id === 'churn-predictor' || selectedTool.id === 'income-predictor'
-                ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto bg-muted/15 p-3'
-                : 'max-h-[min(60vh,400px)] overflow-y-auto p-3',
+                ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto p-4 dark:bg-white/[0.03]'
+                : 'max-h-[min(60vh,400px)] overflow-y-auto p-4 dark:bg-white/[0.03]',
             )}
           >
             {effectiveRunnerId === 'caption-generator' && 'captions' in result

@@ -24,11 +24,11 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
   const messagesTightLayout = isMessagesInbox && !zenMessages
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
       {!zenMessages ? <DashboardHeader user={user} profile={profile} /> : null}
       <main
         className={cn(
-          'min-h-0 flex-1 overflow-x-hidden',
+          'min-h-0 flex-1 overflow-x-hidden bg-transparent',
           messagesTightLayout &&
             'flex flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom,0px)]',
           !messagesTightLayout && !zenMessages && 'overflow-y-auto p-4 sm:p-6',

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (canonical === 'housekeeping') {
       return NextResponse.json({
         content:
-          'Housekeeping: Smart classify fans by spend, DM/thread activity, and freeloader segments — then sync to OnlyFans lists and Fansly tags. Open Dashboard → Commenter?section=housekeeping or Fans → Arrangements to configure housekeeping_lists; cron housekeeping-fan-lists applies changes.',
+          'Fan Atlas: Smart classify fans by spend, DM/thread activity, and freeloader segments — then sync to OnlyFans lists and Fansly tags. Open Dashboard → Commenter?section=housekeeping or Fans → Arrangements to configure housekeeping_lists; cron housekeeping-fan-lists applies changes.',
       })
     }
 

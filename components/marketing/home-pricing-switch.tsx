@@ -26,7 +26,6 @@ type RotatingPlatformMark = {
   name: string
   logoSrc?: string
   short?: string
-  className?: string
 }
 
 export function HomePricingSwitch() {
@@ -35,10 +34,10 @@ export function HomePricingSwitch() {
   const tier0 = PRICING_TIERS[0]!
   const antiPiracyPlatforms = useMemo<RotatingPlatformMark[]>(
     () => [
-      { name: 'MYM', logoSrc: '/mym-logo.png', className: 'h-6 w-11' },
-      { name: 'Clips4Sale', logoSrc: '/clips4sale-logo.png', className: 'h-6 w-10' },
-      { name: 'LoyalFans', logoSrc: '/loyalfans-logo.svg', className: 'h-6 w-10' },
-      { name: 'Fanvue', logoSrc: '/fanvue-logo.png', className: 'h-6 w-6' },
+      { name: 'MYM', logoSrc: '/mym-logo.png' },
+      { name: 'Clips4Sale', logoSrc: '/clips4sale-logo.png' },
+      { name: 'LoyalFans', logoSrc: '/loyalfans-logo.svg' },
+      { name: 'Fanvue', logoSrc: '/fanvue-logo.png' },
     ],
     [],
   )
@@ -142,54 +141,52 @@ export function HomePricingSwitch() {
                 onBlur={() => setHovered(null)}
                 onClick={() => setActive(b.key)}
                 className={cn(
-                  'flex flex-1 flex-col items-center gap-2 rounded-2xl border px-2 py-3 transition-colors sm:px-3 sm:py-4',
+                  'flex flex-1 flex-col items-center justify-center gap-2.5 rounded-2xl border px-2 py-3 transition-colors sm:gap-3 sm:px-3 sm:py-4',
                   selected
                     ? 'border-foreground/15 bg-foreground/[0.04] shadow-sm'
                     : 'border-border/40 bg-transparent hover:border-border/60',
                 )}
               >
-                <span className="flex h-9 w-full min-w-0 max-w-[7.5rem] items-center justify-center sm:h-10">
+                <span className="flex h-14 w-full min-w-0 shrink-0 items-center justify-center sm:h-16">
                   {b.key === 'ap' ? (
-                    <span className="relative inline-flex h-8 w-14 items-center justify-center rounded-md border border-amber-400/35 bg-gradient-to-br from-amber-400/15 via-primary/10 to-fuchsia-400/12 p-1 shadow-[0_0_22px_-12px_rgba(251,191,36,0.85)] sm:h-9 sm:w-16">
-                      <AnimatePresence mode="wait" initial={false}>
-                        <motion.span
-                          key={antiPiracyPlatforms[antiPiracyIndex]?.name}
-                          initial={reduce ? false : { opacity: 0, y: 6, scale: 0.92 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.92 }}
-                          transition={{ duration: reduce ? 0 : 0.22 }}
-                          className={cn(
-                            'flex items-center justify-center text-[10px] font-semibold tracking-tight text-foreground/95',
-                            antiPiracyPlatforms[antiPiracyIndex]?.className ?? 'h-6 w-10',
-                          )}
-                        >
-                          {antiPiracyPlatforms[antiPiracyIndex]?.logoSrc ? (
-                            <Image
-                              src={antiPiracyPlatforms[antiPiracyIndex]!.logoSrc!}
-                              alt={antiPiracyPlatforms[antiPiracyIndex]!.name}
-                              width={56}
-                              height={28}
-                              className="h-full w-full rounded-sm object-contain"
-                            />
-                          ) : (
-                            antiPiracyPlatforms[antiPiracyIndex]?.short ?? antiPiracyPlatforms[antiPiracyIndex]?.name
-                          )}
-                        </motion.span>
-                      </AnimatePresence>
-                    </span>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={antiPiracyPlatforms[antiPiracyIndex]?.name}
+                        initial={reduce ? false : { opacity: 0, y: 6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.96 }}
+                        transition={{ duration: reduce ? 0 : 0.22 }}
+                        className="flex items-center justify-center"
+                      >
+                        {antiPiracyPlatforms[antiPiracyIndex]?.logoSrc ? (
+                          <Image
+                            src={antiPiracyPlatforms[antiPiracyIndex]!.logoSrc!}
+                            alt={antiPiracyPlatforms[antiPiracyIndex]!.name}
+                            width={200}
+                            height={56}
+                            className="mx-auto h-11 w-auto max-h-11 max-w-[min(100%,8.75rem)] object-contain object-center opacity-95 sm:h-12 sm:max-h-12 sm:max-w-[10rem]"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-semibold tracking-tight text-foreground/90">
+                            {antiPiracyPlatforms[antiPiracyIndex]?.short ??
+                              antiPiracyPlatforms[antiPiracyIndex]?.name}
+                          </span>
+                        )}
+                      </motion.span>
+                    </AnimatePresence>
                   ) : b.logoSrc ? (
                     <Image
                       src={b.logoSrc}
                       alt=""
-                      width={120}
-                      height={28}
-                      className="h-6 w-full max-w-full object-contain object-left opacity-90"
+                      width={200}
+                      height={56}
+                      className="mx-auto h-11 w-auto max-h-11 max-w-[min(100%,8.75rem)] object-contain object-center opacity-95 sm:h-12 sm:max-h-12 sm:max-w-[10rem]"
                     />
                   ) : (
                     <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">AP</span>
                   )}
                 </span>
-                <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                <span className="text-xs font-medium tabular-nums text-foreground/85 sm:text-sm">
                   ${b.price}
                 </span>
                 <span className="sr-only">{b.name}</span>

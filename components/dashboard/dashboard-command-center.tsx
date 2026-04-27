@@ -18,25 +18,25 @@ function tierAmbientClass(tier: number | null | undefined): string {
 }
 
 function moodShellClass(mood: DivineDashboardPreset['mood'] | undefined): string {
-  if (mood === 'minimal') return 'ring-1 ring-border/50'
-  if (mood === 'creative') return 'ring-1 ring-gold/20'
-  return 'ring-1 ring-border/35'
+  if (mood === 'minimal') return 'ring-1 ring-border/30 dark:ring-white/[0.08]'
+  if (mood === 'creative') return 'ring-1 ring-gold/15 dark:ring-gold/20'
+  return 'ring-1 ring-border/25 dark:ring-white/[0.06]'
 }
 
 const container = {
   hidden: { opacity: 1 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.12, delayChildren: 0.06 },
+    transition: { staggerChildren: 0.1, delayChildren: 0.08 },
   },
 }
 
 const item = {
-  hidden: { opacity: 0, y: 14 },
+  hidden: { opacity: 0, y: 10 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.42, ease: [0.25, 0.1, 0.25, 1] },
   },
 }
 
@@ -91,26 +91,36 @@ export function DashboardCommandCenter({
   return (
     <div
       className={cn(
-        'relative isolate overflow-hidden rounded-3xl border border-border/45 bg-background/70 shadow-lg md:bg-background/80 md:shadow-2xl',
-        'backdrop-blur-sm md:backdrop-blur-xl',
+        'relative isolate overflow-hidden rounded-[1.75rem] border border-white/40 bg-white/42 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)] backdrop-blur-2xl backdrop-saturate-150',
+        'dark:border-white/[0.10] dark:bg-slate-950/38 dark:shadow-[0_28px_90px_-36px_rgba(0,0,0,0.62)]',
         moodRing,
       )}
     >
+      {/* CSS-only depth — not the login scenic photos; pairs with shared starfield below */}
       <div
         className={cn(
-          'pointer-events-none absolute inset-0 bg-gradient-to-br opacity-90 md:opacity-100',
+          'pointer-events-none absolute inset-0 z-0',
+          'bg-[radial-gradient(ellipse_90%_60%_at_10%_-5%,rgba(139,92,246,0.14),transparent_52%),radial-gradient(ellipse_75%_45%_at_100%_105%,rgba(251,191,36,0.09),transparent_48%),radial-gradient(ellipse_80%_70%_at_50%_45%,rgba(248,250,252,0.92),rgba(241,245,249,0.55))]',
+          'dark:bg-[radial-gradient(ellipse_88%_58%_at_8%_0%,rgba(109,40,217,0.26),transparent_50%),radial-gradient(ellipse_72%_48%_at_96%_100%,rgba(180,83,9,0.14),transparent_46%),radial-gradient(ellipse_100%_80%_at_50%_50%,rgba(15,23,42,0.94),rgba(2,6,23,0.72))]',
+        )}
+        aria-hidden
+      />
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-0 z-0 bg-gradient-to-br opacity-[0.52] md:opacity-[0.62]',
           ambient,
         )}
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035] md:opacity-[0.055] dark:opacity-[0.06]"
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.028] md:opacity-[0.045] dark:opacity-[0.055]"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }}
         aria-hidden
       />
-      <div className="relative z-[1] space-y-8 sm:space-y-10 px-3 py-6 sm:px-5 sm:py-8 md:px-8 md:py-10">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-white/50 to-transparent dark:via-white/[0.12]" aria-hidden />
+      <div className="relative z-[1] space-y-10 sm:space-y-12 px-4 py-8 sm:px-6 sm:py-10 md:px-10 md:py-12">
         {!runEntrance || reduced ? (
           <>
             {hero}
@@ -122,7 +132,7 @@ export function DashboardCommandCenter({
             variants={container}
             initial="hidden"
             animate="show"
-            className="flex flex-col gap-8 sm:gap-10"
+            className="flex flex-col gap-10 sm:gap-12"
           >
             <motion.div variants={item}>{hero}</motion.div>
             <motion.div variants={item}>{commandStrip}</motion.div>

@@ -53,7 +53,7 @@ export function AnalyticsCharts({ analytics, hasConnections = false }: Analytics
   // Only show empty state if truly no data and no connected platforms
   if (analytics.length === 0 && !hasConnections) {
     return (
-      <Card className="border-border bg-card">
+      <Card className="rounded-2xl border-border/60 bg-card/40 shadow-none">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
           <div className="mb-4 rounded-full bg-muted p-4">
             <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -78,7 +78,7 @@ export function AnalyticsCharts({ analytics, hasConnections = false }: Analytics
       </TabsList>
 
       <TabsContent value="revenue">
-        <Card className="min-w-0 border-border bg-card overflow-hidden">
+        <Card className="min-w-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
           <CardHeader>
             <CardTitle>Revenue Trend</CardTitle>
             <CardDescription>Daily earnings over the past 14 days</CardDescription>
@@ -114,7 +114,7 @@ export function AnalyticsCharts({ analytics, hasConnections = false }: Analytics
       </TabsContent>
 
       <TabsContent value="subscribers">
-        <Card className="min-w-0 border-border bg-card overflow-hidden">
+        <Card className="min-w-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
           <CardHeader>
             <CardTitle>Subscriber Growth</CardTitle>
             <CardDescription>New fans acquired over time</CardDescription>
@@ -143,7 +143,7 @@ export function AnalyticsCharts({ analytics, hasConnections = false }: Analytics
       </TabsContent>
 
       <TabsContent value="engagement">
-        <Card className="min-w-0 border-border bg-card overflow-hidden">
+        <Card className="min-w-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
           <CardHeader>
             <CardTitle>Message Activity</CardTitle>
             <CardDescription>Messages received daily</CardDescription>

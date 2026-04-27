@@ -859,250 +859,336 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         }`
 
   return (
-    <div className="space-y-3 min-w-0">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <p className="text-sm font-medium text-foreground">Scan setup</p>
+    <div className="min-w-0 space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-base font-semibold tracking-tight text-foreground sm:text-[1.0625rem]">Scan setup</p>
+          <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground/88">
+            <span className="font-medium text-foreground/90">Easy</span> uses linked accounts only.{' '}
+            <span className="font-medium text-foreground/90">Pro</span> adds per-handle control, saved aliases, stricter matching, and manual URLs.
+          </p>
+        </div>
         <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0" />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Easy: one-tap scan from connected accounts only · Pro: extra handles, former names, strict mode, manual URL &amp; filters.
-      </p>
 
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border/50 pb-3 text-xs text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/45 pb-4 text-[13px] text-muted-foreground/85">
         <Link
           href="/dashboard/protection/aegis"
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-medium text-foreground underline-offset-4 transition hover:underline"
           title={aegisStatusTitle}
         >
           Aegis
         </Link>
-        <span className="text-border/50" aria-hidden>
+        <span className="text-border/60" aria-hidden>
           ·
         </span>
         <Link
           href="/dashboard/settings?tab=integrations"
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-medium text-foreground underline-offset-4 transition hover:underline"
           title="Connect accounts so scans include linked usernames"
         >
           Integrations
         </Link>
       </p>
 
-      {uiMode === 'pro' ? (
-      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" type="button" className="flex w-full items-center justify-between gap-2 text-sm">
-            Advanced identity hints (extra aliases, saved former names, title phrases)
-            <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', advancedOpen && 'rotate-180')} />
+      {uiMode === 'pro' && displayHandles.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/55 bg-muted/10 px-5 py-8 text-center dark:bg-muted/5">
+          <p className="text-[15px] font-semibold tracking-tight text-foreground">No connected identities</p>
+          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-snug text-muted-foreground/85">
+            Link a platform under Integrations to unlock per-handle control and run a Pro scan.
+          </p>
+          <Button asChild variant="outline" className="mt-5 h-10 rounded-xl px-5 text-[13px] font-medium">
+            <Link href="/dashboard/settings?tab=integrations">Open Integrations</Link>
           </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 data-[state=open]:pt-3">
-          <div className="space-y-2">
-            <Label htmlFor="alias-input" className="text-xs text-muted-foreground">
-              Extra names and handles (comma or line; searched in addition to connected platforms)
-            </Label>
-            <Textarea
-              id="alias-input"
-              value={aliasInput}
-              onChange={(e) => setAliasInput(e.target.value)}
-              placeholder="e.g. stage name, alternate @handles"
-              className="min-h-[72px] text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="former-input" className="text-xs text-muted-foreground">
-              Former / old usernames (comma or line; saved to your profile for every scan)
-            </Label>
-            <Textarea
-              id="former-input"
-              value={formerInput}
-              onChange={(e) => setFormerInput(e.target.value)}
-              placeholder="Handles you used before a rebrand"
-              className="min-h-[56px] text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="title-hints" className="text-xs text-muted-foreground">
-              Content titles / phrases to search (one per line; merged with your library titles when enabled below)
-            </Label>
-            <Textarea
-              id="title-hints"
-              value={titleHintsInput}
-              onChange={(e) => setTitleHintsInput(e.target.value)}
-              placeholder="Exact or partial video or set titles that might appear on leak sites"
-              className="min-h-[72px] text-sm"
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-      ) : null}
-
-      {uiMode === 'pro' ? (
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="include-content-titles"
-            checked={includeContentTitles}
-            onCheckedChange={(v) => setIncludeContentTitles(v === true)}
-          />
-          <label htmlFor="include-content-titles" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-            Include published / scheduled titles from your content library in search queries (caps apply).
-          </label>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={saveIdentityLoading}
-          onClick={saveSearchIdentity}
-        >
-          {saveIdentityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Save former names &amp; title hints
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={saveIdentityLoading}
-          onClick={async () => {
-            setSaveIdentityLoading(true)
-            try {
-              const {
-                data: { user },
-              } = await supabase.auth.getUser()
-              if (!user) return
-              await supabase
-                .from('profiles')
-                .update({
-                  former_usernames: [],
-                  leak_search_title_hints: [],
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', user.id)
-              setFormerInput('')
-              setTitleHintsInput('')
-              setAliasInput('')
-              if (typeof window !== 'undefined') {
-                window.localStorage.removeItem('protection_selected_handles')
-              }
-            } finally {
-              setSaveIdentityLoading(false)
-            }
-          }}
-        >
-          Delete saved identities
-        </Button>
-      </div>
-      ) : null}
-
-      {uiMode === 'pro' ? (
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="strict-scan"
-            checked={strictScan}
-            onCheckedChange={(v) => setStrictScan(v === true)}
-          />
-          <label htmlFor="strict-scan" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-            Strict mode: drop likely mismatches (AI on eligible plans; else keyword checks). Pasted links are always kept.
-          </label>
         </div>
       ) : null}
 
       {uiMode === 'easy' ? (
-        <ProtectionEasyHandles handles={identityHandles} />
-      ) : displayHandles.length > 0 ? (
-        <ScanHandlePicker
-          handles={displayHandles}
-          useAll={useAllLeakHandles}
-          onUseAllChange={handleUseAllLeakHandlesChange}
-          selected={selectedLeakHandles}
-          onToggle={handleToggleLeakHandle}
-          idPrefix="leak-scan"
-        />
+        <section className="space-y-3" aria-labelledby="scan-accounts-heading">
+          <div>
+            <h2 id="scan-accounts-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              Connected accounts
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground/85">
+              The scan uses usernames from platforms you have linked—no extra configuration.
+            </p>
+          </div>
+          <ProtectionEasyHandles handles={identityHandles} />
+        </section>
+      ) : null}
+
+      {uiMode === 'pro' && displayHandles.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="scan-identities-heading">
+          <div>
+            <h2 id="scan-identities-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              Who to include
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground/85">
+              Choose which handles participate in this run. Refinements below apply on top of this set.
+            </p>
+          </div>
+          <ScanHandlePicker
+            handles={displayHandles}
+            useAll={useAllLeakHandles}
+            onUseAllChange={handleUseAllLeakHandlesChange}
+            selected={selectedLeakHandles}
+            onToggle={handleToggleLeakHandle}
+            idPrefix="leak-scan"
+            className="rounded-2xl border-border/50 bg-muted/15 p-4 dark:bg-muted/10"
+          />
+        </section>
       ) : null}
 
       {uiMode === 'pro' ? (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Optional: one library item (adds its title to the scan)</Label>
-          <Select value={focusContentId || '__none__'} onValueChange={(v) => setFocusContentId(v === '__none__' ? '' : v)}>
-            <SelectTrigger className="text-sm">
-              <SelectValue placeholder="All library titles (or pick one)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No single-item focus</SelectItem>
-              {contentTitles.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.title.length > 64 ? `${c.title.slice(0, 64)}…` : c.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="focus-title-filter" className="text-xs text-muted-foreground">
-            Optional: narrow title queries (one phrase per line; must match merged titles)
-          </Label>
-          <Textarea
-            id="focus-title-filter"
-            value={focusTitleFilter}
-            onChange={(e) => setFocusTitleFilter(e.target.value)}
-            placeholder="e.g. part of a video title"
-            className="min-h-[56px] text-sm"
-          />
-        </div>
-      </div>
+        <section className="space-y-4 rounded-2xl border border-border/50 bg-muted/15 p-4 sm:p-5 dark:bg-muted/10" aria-labelledby="scan-behavior-heading">
+          <div>
+            <h2 id="scan-behavior-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              How this scan behaves
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground/85">
+              Tune what goes into queries and how aggressively results are filtered.
+            </p>
+          </div>
+          <div className="space-y-5">
+            <div className="flex gap-3">
+              <Checkbox
+                id="include-content-titles"
+                className="mt-0.5"
+                checked={includeContentTitles}
+                onCheckedChange={(v) => setIncludeContentTitles(v === true)}
+              />
+              <div className="min-w-0">
+                <label htmlFor="include-content-titles" className="cursor-pointer text-[13px] font-medium text-foreground">
+                  Include library titles
+                </label>
+                <p className="mt-1 text-[12px] leading-snug text-muted-foreground/85">
+                  Merge published and scheduled titles from your content library into search queries (usage caps apply).
+                </p>
+              </div>
+            </div>
+            <div className="h-px bg-border/45" aria-hidden />
+            <div className="flex gap-3">
+              <Checkbox
+                id="strict-scan"
+                className="mt-0.5"
+                checked={strictScan}
+                onCheckedChange={(v) => setStrictScan(v === true)}
+              />
+              <div className="min-w-0">
+                <label htmlFor="strict-scan" className="cursor-pointer text-[13px] font-medium text-foreground">
+                  Strict matching
+                </label>
+                <p className="mt-1 text-[12px] leading-snug text-muted-foreground/85">
+                  Drop likely false positives using AI on eligible plans, or keyword checks otherwise. URLs you paste manually are always kept.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       ) : null}
 
-      <div
-        className={cn(
-          'flex flex-col gap-3',
-          uiMode === 'pro' ? 'sm:flex-row sm:items-end sm:justify-between' : '',
-        )}
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <div
-              className={cn(
-                'inline-flex max-w-full items-center gap-1.5 rounded-md border border-violet-500/35 bg-violet-500/10 px-2.5 py-1 tabular-nums',
-                leakScanBlockedByBalance && 'border-destructive/40 bg-destructive/10 text-destructive',
-              )}
-              title="AI credit wallet: included monthly pool plus any purchases."
+      {uiMode === 'pro' ? (
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-start justify-between gap-3 rounded-2xl border border-border/50 bg-muted/10 px-4 py-3.5 text-left outline-none transition hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-muted/5 dark:hover:bg-muted/15"
             >
-              <Coins className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
-              {creditsWalletLoading && !creditsLoadError ? (
-                <span>Loading credits…</span>
-              ) : creditsLoadError ? (
-                <span className="text-destructive">{creditsLoadError}</span>
-              ) : (
-                <span>
-                  <span className="font-medium text-foreground">
-                    {typeof creditsRemaining === 'number' ? creditsRemaining.toLocaleString() : '—'}
-                  </span>
-                  <span className="text-muted-foreground"> left</span>
+              <span className="min-w-0">
+                <span className="block text-[15px] font-semibold tracking-tight text-foreground">Advanced identity hints</span>
+                <span className="mt-1 block text-[13px] font-normal leading-snug text-muted-foreground/85">
+                  Extra aliases, former names, and title phrases—saved to your profile for future scans.
                 </span>
-              )}
+              </span>
+              <ChevronDown
+                className={cn('mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200', advancedOpen && 'rotate-180')}
+                aria-hidden
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-5 data-[state=open]:pt-5">
+            <div className="space-y-2">
+              <Label htmlFor="alias-input" className="text-[13px] font-medium text-foreground/90">
+                Extra names and handles
+              </Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">Comma or new line. Searched in addition to connected platforms.</p>
+              <Textarea
+                id="alias-input"
+                value={aliasInput}
+                onChange={(e) => setAliasInput(e.target.value)}
+                placeholder="e.g. stage name, alternate @handles"
+                className="min-h-[72px] rounded-xl text-[13px] md:text-sm"
+              />
             </div>
-            <span>
-              {uiMode === 'easy' ? 'Protection scan' : 'Pro protection scan'} ·{' '}
-              <span className="font-medium text-foreground/90">{leakScanCostLabel}</span>
-            </span>
+
+            <div className="space-y-2">
+              <Label htmlFor="former-input" className="text-[13px] font-medium text-foreground/90">
+                Former usernames
+              </Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">Saved to your profile and included on every Pro scan until you remove them.</p>
+              <Textarea
+                id="former-input"
+                value={formerInput}
+                onChange={(e) => setFormerInput(e.target.value)}
+                placeholder="Handles you used before a rebrand"
+                className="min-h-[56px] rounded-xl text-[13px] md:text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title-hints" className="text-[13px] font-medium text-foreground/90">
+                Title phrases
+              </Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">One per line. Merged with library titles when “Include library titles” is on.</p>
+              <Textarea
+                id="title-hints"
+                value={titleHintsInput}
+                onChange={(e) => setTitleHintsInput(e.target.value)}
+                placeholder="Exact or partial titles that may appear on leak pages"
+                className="min-h-[72px] rounded-xl text-[13px] md:text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-border/45 pt-4 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-lg px-4"
+                disabled={saveIdentityLoading}
+                onClick={saveSearchIdentity}
+              >
+                {saveIdentityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save to profile
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-lg px-4 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={saveIdentityLoading}
+                onClick={async () => {
+                  setSaveIdentityLoading(true)
+                  try {
+                    const {
+                      data: { user },
+                    } = await supabase.auth.getUser()
+                    if (!user) return
+                    await supabase
+                      .from('profiles')
+                      .update({
+                        former_usernames: [],
+                        leak_search_title_hints: [],
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', user.id)
+                    setFormerInput('')
+                    setTitleHintsInput('')
+                    setAliasInput('')
+                    if (typeof window !== 'undefined') {
+                      window.localStorage.removeItem('protection_selected_handles')
+                    }
+                  } finally {
+                    setSaveIdentityLoading(false)
+                  }
+                }}
+              >
+                Clear saved hints
+              </Button>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+
+      {uiMode === 'pro' ? (
+        <section className="space-y-3" aria-labelledby="scan-narrow-heading">
+          <div>
+            <h2 id="scan-narrow-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              Narrow this run
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground/85">
+              Optional. Focus on one library item or require specific phrases in merged titles.
+            </p>
           </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-[13px] font-medium text-foreground/90">Library item focus</Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">Adds that item’s title into this scan’s queries.</p>
+              <Select value={focusContentId || '__none__'} onValueChange={(v) => setFocusContentId(v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-10 rounded-xl text-[13px] md:text-sm">
+                  <SelectValue placeholder="All library titles (or pick one)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No single-item focus</SelectItem>
+                  {contentTitles.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title.length > 64 ? `${c.title.slice(0, 64)}…` : c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="focus-title-filter" className="text-[13px] font-medium text-foreground/90">
+                Title query filter
+              </Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">One phrase per line. Each must appear in the merged title set.</p>
+              <Textarea
+                id="focus-title-filter"
+                value={focusTitleFilter}
+                onChange={(e) => setFocusTitleFilter(e.target.value)}
+                placeholder="e.g. part of a video title"
+                className="min-h-[88px] rounded-xl text-[13px] md:text-sm"
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-          {leakScanBlockedByBalance ? (
-            <InsufficientCreditsCallout
-              requiredCredits={CREDITS_LEAK_SCAN}
-              actionContext="a protection leak scan"
-            />
-          ) : null}
+      <div className="space-y-5 border-t border-border/45 pt-6 sm:pt-8">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <div
+            className={cn(
+              'inline-flex max-w-full items-center gap-2 rounded-xl border border-border/55 bg-muted/30 px-3 py-1.5 tabular-nums dark:bg-muted/20',
+              leakScanBlockedByBalance && 'border-destructive/35 bg-destructive/8 text-destructive',
+            )}
+            title="AI credit wallet: included monthly pool plus any purchases."
+          >
+            <Coins className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+            {creditsWalletLoading && !creditsLoadError ? (
+              <span className="text-[13px] text-muted-foreground">Loading credits…</span>
+            ) : creditsLoadError ? (
+              <span className="text-[13px] text-destructive">{creditsLoadError}</span>
+            ) : (
+              <span className="text-[13px] text-muted-foreground/90">
+                <span className="font-semibold text-foreground">
+                  {typeof creditsRemaining === 'number' ? creditsRemaining.toLocaleString() : '—'}
+                </span>
+                <span> credits · </span>
+                <span className="font-medium text-foreground/90">{leakScanCostLabel}</span>
+                <span> per {uiMode === 'easy' ? 'scan' : 'Pro scan'}</span>
+              </span>
+            )}
+          </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:items-center">
+        {leakScanBlockedByBalance ? (
+          <InsufficientCreditsCallout
+            requiredCredits={CREDITS_LEAK_SCAN}
+            actionContext="a protection leak scan"
+          />
+        ) : null}
+
+        <div
+          className={cn(
+            'flex flex-col gap-6',
+            uiMode === 'pro' ? 'lg:flex-row lg:items-start lg:justify-between lg:gap-10' : '',
+          )}
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
             <Button
               className={cn(
-                'relative gap-2 bg-circe text-base font-semibold text-primary-foreground shadow-[0_0_28px_-6px] shadow-circe/70 ring-2 ring-circe/55 ring-offset-2 ring-offset-background min-h-10 px-5 transition-[box-shadow,transform] hover:bg-circe/90 hover:shadow-[0_0_32px_-4px] hover:shadow-circe/80 hover:ring-circe/70 active:scale-[0.99]',
-                uiMode === 'pro' && 'px-4',
+                'h-11 gap-2 rounded-xl bg-foreground px-6 text-[15px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/88 disabled:pointer-events-none disabled:opacity-35',
               )}
               onClick={runScan}
               disabled={
@@ -1117,30 +1203,42 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               }
             >
               {scanLoading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <ScanSearch className="h-4 w-4 shrink-0" aria-hidden />}
-              {uiMode === 'easy' ? 'Invoke Scan' : 'Invoke Pro Scan'}
+              {uiMode === 'easy' ? 'Run scan' : 'Run Pro scan'}
             </Button>
+            {scanSummary ? (
+              <p className="text-[13px] leading-relaxed text-muted-foreground/88 sm:max-w-xl">{scanSummary}</p>
+            ) : null}
           </div>
-          {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-xl">{scanSummary}</p> : null}
-        </div>
-        {uiMode === 'pro' ? (
-          <div className="w-full sm:max-w-md">
-            <Label htmlFor="manual-url" className="text-xs text-muted-foreground">
-              Bring your own link
-            </Label>
-            <div className="mt-1 flex gap-2">
-              <Input
-                id="manual-url"
-                value={manualUrl}
-                onChange={(e) => setManualUrl(e.target.value)}
-                placeholder="Paste infringing URL…"
-              />
-              <Button variant="outline" onClick={reportManual} disabled={manualLoading || !manualUrl.trim()}>
-                {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Report
-              </Button>
+
+          {uiMode === 'pro' ? (
+            <div className="w-full shrink-0 space-y-2 rounded-2xl border border-border/50 bg-muted/10 p-4 dark:bg-muted/5 lg:max-w-[min(100%,20rem)]">
+              <Label htmlFor="manual-url" className="text-[13px] font-medium text-foreground">
+                Report a URL
+              </Label>
+              <p className="text-[12px] leading-snug text-muted-foreground/85">
+                Submit one infringing link outside the automated scan.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  id="manual-url"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="Paste URL…"
+                  className="h-10 rounded-xl text-[13px] md:text-sm"
+                />
+                <Button
+                  variant="outline"
+                  className="h-10 shrink-0 rounded-xl px-4"
+                  onClick={reportManual}
+                  disabled={manualLoading || !manualUrl.trim()}
+                >
+                  {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Report
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {/* Active Alerts list (actionable) */}

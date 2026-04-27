@@ -5,7 +5,8 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { normalizeAnalyticsForecastBody } from '@/lib/onlyfans-analytics-payload'
 import { withDefaultAccountIds } from '@/lib/onlyfans-api-route'
 import { loadAdultPlatformBillingContext } from '@/lib/billing/onlyfans-billing-gate'
-import { assessGoalRealism } from '@/lib/income-predictor/realism'
+import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
+import { assessGoalRealism, nextRevenueBandGoalUsd } from '@/lib/income-predictor/realism'
 import { bucketPublishedPosts, countPostsInWindow } from '@/lib/income-predictor/calendar-buckets'
 import { chargeAiToolCreditsAfterSuccess, requireAiToolSessionAndCredits } from '@/lib/ai/assert-ai-tool-access'
 
@@ -26,7 +27,6 @@ const incomePredictorSchema = z.object({
   postingCadenceAdvice: z.string().describe('Tie post rate and last post to next-month outcomes'),
 })
 
-export type IncomePredictorMode = 'maintain' | 'grow'
 export type IncomePredictorCalendarMode = 'week' | 'month'
 
 export async function POST(req: NextRequest) {
@@ -37,12 +37,11 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     calendarMode?: IncomePredictorCalendarMode
     goalUsd?: number | null
-    mode?: IncomePredictorMode
+    mode?: IncomePredictorFocusMode
   }
   const calendarMode: IncomePredictorCalendarMode = body.calendarMode === 'week' ? 'week' : 'month'
-  const mode: IncomePredictorMode = body.mode === 'grow' ? 'grow' : 'maintain'
-  const goalUsd =
-    typeof body.goalUsd === 'number' && Number.isFinite(body.goalUsd) && body.goalUsd > 0 ? body.goalUsd : null
+  const mode: IncomePredictorFocusMode =
+    body.mode === 'grow' ? 'grow' : body.mode === 'next_tier' ? 'next_tier' : 'maintain'
 
   const uid = userId
 
@@ -128,9 +127,20 @@ export async function POST(req: NextRequest) {
         ? snapRows[0].revenue * 30
         : null
 
+  let goalUsd =
+    typeof body.goalUsd === 'number' && Number.isFinite(body.goalUsd) && body.goalUsd > 0 ? body.goalUsd : null
+  let nextBandLabel: string | null = null
+  let nextBandTop = false
+  if (mode === 'next_tier') {
+    const band = nextRevenueBandGoalUsd(currentMonthlyUsdEstimate)
+    goalUsd = band.goalUsd
+    nextBandLabel = band.bandLabel
+    nextBandTop = band.isTopBand
+  }
+
   const heuristics = assessGoalRealism({
     currentMonthlyUsd: currentMonthlyUsdEstimate,
-    goalUsd: mode === 'grow' ? goalUsd : currentMonthlyUsdEstimate,
+    goalUsd: mode === 'maintain' ? currentMonthlyUsdEstimate : goalUsd,
     mode,
   })
 
@@ -143,6 +153,7 @@ export async function POST(req: NextRequest) {
 Rules:
 - Never invent dollar amounts not present in the user context or partner forecast JSON.
 - If partner forecast is missing, say so clearly and rely on cadence, goals, and protection.
+- When mode is next_tier, userGoalUsd is the next revenue-band milestone from the subscription pricing matrix (not a free-typed guess)—frame advice as “one band up,” aligned with subscription tiers.
 - Respect the realism assessment: if unrealistic, encourage intermediate milestones (revenue bands), not lottery outcomes.
 - Mention open leak alerts when count > 0 and recommend reviewing Protection / Aegis.
 - Be concise, actionable, and supportive.`
@@ -153,7 +164,9 @@ Rules:
 - openLeakAlerts: ${openLeakAlerts}
 - calendarMode: ${calendarMode}
 - mode: ${mode}
-- userGoalUsd (grow only): ${goalUsd ?? 'n/a'}
+- nextRevenueBandLabel: ${nextBandLabel ?? 'n/a'}
+- nextBandUnavailableTopTier: ${nextBandTop}
+- userGoalUsd (grow or resolved next_tier): ${goalUsd ?? 'n/a'}
 - lastPostPublishedAt: ${lastPostPublishedAt ?? 'none'}
 - lastPostTitle: ${lastPostTitle ?? 'none'}
 - postsLast30Days: ${postsLast30}

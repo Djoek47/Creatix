@@ -54,33 +54,37 @@ export function DashboardHero({
     <div
       id="dashboard-platform-sync"
       className={cn(
-        'relative scroll-mt-24 overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br p-6 shadow-md constellation-bg md:rounded-3xl md:p-8 md:shadow-lg',
+        'relative scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-white/45 bg-white/44 p-7 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150 constellation-bg md:p-10',
+        'bg-gradient-to-br dark:border-white/[0.09] dark:bg-slate-950/44 dark:shadow-[0_24px_70px_-32px_rgba(0,0,0,0.55)]',
         bg,
       )}
     >
       <div
         className={cn(
-          'pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full blur-3xl md:-right-24 md:-top-24 md:h-64 md:w-64',
+          'pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full blur-[64px] opacity-80 md:-right-20 md:-top-20 md:h-60 md:w-60 md:opacity-90',
           tierGlow,
         )}
       />
-      <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-venus/10 blur-3xl" />
-      <div className="relative flex flex-col gap-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-venus/[0.07] blur-[72px] dark:bg-venus/[0.09]" />
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent dark:via-white/[0.14]" aria-hidden />
+      <div className="relative flex flex-col gap-8">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/90">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground/80">
               Command centre
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+            <h1 className="mt-3 font-serif text-[1.85rem] font-medium leading-[1.1] tracking-tight text-balance md:text-[2.65rem] md:leading-[1.06]">
               <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', title)}>Your command centre</span>
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-base">{subtitle}</p>
+            <p className="mt-4 max-w-[34rem] text-base leading-relaxed text-muted-foreground/90 md:text-[1.05rem] md:leading-[1.55]">
+              {subtitle}
+            </p>
             {nonApiProtectionTier ? (
-              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+              <p className="mt-4 max-w-[34rem] text-sm leading-relaxed text-muted-foreground">
                 {getNonApiUpgradeMessage()}{' '}
                 <Link
                   href="/dashboard/settings?tab=billing"
-                  className="font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary"
+                  className="font-medium text-foreground underline decoration-primary/35 underline-offset-[5px] transition-colors hover:text-primary"
                 >
                   Upgrade to full Creatix
                 </Link>
@@ -88,10 +92,10 @@ export function DashboardHero({
               </p>
             ) : (
               !hasConnectedPlatforms && (
-                <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+                <p className="mt-4 text-sm leading-relaxed text-amber-800/90 dark:text-amber-400/95">
                   <Link
                     href="/dashboard/settings?tab=integrations"
-                    className="font-medium underline decoration-amber-600/50 underline-offset-4 transition-colors hover:text-foreground"
+                    className="font-medium text-gold underline decoration-gold/40 underline-offset-[5px] transition-colors hover:text-foreground hover:decoration-foreground/30 dark:text-gold"
                   >
                     Connect your platforms
                   </Link>{' '}
@@ -100,16 +104,16 @@ export function DashboardHero({
               )
             )}
           </div>
-          <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-end sm:justify-end">
+          <div className="flex shrink-0 flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-end sm:gap-5">
             {planLabel ? (
-              <span className="inline-flex items-center justify-center rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-inner backdrop-blur sm:justify-start">
+              <span className="inline-flex items-center justify-center rounded-full border border-border/35 bg-background/55 px-4 py-2 text-[12px] font-medium text-muted-foreground shadow-sm backdrop-blur-md dark:border-white/[0.10] dark:bg-white/[0.06] sm:justify-start">
                 Plan:
-                <span className="ml-1.5 text-foreground">{planLabel}</span>
+                <span className="ml-1.5 tabular-nums text-foreground">{planLabel}</span>
               </span>
             ) : null}
             {!nonApiProtectionTier ? (
-              <div className="flex flex-col items-end gap-1">
-                <span className="hidden text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
+              <div className="flex flex-col items-end gap-2">
+                <span className="hidden text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85 sm:block">
                   Connected platforms
                 </span>
                 <ConnectedPlatforms />

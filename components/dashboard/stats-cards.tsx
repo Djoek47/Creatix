@@ -50,28 +50,32 @@ export function StatsCards({ stats }: StatsCardsProps) {
   ]
 
   return (
-    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
       {cards.map((card, i) => (
         <Card
           key={card.title}
-          className="overflow-hidden border-border/80 bg-card/80 shadow-sm backdrop-blur-sm constellation-bg"
+          className="overflow-hidden rounded-2xl border border-white/40 bg-white/45 shadow-[0_10px_36px_-20px_rgba(15,23,42,0.2)] backdrop-blur-xl backdrop-saturate-150 constellation-bg dark:border-white/[0.09] dark:bg-slate-950/40 dark:shadow-[0_14px_44px_-24px_rgba(0,0,0,0.48)]"
         >
           <CardContent className="p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{card.title}</p>
-                <p className="mt-1 truncate font-serif text-2xl font-semibold tabular-nums tracking-tight">{card.value}</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/85">
+                  {card.title}
+                </p>
+                <p className="mt-2 truncate text-2xl font-semibold tabular-nums tracking-tight text-foreground md:text-[1.65rem]">
+                  {card.value}
+                </p>
               </div>
               <div
                 className={cn(
-                  'shrink-0 rounded-xl border border-border/50 p-3 shadow-inner',
-                  i % 4 === 0 && 'bg-circe/10 text-circe',
-                  i % 4 === 1 && 'bg-gold/10 text-gold',
-                  i % 4 === 2 && 'bg-venus/10 text-venus',
-                  i % 4 === 3 && 'bg-primary/10 text-primary'
+                  'shrink-0 rounded-2xl border border-white/45 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] backdrop-blur-md dark:border-white/[0.10]',
+                  i % 4 === 0 && 'bg-circe/[0.11] text-circe dark:bg-circe/[0.14]',
+                  i % 4 === 1 && 'bg-gold/[0.11] text-gold dark:bg-gold/[0.12]',
+                  i % 4 === 2 && 'bg-venus/[0.11] text-venus dark:bg-venus/[0.13]',
+                  i % 4 === 3 && 'bg-primary/10 text-primary dark:bg-primary/[0.12]',
                 )}
               >
-                <card.icon className="h-5 w-5" />
+                <card.icon className="h-5 w-5" aria-hidden />
               </div>
             </div>
             {card.change !== null ? (

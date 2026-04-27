@@ -223,25 +223,26 @@ function DashboardModule({ className, children, heading }: { className?: string;
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card/95 via-card/80 to-card/50 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_20px_50px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-[box-shadow,transform] duration-300',
-        'dark:from-card/90 dark:via-card/70 dark:to-card/45',
+        'relative overflow-hidden rounded-[1.35rem] border border-white/40 bg-white/42 shadow-[0_16px_48px_-28px_rgba(15,23,42,0.22)] backdrop-blur-2xl backdrop-saturate-150 transition-[box-shadow] duration-300',
+        'dark:border-white/[0.09] dark:bg-slate-950/42 dark:shadow-[0_20px_56px_-32px_rgba(0,0,0,0.52)]',
         className,
       )}
     >
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.5] mix-blend-overlay dark:opacity-[0.35]"
+        className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.28]"
         style={{
           background:
-            'radial-gradient(120% 80% at 10% 0%, rgba(251, 191, 36, 0.08) 0%, transparent 50%), radial-gradient(100% 60% at 100% 0%, rgba(168, 85, 247, 0.1) 0%, transparent 55%)',
+            'radial-gradient(125% 85% at 8% 0%, rgba(251, 191, 36, 0.06) 0%, transparent 52%), radial-gradient(100% 65% at 100% 0%, rgba(168, 85, 247, 0.07) 0%, transparent 58%)',
         }}
         aria-hidden
       />
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent dark:via-white/[0.10]" aria-hidden />
       {heading ? (
-        <div className="relative border-b border-border/35 px-3 py-2 md:px-4">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{heading}</p>
+        <div className="relative border-b border-border/25 px-4 py-3 md:px-5 dark:border-white/[0.06]">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/85">{heading}</p>
         </div>
       ) : null}
-      <div className="relative p-3 md:p-4">{children}</div>
+      <div className="relative p-4 md:p-5">{children}</div>
     </div>
   )
 }
@@ -851,14 +852,14 @@ export function DashboardWidgetsGrid({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         {customize ? (
-          <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
-            Drag sections by the gold grip.{' '}
-            <span className="font-medium text-foreground/90">Pair with next</span> on a row to sit two blocks
-            side-by-side; drag the <span className="whitespace-nowrap text-amber-200/90">gold</span> /{' '}
-            <span className="whitespace-nowrap text-violet-200/90">violet</span> bar to resize. Saved on this device.
+          <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground/90">
+            Drag sections by the grip.{' '}
+            <span className="font-medium text-foreground/90">Pair with next</span> for a split row; drag the{' '}
+            <span className="whitespace-nowrap text-amber-200/90">gold</span> /{' '}
+            <span className="whitespace-nowrap text-violet-200/90">violet</span> handle to resize. Saved on this device.
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -866,7 +867,12 @@ export function DashboardWidgetsGrid({
             type="button"
             size="sm"
             variant={customize ? 'default' : 'secondary'}
-            className={cn('gap-1.5', customize && 'bg-gradient-to-r from-amber-600 to-violet-600 text-white shadow-md')}
+            className={cn(
+              'h-9 gap-2 rounded-full border border-transparent px-4 shadow-sm backdrop-blur-sm transition-[box-shadow,transform] duration-200',
+              customize
+                ? 'border-amber-500/20 bg-gradient-to-r from-amber-600/95 to-violet-600/95 text-white shadow-md hover:shadow-lg active:scale-[0.98]'
+                : 'border-border/35 bg-background/50 dark:border-white/[0.10] dark:bg-white/[0.06]',
+            )}
             onClick={() => setCustomize((c) => !c)}
           >
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
@@ -874,7 +880,12 @@ export function DashboardWidgetsGrid({
           </Button>
           <Popover open={customizeOpen} onOpenChange={setCustomizeOpen}>
             <PopoverTrigger asChild>
-              <Button type="button" variant="secondary" size="sm" className="gap-1.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-9 gap-2 rounded-full border border-border/35 bg-background/50 px-4 shadow-sm backdrop-blur-sm dark:border-white/[0.10] dark:bg-white/[0.06]"
+              >
                 <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
                 Blocks
               </Button>
@@ -915,7 +926,13 @@ export function DashboardWidgetsGrid({
               </div>
             </PopoverContent>
           </Popover>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={resetLayout}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 rounded-full border-border/40 bg-background/40 px-4 shadow-sm backdrop-blur-sm dark:border-white/[0.10] dark:bg-white/[0.05]"
+            onClick={resetLayout}
+          >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
             Reset order & splits
           </Button>
@@ -923,7 +940,7 @@ export function DashboardWidgetsGrid({
             type="button"
             variant="secondary"
             size="sm"
-            className="gap-1.5 border-gold/25 bg-gold/[0.06] hover:bg-gold/[0.1]"
+            className="h-9 gap-2 rounded-full border border-gold/22 bg-gold/[0.07] px-4 shadow-sm backdrop-blur-sm hover:bg-gold/[0.11] dark:border-gold/28 dark:bg-gold/[0.09]"
             onClick={resetToDivinePreset}
           >
             <Sparkles className="h-3.5 w-3.5 text-gold" aria-hidden />
@@ -932,13 +949,13 @@ export function DashboardWidgetsGrid({
         </div>
       </div>
 
-      <div className="relative rounded-2xl border border-border/30 bg-gradient-to-b from-muted/20 to-transparent p-1 md:p-2">
+      <div className="relative rounded-[1.35rem] border border-white/30 bg-gradient-to-b from-white/25 via-white/[0.08] to-transparent p-1.5 shadow-inner backdrop-blur-md dark:border-white/[0.07] dark:from-white/[0.06] dark:via-transparent md:p-2.5">
         {customize ? (
           <Reorder.Group
             axis="y"
             values={sectionOrder}
             onReorder={onReorder}
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-6"
           >
             {sectionOrder.map((id) => {
               const content = renderSection(id)
@@ -955,11 +972,11 @@ export function DashboardWidgetsGrid({
                   value={id}
                   dragListener
                   className="relative"
-                  whileDrag={{ scale: 1.01, zIndex: 20, boxShadow: '0 20px 50px -20px rgba(0,0,0,0.5)' }}
+                  whileDrag={{ scale: 1.005, zIndex: 20, boxShadow: '0 24px 60px -24px rgba(0,0,0,0.45)' }}
                 >
                   <div className="flex w-full min-w-0 gap-2.5">
                     <div
-                      className="mt-1 flex h-9 w-9 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 active:cursor-grabbing dark:text-amber-300"
+                      className="mt-1 flex h-9 w-9 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-xl border border-amber-500/18 bg-amber-500/[0.09] text-amber-700 shadow-sm backdrop-blur-sm active:cursor-grabbing dark:text-amber-300"
                       aria-label="Drag to reorder section"
                     >
                       <GripVertical className="h-4 w-4" aria-hidden />
@@ -1013,7 +1030,7 @@ export function DashboardWidgetsGrid({
             })}
           </Reorder.Group>
         ) : (
-          <motion.div className="flex flex-col gap-5" variants={listVariants} initial="hidden" animate="show">
+          <motion.div className="flex flex-col gap-6" variants={listVariants} initial="hidden" animate="show">
             {orderToSegments(sectionOrder, visible, splitAnchors).map((seg, i) => {
               if (seg.type === 'rqPair') {
                 const content = renderRqPair(seg.first)

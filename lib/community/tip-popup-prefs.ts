@@ -7,14 +7,14 @@ export const TIP_POPUP_LAST_SHOWN_AT_KEY = 'creatix_tip_popup_last_shown_at'
 export const TIP_POPUP_LAST_TIP_ID_KEY = 'creatix_tip_popup_last_tip_id'
 
 /** Minimum time between automatic popups (ms). */
-export const TIP_POPUP_COOLDOWN_MS = 3 * 60 * 60 * 1000
+export const TIP_POPUP_COOLDOWN_MS = 2.5 * 60 * 60 * 1000
 
 /** Random delay before a popup may appear (ms). */
-export const TIP_POPUP_DELAY_MIN_MS = 4_000
-export const TIP_POPUP_DELAY_MAX_MS = 11_000
+export const TIP_POPUP_DELAY_MIN_MS = 8_000
+export const TIP_POPUP_DELAY_MAX_MS = 26_000
 
 /** Chance to show after delay, if cooldown allows (0–1). */
-export const TIP_POPUP_ROLL_CHANCE = 0.38
+export const TIP_POPUP_ROLL_CHANCE = 0.5
 
 export const TIP_POPUP_PREFS_EVENT = 'creatix-tip-prefs-changed'
 export const TIP_POPUP_FORCE_EVENT = 'creatix-tip-popup-force'

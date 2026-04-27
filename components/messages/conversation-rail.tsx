@@ -92,12 +92,13 @@ export function ConversationRail({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-sm transition-[width,box-shadow] duration-300 ease-out',
+        'flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-white/40 bg-white/55 shadow-[0_20px_55px_-28px_rgba(15,23,42,0.3)] backdrop-blur-2xl backdrop-saturate-150 transition-[width,box-shadow] duration-300 ease-out',
+        'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_65px_-30px_rgba(0,0,0,0.55)]',
         /* Fixed readable width — inbox chrome stays legible; center chat gets all remaining flex space */
         expanded ? 'w-64 min-w-64 max-w-64 sm:w-[17rem] sm:min-w-[17rem] sm:max-w-[17rem]' : 'w-[3.75rem] min-w-[3.75rem] max-w-[3.75rem]',
       )}
     >
-      <div className="flex shrink-0 items-center justify-center border-b border-border/60 py-1.5">
+      <div className="flex shrink-0 items-center justify-center border-b border-border/35 py-1.5">
         <Button
           type="button"
           variant="ghost"
@@ -124,7 +125,7 @@ export function ConversationRail({
             onTagChange={onTagChange}
             className="shrink-0 px-3 pt-2"
           />
-          <div className="shrink-0 border-b border-border/60 px-3 py-2">
+          <div className="shrink-0 border-b border-border/35 px-3 py-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input

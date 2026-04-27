@@ -135,18 +135,23 @@ const variantStyles = {
 
 type NavVariant = keyof typeof variantStyles
 
-function NavLink({ 
-  item, 
-  variant = 'default', 
-  pathname, 
+/** Vertical rhythm: short viewports tighten gaps/padding so the rail rarely scrolls. */
+type SidebarVerticalDensity = 'normal' | 'tight' | 'cramped'
+
+function NavLink({
+  item,
+  variant = 'default',
+  pathname,
   collapsed,
   compactDensity,
-}: { 
+  verticalDensity,
+}: {
   item: NavItem
   variant?: NavVariant
   pathname: string
   collapsed: boolean
   compactDensity: boolean
+  verticalDensity: SidebarVerticalDensity
 }) {
   const isActive =
     item.href === '/dashboard/fans'
@@ -157,13 +162,23 @@ function NavLink({
   const Icon = item.icon
 
   const linkClassName = cn(
-    'group flex min-h-10 items-center font-medium',
+    'group flex items-center font-medium',
     'transition-[background-color,color]',
     navEase,
     compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
     collapsed
-      ? 'relative justify-center overflow-visible gap-0 rounded-xl px-2 py-2'
-      : 'gap-3 rounded-xl px-3 py-2.5',
+      ? cn(
+          'relative justify-center overflow-visible gap-0 rounded-xl px-2',
+          verticalDensity === 'cramped' ? 'min-h-8 py-1.5' : verticalDensity === 'tight' ? 'min-h-9 py-1.5' : 'min-h-10 py-2',
+        )
+      : cn(
+          'gap-3 rounded-xl px-3',
+          verticalDensity === 'cramped'
+            ? 'min-h-8 gap-2 py-1.5'
+            : verticalDensity === 'tight'
+              ? 'min-h-9 py-2'
+              : 'min-h-10 py-2.5',
+        ),
     isActive ? styles.active : styles.inactive,
   )
 
@@ -187,9 +202,7 @@ function NavLink({
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
           {item.beta ? (
-            <span className="rounded-full bg-sidebar-foreground/[0.07] px-2 py-0.5 text-[0.6rem] font-medium uppercase leading-none tracking-[0.1em] text-sidebar-foreground/42 tabular-nums dark:bg-sidebar-foreground/[0.09]">
-              Beta
-            </span>
+            <span className={SIDEBAR_BETA_PILL}>Beta</span>
           ) : null}
         </div>
       )}
@@ -245,6 +258,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [compactDensity, setCompactDensity] = useState(false)
+  const [verticalDensity, setVerticalDensity] = useState<SidebarVerticalDensity>('normal')
   const isMessagesRoute = pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')
 
   useEffect(() => {
@@ -263,9 +277,12 @@ export function DashboardSidebar({ profile }: SidebarProps) {
 
   useEffect(() => {
     const checkDensity = () => {
-      const shortScreen = window.innerHeight < 860
-      const narrowScreen = window.innerWidth < 1320
+      const h = window.innerHeight
+      const w = window.innerWidth
+      const shortScreen = h < 860
+      const narrowScreen = w < 1320
       setCompactDensity(shortScreen || narrowScreen)
+      setVerticalDensity(h < 620 ? 'cramped' : h < 760 ? 'tight' : 'normal')
     }
     checkDensity()
     window.addEventListener('resize', checkDensity)
@@ -294,6 +311,21 @@ export function DashboardSidebar({ profile }: SidebarProps) {
     return true
   })
 
+  const navGroupGap = cn(
+    verticalDensity === 'cramped' && 'gap-3 py-2',
+    verticalDensity === 'tight' && 'gap-4 py-3',
+    verticalDensity === 'normal' && 'gap-6 py-4',
+  )
+  const navItemStack = verticalDensity === 'cramped' ? 'space-y-0.5' : 'space-y-1'
+  const bottomRailClass = cn(
+    'relative shrink-0 border-t border-sidebar-border/45 bg-gradient-to-b from-transparent to-sidebar-accent/10 px-3',
+    verticalDensity === 'cramped' && 'pb-2 pt-2.5',
+    verticalDensity === 'tight' && 'pb-3 pt-3.5',
+    verticalDensity === 'normal' && 'pb-4 pt-5',
+  )
+  const bottomLinkStack =
+    verticalDensity === 'cramped' ? 'space-y-0.5' : verticalDensity === 'tight' ? 'space-y-1' : 'space-y-1.5'
+
   return (
     <aside
       className={cn(
@@ -305,9 +337,16 @@ export function DashboardSidebar({ profile }: SidebarProps) {
 
       {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
       <TooltipProvider delayDuration={0}>
-        <nav className="sidebar-nav-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-3 py-4">
+        <nav
+          className={cn(
+            'sidebar-nav-scroll flex min-h-0 flex-1 flex-col overflow-x-hidden px-3',
+            navGroupGap,
+            /* Prefer fitting the viewport; scroll only if caps / locale still overflow */
+            'overflow-y-auto overscroll-y-contain',
+          )}
+        >
         {/* Primary destinations */}
-        <div className="space-y-1">
+        <div className={navItemStack}>
           {silverFiltered.map((item) => (
             <NavLink
               key={item.name}
@@ -316,11 +355,12 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               pathname={pathname}
               collapsed={collapsed}
               compactDensity={compactDensity}
+              verticalDensity={verticalDensity}
             />
           ))}
         </div>
 
-        <div className="space-y-1">
+        <div className={navItemStack}>
           {aiStudioFiltered.map((item) => (
             <NavLink
               key={item.name}
@@ -329,13 +369,19 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               pathname={pathname}
               collapsed={collapsed}
               compactDensity={compactDensity}
+              verticalDensity={verticalDensity}
             />
           ))}
         </div>
 
-        <div className="space-y-1">
+        <div className={navItemStack}>
           {!collapsed && (
-            <div className="mb-0.5 flex items-center gap-2 px-1">
+            <div
+              className={cn(
+                'flex items-center gap-2 px-1',
+                verticalDensity === 'cramped' ? 'mb-0' : 'mb-0.5',
+              )}
+            >
               <Moon
                 className={cn(
                   compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
@@ -361,13 +407,19 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               pathname={pathname}
               collapsed={collapsed}
               compactDensity={compactDensity}
+              verticalDensity={verticalDensity}
             />
           ))}
         </div>
 
-        <div className="space-y-1">
+        <div className={navItemStack}>
           {!collapsed && (
-            <div className="mb-0.5 flex items-center gap-2 px-1">
+            <div
+              className={cn(
+                'flex items-center gap-2 px-1',
+                verticalDensity === 'cramped' ? 'mb-0' : 'mb-0.5',
+              )}
+            >
               <Sun
                 className={cn(
                   compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
@@ -393,14 +445,15 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               pathname={pathname}
               collapsed={collapsed}
               compactDensity={compactDensity}
+              verticalDensity={verticalDensity}
             />
           ))}
         </div>
         </nav>
 
         {/* Bottom rail — secondary destinations; calmer than main nav */}
-        <div className="relative shrink-0 border-t border-sidebar-border/45 bg-gradient-to-b from-transparent to-sidebar-accent/10 px-3 pb-4 pt-5">
-        <div className="space-y-1.5">
+        <div className={bottomRailClass}>
+        <div className={bottomLinkStack}>
           {bottomNavigation.map((item) => (
             <NavLink
               key={item.name}
@@ -409,12 +462,18 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               pathname={pathname}
               collapsed={collapsed}
               compactDensity={compactDensity}
+              verticalDensity={verticalDensity}
             />
           ))}
         </div>
 
         {!collapsed && profile && !compactDensity && (
-          <div className="mt-4 border-t border-sidebar-border/35 pt-4">
+          <div
+            className={cn(
+              'border-t border-sidebar-border/35',
+              verticalDensity === 'cramped' ? 'mt-2 pt-2' : verticalDensity === 'tight' ? 'mt-3 pt-3' : 'mt-4 pt-4',
+            )}
+          >
           <div className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/22 p-3 transition-colors duration-200">
             <p className={cn('truncate font-medium leading-tight text-sidebar-foreground', SIDEBAR_SIZE.cozy.linkText)}>
               {profile.full_name || 'Divine Creator'}

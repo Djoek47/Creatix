@@ -116,7 +116,7 @@ export function DivineProtocolTaskRail() {
         <button
           type="button"
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-muted/50 hover:text-foreground"
-          onClick={cycleLevel}
+          onClick={onHeaderSizeButtonClick}
           title="Compact header — full header (cycles)"
         >
           <Layers2 className="h-3.5 w-3.5" aria-hidden />
@@ -160,7 +160,12 @@ export function DivineProtocolTaskRail() {
         onOpenChange={setMenuOpen}
         className={cn(!showEmptyShell && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
       >
-        <div className="flex min-h-9 items-center justify-end gap-1 px-3 pt-3">
+        <div
+          className={cn(
+            'flex min-h-9 items-center gap-1 pt-3',
+            level === 1 && !menuOpen ? 'justify-center px-2' : 'justify-end px-3',
+          )}
+        >
           <button
             type="button"
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-muted/45 hover:text-foreground"

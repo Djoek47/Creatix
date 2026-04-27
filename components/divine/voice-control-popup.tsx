@@ -540,7 +540,7 @@ export function VoiceControlPopup() {
         onPointerUp={handleFabPointerUp}
         onPointerCancel={handleFabPointerUp}
         className={cn(
-          'group/divineFab fixed z-40 flex touch-none flex-col items-end gap-2',
+          'group/divineFab fixed z-40 flex touch-none flex-col items-center gap-2',
           fabInset == null &&
             (messagesRouteDefault
               ? 'bottom-[max(8.5rem,calc(env(safe-area-inset-bottom)+7.25rem))] right-3 sm:right-5'

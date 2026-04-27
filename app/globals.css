@@ -1069,9 +1069,10 @@
   }
 }
 
+/* Idle / ready — reads clearly as amber “yellow” on dark UI (traffic standby) */
 .dark .divine-crown-inactive-yellow {
-  background: linear-gradient(165deg, oklch(0.44 0.05 78), oklch(0.36 0.042 82));
-  color: oklch(0.93 0.02 85);
+  background: linear-gradient(165deg, oklch(0.62 0.14 82), oklch(0.52 0.12 78));
+  color: oklch(0.98 0.02 95);
   animation: divine-crown-inactive-idle-dark 5s ease-in-out infinite;
 }
 

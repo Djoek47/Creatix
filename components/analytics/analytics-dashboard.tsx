@@ -23,7 +23,7 @@ const PLATFORM_META: Record<
   { label: string; logoSrc: string; ring: string; bg: string }
 > = {
   onlyfans: { label: 'OnlyFans', logoSrc: '/onlyfans-logo.png', ring: 'ring-sky-500/40', bg: 'bg-sky-500/10' },
-  fansly: { label: 'Fansly', logoSrc: '/fansly-logo.svg', ring: 'ring-blue-500/40', bg: 'bg-blue-500/10' },
+  fansly: { label: 'Fansly', logoSrc: '/fansly-logo.png', ring: 'ring-blue-500/40', bg: 'bg-blue-500/10' },
   mym: { label: 'MYM', logoSrc: '/mym-logo.png', ring: 'ring-zinc-500/40', bg: 'bg-zinc-950/40' },
 }
 

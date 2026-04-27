@@ -31,8 +31,6 @@ const PLATFORM_UI: Record<
 > = {
   onlyfans: { label: 'OnlyFans', logoSrc: '/onlyfans-logo.png', accent: '#00AFF0' },
   fansly: { label: 'Fansly', logoSrc: '/fansly-logo.png', accent: '#009FFF' },
-  manyvids: { label: 'ManyVids', accent: '#E91E63' },
-  loyalfans: { label: 'LoyalFans', accent: '#C41E3A' },
 }
 
 function draftFromRow(row: Row): Draft {

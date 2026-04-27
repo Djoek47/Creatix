@@ -692,7 +692,7 @@ function NotificationRow({
                 {notification.platform === 'onlyfans' ? (
                   <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-5 w-5 object-contain" />
                 ) : (
-                  <img src="/fansly-logo.svg" alt="Fansly" className="h-5 w-5 object-contain" />
+                  <img src="/fansly-logo.png" alt="Fansly" className="h-5 w-5 object-contain" />
                 )}
               </div>
             )}
@@ -700,7 +700,7 @@ function NotificationRow({
               {notification.platform === 'onlyfans' ? (
                 <img src="/onlyfans-logo.png" alt="" className="h-3 w-3 object-contain" />
               ) : (
-                <img src="/fansly-logo.svg" alt="" className="h-3 w-3 object-contain" />
+                <img src="/fansly-logo.png" alt="" className="h-3 w-3 object-contain" />
               )}
             </div>
           </div>

@@ -35,9 +35,9 @@ export function ProtectionHero() {
                 you already handled—so nothing slips through the cracks.
               </p>
               <p className="mt-3 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground/90">Covered store types</span> (no creator API required):{' '}
-                Clips4Sale · ManyVids · Loyalfans · Fanvue · MYM — add matching PNGs in{' '}
-                <code className="rounded bg-muted/80 px-1">public/brands/</code> (e.g. <code className="rounded bg-muted/80 px-1">fanvue.png</code>) to show logos here.
+                <span className="font-medium text-foreground/90">Covered store types</span> (no creator API required):
+                Clips4Sale · ManyVids · Loyalfans · Fanvue · MYM — Circe Shield can monitor these storefronts for leaks
+                and impersonation even when you don&apos;t plug in a live creator API.
               </p>
             </div>
           </div>

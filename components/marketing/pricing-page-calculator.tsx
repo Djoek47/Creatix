@@ -122,6 +122,14 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
   const pctVsOf = protectionOnly ? 0 : tierRow ? percentVsOnlyFansBase(tierRow, monthlyUsd) : 0
 
   const lockBandPreview = () => setIsAutoCyclingBand(false)
+  const triggerPlanGlow = (nextGlow: 'focus' | 'bundled', durationMs: number) => {
+    if (planGlowTimer.current) {
+      window.clearTimeout(planGlowTimer.current)
+      planGlowTimer.current = null
+    }
+    setPlanGlow(nextGlow)
+    planGlowTimer.current = window.setTimeout(() => setPlanGlow(null), durationMs)
+  }
 
   useEffect(() => {
     const count = platformSelection.size
@@ -145,13 +153,7 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
 
     if (!nextGlow) return
 
-    if (planGlowTimer.current) {
-      window.clearTimeout(planGlowTimer.current)
-      planGlowTimer.current = null
-    }
-
-    setPlanGlow(nextGlow)
-    planGlowTimer.current = window.setTimeout(() => setPlanGlow(null), nextGlow === 'bundled' ? 5200 : 900)
+    triggerPlanGlow(nextGlow, nextGlow === 'bundled' ? 5200 : 900)
 
     return () => {
       if (planGlowTimer.current) window.clearTimeout(planGlowTimer.current)
@@ -324,6 +326,7 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
             <Checkbox
               id="pricing-revenue-override"
               checked={useRevenueForBand}
+              className="shadow-[0_0_0_1px_rgba(168,85,247,0.42),0_0_10px_-3px_rgba(168,85,247,0.5),0_0_14px_-6px_rgba(251,191,36,0.42)]"
               onCheckedChange={(v) => {
                 lockBandPreview()
                 const on = v === true
@@ -379,7 +382,16 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                 onClick={() => {
                   lockBandPreview()
                   setProtectionOnly(false)
+                  if (effectiveVariant === 'multi') {
+                    const randomPlatform: AdultBillingPlatform =
+                      Math.random() < 0.5 ? 'onlyfans' : 'fansly'
+                    setPlatformSelection(new Set([randomPlatform]))
+                    setVariant('single')
+                    triggerPlanGlow('focus', 1600)
+                    return
+                  }
                   setVariant('single')
+                  triggerPlanGlow('focus', 1200)
                 }}
               >
                 Focus
@@ -431,18 +443,31 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                       key={p}
                       type="button"
                       aria-pressed={selected}
-                      aria-disabled={bundledRow}
-                      tabIndex={bundledRow ? -1 : undefined}
-                      onClick={() => togglePlatform(p)}
+                      onClick={() => {
+                        if (bundledRow) {
+                          lockBandPreview()
+                          setProtectionOnly(false)
+                          setVariant('single')
+                          setPlatformSelection(new Set([p]))
+                          return
+                        }
+                        togglePlatform(p)
+                      }}
                       className={cn(
                         'group flex min-h-11 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-[box-shadow,border-color,background-color,color,transform]',
-                        bundledRow && cn(bundledGlowSurface, 'pointer-events-none cursor-default'),
+                        bundledRow && cn(bundledGlowSurface, 'cursor-pointer'),
+                        !bundledRow &&
+                          focusBothApiPlatforms &&
+                          selected &&
+                          cn(bundledGlowSurface, 'hover:border-fuchsia-300/85'),
                         !bundledRow &&
                           p === 'onlyfans' &&
+                          !focusBothApiPlatforms &&
                           selected &&
                           'border-sky-500/50 bg-sky-500/12 shadow-[0_0_0_1px_rgba(14,165,233,0.2)]',
                         !bundledRow &&
                           p === 'fansly' &&
+                          !focusBothApiPlatforms &&
                           selected &&
                           'border-blue-500/50 bg-blue-500/12 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]',
                         !bundledRow && !selected && 'border-border bg-background/80 hover:bg-muted/40',

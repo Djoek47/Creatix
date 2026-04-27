@@ -139,7 +139,7 @@ export async function startCheckoutSession(productId: string) {
   const stripe = getStripe()
   if (product.id === 'divine-trial') {
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded',
+      ui_mode: 'embedded_page',
       redirect_on_completion: 'never',
       customer: customerId,
       mode: 'setup',
@@ -158,7 +158,7 @@ export async function startCheckoutSession(productId: string) {
   }
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-    ui_mode: 'embedded',
+    ui_mode: 'embedded_page',
     redirect_on_completion: 'never',
     customer: customerId,
     line_items: [
@@ -234,7 +234,7 @@ export async function startCustomCreditTopupCheckout(amountUsd: number) {
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded',
+    ui_mode: 'embedded_page',
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'payment',
@@ -331,7 +331,7 @@ export async function startPaidSubscriptionCheckout(params: {
 
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded',
+    ui_mode: 'embedded_page',
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'subscription',

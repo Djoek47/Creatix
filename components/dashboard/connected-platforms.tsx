@@ -22,7 +22,7 @@ const OnlyFansLogo = ({ className }: { className?: string }) => (
 )
 
 const FanslyLogo = ({ className }: { className?: string }) => (
-  <img src="/fansly-logo.svg" alt="Fansly" className={cn('h-4 w-4', className)} />
+  <img src="/fansly-logo.png" alt="Fansly" className={cn('h-4 w-4', className)} />
 )
 
 const PLATFORM_META: Record<string, { color: string; label: string; Logo: React.FC<{ className?: string }> }> = {

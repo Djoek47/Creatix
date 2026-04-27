@@ -160,7 +160,7 @@ export function MessageActivity() {
                     {/* Platform indicator */}
                     <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background p-0.5 shadow-sm">
                       <img 
-                        src={conv.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.svg'}
+                        src={conv.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
                         alt={conv.platform} 
                         className="h-3 w-3 rounded-sm"
                       />

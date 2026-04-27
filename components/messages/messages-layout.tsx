@@ -306,6 +306,7 @@ function MessagesLayoutContent({
           search: searchDebounced,
           tag: tag.trim(),
         })
+        if (refresh) params.set('refresh', 'true')
         const res = await fetch(`/api/messages/inbox?${params}`, { credentials: 'include' })
         const data = (await res.json()) as {
           conversations?: Conversation[]

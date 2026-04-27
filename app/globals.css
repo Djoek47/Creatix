@@ -203,6 +203,29 @@
   box-shadow: 0 0 20px oklch(0.78 0.14 85 / 0.3);
 }
 
+@keyframes tour-start-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.tour-start-prompt {
+  transform-origin: center;
+  box-shadow: 0 0 0 1px oklch(0.55 0.2 295 / 0.28);
+  animation: tour-start-breathe 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-start-prompt {
+    animation: none;
+    box-shadow: none;
+  }
+}
+
 /* Brand mark — soft leaking aura (light = gold + hint of purple; dark = purple + hint of gold) */
 @keyframes themed-logo-aura-light {
   0%,

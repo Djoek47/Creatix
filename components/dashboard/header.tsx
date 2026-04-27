@@ -131,7 +131,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
           />
         </div>
 
-        {/* Page tutorial */}
+        {/* Live tour (Start Tour / Launch Tour) */}
         <StartTourButton className="hidden sm:flex" />
 
         {/* Theme Toggle */}

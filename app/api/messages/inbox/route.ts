@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import {
-  createOnlyFansAPI,
-  isOnlyFansRateLimitError,
-  isOnlyFansUpstreamTransientError,
-} from '@/lib/onlyfans-api'
+import { isOnlyFansRateLimitError, isOnlyFansUpstreamTransientError } from '@/lib/onlyfans-api'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import {
   fetchCrmMapForFanIds,
@@ -23,6 +19,7 @@ import {
   adultPlatformBillingGateWhenEitherConnected,
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
 } from '@/lib/onlyfans-api-route'
+import { fetchOnlyFansInboxChatsCached } from '@/lib/onlyfans-inbox-chats-cache'
 
 export const maxDuration = 60
 
@@ -110,6 +107,11 @@ export async function GET(request: NextRequest) {
     const tag = searchParams.get('tag')?.trim() || undefined
     const search = searchParams.get('search')?.trim() || undefined
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
+    const forceRefreshInbox = searchParams.get('refresh') === 'true'
+
+    let onlyfansInboxStale = false
+    let onlyfansInboxStaleReason: 'rate_limit' | 'min_refresh' | undefined
+    let onlyfansInboxRetryAfterMs: number | undefined
 
     if (platform === 'onlyfans' || platform === 'fansly' || platform === 'all') {
       const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
@@ -137,11 +139,19 @@ export async function GET(request: NextRequest) {
         return []
       }
 
-      const api = createOnlyFansAPI()
-      api.setAccountId(connection.access_token)
-      const result = await api.getConversations({ limit, offset })
-      const chats = result.conversations || []
-      return chats.map(normalizeOfChat).filter((x): x is RawConv => x != null)
+      const cached = await fetchOnlyFansInboxChatsCached({
+        userId,
+        accessToken: connection.access_token,
+        mode: { kind: 'paginated', limit, offset },
+        forceRefresh: forceRefreshInbox,
+        normalize: (chat) => normalizeOfChat(chat),
+      })
+      if (cached.stale) {
+        onlyfansInboxStale = true
+        onlyfansInboxStaleReason = cached.code === 'ONLYFANS_RATE_LIMIT' ? 'rate_limit' : 'min_refresh'
+        if (cached.retryAfterMs != null) onlyfansInboxRetryAfterMs = cached.retryAfterMs
+      }
+      return cached.conversations as RawConv[]
     }
 
     async function loadFansly(): Promise<RawConv[]> {
@@ -241,13 +251,20 @@ export async function GET(request: NextRequest) {
       const parts: RawConv[] = []
       if (ofConn?.access_token) {
         try {
-          const api = createOnlyFansAPI()
-          api.setAccountId(ofConn.access_token)
-          const result = await api.getConversations({ limit: pool, offset: 0 })
-          const chats = result.conversations || []
-          parts.push(
-            ...chats.map(normalizeOfChat).filter((x): x is RawConv => x != null),
-          )
+          const cached = await fetchOnlyFansInboxChatsCached({
+            userId,
+            accessToken: ofConn.access_token,
+            mode: { kind: 'pool', pool },
+            forceRefresh: forceRefreshInbox,
+            normalize: (chat) => normalizeOfChat(chat),
+          })
+          if (cached.stale) {
+            onlyfansInboxStale = true
+            onlyfansInboxStaleReason =
+              cached.code === 'ONLYFANS_RATE_LIMIT' ? 'rate_limit' : 'min_refresh'
+            if (cached.retryAfterMs != null) onlyfansInboxRetryAfterMs = cached.retryAfterMs
+          }
+          parts.push(...(cached.conversations as RawConv[]))
         } catch (e) {
           const msg = e instanceof Error ? e.message : ''
           if (isOnlyFansRateLimitError(msg)) {
@@ -375,6 +392,15 @@ export async function GET(request: NextRequest) {
         provider_errors:
           Object.keys(providerErrors).length > 0 ? providerErrors : undefined,
         errors: errors.length ? errors : undefined,
+        ...(onlyfansInboxStale
+          ? {
+              onlyfans_inbox_stale: true as const,
+              onlyfans_inbox_stale_reason: onlyfansInboxStaleReason,
+              ...(onlyfansInboxRetryAfterMs != null
+                ? { onlyfans_inbox_retry_after_ms: onlyfansInboxRetryAfterMs }
+                : {}),
+            }
+          : {}),
       },
     })
   } catch (error) {

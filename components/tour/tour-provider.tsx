@@ -2,7 +2,12 @@
 
 import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { getTourForPath, TOUR_STORAGE_PREFIX } from '@/lib/tour-config'
+import {
+  CREATIX_TOUR_COMPLETED_EVENT,
+  getTourForPath,
+  type CreatixTourCompletedDetail,
+  TOUR_STORAGE_PREFIX,
+} from '@/lib/tour-config'
 import { TourDialog } from './tour-dialog'
 import { TourSpotlight } from './tour-spotlight'
 import type { TourConfig } from '@/lib/tour-types'
@@ -10,6 +15,11 @@ import type { TourConfig } from '@/lib/tour-types'
 function setTourCompleted(tourId: string) {
   try {
     localStorage.setItem(TOUR_STORAGE_PREFIX + tourId, '1')
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent<CreatixTourCompletedDetail>(CREATIX_TOUR_COMPLETED_EVENT, { detail: { tourId } }),
+      )
+    }
   } catch {
     // ignore
   }

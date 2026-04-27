@@ -6,7 +6,7 @@ export type ScanIdentityBrandMark =
   | { kind: 'initials'; text: string }
   | { kind: 'special'; type: 'former' | 'manual' }
 
-/** Same wordmarks as the marketing home hero and dashboard platform chips. */
+/** Same PNG marks as the marketing home hero (`lib/platform-logos`). */
 export function scanIdentityBrandMarkForSource(source: string): ScanIdentityBrandMark {
   const key = scanSourcePlatformKey(source)
   switch (key) {

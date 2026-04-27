@@ -7,6 +7,7 @@ import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
+import { FansArrangementsSection } from '@/components/fans/fans-arrangements-section'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -397,6 +398,11 @@ export function FansPageClient({
           showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
         />
       )}
+      <FansArrangementsSection
+        hasOnlyFans={hasOnlyFansConnected}
+        hasFansly={hasFanslyConnected}
+        compact
+      />
     </div>
   )
 }

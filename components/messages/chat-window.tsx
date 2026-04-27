@@ -1160,6 +1160,7 @@ export function ChatWindow({
 
     const poll = async () => {
       if (!conversation) return
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
       if (Date.now() < onlyFansPollBackoffUntilRef.current) return
       setIsPolling(true)
       try {
@@ -1176,7 +1177,7 @@ export function ChatWindow({
           res.status === 503 ||
           data.code === 'ONLYFANS_UPSTREAM'
         ) {
-          onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
+          onlyFansPollBackoffUntilRef.current = Date.now() + 120_000
           return
         }
         if (res.ok && data?.messages) {
@@ -1192,7 +1193,7 @@ export function ChatWindow({
     if (pollStartTimeoutRef.current) clearTimeout(pollStartTimeoutRef.current)
     pollStartTimeoutRef.current = setTimeout(() => {
       void poll()
-      pollIntervalRef.current = setInterval(poll, 12_000)
+      pollIntervalRef.current = setInterval(poll, 25_000)
     }, 8_000)
 
     return () => {

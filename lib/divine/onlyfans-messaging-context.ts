@@ -186,13 +186,23 @@ export async function loadOnlyFansMessagingContext(
   }
 
   const api = createOnlyFansAPI(connection.access_token)
+  const usernameTrim = typeof body.username === 'string' ? body.username.trim() : ''
+  const nameTrim = typeof body.name === 'string' ? body.name.trim() : ''
+  /** Avoid GET /chats when the client already passed fan identity (saves one partner call per load). */
+  const skipConversationsList = usernameTrim.length > 0 || nameTrim.length > 0
+
   let threadRes: { messages?: unknown[] }
   let convRes: { conversations?: unknown[] }
   try {
-    ;[threadRes, convRes] = await Promise.all([
-      api.getMessages(String(fanId), { limit: 80 }),
-      api.getConversations({ limit: 60 }),
-    ])
+    if (skipConversationsList) {
+      threadRes = await api.getMessages(String(fanId), { limit: 80 })
+      convRes = { conversations: [] }
+    } else {
+      ;[threadRes, convRes] = await Promise.all([
+        api.getMessages(String(fanId), { limit: 80 }),
+        api.getConversations({ limit: 60 }),
+      ])
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message || '' : String(e ?? '')
     if (msg.toLowerCase().includes('resource was not found')) {
@@ -201,13 +211,19 @@ export async function loadOnlyFansMessagingContext(
     return { error: msg || 'Failed to fetch thread from OnlyFans' }
   }
 
-  const fanFromConv = ((convRes?.conversations || []) as any[]).find(
-    (c: any) => String(c.user?.id) === String(fanId),
-  )
-  const fanName = body.name ?? fanFromConv?.user?.name ?? null
+  const fanFromConv = skipConversationsList
+    ? null
+    : ((convRes?.conversations || []) as any[]).find(
+        (c: any) => String(c.user?.id) === String(fanId),
+      )
+  const fanName = skipConversationsList
+    ? nameTrim || usernameTrim || null
+    : body.name ?? fanFromConv?.user?.name ?? null
   const fan: FanRecord = {
     id: String(fanId),
-    username: body.username ?? fanFromConv?.user?.username ?? 'fan',
+    username: skipConversationsList
+      ? usernameTrim || 'fan'
+      : body.username ?? fanFromConv?.user?.username ?? 'fan',
     name: fanName,
   }
   const fanForAi = {

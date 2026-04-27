@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { useTour } from '@/components/tour/tour-provider'
+import { fullAppWelcomeTour } from '@/lib/tour-full-app-welcome'
+import { useTourCompleted } from '@/components/tour/use-tour-completed'
+import { cn } from '@/lib/utils'
 
 /**
  * Dedicated route for the full-app orientation tour (see lib/tour-full-app-welcome.ts).
@@ -37,17 +40,21 @@ export default function WelcomeTourPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Sparkles className="h-6 w-6 text-amber-500" aria-hidden />
-            Full app tour
+            Live app tour
           </CardTitle>
           <CardDescription>
-            The tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with animated
-            highlights. Use Start Tour in the header anytime for a shorter walkthrough on the page you are on.
+            The live tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with
+            highlights. The header’s Start Tour or Launch Tour is the same for a quick pass on any page.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <Button type="button" className="gap-2" onClick={() => startTour?.()}>
+          <Button
+            type="button"
+            className={cn('gap-2', !fullTourDone && 'tour-start-prompt')}
+            onClick={() => startTour?.()}
+          >
             <BookOpen className="h-4 w-4" aria-hidden />
-            Start full tour
+            {fullTourDone ? 'Launch live tour' : 'Start live tour'}
           </Button>
           <Button type="button" variant="outline" asChild>
             <Link href="/dashboard">Go to dashboard</Link>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import { Bell, Check, MessageSquare, Shield, TrendingUp, Users, X, Star, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -108,8 +108,22 @@ export function Notifications() {
   /** Divine voice: scroll this CRM id into view when popover opens. */
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
   const supabase = createClient()
+  /** Skip duplicate platform pull when popover opens shortly after prefetch for the same user (ms). */
+  const onlyFansPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
+  const fanslyPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
 
-  const loadOnlyFansPull = useCallback(async (uid: string | null) => {
+  const loadOnlyFansPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    const force = opts?.force === true
+    const last = onlyFansPullLastOkRef.current
+    if (
+      !force &&
+      uid &&
+      last.userId === uid &&
+      last.at > 0 &&
+      Date.now() - last.at < 30_000
+    ) {
+      return
+    }
     try {
       const res = await fetch('/api/onlyfans/notifications')
       const json = await res.json().catch(() => ({}))
@@ -149,12 +163,24 @@ export function Notifications() {
         origin: 'platform_pull' as const,
       }))
       setOfPullNotifications(applyPullNotificationOverlay(uid, ofNotifs))
+      onlyFansPullLastOkRef.current = { userId: uid, at: Date.now() }
     } catch {
       setOfPullNotifications([])
     }
   }, [])
 
-  const loadFanslyPull = useCallback(async (uid: string | null) => {
+  const loadFanslyPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    const force = opts?.force === true
+    const last = fanslyPullLastOkRef.current
+    if (
+      !force &&
+      uid &&
+      last.userId === uid &&
+      last.at > 0 &&
+      Date.now() - last.at < 30_000
+    ) {
+      return
+    }
     try {
       const res = await fetch('/api/fansly/notifications')
       const json = await res.json().catch(() => ({}))
@@ -199,6 +225,7 @@ export function Notifications() {
         }
       })
       setFanslyPullNotifications(applyPullNotificationOverlay(uid, fsNotifs))
+      fanslyPullLastOkRef.current = { userId: uid, at: Date.now() }
     } catch {
       setFanslyPullNotifications([])
     }
@@ -277,14 +304,14 @@ export function Notifications() {
   /** Prefetch platform pull feeds so the bell badge includes OF + Fansly without opening first. */
   useEffect(() => {
     if (!userId) return
-    void loadOnlyFansPull(userId)
-    void loadFanslyPull(userId)
+    void loadOnlyFansPull(userId, { force: true })
+    void loadFanslyPull(userId, { force: true })
   }, [userId, loadOnlyFansPull, loadFanslyPull])
 
   useEffect(() => {
     if (!open || !userId) return
-    void loadOnlyFansPull(userId)
-    void loadFanslyPull(userId)
+    void loadOnlyFansPull(userId, { force: false })
+    void loadFanslyPull(userId, { force: false })
   }, [open, userId, loadOnlyFansPull, loadFanslyPull])
 
   const liveDb = useMemo(
@@ -559,8 +586,8 @@ export function Notifications() {
                     className="h-7 shrink-0 whitespace-nowrap px-2 text-[11px]"
                     onClick={() => {
                       clearPullDismissed(userId)
-                      void loadOnlyFansPull(userId)
-                      void loadFanslyPull(userId)
+                      void loadOnlyFansPull(userId, { force: true })
+                      void loadFanslyPull(userId, { force: true })
                     }}
                   >
                     Show again

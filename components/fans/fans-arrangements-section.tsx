@@ -144,6 +144,14 @@ export function FansArrangementsSection({
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#arrangements') return
+    requestAnimationFrame(() => {
+      document.getElementById('arrangements')?.scrollIntoView({ behavior: 'smooth' })
+    })
+  }, [])
+
   const fetchOfLists = useCallback(async () => {
     if (!hasOnlyFans) return
     setOfListsLoading(true)
@@ -217,7 +225,11 @@ export function FansArrangementsSection({
   )
 
   return (
-    <div className={compact ? 'space-y-6' : 'mx-auto max-w-4xl space-y-8'}>
+    <div
+      id="arrangements"
+      data-tour="fans-classify"
+      className={compact ? 'space-y-6' : 'mx-auto max-w-4xl space-y-8'}
+    >
       {!compact ? (
         <div>
           <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">

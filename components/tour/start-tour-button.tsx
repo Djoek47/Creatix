@@ -3,49 +3,46 @@
 import { Button } from '@/components/ui/button'
 import { BookOpen } from 'lucide-react'
 import { useTour } from './tour-provider'
-import { getTourForPath, TOUR_STORAGE_PREFIX } from '@/lib/tour-config'
+import { getTourForPath } from '@/lib/tour-config'
 import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
-
-function getTourCompleted(tourId: string): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
-  } catch {
-    return false
-  }
-}
+import { useTourCompleted } from './use-tour-completed'
+import { cn } from '@/lib/utils'
 
 export function StartTourButton({ className }: { className?: string }) {
   const pathname = usePathname()
   const { startTour } = useTour() ?? {}
   const config = useMemo(() => getTourForPath(pathname ?? '/dashboard'), [pathname])
-  const completed = config ? getTourCompleted(config.tourId) : true
+  const tourId = config?.tourId
+  const completed = useTourCompleted(tourId)
   const hasSteps = (config?.steps.length ?? 0) > 0
 
   if (!hasSteps || !startTour) return null
 
   const isFullWelcome = pathname === '/dashboard/welcome'
-  const labelDone = isFullWelcome ? 'Full tour' : 'Tutorial'
-  const labelStart = isFullWelcome ? 'Full tour' : 'Start Tour'
-  const titleDone = isFullWelcome
-    ? 'Show full app tour again'
-    : 'Show page walkthrough again'
-  const titleStart = isFullWelcome
-    ? 'Start the full app orientation (navigates real pages with highlights)'
-    : 'Start page walkthrough (spotlight steps for this screen)'
+  const label = completed ? 'Launch Tour' : 'Start Tour'
+  const title = completed
+    ? isFullWelcome
+      ? 'Run the full live app tour again (navigates real pages with highlights)'
+      : 'Launch the live page tour again (spotlight steps for this screen)'
+    : isFullWelcome
+      ? 'Start the full live app tour (navigates real pages with highlights)'
+      : 'Start the live page tour (spotlight steps for this screen)'
 
   return (
     <Button
       variant="ghost"
       size="sm"
-      className={className}
+      className={cn(
+        className,
+        !completed && 'tour-start-prompt',
+      )}
       data-tour="header-start-tour"
       onClick={startTour}
-      title={completed ? titleDone : titleStart}
+      title={title}
     >
-      <BookOpen className="h-4 w-4 mr-1.5" />
-      {completed ? labelDone : labelStart}
+      <BookOpen className="h-4 w-4 mr-1.5" aria-hidden />
+      {label}
     </Button>
   )
 }

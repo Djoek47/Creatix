@@ -26,7 +26,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-03',
       title: 'Dashboard home',
       description:
-        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start Tour in the header for a shorter refresher on the page you are on.',
+        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start Tour or Launch Tour in the header for a short live pass on the page you are on.',
       path: '/dashboard',
       targetSelector: '[data-tour="/dashboard"]',
     },
@@ -175,7 +175,8 @@ export const fullAppWelcomeTour: TourConfig = {
       title: 'Fan classification',
       description:
         'Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Housekeeping segments.',
-      path: '/dashboard/fans/classify',
+      path: '/dashboard/fans',
+      targetSelector: '[data-tour="fans-classify"]',
     },
     {
       id: 'full-23',
@@ -234,9 +235,9 @@ export const fullAppWelcomeTour: TourConfig = {
     },
     {
       id: 'full-31',
-      title: 'Header: Start Tour',
+      title: 'Header: live tour',
       description:
-        'On any page, Start Tour in the header opens a short walkthrough for that screen (on mobile, use the menu button if the header control is tucked away). This full tour lives on Welcome—you can return here from Settings or Guide.',
+        'On any page, the live tour in the header: Start Tour first, then Launch Tour for another pass. On mobile, the menu’s tour control covers the same if the header button is hidden.',
       path: '/dashboard',
       targetSelector: '[data-tour="header-start-tour"]',
       targetSelectorFallback: '[data-tour="header-start-tour-mobile"]',
@@ -245,7 +246,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-32',
       title: 'You are oriented',
       description:
-        'Explore the sidebar in any order. When you open a new area, tap Start Tour there for specifics. Open Guide anytime for detail.',
+        'Explore the sidebar in any order. In each area, use Start Tour or Launch Tour in the header for a live pass on that screen. Open Guide anytime for detail.',
       path: '/dashboard/welcome',
       targetSelector: '[data-tour="welcome-card"]',
     },

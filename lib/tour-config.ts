@@ -9,6 +9,20 @@ export type { TourStep, TourConfig } from '@/lib/tour-types'
 
 export const TOUR_STORAGE_PREFIX = 'circe-tour-v2-done-'
 
+/** Dispatched on `window` when a tour is marked complete (same tab). */
+export const CREATIX_TOUR_COMPLETED_EVENT = 'creatix-tour-completed' as const
+
+export type CreatixTourCompletedDetail = { tourId: string }
+
+export function readTourCompleted(tourId: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
+  } catch {
+    return false
+  }
+}
+
 /** v2 tour content — bump TOUR_STORAGE_PREFIX when changing materially */
 const TOURS: Record<string, TourConfig> = {
   '/dashboard': {
@@ -171,24 +185,6 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Manual fans',
         description:
           'Add a fan manually when you need CRM notes or tracking for someone not yet synced—useful for cross-platform context.',
-      },
-    ],
-  },
-
-  '/dashboard/fans/classify': {
-    tourId: 'fans-classify',
-    steps: [
-      {
-        id: 'rules',
-        title: 'Classification',
-        description:
-          'Run rules to label fans by behavior or spend. Results feed lists and automations elsewhere—keep rules aligned with your Housekeeping lists.',
-      },
-      {
-        id: 'sync',
-        title: 'Sync with platforms',
-        description:
-          'After classification, sync or push segments to OnlyFans user lists where supported so DMs and promotions match.',
       },
     ],
   },
@@ -512,7 +508,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'header-tour',
         title: 'Shorter page tours',
         description:
-          'On other screens, Start Tour in the header opens a spotlight walkthrough for that page. Switch routes and tap it again for area-specific tips.',
+          'On other screens, use the live tour in the header: Start Tour until you have opened it once, then Launch Tour for a spotlight pass on that page. Switch routes and open it again for area-specific tips.',
       },
     ],
   },
@@ -700,7 +696,6 @@ const TOUR_PATH_MATCH_ORDER: string[] = [
   '/dashboard/ai-studio/tools',
   '/dashboard/messages/mass',
   '/dashboard/protection/aegis',
-  '/dashboard/fans/classify',
   '/dashboard/commenter',
   '/dashboard/content-library',
   '/dashboard/community',

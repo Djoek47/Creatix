@@ -91,6 +91,10 @@
     {
       "path": "/api/cron/revenue-tier-stripe-align",
       "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/credit-auto-topup",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

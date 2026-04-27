@@ -29,7 +29,6 @@ import {
 } from '@/lib/divine/divine-lookup-meta'
 import { loadOnlyFansMessagingContext } from '@/lib/divine/onlyfans-messaging-context'
 import { isDivineFullAccess, DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
-import { isPaidPlanId } from '@/lib/billing/access'
 import { draftFanReplyWithMimic } from '@/lib/divine/draft-fan-reply'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
 import { processPlatformPostCommentById } from '@/lib/commenter/process-comment'
@@ -176,16 +175,6 @@ export function isAllowedUiNavigatePath(path: string): boolean {
 export function getBaseUrl(): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-}
-
-async function isProPlanUser(supabase: SupabaseClient, userId: string): Promise<boolean> {
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('plan_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const pid = String((subscription as { plan_id?: string } | null)?.plan_id ?? '').toLowerCase()
-  return isPaidPlanId(pid)
 }
 
 function parseHandlesArg(raw: unknown): string[] {
@@ -861,8 +850,6 @@ export async function runContextTool(
     }
     if (name === 'trigger_reputation_briefing') {
       if (!ctx) return 'Context unavailable.'
-      const pro = await isProPlanUser(ctx.supabase, ctx.userId)
-      if (!pro) return 'Venus Pro required for AI reputation briefing.'
       const handles = parseHandlesArg(args.handles)
       const result = await runReputationBriefingCore(ctx.supabase, ctx.userId, {
         handles: handles.length ? handles : undefined,

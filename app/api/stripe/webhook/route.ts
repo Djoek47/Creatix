@@ -14,6 +14,7 @@ import { isPaidPlanId, isProtectionPlanId, PAID_PLAN_ID } from '@/lib/billing/ac
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
+import { creditAutoTopupMaxFailures } from '@/lib/billing/credit-auto-topup'
 import { checkoutProductDescription, checkoutProductName, getMonthlyPriceCents } from '@/lib/pricing-matrix'
 import {
   parseDivineVoiceFromStripeMetadata,
@@ -552,6 +553,134 @@ export async function POST(req: NextRequest) {
             status: 'past_due',
           })
         }
+        break
+      }
+
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object as Stripe.PaymentIntent
+        if (pi.metadata?.type !== 'credit_topup_auto') break
+        const userId = pi.metadata?.userId
+        if (!userId) break
+        const credits = Number.parseInt(pi.metadata?.credits ?? '0', 10)
+        if (!Number.isFinite(credits) || credits <= 0) break
+
+        await grantPurchasedCredits({
+          supabase,
+          userId,
+          credits,
+          reasonCode: 'stripe_auto_topup_grant',
+          reasonRef: pi.id,
+          idempotencyKey: `stripe_pi:${pi.id}`,
+          metadata: {
+            pack_id: pi.metadata?.packId ?? null,
+            payment_intent_id: pi.id,
+            auto_topup: true,
+          },
+        })
+
+        const amountUsdCents = typeof pi.amount === 'number' ? pi.amount : Number(pi.amount)
+        const { error: evErr } = await supabase.from('credit_auto_topup_events').insert({
+          user_id: userId,
+          kind: 'success',
+          payment_intent_id: pi.id,
+          amount_usd_cents: amountUsdCents,
+          credits,
+          pack_id: pi.metadata?.packId ?? null,
+        })
+
+        const pgDup = (evErr as { code?: string } | null)?.code === '23505'
+        if (pgDup) break
+        if (evErr) {
+          console.warn('[stripe webhook] credit_auto_topup_events success insert', evErr.message)
+          break
+        }
+
+        const { data: settingsRow } = await supabase
+          .from('credit_auto_topup_settings')
+          .select('monthly_spent_usd_cents')
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        if (settingsRow) {
+          const spent = Number(settingsRow.monthly_spent_usd_cents ?? 0)
+          await supabase
+            .from('credit_auto_topup_settings')
+            .update({
+              last_success_at: new Date().toISOString(),
+              consecutive_failures: 0,
+              last_error: null,
+              status: 'active',
+              monthly_spent_usd_cents: spent + amountUsdCents,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+        }
+
+        await insertDivineAppNotification(supabase as NotificationInsertClient, userId, {
+          type: 'system',
+          title: 'Credits added (auto top-up)',
+          description: `We added ${credits.toLocaleString()} credits from your saved card.`,
+          link: '/dashboard/settings?tab=usage',
+          metadata: { kind: 'billing', credit_auto_topup: true },
+        })
+        break
+      }
+
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object as Stripe.PaymentIntent
+        if (pi.metadata?.type !== 'credit_topup_auto') break
+        const userId = pi.metadata?.userId
+        if (!userId) break
+
+        const msg = pi.last_payment_error?.message ?? 'Payment failed'
+        const amountUsdCents = typeof pi.amount === 'number' ? pi.amount : Number(pi.amount)
+
+        const { error: evErr } = await supabase.from('credit_auto_topup_events').insert({
+          user_id: userId,
+          kind: 'failure',
+          payment_intent_id: pi.id,
+          amount_usd_cents: Number.isFinite(amountUsdCents) ? amountUsdCents : null,
+          pack_id: pi.metadata?.packId ?? null,
+          error_message: msg.slice(0, 500),
+        })
+
+        const pgDup = (evErr as { code?: string } | null)?.code === '23505'
+        if (pgDup) break
+        if (evErr) {
+          console.warn('[stripe webhook] credit_auto_topup_events failure insert', evErr.message)
+          break
+        }
+
+        const { data: cur } = await supabase
+          .from('credit_auto_topup_settings')
+          .select('consecutive_failures, enabled')
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        const prevF = Number(cur?.consecutive_failures ?? 0)
+        const nextF = prevF + 1
+        const maxF = creditAutoTopupMaxFailures()
+        const pause = cur?.enabled === true && nextF >= maxF
+
+        await supabase
+          .from('credit_auto_topup_settings')
+          .update({
+            consecutive_failures: nextF,
+            last_error: msg.slice(0, 500),
+            status: pause ? 'paused' : 'active',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+
+        await insertDivineAppNotification(supabase as NotificationInsertClient, userId, {
+          type: 'system',
+          title: pause ? 'Auto top-up paused' : 'Auto top-up payment failed',
+          description: pause
+            ? `After ${maxF} failed charges, automatic top-up is paused. Update your card under Billing, then turn auto top-up back on in Usage.`
+            : `${msg} We will try again when your balance is low (after the cooldown you set).`,
+          link: '/dashboard/settings?tab=usage',
+          metadata: { kind: 'billing', credit_auto_topup: true },
+        })
         break
       }
 

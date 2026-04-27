@@ -34,6 +34,8 @@ import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
+import * as TooltipPrimitive from '@radix-ui/react-tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 interface SidebarProps {
   user: User
@@ -157,22 +159,31 @@ function NavLink({
   const isAiStudio = variant === 'ai-studio'
   const styles = variantStyles[variant]
   const Icon = item.icon
-  
-  return (
-    <Link
-      href={item.href}
-      data-tour={item.href}
-      className={cn(
-        'group flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-2 font-medium transition-colors',
-        compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
-        isActive ? styles.active : styles.inactive
+
+  const linkClassName = cn(
+    'group flex min-h-9 items-center font-medium transition-colors',
+    compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
+    collapsed
+      ? 'relative justify-center overflow-visible gap-0 rounded-md px-2 py-2'
+      : 'gap-2.5 rounded-md px-2.5 py-2',
+    isActive ? styles.active : styles.inactive,
+  )
+
+  const linkInner = (
+    <>
+      {collapsed && (
+        <span
+          className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-0 rounded-md"
+          aria-hidden
+        />
       )}
-    >
       <Icon
         className={cn(
+          'relative z-[1] flex-shrink-0',
           compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-          'flex-shrink-0',
-          isAiStudio ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate') : isActive && styles.icon,
+          isAiStudio
+            ? cn(styles.icon, 'transition-all duration-300 group-hover:animate-hue-rotate')
+            : isActive && styles.icon,
         )}
       />
       {!collapsed && (
@@ -194,6 +205,49 @@ function NavLink({
           ) : null}
         </div>
       )}
+    </>
+  )
+
+  if (collapsed) {
+    return (
+      <TooltipPrimitive.Root delayDuration={0}>
+        <TooltipPrimitive.Trigger asChild>
+          <Link
+            href={item.href}
+            data-tour={item.href}
+            className={linkClassName}
+          >
+            {linkInner}
+          </Link>
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            side="right"
+            sideOffset={8}
+            className={cn(
+              'z-50 max-w-[16rem] origin-(--radix-tooltip-content-transform-origin) rounded-md border border-amber-500/25 bg-background/95 px-2.5 py-1.5 text-xs text-foreground shadow-lg backdrop-blur-sm',
+              'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=right]:slide-in-from-left-2',
+            )}
+          >
+            <span className="font-medium">{item.name}</span>
+            {item.beta ? (
+              <span className="ml-1.5 text-[0.65rem] uppercase tracking-wide text-amber-500/90">
+                Beta
+              </span>
+            ) : null}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    )
+  }
+
+  return (
+    <Link
+      href={item.href}
+      data-tour={item.href}
+      className={linkClassName}
+    >
+      {linkInner}
     </Link>
   )
 }
@@ -283,10 +337,11 @@ export function DashboardSidebar({ profile }: SidebarProps) {
       </div>
 
       {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
-      <nav className="sidebar-nav-scroll min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-2 py-1.5">
+      <TooltipProvider delayDuration={0}>
+        <nav className="sidebar-nav-scroll min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-2 py-1.5">
         {/* Dashboard, Content, Messages - Black light/White dark — compact, same size as rest */}
         <div className="space-y-0.5">
-          {silverNavigation.map((item) => (
+          {silverFiltered.map((item) => (
             <NavLink
               key={item.name}
               item={item}
@@ -300,7 +355,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
 
         {/* AI Studio — gold + purple glow; rainbow on hover */}
         <div className="space-y-0.5">
-          {aiStudioNavigation.map((item) => (
+          {aiStudioFiltered.map((item) => (
             <NavLink
               key={item.name}
               item={item}
@@ -375,10 +430,10 @@ export function DashboardSidebar({ profile }: SidebarProps) {
             />
           ))}
         </div>
-      </nav>
+        </nav>
 
-      {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
-      <div className="shrink-0 space-y-0.5 border-t border-sidebar-border px-2 py-1.5">
+        {/* Bottom Navigation — shrink-0 keeps Community / Guide / Settings + profile above the fold via nav scroll */}
+        <div className="shrink-0 space-y-0.5 border-t border-sidebar-border px-2 py-1.5">
         {bottomNavigation.map((item) => (
           <NavLink
             key={item.name}
@@ -406,7 +461,8 @@ export function DashboardSidebar({ profile }: SidebarProps) {
             </p>
           </div>
         )}
-      </div>
+        </div>
+      </TooltipProvider>
 
       {/* Collapse Button */}
       <Button

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw, Sparkles, ExternalLink, AlertTriangle } from 'lucide-react'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
@@ -14,16 +13,10 @@ import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
 type Props = {
   initialBriefing: ReputationBriefingPayload | null
   briefingAt: string | null
-  isPro: boolean
   mentionCount: number
 }
 
-export function ReputationBriefingCard({
-  initialBriefing,
-  briefingAt,
-  isPro,
-  mentionCount,
-}: Props) {
+export function ReputationBriefingCard({ initialBriefing, briefingAt, mentionCount }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +51,6 @@ export function ReputationBriefingCard({
   }, [identityHandles])
 
   const handleRefresh = async () => {
-    if (!isPro) return
     if (identityHandles.length === 0 || selectedHandles.size === 0) return
     setLoading(true)
     setError(null)
@@ -81,8 +73,7 @@ export function ReputationBriefingCard({
     }
   }
 
-  const showEmptyPro =
-    isPro && mentionCount === 0 && !initialBriefing
+  const showEmptyBriefing = mentionCount === 0 && !initialBriefing
 
   return (
     <Card className="border-venus/20 bg-gradient-to-br from-card via-card to-venus/5">
@@ -91,15 +82,9 @@ export function ReputationBriefingCard({
           <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
             <Sparkles className="h-5 w-5 text-venus" />
             AI reputation briefing
-            {isPro && (
-              <Badge variant="outline" className="border-venus/40 text-[10px] text-venus">
-                Venus Pro
-              </Badge>
-            )}
           </CardTitle>
-          <CardDescription>
-            Themes and next steps from indexed discovery (search snippets)—not a live X/IG/TikTok feed. You
-            choose every reply.
+          <CardDescription className="text-xs">
+            From web search snippets—not a live social feed. You choose every reply.
           </CardDescription>
           {briefingAt && initialBriefing && (
             <p className="text-xs text-muted-foreground">
@@ -107,20 +92,18 @@ export function ReputationBriefingCard({
             </p>
           )}
         </div>
-        {isPro && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-venus/40 text-venus hover:bg-venus/10"
-            onClick={() => void handleRefresh()}
-            disabled={loading || identityHandles.length === 0 || selectedHandles.size === 0}
-            title="Generate or refresh the aggregate AI briefing (runs a discovery pass if needed)"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {initialBriefing ? 'Refresh briefing' : 'Generate briefing'}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 border-venus/40 text-venus hover:bg-venus/10"
+          onClick={() => void handleRefresh()}
+          disabled={loading || identityHandles.length === 0 || selectedHandles.size === 0}
+          title="Generate or refresh the aggregate AI briefing (runs a discovery pass if needed)"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {initialBriefing ? 'Refresh briefing' : 'Generate briefing'}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -133,28 +116,20 @@ export function ReputationBriefingCard({
             selected={selectedHandles}
             onToggle={toggleSelectedHandle}
             idPrefix="mentions-briefing"
+            allCheckboxClassName="shadow-[0_0_14px_4px] shadow-venus/35 ring-1 ring-venus/45 ring-offset-2 ring-offset-background transition-shadow focus-visible:ring-[3px] focus-visible:ring-venus/50 dark:shadow-[0_0_18px_6px] dark:shadow-venus/30"
           />
         )}
 
-        {!isPro && (
-          <p className="text-sm text-muted-foreground">
-            Upgrade to Venus Pro for aggregate reputation intelligence.{' '}
-            <Link href="/dashboard/ai-studio/tools" className="text-venus underline-offset-4 hover:underline">
-              Open Venus Pro
-            </Link>
-          </p>
-        )}
-
-        {isPro && showEmptyPro && (
+        {showEmptyBriefing && (
           <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">No indexed mentions yet</p>
+            <p className="font-medium text-foreground">No briefing snapshot yet</p>
             <p className="mt-1">
-              Add <span className="text-foreground">search handles</span> above (OAuth optional), then tap{' '}
-              <span className="text-foreground">Generate briefing</span>—we run indexed discovery and save a Pro
-              snapshot even when the feed is empty.
+              Add <span className="text-foreground">search handles</span> in the card above, then run{' '}
+              <span className="text-foreground">Scan web</span>—the scan updates mentions and also builds this aggregate
+              brief. You can <span className="text-foreground">Generate briefing</span> here anytime.
             </p>
             <Button variant="link" className="mt-2 h-auto p-0 text-venus" asChild>
-              <Link href="/dashboard/settings?tab=integrations">Optional: Integrations</Link>
+              <Link href="/dashboard/settings?tab=integrations">Connect accounts (optional)</Link>
             </Button>
           </div>
         )}

@@ -1,8 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-import { Bell, ThumbsUp, Minus, ThumbsDown, Shield } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Bell, ThumbsUp, Minus, ThumbsDown } from 'lucide-react'
 import type { ReputationMention } from '@/lib/types'
 import { MentionsHeader } from '@/components/dashboard/mentions-header'
 import { MentionsListBody } from '@/components/dashboard/mentions-list-body'
@@ -10,7 +8,6 @@ import { MentionsConnectBanner } from '@/components/dashboard/mentions-connect-b
 import { ReputationBriefingCard } from '@/components/dashboard/reputation-briefing-card'
 import { ReputationIdentityCard } from '@/components/dashboard/reputation-identity-card'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
-import { isPaidPlanId } from '@/lib/billing/access'
 
 export default async function MentionsPage() {
   const supabase = await createClient()
@@ -18,13 +15,12 @@ export default async function MentionsPage() {
 
   if (!user) return null
 
-  const [{ data: mentions }, { data: subscription }, { data: profileRow }] = await Promise.all([
+  const [{ data: mentions }, { data: profileRow }] = await Promise.all([
     supabase
       .from('reputation_mentions')
       .select('*')
       .eq('user_id', user.id)
       .order('detected_at', { ascending: false }),
-    supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).maybeSingle(),
     supabase
       .from('profiles')
       .select(
@@ -33,9 +29,6 @@ export default async function MentionsPage() {
       .eq('id', user.id)
       .maybeSingle(),
   ])
-
-  const planId = (subscription as { plan_id?: string } | null)?.plan_id?.toLowerCase() || null
-  const isPro = Boolean(planId && isPaidPlanId(planId))
 
   const briefingJson = (profileRow as { reputation_briefing?: unknown; reputation_briefing_at?: string | null } | null)
     ?.reputation_briefing
@@ -48,7 +41,6 @@ export default async function MentionsPage() {
   const plat = (profileRow as { reputation_platform_handles?: Record<string, string> | null } | null)
     ?.reputation_platform_handles
   const initialOnlyfans = plat?.onlyfans ?? ''
-  const initialMym = plat?.mym ?? ''
   const initialManualHandles =
     (profileRow as { reputation_manual_handles?: string[] | null } | null)?.reputation_manual_handles ?? []
   const initialDisplayName =
@@ -63,95 +55,41 @@ export default async function MentionsPage() {
   const negativeCount = allMentions.filter(m => m.sentiment === 'negative').length
 
   return (
-    <div className="space-y-6 min-w-0">
+    <div className="space-y-5 min-w-0">
       <MentionsHeader />
 
       <MentionsConnectBanner />
-
-      <Card className="border-border bg-muted/15">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Shield className="h-4 w-4 text-primary" />
-            Leaks &amp; DMCA
-          </CardTitle>
-          <CardDescription>
-            Mention ingestion here is for reputation. Automated leak search and optional DMCA drafts run under{' '}
-            <span className="text-foreground">Protection</span> via Circe&apos;s Aegis — not from this page.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/protection/aegis">Open Circe&apos;s Aegis</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       <ReputationIdentityCard
         initialManualHandles={initialManualHandles}
         initialDisplayName={initialDisplayName}
         initialOnlyfans={initialOnlyfans}
-        initialMym={initialMym}
       />
 
-      <div className="rounded-xl border border-venus/15 bg-gradient-to-r from-venus/5 via-transparent to-transparent px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Venus&apos; Watchful Gaze</span> turns indexed mentions into a
-        snapshot you can act on—suggested wording only; you post or report on each platform.
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/60 bg-border/30 sm:grid-cols-4">
+        {[
+          { label: 'To review', value: unreviewed.length, icon: Bell, iconClass: 'text-primary' },
+          { label: 'Positive', value: positiveCount, icon: ThumbsUp, iconClass: 'text-chart-2' },
+          { label: 'Neutral', value: neutralCount, icon: Minus, iconClass: 'text-muted-foreground' },
+          { label: 'Negative', value: negativeCount, icon: ThumbsDown, iconClass: 'text-destructive' },
+        ].map(({ label, value, icon: Icon, iconClass }) => (
+          <Card key={label} className="rounded-none border-0 bg-card/90 shadow-none">
+            <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+              <Icon className={`h-4 w-4 shrink-0 ${iconClass}`} aria-hidden />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="text-lg font-bold tabular-nums leading-none sm:text-xl">{value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <ReputationBriefingCard
         initialBriefing={initialBriefing}
         briefingAt={briefingAt}
-        isPro={isPro}
         mentionCount={allMentions.length}
       />
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border bg-card">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-primary/10 p-3">
-              <Bell className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">To Review</p>
-              <p className="text-xl font-bold">{unreviewed.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-chart-2/10 p-3">
-              <ThumbsUp className="h-5 w-5 text-chart-2" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Positive</p>
-              <p className="text-xl font-bold">{positiveCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-muted p-3">
-              <Minus className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Neutral</p>
-              <p className="text-xl font-bold">{neutralCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border bg-card">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="rounded-lg bg-destructive/10 p-3">
-              <ThumbsDown className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Negative</p>
-              <p className="text-xl font-bold">{negativeCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <MentionsListBody
         unreviewed={unreviewed}

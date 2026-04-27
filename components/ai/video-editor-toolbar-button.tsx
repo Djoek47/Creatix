@@ -106,15 +106,27 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           className={cn(
-            'h-auto rounded-xl border border-border/80 bg-card/80 px-4 py-3 text-sm font-medium shadow-sm transition hover:bg-accent/50 sm:py-2.5',
+            'group relative h-auto overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/[0.1] via-card/85 to-purple-500/[0.12] px-4 py-3 text-sm font-medium',
+            'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.22),0_0_18px_-6px_rgba(168,85,247,0.28),0_0_14px_-4px_rgba(251,191,36,0.2)]',
+            'transition-all duration-300',
+            'hover:border-amber-400/50 hover:bg-gradient-to-br hover:from-amber-500/[0.14] hover:via-card/90 hover:to-purple-500/[0.16]',
+            'hover:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.35),0_0_24px_-4px_rgba(168,85,247,0.38),0_0_18px_-2px_rgba(251,191,36,0.28)]',
+            'dark:border-amber-500/30 dark:from-amber-500/[0.12] dark:via-card/80 dark:to-purple-500/[0.14] dark:hover:from-amber-500/[0.16] dark:hover:via-card/85 dark:hover:to-purple-500/[0.18]',
+            'sm:py-2.5',
             className,
           )}
         >
           <span className="flex items-center justify-center gap-2">
-            <Clapperboard className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-            Video editor
+            <Clapperboard
+              className="h-4 w-4 shrink-0 text-amber-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-all group-hover:text-amber-200 group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]"
+              aria-hidden
+            />
+            <span>Video editor</span>
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
+              Beta
+            </span>
           </span>
         </Button>
       </DialogTrigger>

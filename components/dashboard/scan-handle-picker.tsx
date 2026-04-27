@@ -2,6 +2,7 @@
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import type { ScanIdentityHandleRow } from '@/hooks/use-scan-identity'
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
   selected: Set<string>
   onToggle: (value: string) => void
   idPrefix?: string
+  /** Extra classes for the “All identities” checkbox (e.g. highlight glow). */
+  allCheckboxClassName?: string
 }
 
 export function ScanHandlePicker({
@@ -20,6 +23,7 @@ export function ScanHandlePicker({
   selected,
   onToggle,
   idPrefix = 'scan-handle',
+  allCheckboxClassName,
 }: Props) {
   if (handles.length === 0) return null
 
@@ -30,6 +34,7 @@ export function ScanHandlePicker({
           id={`${idPrefix}-all`}
           checked={useAll}
           onCheckedChange={(c) => onUseAllChange(c === true)}
+          className={cn(allCheckboxClassName)}
         />
         <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer font-medium">
           All identities

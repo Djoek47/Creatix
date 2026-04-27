@@ -14,7 +14,7 @@ export function XLogo({ className }: { className?: string }) {
   )
 }
 
-const SUPPORT_EMAIL = 'support@circeetvenus.com'
+const SUPPORT_EMAIL = 'admin@circeetvenus.com'
 const X_URL = 'https://x.com/circeetvenus'
 
 /**

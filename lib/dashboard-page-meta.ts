@@ -100,14 +100,6 @@ const ENTRIES: Entry[] = [
     },
   },
   {
-    prefix: '/dashboard/fans/new',
-    meta: {
-      eyebrow: 'Ledger',
-      title: 'Welcome a fan',
-      subtitle: 'Add someone beautiful to your inner circle.',
-    },
-  },
-  {
     prefix: '/dashboard/fans',
     meta: {
       eyebrow: 'Devotion',
@@ -142,19 +134,28 @@ const ENTRIES: Entry[] = [
     },
   },
   {
+    prefix: '/dashboard/protection/aegis',
+    meta: {
+      eyebrow: 'Aegis',
+      title: 'Automation',
+      subtitle:
+        'Circe runs leak scans on your schedule. Venus keeps reputation on Mentions — Aegis never posts for you; drafts only.',
+    },
+  },
+  {
     prefix: '/dashboard/protection',
     meta: {
       eyebrow: 'Aegis',
       title: 'Circe’s protection',
-      subtitle: 'Leaks found, claims filed, peace guarded — the shield around your empire.',
+      subtitle: 'Circe for leaks & takedowns. Venus for reputation. One shield — you approve every move.',
     },
   },
   {
     prefix: '/dashboard/mentions',
     meta: {
-      eyebrow: 'Horizon',
+      eyebrow: 'Mentions',
       title: 'Venus’ watch',
-      subtitle: 'Who’s talking, what they feel, where your name travels next.',
+      subtitle: 'Indexed web mentions, sentiment, and a calm review queue.',
     },
   },
   {

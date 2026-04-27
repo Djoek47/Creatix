@@ -1766,6 +1766,34 @@ body {
   height: 0;
 }
 
+/* Collapsed desktop sidebar: gold ↔ violet edge pulse on hover */
+@keyframes sidebar-nav-orbit-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px oklch(0.78 0.12 85 / 0.45),
+      0 0 10px -2px oklch(0.55 0.2 295 / 0.35),
+      0 0 16px -4px oklch(0.78 0.12 85 / 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px oklch(0.65 0.19 295 / 0.5),
+      0 0 12px -1px oklch(0.78 0.14 85 / 0.4),
+      0 0 20px -3px oklch(0.55 0.18 300 / 0.35);
+  }
+}
+
+.sidebar-nav-collapsed-glow {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.group:hover .sidebar-nav-collapsed-glow,
+.group:focus-visible .sidebar-nav-collapsed-glow {
+  opacity: 1;
+  animation: sidebar-nav-orbit-glow 2.4s ease-in-out infinite;
+}
+
 /* Dashboard header — refresh data: gold/purple glow + sheen */
 @keyframes refresh-conic-spin {
   to {

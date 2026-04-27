@@ -100,33 +100,31 @@ const socialPlatforms: Array<{
   },
 ]
 
+/** Preset = main idea for AI; no fixed marketing copy. */
 const promoTemplates = [
   {
     name: 'New Content',
-    template:
-      "New exclusive content just dropped! Don't miss out on what you've been waiting for… link in bio.",
+    idea: 'New exclusive work just dropped; FOMO; link in bio. No explicit language.',
     hashtags: ['newcontent', 'exclusive', 'linkinbio'],
   },
   {
     name: 'Sale / discount',
-    template:
-      'Limited-time offer — subscribe while it lasts. The good stuff is waiting behind the paywall.',
+    idea: 'Limited-time offer or price hook; subscribe before it ends; paywall / join CTA. Tasteful, no explicit language.',
     hashtags: ['sale', 'discount', 'limitedtime', 'subscribe'],
   },
   {
     name: 'Behind the scenes',
-    template: "Ever wonder what goes on behind the scenes? Come see what you're missing — link in bio.",
+    idea: 'BTS / process tease; curiosity; link in bio. Tasteful, no explicit language.',
     hashtags: ['behindthescenes', 'bts', 'exclusive', 'linkinbio'],
   },
   {
     name: 'Engagement',
-    template: 'Quick question: what do you want to see more of? Drop it in the comments.',
+    idea: 'A question for the community; want comments, not a sales hard-sell. Tasteful, no explicit language.',
     hashtags: ['questionoftheday', 'engagement', 'community'],
   },
   {
     name: 'YouTube visibility',
-    template:
-      'New video is live — tasteful tease, zero spoilers for the main course. Subscribe so you do not miss the next drop; link in bio for the full experience.',
+    idea: 'Tease a new video / Short; subscribe so they do not miss the next; link in bio. Tasteful, no explicit language.',
     hashtags: ['youtube', 'shorts', 'newvideo', 'linkinbio'],
   },
 ]
@@ -138,6 +136,51 @@ function clipForPreview(text: string, max: number) {
   return `${text.slice(0, Math.max(0, max - 1))}…`
 }
 
+function platformParamForApi(target: AiTarget) {
+  if (target === 'youtube') return 'instagram'
+  if (target === 'twitter') return 'twitter'
+  if (target === 'tiktok') return 'tiktok'
+  if (target === 'instagram') return 'instagram'
+  return target
+}
+
+/** Shared caption request for Post studio, template cards, and AI generate. */
+async function fetchSocialCaptions(
+  contentDescription: string,
+  target: AiTarget,
+): Promise<{ captions: string[]; hashtags: string[] }> {
+  const platform = platformParamForApi(target)
+  const bodyText =
+    target === 'youtube'
+      ? `Write social-forward copy suitable for YouTube Shorts descriptions / community posts that tease paid content off-platform (no explicit language).\n\nCreator brief:\n${contentDescription}`
+      : contentDescription
+
+  const res = await fetch('/api/ai/caption-generator', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contentDescription: bodyText,
+      platform,
+      contentType: 'photo',
+    }),
+  })
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string
+    captions?: Array<{ text?: string }>
+    hashtags?: string[]
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Generation failed')
+  }
+  const caps = Array.isArray(data.captions)
+    ? data.captions.map((c) => (typeof c.text === 'string' ? c.text.trim() : '')).filter(Boolean)
+    : []
+  const tags = Array.isArray(data.hashtags)
+    ? data.hashtags.map((h) => String(h).replace(/^#/, '')).filter(Boolean)
+    : []
+  return { captions: caps, hashtags: tags }
+}
+
 export function SocialPromotion({ connections }: SocialPromotionProps) {
   const [postText, setPostText] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
@@ -147,6 +190,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiTarget, setAiTarget] = useState<AiTarget>('twitter')
   const [captionOptions, setCaptionOptions] = useState<string[]>([])
+  const [linePreviews, setLinePreviews] = useState<Record<string, string | 'loading' | 'error'>>({})
 
   useEffect(() => {
     try {
@@ -205,6 +249,35 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
   const fullPostText =
     postText + (hashtags.length > 0 ? `\n\n${hashtags.map((h) => `#${h}`).join(' ')}` : '')
 
+  useEffect(() => {
+    let cancelled = false
+    setLinePreviews({})
+    async function loadLinePreviews() {
+      for (const t of promoTemplates) {
+        if (cancelled) return
+        setLinePreviews((p) => ({ ...p, [t.name]: 'loading' }))
+        const brief = `Return a single very short teaser line (max 18 words) for a UI card under the title "${t.name}". Hint at the angle only. ${t.idea}`
+        try {
+          const { captions } = await fetchSocialCaptions(brief, aiTarget)
+          if (cancelled) return
+          const line = captions[0]
+          setLinePreviews((p) => ({
+            ...p,
+            [t.name]: line ? clipForPreview(line, 140) : 'error',
+          }))
+        } catch {
+          if (cancelled) return
+          setLinePreviews((p) => ({ ...p, [t.name]: 'error' }))
+        }
+        await new Promise((r) => setTimeout(r, 320))
+      }
+    }
+    void loadLinePreviews()
+    return () => {
+      cancelled = true
+    }
+  }, [aiTarget])
+
   const generateWithAI = async () => {
     const trimmed = postText.trim()
     if (!trimmed) {
@@ -215,50 +288,12 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
     setIsGenerating(true)
     setCaptionOptions([])
     try {
-      const platformForApi =
-        aiTarget === 'youtube'
-          ? 'instagram'
-          : aiTarget === 'twitter'
-            ? 'twitter'
-            : aiTarget === 'tiktok'
-              ? 'tiktok'
-              : aiTarget === 'instagram'
-                ? 'instagram'
-                : aiTarget
-
-      const contentDescription =
-        aiTarget === 'youtube'
-          ? `Write social-forward copy suitable for YouTube Shorts descriptions / community posts that tease paid content off-platform (no explicit language).\n\nCreator brief:\n${trimmed}`
-          : trimmed
-
-      const res = await fetch('/api/ai/caption-generator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contentDescription,
-          platform: platformForApi,
-          contentType: 'photo',
-        }),
-      })
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string
-        captions?: Array<{ text?: string }>
-        hashtags?: string[]
-        brandWarnings?: string[]
+      const { captions, hashtags: tags } = await fetchSocialCaptions(trimmed, aiTarget)
+      if (captions.length) {
+        setPostText(captions[0]!)
+        setCaptionOptions(captions.slice(1))
       }
-      if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Generation failed')
-      }
-      const caps = Array.isArray(data.captions)
-        ? data.captions.map((c) => (typeof c.text === 'string' ? c.text.trim() : '')).filter(Boolean)
-        : []
-      if (caps.length) {
-        setPostText(caps[0]!)
-        setCaptionOptions(caps.slice(1))
-      }
-      if (Array.isArray(data.hashtags) && data.hashtags.length) {
-        setHashtags(data.hashtags.map((h) => String(h).replace(/^#/, '')).filter(Boolean))
-      }
+      if (tags.length) setHashtags(tags)
     } catch (e) {
       setAiError(e instanceof Error ? e.message : 'Could not generate copy')
     } finally {
@@ -266,10 +301,23 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
     }
   }
 
-  const applyTemplate = (template: (typeof promoTemplates)[0]) => {
-    setPostText(template.template)
-    setHashtags(template.hashtags)
+  const applyTemplate = async (template: (typeof promoTemplates)[0]) => {
     setAiError(null)
+    setIsGenerating(true)
+    setCaptionOptions([])
+    try {
+      const fullBrief = `Create social teaser copy for: "${template.name}"\n\nContext: ${template.idea}\n\nTasteful, no explicit language. Tease toward OnlyFans/Fansly; link in bio CTA.`
+      const { captions, hashtags: tags } = await fetchSocialCaptions(fullBrief, aiTarget)
+      if (captions.length) {
+        setPostText(captions[0]!)
+        setCaptionOptions(captions.slice(1))
+      }
+      setHashtags(tags.length ? tags : template.hashtags)
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Could not generate from preset')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -415,7 +463,9 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
           <Card className="min-w-0 overflow-hidden rounded-2xl border-border/80 shadow-sm">
             <CardHeader className="min-w-0 pb-3">
               <CardTitle className="text-base font-semibold tracking-tight">Templates</CardTitle>
-              <CardDescription className="text-sm">Tap one to load into the editor.</CardDescription>
+              <CardDescription className="text-sm">
+                Preset = main idea. Lines preview from AI for the selected target; tap a card to load full copy.
+              </CardDescription>
             </CardHeader>
             <CardContent className="min-w-0">
               <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -423,13 +473,29 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                   <Button
                     key={template.name}
                     type="button"
-                    variant="outline"
-                    className="flex h-auto min-h-[4.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-1 overflow-hidden rounded-2xl border-border/70 p-4 text-left whitespace-normal [text-wrap:pretty]"
-                    onClick={() => applyTemplate(template)}
+                    variant="ghost"
+                    disabled={isGenerating}
+                    className={cn(
+                      'flex h-auto min-h-[4.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-1 overflow-hidden rounded-2xl border border-border/70 bg-background p-4 text-left shadow-xs whitespace-normal [text-wrap:pretty]',
+                      'hover:bg-zinc-950 hover:text-zinc-50',
+                      'dark:border-border/60 dark:bg-zinc-950/40 dark:hover:bg-black dark:hover:text-zinc-100',
+                    )}
+                    onClick={() => void applyTemplate(template)}
                   >
                     <span className="w-full min-w-0 font-medium leading-snug">{template.name}</span>
-                    <span className="line-clamp-3 w-full min-w-0 break-words text-left text-xs leading-relaxed text-muted-foreground">
-                      {template.template}
+                    <span className="line-clamp-3 w-full min-w-0 break-words text-left text-xs leading-relaxed text-muted-foreground dark:text-zinc-400">
+                      {linePreviews[template.name] === 'loading' ? (
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                          Preview…
+                        </span>
+                      ) : linePreviews[template.name] === 'error' ? (
+                        'Preview failed — tap to generate full copy'
+                      ) : typeof linePreviews[template.name] === 'string' ? (
+                        linePreviews[template.name]
+                      ) : (
+                        '…'
+                      )}
                     </span>
                   </Button>
                 ))}

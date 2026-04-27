@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Upload, MessageSquare, BarChart3, HeartPulse, WalletCards } from 'lucide-react'
+import { Upload, MessageSquare, BarChart3, HeartPulse, WalletCards, Users } from 'lucide-react'
 import Link from 'next/link'
 
 export function QuickActions() {
@@ -15,10 +15,10 @@ export function QuickActions() {
       color: 'bg-chart-1/10 text-chart-1',
     },
     {
-      icon: Plus,
-      label: 'Add Fan',
-      description: 'Manually add a fan profile',
-      href: '/dashboard/fans/new',
+      icon: Users,
+      label: 'Fans',
+      description: 'Subscribers synced from OnlyFans & Fansly',
+      href: '/dashboard/fans',
       color: 'bg-chart-2/10 text-chart-2',
     },
     {

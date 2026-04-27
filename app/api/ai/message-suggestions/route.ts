@@ -113,7 +113,16 @@ export async function POST(req: NextRequest) {
       })
 
       if (!mimicResult.ok) {
-        return NextResponse.json({ error: mimicResult.error }, { status: 400 })
+        const err = mimicResult.error
+        const onlyfansRateLimited =
+          err.includes('ONLYFANS_RATE_LIMIT') || err.toLowerCase().includes('onlyfans-native rate limit')
+        return NextResponse.json(
+          {
+            error: err,
+            ...(onlyfansRateLimited ? { code: 'ONLYFANS_RATE_LIMIT' as const } : {}),
+          },
+          { status: onlyfansRateLimited ? 429 : 400 },
+        )
       }
 
       const debit = await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE, {

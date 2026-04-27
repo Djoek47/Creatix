@@ -1,8 +1,32 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { fetchDmReplySuggestionsPackage } from '@/lib/divine/dm-reply-package'
-import { type MimicProfileV1, parseMimicProfile, DEFAULT_MIMIC_PROFILE } from '@/lib/divine/mimic-types'
+import { loadOnlyFansMessagingContext } from '@/lib/divine/onlyfans-messaging-context'
+import { parseMimicProfile, DEFAULT_MIMIC_PROFILE } from '@/lib/divine/mimic-types'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
+
+function formatOpenAiErrorResponse(status: number, bodyText: string): string {
+  const raw = bodyText.trim()
+  try {
+    const j = JSON.parse(raw) as { error?: { message?: string } }
+    const m = typeof j.error?.message === 'string' ? j.error.message : ''
+    const lower = m.toLowerCase()
+    if (
+      lower.includes('quota') ||
+      lower.includes('billing') ||
+      lower.includes('insufficient_quota') ||
+      (status === 429 && lower.includes('rate'))
+    ) {
+      return 'OpenAI quota or billing limit reached for this app. Ask your admin to check the OpenAI account billing and usage, or try again later.'
+    }
+    if (m) return m.length > 600 ? `${m.slice(0, 600)}…` : m
+  } catch {
+    // not JSON
+  }
+  if (status === 401 || status === 403) {
+    return 'OpenAI rejected the API key (unauthorized). Check OPENAI_API_KEY on the server.'
+  }
+  return raw.length > 400 ? `${raw.slice(0, 400)}…` : raw
+}
 
 export async function draftFanReplyWithMimic(opts: {
   supabase: SupabaseClient
@@ -20,19 +44,22 @@ export async function draftFanReplyWithMimic(opts: {
     }
   }
 
-  const pkg = await fetchDmReplySuggestionsPackage(opts.supabase, opts.userId, { fanId: opts.fanId })
-  if ('error' in pkg && pkg.error) {
-    return { ok: false, error: pkg.error }
+  // Mimic only needs the live thread + CRM/persona context — not the full DM reply package
+  // (which runs Scan/Circe/Venus/Flirt in parallel and burns OpenAI quota before Mimic runs).
+  const ctx = await loadOnlyFansMessagingContext(opts.supabase, opts.userId, { fanId: opts.fanId })
+  if ('error' in ctx) {
+    return { ok: false, error: ctx.error }
   }
-  if ('message' in pkg && pkg.message === 'No messages in thread.') {
+  if (ctx.messages.length === 0) {
     return { ok: false, error: 'No messages in thread for this fan.' }
   }
 
-  const thread = pkg.threadPreview || ''
-  const scan = pkg.scan as { insights?: string[]; riskFlags?: string[] } | null
-  const scanBits = scan?.insights?.length
-    ? `Scan: ${scan.insights.slice(0, 3).join('; ')}`
-    : ''
+  const threadCore = ctx.threadPreview || ''
+  const supplement =
+    typeof ctx.threadSupplement === 'string' && ctx.threadSupplement.trim()
+      ? `\n\nContext notes:\n${ctx.threadSupplement.trim().slice(0, 2500)}`
+      : ''
+  const thread = `${threadCore.slice(0, 8000)}${supplement}`.slice(0, 10_000)
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
@@ -70,8 +97,6 @@ ${JSON.stringify(
 Recent thread (newest context at end):
 ${thread.slice(0, 8000)}
 
-${scanBits}
-
 Write one reply that fits the thread and the mimic profile.`
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -93,7 +118,8 @@ Write one reply that fits the thread and the mimic profile.`
 
   if (!res.ok) {
     const t = await res.text().catch(() => '')
-    return { ok: false, error: `Draft failed: ${t.slice(0, 200)}` }
+    const detail = formatOpenAiErrorResponse(res.status, t)
+    return { ok: false, error: `Draft failed: ${detail}` }
   }
 
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }

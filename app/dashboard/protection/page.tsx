@@ -1,16 +1,9 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  AlertTriangle,
-  CheckCircle,
-  FileWarning,
-  Layers,
-  Shield,
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle, FileWarning, Layers } from 'lucide-react'
 import type { DmcaClaim, LeakAlert } from '@/lib/types'
 import { ProtectionDashboard } from '@/components/protection/protection-dashboard'
-import { ProtectionHero } from '@/components/protection/protection-hero'
 import { ProtectionResolvedArchive } from '@/components/protection/protection-resolved-archive'
 import { MarkitAttributionPanel } from '@/components/protection/markit-attribution-panel'
 import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
@@ -51,8 +44,6 @@ export default async function ProtectionPage() {
 
   return (
     <div className="relative mx-auto max-w-6xl space-y-10 pb-10">
-      <ProtectionHero />
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-border/80 bg-gradient-to-br from-card to-destructive/5">
           <CardContent className="flex items-center gap-4 p-4">
@@ -111,16 +102,9 @@ export default async function ProtectionPage() {
         <MarkitAttributionPanel />
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 px-0.5">
-          <Shield className="h-5 w-5 text-violet-400" />
-          <h2 className="text-lg font-semibold tracking-tight">Scan, triage &amp; file</h2>
-        </div>
-        <p className="text-sm text-muted-foreground px-0.5">
-          Run web search across your handles, review AI triage, mark scams or false positives, and open DMCA drafts
-          when you confirm a real match.
-        </p>
-        <div className="rounded-2xl border border-border/80 bg-card/30 p-4 shadow-sm sm:p-6">
+      <section className="space-y-2">
+        <h2 className="px-0.5 text-sm font-medium text-foreground sm:text-base">Run a scan</h2>
+        <div className="rounded-xl border border-border/60 bg-card/20 p-3 shadow-sm sm:p-4">
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading protection tools…</p>}>
             <ProtectionDashboard
               activeAlerts={activeAlerts as LeakAlert[]}

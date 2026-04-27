@@ -14,8 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { runOnlyFansFullChatScan } from '@/lib/fans/onlyfans-chat-scan-client'
 import { runAllThreadInsightBatches } from '@/lib/fans/thread-insights-batch-client'
-import { ChevronDown, Loader2, Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
-import Link from 'next/link'
+import { ChevronDown, Loader2, Search, Filter, Download, RefreshCw } from 'lucide-react'
 import type { FansFilter } from './fans-page-client'
 
 interface FansHeaderProps {
@@ -253,13 +252,6 @@ export function FansHeader({
           <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0">
             <Download className="h-4 w-4" />
           </Button>
-
-          <Link href="/dashboard/fans/new">
-            <Button className="gap-2 min-h-[44px] sm:min-h-0">
-              <Plus className="h-4 w-4" />
-              Add Fan
-            </Button>
-          </Link>
         </div>
       </div>
     </div>

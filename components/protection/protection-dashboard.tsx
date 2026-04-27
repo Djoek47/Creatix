@@ -25,13 +25,13 @@ import {
   ExternalLink,
   Upload,
   FileText,
-  Shield,
   ChevronDown,
   Filter,
   RotateCcw,
   Copy,
   Mail,
   ScanSearch,
+  Coins,
 } from 'lucide-react'
 import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
 import type { LeakAttributionApiResponse, MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
@@ -46,6 +46,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
+import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { LeakMediaType, LeakSeverity } from '@/lib/types'
 import { ProtectionModeToggle } from '@/components/protection/protection-mode-toggle'
@@ -311,6 +314,21 @@ function urgencyRank(u: string | undefined): number {
 
 const ALL_SEVERITIES: LeakSeverity[] = ['critical', 'high', 'medium', 'low']
 
+/** Pills in the filter queue when that severity is included */
+const SEVERITY_FILTER_ON: Record<LeakSeverity, string> = {
+  critical:
+    'border-red-500/60 bg-gradient-to-b from-red-950/50 to-red-950/20 text-red-100 shadow-[0_0_20px_-4px_rgba(239,68,68,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-red-400/30',
+  high:
+    'border-orange-500/55 bg-gradient-to-b from-orange-950/45 to-orange-950/15 text-orange-100 shadow-[0_0_18px_-4px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-orange-400/30',
+  medium:
+    'border-amber-500/50 bg-gradient-to-b from-amber-950/35 to-amber-950/10 text-amber-100 shadow-[0_0_16px_-4px_rgba(234,179,8,0.4),inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-amber-400/25',
+  low:
+    'border-sky-500/50 bg-gradient-to-b from-sky-950/40 to-sky-950/10 text-sky-100 shadow-[0_0_16px_-4px_rgba(14,165,233,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-sky-400/30',
+}
+
+const SEVERITY_FILTER_OFF =
+  'border-border/50 bg-background/20 text-muted-foreground hover:border-border hover:bg-muted/30 hover:text-foreground'
+
 function severityRank(s: string | undefined): number {
   if (s === 'critical') return 0
   if (s === 'high') return 1
@@ -331,6 +349,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [includeContentTitles, setIncludeContentTitles] = useState(true)
   const [strictScan, setStrictScan] = useState(true)
   const [scanSummary, setScanSummary] = useState<string | null>(null)
+  const { wallet: creditWallet, loading: creditsWalletLoading, error: creditsLoadError, refresh: refreshLeakScanCredits } =
+    useCreditSnapshot()
   const [saveIdentityLoading, setSaveIdentityLoading] = useState(false)
   const [manualUrl, setManualUrl] = useState('')
   const [manualLoading, setManualLoading] = useState(false)
@@ -420,6 +440,12 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       // ignore malformed storage
     }
   }, [identityHandles])
+
+  useEffect(() => {
+    if (uiMode === 'easy') {
+      setUseAllLeakHandles(true)
+    }
+  }, [uiMode])
 
   useEffect(() => {
     if (!identityHandles.length) return
@@ -657,30 +683,55 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     [router],
   )
 
+  const creditsRemaining = creditWallet?.totalRemaining
+  const leakScanCostLabel = `${CREDITS_LEAK_SCAN} credit${CREDITS_LEAK_SCAN === 1 ? '' : 's'}`
+  const leakScanBlockedByBalance = typeof creditsRemaining === 'number' && creditsRemaining < CREDITS_LEAK_SCAN
+
   const runScan = async () => {
     setScanLoading(true)
     setScanSummary(null)
     try {
-      const aliases = parseAliases(aliasInput)
-      if (selectedLeakHandles.size === 0) {
+      const isEasy = uiMode === 'easy'
+      if (isEasy) {
+        if (identityHandles.length === 0) {
+          setScanSummary('Connect at least one account in Integrations, then run Easy scan.')
+          return
+        }
+      } else if (selectedLeakHandles.size === 0) {
         setScanSummary('Select at least one identity before running Protection scan.')
         return
       }
-      const focusHandlesPayload = Array.from(selectedLeakHandles)
+
+      const focusHandlesPayload = isEasy
+        ? identityHandles.map((h) => h.value)
+        : Array.from(selectedLeakHandles)
+
       const focusTitlesPayload = parseTitleHints(focusTitleFilter)
-      const body: Record<string, unknown> = {
-        aliases,
-        former_usernames: parseAliases(formerInput),
-        title_hints: parseTitleHints(titleHintsInput),
-        include_content_titles: includeContentTitles,
-        strict: strictScan,
-      }
-      body.focus_handles = focusHandlesPayload
-      if (focusContentId) {
-        body.content_ids = [focusContentId]
-      }
-      if (focusTitlesPayload.length) {
-        body.focus_title_hints = focusTitlesPayload
+      const body: Record<string, unknown> = isEasy
+        ? {
+            aliases: [],
+            former_usernames: [],
+            title_hints: [],
+            include_content_titles: false,
+            strict: true,
+            focus_handles: focusHandlesPayload,
+          }
+        : {
+            aliases: parseAliases(aliasInput),
+            former_usernames: parseAliases(formerInput),
+            title_hints: parseTitleHints(titleHintsInput),
+            include_content_titles: includeContentTitles,
+            strict: strictScan,
+            focus_handles: focusHandlesPayload,
+          }
+
+      if (!isEasy) {
+        if (focusContentId) {
+          body.content_ids = [focusContentId]
+        }
+        if (focusTitlesPayload.length) {
+          body.focus_title_hints = focusTitlesPayload
+        }
       }
 
       const res = await fetch('/api/leaks/scan', {
@@ -706,8 +757,14 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             (data.message ? ` ${data.message}` : ''),
         )
       } else {
-        setScanSummary(data.error || 'Scan failed.')
+        const base = data.error || 'Scan failed.'
+        setScanSummary(
+          res.status === 402
+            ? `${base} Open Billing to top up credits or upgrade your plan.`
+            : base,
+        )
       }
+      void refreshLeakScanCredits()
       router.refresh()
     } finally {
       setScanLoading(false)
@@ -794,60 +851,42 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }
 
-  return (
-    <div className="space-y-4 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-muted/40 via-background to-background p-3.5">
-        <div className="space-y-0.5">
-          <p className="text-sm font-semibold text-foreground">Protection workspace</p>
-          <p className="text-xs text-muted-foreground">
-            Easy keeps setup minimal. Pro unlocks advanced identity and filter controls.
-          </p>
-        </div>
-        <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0 self-start" />
-      </div>
+  const aegisStatusTitle =
+    aegisEnabled === null
+      ? 'Configure scheduled scans in the hub'
+      : `Background scans ${aegisEnabled ? 'on' : 'off'}${
+          aegisLastRun ? ` · Last run ${new Date(aegisLastRun).toLocaleString()}` : ''
+        }`
 
+  return (
+    <div className="space-y-3 min-w-0">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <p className="text-sm font-medium text-foreground">Scan setup</p>
+        <ProtectionModeToggle value={uiMode} onChange={persistUiMode} className="shrink-0" />
+      </div>
       <p className="text-xs text-muted-foreground">
-        Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.
+        Easy: one-tap scan from connected accounts only · Pro: extra handles, former names, strict mode, manual URL &amp; filters.
       </p>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2">
-          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground">Circe&apos;s Aegis</p>
-            <p className="text-xs text-muted-foreground">
-              {aegisEnabled === null
-                ? 'Configure scheduled leak scans and optional DMCA drafts in the hub.'
-                : `Background scans ${aegisEnabled ? 'on' : 'off'}`}
-              {aegisEnabled !== null && aegisLastRun
-                ? ` · Last scheduled run ${new Date(aegisLastRun).toLocaleString()}`
-                : ''}
-              {aegisEnabled === true && !aegisLastRun ? ' · No run logged yet' : ''}
-            </p>
-          </div>
-        </div>
-        <Button variant="secondary" size="sm" className="shrink-0" asChild>
-          <Link href="/dashboard/protection/aegis">Open Aegis hub</Link>
-        </Button>
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
-          Connect creator and social accounts under Integrations so scans include every OAuth username (X, IG, TikTok,
-          OnlyFans, Fansly…).
-        </p>
-        <Button variant="outline" size="sm" className="shrink-0" asChild>
-          <Link href="/dashboard/settings?tab=integrations">Open Integrations</Link>
-        </Button>
-      </div>
-
-      <div className="rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
-        <p className="font-medium text-foreground">Start here</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Pick identities below, run <strong>Invoke Scan</strong> or paste a link, then use the filters to focus on the
-          worst leaks first (defaults to <strong>critical</strong> and <strong>high</strong>).
-        </p>
-      </div>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border/50 pb-3 text-xs text-muted-foreground">
+        <Link
+          href="/dashboard/protection/aegis"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          title={aegisStatusTitle}
+        >
+          Aegis
+        </Link>
+        <span className="text-border/50" aria-hidden>
+          ·
+        </span>
+        <Link
+          href="/dashboard/settings?tab=integrations"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          title="Connect accounts so scans include linked usernames"
+        >
+          Integrations
+        </Link>
+      </p>
 
       {uiMode === 'pro' ? (
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -958,30 +997,21 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       </div>
       ) : null}
 
-      <div className="flex items-start gap-2">
-        <Checkbox
-          id="strict-scan"
-          checked={strictScan}
-          onCheckedChange={(v) => setStrictScan(v === true)}
-        />
-        <label htmlFor="strict-scan" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-          Strict mode: only keep search results that likely match your content (Venus Pro: AI-assisted filtering;
-          keyword match otherwise). Your manually pasted links are always kept.
-        </label>
-      </div>
+      {uiMode === 'pro' ? (
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="strict-scan"
+            checked={strictScan}
+            onCheckedChange={(v) => setStrictScan(v === true)}
+          />
+          <label htmlFor="strict-scan" className="text-xs text-muted-foreground leading-snug cursor-pointer">
+            Strict mode: drop likely mismatches (AI on eligible plans; else keyword checks). Pasted links are always kept.
+          </label>
+        </div>
+      ) : null}
 
       {uiMode === 'easy' ? (
-        <ProtectionEasyHandles
-          handles={displayHandles}
-          useAll={useAllLeakHandles}
-          onUseAllChange={handleUseAllLeakHandlesChange}
-          selected={selectedLeakHandles}
-          onToggle={handleToggleLeakHandle}
-          onSelectAll={handleSelectAllLeakHandles}
-          onClearSelection={handleClearLeakHandles}
-          extraInput={aliasInput}
-          onExtraInputChange={setAliasInput}
-        />
+        <ProtectionEasyHandles handles={identityHandles} />
       ) : displayHandles.length > 0 ? (
         <ScanHandlePicker
           handles={displayHandles}
@@ -1026,48 +1056,91 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          'flex flex-col gap-3',
+          uiMode === 'pro' ? 'sm:flex-row sm:items-end sm:justify-between' : '',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div
+              className={cn(
+                'inline-flex max-w-full items-center gap-1.5 rounded-md border border-violet-500/35 bg-violet-500/10 px-2.5 py-1 tabular-nums',
+                leakScanBlockedByBalance && 'border-destructive/40 bg-destructive/10 text-destructive',
+              )}
+              title="AI credit wallet: included monthly pool plus any purchases."
+            >
+              <Coins className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+              {creditsWalletLoading && !creditsLoadError ? (
+                <span>Loading credits…</span>
+              ) : creditsLoadError ? (
+                <span className="text-destructive">{creditsLoadError}</span>
+              ) : (
+                <span>
+                  <span className="font-medium text-foreground">
+                    {typeof creditsRemaining === 'number' ? creditsRemaining.toLocaleString() : '—'}
+                  </span>
+                  <span className="text-muted-foreground"> left</span>
+                </span>
+              )}
+            </div>
+            <span>
+              {uiMode === 'easy' ? 'Protection scan' : 'Pro protection scan'} ·{' '}
+              <span className="font-medium text-foreground/90">{leakScanCostLabel}</span>
+            </span>
+          </div>
+
+          {leakScanBlockedByBalance ? (
+            <InsufficientCreditsCallout
+              requiredCredits={CREDITS_LEAK_SCAN}
+              actionContext="a protection leak scan"
+            />
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2 sm:items-center">
             <Button
-              className="gap-2 bg-circe hover:bg-circe/90"
+              className={cn(
+                'relative gap-2 bg-circe text-base font-semibold text-primary-foreground shadow-[0_0_28px_-6px] shadow-circe/70 ring-2 ring-circe/55 ring-offset-2 ring-offset-background min-h-10 px-5 transition-[box-shadow,transform] hover:bg-circe/90 hover:shadow-[0_0_32px_-4px] hover:shadow-circe/80 hover:ring-circe/70 active:scale-[0.99]',
+                uiMode === 'pro' && 'px-4',
+              )}
               onClick={runScan}
               disabled={
                 scanLoading ||
-                selectedLeakHandles.size === 0
+                leakScanBlockedByBalance ||
+                (uiMode === 'easy' ? identityHandles.length === 0 : selectedLeakHandles.size === 0)
+              }
+              title={
+                leakScanBlockedByBalance
+                  ? 'Add AI credits in Billing to run a leak scan.'
+                  : `Debits ${leakScanCostLabel} from your balance.`
               }
             >
-              {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {scanLoading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <ScanSearch className="h-4 w-4 shrink-0" aria-hidden />}
               {uiMode === 'easy' ? 'Invoke Scan' : 'Invoke Pro Scan'}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="border-venus/40 text-venus hover:bg-venus/10"
-            >
-              <Link href="/dashboard/ai-studio/tools">Open Venus Pro</Link>
-            </Button>
           </div>
-          {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-md">{scanSummary}</p> : null}
+          {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-xl">{scanSummary}</p> : null}
         </div>
-        <div className="w-full sm:max-w-md">
-          <Label htmlFor="manual-url" className="text-xs text-muted-foreground">
-            Bring your own link
-          </Label>
-          <div className="mt-1 flex gap-2">
-            <Input
-              id="manual-url"
-              value={manualUrl}
-              onChange={(e) => setManualUrl(e.target.value)}
-              placeholder="Paste infringing URL…"
-            />
-            <Button variant="outline" onClick={reportManual} disabled={manualLoading || !manualUrl.trim()}>
-              {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Report
-            </Button>
+        {uiMode === 'pro' ? (
+          <div className="w-full sm:max-w-md">
+            <Label htmlFor="manual-url" className="text-xs text-muted-foreground">
+              Bring your own link
+            </Label>
+            <div className="mt-1 flex gap-2">
+              <Input
+                id="manual-url"
+                value={manualUrl}
+                onChange={(e) => setManualUrl(e.target.value)}
+                placeholder="Paste infringing URL…"
+              />
+              <Button variant="outline" onClick={reportManual} disabled={manualLoading || !manualUrl.trim()}>
+                {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Report
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {/* Active Alerts list (actionable) */}
@@ -1076,33 +1149,45 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           {alertUpdateError}
         </p>
       ) : null}
-      <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3">
+      <div className="relative overflow-hidden rounded-xl border border-violet-500/15 bg-gradient-to-b from-muted/25 via-background/40 to-muted/10 p-3 shadow-sm ring-1 ring-inset ring-white/[0.04] space-y-3 transition-shadow duration-300 hover:shadow-md hover:ring-violet-500/20">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent motion-safe:animate-pulse motion-safe:[animation-duration:2.4s] motion-reduce:opacity-50"
+          aria-hidden
+        />
         <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-          <span className="text-xs font-medium text-foreground">Filter queue</span>
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/10 text-violet-300">
+            <Filter className="h-4 w-4 shrink-0" aria-hidden />
+          </div>
+          <span className="text-xs font-medium tracking-tight text-foreground">Filter queue</span>
         </div>
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] uppercase text-muted-foreground mr-1">Severity</span>
-          {ALL_SEVERITIES.map((s) => (
-            <Button
-              key={s}
-              type="button"
-              size="sm"
-              variant={severityFilters.has(s) ? 'secondary' : 'outline'}
-              className="h-7 text-xs capitalize"
-              onClick={() => {
-                setSeverityFilters((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(s)) next.delete(s)
-                  else next.add(s)
-                  if (next.size === 0) next.add(s)
-                  return next
-                })
-              }}
-            >
-              {s}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/90">Severity</span>
+          {ALL_SEVERITIES.map((s) => {
+            const on = severityFilters.has(s)
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setSeverityFilters((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(s)) next.delete(s)
+                    else next.add(s)
+                    if (next.size === 0) next.add(s)
+                    return next
+                  })
+                }}
+                className={cn(
+                  'h-7 min-w-[4.75rem] rounded-md border px-3 text-xs font-medium capitalize sm:min-w-0',
+                  'transition-all duration-300 ease-out motion-safe:hover:scale-[1.02] active:scale-[0.98]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  on ? SEVERITY_FILTER_ON[s] : SEVERITY_FILTER_OFF,
+                )}
+              >
+                {s}
+              </button>
+            )
+          })}
           <Button
             type="button"
             size="sm"
@@ -1116,10 +1201,10 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs gap-1"
+            className="h-7 gap-1 text-xs text-amber-200/80 hover:text-amber-100"
             onClick={() => setSeverityFilters(new Set(['critical', 'high']))}
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw className="h-3 w-3 motion-safe:transition-transform motion-safe:duration-500 hover:rotate-[-25deg]" />
             Priority
           </Button>
         </div>
@@ -1153,7 +1238,11 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Showing {filteredAlerts.length} of {sortedAlerts.length} in the active queue.
+          Showing{' '}
+          <span className="tabular-nums font-medium text-foreground">{filteredAlerts.length}</span>
+          {' of '}
+          <span className="tabular-nums text-foreground/80">{sortedAlerts.length}</span>
+          {' in the active queue.'}
         </p>
       </div>
       <div className="space-y-3">

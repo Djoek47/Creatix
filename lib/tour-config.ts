@@ -193,24 +193,6 @@ const TOURS: Record<string, TourConfig> = {
     ],
   },
 
-  '/dashboard/fans/new': {
-    tourId: 'fans-new',
-    steps: [
-      {
-        id: 'manual',
-        title: 'Add fan',
-        description:
-          'Add a manual fan row for CRM notes, tags, or tracking when someone is not fully synced from a platform.',
-      },
-      {
-        id: 'crm',
-        title: 'Use with CRM',
-        description:
-          'Return to Fans list to search and merge with synced subscribers; link out to Messages when you start chatting.',
-      },
-    ],
-  },
-
   '/dashboard/content': {
     tourId: 'content',
     steps: [
@@ -723,7 +705,6 @@ const TOUR_PATH_MATCH_ORDER: string[] = [
   '/dashboard/content-library',
   '/dashboard/community',
   '/dashboard/content/new',
-  '/dashboard/fans/new',
 ]
 
 function pathMatchesNormalizedKey(normalized: string, key: string): boolean {

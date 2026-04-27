@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
@@ -21,6 +22,7 @@ import {
   type ThreadInsightBrief,
 } from '@/lib/fans/merge-fan-audience'
 import { LayoutGrid, Table2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
@@ -286,10 +288,34 @@ export function FansPageClient({
                 type="button"
                 variant={platformScope === scope ? 'secondary' : 'ghost'}
                 size="sm"
-                className="px-3"
+                className={cn(
+                  'px-3',
+                  scope === 'all' ? 'min-h-10' : 'min-h-10 min-w-[4.5rem] px-2.5 sm:min-w-[5.5rem] sm:px-3',
+                )}
                 onClick={() => setPlatformScope(scope)}
+                title={scope === 'all' ? 'All platforms' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
               >
-                {scope === 'all' ? 'All' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                {scope === 'all' ? (
+                  'All'
+                ) : scope === 'onlyfans' ? (
+                  <Image
+                    src="/onlyfans-logo.png"
+                    alt="OnlyFans"
+                    width={140}
+                    height={40}
+                    className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
+                    draggable={false}
+                  />
+                ) : (
+                  <Image
+                    src="/fansly-logo.png"
+                    alt="Fansly"
+                    width={140}
+                    height={40}
+                    className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
+                    draggable={false}
+                  />
+                )}
               </Button>
             ))}
           </div>

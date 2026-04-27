@@ -1,9 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,7 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Loader2, Shield, Clock, Gavel, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { Loader2, Bell, Gavel, Radar, Shield, Clock, ChevronRight } from 'lucide-react'
+
 type AegisSettings = {
   user_id: string
   enabled: boolean
@@ -33,6 +34,10 @@ type AegisSettings = {
   notify_on_scan_summary: boolean
   notify_on_new_leak: boolean
   notify_on_auto_draft: boolean
+}
+
+function FieldRow({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('flex min-h-[3.25rem] items-center justify-between gap-4 py-1', className)}>{children}</div>
 }
 
 export default function CirceAegisPage() {
@@ -143,171 +148,173 @@ export default function CirceAegisPage() {
   }
 
   const hourOptions = Array.from({ length: 24 }, (_, i) => i)
+  const triageBase =
+    'flex-1 rounded-full px-3 py-2 text-center text-xs font-medium transition-all sm:text-sm'
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Circe&apos;s Aegis</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Background leak scans and optional DMCA <span className="font-medium text-foreground">drafts</span> while
-          you&apos;re away. Review every candidate and every notice on Protection before you send anything to a host.
-        </p>
-      </div>
+    <div className="mx-auto max-w-xl space-y-10 pb-16 pt-1">
+      {/* Page title + subtitle: shared DashboardRouteHero in main shell (same card as Mentions) */}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
-        <span className="text-muted-foreground">Triage:</span>
-        <Button variant="secondary" size="sm" asChild>
-          <Link href="/dashboard/protection?severity=critical,high">Priority leak queue</Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/protection">All active leaks</Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/mentions">Mentions</Link>
-        </Button>
+      {/* Triage — segment-style */}
+      <div>
+        <p className="mb-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/90">Go to</p>
+        <div className="inline-flex w-full max-w-md rounded-2xl border border-border/60 bg-muted/20 p-1">
+          <Link
+            href="/dashboard/protection?severity=critical,high"
+            className={cn(
+              triageBase,
+              'bg-background/90 text-foreground shadow-sm ring-1 ring-border/40',
+            )}
+          >
+            Urgent
+          </Link>
+          <Link
+            href="/dashboard/protection"
+            className={cn(triageBase, 'text-muted-foreground hover:text-foreground')}
+          >
+            All leaks
+          </Link>
+          <Link
+            href="/dashboard/mentions"
+            className={cn(triageBase, 'text-muted-foreground hover:text-foreground')}
+          >
+            Reputation
+          </Link>
+        </div>
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <Shield className="h-5 w-5 text-primary" />
+      {/* Schedule group */}
+      <div className="space-y-2">
+        <h2 className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Schedule</h2>
+        <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/50 bg-card/20">
+          <div className="p-1">
+            <FieldRow>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+                  <Shield className="h-4 w-4 text-violet-300" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Shield</p>
+                  <p className="text-[11px] text-muted-foreground">On · scheduled runs</p>
+                </div>
+              </div>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </FieldRow>
           </div>
-          <div className="flex-1">
-            <CardTitle className="text-lg">Shield</CardTitle>
-            <CardDescription>Master switch for scheduled Aegis runs (cron uses your plan and Serper quota).</CardDescription>
+          <div className="space-y-3 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span className="text-xs font-medium uppercase tracking-wider">Sentinel</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Cadence</Label>
+                <Select
+                  value={scanCadence}
+                  onValueChange={(v) => setScanCadence(v as 'off' | 'daily' | 'weekly')}
+                >
+                  <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">Off</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="scan-hour" className="text-[11px] text-muted-foreground">
+                  Hour (UTC)
+                </Label>
+                <Select value={String(scanHourUtc)} onValueChange={(v) => setScanHourUtc(parseInt(v, 10))}>
+                  <SelectTrigger id="scan-hour" className="h-10 rounded-xl border-border/60 bg-background/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {hourOptions.map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {h.toString().padStart(2, '0')}:00
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
-          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Aegis enabled" />
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-lg">Sentinel</CardTitle>
-          </div>
-          <CardDescription>
-            Cadence and UTC hour when the hourly job may run. Vercel invokes the cron each hour; your scan fires when
-            the hour matches and the cadence allows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Cadence</Label>
-            <Select value={scanCadence} onValueChange={(v) => setScanCadence(v as 'off' | 'daily' | 'weekly')}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="off">Off</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="scan-hour">Scan hour (UTC)</Label>
-            <Select
-              value={String(scanHourUtc)}
-              onValueChange={(v) => setScanHourUtc(parseInt(v, 10))}
-            >
-              <SelectTrigger id="scan-hour">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {hourOptions.map((h) => (
-                  <SelectItem key={h} value={String(h)}>
-                    {h.toString().padStart(2, '0')}:00 UTC
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Leak scan defaults</CardTitle>
-          <CardDescription>Same knobs as a manual Protection scan for scheduled runs.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start gap-2">
+      {/* Scan defaults */}
+      <div className="space-y-2">
+        <h2 className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Scan</h2>
+        <div className="space-y-0 divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/50 bg-card/20 px-4 py-1">
+          <div className="flex items-start gap-3 py-3">
             <Checkbox id="strict" checked={leakStrict} onCheckedChange={(v) => setLeakStrict(v === true)} />
-            <label htmlFor="strict" className="text-sm leading-snug text-muted-foreground cursor-pointer">
-              Strict keyword gate (recommended): require handle or title overlap in snippets.
+            <label htmlFor="strict" className="cursor-pointer text-sm leading-snug text-muted-foreground">
+              Strict match (recommended)
             </label>
           </div>
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="titles"
-              checked={includeTitles}
-              onCheckedChange={(v) => setIncludeTitles(v === true)}
-            />
-            <label htmlFor="titles" className="text-sm leading-snug text-muted-foreground cursor-pointer">
-              Include published / scheduled titles from your content library in queries.
+          <div className="flex items-start gap-3 py-3">
+            <Checkbox id="titles" checked={includeTitles} onCheckedChange={(v) => setIncludeTitles(v === true)} />
+            <label htmlFor="titles" className="cursor-pointer text-sm leading-snug text-muted-foreground">
+              Include your library titles
             </label>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Gavel className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-lg">Hammer (drafts only)</CardTitle>
-          </div>
-          <CardDescription>
-            After each successful scan, optionally create <span className="text-foreground">draft</span> DMCA rows for
-            severe leaks with no existing claim. You must review and send notices yourself — we do not file with third
-            parties.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="auto-dmca" className="cursor-pointer">
-              Auto-create draft claims
-            </Label>
-            <Switch id="auto-dmca" checked={autoDmca} onCheckedChange={setAutoDmca} />
+      {/* Hammer */}
+      <div className="space-y-2">
+        <h2 className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Drafts</h2>
+        <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/20">
+          <div className="border-b border-border/50 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Gavel className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span className="text-xs font-medium uppercase tracking-wider">DMCA</span>
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground/90">Auto-create drafts you review &amp; send—never auto-filed.</p>
+            <div className="mt-3 flex items-center justify-between">
+              <Label htmlFor="auto-dmca" className="text-sm">
+                After each run
+              </Label>
+              <Switch id="auto-dmca" checked={autoDmca} onCheckedChange={setAutoDmca} />
+            </div>
           </div>
           {autoDmca ? (
-            <>
-              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+            <div className="space-y-3 p-4">
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3">
                 <Checkbox
                   id="ack-dmca"
                   checked={autoDmcaAck}
                   onCheckedChange={(v) => setAutoDmcaAck(v === true)}
                 />
-                <label htmlFor="ack-dmca" className="text-sm leading-snug cursor-pointer">
-                  I understand drafts are not sent automatically and I will review every notice before submitting to a
-                  host or platform.
+                <label htmlFor="ack-dmca" className="cursor-pointer text-xs leading-relaxed text-muted-foreground">
+                  I review every notice before a host sees it
                 </label>
               </div>
-              <div className="space-y-2">
-                <Label>Minimum severity</Label>
-                <Select
-                  value={minSeverity}
-                  onValueChange={(v) => setMinSeverity(v as 'high' | 'critical')}
-                >
-                  <SelectTrigger>
+              <div className="space-y-1.5">
+                <Label className="text-[11px]">Severity</Label>
+                <Select value={minSeverity} onValueChange={(v) => setMinSeverity(v as 'high' | 'critical')}>
+                  <SelectTrigger className="h-10 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">High and critical</SelectItem>
+                    <SelectItem value="high">High + critical</SelectItem>
                     <SelectItem value="critical">Critical only</SelectItem>
                   </SelectContent>
                 </Select>
@@ -318,105 +325,98 @@ export default function CirceAegisPage() {
                   checked={requirePageVerified}
                   onCheckedChange={(v) => setRequirePageVerified(v === true)}
                 />
-                <label htmlFor="page-verified" className="text-sm leading-snug text-muted-foreground cursor-pointer">
-                  Only when Grok page verify flagged a likely match (stricter gate).
+                <label htmlFor="page-verified" className="text-xs text-muted-foreground cursor-pointer">
+                  Page-verify match only
                 </label>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="max-run">Max drafts per run</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="max-run" className="text-[11px]">
+                  Max / run
+                </Label>
                 <Input
                   id="max-run"
                   type="number"
                   min={0}
                   max={50}
+                  className="h-10 rounded-xl"
                   value={maxPerRun}
                   onChange={(e) => setMaxPerRun(Math.min(50, Math.max(0, parseInt(e.target.value, 10) || 0)))}
                 />
               </div>
-            </>
+            </div>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Notifications</CardTitle>
-          <CardDescription>Divine in-app alerts after a scheduled run (when there is something to report).</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-start gap-2">
+      {/* Notifications */}
+      <div className="space-y-2">
+        <h2 className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Alerts</h2>
+        <div className="space-y-0 divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/50 bg-card/20 px-4 py-1">
+          <div className="flex items-center gap-2 py-2.5 text-muted-foreground">
+            <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span className="text-xs">In-app</span>
+          </div>
+          <div className="flex items-start gap-3 py-2.5">
             <Checkbox id="n-sum" checked={notifySummary} onCheckedChange={(v) => setNotifySummary(v === true)} />
             <label htmlFor="n-sum" className="text-sm text-muted-foreground cursor-pointer">
-              Combined summary when new leaks or drafts were created
+              One summary
             </label>
           </div>
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-3 py-2.5">
             <Checkbox id="n-leak" checked={notifyLeak} onCheckedChange={(v) => setNotifyLeak(v === true)} />
             <label htmlFor="n-leak" className="text-sm text-muted-foreground cursor-pointer">
-              New leak candidates (if summary is off)
+              Each new leak
             </label>
           </div>
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-3 py-2.5">
             <Checkbox id="n-draft" checked={notifyDraft} onCheckedChange={(v) => setNotifyDraft(v === true)} />
             <label htmlFor="n-draft" className="text-sm text-muted-foreground cursor-pointer">
-              Auto-drafts ready (if summary is off)
+              Drafts ready
             </label>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Last run</CardTitle>
-          <CardDescription>Updated by the server after each scheduled scan.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            <span className="text-muted-foreground">Last leak scan: </span>
+      {/* Status */}
+      <div className="space-y-2">
+        <h2 className="px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">Activity</h2>
+        <div className="rounded-2xl border border-border/50 bg-muted/10 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Radar className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span className="text-xs font-medium uppercase tracking-wider">Last scan</span>
+          </div>
+          <p className="mt-1.5 tabular-nums text-foreground/90">
             {lastLeakScanAt ? new Date(lastLeakScanAt).toLocaleString() : '—'}
           </p>
-          {lastLeakError ? (
-            <p className="text-destructive">
-              <span className="font-medium">Error: </span>
-              {lastLeakError}
-            </p>
-          ) : null}
-          <p>
-            <span className="text-muted-foreground">Last auto-draft batch: </span>
-            {lastAutoDmcaAt ? new Date(lastAutoDmcaAt).toLocaleString() : '—'}
+          {lastLeakError ? <p className="mt-1 text-xs text-destructive">{lastLeakError}</p> : null}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Drafts: {lastAutoDmcaAt ? new Date(lastAutoDmcaAt).toLocaleString() : '—'}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="border-border bg-muted/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Shortcuts</CardTitle>
-          <CardDescription>
-            Mentions track social reputation scans; Aegis automates leak search and draft DMCAs only.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="justify-between" asChild>
-            <Link href="/dashboard/protection">
-              Protection dashboard
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button variant="outline" className="justify-between" asChild>
-            <Link href="/dashboard/mentions">
-              Mentions (reputation)
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => void save()} disabled={saving || (autoDmca && !autoDmcaAck)}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Save settings
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="gap-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/dashboard/protection">
+            Protection
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </Button>
-        {savedAt ? <span className="text-xs text-muted-foreground">Saved {savedAt}</span> : null}
+        <div className="flex items-center gap-2">
+          {savedAt ? <span className="text-xs text-muted-foreground">Saved {savedAt}</span> : null}
+          <Button
+            onClick={() => void save()}
+            disabled={saving || (autoDmca && !autoDmcaAck)}
+            className="h-9 rounded-full px-6"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+          </Button>
+        </div>
       </div>
     </div>
   )

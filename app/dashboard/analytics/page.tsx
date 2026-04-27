@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { mapContentFromDbRows } from '@/lib/content/map-content-from-db'
 import {
   onlyFansPartnerAccountIdFromRow,
   type PlatformConnectionObservedRow,
@@ -37,13 +38,15 @@ export default async function AnalyticsPage() {
     .order('date', { ascending: false })
     .limit(30)
 
-  const { data: content } = await supabase
+  const { data: contentRows } = await supabase
     .from('content')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'published')
     .order('created_at', { ascending: false })
     .limit(10)
+
+  const content = mapContentFromDbRows(contentRows ?? [])
 
   return (
     <div className="space-y-6">
@@ -67,7 +70,7 @@ export default async function AnalyticsPage() {
       <AnalyticsDashboard
         analytics={(analytics as any) || []}
         connections={(connections as any) || []}
-        content={(content as any) || []}
+        content={content}
         hasOnlyFansConnected={hasOnlyFansConnected}
       />
     </div>

@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
+import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 
 // Real SVG Icons for social platforms
 const InstagramIcon = () => (
@@ -113,6 +115,7 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
   const [useAllHandles, setUseAllHandles] = useState(true)
   const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
   const [unreviewedCount, setUnreviewedCount] = useState<number | null>(null)
+  const [reputationScanCreditBlock, setReputationScanCreditBlock] = useState(false)
   const supabase = createClient()
   const { handles: identityHandles, reload: reloadIdentity } = useScanIdentity()
 
@@ -297,16 +300,24 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
 
       const data = await response.json()
 
+      if (response.status === 402) {
+        setReputationScanCreditBlock(true)
+        setError(null)
+        return
+      }
+
       if (!response.ok || data.error) {
         throw new Error(data.error || 'Failed to scan reputation')
       }
 
-      if (isPro && typeof data.inserted === 'number' && data.inserted > 0) {
-        try {
-          await fetch('/api/social/reputation-briefing', { method: 'POST' })
-        } catch {
-          // Briefing is best-effort
-        }
+      try {
+        await fetch('/api/social/reputation-briefing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(handlePayload ? { handles: handlePayload } : {}),
+        })
+      } catch {
+        // Aggregate briefing is best-effort after each scan
       }
 
       const by = data.insertedByChannel as { web_wide?: number; social?: number } | undefined
@@ -592,6 +603,12 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {reputationScanCreditBlock ? (
+          <InsufficientCreditsCallout
+            requiredCredits={CREDITS_REPUTATION_WEB_SCAN}
+            actionContext="a reputation scan (Social hub)"
+          />
+        ) : null}
         {error && (
           <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
             {error}

@@ -1,22 +1,24 @@
-'use client'
-
 import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 
+/** Single-line shortcuts — no card chrome */
 export function MentionsConnectBanner() {
   return (
-    <Card className="border-border bg-card">
-      <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          OAuth is optional: you can add manual search handles on this page for indexed reputation scans. Connecting
-          OnlyFans, Fansly, X, Instagram, or TikTok adds those usernames automatically. Former @names from Protection
-          are included when saved.
-        </p>
-        <Button asChild variant="outline" size="sm" className="shrink-0 border-venus/40 text-venus hover:bg-venus/10">
-          <Link href="/dashboard/settings?tab=integrations">Connect platforms</Link>
-        </Button>
-      </CardContent>
-    </Card>
+    <p className="text-xs text-muted-foreground">
+      <Link
+        href="/dashboard/settings?tab=integrations"
+        className="font-medium text-venus underline-offset-4 hover:underline"
+      >
+        Integrations
+      </Link>
+      <span className="mx-1.5 text-border" aria-hidden>
+        ·
+      </span>
+      <Link
+        href="/dashboard/protection/aegis"
+        className="font-medium text-foreground/90 underline-offset-4 hover:underline"
+      >
+        Leak scans (Aegis)
+      </Link>
+    </p>
   )
 }

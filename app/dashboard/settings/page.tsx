@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
   Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles, BookOpen
+  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles, BookOpen, Gauge
 } from 'lucide-react'
 
 // Social Media Logos
@@ -41,6 +41,7 @@ import { useTheme } from 'next-themes'
 import { BirthdaySettings } from '@/components/settings/birthday-settings'
 import { LocationVaultSettings } from '@/components/settings/location-vault-settings'
 import { BillingSection } from '@/components/settings/billing-section'
+import { UsageCreditsPanel } from '@/components/settings/usage-credits-panel'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
 import { HousekeepingListsSettings } from '@/components/settings/housekeeping-lists-settings'
@@ -59,7 +60,7 @@ import {
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 
-type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'integrations' | 'data' | 'preferences'
+type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'usage' | 'integrations' | 'data' | 'preferences'
 
 export default function SettingsPage() {
   const workspaceCaps = useWorkspaceCapabilities()
@@ -129,7 +130,7 @@ export default function SettingsPage() {
   // Handle tab from URL query param
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['profile', 'notifications', 'security', 'billing', 'integrations', 'data', 'preferences'].includes(tabParam)) {
+    if (tabParam && ['profile', 'notifications', 'security', 'billing', 'usage', 'integrations', 'data', 'preferences'].includes(tabParam)) {
       setActiveTab(tabParam as SettingsTab)
     }
   }, [searchParams])
@@ -280,6 +281,7 @@ export default function SettingsPage() {
     { id: 'notifications' as const, icon: Bell, label: 'Notifications' },
     { id: 'security' as const, icon: Shield, label: 'Security' },
     { id: 'billing' as const, icon: CreditCard, label: 'Billing' },
+    { id: 'usage' as const, icon: Gauge, label: 'Usage' },
     { id: 'integrations' as const, icon: Link2, label: 'Integrations' },
     { id: 'data' as const, icon: Database, label: 'Data & Privacy' },
     { id: 'preferences' as const, icon: Settings2, label: 'Preferences' },
@@ -791,6 +793,8 @@ export default function SettingsPage() {
           {activeTab === 'billing' && (
             <BillingSection userId={user?.id} userEmail={user?.email} />
           )}
+
+          {activeTab === 'usage' && <UsageCreditsPanel />}
 
           {/* Integrations Section */}
           {activeTab === 'integrations' && (

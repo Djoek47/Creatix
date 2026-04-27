@@ -910,9 +910,21 @@ export function ChatWindow({
         body: JSON.stringify(body),
       })
 
-      const data = await res.json()
+      const data = await res.json() as {
+        error?: string
+        code?: string
+      }
       if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to generate suggestions')
+        const rateLimited = res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT'
+        if (rateLimited) {
+          onlyFansPollBackoffUntilRef.current = Date.now() + 90_000
+        }
+        throw new Error(
+          data.error ||
+            (rateLimited
+              ? 'OnlyFans is temporarily limiting requests. Wait a minute, then try Mimic again.'
+              : 'Failed to generate suggestions'),
+        )
       }
 
       if (mode === 'scan') {

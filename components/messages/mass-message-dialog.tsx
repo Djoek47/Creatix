@@ -25,17 +25,17 @@ export function MassMessageDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <div className="inline-flex items-stretch">
+      <div className="inline-flex items-stretch rounded-lg ring-1 ring-border/20 dark:ring-white/[0.08]">
         <Button
           type="button"
           variant="ghost"
           className={cn(
-            'h-10 gap-2 rounded-l-xl rounded-r-none border-0 bg-foreground px-3.5 font-medium text-background shadow-sm',
-            'transition-opacity duration-200 ease-out hover:bg-foreground hover:opacity-90',
+            'h-9 gap-2 rounded-none rounded-l-lg border-0 bg-foreground/92 px-3.5 text-[13px] font-semibold tracking-[-0.01em] text-background',
+            'shadow-none transition-[background-color,opacity] duration-150 ease-out hover:bg-foreground hover:opacity-95',
           )}
           onClick={() => setOpen(true)}
         >
-          <Megaphone className="h-4 w-4" />
+          <Megaphone className="h-3.5 w-3.5 opacity-90" />
           Mass Message
         </Button>
         <DropdownMenu>
@@ -43,13 +43,13 @@ export function MassMessageDialog() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 min-w-10 rounded-l-none rounded-r-xl border-0 border-l border-background/20 bg-foreground px-2 text-background shadow-sm transition-opacity duration-200 hover:bg-foreground hover:opacity-90"
+              className="h-9 w-9 shrink-0 rounded-none rounded-r-lg border-0 border-l border-white/12 bg-foreground/92 px-0 text-background transition-[background-color,opacity] duration-150 ease-out hover:bg-foreground hover:opacity-95"
               aria-label="More mass message options"
             >
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-90" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent align="end" className="w-64 rounded-xl border-border/40 p-1 shadow-lg">
             <DropdownMenuItem asChild>
               <Link
                 href="/dashboard/messages/mass"

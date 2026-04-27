@@ -133,69 +133,65 @@ function WorkspaceKpiPanel({
   workspaceTagVisibility: Record<string, boolean>
   setWorkspaceTagVisibility: Dispatch<SetStateAction<Record<string, boolean>>>
 }) {
+  const metrics = [
+    { label: 'Conversations', value: workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—' },
+    {
+      label: 'Response rate',
+      value: workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—',
+    },
+    { label: 'Avg. response', value: workspaceStats?.kpis.avgResponseTimeLabel ?? '—' },
+    { label: 'Messages today', value: workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—' },
+  ] as const
+
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/45 bg-white/60 px-4 py-3 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150',
-        'dark:border-white/[0.10] dark:bg-slate-950/50 dark:shadow-[0_24px_70px_-32px_rgba(0,0,0,0.55)]',
+        'rounded-xl border border-white/40 bg-white/55 px-3 py-2 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] backdrop-blur-xl backdrop-saturate-150',
+        'dark:border-white/[0.08] dark:bg-slate-950/45 dark:shadow-[0_16px_48px_-28px_rgba(0,0,0,0.45)]',
       )}
     >
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Total conversations
-          </p>
-          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
-            {workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—'}
-          </p>
+      <div className="flex flex-col gap-2 min-[680px]:flex-row min-[680px]:items-center min-[680px]:gap-4">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 sm:gap-x-0 sm:divide-x sm:divide-border/25 dark:sm:divide-white/[0.08]">
+          {metrics.map((m) => (
+            <div key={m.label} className="min-w-0 sm:px-3 sm:first:pl-0 sm:last:pr-0">
+              <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground/78">
+                {m.label}
+              </p>
+              <p className="mt-0.5 text-[0.8125rem] font-semibold tabular-nums tracking-[-0.02em] text-foreground/95 sm:text-[0.875rem]">
+                {m.value}
+              </p>
+            </div>
+          ))}
         </div>
-        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Response rate</p>
-          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
-            {workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—'}
-          </p>
+
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 min-[680px]:max-w-[48%] min-[680px]:justify-end min-[680px]:shrink-0">
+          {(workspaceStats?.customTags ?? []).map((tag) => {
+            const visible = workspaceTagVisibility[tag.id] !== false
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                className={cn(
+                  'inline-flex items-baseline gap-1 rounded-md border px-2 py-0.5 text-[10px] transition-[background-color,border-color,opacity] duration-150 ease-out',
+                  visible
+                    ? 'border-border/35 bg-background/40 text-muted-foreground hover:bg-background/55'
+                    : 'border-dashed border-border/40 bg-background/20 text-muted-foreground/60 hover:bg-background/35',
+                )}
+                onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
+                title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
+              >
+                <span className="font-medium text-foreground/90">{tag.label}</span>
+                <span className="tabular-nums text-muted-foreground">{tag.value}</span>
+              </button>
+            )
+          })}
+          {workspaceStatsLoading ? (
+            <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground/85">
+              <Loader2 className="h-3 w-3 animate-spin opacity-80" aria-hidden />
+              Updating
+            </span>
+          ) : null}
         </div>
-        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Avg. response time
-          </p>
-          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
-            {workspaceStats?.kpis.avgResponseTimeLabel ?? '—'}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border/30 bg-background/35 px-3 py-2.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Messages today</p>
-          <p className="mt-1.5 text-[0.9375rem] font-semibold tabular-nums tracking-tight text-foreground">
-            {workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—'}
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {(workspaceStats?.customTags ?? []).map((tag) => {
-          const visible = workspaceTagVisibility[tag.id] !== false
-          return (
-            <button
-              key={tag.id}
-              type="button"
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition-[background-color,border-color,opacity] duration-200',
-                visible
-                  ? 'border-border/40 bg-background/45 text-muted-foreground hover:bg-background/65'
-                  : 'border-dashed border-border/45 bg-background/25 text-muted-foreground/65 hover:bg-background/40',
-              )}
-              onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
-              title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
-            >
-              <span className="font-medium text-foreground">{tag.label}:</span> {tag.value}
-            </button>
-          )
-        })}
-        {workspaceStatsLoading ? (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Updating metrics
-          </span>
-        ) : null}
       </div>
     </div>
   )
@@ -679,7 +675,7 @@ function MessagesLayoutContent({
   const emptyInboxChatDescription =
     conversations.length === 0
       ? !hasFanPlatformConnected
-        ? 'Connect OnlyFans or Fansly in Settings → Integrations so Circe can load your conversations here.'
+        ? 'Your conversations sync after you connect.'
         : inboxNarrowingActive
           ? segment === 'whales'
             ? 'None match Whales in this inbox right now. Switch to All or tap Refresh.'
@@ -695,7 +691,7 @@ function MessagesLayoutContent({
   const showKpiStripInline = !focusMode && kpiStripVisible && !isMobile
 
   const toolbarIconBtn =
-    'rounded-xl border border-border/35 bg-background/40 shadow-sm backdrop-blur-md transition-[background-color,border-color,box-shadow] duration-200 ease-out hover:bg-background/60'
+    'border border-border/25 bg-background/25 text-muted-foreground shadow-none backdrop-blur-sm transition-[background-color,border-color,color] duration-150 ease-out hover:bg-muted/35 hover:text-foreground dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]'
 
   return (
     <div className="flex w-full min-h-0 flex-1 flex-col px-0 sm:px-0.5">
@@ -731,13 +727,13 @@ function MessagesLayoutContent({
       ) : null}
 
       {!hideMessagesToolbar ? (
-      <div className="mb-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2.5 sm:mb-3">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="mb-2 flex min-h-[2.5rem] flex-shrink-0 flex-wrap items-center justify-between gap-3 sm:mb-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {selectedConversation && view === 'conversations' && (
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-10 w-10 flex-shrink-0"
+              className="md:hidden h-9 w-9 flex-shrink-0 rounded-lg"
               onClick={openChatsMenu}
               aria-label="Back to conversations"
             >
@@ -746,9 +742,9 @@ function MessagesLayoutContent({
           )}
           {view === 'conversations' && (!selectedConversation || !isMobile) && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 md:hidden"
+              className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground md:hidden hover:bg-muted/30 hover:text-foreground"
               onClick={openChatsMenu}
             >
               <PanelLeft className="h-3.5 w-3.5" />
@@ -756,52 +752,52 @@ function MessagesLayoutContent({
             </Button>
           )}
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-medium leading-snug tracking-tight text-foreground/80 sm:text-sm">
+            <p className="truncate text-[12px] font-normal leading-snug tracking-[-0.01em] text-muted-foreground/88 sm:text-[13px]">
               {conversationsSubtitle}
             </p>
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
-          <div className="hidden rounded-xl border border-border/30 bg-background/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04] sm:flex">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-1 sm:gap-1.5">
+          <div className="hidden rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07] sm:inline-flex">
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                'h-8 gap-1.5 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
                 view === 'conversations'
-                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
-                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
               )}
               onClick={() => setView('conversations')}
             >
-              <MessageSquare className="h-3.5 w-3.5" />
+              <MessageSquare className="h-3.5 w-3.5 opacity-80" />
               Chats
             </Button>
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                'h-8 gap-1.5 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
                 view === 'insights'
-                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
-                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
               )}
               onClick={() => setView('insights')}
             >
-              <BarChart3 className="h-3.5 w-3.5" />
+              <BarChart3 className="h-3.5 w-3.5 opacity-80" />
               Insights
             </Button>
           </div>
-          <div className="flex rounded-xl border border-border/30 bg-background/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04] sm:hidden">
+          <div className="inline-flex rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07] sm:hidden">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className={cn(
-                'h-9 w-9 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                'h-8 w-8 rounded-md transition-[background-color,color] duration-150 ease-out',
                 view === 'conversations'
-                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
-                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
               )}
               onClick={() => setView('conversations')}
               aria-label="Chats"
@@ -814,10 +810,10 @@ function MessagesLayoutContent({
               variant="ghost"
               size="icon"
               className={cn(
-                'h-9 w-9 rounded-lg transition-[background-color,box-shadow,color] duration-200 ease-out',
+                'h-8 w-8 rounded-md transition-[background-color,color] duration-150 ease-out',
                 view === 'insights'
-                  ? 'bg-background/88 text-foreground shadow-sm ring-1 ring-border/40'
-                  : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
+                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
               )}
               onClick={() => setView('insights')}
               aria-label="Insights"
@@ -829,9 +825,9 @@ function MessagesLayoutContent({
           {view === 'conversations' && (
             <>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="hidden h-10 w-10 md:flex"
+                className={cn('hidden md:flex', toolbarIconBtn)}
                 onClick={openChatsMenu}
                 aria-label="Open conversations menu"
                 title="Open conversations menu"
@@ -839,18 +835,18 @@ function MessagesLayoutContent({
                 <PanelLeft className="h-4 w-4" />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-10 w-10"
+                className={toolbarIconBtn}
                 onClick={() => void loadInbox({ refresh: true })}
                 disabled={refreshing}
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="h-10 w-10"
+                className={toolbarIconBtn}
                 onClick={() => setFocusMode((v) => !v)}
                 title={focusMode ? 'Exit focus mode' : 'Focus mode'}
               >
@@ -858,11 +854,13 @@ function MessagesLayoutContent({
               </Button>
               {!focusMode ? (
                 <Button
-                  variant={
-                    (isMobile ? kpiStatsSheetOpen : kpiStripVisible) ? 'secondary' : 'outline'
-                  }
+                  variant="ghost"
                   size="icon"
-                  className="h-10 w-10"
+                  className={cn(
+                    toolbarIconBtn,
+                    (isMobile ? kpiStatsSheetOpen : kpiStripVisible) &&
+                      'border-border/40 bg-muted/30 text-foreground',
+                  )}
                   onClick={() => {
                     if (isMobile) setKpiStatsSheetOpen(true)
                     else setKpiStripVisible((v) => !v)
@@ -880,9 +878,14 @@ function MessagesLayoutContent({
               ) : null}
               {!isMobile && selectedConversation && !focusMode ? (
                 <Button
-                  variant={rightDrawerOpen ? 'secondary' : 'outline'}
+                  variant="ghost"
                   size="sm"
-                  className="hidden lg:inline-flex"
+                  className={cn(
+                    'hidden h-8 rounded-lg px-3 text-xs font-medium lg:inline-flex',
+                    rightDrawerOpen
+                      ? 'bg-muted/40 text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground',
+                  )}
                   onClick={() => setRightDrawerOpen((v) => !v)}
                 >
                   Profile
@@ -975,7 +978,11 @@ function MessagesLayoutContent({
                 initialAvatar={selectedConversation.user.avatar}
               />
             ) : null}
-            <motion.div layout transition={panelTransition} className="min-h-0 flex flex-1">
+            <motion.div
+              layout
+              transition={panelTransition}
+              className="flex min-h-0 min-w-0 flex-1 flex-col"
+            >
               <MessagingLayout
                 focusMode={focusMode}
                 leftRailExpanded={chatsRailExpanded}
@@ -1017,6 +1024,7 @@ function MessagesLayoutContent({
                     onOpenFanProfile={() => setFanProfileOpen(true)}
                     nullConversationTitle={emptyInboxChatTitle}
                     nullConversationDescription={emptyInboxChatDescription}
+                    showPlatformConnectActions={conversations.length === 0 && !hasFanPlatformConnected}
                   />
                 }
                 rightPane={

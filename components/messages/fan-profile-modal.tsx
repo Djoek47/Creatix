@@ -126,57 +126,99 @@ export function FanProfileModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(92dvh,900px)] w-[min(100vw-1.5rem,56rem)] max-w-5xl overflow-y-auto p-4 sm:max-w-5xl sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="sr-only">Fan profile</DialogTitle>
-          <DialogDescription className="sr-only">
-            Fan id, platform, thread insights, and AI summary
-          </DialogDescription>
+      <DialogContent
+        className={cn(
+          'max-h-[min(92dvh,900px)] w-[min(100vw-1.25rem,52rem)] gap-0 overflow-y-auto rounded-[1.25rem] border border-white/40 bg-white/78 p-0 shadow-[0_28px_80px_-32px_rgba(15,23,42,0.35)] backdrop-blur-2xl backdrop-saturate-150 sm:max-w-[52rem]',
+          'dark:border-white/[0.09] dark:bg-slate-950/65 dark:shadow-[0_32px_90px_-36px_rgba(0,0,0,0.55)]',
+        )}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Fan profile</DialogTitle>
+          <DialogDescription>Fan id, platform, thread insights, and AI summary</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-4">
-            <Avatar className="h-20 w-20 border border-border">
+        <div className="flex flex-col px-5 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+            <Avatar className="h-[5.25rem] w-[5.25rem] shrink-0 rounded-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
               <AvatarImage src={proxyImageUrl(avatar) || avatar || undefined} />
-              <AvatarFallback className="bg-primary/10 text-2xl text-primary">
+              <AvatarFallback className="rounded-2xl bg-muted/40 text-2xl font-semibold text-foreground/80">
                 {displayName[0]?.toUpperCase() || '?'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="truncate text-lg font-semibold">{displayName}</p>
-              <p className="truncate text-sm text-muted-foreground">@{username}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="tabular-nums text-xs">
-                  ID {fanId}
-                </Badge>
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                    platform === 'onlyfans' ? 'bg-sky-500/10 text-sky-600' : 'bg-blue-500/10 text-blue-600',
-                  )}
+            <div className="min-w-0 flex-1 space-y-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/55">Fan profile</p>
+                  <h2 className="truncate text-[1.625rem] font-semibold leading-tight tracking-[-0.03em] text-foreground">
+                    {displayName}
+                  </h2>
+                  <p className="truncate text-[15px] text-muted-foreground/88">@{username}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-xl border-border/40 bg-background/40 shadow-none"
+                  title="Sync thread from platform, then reload"
+                  onClick={async () => {
+                    setError(null)
+                    setLoading(true)
+                    try {
+                      const sync = await fetch('/api/divine/refresh-thread-insight', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ fanId, platform, force: true }),
+                      })
+                      const syncJson = (await sync.json().catch(() => ({}))) as { error?: string }
+                      if (!sync.ok) throw new Error(syncJson.error || 'Could not sync thread')
+                      await load()
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'Sync failed')
+                      setLoading(false)
+                    }
+                  }}
+                  disabled={loading}
                 >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-border/35 bg-background/35 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                  ID {fanId}
+                </span>
+                <span className="rounded-full border border-border/35 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
                 </span>
                 {audienceBadges.map((b) => (
-                  <Badge key={b.key} variant="outline" className={cn('text-[10px] font-medium', b.className)}>
+                  <Badge
+                    key={b.key}
+                    variant="outline"
+                    className={cn(
+                      'border-border/40 bg-transparent text-[11px] font-medium text-foreground/85',
+                      b.className,
+                    )}
+                  >
                     {b.label}
                     {b.key === 'creator' && data?.creatorDetector?.confidence != null
-                      ? ` (${Math.round((data.creatorDetector.confidence || 0) * 100)}%)`
+                      ? ` · ${Math.round((data.creatorDetector.confidence || 0) * 100)}%`
                       : null}
                   </Badge>
                 ))}
               </div>
+
               {(data?.creatorClassification?.trim() || data?.crm?.fanTenureDays != null) && (
-                <div className="rounded-md border border-violet-500/25 bg-violet-500/5 px-2.5 py-2 text-xs">
+                <div className="border-l-2 border-l-violet-500/35 py-1 pl-4 dark:border-l-violet-400/30">
                   {data?.creatorClassification?.trim() ? (
-                    <p className="font-medium text-foreground">
-                      <span className="text-muted-foreground">Your label: </span>
+                    <p className="text-[13px] leading-snug text-foreground">
+                      <span className="text-muted-foreground/80">Your label · </span>
                       {data.creatorClassification.trim()}
                     </p>
                   ) : null}
                   {data?.crm?.fanTenureDays != null ? (
-                    <p className={cn('text-foreground', data?.creatorClassification?.trim() && 'mt-1')}>
-                      <span className="text-muted-foreground">Fan tenure: </span>
+                    <p className={cn('text-[13px] leading-snug text-foreground/90', data?.creatorClassification?.trim() && 'mt-2')}>
+                      <span className="text-muted-foreground/80">Tenure · </span>
                       {data.crm.fanTenureDays === 0
                         ? 'joined today'
                         : data.crm.fanTenureDays < 14
@@ -185,18 +227,22 @@ export function FanProfileModal({
                             ? `${Math.floor(data.crm.fanTenureDays / 7)} weeks`
                             : `${Math.floor(data.crm.fanTenureDays / 30)} months`}
                       {data.crm.subscriptionStart ? (
-                        <span className="ml-1.5 text-muted-foreground">
-                          (since {new Date(data.crm.subscriptionStart).toLocaleDateString()})
+                        <span className="text-muted-foreground/75">
+                          {' '}
+                          · since {new Date(data.crm.subscriptionStart).toLocaleDateString()}
                         </span>
                       ) : null}
                     </p>
                   ) : null}
                 </div>
               )}
-              <div className="space-y-1.5 rounded-md border border-border bg-muted/25 p-2.5">
-                <Label className="text-[11px] font-medium">CRM profile type</Label>
-                <p className="text-[10px] text-muted-foreground">
-                  Explicit CRM type. The backend keeps evolving signals in sync when no manual override exists.
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+                  CRM profile type
+                </Label>
+                <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                  Manual type overrides inferred signals until you clear it.
                 </p>
                 <FanProfileTypeSelect
                   value={
@@ -241,111 +287,90 @@ export function FanProfileModal({
                   }}
                   className="w-full"
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  Active type: <span className="font-medium text-foreground">{data?.profileType?.replace(/_/g, ' ')}</span>
-                  {' · '}
-                  <span className="uppercase tracking-wide">{data?.profileTypeSource}</span>
+                <p className="text-[11px] text-muted-foreground/80">
+                  Active · <span className="font-medium text-foreground/90">{data?.profileType?.replace(/_/g, ' ')}</span>
+                  <span className="text-muted-foreground/50"> · </span>
+                  <span className="uppercase tracking-[0.08em] text-muted-foreground/70">{data?.profileTypeSource}</span>
                 </p>
               </div>
 
               {data?.crm != null && (
-                <p className="text-[11px] text-muted-foreground">
-                  Recorded spend: ${Math.round(data.crm.totalSpent)}
-                  {data.crm.subscriptionTier ? ` · synced tier ${data.crm.subscriptionTier}` : ''}
+                <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                  Spend ${Math.round(data.crm.totalSpent)}
+                  {data.crm.subscriptionTier ? ` · tier ${data.crm.subscriptionTier}` : ''}
                   {data.crm.subscriptionAccountType && data.crm.subscriptionAccountType !== 'unknown'
-                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free-page follower' : 'paid sub'}`
+                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free follower' : 'paid sub'}`
                     : ''}
                   {data.crm.subscriptionPrice != null && !Number.isNaN(data.crm.subscriptionPrice)
-                    ? ` (list $${data.crm.subscriptionPrice.toFixed(2)})`
+                    ? ` · list $${data.crm.subscriptionPrice.toFixed(2)}`
                     : ''}
                 </p>
               )}
               {data?.churnSnapshot ? (
-                <div className="rounded-md border border-amber-500/35 bg-amber-500/5 px-2.5 py-2 text-xs">
-                  <p className="font-medium text-foreground">Churn signal</p>
-                  <p className="mt-0.5 text-muted-foreground">
-                    <span className="capitalize text-foreground">{data.churnSnapshot.riskLevel}</span>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 dark:border-amber-400/15 dark:bg-amber-400/[0.05]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">Churn</p>
+                  <p className="mt-1.5 text-[13px] text-foreground">
+                    <span className="capitalize">{data.churnSnapshot.riskLevel}</span>
                     {data.churnSnapshot.updatedAt
-                      ? ` · ${new Date(data.churnSnapshot.updatedAt).toLocaleString()}`
-                      : ''}
+                      ? (
+                          <span className="text-muted-foreground/75">
+                            {' '}
+                            · {new Date(data.churnSnapshot.updatedAt).toLocaleString()}
+                          </span>
+                        )
+                      : null}
                   </p>
                   {data.churnSnapshot.oneLine ? (
-                    <p className="mt-1 text-[11px] leading-snug text-foreground/90">{data.churnSnapshot.oneLine}</p>
+                    <p className="mt-2 text-[12px] leading-relaxed text-foreground/88">{data.churnSnapshot.oneLine}</p>
                   ) : null}
-                  <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[11px]">
-                    <Link href="/dashboard/retention/churn" className="text-violet-600 underline hover:text-violet-500">
-                      Retention hub
+                  <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+                    <Link
+                      href="/dashboard/retention/churn"
+                      className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground/40"
+                    >
+                      Retention
                     </Link>
-                    <span className="text-muted-foreground">·</span>
                     <Link
                       href="/dashboard/ai-studio/tools/churn-predictor"
-                      className="text-violet-600 underline hover:text-violet-500"
+                      className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground/40"
                     >
-                      Full churn run (2 credits)
+                      Churn predictor
                     </Link>
                   </p>
                 </div>
               ) : null}
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              title="Sync stored thread from platform, then reload"
-              onClick={async () => {
-                setError(null)
-                setLoading(true)
-                try {
-                  const sync = await fetch('/api/divine/refresh-thread-insight', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ fanId, platform, force: true }),
-                  })
-                  const syncJson = (await sync.json().catch(() => ({}))) as { error?: string }
-                  if (!sync.ok) throw new Error(syncJson.error || 'Could not sync thread')
-                  await load()
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : 'Sync failed')
-                  setLoading(false)
-                }
-              }}
-              disabled={loading}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            </Button>
           </div>
 
           {loading && !data && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+            <div className="mt-8 flex items-center gap-2.5 text-[13px] text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin opacity-80" />
               Loading profile…
             </div>
           )}
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error ? <p className="mt-4 text-[13px] text-destructive">{error}</p> : null}
 
-          <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-            <Label htmlFor="fan-creator-classification" className="text-xs font-medium">
-              Your label (optional)
+          <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
+            <Label htmlFor="fan-creator-classification" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+              Your label
             </Label>
-            <p className="text-[11px] text-muted-foreground">
-              Private tags for you and Divine — e.g. fan, whale, VIP, churn risk, fellow creator. Fan-style labels keep
-              automations on even when heuristics guess &quot;creator&quot;.
+            <p className="max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">
+              Private tags for you and Divine — whale, VIP, churn risk, fellow creator, etc.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <Input
                 id="fan-creator-classification"
                 value={classificationDraft}
                 onChange={(e) => setClassificationDraft(e.target.value)}
-                placeholder="Empty by default"
-                className="text-sm"
+                placeholder="Optional"
+                className="h-10 flex-1 rounded-xl border-border/40 bg-background/50 text-[13px] shadow-none"
                 disabled={savingClass || loading}
                 maxLength={2000}
               />
               <Button
                 type="button"
                 size="sm"
-                variant="secondary"
+                className="h-10 shrink-0 rounded-xl px-5 text-[13px] font-semibold"
                 disabled={savingClass || loading || !fanId}
                 onClick={async () => {
                   setSavingClass(true)
@@ -380,72 +405,72 @@ export function FanProfileModal({
           </div>
 
           {platform === 'onlyfans' && data && (
-            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-              <p className="text-xs font-medium">Platform bio (OnlyFans)</p>
-              <p className="text-[11px] text-muted-foreground">
-                When the API returns their about text, we use it for creator detection. Fetch sparingly (cached ~24h).
-              </p>
+            <div className="mt-10 space-y-4 border-t border-border/25 pt-8 dark:border-white/[0.06]">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">OnlyFans bio</p>
+                <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">
+                  Used for creator detection. Cached ~24h — refresh sparingly.
+                </p>
+              </div>
               {data.platformAboutSource !== 'none' ? (
-                <p className="text-[11px] text-muted-foreground">
-                  Source: {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Serper fallback'} · freshness:{' '}
-                  {data.platformAboutFreshness}
+                <p className="text-[11px] text-muted-foreground/75">
+                  {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Serper fallback'} · {data.platformAboutFreshness}
                 </p>
               ) : null}
               {data.platformAbout?.trim() ? (
-                <p className="max-h-[min(40vh,18rem)] overflow-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                <p className="max-h-[min(40vh,18rem)] overflow-auto rounded-xl border border-border/25 bg-muted/15 px-4 py-3 text-[12px] leading-relaxed whitespace-pre-wrap text-foreground/88 dark:border-white/[0.06]">
                   {data.platformAbout}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">No stored bio yet — fetch from OnlyFans if available.</p>
+                <p className="text-[12px] text-muted-foreground/80">No bio stored yet.</p>
               )}
-              {data.platformAboutFetchedAt && (
-                <p className="text-[11px] text-muted-foreground">
-                  Last fetched: {new Date(data.platformAboutFetchedAt).toLocaleString()}
+              {data.platformAboutFetchedAt ? (
+                <p className="text-[11px] text-muted-foreground/65">
+                  Fetched {new Date(data.platformAboutFetchedAt).toLocaleString()}
                 </p>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={enrichAboutLoading || loading || !fanId}
-                  onClick={async () => {
-                    setEnrichAboutLoading(true)
-                    setError(null)
-                    try {
-                      const res = await fetch('/api/onlyfans/fans/enrich-about', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ fanId, force: true }),
-                      })
-                      const json = (await res.json().catch(() => ({}))) as { error?: string }
-                      if (!res.ok) throw new Error(json.error || 'Fetch failed')
-                      await load()
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : 'Enrich failed')
-                    } finally {
-                      setEnrichAboutLoading(false)
-                    }
-                  }}
-                >
-                  {enrichAboutLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      Fetching…
-                    </>
-                  ) : (
-                    'Refresh bio'
-                  )}
-                </Button>
-              </div>
-              <div className="flex items-start justify-between gap-3 border-t border-border pt-3">
-                <div className="min-w-0 space-y-0.5">
-                  <Label htmlFor="treat-as-fan-auto" className="text-xs font-medium">
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-xl border-border/40 text-[13px] font-medium"
+                disabled={enrichAboutLoading || loading || !fanId}
+                onClick={async () => {
+                  setEnrichAboutLoading(true)
+                  setError(null)
+                  try {
+                    const res = await fetch('/api/onlyfans/fans/enrich-about', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ fanId, force: true }),
+                    })
+                    const json = (await res.json().catch(() => ({}))) as { error?: string }
+                    if (!res.ok) throw new Error(json.error || 'Fetch failed')
+                    await load()
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Enrich failed')
+                  } finally {
+                    setEnrichAboutLoading(false)
+                  }
+                }}
+              >
+                {enrichAboutLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    Fetching…
+                  </>
+                ) : (
+                  'Refresh bio'
+                )}
+              </Button>
+              <div className="flex items-start justify-between gap-4 border-t border-border/20 pt-6 dark:border-white/[0.06]">
+                <div className="min-w-0 space-y-1">
+                  <Label htmlFor="treat-as-fan-auto" className="text-[13px] font-medium text-foreground/90">
                     Treat as fan for automation
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    When on, AI Chatter and comment analysis run even if they look like a fellow creator.
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                    Run AI chatter and comment tools even when they look like a fellow creator.
                   </p>
                 </div>
                 <Switch
@@ -485,121 +510,118 @@ export function FanProfileModal({
           {data?.skipExpensiveAiForCreatorLikely &&
             data.creatorDetector?.is_creator_likely &&
             !data.treatAsFanForAutomation && (
-              <p className="rounded-md border border-amber-500/35 bg-amber-500/10 p-2 text-[11px] text-amber-100/95">
-                Divine is set to skip expensive AI for likely creators. Turn on &quot;Treat as fan for automation&quot;
-                or use a fan-style label (e.g. whale, churn risk) to keep automations for this person.
+              <p className="mt-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-[12px] leading-relaxed text-foreground/90 dark:border-amber-400/15">
+                Expensive AI is off for likely creators. Turn on “Treat as fan for automation” or add a fan-style label
+                to keep automations.
               </p>
             )}
 
           {data?.creatorDetector && (
             <div
               className={cn(
-                'rounded-md border p-3 text-sm',
-                data.creatorDetector.is_creator_likely
-                  ? 'border-red-500/45 bg-red-500/5 text-red-50/95'
-                  : 'border-emerald-500/45 bg-emerald-500/5 text-emerald-50/95',
+                'mt-10 space-y-2 border-t border-border/25 pt-8 dark:border-white/[0.06]',
+                'rounded-xl border border-border/30 bg-muted/10 px-4 py-4 dark:border-white/[0.06]',
               )}
             >
-              <p className="font-medium">Creator likelihood</p>
-              <p
-                className={cn(
-                  'mt-1 text-sm',
-                  data.creatorDetector.is_creator_likely ? 'text-red-100/90' : 'text-emerald-100/90',
-                )}
-              >
-                {data.creatorDetector.is_creator_likely
-                  ? 'Heuristic suggests this fan may also create content or promote a page.'
-                  : 'No strong creator-style signals in stored text (heuristic).'}
-              </p>
-              {data.creatorDetector.rationale_snippets.length > 0 && (
-                <ul
+              <div className="flex items-center gap-2">
+                <span
                   className={cn(
-                    'mt-2 list-inside list-disc text-xs',
-                    data.creatorDetector.is_creator_likely ? 'text-red-100/75' : 'text-emerald-100/75',
+                    'h-2 w-2 shrink-0 rounded-full',
+                    data.creatorDetector.is_creator_likely ? 'bg-amber-500/90' : 'bg-emerald-500/80',
                   )}
-                >
+                  aria-hidden
+                />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
+                  Creator signal
+                </p>
+              </div>
+              <p className="text-[14px] font-medium leading-snug tracking-[-0.01em] text-foreground">
+                {data.creatorDetector.is_creator_likely
+                  ? 'May also create or promote a page.'
+                  : 'No strong creator-style signals in stored text.'}
+              </p>
+              {data.creatorDetector.rationale_snippets.length > 0 ? (
+                <ul className="mt-3 list-disc space-y-1.5 border-t border-border/15 py-3 pl-4 text-[12px] leading-relaxed text-muted-foreground/88 dark:border-white/[0.05]">
                   {data.creatorDetector.rationale_snippets.map((s) => (
                     <li key={s}>{s}</li>
                   ))}
                 </ul>
-              )}
+              ) : null}
             </div>
           )}
 
           {data?.threadInsight?.profileJson != null &&
             formatProfileSection(data.threadInsight.profileJson).length > 0 && (
-            <div className="space-y-4">
-              <p className="text-sm font-semibold">Thread profile</p>
-              {formatProfileSection(data.threadInsight.profileJson).map((block) => (
-                <div key={block.label}>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{block.label}</p>
-                  <ul className="mt-1 list-inside list-disc text-sm">
-                    {block.items.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
+              <div className="mt-10 space-y-6 border-t border-border/25 pt-8 dark:border-white/[0.06]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">From thread</p>
+                {formatProfileSection(data.threadInsight.profileJson).map((block) => (
+                  <div key={block.label}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/55">
+                      {block.label}
+                    </p>
+                    <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-foreground/88">
+                      {block.items.map((line) => (
+                        <li key={line} className="flex gap-2">
+                          <span className="text-muted-foreground/40">·</span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
           {data?.aiSummary?.summaryJson != null && (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">AI summary</p>
-              <pre className="max-h-[min(50vh,28rem)] overflow-auto rounded-md bg-muted/50 p-3 text-xs whitespace-pre-wrap break-words">
+            <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">AI summary</p>
+              <pre className="max-h-[min(50vh,28rem)] overflow-auto rounded-xl border border-border/25 bg-muted/10 p-4 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-foreground/85 dark:border-white/[0.06]">
                 {JSON.stringify(data.aiSummary.summaryJson, null, 2)}
               </pre>
-              {data.aiSummary.lastAnalyzedAt && (
-                <p className="text-xs text-muted-foreground">
-                  Last analyzed: {new Date(data.aiSummary.lastAnalyzedAt).toLocaleString()}
+              {data.aiSummary.lastAnalyzedAt ? (
+                <p className="text-[11px] text-muted-foreground/70">
+                  {new Date(data.aiSummary.lastAnalyzedAt).toLocaleString()}
                 </p>
-              )}
+              ) : null}
             </div>
           )}
 
           {data?.threadInsight?.threadSnapshotExcerpt && (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">Thread snapshot (excerpt)</p>
-              <p className="max-h-[min(50vh,28rem)] overflow-auto rounded-md bg-muted/30 p-3 text-xs whitespace-pre-wrap text-muted-foreground">
+            <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">Thread excerpt</p>
+              <p className="max-h-[min(50vh,28rem)] overflow-auto rounded-xl border border-border/25 bg-muted/10 p-4 text-[12px] leading-relaxed whitespace-pre-wrap text-muted-foreground/88 dark:border-white/[0.06]">
                 {data.threadInsight.threadSnapshotExcerpt}
               </p>
-              {data.threadInsight.lastThreadRefreshAt && (
-                <p className="text-xs text-muted-foreground">
-                  Refreshed: {new Date(data.threadInsight.lastThreadRefreshAt).toLocaleString()}
-                </p>
-              )}
-              {data.threadInsight.lastScanKind && (
-                <p className="text-xs text-muted-foreground">
-                  Last mode: {data.threadInsight.lastScanKind === 'thread_update' ? 'Thread update' : 'Manual scan'}
-                </p>
-              )}
-              {data.threadInsight.lastScanAt && (
-                <p className="text-xs text-muted-foreground">
-                  Last manual scan: {new Date(data.threadInsight.lastScanAt).toLocaleString()}
-                </p>
-              )}
-              {data.threadInsight.lastUpdateAt && (
-                <p className="text-xs text-muted-foreground">
-                  Last auto update: {new Date(data.threadInsight.lastUpdateAt).toLocaleString()}
-                </p>
-              )}
+              <div className="space-y-1 text-[11px] text-muted-foreground/70">
+                {data.threadInsight.lastThreadRefreshAt ? (
+                  <p>Refreshed {new Date(data.threadInsight.lastThreadRefreshAt).toLocaleString()}</p>
+                ) : null}
+                {data.threadInsight.lastScanKind ? (
+                  <p>{data.threadInsight.lastScanKind === 'thread_update' ? 'Thread update' : 'Manual scan'}</p>
+                ) : null}
+                {data.threadInsight.lastScanAt ? (
+                  <p>Manual scan {new Date(data.threadInsight.lastScanAt).toLocaleString()}</p>
+                ) : null}
+                {data.threadInsight.lastUpdateAt ? (
+                  <p>Auto update {new Date(data.threadInsight.lastUpdateAt).toLocaleString()}</p>
+                ) : null}
+              </div>
             </div>
           )}
 
           {data?.threadInsight?.insufficientData && (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-              <p className="font-medium">Profile still forming for this fan</p>
-              <p className="mt-1 text-xs text-amber-100/90">
+            <div className="mt-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 dark:border-amber-400/15">
+              <p className="text-[13px] font-medium text-foreground">Profile still forming</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground/88">
                 {data.threadInsight.insufficientDataReason ??
-                  'Not enough conversation yet. Ask the fan to chat more, then run Scan again.'}
+                  'Not enough conversation yet. Chat more, then run Scan again.'}
               </p>
             </div>
           )}
 
           {!loading && data && !data.threadInsight && !data.aiSummary?.summaryJson && (
-            <p className="text-sm text-muted-foreground">
-              No stored thread insight or AI summary yet. Use the refresh button above to sync from the platform, run
-              Scan in Divine AI (that also saves the thread), or send a message in chat.
+            <p className="mt-10 max-w-prose border-t border-border/25 pt-8 text-[13px] leading-relaxed text-muted-foreground/85 dark:border-white/[0.06]">
+              No thread insight yet. Sync from the header, run Scan in Divine AI, or send a message in chat.
             </p>
           )}
         </div>

@@ -10,6 +10,7 @@ export function DivineWorkingLogo({
   phaseHint,
   className,
   wordmarkClassName,
+  statusVisibility = 'full',
 }: {
   /** Legacy: when true, treat as working (non-idle) unless `variant` is set. */
   working?: boolean
@@ -20,6 +21,8 @@ export function DivineWorkingLogo({
   className?: string
   /** Optional class for the “Divine” label (e.g. ai-tools-wordmark in launcher). */
   wordmarkClassName?: string
+  /** Hide Idle / Working subline when the parent shows status elsewhere (e.g. launcher). */
+  statusVisibility?: 'full' | 'hidden'
 }) {
   const v: VoiceSurfaceState =
     variant ?? (working ? 'working' : 'idle')
@@ -61,15 +64,17 @@ export function DivineWorkingLogo({
         >
           Divine
         </span>
-        <span
-          className={cn(
-            'text-[11px]',
-            v === 'working' && 'text-purple-600/90 dark:text-purple-400/90',
-            v === 'speaking' && 'text-amber-600/90 dark:text-amber-400/90',
-          )}
-        >
-          {label}
-        </span>
+        {statusVisibility === 'full' ? (
+          <span
+            className={cn(
+              'text-[11px]',
+              v === 'working' && 'text-purple-600/90 dark:text-purple-400/90',
+              v === 'speaking' && 'text-amber-600/90 dark:text-amber-400/90',
+            )}
+          >
+            {label}
+          </span>
+        ) : null}
       </div>
     </div>
   )

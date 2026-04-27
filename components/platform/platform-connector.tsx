@@ -152,6 +152,35 @@ function getPlatformLogo(platformId: string) {
 
 interface PlatformConnectorProps {
   compact?: boolean
+  /**
+   * OnlyFans + Fansly connect actions with shared dialogs/overlays (no card chrome).
+   * Use for Messages empty state. Takes precedence over `compact`.
+   */
+  bareConnect?: boolean
+}
+
+function OnlyFansSdkProgressOverlay({ open }: { open: boolean }) {
+  if (!open) return null
+  return (
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      aria-hidden="false"
+      style={{ pointerEvents: 'auto' }}
+    >
+      <div className="mx-4 max-w-sm rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
+        <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
+        <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
+        <p className="mt-1 text-sm text-muted-foreground">Secured by OnlyFansAPI.com</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          This page is paused until you finish or close the sign-in window.
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or
+          using a different network if it fails.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 type PlatformStatusDraft = {
@@ -159,7 +188,7 @@ type PlatformStatusDraft = {
   detail: string
 }
 
-export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
+export function PlatformConnector({ compact = false, bareConnect = false }: PlatformConnectorProps) {
   const [connections, setConnections] = useState<PlatformConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState<string | null>(null)
@@ -806,9 +835,112 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className={cn('flex items-center justify-center', bareConnect ? 'py-6' : 'py-12')}>
+        <Loader2 className={cn('animate-spin text-muted-foreground', bareConnect ? 'h-6 w-6' : 'h-8 w-8')} />
       </div>
+    )
+  }
+
+  if (bareConnect) {
+    return (
+      <>
+        <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
+        <div className="w-full max-w-md space-y-4">
+          {error ? (
+            <p className="text-center text-[13px] leading-snug text-destructive">{error}</p>
+          ) : null}
+          {success ? (
+            <p className="text-center text-[13px] leading-snug text-emerald-600 dark:text-emerald-400">{success}</p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => handleConnect('onlyfans')}
+              disabled={onlyfansSdkInProgress}
+              className={cn(
+                'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
+                'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
+                onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+              )}
+            >
+              <img
+                src={ONLYFANS_LOGO_SRC}
+                alt=""
+                className="h-7 w-auto max-w-[9rem] object-contain dark:brightness-110"
+              />
+              <span className="sr-only">Connect OnlyFans</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleConnect('fansly')}
+              disabled={onlyfansSdkInProgress}
+              className={cn(
+                'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
+                'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
+                onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+              )}
+            >
+              <img
+                src={FANSLY_LOGO_SRC}
+                alt=""
+                className="h-7 w-auto max-w-[8rem] object-contain dark:brightness-110"
+              />
+              <span className="sr-only">Connect Fansly</span>
+            </button>
+          </div>
+          <Link
+            href="/dashboard/settings?tab=integrations"
+            className="block text-center text-[12px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            More in Settings
+          </Link>
+        </div>
+
+        <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Unified plan required</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
+                Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
+                by your revenue tier
+                {billingSub?.revenue_band_label ? (
+                  <>
+                    {' '}
+                    (your band: <strong>{billingSub.revenue_band_label}</strong>)
+                  </>
+                ) : null}
+                . Upgrade under Billing, then connect again.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Not now</AlertDialogCancel>
+              <Button asChild>
+                <Link href="/dashboard/settings?tab=billing">Open billing</Link>
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <ConnectDialogs
+          fanslyDialogOpen={fanslyDialogOpen}
+          setFanslyDialogOpen={setFanslyDialogOpen}
+          fanslyEmail={fanslyEmail}
+          setFanslyEmail={setFanslyEmail}
+          fanslyPassword={fanslyPassword}
+          setFanslyPassword={setFanslyPassword}
+          fansly2FAToken={fansly2FAToken}
+          fansly2FACode={fansly2FACode}
+          setFansly2FACode={setFansly2FACode}
+          fanslyMaskedEmail={fanslyMaskedEmail}
+          fanslyLoading={fanslyLoading}
+          handleFanslyLogin={handleFanslyLogin}
+        />
+      </>
     )
   }
 
@@ -835,21 +967,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   if (compact) {
     return (
       <>
-        {onlyfansSdkInProgress && (
-          <div
-            className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
-            aria-hidden="false"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <div className="rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
-              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-3" />
-              <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
-              <p className="text-sm text-muted-foreground mt-1">Secured by OnlyFansAPI.com</p>
-              <p className="text-xs text-muted-foreground mt-2">This page is paused until you finish or close the sign-in window.</p>
-              <p className="text-xs text-muted-foreground mt-1">Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails.</p>
-            </div>
-          </div>
-        )}
+        <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
         <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-xl">
           <CardHeader className="border-b border-border/50 bg-muted/30 pb-4">
             <div className="flex items-center justify-between">
@@ -1048,21 +1166,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   // ── Full layout (settings page) ───────────────────────────────────────────
   return (
     <>
-      {onlyfansSdkInProgress && (
-        <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          aria-hidden="false"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <div className="rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
-            <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-3" />
-            <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
-            <p className="text-sm text-muted-foreground mt-1">Secured by OnlyFansAPI.com</p>
-            <p className="text-xs text-muted-foreground mt-2">This page is paused until you finish or close the sign-in window.</p>
-            <p className="text-xs text-muted-foreground mt-1">Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails.</p>
-          </div>
-        </div>
-      )}
+      <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
       <div className="space-y-6">
         <Alerts />
 

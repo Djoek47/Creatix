@@ -36,7 +36,7 @@ export function MessagingLayout({
         <motion.section
           layout
           transition={panelTransition}
-          className="flex min-h-0 min-w-0 flex-1"
+          className="flex min-h-0 min-w-0 flex-1 flex-col"
         >
           {centerPane}
         </motion.section>

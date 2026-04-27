@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
-import { Bell, Check, MessageSquare, Shield, TrendingUp, Users, X, Star, Sparkles } from 'lucide-react'
+import {
+  Bell,
+  Check,
+  CircleHelp,
+  MessageSquare,
+  Shield,
+  TrendingUp,
+  Users,
+  X,
+  Star,
+  Sparkles,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -11,6 +22,7 @@ import {
 } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { createClient } from '@/lib/supabase/client'
@@ -536,7 +548,7 @@ export function Notifications() {
       </PopoverTrigger>
       <PopoverContent
         className={cn(
-          'flex max-h-[min(80vh,420px)] min-h-0 w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96',
+          'flex max-h-[min(85vh,560px)] min-h-[min(72vh,440px)] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96',
           'rounded-2xl border border-white/45 bg-white/72 text-popover-foreground shadow-[0_24px_80px_-24px_rgba(15,23,42,0.32)] backdrop-blur-2xl backdrop-saturate-150',
           'dark:border-white/[0.10] dark:bg-slate-950/58 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.62)]',
         )}
@@ -622,10 +634,10 @@ export function Notifications() {
                 </div>
               ) : null}
               {liveList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No live notifications</p>
-                  <p className="mt-1 px-4 text-xs text-muted-foreground/80">
+                <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
+                  <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
+                  <p className="text-[15px] font-medium text-muted-foreground">No live notifications</p>
+                  <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
                     New messages, tips, and subscriber activity from your connected accounts show up here as they
                     arrive.
                   </p>
@@ -646,10 +658,10 @@ export function Notifications() {
             </TabsContent>
             <TabsContent value="divine" className="m-0">
               {divineList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No Divine notifications</p>
-                  <p className="mt-1 px-4 text-xs text-muted-foreground/80">
+                <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
+                  <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
+                  <p className="text-[15px] font-medium text-muted-foreground">No Divine notifications</p>
+                  <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
                     DMCA and leak scans, reputation mentions, whale watch for followed fans, billing, and Divine Manager actions show here.
                   </p>
                 </div>
@@ -677,30 +689,48 @@ export function Notifications() {
           </div>
         )}
 
-        <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border/40 bg-foreground/[0.02] p-4 backdrop-blur-sm">
-          <Button
-            size="sm"
-            className={cn(
-              'h-10 w-full gap-2 rounded-xl border-0 bg-foreground font-medium text-background shadow-sm',
-              'transition-opacity duration-200 ease-out hover:opacity-90',
-              'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
-            )}
-            disabled={briefingLoading || !userId || !divinePanel}
-            onClick={() => void runBriefing()}
-          >
-            {briefingLoading ? (
-              'Briefing…'
-            ) : (
-              <>
-                <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
-                Divine realtime briefing
-              </>
-            )}
-          </Button>
-          <p className="px-0.5 text-center text-[11px] leading-relaxed text-muted-foreground">
-            Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
-            confirm it is handled. Uses saved unread in this tab only.
-          </p>
+        <div className="flex flex-shrink-0 flex-col gap-3 border-t border-border/40 bg-foreground/[0.02] p-4 backdrop-blur-sm">
+          <div className="flex items-stretch gap-2">
+            <Button
+              size="sm"
+              className={cn(
+                'h-10 min-w-0 flex-1 gap-2 rounded-xl border-0 bg-foreground font-medium text-background shadow-sm',
+                'transition-opacity duration-200 ease-out hover:opacity-90',
+                'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
+              )}
+              disabled={briefingLoading || !userId || !divinePanel}
+              onClick={() => void runBriefing()}
+            >
+              {briefingLoading ? (
+                'Briefing…'
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                  Divine realtime briefing
+                </>
+              )}
+            </Button>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/45 bg-background/50 text-muted-foreground shadow-sm transition-[background-color,color,border-color] duration-200 hover:bg-background/75 hover:text-foreground"
+                  aria-label="How Divine realtime briefing works"
+                >
+                  <CircleHelp className="h-5 w-5" aria-hidden />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="max-w-[18rem] px-3 py-3 text-left text-[11px] leading-relaxed text-background"
+              >
+                Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
+                confirm it is handled. Uses saved unread in this tab only.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Button
             variant="ghost"
             className="h-9 w-full justify-center rounded-lg text-sm text-muted-foreground transition-colors duration-200 hover:bg-background/50 hover:text-foreground"

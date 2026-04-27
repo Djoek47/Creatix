@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef, type MouseEvent, type PointerEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
@@ -29,13 +29,178 @@ import { DivineTranscriptStack } from '@/components/divine/divine-transcript-car
 import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 import { DivineProtocolTaskRail } from '@/components/divine/divine-protocol-task-rail'
 
+/** Shared surface for Divine shortcut menus (skip-launcher, in-call overflow). */
+const divineSubmenuContentClass =
+  'min-w-[14.25rem] rounded-2xl border border-white/10 bg-popover/96 p-1.5 shadow-[0_14px_48px_-18px_rgba(0,0,0,0.52)] backdrop-blur-2xl duration-200 dark:border-white/[0.08]'
+
+const divineSubmenuItemClass =
+  'cursor-pointer gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium tracking-[-0.01em] text-foreground/90 data-[highlighted]:bg-foreground/[0.04] dark:data-[highlighted]:bg-white/[0.05]'
+
+const divineSubmenuSeparatorClass = 'my-1.5 bg-border/45'
+
+const launcherRowClass =
+  'group/row flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-[background-color,color] duration-150 ease-out hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/12 focus-visible:ring-offset-0 dark:hover:bg-white/[0.04]'
+
+const FAB_INSET_LS_KEY = 'divine_fab_inset_v1'
+const FAB_EDGE_MARGIN = 10
+const FAB_DRAG_THRESHOLD_PX = 12
+
+function clampFabInset(right: number, bottom: number, elWidth: number, elHeight: number) {
+  if (typeof window === 'undefined') return { right, bottom }
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const minR = FAB_EDGE_MARGIN
+  const maxR = Math.max(minR, vw - FAB_EDGE_MARGIN - elWidth)
+  const minB = FAB_EDGE_MARGIN
+  const maxB = Math.max(minB, vh - FAB_EDGE_MARGIN - elHeight)
+  return {
+    right: Math.min(maxR, Math.max(minR, Math.round(right))),
+    bottom: Math.min(maxB, Math.max(minB, Math.round(bottom))),
+  }
+}
+
 export function VoiceControlPopup() {
   const voice = useVoiceSession()
   const pathname = usePathname()
+  const messagesRouteDefault = pathname?.startsWith('/dashboard/messages') === true
   const [expanded, setExpanded] = useState(false)
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [skipLauncher, setSkipLauncher] = useState(false)
   const crownStateClass = useDivineCrownStateClass(expanded)
+
+  const [fabInset, setFabInset] = useState<{ right: number; bottom: number } | null>(null)
+  const fabRef = useRef<HTMLDivElement>(null)
+  const fabDragRef = useRef<{
+    pointerId: number
+    x0: number
+    y0: number
+    r0: number
+    b0: number
+    dragging: boolean
+  } | null>(null)
+  const skipFabClickRef = useRef(false)
+
+  const persistFabInset = useCallback((next: { right: number; bottom: number }) => {
+    setFabInset(next)
+    try {
+      localStorage.setItem(FAB_INSET_LS_KEY, JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const guardFabClick = useCallback((e: MouseEvent) => {
+    if (skipFabClickRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      skipFabClickRef.current = false
+    }
+  }, [])
+
+  const handleFabPointerDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (expanded || launcherOpen) return
+      if (e.button !== 0 && e.pointerType === 'mouse') return
+      const t = e.target as HTMLElement
+      if (t.closest('.divine-protocol-stack-shell') && t.closest('button, a')) {
+        return
+      }
+      const el = fabRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      fabDragRef.current = {
+        pointerId: e.pointerId,
+        x0: e.clientX,
+        y0: e.clientY,
+        r0: window.innerWidth - r.right,
+        b0: window.innerHeight - r.bottom,
+        dragging: false,
+      }
+      el.setPointerCapture(e.pointerId)
+    },
+    [expanded, launcherOpen],
+  )
+
+  const handleFabPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    const s = fabDragRef.current
+    if (!s || e.pointerId !== s.pointerId) return
+    const dx = e.clientX - s.x0
+    const dy = e.clientY - s.y0
+    if (!s.dragging) {
+      if (Math.hypot(dx, dy) <= FAB_DRAG_THRESHOLD_PX) return
+      s.dragging = true
+    }
+    e.preventDefault()
+    const el = fabRef.current
+    if (!el) return
+    const next = clampFabInset(s.r0 - dx, s.b0 - dy, el.offsetWidth, el.offsetHeight)
+    setFabInset(next)
+  }, [])
+
+  const handleFabPointerUp = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      const s = fabDragRef.current
+      if (!s || e.pointerId !== s.pointerId) return
+      const wasDragging = s.dragging
+      fabDragRef.current = null
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        /* already released */
+      }
+      if (wasDragging && fabRef.current) {
+        const el = fabRef.current
+        const r = el.getBoundingClientRect()
+        persistFabInset(
+          clampFabInset(
+            window.innerWidth - r.right,
+            window.innerHeight - r.bottom,
+            el.offsetWidth,
+            el.offsetHeight,
+          ),
+        )
+        skipFabClickRef.current = true
+      }
+    },
+    [persistFabInset],
+  )
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FAB_INSET_LS_KEY)
+      if (!raw) return
+      const j = JSON.parse(raw) as { right?: unknown; bottom?: unknown }
+      if (
+        typeof j.right === 'number' &&
+        typeof j.bottom === 'number' &&
+        Number.isFinite(j.right) &&
+        Number.isFinite(j.bottom)
+      ) {
+        setFabInset({ right: j.right, bottom: j.bottom })
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    const onResize = () => {
+      if (!fabRef.current) return
+      setFabInset((prev) => {
+        if (!prev) return prev
+        const el = fabRef.current!
+        const r = el.getBoundingClientRect()
+        return clampFabInset(
+          window.innerWidth - r.right,
+          window.innerHeight - r.bottom,
+          el.offsetWidth,
+          el.offsetHeight,
+        )
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const loadFabSettings = useCallback(async () => {
     try {
@@ -82,8 +247,6 @@ export function VoiceControlPopup() {
     divineVoicePremium,
   } = voice
 
-  const messagesRoute = pathname?.startsWith('/dashboard/messages') === true
-
   const primaryLabel =
     status === 'idle'
       ? 'Idle'
@@ -128,7 +291,8 @@ export function VoiceControlPopup() {
               type="button"
               className={crownClassName}
               aria-label="Open Divine launcher"
-              title="Divine — voice, text, shortcuts"
+              title="Divine — voice, text, shortcuts — drag to move"
+              onClick={guardFabClick}
             >
               <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
             </button>
@@ -136,73 +300,122 @@ export function VoiceControlPopup() {
           <PopoverContent
             side="top"
             align="end"
-            sideOffset={10}
-            className="divine-launcher-panel w-[min(calc(100vw-2rem),18rem)] p-0 overflow-hidden"
+            sideOffset={12}
+            className="divine-launcher-panel w-[min(calc(100vw-2rem),20.5rem)] overflow-hidden rounded-2xl border p-0 shadow-2xl"
           >
-            <div className="constellation-bg pointer-events-none absolute inset-0 opacity-[0.2] dark:opacity-[0.12]" />
-            <div className="group/aitools relative space-y-3 p-4">
-              <div className="flex items-center gap-2">
-                <DivineWorkingLogo variant="idle" className="text-foreground" wordmarkClassName="ai-tools-wordmark text-sm" />
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Voice as primary — or jump to text chat and tools.
-              </p>
-              {divineVoicePremium ? (
-                <Button
-                  className="w-full gap-2 bg-gradient-to-r from-amber-600 to-purple-600 text-white hover:from-amber-500 hover:to-purple-500"
-                  onClick={() => {
-                    void startVoiceFromLauncher()
-                  }}
-                >
-                  <Mic className="h-4 w-4 shrink-0" aria-hidden />
-                  Start voice call
-                </Button>
-              ) : (
-                <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    Divine voice is on Premium — includes Markit and the dashboard.
-                  </p>
-                  <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link href="/dashboard/settings?tab=billing" onClick={() => setLauncherOpen(false)}>
-                      View plans
-                    </Link>
-                  </Button>
+            <div className="constellation-bg pointer-events-none absolute inset-0 opacity-[0.14] dark:opacity-[0.08]" />
+            <div className="group/aitools relative px-5 pb-6 pt-6">
+              <header className="border-b border-border/30 pb-5">
+                <div className="flex items-start justify-between gap-3">
+                  <DivineWorkingLogo
+                    variant="idle"
+                    statusVisibility="hidden"
+                    className="min-w-0 items-center gap-3"
+                    wordmarkClassName="ai-tools-wordmark text-[1.125rem] font-semibold leading-none tracking-[-0.02em]"
+                  />
+                  <span className="mt-0.5 shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium tabular-nums tracking-wide text-muted-foreground/90">
+                    Idle
+                  </span>
                 </div>
-              )}
-              <div className="flex flex-col gap-1.5">
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
-                  <Link href="/dashboard/divine-manager?section=text" onClick={() => setLauncherOpen(false)}>
-                    <MessageSquare className="h-4 w-4 shrink-0 text-purple-500" aria-hidden />
-                    Text Divine
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
-                  <Link href="/dashboard/divine-manager" onClick={() => setLauncherOpen(false)}>
-                    <LayoutDashboard className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
-                    Divine Manager
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
+                <p className="mt-4 text-[13px] font-normal leading-[1.45] text-muted-foreground/88">
+                  Voice as primary — or jump to text chat and tools.
+                </p>
+              </header>
+
+              <div className="pt-6">
+                {divineVoicePremium ? (
+                  <Button
+                    className="h-11 w-full gap-2.5 rounded-xl bg-gradient-to-r from-amber-600/95 to-purple-600/95 text-[15px] font-semibold tracking-[-0.01em] text-white shadow-[0_8px_28px_-12px_rgba(124,58,237,0.55)] transition-[transform,box-shadow,filter] duration-200 ease-out hover:from-amber-500 hover:to-purple-500 hover:shadow-[0_12px_32px_-12px_rgba(124,58,237,0.45)] motion-safe:active:scale-[0.99]"
+                    onClick={() => {
+                      void startVoiceFromLauncher()
+                    }}
+                  >
+                    <Mic className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-95" aria-hidden />
+                    Start voice call
+                  </Button>
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-amber-500/[0.07] via-transparent to-purple-500/[0.05] p-4 dark:border-white/[0.1]">
+                    <p className="text-[13px] leading-[1.5] text-muted-foreground/90">
+                      Divine voice is on Premium — includes Markit and the dashboard.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      className="mt-4 h-10 w-full rounded-xl text-[14px] font-semibold tracking-tight shadow-sm"
+                      asChild
+                    >
+                      <Link href="/dashboard/settings?tab=billing" onClick={() => setLauncherOpen(false)}>
+                        View plans
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-7">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/40">
+                    Shortcuts
+                  </span>
+                  <div className="h-px flex-1 bg-border/35" />
+                </div>
+                <nav className="flex flex-col gap-0.5" aria-label="Divine shortcuts">
                   <Link
-                    href="/dashboard/divine-manager?section=protocol"
+                    href="/dashboard/divine-manager?section=text"
+                    className={launcherRowClass}
                     onClick={() => setLauncherOpen(false)}
                   >
-                    <ListTodo className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-                    Today&apos;s plan &amp; protocol
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/12 text-purple-500 transition-colors duration-150 group-hover/row:bg-purple-500/16 dark:text-purple-400">
+                      <MessageSquare className="h-[1.05rem] w-[1.05rem]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
+                      Text Divine
+                    </span>
                   </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
-                  <Link href="/dashboard/divine-manager?section=tasks" onClick={() => setLauncherOpen(false)}>
-                    <ListTodo className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
-                    Manager tasks &amp; suggestions
+                  <Link href="/dashboard/divine-manager" className={launcherRowClass} onClick={() => setLauncherOpen(false)}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/12 text-amber-600 transition-colors duration-150 group-hover/row:bg-amber-500/16 dark:text-amber-400">
+                      <LayoutDashboard className="h-[1.05rem] w-[1.05rem]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
+                      Divine Manager
+                    </span>
                   </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-9" asChild>
-                  <Link href="/dashboard/ai-studio?tab=tools" onClick={() => setLauncherOpen(false)}>
-                    <Sparkles className="h-4 w-4 shrink-0 text-purple-500" aria-hidden />
-                    AI Studio tools
+                  <Link
+                    href="/dashboard/divine-manager?section=protocol"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/12 text-amber-500 transition-colors duration-150 group-hover/row:bg-amber-500/16 dark:text-amber-400">
+                      <ListTodo className="h-[1.05rem] w-[1.05rem]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
+                      Today&apos;s plan &amp; protocol
+                    </span>
                   </Link>
-                </Button>
+                  <Link
+                    href="/dashboard/divine-manager?section=tasks"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/12 text-violet-500 transition-colors duration-150 group-hover/row:bg-violet-500/16 dark:text-violet-400">
+                      <ListTodo className="h-[1.05rem] w-[1.05rem]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
+                      Manager tasks &amp; suggestions
+                    </span>
+                  </Link>
+                  <Link
+                    href="/dashboard/ai-studio?tab=tools"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/12 text-purple-500 transition-colors duration-150 group-hover/row:bg-purple-500/16 dark:text-purple-400">
+                      <Sparkles className="h-[1.05rem] w-[1.05rem]" aria-hidden />
+                    </span>
+                    <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
+                      AI Studio tools
+                    </span>
+                  </Link>
+                </nav>
               </div>
             </div>
           </PopoverContent>
@@ -217,36 +430,37 @@ export function VoiceControlPopup() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="grid h-[4.125rem] w-11 min-h-[66px] shrink-0 place-items-center rounded-l-full border border-r-0 border-gold/45 bg-card/80 text-muted-foreground backdrop-blur-sm transition hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+                className="grid h-[4.125rem] w-11 min-h-[66px] shrink-0 place-items-center rounded-l-full border border-r-0 border-white/12 bg-card/85 text-muted-foreground shadow-[inset_-1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-md transition-[background-color,color] duration-200 hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 dark:border-white/10"
                 aria-label="Divine shortcuts — plan, tasks, text"
                 title="Plan, tasks, text chat"
+                onClick={guardFabClick}
               >
-                <MoreHorizontal className="h-5 w-5" aria-hidden />
+                <MoreHorizontal className="h-5 w-5 opacity-80" aria-hidden />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="end" className="w-56">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent side="top" align="end" className={divineSubmenuContentClass}>
+              <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                 <Link href="/dashboard/divine-manager?section=protocol">
-                  <ListTodo className="mr-2 h-4 w-4 text-amber-500" />
+                  <ListTodo className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
                   Today&apos;s plan &amp; protocol
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                 <Link href="/dashboard/divine-manager?section=tasks">
-                  <ListTodo className="mr-2 h-4 w-4 text-violet-500" />
+                  <ListTodo className="h-4 w-4 shrink-0 text-violet-500 dark:text-violet-400" />
                   Manager tasks &amp; suggestions
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
+              <DropdownMenuSeparator className={divineSubmenuSeparatorClass} />
+              <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                 <Link href="/dashboard/divine-manager?section=text">
-                  <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                  <MessageSquare className="h-4 w-4 shrink-0 text-purple-500 dark:text-purple-400" />
                   Text Divine
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                 <Link href="/dashboard/divine-manager">
-                  <LayoutDashboard className="mr-2 h-4 w-4 text-amber-600" />
+                  <LayoutDashboard className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   Divine Manager
                 </Link>
               </DropdownMenuItem>
@@ -254,7 +468,13 @@ export function VoiceControlPopup() {
           </DropdownMenu>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              if (skipFabClickRef.current) {
+                e.preventDefault()
+                e.stopPropagation()
+                skipFabClickRef.current = false
+                return
+              }
               if (!divineVoicePremium) {
                 setExpanded(true)
                 void startVoiceCall()
@@ -267,7 +487,11 @@ export function VoiceControlPopup() {
               'rounded-l-none rounded-r-full border-l-0',
             )}
             aria-label={divineVoicePremium ? 'Start Divine voice call' : 'Divine voice — Premium'}
-            title={divineVoicePremium ? 'Start Divine voice call' : 'Divine voice — Premium required'}
+            title={
+              divineVoicePremium
+                ? 'Start Divine voice call — drag the stack to move'
+                : 'Divine voice — Premium required — drag the stack to move'
+            }
           >
             <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
           </button>
@@ -285,10 +509,21 @@ export function VoiceControlPopup() {
     return (
       <button
         type="button"
-        onClick={handleCrownToggleExpand}
+        onClick={(e) => {
+          if (skipFabClickRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+            skipFabClickRef.current = false
+            return
+          }
+          handleCrownToggleExpand()
+        }}
         className={crownClassName}
         aria-label={expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control'}
-        title={expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control'}
+        title={
+          (expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control') +
+          ' — drag the stack to move when collapsed'
+        }
       >
         <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
       </button>
@@ -299,12 +534,23 @@ export function VoiceControlPopup() {
     <>
       <DivineTranscriptStack />
       <div
+        ref={fabRef}
+        onPointerDown={handleFabPointerDown}
+        onPointerMove={handleFabPointerMove}
+        onPointerUp={handleFabPointerUp}
+        onPointerCancel={handleFabPointerUp}
         className={cn(
-          'group/divineFab fixed z-40 flex flex-col items-end gap-2',
-          messagesRoute
-            ? 'bottom-[max(8.5rem,calc(env(safe-area-inset-bottom)+7.25rem))] right-3 sm:right-5'
-            : 'bottom-6 right-6',
+          'group/divineFab fixed z-40 flex touch-none flex-col items-end gap-2',
+          fabInset == null &&
+            (messagesRouteDefault
+              ? 'bottom-[max(8.5rem,calc(env(safe-area-inset-bottom)+7.25rem))] right-3 sm:right-5'
+              : 'bottom-6 right-6'),
         )}
+        style={
+          fabInset
+            ? { right: fabInset.right, bottom: fabInset.bottom, left: 'auto', top: 'auto' }
+            : undefined
+        }
       >
         <DivineProtocolTaskRail />
         <div
@@ -337,8 +583,10 @@ export function VoiceControlPopup() {
                 <Mic className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-[13px] font-medium leading-snug">Divine voice: {primaryLabel}</span>
-                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                <span className="block text-[15px] font-semibold leading-snug tracking-[-0.015em] text-foreground/95">
+                  Divine voice · {primaryLabel}
+                </span>
+                <span className="mt-1 block text-[13px] leading-snug text-muted-foreground/88">
                   You can keep browsing; call stays active.
                 </span>
                 <DivineWorkingLogo
@@ -378,23 +626,23 @@ export function VoiceControlPopup() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem asChild>
+                      <DropdownMenuContent align="end" className={divineSubmenuContentClass}>
+                        <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                           <Link href="/dashboard/divine-manager?section=protocol">
-                            <ListTodo className="mr-2 h-4 w-4 text-amber-500" />
+                            <ListTodo className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
                             Today&apos;s plan &amp; protocol
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                           <Link href="/dashboard/divine-manager?section=tasks">
-                            <ListTodo className="mr-2 h-4 w-4 text-violet-500" />
+                            <ListTodo className="h-4 w-4 shrink-0 text-violet-500 dark:text-violet-400" />
                             Manager tasks &amp; suggestions
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuSeparator className={divineSubmenuSeparatorClass} />
+                        <DropdownMenuItem asChild className={divineSubmenuItemClass}>
                           <Link href="/dashboard/divine-manager?section=text">
-                            <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                            <MessageSquare className="h-4 w-4 shrink-0 text-purple-500 dark:text-purple-400" />
                             Text Divine
                           </Link>
                         </DropdownMenuItem>

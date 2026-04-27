@@ -60,6 +60,8 @@ import {
 } from '@/lib/messaging-read-preferences'
 import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useMessagesFocusChromeOptional } from '@/components/messages/messages-focus-chrome-context'
+import { PlatformConnector } from '@/components/platform/platform-connector'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
@@ -259,6 +261,8 @@ interface ChatWindowProps {
   /** When no thread is selected (e.g. empty CRM segment), override the default placeholder. */
   nullConversationTitle?: string
   nullConversationDescription?: string
+  /** Empty inbox + no platform: show OnlyFans / Fansly connect actions instead of settings-only copy. */
+  showPlatformConnectActions?: boolean
 }
 
 function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>): string[] {
@@ -455,6 +459,7 @@ export function ChatWindow({
   onOpenFanProfile,
   nullConversationTitle,
   nullConversationDescription,
+  showPlatformConnectActions = false,
 }: ChatWindowProps) {
   const { reduced } = useUiMotionPreferences()
   const fadeTransition = uiFadeTransition(reduced)
@@ -549,6 +554,10 @@ export function ChatWindow({
   const composerTypeAbortRef = useRef<AbortController | null>(null)
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
+  const messagesFocusChrome = useMessagesFocusChromeOptional()
+  useEffect(() => {
+    if (messagesFocusChrome?.focusMode) setAiSectionOpen(true)
+  }, [messagesFocusChrome?.focusMode])
   const lastGoodMessagesByConversationRef = useRef<Record<string, OnlyFansMessage[]>>({})
   const isOnlyFansConversation = conversation?.platform === 'onlyfans'
   const refreshCreditSnapshot = useCallback(async () => {
@@ -1403,22 +1412,37 @@ export function ChatWindow({
           'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_24px_68px_-30px_rgba(0,0,0,0.55)]',
         )}
       >
-        <div className="flex max-w-md flex-col items-center px-8 py-12 text-center">
-          <svg
-            className="mb-5 h-14 w-14 text-muted-foreground/55"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+        <div className="flex w-full max-w-lg flex-col items-center px-8 py-12 text-center">
+          {!showPlatformConnectActions ? (
+            <svg
+              className="mb-5 h-14 w-14 text-muted-foreground/55"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          ) : null}
           <p className="text-[1.0625rem] font-semibold tracking-tight text-foreground">{title}</p>
-          {description ? (
+          {showPlatformConnectActions ? (
+            description ? (
+              <p className="mt-3 max-w-sm text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
+            ) : (
+              <p className="mt-3 max-w-sm text-[0.9375rem] leading-relaxed text-muted-foreground">
+                Sign in with OnlyFans or Fansly to load your inbox.
+              </p>
+            )
+          ) : description ? (
             <p className="mt-3 text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
           ) : (
             <p className="mt-2 text-[0.9375rem] text-muted-foreground">to start messaging</p>
           )}
+          {showPlatformConnectActions ? (
+            <div className="mt-8 w-full max-w-md">
+              <PlatformConnector bareConnect />
+            </div>
+          ) : null}
         </div>
       </Card>
     )

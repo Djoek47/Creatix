@@ -522,26 +522,25 @@
   }
 }
 
-/* Dashboard sky — imperceptible-at-a-glance rotation (like a long-exposure sky); overscan avoids corner gaps */
+/* Dashboard sky — imperceptible-at-a-glance rotation (like a long-exposure sky); overscan avoids corner gaps.
+   Centering lives on a parent; this layer only rotates so the pivot stays the viewport center. */
 @keyframes dashboard-celestial-sky-drift {
   from {
-    transform: translate(-50%, -50%) rotate(0deg);
+    transform: rotate(0deg);
   }
   to {
-    transform: translate(-50%, -50%) rotate(360deg);
+    transform: rotate(360deg);
   }
 }
 
 .dashboard-celestial-sky-rotate {
-  animation: dashboard-celestial-sky-drift 3600s linear infinite;
-  transform: translate(-50%, -50%);
   transform-origin: center center;
+  animation: dashboard-celestial-sky-drift 3600s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-celestial-sky-rotate {
     animation: none;
-    transform: translate(-50%, -50%);
   }
 }
 
@@ -1962,14 +1961,18 @@ body {
   overflow-x: hidden;
 }
 
-/* Guide page — slow decorative orbit rings */
+/* Guide page — slow decorative orbit rings (rotate only; horizontal centering is on the element) */
 @keyframes guide-orbit-spin {
   from {
-    transform: translate(-50%, 0) rotate(0deg);
+    transform: rotate(0deg);
   }
   to {
-    transform: translate(-50%, 0) rotate(360deg);
+    transform: rotate(360deg);
   }
+}
+.animate-guide-orbit-slow,
+.animate-guide-orbit-fast {
+  transform-origin: center center;
 }
 .animate-guide-orbit-slow {
   animation: guide-orbit-spin 120s linear infinite;

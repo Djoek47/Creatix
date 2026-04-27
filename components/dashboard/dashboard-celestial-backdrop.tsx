@@ -26,12 +26,14 @@ export function DashboardCelestialBackdrop() {
       />
       <div
         className={cn(
-          'pointer-events-none absolute left-1/2 top-1/2 h-[132%] min-h-[132%] w-[132%] min-w-[132%]',
-          'dashboard-celestial-sky-rotate',
+          'pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+          'h-[132%] min-h-[132%] w-[132%] min-w-[132%]',
         )}
       >
-        <DashboardLivingConstellation />
-        <AuthStarfieldDecor intensity="full" density="rich" />
+        <div className={cn('h-full w-full', 'dashboard-celestial-sky-rotate')}>
+          <DashboardLivingConstellation />
+          <AuthStarfieldDecor intensity="full" density="rich" />
+        </div>
       </div>
       <div
         className="absolute inset-0 opacity-[0.022] dark:opacity-[0.04]"

@@ -40,7 +40,7 @@ export function SidebarBrandLockup({ collapsed, onRealmClick, variant = 'desktop
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-2 dark:focus-visible:ring-venus/30',
           mobile
             ? 'px-1 py-2 hover:bg-muted/38 active:bg-muted/48 focus-visible:ring-offset-[var(--card)]'
-            : 'px-3 py-2 md:px-3.5 focus-visible:ring-offset-[var(--sidebar)]',
+            : 'px-2.5 py-2 md:px-3 focus-visible:ring-offset-[var(--sidebar)]',
         )}
         aria-label="Reload dashboard with realm entrance"
         title="Reload dashboard with realm entrance"

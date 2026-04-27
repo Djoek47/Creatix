@@ -247,9 +247,13 @@ export function GuideOrbitJourney() {
 
   return (
     <div className="relative">
-      {/* Ambient orbit rings (decorative) */}
-      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[520px] w-[520px] -translate-x-1/2 animate-guide-orbit-slow rounded-full border border-primary/10 opacity-60" />
-      <div className="pointer-events-none absolute left-1/2 top-24 -z-10 h-[380px] w-[380px] -translate-x-1/2 animate-guide-orbit-fast rounded-full border border-amber-500/10 opacity-50" />
+      {/* Ambient orbit rings — translate on wrapper, rotate on inner so pivot stays fixed */}
+      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 -translate-x-1/2">
+        <div className="h-[520px] w-[520px] animate-guide-orbit-slow rounded-full border border-primary/10 opacity-60" />
+      </div>
+      <div className="pointer-events-none absolute left-1/2 top-24 -z-10 -translate-x-1/2">
+        <div className="h-[380px] w-[380px] animate-guide-orbit-fast rounded-full border border-amber-500/10 opacity-50" />
+      </div>
 
       <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>

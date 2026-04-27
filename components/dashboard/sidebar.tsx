@@ -172,7 +172,7 @@ function NavLink({
           verticalDensity === 'cramped' ? 'min-h-8 py-1.5' : verticalDensity === 'tight' ? 'min-h-9 py-1.5' : 'min-h-10 py-2',
         )
       : cn(
-          'gap-3 rounded-xl px-3',
+          'gap-3 rounded-xl px-2.5',
           verticalDensity === 'cramped'
             ? 'min-h-8 gap-2 py-1.5'
             : verticalDensity === 'tight'
@@ -318,7 +318,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
   )
   const navItemStack = verticalDensity === 'cramped' ? 'space-y-0.5' : 'space-y-1'
   const bottomRailClass = cn(
-    'relative shrink-0 border-t border-sidebar-border/45 bg-gradient-to-b from-transparent to-sidebar-accent/10 px-3',
+    'relative shrink-0 border-t border-sidebar-border/45 bg-gradient-to-b from-transparent to-sidebar-accent/10 px-2.5',
     verticalDensity === 'cramped' && 'pb-2 pt-2.5',
     verticalDensity === 'tight' && 'pb-3 pt-3.5',
     verticalDensity === 'normal' && 'pb-4 pt-5',
@@ -329,17 +329,18 @@ export function DashboardSidebar({ profile }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'relative isolate flex h-full min-h-0 flex-col overflow-visible border-r border-sidebar-border bg-sidebar transition-all duration-300',
-        collapsed ? 'w-16' : 'w-60'
+        'relative isolate flex h-full min-h-0 flex-1 flex-col overflow-visible border-r border-sidebar-border bg-sidebar transition-all duration-300',
+        collapsed ? 'w-16' : 'w-56'
       )}
     >
       <SidebarBrandLockup collapsed={collapsed} onRealmClick={handleRealmReload} variant="desktop" />
 
-      {/* Main Navigation — min-h-0 so flex-1 can shrink and scroll on short viewports */}
+      {/* flex-1 column: guarantees nav fills space below brand and bottom rail sits on viewport bottom */}
       <TooltipProvider delayDuration={0}>
+        <div className="flex min-h-0 flex-1 flex-col">
         <nav
           className={cn(
-            'sidebar-nav-scroll flex min-h-0 flex-1 flex-col overflow-x-hidden px-3',
+            'sidebar-nav-scroll flex min-h-0 flex-1 flex-col overflow-x-hidden px-2.5',
             navGroupGap,
             /* Prefer fitting the viewport; scroll only if caps / locale still overflow */
             'overflow-y-auto overscroll-y-contain',
@@ -484,6 +485,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           </div>
           </div>
         )}
+        </div>
         </div>
       </TooltipProvider>
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowRight, MessageSquare, RefreshCw, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { stripHtmlForPreview } from '@/lib/html-utils'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 
@@ -158,11 +159,11 @@ export function MessageActivity() {
                       </AvatarFallback>
                     </Avatar>
                     {/* Platform indicator */}
-                    <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background p-0.5 shadow-sm">
-                      <img 
-                        src={conv.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'}
-                        alt={conv.platform} 
-                        className="h-3 w-3 rounded-sm"
+                    <div className="absolute -bottom-0.5 -right-0.5 max-w-[2.25rem] rounded-sm bg-background p-px shadow-sm">
+                      <img
+                        src={conv.platform === 'onlyfans' ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC}
+                        alt={conv.platform}
+                        className="h-2.5 w-auto max-w-full object-contain object-left"
                       />
                     </div>
                     {conv.unreadCount > 0 && (

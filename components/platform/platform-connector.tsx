@@ -82,15 +82,24 @@ interface Platform {
 }
 
 import Image from 'next/image'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 // OnlyFans Logo
 const OnlyFansLogo = () => (
-  <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-6 w-6" />
+  <img
+    src={ONLYFANS_LOGO_SRC}
+    alt="OnlyFans"
+    className="h-6 w-auto max-w-[7.5rem] object-contain object-left"
+  />
 )
 
 // Fansly Logo
 const FanslyLogo = () => (
-  <img src="/fansly-logo.png" alt="Fansly" className="h-6 w-6" />
+  <img
+    src={FANSLY_LOGO_SRC}
+    alt="Fansly"
+    className="h-6 w-auto max-w-[6.5rem] object-contain object-left"
+  />
 )
 
 // X (Twitter) Logo

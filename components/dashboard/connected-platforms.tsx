@@ -17,12 +17,22 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatCreatorStatusLabel } from '@/lib/creator-platform-status'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+
 const OnlyFansLogo = ({ className }: { className?: string }) => (
-  <img src="/onlyfans-logo.png" alt="OnlyFans" className={cn('h-4 w-4', className)} />
+  <img
+    src={ONLYFANS_LOGO_SRC}
+    alt="OnlyFans"
+    className={cn('h-4 w-auto max-w-[4.5rem] object-contain object-left', className)}
+  />
 )
 
 const FanslyLogo = ({ className }: { className?: string }) => (
-  <img src="/fansly-logo.png" alt="Fansly" className={cn('h-4 w-4', className)} />
+  <img
+    src={FANSLY_LOGO_SRC}
+    alt="Fansly"
+    className={cn('h-4 w-auto max-w-[4rem] object-contain object-left', className)}
+  />
 )
 
 const PLATFORM_META: Record<string, { color: string; label: string; Logo: React.FC<{ className?: string }> }> = {

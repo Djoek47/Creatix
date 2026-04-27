@@ -12,6 +12,7 @@ import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
 import Link from 'next/link'
 import { Activity, Link2, MessageCircle, Sparkles, TrendingUp } from 'lucide-react'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 type Connection = {
   platform: string
@@ -22,8 +23,8 @@ const PLATFORM_META: Record<
   string,
   { label: string; logoSrc: string; ring: string; bg: string }
 > = {
-  onlyfans: { label: 'OnlyFans', logoSrc: '/onlyfans-logo.png', ring: 'ring-sky-500/40', bg: 'bg-sky-500/10' },
-  fansly: { label: 'Fansly', logoSrc: '/fansly-logo.png', ring: 'ring-blue-500/40', bg: 'bg-blue-500/10' },
+  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC, ring: 'ring-sky-500/40', bg: 'bg-sky-500/10' },
+  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC, ring: 'ring-blue-500/40', bg: 'bg-blue-500/10' },
   mym: { label: 'MYM', logoSrc: '/mym-logo.png', ring: 'ring-zinc-500/40', bg: 'bg-zinc-950/40' },
 }
 
@@ -198,7 +199,11 @@ export function AnalyticsDashboard({
                   title={`${meta.label} • Last synced: ${formatLastSync(lastSync)}`}
                 >
                   {meta.logoSrc ? (
-                    <img src={meta.logoSrc} alt={meta.label} className="h-4 w-4 rounded-sm" />
+                    <img
+                      src={meta.logoSrc}
+                      alt={meta.label}
+                      className="h-4 w-auto max-w-[4.5rem] rounded-sm object-contain object-left"
+                    />
                   ) : null}
                   <span className="hidden sm:inline">{meta.label}</span>
                   <Badge variant="secondary" className="ml-1 text-[10px]">

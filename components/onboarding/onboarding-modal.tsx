@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ThemedLogo } from '@/components/themed-logo'
 import Link from 'next/link'
 import Image from 'next/image'
+import { ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 import {
   ArrowRight,
   ArrowLeft,
@@ -188,7 +189,13 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-zinc-950 ring-1 ring-sky-500/35">
-                  <Image src="/onlyfans-logo.png" alt="OnlyFans" width={32} height={32} className="h-7 w-7 object-contain" />
+                  <Image
+                    src={ONLYFANS_LOGO_SRC}
+                    alt="OnlyFans"
+                    width={120}
+                    height={28}
+                    className="h-7 w-auto max-w-[8rem] object-contain object-left"
+                  />
                 </div>
                 <div>
                   <p className="font-medium">OnlyFans</p>

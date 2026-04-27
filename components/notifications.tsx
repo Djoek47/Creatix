@@ -12,6 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -690,17 +691,17 @@ function NotificationRow({
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted ring-2 ring-border">
                 {notification.platform === 'onlyfans' ? (
-                  <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-5 w-5 object-contain" />
+                  <img src={ONLYFANS_LOGO_SRC} alt="OnlyFans" className="h-5 w-auto max-w-[4.5rem] object-contain object-left" />
                 ) : (
-                  <img src="/fansly-logo.png" alt="Fansly" className="h-5 w-5 object-contain" />
+                  <img src={FANSLY_LOGO_SRC} alt="Fansly" className="h-5 w-auto max-w-[3.5rem] object-contain object-left" />
                 )}
               </div>
             )}
             <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-muted overflow-hidden">
               {notification.platform === 'onlyfans' ? (
-                <img src="/onlyfans-logo.png" alt="" className="h-3 w-3 object-contain" />
+                <img src={ONLYFANS_LOGO_SRC} alt="" className="h-2.5 w-auto max-w-[2.25rem] object-contain object-left" />
               ) : (
-                <img src="/fansly-logo.png" alt="" className="h-3 w-3 object-contain" />
+                <img src={FANSLY_LOGO_SRC} alt="" className="h-2.5 w-auto max-w-[2rem] object-contain object-left" />
               )}
             </div>
           </div>

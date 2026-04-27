@@ -9,6 +9,7 @@ import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { ArrowRight } from 'lucide-react'
 import { useMarketingMode } from '@/components/marketing/marketing-mode-context'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 const ROTATE_MS = 10_000
 
@@ -48,13 +49,13 @@ export function HomePricingSwitch() {
         key: 'of',
         name: 'OnlyFans',
         price: tier0.prices.of,
-        logoSrc: '/onlyfans-logo.png',
+        logoSrc: ONLYFANS_LOGO_SRC,
       },
       {
         key: 'fl',
         name: 'Fansly',
         price: tier0.prices.fl,
-        logoSrc: '/fansly-logo.png',
+        logoSrc: FANSLY_LOGO_SRC,
       },
       {
         key: 'ap',
@@ -147,7 +148,7 @@ export function HomePricingSwitch() {
                     : 'border-border/40 bg-transparent hover:border-border/60',
                 )}
               >
-                <span className="flex h-9 w-9 items-center justify-center sm:h-10 sm:w-10">
+                <span className="flex h-9 w-full min-w-0 max-w-[7.5rem] items-center justify-center sm:h-10">
                   {b.key === 'ap' ? (
                     <span className="relative inline-flex h-8 w-14 items-center justify-center rounded-md border border-amber-400/35 bg-gradient-to-br from-amber-400/15 via-primary/10 to-fuchsia-400/12 p-1 shadow-[0_0_22px_-12px_rgba(251,191,36,0.85)] sm:h-9 sm:w-16">
                       <AnimatePresence mode="wait" initial={false}>
@@ -180,9 +181,9 @@ export function HomePricingSwitch() {
                     <Image
                       src={b.logoSrc}
                       alt=""
-                      width={28}
+                      width={120}
                       height={28}
-                      className="object-contain opacity-90"
+                      className="h-6 w-full max-w-full object-contain object-left opacity-90"
                     />
                   ) : (
                     <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">AP</span>

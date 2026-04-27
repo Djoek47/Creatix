@@ -12,6 +12,7 @@ import { buildHomePricingTeaserLine } from '@/lib/seo/pricing-seo'
 import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. ${PRICING_MODEL_TRIAL_LINE} ${buildHomePricingTeaserLine()}`
 
@@ -78,27 +79,28 @@ export default function LandingPage() {
               {[
                 {
                   name: 'OnlyFans',
-                  logoSrc: '/onlyfans-logo.png',
+                  logoSrc: ONLYFANS_LOGO_SRC,
                   delay: '0s',
-                  /** 25% larger than prior 37.5px; overflows fixed pill via slot + overflow-visible */
-                  logoSizePx: 37.5 * 1.25,
+                  /** Wordmark: wide box (not square) so the lockup is not cropped */
+                  logoWidthPx: 118,
+                  logoHeightPx: 30,
                   markBadge:
                     'ring-1 ring-sky-400/35 shadow-[0_0_20px_-6px_rgba(56,189,248,0.5),0_0_10px_-4px_rgba(14,165,233,0.35)]',
                 },
                 {
                   name: 'Fansly',
-                  mark: 'F',
-                  logoSrc: '/fansly-logo.png',
+                  logoSrc: FANSLY_LOGO_SRC,
                   delay: '0.9s',
-                  logoSizePx: 37.5,
+                  logoWidthPx: 100,
+                  logoHeightPx: 30,
                   markBadge:
                     'ring-1 ring-violet-400/40 shadow-[0_0_20px_-6px_rgba(139,92,246,0.55),0_0_10px_-4px_rgba(167,139,250,0.35)]',
                 },
               ].map((platform) => {
-                const logoPx = platform.logoSizePx
-                const logoCss = `${logoPx}px`
-                /** Layout slot (ring) stays small so a larger logo can extend past the pill height */
-                const badgeSlotPx = 40
+                const w = platform.logoWidthPx
+                const h = platform.logoHeightPx
+                const badgeSlotW = Math.max(112, w)
+                const badgeSlotH = 40
                 return (
                 <div
                   key={platform.name}
@@ -107,26 +109,21 @@ export default function LandingPage() {
                 >
                   <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   <span
-                    className={`relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-full text-[10px] font-semibold text-foreground ${platform.markBadge}`}
+                    className={`relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-full px-1.5 text-[10px] font-semibold text-foreground ${platform.markBadge}`}
                     style={{
-                      width: badgeSlotPx,
-                      height: badgeSlotPx,
-                      minWidth: badgeSlotPx,
-                      minHeight: badgeSlotPx,
+                      width: badgeSlotW,
+                      height: badgeSlotH,
+                      minWidth: badgeSlotW,
+                      minHeight: badgeSlotH,
                     }}
                   >
-                    {platform.logoSrc ? (
-                      <Image
-                        src={platform.logoSrc}
-                        alt={`${platform.name} logo`}
-                        width={Math.round(logoPx)}
-                        height={Math.round(logoPx)}
-                        className="pointer-events-none absolute left-1/2 top-1/2 z-10 max-h-none max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
-                        style={{ width: logoCss, height: logoCss }}
-                      />
-                    ) : (
-                      platform.mark
-                    )}
+                    <Image
+                      src={platform.logoSrc}
+                      alt={`${platform.name} logo`}
+                      width={w}
+                      height={h}
+                      className="pointer-events-none z-10 h-7 w-auto max-w-full object-contain object-left"
+                    />
                   </span>
                   <span className="relative text-xs font-medium text-foreground/90 sm:text-sm">
                     Compatible with <span className="text-primary">{platform.name}</span>

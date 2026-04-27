@@ -23,6 +23,7 @@ import {
   Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
@@ -310,10 +311,10 @@ export function FansGallery({
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       {fan.platform === 'onlyfans' && (
-                        <img src="/onlyfans-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
+                        <img src={ONLYFANS_LOGO_SRC} alt="" className="h-3.5 w-auto max-w-[3.5rem] object-contain object-left opacity-90" />
                       )}
                       {fan.platform === 'fansly' && (
-                        <img src="/fansly-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
+                        <img src={FANSLY_LOGO_SRC} alt="" className="h-3.5 w-auto max-w-[3rem] object-contain object-left opacity-90" />
                       )}
                       <Badge
                         variant="outline"

@@ -26,6 +26,7 @@ import {
   percentVsOnlyFansBase,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import {
   sortFocusPlatforms,
   type AdultBillingPlatform,
@@ -475,7 +476,7 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                     >
                       <span
                         className={cn(
-                          'inline-flex h-8 w-8 items-center justify-center rounded-lg border bg-card/90 transition-all',
+                          'inline-flex h-8 min-w-[3.5rem] max-w-[4.5rem] items-center justify-center overflow-hidden rounded-lg border bg-card/90 px-0.5 transition-all',
                           bundledRow && 'border-fuchsia-400/45 bg-black/25',
                           !bundledRow && selected && 'border-primary/45 group-hover:scale-105',
                           !bundledRow && !selected && 'border-border/60',
@@ -483,23 +484,23 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                       >
                         {p === 'onlyfans' ? (
                           <Image
-                            src="/onlyfans-logo.png"
+                            src={ONLYFANS_LOGO_SRC}
                             alt="OnlyFans"
-                            width={22}
-                            height={22}
+                            width={88}
+                            height={20}
                             className={cn(
-                              'h-5.5 w-5.5 object-contain transition-all',
+                              'h-5 w-auto max-w-full object-contain object-left transition-all',
                               selected || bundledRow ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80',
                             )}
                           />
                         ) : p === 'fansly' ? (
                           <Image
-                            src="/fansly-logo.png"
+                            src={FANSLY_LOGO_SRC}
                             alt="Fansly"
-                            width={22}
-                            height={22}
+                            width={76}
+                            height={20}
                             className={cn(
-                              'h-5.5 w-5.5 object-contain transition-all',
+                              'h-5 w-auto max-w-full object-contain object-left transition-all',
                               selected || bundledRow ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80',
                             )}
                           />

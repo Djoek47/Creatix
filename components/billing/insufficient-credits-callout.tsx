@@ -32,16 +32,15 @@ export function InsufficientCreditsCallout({
       className={cn(
         'border-amber-500/30 bg-gradient-to-br from-amber-500/[0.07] via-background/80 to-background text-foreground shadow-sm',
         '[&>svg]:text-amber-600 dark:[&>svg]:text-amber-400',
-        // Compact: match dashboard route hero h1 (font-serif) at a smaller scale
         'px-3 py-2.5 text-xs has-[>svg]:gap-x-2.5 [&>svg]:size-3.5 [&>svg]:translate-y-px',
         className,
       )}
     >
       <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <AlertTitle className="font-serif text-sm font-semibold tracking-tight text-foreground">
+      <AlertTitle className="font-sans text-sm font-semibold tracking-tight text-foreground">
         Insufficient AI credits
       </AlertTitle>
-      <AlertDescription className="font-serif text-xs text-muted-foreground [&_p]:leading-snug">
+      <AlertDescription className="font-sans text-xs text-muted-foreground [&_p]:leading-snug">
         <p>
           <span className="font-medium text-foreground">{costLabel}</span> is required for {actionContext}. Your current
           balance is too low to start.

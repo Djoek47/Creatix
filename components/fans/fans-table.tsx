@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 
 import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -185,10 +186,10 @@ export function FansTable({
                 <TableCell>
                   <div className="flex items-center gap-1.5">
                     {fan.platform === 'onlyfans' && (
-                      <img src="/onlyfans-logo.png" alt="" className="h-4 w-4 object-contain" />
+                      <img src={ONLYFANS_LOGO_SRC} alt="" className="h-4 w-auto max-w-[3.75rem] object-contain object-left" />
                     )}
                     {fan.platform === 'fansly' && (
-                      <img src="/fansly-logo.png" alt="" className="h-4 w-4 object-contain" />
+                      <img src={FANSLY_LOGO_SRC} alt="" className="h-4 w-auto max-w-[3.25rem] object-contain object-left" />
                     )}
                     <Badge
                       variant="outline"

@@ -4,19 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 const PLATFORM_META: Record<
   string,
   { src?: string; short: string; label: string; ring: string }
 > = {
   onlyfans: {
-    src: '/onlyfans-logo.png',
+    src: ONLYFANS_LOGO_SRC,
     short: 'OnlyFans',
     label: 'OnlyFans',
     ring: 'shadow-[0_0_14px_rgba(0,175,240,0.55)]',
   },
   fansly: {
-    src: '/fansly-logo.png',
+    src: FANSLY_LOGO_SRC,
     short: 'FL',
     label: 'Fansly',
     ring: 'shadow-[0_0_14px_rgba(0,159,255,0.5)]',
@@ -38,14 +39,14 @@ function PlatformPulse({
   return (
     <span
       className={cn(
-        'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/90 transition-all duration-300 ease-out',
+        'relative flex h-7 min-w-[2.5rem] max-w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-background/90 px-0.5 transition-all duration-300 ease-out',
         active && cn('z-[1] scale-110 border-transparent', meta.ring),
         !active && 'scale-90 opacity-45',
       )}
       aria-hidden
     >
       {meta.src ? (
-        <img src={meta.src} alt="" className="h-4 w-4 object-contain" />
+        <img src={meta.src} alt="" className="h-3.5 w-auto max-w-full object-contain object-left" />
       ) : (
         <span className="text-[9px] font-bold tracking-tight text-muted-foreground">{meta.short}</span>
       )}

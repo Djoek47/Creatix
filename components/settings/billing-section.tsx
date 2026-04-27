@@ -19,6 +19,7 @@ import {
 } from '@/app/actions/stripe'
 import { syncSubscriptionCreditsFromPlanAction } from '@/app/actions/subscription-credits'
 import { createClient } from '@/lib/supabase/client'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import {
   CreditCard,
   Zap,
@@ -899,12 +900,24 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <p className="mt-1 text-sm text-zinc-400">OnlyFans and Fansly in one monthly price for this band.</p>
 
               <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
-                <div className="flex -space-x-2">
-                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-950 bg-zinc-950">
-                    <Image src="/onlyfans-logo.png" alt="OnlyFans" width={20} height={20} className="h-5 w-5 object-contain" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex h-9 min-w-[4.5rem] max-w-[5.5rem] items-center justify-center overflow-hidden rounded-md border-2 border-zinc-950 bg-zinc-950 px-0.5">
+                    <Image
+                      src={ONLYFANS_LOGO_SRC}
+                      alt="OnlyFans"
+                      width={100}
+                      height={22}
+                      className="h-5 w-auto max-w-full object-contain object-left"
+                    />
                   </span>
-                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-950 bg-zinc-950">
-                    <Image src="/fansly-logo.png" alt="Fansly" width={20} height={20} className="h-5 w-5 object-contain" />
+                  <span className="flex h-9 min-w-[3.5rem] max-w-[4.5rem] items-center justify-center overflow-hidden rounded-md border-2 border-zinc-950 bg-zinc-950 px-0.5">
+                    <Image
+                      src={FANSLY_LOGO_SRC}
+                      alt="Fansly"
+                      width={88}
+                      height={22}
+                      className="h-5 w-auto max-w-full object-contain object-left"
+                    />
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">

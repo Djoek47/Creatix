@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ThemedLogo } from '@/components/themed-logo'
@@ -79,7 +80,7 @@ const bottomNavigation: NavItem[] = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function MobileSidebar({ profile }: MobileSidebarProps) {
+export function MobileSidebar({ user, profile }: MobileSidebarProps) {
   const pathname = usePathname()
   const [compactMobile, setCompactMobile] = useState(false)
 

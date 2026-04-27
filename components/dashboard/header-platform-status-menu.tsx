@@ -16,6 +16,7 @@ import {
   normalizeCreatorStatusPreset,
   type CreatorStatusPreset,
 } from '@/lib/creator-platform-status'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 type Row = {
   platform: string
@@ -29,8 +30,8 @@ const PLATFORM_UI: Record<
   string,
   { label: string; logoSrc?: string; accent: string }
 > = {
-  onlyfans: { label: 'OnlyFans', logoSrc: '/onlyfans-logo.png', accent: '#00AFF0' },
-  fansly: { label: 'Fansly', logoSrc: '/fansly-logo.png', accent: '#009FFF' },
+  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC, accent: '#00AFF0' },
+  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC, accent: '#009FFF' },
 }
 
 function draftFromRow(row: Row): Draft {
@@ -213,7 +214,7 @@ export function HeaderPlatformStatusMenuSection() {
                       onClick={() => setActivePlatform(row.platform)}
                     >
                       {ui.logoSrc ? (
-                        <img src={ui.logoSrc} alt="" className="h-4 w-4 shrink-0 object-contain" />
+                        <img src={ui.logoSrc} alt="" className="h-4 w-auto max-w-[4rem] shrink-0 object-contain object-left" />
                       ) : (
                         <span className="text-[10px] font-semibold">{ui.label.slice(0, 2).toUpperCase()}</span>
                       )}
@@ -243,7 +244,7 @@ export function HeaderPlatformStatusMenuSection() {
                 >
                   <div className="mb-2 flex items-center gap-2">
                     {ui.logoSrc ? (
-                      <img src={ui.logoSrc} alt="" className="h-5 w-5 shrink-0 object-contain" />
+                      <img src={ui.logoSrc} alt="" className="h-5 w-auto max-w-[4.5rem] shrink-0 object-contain object-left" />
                     ) : (
                       <span
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background text-[10px] font-bold text-muted-foreground"

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import {
   Area,
   AreaChart,
@@ -169,7 +170,7 @@ export function RevenueChart({
                 )}
                 title={connectedOnlyFans ? 'OnlyFans' : 'OnlyFans not connected'}
               >
-                <Image src="/onlyfans-logo.png" alt="" width={20} height={20} className="object-contain" />
+                <Image src={ONLYFANS_LOGO_SRC} alt="" width={88} height={22} className="h-5 w-auto max-w-[5.5rem] object-contain object-left" />
                 <span className="sr-only">OnlyFans</span>
               </button>
               <button
@@ -187,7 +188,7 @@ export function RevenueChart({
                 )}
                 title={connectedFansly ? 'Fansly' : 'Fansly not connected'}
               >
-                <Image src="/fansly-logo.png" alt="" width={20} height={20} className="object-contain" />
+                <Image src={FANSLY_LOGO_SRC} alt="" width={80} height={22} className="h-5 w-auto max-w-[5rem] object-contain object-left" />
                 <span className="sr-only">Fansly</span>
               </button>
             </div>

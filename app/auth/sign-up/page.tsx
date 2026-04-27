@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Loader2, Sparkles, Moon, Sun, Shield, Mic, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
+import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
+import { SignUpFeatureShowcase } from '@/components/auth/sign-up-feature-showcase'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -52,33 +54,25 @@ export default function SignUpPage() {
     router.push('/auth/sign-up-success')
   }
 
-  const features = [
-    { icon: Moon, text: 'Circe — retention, protection & analytics', color: 'text-circe' },
-    { icon: Sun, text: 'Venus — fans, mentions & housekeeping', color: 'text-venus' },
-    { icon: Mic, text: 'Divine Manager — voice & chat', color: 'text-primary' },
-    { icon: MessageSquare, text: 'Unified inbox — OnlyFans & Fansly', color: 'text-venus' },
-    { icon: Shield, text: 'Leak alerts & DMCA drafts (you approve)', color: 'text-circe' },
-    { icon: Sparkles, text: 'AI Studio — tools library & credits', color: 'text-primary' },
-  ]
-
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Left Side - Form */}
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-4 py-12">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-gold/10 via-venus/5 to-transparent" />
-        </div>
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-background">
+      {/* One continuous scenic + stars behind both columns */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <AuthScenicBackdrop />
+      </div>
 
-        <Link 
-          href="/" 
-          className="absolute left-6 top-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      {/* Left — form */}
+      <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-12">
+        <Link
+          href="/"
+          className="absolute left-6 top-6 z-10 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to home
         </Link>
 
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
+        <div className="relative z-10 mb-8 flex flex-col items-center gap-3">
           <ThemedLogo
             width={100}
             height={100}
@@ -91,7 +85,7 @@ export default function SignUpPage() {
           )}>CIRCE ET VENUS</h1>
         </div>
 
-        <Card className="w-full max-w-md border-primary/20 bg-card">
+        <Card className="relative z-10 w-full max-w-md border-primary/20 bg-card">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Join the Divine Realm</CardTitle>
             <CardDescription>
@@ -99,10 +93,6 @@ export default function SignUpPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 rounded-lg border border-amber-500/35 bg-amber-500/10 p-3 text-xs text-amber-100">
-              Card required to activate trial credits. Your free trial starts after Stripe card setup, then auto-renews
-              unless canceled before renewal.
-            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
@@ -178,35 +168,7 @@ export default function SignUpPage() {
         </Card>
       </div>
 
-      {/* Right Side - Features */}
-      <div className="hidden flex-1 items-center justify-center border-l border-primary/10 bg-gradient-to-br from-background via-circe/5 to-venus/5 lg:flex">
-        <div className="max-w-md px-8">
-          <h2 className="font-serif text-3xl font-bold tracking-tight">
-            Two Goddesses, <br />
-            <span className="text-primary">One Divine Platform</span>
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Circe enchants your fans to stay. Venus attracts new admirers. Together, they transform your creator business.
-          </p>
-          <ul className="mt-8 space-y-4">
-            {features.map((feature) => (
-              <li key={feature.text} className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                  <feature.icon className={`h-4 w-4 ${feature.color}`} />
-                </div>
-                <span className="text-sm">{feature.text}</span>
-              </li>
-            ))}
-          </ul>
-          
-          <div className="mt-8 rounded-lg border border-primary/20 bg-primary/5 p-4">
-            <p className="text-sm italic text-muted-foreground">
-              "Circe et Venus helped me double my retention and grow my following by 300% in just 3 months."
-            </p>
-            <p className="mt-2 text-xs font-medium text-primary">- Top 0.1% Creator</p>
-          </div>
-        </div>
-      </div>
+      <SignUpFeatureShowcase />
     </div>
   )
 }

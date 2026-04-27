@@ -434,55 +434,157 @@
 @keyframes login-constellation-fade {
   0%,
   100% {
-    opacity: 0.18;
+    opacity: 0.06;
   }
-  45%,
-  65% {
-    opacity: 0.72;
+  35%,
+  55% {
+    opacity: 0.92;
+  }
+}
+
+/* Scattered “polar” stars: irregular on/off (paired with per-star duration & delay) */
+@keyframes login-polar-random {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  4%,
+  7% {
+    opacity: 0.98;
+  }
+  11% {
+    opacity: 0.05;
+  }
+  19%,
+  24% {
+    opacity: 0.92;
+  }
+  30% {
+    opacity: 0;
+  }
+  41%,
+  45% {
+    opacity: 0.88;
+  }
+  52% {
+    opacity: 0;
+  }
+  63%,
+  68% {
+    opacity: 0.95;
+  }
+  76% {
+    opacity: 0.08;
+  }
+  84%,
+  90% {
+    opacity: 0.85;
+  }
+  96% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-polar-star {
+    animation: none !important;
+    opacity: 0.4;
+  }
+}
+
+/* Extra pulse on constellation strokes (staggered via animation-delay on second group) */
+@keyframes login-constellation-stroke {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.95;
   }
 }
 
 @keyframes login-fairy-stars-a {
   0%,
   100% {
-    opacity: 0.12;
-    transform: translate3d(0, 0, 0) scale(0.96);
+    opacity: 0.02;
+    transform: translate3d(0, 0, 0) scale(0.92);
   }
-  22% {
-    opacity: 0.92;
-    transform: translate3d(2px, -3px, 0) scale(1.08);
+  19% {
+    opacity: 0.98;
+    transform: translate3d(2px, -3px, 0) scale(1.1);
   }
-  48% {
-    opacity: 0.32;
-    transform: translate3d(-1px, 2px, 0) scale(1);
+  40% {
+    opacity: 0.08;
+    transform: translate3d(-1px, 2px, 0) scale(0.98);
+  }
+  55% {
+    opacity: 0.88;
+    transform: translate3d(1px, -1px, 0) scale(1.04);
   }
   73% {
-    opacity: 0.78;
-    transform: translate3d(3px, 1px, 0) scale(1.05);
+    opacity: 0.15;
+    transform: translate3d(3px, 1px, 0) scale(1.06);
+  }
+  90% {
+    opacity: 0.72;
+    transform: translate3d(0, 2px, 0) scale(1);
   }
 }
 
 @keyframes login-fairy-stars-b {
   0%,
   100% {
-    opacity: 0.16;
-    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.04;
+    transform: translate3d(0, 0, 0) scale(0.95);
   }
-  18% {
-    opacity: 0.44;
-    transform: translate3d(-2px, 2px, 0) scale(0.98);
+  15% {
+    opacity: 0.72;
+    transform: translate3d(-2px, 2px, 0) scale(1.04);
   }
-  41% {
-    opacity: 0.96;
-    transform: translate3d(2px, -2px, 0) scale(1.1);
+  32% {
+    opacity: 0.12;
+    transform: translate3d(1px, -1px, 0) scale(0.97);
   }
-  69% {
-    opacity: 0.24;
-    transform: translate3d(-1px, -3px, 0) scale(0.95);
+  48% {
+    opacity: 0.98;
+    transform: translate3d(2px, -2px, 0) scale(1.12);
   }
-  84% {
-    opacity: 0.82;
-    transform: translate3d(3px, 2px, 0) scale(1.06);
+  64% {
+    opacity: 0.18;
+    transform: translate3d(-1px, -2px, 0) scale(0.96);
+  }
+  80% {
+    opacity: 0.85;
+    transform: translate3d(3px, 2px, 0) scale(1.08);
+  }
+}
+
+/* Third star layer: faster blink / appear-disappear */
+@keyframes login-fairy-stars-c {
+  0%,
+  100% {
+    opacity: 0.03;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  24% {
+    opacity: 0.06;
+  }
+  38% {
+    opacity: 0.9;
+  }
+  51% {
+    opacity: 0.1;
+  }
+  66% {
+    opacity: 0.88;
+  }
+  78% {
+    opacity: 0.05;
+  }
+  90% {
+    opacity: 0.78;
   }
 }
 
@@ -771,6 +873,118 @@
       0 0 20px 3px rgba(245, 158, 11, 0.48),
       0 0 34px 5px rgba(147, 51, 234, 0.35),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* Login "Enter the Realm": day = gold body + purple bloom; night = violet body + gold bloom (inverse) */
+@keyframes login-realm-glow-day {
+  0%,
+  100% {
+    box-shadow:
+      0 0 11px 2px rgba(139, 92, 246, 0.34),
+      0 0 24px 5px rgba(91, 33, 182, 0.24),
+      0 0 36px 9px rgba(76, 29, 149, 0.11),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+  50% {
+    box-shadow:
+      0 0 17px 4px rgba(168, 85, 247, 0.41),
+      0 0 33px 8px rgba(109, 40, 217, 0.21),
+      0 0 42px 12px rgba(59, 7, 100, 0.09),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+@keyframes login-realm-glow-day-hover {
+  0%,
+  100% {
+    box-shadow:
+      0 0 15px 4px rgba(139, 92, 246, 0.41),
+      0 0 30px 8px rgba(91, 33, 182, 0.29),
+      0 0 39px 10px rgba(76, 29, 149, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  }
+  50% {
+    box-shadow:
+      0 0 21px 5px rgba(192, 132, 252, 0.45),
+      0 0 39px 9px rgba(109, 40, 217, 0.24),
+      0 0 48px 14px rgba(59, 7, 100, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  }
+}
+
+@keyframes login-realm-glow-night {
+  0%,
+  100% {
+    box-shadow:
+      0 0 12px 2px rgba(251, 191, 36, 0.38),
+      0 0 27px 6px rgba(245, 158, 11, 0.21),
+      0 0 36px 9px rgba(180, 83, 9, 0.09),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 18px 4px rgba(252, 211, 77, 0.44),
+      0 0 36px 9px rgba(217, 119, 6, 0.24),
+      0 0 42px 12px rgba(180, 83, 9, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+@keyframes login-realm-glow-night-hover {
+  0%,
+  100% {
+    box-shadow:
+      0 0 17px 4px rgba(251, 191, 36, 0.44),
+      0 0 33px 8px rgba(245, 158, 11, 0.27),
+      0 0 42px 10px rgba(180, 83, 9, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 24px 6px rgba(252, 211, 77, 0.49),
+      0 0 42px 10px rgba(217, 119, 6, 0.27),
+      0 0 48px 14px rgba(245, 158, 11, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
+}
+
+/* Combines gradient-x + glow: day = purple bloom; night = gold bloom (pairs with button fill in login page) */
+.login-realm-btn-ambient {
+  animation:
+    gradient-x 3s ease infinite,
+    login-realm-glow-day 2.8s ease-in-out infinite;
+}
+.login-realm-btn-ambient:hover {
+  animation:
+    gradient-x 3s ease infinite,
+    login-realm-glow-day-hover 1.7s ease-in-out infinite;
+}
+.dark .login-realm-btn-ambient {
+  animation:
+    gradient-x 3s ease infinite,
+    login-realm-glow-night 2.8s ease-in-out infinite;
+}
+.dark .login-realm-btn-ambient:hover {
+  animation:
+    gradient-x 3s ease infinite,
+    login-realm-glow-night-hover 1.7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-realm-btn-ambient,
+  .login-realm-btn-ambient:hover,
+  .dark .login-realm-btn-ambient,
+  .dark .login-realm-btn-ambient:hover {
+    animation: none;
+    box-shadow:
+      0 0 12px 3px rgba(139, 92, 246, 0.26),
+      0 0 21px 6px rgba(91, 33, 182, 0.12);
+  }
+  .dark .login-realm-btn-ambient,
+  .dark .login-realm-btn-ambient:hover {
+    box-shadow:
+      0 0 12px 3px rgba(251, 191, 36, 0.32),
+      0 0 21px 6px rgba(245, 158, 11, 0.15);
   }
 }
 
@@ -1658,4 +1872,104 @@ body {
     animation: none;
     background-position: 50% 50%;
   }
+}
+
+/* Sign-up page — bright constellation + gold→violet frame burst when feature changes */
+@keyframes sign-up-star-drift {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.98;
+  }
+}
+
+@keyframes sign-up-constell-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    filter: drop-shadow(0 0 4px rgba(196, 181, 253, 0.5)) drop-shadow(0 0 10px rgba(251, 191, 36, 0.25));
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.85)) drop-shadow(0 0 18px rgba(168, 85, 247, 0.75));
+  }
+}
+
+@keyframes sign-up-gold-purple-frame {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(251, 191, 36, 0.95),
+      0 0 28px 6px rgba(251, 191, 36, 0.55),
+      0 0 56px 14px rgba(168, 85, 247, 0.25),
+      inset 0 0 24px rgba(251, 191, 36, 0.12);
+  }
+  38% {
+    box-shadow:
+      0 0 0 1px rgba(167, 139, 250, 0.95),
+      0 0 36px 10px rgba(139, 92, 246, 0.55),
+      0 0 64px 16px rgba(251, 191, 36, 0.22),
+      inset 0 0 28px rgba(168, 85, 247, 0.14);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 20px 4px rgba(168, 85, 247, 0.15),
+      0 0 40px 8px rgba(251, 191, 36, 0.08);
+  }
+}
+
+.sign-up-feature-frame-animated {
+  animation: sign-up-gold-purple-frame 1.25s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sign-up-feature-frame-animated {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  .sign-up-star-layer,
+  .sign-up-star-layer-b {
+    animation: none !important;
+  }
+}
+
+/* Dense bright stars — two offsets for depth */
+.sign-up-star-layer {
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(255, 255, 255, 0.95) 1.5px, transparent 1.6px),
+    radial-gradient(circle at 22% 8%, rgba(196, 181, 253, 1) 1.4px, transparent 1.5px),
+    radial-gradient(circle at 40% 18%, rgba(251, 191, 36, 0.95) 1.3px, transparent 1.4px),
+    radial-gradient(circle at 58% 10%, rgba(255, 255, 255, 0.92) 1.2px, transparent 1.3px),
+    radial-gradient(circle at 78% 20%, rgba(168, 85, 247, 1) 1.4px, transparent 1.5px),
+    radial-gradient(circle at 92% 14%, rgba(255, 255, 255, 0.9) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 12% 38%, rgba(196, 181, 253, 0.95) 1.2px, transparent 1.3px),
+    radial-gradient(circle at 34% 44%, rgba(251, 191, 36, 0.9) 1.2px, transparent 1.3px),
+    radial-gradient(circle at 52% 36%, rgba(255, 255, 255, 0.88) 1px, transparent 1.1px),
+    radial-gradient(circle at 70% 42%, rgba(167, 139, 250, 1) 1.3px, transparent 1.4px),
+    radial-gradient(circle at 88% 40%, rgba(255, 255, 255, 0.85) 1px, transparent 1.1px),
+    radial-gradient(circle at 18% 58%, rgba(196, 181, 253, 1) 1.3px, transparent 1.4px),
+    radial-gradient(circle at 46% 62%, rgba(251, 191, 36, 0.92) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 64% 56%, rgba(255, 255, 255, 0.9) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 84% 60%, rgba(168, 85, 247, 0.95) 1.2px, transparent 1.3px),
+    radial-gradient(circle at 28% 78%, rgba(255, 255, 255, 0.82) 1px, transparent 1.1px),
+    radial-gradient(circle at 50% 82%, rgba(196, 181, 253, 0.9) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 72% 76%, rgba(251, 191, 36, 0.88) 1px, transparent 1.1px),
+    radial-gradient(circle at 90% 84%, rgba(255, 255, 255, 0.8) 0.9px, transparent 1px);
+  background-size: 100% 100%;
+}
+.sign-up-star-layer-b {
+  background-image:
+    radial-gradient(circle at 16% 24%, rgba(196, 181, 253, 1) 1.2px, transparent 1.3px),
+    radial-gradient(circle at 44% 12%, rgba(255, 255, 255, 0.92) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 68% 22%, rgba(251, 191, 36, 0.95) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 8% 48%, rgba(168, 85, 247, 0.95) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 32% 52%, rgba(255, 255, 255, 0.88) 1px, transparent 1.1px),
+    radial-gradient(circle at 56% 48%, rgba(196, 181, 253, 1) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 80% 52%, rgba(251, 191, 36, 0.9) 1px, transparent 1.1px),
+    radial-gradient(circle at 24% 70%, rgba(255, 255, 255, 0.85) 0.9px, transparent 1px),
+    radial-gradient(circle at 48% 88%, rgba(168, 85, 247, 0.92) 1.1px, transparent 1.2px),
+    radial-gradient(circle at 72% 92%, rgba(196, 181, 253, 0.88) 1px, transparent 1.1px);
+  background-size: 100% 100%;
+  transform: translate(8px, -6px);
 }

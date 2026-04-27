@@ -1,13 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 
 export function MobileLaunchListForm() {
+  /** Treat `null` as motion OK (SSR / first paint). */
+  const reduceMotion = useReducedMotion() === true
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -106,7 +110,37 @@ export function MobileLaunchListForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="launch-message">What do you want first in mobile? (optional)</Label>
+        <Label
+          htmlFor="launch-message"
+          className="flex cursor-default flex-wrap items-center gap-x-2 gap-y-1 text-left leading-snug"
+        >
+          {reduceMotion ? (
+            <Sparkles className="h-4 w-4 shrink-0 text-amber-200/90" aria-hidden />
+          ) : (
+            <motion.span
+              aria-hidden
+              className="inline-flex shrink-0"
+              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.08, 1] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <Sparkles className="h-4 w-4 text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.55)]" />
+            </motion.span>
+          )}
+          {reduceMotion ? (
+            <span className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-clip-text text-base font-semibold text-transparent">
+              Any request
+            </span>
+          ) : (
+            <motion.span
+              className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-[length:220%_auto] bg-clip-text text-base font-semibold tracking-tight text-transparent motion-safe:animate-gradient-x"
+              animate={{ y: [0, -2.5, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              Any request
+            </motion.span>
+          )}
+          <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+        </Label>
         <Textarea
           id="launch-message"
           rows={4}
@@ -115,9 +149,20 @@ export function MobileLaunchListForm() {
           onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
         />
       </div>
-      <Button type="submit" className="h-11 w-full gap-2 rounded-full" disabled={sending}>
+      <Button
+        type="submit"
+        variant="ghost"
+        disabled={sending}
+        className={cn(
+          'relative h-11 w-full gap-2 overflow-hidden rounded-full border border-transparent font-semibold uppercase tracking-[0.14em] text-white shadow-lg',
+          '!bg-gradient-to-r !from-violet-600 !via-fuchsia-600 !to-amber-400 !bg-[length:200%_auto] !text-white motion-safe:animate-gradient-x',
+          'shadow-violet-900/35 hover:!opacity-[0.96] hover:shadow-[0_0_28px_-6px_rgba(139,92,246,0.45),0_0_22px_-8px_rgba(251,191,36,0.28)]',
+          'hover:!bg-gradient-to-r hover:!from-violet-600 hover:!via-fuchsia-600 hover:!to-amber-400 hover:!text-white focus-visible:!text-white',
+          'disabled:!opacity-50',
+        )}
+      >
         {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {sending ? 'Joining...' : 'Join launch list'}
+        {sending ? 'Joining…' : 'Join launch'}
       </Button>
     </form>
   )

@@ -784,7 +784,7 @@ export default function MassMessagesPage() {
             <p className="text-xs text-muted-foreground">Generate personalized captions and pricing per selected fan before launch.</p>
           </div>
           <Badge variant="secondary">
-            OF {selectionStats.onlyfans} · Fansly {selectionStats.fansly}
+            OnlyFans {selectionStats.onlyfans} · Fansly {selectionStats.fansly}
           </Badge>
         </div>
 
@@ -886,7 +886,7 @@ export default function MassMessagesPage() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingMedia}>
               {uploadingMedia ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Attach media (OF)
+              Attach media (OnlyFans)
             </Button>
             {mediaIds.map((id) => (
               <Badge key={id} variant="secondary" className="gap-1">

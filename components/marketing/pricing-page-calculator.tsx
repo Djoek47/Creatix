@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Calculator, Sparkles } from 'lucide-react'
+import { Scale, Sparkles } from 'lucide-react'
 import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
@@ -37,6 +37,14 @@ import {
 import { cn } from '@/lib/utils'
 
 const FOCUS_PLATFORMS: AdultBillingPlatform[] = ['onlyfans', 'fansly']
+
+/** Bundled plan chip + bundled platform tiles: shared violet / fuchsia / amber + gold–purple glow */
+const bundledGlowSurface = cn(
+  'relative isolate border-fuchsia-400/75 !bg-gradient-to-r !from-fuchsia-600/28 !via-violet-600/22 !to-amber-400/18 text-foreground shadow-none',
+  'motion-safe:animate-[divine-briefing-gold-purple-glow_3.2s_ease-in-out_infinite]',
+  'motion-reduce:animate-none motion-reduce:shadow-[0_0_20px_-6px_rgba(168,85,247,0.55),0_0_32px_-10px_rgba(251,191,36,0.35)]',
+)
+
 const OTHER_PLATFORM_BUNDLE_ADDON_USD = 25
 const MULTIPLATFORM_LOGOS = [
   '/mym-logo.png',
@@ -143,7 +151,7 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
     }
 
     setPlanGlow(nextGlow)
-    planGlowTimer.current = window.setTimeout(() => setPlanGlow(null), nextGlow === 'bundled' ? 1400 : 900)
+    planGlowTimer.current = window.setTimeout(() => setPlanGlow(null), nextGlow === 'bundled' ? 5200 : 900)
 
     return () => {
       if (planGlowTimer.current) window.clearTimeout(planGlowTimer.current)
@@ -260,14 +268,14 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-primary/15 p-2.5 text-primary">
-              <Calculator className="h-6 w-6" aria-hidden />
+              <Scale className="h-6 w-6" aria-hidden />
             </div>
             <div>
               <h2 id="pricing-calculator-heading" className="font-serif text-xl font-semibold sm:text-2xl">
                 Pricing
               </h2>
               <p className="text-sm text-muted-foreground">
-                Same math as checkout: pick your band, Focus or Bundled (OF+FL), and platforms.
+                Same math as checkout: pick your band, Focus or Bundled (OnlyFans + Fansly), and platforms.
               </p>
             </div>
           </div>
@@ -359,9 +367,12 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                 size="sm"
                 variant={effectiveVariant === 'single' && !focusBothApiPlatforms ? 'default' : 'outline'}
                 className={cn(
+                  effectiveVariant === 'single' && !focusBothApiPlatforms && 'hover:text-primary-foreground',
+                  (effectiveVariant !== 'single' || focusBothApiPlatforms) &&
+                    'text-foreground hover:bg-muted/50 hover:text-foreground dark:hover:bg-muted/45',
                   effectiveVariant === 'single' &&
                     focusBothApiPlatforms &&
-                    'border-border/80 bg-muted/40 text-foreground shadow-none hover:bg-muted/55',
+                    'border-border/80 bg-muted/40 shadow-none hover:bg-muted/55',
                   planGlow === 'focus' &&
                     'ring-2 ring-amber-400/45 ring-offset-2 ring-offset-background shadow-[0_0_18px_-8px_rgba(251,191,36,0.55)] animate-pulse',
                 )}
@@ -378,14 +389,18 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                 size="sm"
                 variant="outline"
                 className={cn(
-                  'transition-[box-shadow,border-color,background-color] duration-300',
+                  'transition-[box-shadow,border-color,background-color,color,transform] duration-300',
                   effectiveVariant === 'multi' &&
-                    'border-fuchsia-500/55 bg-fuchsia-500/[0.12] text-foreground shadow-[0_0_22px_-6px_rgba(168,85,247,0.75),0_0_38px_-12px_rgba(147,51,234,0.45)] hover:border-fuchsia-400/65 hover:bg-fuchsia-500/[0.16] hover:shadow-[0_0_26px_-6px_rgba(168,85,247,0.85),0_0_42px_-12px_rgba(147,51,234,0.5)]',
+                    cn(
+                      bundledGlowSurface,
+                      'hover:border-fuchsia-300/85 hover:!from-fuchsia-600/34 hover:!via-violet-600/28 hover:!to-amber-400/24 hover:text-foreground',
+                    ),
                   effectiveVariant === 'multi' &&
-                    'focus-visible:border-fuchsia-400/70 focus-visible:ring-fuchsia-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  effectiveVariant !== 'multi' && 'focus-visible:ring-ring/50',
+                    'focus-visible:border-fuchsia-400/80 focus-visible:ring-fuchsia-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  effectiveVariant !== 'multi' &&
+                    'text-foreground hover:bg-muted/50 hover:text-foreground focus-visible:ring-ring/50 dark:hover:bg-muted/45',
                   planGlow === 'bundled' &&
-                    'animate-pulse border-fuchsia-400/70 shadow-[0_0_28px_-4px_rgba(168,85,247,0.9),0_0_48px_-14px_rgba(192,38,211,0.55)]',
+                    'z-[1] scale-[1.02] ring-2 ring-amber-300/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse',
                 )}
                 onClick={() => {
                   lockBandPreview()
@@ -399,39 +414,58 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
             </div>
           </div>
 
-          {!protectionOnly && effectiveVariant === 'single' ? (
+          {!protectionOnly && (effectiveVariant === 'single' || effectiveVariant === 'multi') ? (
             <div className="space-y-2">
               <span className="text-sm font-medium">Platforms</span>
-              <p className="text-xs text-muted-foreground">Pick one or two for Focus pricing.</p>
+              <p className="text-xs text-muted-foreground">
+                {effectiveVariant === 'single'
+                  ? 'Pick one or two for Focus pricing.'
+                  : 'Bundled includes OnlyFans and Fansly together — both highlighted below.'}
+              </p>
               <div className="flex flex-wrap gap-3">
                 {FOCUS_PLATFORMS.map((p) => {
                   const selected = platformSelection.has(p)
+                  const bundledRow = effectiveVariant === 'multi'
                   return (
                     <button
                       key={p}
                       type="button"
                       aria-pressed={selected}
+                      aria-disabled={bundledRow}
+                      tabIndex={bundledRow ? -1 : undefined}
                       onClick={() => togglePlatform(p)}
                       className={cn(
-                        'group flex min-h-11 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-all',
-                        p === 'onlyfans' && selected && 'border-sky-500/50 bg-sky-500/12 shadow-[0_0_0_1px_rgba(14,165,233,0.2)]',
-                        p === 'fansly' && selected && 'border-blue-500/50 bg-blue-500/12 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]',
-                        !selected && 'border-border bg-background/80 hover:bg-muted/40',
+                        'group flex min-h-11 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-[box-shadow,border-color,background-color,color,transform]',
+                        bundledRow && cn(bundledGlowSurface, 'pointer-events-none cursor-default'),
+                        !bundledRow &&
+                          p === 'onlyfans' &&
+                          selected &&
+                          'border-sky-500/50 bg-sky-500/12 shadow-[0_0_0_1px_rgba(14,165,233,0.2)]',
+                        !bundledRow &&
+                          p === 'fansly' &&
+                          selected &&
+                          'border-blue-500/50 bg-blue-500/12 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]',
+                        !bundledRow && !selected && 'border-border bg-background/80 hover:bg-muted/40',
                       )}
                     >
                       <span
                         className={cn(
                           'inline-flex h-8 w-8 items-center justify-center rounded-lg border bg-card/90 transition-all',
-                          selected ? 'border-primary/45 group-hover:scale-105' : 'border-border/60',
+                          bundledRow && 'border-fuchsia-400/45 bg-black/25',
+                          !bundledRow && selected && 'border-primary/45 group-hover:scale-105',
+                          !bundledRow && !selected && 'border-border/60',
                         )}
                       >
                         {p === 'onlyfans' ? (
                           <Image
-                            src="/onlyfans-mark.svg"
+                            src="/onlyfans-logo.png"
                             alt="OnlyFans"
                             width={22}
                             height={22}
-                            className={cn('h-5.5 w-5.5 object-contain transition-all', selected ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80')}
+                            className={cn(
+                              'h-5.5 w-5.5 object-contain transition-all',
+                              selected || bundledRow ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80',
+                            )}
                           />
                         ) : p === 'fansly' ? (
                           <Image
@@ -439,7 +473,10 @@ export function PricingPageCalculator({ surface = 'default', className }: Pricin
                             alt="Fansly"
                             width={22}
                             height={22}
-                            className={cn('h-5.5 w-5.5 object-contain transition-all', selected ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80')}
+                            className={cn(
+                              'h-5.5 w-5.5 object-contain transition-all',
+                              selected || bundledRow ? 'grayscale-0' : 'grayscale contrast-125 brightness-110 opacity-80',
+                            )}
                           />
                         ) : null}
                       </span>

@@ -16,7 +16,7 @@ function formatNumber(amount: number): string {
 type PlatformScope = 'all' | 'onlyfans' | 'fansly'
 
 /** First number = synced fan/subscriber count; second = free / non-sub follows when the API provides it. */
-function platformSublabel(name: 'OF' | 'Fansly', fans: number, follows: number): string {
+function platformSublabel(name: 'OnlyFans' | 'Fansly', fans: number, follows: number): string {
   if (fans <= 0 && follows <= 0) return ''
   if (follows > 0) {
     return `${name} ${formatNumber(fans)} · ${formatNumber(follows)} follows`
@@ -49,7 +49,7 @@ export function FansStats({
   const showBreakdown =
     platformScope === 'all' && (ofSnap > 0 || flSnap > 0 || ofFollows > 0 || flFollows > 0)
   const totalFansSublabel = showBreakdown
-    ? [platformSublabel('OF', ofSnap, ofFollows), platformSublabel('Fansly', flSnap, flFollows)]
+    ? [platformSublabel('OnlyFans', ofSnap, ofFollows), platformSublabel('Fansly', flSnap, flFollows)]
         .filter((s) => s.length > 0)
         .join(' · ')
     : undefined

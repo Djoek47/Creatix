@@ -61,7 +61,7 @@ export function ChurnPredictorRunnerInputs({
                 <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
                   <span className="inline-flex items-center gap-1.5 flex-wrap">
                     <span className="rounded border border-border px-1 py-0 text-[10px] uppercase text-muted-foreground">
-                      {f.platform === 'onlyfans' ? 'OF' : f.platform === 'fansly' ? 'Fansly' : f.platform}
+                      {f.platform === 'onlyfans' ? 'OnlyFans' : f.platform === 'fansly' ? 'Fansly' : f.platform}
                     </span>
                     <span>
                       @{f.username}
@@ -139,7 +139,7 @@ export function ChurnPredictorRunnerInputs({
               <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   <span className="rounded border border-border px-1 py-0 text-[10px] uppercase text-muted-foreground">
-                    {f.platform === 'onlyfans' ? 'OF' : f.platform === 'fansly' ? 'Fansly' : f.platform}
+                    {f.platform === 'onlyfans' ? 'OnlyFans' : f.platform === 'fansly' ? 'Fansly' : f.platform}
                   </span>
                   <span>
                     @{f.username}

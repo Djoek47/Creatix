@@ -183,12 +183,12 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           <div className="grid gap-3">
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#00AFF0]/10">
-                  <span className="text-lg font-bold text-[#00AFF0]">OF</span>
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-zinc-950 ring-1 ring-sky-500/35">
+                  <Image src="/onlyfans-logo.png" alt="OnlyFans" width={32} height={32} className="h-7 w-7 object-contain" />
                 </div>
                 <div>
                   <p className="font-medium">OnlyFans</p>
-                  <p className="text-sm text-muted-foreground">Connect your OF account</p>
+                  <p className="text-sm text-muted-foreground">Connect your OnlyFans account</p>
                 </div>
               </div>
               <Button size="sm" variant="outline">Connect</Button>

@@ -826,20 +826,14 @@ export function DashboardWidgetsGrid({
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
-          <span className="text-foreground/90">Bento layout</span> with smooth motion. Turn on{' '}
-          <span className="font-medium text-foreground/90">Layout mode</span> to drag whole sections by the gold grip.
-          Put any two adjacent blocks side by side with{' '}
-          <span className="font-medium text-foreground/90">Pair with next</span> (below each row).{' '}
-          <strong className="font-medium text-foreground/90">Revenue</strong> +{' '}
-          <strong className="font-medium text-foreground/90">Platforms</strong> and{' '}
-          <strong className="font-medium text-foreground/90">Conversations</strong> +{' '}
-          <strong className="font-medium text-foreground/90">Alerts</strong> still auto-pair when they are next to each
-          other; drag the slim{' '}
-          <span className="whitespace-nowrap text-amber-200/90">gold</span> /{' '}
-          <span className="whitespace-nowrap text-violet-200/90">violet</span> bar on medium+ widths to resize. Saved on
-          this device.
-        </p>
+        {customize ? (
+          <p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
+            Drag sections by the gold grip.{' '}
+            <span className="font-medium text-foreground/90">Pair with next</span> on a row to sit two blocks
+            side-by-side; drag the <span className="whitespace-nowrap text-amber-200/90">gold</span> /{' '}
+            <span className="whitespace-nowrap text-violet-200/90">violet</span> bar to resize. Saved on this device.
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"

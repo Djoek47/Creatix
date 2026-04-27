@@ -750,7 +750,7 @@ export function MediaVaultHub() {
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      No direct video file on this item yet (preview-only OF posts). Use Replace video to upload an MP4,
+                      No direct video file on this item yet (preview-only OnlyFans posts). Use Replace video to upload an MP4,
                       then you can open Frame.
                     </p>
                   )}

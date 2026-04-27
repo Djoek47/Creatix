@@ -538,7 +538,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
           {connectedPlatformLinks.filter((l) => l.url).length > 0 ? (
             <Card className="overflow-hidden rounded-2xl border-primary/15 bg-primary/[0.03] shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Quick OF / Fansly</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Quick OnlyFans / Fansly</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {connectedPlatformLinks

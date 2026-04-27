@@ -12,7 +12,8 @@ export function getStripe(): Stripe {
   }
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(key, {
-      apiVersion: '2026-01-28.clover',
+      // Dahlia ships before `stripe` package types list it; runtime accepts this string.
+      apiVersion: '2026-03-25.dahlia' as Stripe.StripeConfig['apiVersion'],
     })
   }
   return stripeSingleton

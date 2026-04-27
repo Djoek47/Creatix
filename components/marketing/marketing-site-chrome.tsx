@@ -57,7 +57,16 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-foreground/85">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'relative overflow-visible rounded-md text-foreground/85 !transition-colors duration-200',
+                  'hover:!bg-background/55 hover:text-foreground',
+                  'motion-safe:hover:animate-[divine-briefing-gold-purple-glow_2.6s_ease-in-out_infinite]',
+                  'motion-reduce:hover:animate-none motion-reduce:hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_0_18px_rgba(139,92,246,0.35)]',
+                )}
+              >
                 Sign in
               </Button>
             </Link>

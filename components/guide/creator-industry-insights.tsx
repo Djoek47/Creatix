@@ -15,7 +15,7 @@ const INSIGHTS: string[] = [
   'Most subscribers never message first — proactive outreach unlocks hidden revenue.',
   'Typical creator income is modest (often low hundreds/month range in many datasets) — treat it as a business.',
   'Most traffic is mobile — optimize previews, thumbnails, and messages for phones.',
-  'Platform fees (~20% on OF) belong in every margin model.',
+  'Platform fees (~20% on OnlyFans) belong in every margin model.',
   'Saturday often leads weekday spend; mid-week can lag — schedule accordingly.',
   'Creator approval is competitive — not every application is accepted.',
   'Top earners usually mix subs, tips, PPV, and merch — diversify revenue.',

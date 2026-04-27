@@ -28,7 +28,7 @@ export function buildPricingMetaDescription(): string {
   const bMin = low.prices.of_fl
   const bMax = high.prices.of_fl
   const prot = protectionProduct.priceMonthly ?? 25
-  return `Creator CRM pricing by monthly revenue: OnlyFans $${ofMin}–$${ofMax}/mo, Fansly line per band, Bundled (OF+FL) $${bMin}–$${bMax}/mo. Protection & Anti-Piracy (non-API platforms) $${prot}/mo add-on. 2-day trial (card required), per-seat billing on main plans.`
+  return `Creator CRM pricing by monthly revenue: OnlyFans $${ofMin}–$${ofMax}/mo, Fansly line per band, Bundled (OnlyFans + Fansly) $${bMin}–$${bMax}/mo. Protection & Anti-Piracy (non-API platforms) $${prot}/mo add-on. 2-day trial (card required), per-seat billing on main plans.`
 }
 
 /** Short line for landing / cross-links (keep under ~120 chars). */

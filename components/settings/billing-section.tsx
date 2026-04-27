@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -735,7 +736,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <CardTitle className="font-semibold">Plans & Pricing</CardTitle>
           <CardDescription>
             Choose your <strong>revenue band</strong>. <strong>Focus</strong>: one platform, or a two-platform pair
-            with the banded list price (lowest band: <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OF /{' '}
+            with the banded list price (lowest band: <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OnlyFans /{' '}
             <strong>{lowestRevenueTier ? focusFanslyUsd(lowestRevenueTier) : 0}</strong> Fansly / legacy ManyVids pairs
             in the table). <strong>Bundled</strong> = OnlyFans + Fansly from{' '}
             <strong>${lowestRevenueTier?.multiPriceUsd ?? 0}/mo</strong> on the lowest band.{' '}
@@ -868,7 +869,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <Badge className="border-amber-500/60 bg-amber-600/90 px-3 text-xs font-semibold text-white">
-                  OF + FL
+                  OnlyFans + Fansly
                 </Badge>
               </div>
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Bundled</p>
@@ -877,16 +878,18 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
               <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
                 <div className="flex -space-x-2">
-                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#00AFF0] text-[10px] font-bold text-white">
-                    OF
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-950 bg-zinc-950">
+                    <Image src="/onlyfans-logo.png" alt="OnlyFans" width={20} height={20} className="h-5 w-5 object-contain" />
                   </span>
-                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#009FFF] text-[10px] font-bold text-white">
-                    FL
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-950 bg-zinc-950">
+                    <Image src="/fansly-logo.png" alt="Fansly" width={20} height={20} className="h-5 w-5 object-contain" />
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-amber-200">Two platforms</p>
-                  <p className="text-xs text-zinc-500">Banded list price (not a simple +$ on OF from every cell)</p>
+                  <p className="text-xs text-zinc-500">
+                    Banded list price (not a simple +$ on OnlyFans from every cell)
+                  </p>
                 </div>
                 <div
                   className="flex size-8 shrink-0 items-center justify-center rounded border border-amber-500/60 bg-amber-500/20"
@@ -934,7 +937,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   <th className="p-3 text-left font-medium">Revenue</th>
                   <th className="p-3 text-right font-medium">OnlyFans</th>
                   <th className="p-3 text-right font-medium">Fansly</th>
-                  <th className="p-3 text-right font-medium">Bundled (OF+FL)</th>
+                  <th className="p-3 text-right font-medium">Bundled (OnlyFans + Fansly)</th>
                 </tr>
               </thead>
               <tbody>

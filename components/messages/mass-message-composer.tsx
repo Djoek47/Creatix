@@ -326,7 +326,7 @@ export function MassMessageComposer({
             onClick={() => fileInputRef.current?.click()}
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-            {uploading ? 'Uploading…' : 'Attach media (OF)'}
+            {uploading ? 'Uploading…' : 'Attach media (OnlyFans)'}
           </Button>
         </div>
         {mediaIds.length > 0 && (

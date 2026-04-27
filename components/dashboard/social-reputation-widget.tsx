@@ -469,7 +469,7 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
                   <p className="text-lg font-semibold tabular-nums">{trackedProfiles}</p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OF</p>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">OnlyFans</p>
                   <p className="text-lg font-semibold">{ofConnected ? 'On' : '—'}</p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">

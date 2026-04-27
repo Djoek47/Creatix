@@ -11,7 +11,7 @@ const PLATFORM_META: Record<
 > = {
   onlyfans: {
     src: '/onlyfans-logo.png',
-    short: 'OF',
+    short: 'OnlyFans',
     label: 'OnlyFans',
     ring: 'shadow-[0_0_14px_rgba(0,175,240,0.55)]',
   },

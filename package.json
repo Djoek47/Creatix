@@ -15,6 +15,7 @@
     "check:forbidden-branding": "node scripts/check-forbidden-branding.mjs",
     "test:leaks": "tsx lib/leaks/canonical-logic.test.ts",
     "test:credits": "tsx lib/billing/credit-economics.test.ts",
+    "test:plan-capabilities": "tsx lib/plan-capabilities.test.ts",
     "test:credit-planner": "tsx lib/billing/credit-planner.test.ts",
     "test:ariadne-append-v1-classification": "tsx lib/ariadne/append-v1-classification.test.ts",
     "test:ariadne-service-auth": "tsx lib/ariadne/service-auth.test.ts",

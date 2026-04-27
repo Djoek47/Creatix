@@ -44,6 +44,23 @@ const DEFAULT_VISIBILITY: Record<string, boolean> = {
   aegis: false,
 }
 
+const NON_API_FORCED_OFF_WIDGETS = new Set([
+  'quickColumn',
+  'messageActivity',
+  'alertsColumn',
+  'standardAttraction',
+  'socialRep',
+])
+
+function applyNonApiDashboardVisibility(vis: Record<string, boolean>, nonApi: boolean): Record<string, boolean> {
+  if (!nonApi) return vis
+  const next = { ...vis }
+  for (const id of NON_API_FORCED_OFF_WIDGETS) {
+    next[id] = false
+  }
+  return next
+}
+
 const WIDGET_OPTIONS: { id: string; label: string; hint?: string; optional?: boolean }[] = [
   { id: 'stats', label: 'Overview stats' },
   {
@@ -241,6 +258,8 @@ export type DashboardWidgetsGridProps = {
   totalFans: number
   leakAlerts: React.ComponentProps<typeof AlertsWidget>['leakAlerts']
   mentions: React.ComponentProps<typeof AlertsWidget>['mentions']
+  /** Protection-only tier: turn off API/sync dashboard modules. */
+  nonApiProtectionTier?: boolean
 }
 
 export function DashboardWidgetsGrid({
@@ -255,6 +274,7 @@ export function DashboardWidgetsGrid({
   totalFans,
   leakAlerts,
   mentions,
+  nonApiProtectionTier = false,
 }: DashboardWidgetsGridProps) {
   const visibleKey = `${STORAGE_VISIBLE}:${userId}`
   const featuredToolKey = `${STORAGE_FEATURED_TOOL}:${userId}`
@@ -333,7 +353,10 @@ export function DashboardWidgetsGrid({
         }
       }
 
-      const vis = mergeDashboardVisibility(DEFAULT_VISIBILITY, dashboardPreset?.widgetVisibility, localVis)
+      const vis = applyNonApiDashboardVisibility(
+        mergeDashboardVisibility(DEFAULT_VISIBILITY, dashboardPreset?.widgetVisibility, localVis),
+        nonApiProtectionTier,
+      )
       setVisible(vis)
 
       const rawOrder = typeof window !== 'undefined' ? localStorage.getItem(orderKey) : null
@@ -399,16 +422,20 @@ export function DashboardWidgetsGrid({
         setFeaturedToolIdState(DEFAULT_FEATURED_TOOL_ID)
       }
     } catch {
-      setVisible({ ...DEFAULT_VISIBILITY })
-      setSectionOrder(mergeOrder(null, DEFAULT_VISIBILITY))
+      const fallback = applyNonApiDashboardVisibility({ ...DEFAULT_VISIBILITY }, nonApiProtectionTier)
+      setVisible(fallback)
+      setSectionOrder(mergeOrder(null, fallback))
       setSplitAnchorsList([])
     }
     setReady(true)
-  }, [visibleKey, orderKey, panelKey, splitKey, featuredToolKey, dashboardPreset])
+  }, [visibleKey, orderKey, panelKey, splitKey, featuredToolKey, dashboardPreset, nonApiProtectionTier])
 
   const setWidgetVisible = useCallback(
     (id: string, checked: boolean) => {
       setVisible((prev) => {
+        if (nonApiProtectionTier && NON_API_FORCED_OFF_WIDGETS.has(id) && checked) {
+          return prev
+        }
         const next = { ...prev, [id]: checked }
         persistVisible(next)
         const ord = mergeOrder(null, next)
@@ -421,7 +448,7 @@ export function DashboardWidgetsGrid({
         return next
       })
     },
-    [persistVisible, orderKey],
+    [persistVisible, orderKey, nonApiProtectionTier],
   )
 
   const resetLayout = useCallback(() => {

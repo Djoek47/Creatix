@@ -56,10 +56,13 @@ import {
   parseMimicProfile,
   type MimicProfileV1,
 } from '@/lib/divine/mimic-types'
+import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
+import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'integrations' | 'data' | 'preferences'
 
 export default function SettingsPage() {
+  const workspaceCaps = useWorkspaceCapabilities()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<{
@@ -792,55 +795,71 @@ export default function SettingsPage() {
           {/* Integrations Section */}
           {activeTab === 'integrations' && (
             <div data-tour="settings-integrations" className="flex flex-col gap-6">
-              <PlatformConnector />
+              {workspaceCaps.canUsePlatformIntegrationsSettings ? (
+                <>
+                  <PlatformConnector />
 
-              <HousekeepingListsSettings
-                fanPlatformConnected={integrations.onlyfans || integrations.fansly}
-              />
+                  <HousekeepingListsSettings
+                    fanPlatformConnected={integrations.onlyfans || integrations.fansly}
+                  />
 
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="font-semibold">Social Media</CardTitle>
-                  <CardDescription>
-                    Connect social accounts for reputation monitoring
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {socialIntegrations.map((social) => (
-                    <div key={social.key} className="flex items-center justify-between rounded-lg border border-border p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${social.color} text-white`}>
-                          <social.icon />
+                  <Card className="border-border bg-card">
+                    <CardHeader>
+                      <CardTitle className="font-semibold">Social Media</CardTitle>
+                      <CardDescription>
+                        Connect social accounts for reputation monitoring
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {socialIntegrations.map((social) => (
+                        <div key={social.key} className="flex items-center justify-between rounded-lg border border-border p-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${social.color} text-white`}>
+                              <social.icon />
+                            </div>
+                            <div>
+                              <p className="font-medium">{social.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {social.connected ? 'Connected' : 'Not connected'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant={social.connected ? 'outline' : 'default'} 
+                            size="sm"
+                            onClick={() => {
+                              if (social.connected) {
+                                // Disconnect
+                                fetch(`/api/${social.key}/disconnect`, { method: 'POST' })
+                                  .then(() => {
+                                    setIntegrations(prev => ({ ...prev, [social.key]: false }))
+                                  })
+                              } else {
+                                // Redirect to OAuth
+                                window.location.href = `/api/${social.key}/auth`
+                              }
+                            }}
+                          >
+                            {social.connected ? 'Disconnect' : 'Connect'}
+                          </Button>
                         </div>
-                        <div>
-                          <p className="font-medium">{social.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {social.connected ? 'Connected' : 'Not connected'}
-                          </p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant={social.connected ? 'outline' : 'default'} 
-                        size="sm"
-                        onClick={() => {
-                          if (social.connected) {
-                            // Disconnect
-                            fetch(`/api/${social.key}/disconnect`, { method: 'POST' })
-                              .then(() => {
-                                setIntegrations(prev => ({ ...prev, [social.key]: false }))
-                              })
-                          } else {
-                            // Redirect to OAuth
-                            window.location.href = `/api/${social.key}/auth`
-                          }
-                        }}
-                      >
-                        {social.connected ? 'Disconnect' : 'Connect'}
-                      </Button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card className="border-border bg-card">
+                  <CardHeader>
+                    <CardTitle className="font-semibold">Creator API & integrations</CardTitle>
+                    <CardDescription>{getNonApiUpgradeMessage()}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button asChild>
+                      <Link href="/dashboard/settings?tab=billing">View plans &amp; upgrade</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 

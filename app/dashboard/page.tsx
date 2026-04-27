@@ -5,6 +5,7 @@ import { DashboardWidgetsGrid } from '@/components/dashboard/dashboard-widgets-g
 import { DashboardCommandCenter } from '@/components/dashboard/dashboard-command-center'
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
 import { extractDashboardPreset } from '@/lib/dashboard/dashboard-preset'
+import { resolveWorkspaceCapabilities } from '@/lib/plan-capabilities'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
   const planLabel = getDashboardPlanLabel(subscription ?? null)
   const revenueTier =
     subscription && typeof subscription.revenue_tier === 'number' ? subscription.revenue_tier : null
+  const workspaceCaps = resolveWorkspaceCapabilities(subscription ?? null)
 
   // Calculate stats from analytics data - aggregate from both platforms
   const totalRevenue = analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0
@@ -109,10 +111,15 @@ export default async function DashboardPage() {
           mood={dashboardPreset?.mood}
           accent={dashboardPreset?.accent}
           tierIndex={revenueTier}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
         />
       }
       commandStrip={
-        <DashboardCommandTiles accent={dashboardPreset?.accent} tierIndex={revenueTier} />
+        <DashboardCommandTiles
+          accent={dashboardPreset?.accent}
+          tierIndex={revenueTier}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
+        />
       }
       widgetRegion={
         <DashboardWidgetsGrid
@@ -127,6 +134,7 @@ export default async function DashboardPage() {
           totalFans={totalFans}
           leakAlerts={leakAlerts || []}
           mentions={mentions || []}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
         />
       }
     />

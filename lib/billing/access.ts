@@ -41,6 +41,14 @@ export function isTrialPlanId(planId: string | null | undefined): boolean {
   return !planId || planId.toLowerCase() === TRIAL_PLAN_ID
 }
 
+/** Active Divine Trial (card on file): full app shell, not protection-only. */
+export function hasActiveDivineTrial(row: SubscriptionLike | null | undefined): boolean {
+  if (!row?.plan_id) return false
+  const st = (row.status || '').toLowerCase()
+  if (st !== 'active' && st !== 'trialing') return false
+  return isTrialPlanId(row.plan_id)
+}
+
 export function isProtectionPlanId(planId: string | null | undefined): boolean {
   if (!planId) return false
   return planId.toLowerCase() === PROTECTION_PLAN_ID
@@ -62,4 +70,17 @@ export function isProtectionEntitled(row: ProtectionEntitlementFields | null | u
  */
 export function isMainApiPaid(row: SubscriptionLike | null | undefined): boolean {
   return isPaidSubscription(row)
+}
+
+/**
+ * $25/mo Protection without Pro/trial — non-API capability tier (manual workflows + protection).
+ * Excludes active `divine-trial` so trialists keep the full dashboard until they convert or lapse.
+ */
+export function isProtectionOnlyTier(
+  row: (SubscriptionLike & ProtectionEntitlementFields) | null | undefined,
+): boolean {
+  if (!isProtectionEntitled(row)) return false
+  if (isPaidSubscription(row)) return false
+  if (hasActiveDivineTrial(row)) return false
+  return true
 }

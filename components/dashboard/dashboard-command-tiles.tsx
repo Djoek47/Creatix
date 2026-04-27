@@ -59,6 +59,7 @@ const tiles = [
 export type DashboardCommandTilesProps = {
   accent?: DivineDashboardPreset['accent']
   tierIndex?: number | null
+  nonApiProtectionTier?: boolean
 }
 
 const tileStagger = {
@@ -70,8 +71,11 @@ const tileItem = {
   show: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } },
 }
 
-export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTilesProps) {
+export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier = false }: DashboardCommandTilesProps) {
   const reduce = useReducedMotion()
+  const tilesActive = nonApiProtectionTier
+    ? tiles.filter((t) => t.href !== '/dashboard/messages' && t.href !== '/dashboard/ai-studio')
+    : [...tiles]
   const tierSheen =
     tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 8
       ? 'shadow-[0_0_40px_-12px_rgba(168,85,247,0.25)]'
@@ -82,12 +86,16 @@ export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTil
   return (
     <div className="space-y-3">
       <motion.div
-        className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-5', tierSheen)}
+        className={cn(
+          'grid gap-3 sm:grid-cols-2',
+          tilesActive.length <= 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-5',
+          tierSheen,
+        )}
         variants={reduce ? undefined : tileStagger}
         initial={reduce ? false : 'hidden'}
         animate={reduce ? false : 'show'}
       >
-        {tiles.map((tile) => {
+        {tilesActive.map((tile) => {
           const boosted =
             (accent === 'circe' && tile.href === '/dashboard/messages') ||
             (accent === 'gold' && tile.href === '/dashboard/ai-studio') ||
@@ -125,15 +133,17 @@ export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTil
           )
         })}
       </motion.div>
-      <div className="flex justify-end">
-        <Link
-          href="/dashboard/divine-manager"
-          className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:border-border hover:text-foreground"
-        >
-          <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
-          Divine Manager
-        </Link>
-      </div>
+      {!nonApiProtectionTier ? (
+        <div className="flex justify-end">
+          <Link
+            href="/dashboard/divine-manager"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground backdrop-blur transition-colors hover:border-border hover:text-foreground"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
+            Divine Manager
+          </Link>
+        </div>
+      ) : null}
     </div>
   )
 }

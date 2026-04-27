@@ -10,6 +10,7 @@ import {
   onlyFansBillingGateResponse,
 } from '@/lib/onlyfans-api-route'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
+import { denyIfNonApiProtectionTier } from '@/lib/api-non-api-guard'
 
 type ConversationsPayload = {
   conversations: unknown[]
@@ -35,6 +36,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const nonApi = await denyIfNonApiProtectionTier(request)
+    if (nonApi) return nonApi
 
     const billingBlock = await onlyFansBillingGateResponse(supabase)
     if (billingBlock) return billingBlock

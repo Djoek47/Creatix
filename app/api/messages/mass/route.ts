@@ -14,6 +14,7 @@ import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
 import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
+import { denyIfNonApiProtectionTier } from '@/lib/api-non-api-guard'
 
 interface MassMessageRequest {
   message: string
@@ -42,6 +43,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const nonApi = await denyIfNonApiProtectionTier(request)
+    if (nonApi) return nonApi
 
     const body: MassMessageRequest = await request.json()
     const { message, platforms, mediaIds, previews, price, filter = 'all', userLists, userIds, trace } = body

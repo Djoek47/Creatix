@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ConnectedPlatforms } from '@/components/dashboard/connected-platforms'
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
+import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 
 interface DashboardHeroProps {
   planLabel: string | null
@@ -9,6 +10,8 @@ interface DashboardHeroProps {
   mood?: DivineDashboardPreset['mood']
   accent?: DivineDashboardPreset['accent']
   tierIndex?: number | null
+  /** Protection-only tier: no creator API — curated copy and hide live platform chips. */
+  nonApiProtectionTier?: boolean
 }
 
 function heroGradient(accent: DivineDashboardPreset['accent'] | undefined): string {
@@ -37,6 +40,7 @@ export function DashboardHero({
   mood,
   accent,
   tierIndex,
+  nonApiProtectionTier = false,
 }: DashboardHeroProps) {
   const bg = heroGradient(accent)
   const title = titleGradient(accent)
@@ -71,16 +75,29 @@ export function DashboardHero({
               <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', title)}>Your command centre</span>
             </h1>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground md:text-base">{subtitle}</p>
-            {!hasConnectedPlatforms && (
-              <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+            {nonApiProtectionTier ? (
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+                {getNonApiUpgradeMessage()}{' '}
                 <Link
-                  href="/dashboard/settings?tab=integrations"
-                  className="font-medium underline decoration-amber-600/50 underline-offset-4 transition-colors hover:text-foreground"
+                  href="/dashboard/settings?tab=billing"
+                  className="font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary"
                 >
-                  Connect your platforms
-                </Link>{' '}
-                to unlock live stats and sync.
+                  Upgrade to full Creatix
+                </Link>
+                .
               </p>
+            ) : (
+              !hasConnectedPlatforms && (
+                <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+                  <Link
+                    href="/dashboard/settings?tab=integrations"
+                    className="font-medium underline decoration-amber-600/50 underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Connect your platforms
+                  </Link>{' '}
+                  to unlock live stats and sync.
+                </p>
+              )
             )}
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-end sm:justify-end">
@@ -90,12 +107,14 @@ export function DashboardHero({
                 <span className="ml-1.5 text-foreground">{planLabel}</span>
               </span>
             ) : null}
-            <div className="flex flex-col items-end gap-1">
-              <span className="hidden text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
-                Connected platforms
-              </span>
-              <ConnectedPlatforms />
-            </div>
+            {!nonApiProtectionTier ? (
+              <div className="flex flex-col items-end gap-1">
+                <span className="hidden text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:block">
+                  Connected platforms
+                </span>
+                <ConnectedPlatforms />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -33,6 +33,7 @@ import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
+import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 
 interface SidebarProps {
   user: User
@@ -198,6 +199,7 @@ function NavLink({
 }
 
 export function DashboardSidebar({ profile }: SidebarProps) {
+  const caps = useWorkspaceCapabilities()
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [compactDensity, setCompactDensity] = useState(false)
@@ -233,6 +235,22 @@ export function DashboardSidebar({ profile }: SidebarProps) {
     triggerDashboardRealmEntrance(hue)
     window.location.assign(`/dashboard?realm=${Date.now()}`)
   }
+
+  const silverFiltered = silverNavigation.filter((item) => {
+    if (item.href === '/dashboard/divine-manager') return caps.canUseDivineManagerNav
+    if (item.href === '/dashboard/messages') return caps.canUseMessaging
+    if (item.href === '/dashboard/social') return caps.canUseSocialAutomation
+    return true
+  })
+  const aiStudioFiltered = caps.canUseAiStudioNav ? aiStudioNavigation : []
+  const circeFiltered = circeNavigation.filter((item) => {
+    if (item.href === '/dashboard/retention/churn') return caps.canUseRetentionNav
+    return true
+  })
+  const venusFiltered = venusNavigation.filter((item) => {
+    if (item.href === '/dashboard/commenter') return caps.canUseCommenterNav
+    return true
+  })
 
   return (
     <aside
@@ -314,7 +332,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               </span>
             </div>
           )}
-          {circeNavigation.map((item) => (
+          {circeFiltered.map((item) => (
             <NavLink
               key={item.name}
               item={item}
@@ -346,7 +364,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               </span>
             </div>
           )}
-          {venusNavigation.map((item) => (
+          {venusFiltered.map((item) => (
             <NavLink
               key={item.name}
               item={item}

@@ -27,6 +27,12 @@ dist/
 .cursor/
 *.swp
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Capacitor / native shells (generated at repo root after `npx cap add ios android`)
 # Remove these lines if you intentionally version native projects.
 /ios/

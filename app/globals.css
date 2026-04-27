@@ -385,6 +385,107 @@
   animation: marketing-float-soft 5s ease-in-out infinite;
 }
 
+.login-scenic-bg {
+  background-position: center 24%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.login-scenic-bg-night {
+  background-position: center 22%;
+}
+
+/* Wide/short viewports must stay full-bleed; controlled crop is better than letterboxing. */
+@media (min-aspect-ratio: 16 / 10) {
+  .login-scenic-bg {
+    background-position: center 24%;
+    background-size: cover;
+  }
+
+  .login-scenic-bg-night {
+    background-position: center 22%;
+  }
+}
+
+/* Very wide screens: crop within limits while keeping the lake below the form. */
+@media (min-aspect-ratio: 21 / 10) {
+  .login-scenic-bg {
+    background-position: center 20%;
+    background-size: cover;
+  }
+
+  .login-scenic-bg-night {
+    background-position: center 18%;
+  }
+}
+
+/* Tall/narrow devices need height coverage to avoid side gaps. */
+@media (max-aspect-ratio: 4 / 5) {
+  .login-scenic-bg {
+    background-position: center 20%;
+    background-size: auto 112%;
+  }
+
+  .login-scenic-bg-night {
+    background-position: center 18%;
+  }
+}
+
+@keyframes login-constellation-fade {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  45%,
+  65% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes login-fairy-stars-a {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  22% {
+    opacity: 0.92;
+    transform: translate3d(2px, -3px, 0) scale(1.08);
+  }
+  48% {
+    opacity: 0.32;
+    transform: translate3d(-1px, 2px, 0) scale(1);
+  }
+  73% {
+    opacity: 0.78;
+    transform: translate3d(3px, 1px, 0) scale(1.05);
+  }
+}
+
+@keyframes login-fairy-stars-b {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  18% {
+    opacity: 0.44;
+    transform: translate3d(-2px, 2px, 0) scale(0.98);
+  }
+  41% {
+    opacity: 0.96;
+    transform: translate3d(2px, -2px, 0) scale(1.1);
+  }
+  69% {
+    opacity: 0.24;
+    transform: translate3d(-1px, -3px, 0) scale(0.95);
+  }
+  84% {
+    opacity: 0.82;
+    transform: translate3d(3px, 2px, 0) scale(1.06);
+  }
+}
+
 @keyframes marketing-pulse-glow {
   0%,
   100% {

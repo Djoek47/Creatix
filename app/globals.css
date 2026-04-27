@@ -545,6 +545,63 @@
   }
 }
 
+/* Dashboard command centre — slow liquid-glass ambient drift */
+@keyframes command-glass-drift-a {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  40% {
+    transform: translate(2.5%, -2%) scale(1.04);
+  }
+  70% {
+    transform: translate(-1.8%, 1.2%) scale(0.98);
+  }
+}
+
+@keyframes command-glass-drift-b {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  45% {
+    transform: translate(-2.2%, 1.8%) scale(1.03);
+  }
+  75% {
+    transform: translate(1.5%, -1.4%) scale(0.99);
+  }
+}
+
+@keyframes command-glass-drift-c {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  50% {
+    transform: translate(1.8%, 2.2%) scale(1.02);
+  }
+}
+
+.command-glass-drift-a {
+  animation: command-glass-drift-a 32s ease-in-out infinite;
+}
+
+.command-glass-drift-b {
+  animation: command-glass-drift-b 40s ease-in-out infinite;
+}
+
+.command-glass-drift-c {
+  animation: command-glass-drift-c 36s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-glass-drift-a,
+  .command-glass-drift-b,
+  .command-glass-drift-c {
+    animation: none;
+  }
+}
+
 /* Constellation background pattern */
 .constellation-bg {
   background-image: 

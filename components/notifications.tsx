@@ -506,20 +506,30 @@ export function Notifications() {
 
   const channelUnread = displayed.filter((n) => !n.read).length
   const pullDismissedCount = userId ? countPullDismissed(userId) : 0
+  const hasUnread = unreadCount > 0
+
+  const bellTriggerClass = cn(
+    'relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0',
+    hasUnread &&
+      'text-amber-700 shadow-[0_0_22px_-6px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/35 dark:text-amber-200 dark:shadow-[0_0_26px_-4px_rgba(251,191,36,0.45)] dark:ring-amber-400/40',
+  )
+
+  const unreadBadgeClass = cn(
+    'absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none text-white',
+    'bg-gradient-to-b from-amber-400 to-amber-600 dark:from-amber-300 dark:to-amber-600',
+    'shadow-[0_0_12px_rgba(251,191,36,0.85),0_2px_6px_-2px_rgba(180,83,9,0.4)]',
+    'ring-2 ring-background dark:ring-slate-950',
+  )
 
   if (!mounted) {
     return (
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
+      <Button variant="ghost" size="icon" className={bellTriggerClass} aria-label="Notifications">
+        <Bell className="h-5 w-5" aria-hidden />
+        {hasUnread ? (
+          <span className={cn(unreadBadgeClass, unreadCount > 9 && 'min-w-[1.375rem] px-1.5')}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
-        )}
+        ) : null}
       </Button>
     )
   }
@@ -536,14 +546,19 @@ export function Notifications() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+          className={bellTriggerClass}
+          aria-label={
+            hasUnread
+              ? `Notifications, ${unreadCount} unread`
+              : 'Notifications'
+          }
         >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
+          <Bell className="h-5 w-5" aria-hidden />
+          {hasUnread ? (
+            <span className={cn(unreadBadgeClass, unreadCount > 9 && 'min-w-[1.375rem] px-1.5')}>
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
-          )}
+          ) : null}
         </Button>
       </PopoverTrigger>
       <PopoverContent

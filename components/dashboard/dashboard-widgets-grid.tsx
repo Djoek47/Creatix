@@ -223,16 +223,16 @@ function DashboardModule({ className, children, heading }: { className?: string;
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[1.35rem] border border-white/40 bg-white/42 shadow-[0_16px_48px_-28px_rgba(15,23,42,0.22)] backdrop-blur-2xl backdrop-saturate-150 transition-[box-shadow] duration-300',
-        'dark:border-white/[0.09] dark:bg-slate-950/42 dark:shadow-[0_20px_56px_-32px_rgba(0,0,0,0.52)]',
+        'relative overflow-hidden rounded-[1.35rem] border border-white/[0.32] bg-white/[0.16] shadow-[0_12px_44px_-26px_rgba(15,23,42,0.14)] backdrop-blur-[12px] backdrop-saturate-[1.08] transition-[box-shadow] duration-300',
+        'dark:border-white/[0.11] dark:bg-slate-950/[0.18] dark:shadow-[0_16px_50px_-28px_rgba(0,0,0,0.4)]',
         className,
       )}
     >
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.28]"
+        className="pointer-events-none absolute inset-0 opacity-[0.18] dark:opacity-[0.14]"
         style={{
           background:
-            'radial-gradient(125% 85% at 8% 0%, rgba(251, 191, 36, 0.06) 0%, transparent 52%), radial-gradient(100% 65% at 100% 0%, rgba(168, 85, 247, 0.07) 0%, transparent 58%)',
+            'radial-gradient(125% 85% at 8% 0%, rgba(251, 191, 36, 0.035) 0%, transparent 52%), radial-gradient(100% 65% at 100% 0%, rgba(168, 85, 247, 0.04) 0%, transparent 58%)',
         }}
         aria-hidden
       />
@@ -949,7 +949,7 @@ export function DashboardWidgetsGrid({
         </div>
       </div>
 
-      <div className="relative rounded-[1.35rem] border border-white/30 bg-gradient-to-b from-white/25 via-white/[0.08] to-transparent p-1.5 shadow-inner backdrop-blur-md dark:border-white/[0.07] dark:from-white/[0.06] dark:via-transparent md:p-2.5">
+      <div className="relative rounded-[1.35rem] border border-white/[0.26] bg-gradient-to-b from-white/[0.14] via-white/[0.04] to-transparent p-1.5 shadow-inner backdrop-blur-[10px] dark:border-white/[0.09] dark:from-white/[0.04] dark:via-transparent md:p-2.5">
         {customize ? (
           <Reorder.Group
             axis="y"

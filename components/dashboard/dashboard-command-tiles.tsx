@@ -105,8 +105,8 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
             <Link
               href={tile.href}
               className={cn(
-                'group relative block overflow-hidden rounded-[1.25rem] border border-white/40 bg-white/38 p-5 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,border-color] duration-300 md:p-6',
-                'dark:border-white/[0.09] dark:bg-slate-950/38 dark:shadow-[0_16px_48px_-28px_rgba(0,0,0,0.5)]',
+                'group relative block overflow-hidden rounded-[1.25rem] border border-white/[0.32] bg-white/[0.16] p-5 shadow-[0_10px_36px_-22px_rgba(15,23,42,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.06] transition-[box-shadow,border-color] duration-300 md:p-6',
+                'dark:border-white/[0.11] dark:bg-slate-950/[0.18] dark:shadow-[0_14px_44px_-26px_rgba(0,0,0,0.38)]',
                 'hover:border-white/55 hover:shadow-[0_20px_50px_-22px_rgba(15,23,42,0.28)] dark:hover:border-white/[0.14]',
                 'bg-gradient-to-br',
                 tile.accent,
@@ -118,7 +118,7 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
               <div className="relative flex items-start gap-4">
                 <div
                   className={cn(
-                    'rounded-2xl border border-white/50 bg-background/50 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.35)] backdrop-blur-md transition-[transform,box-shadow] duration-300 dark:border-white/[0.10] dark:bg-white/[0.06]',
+                    'rounded-2xl border border-white/40 bg-background/35 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28)] backdrop-blur-[8px] transition-[transform,box-shadow] duration-300 dark:border-white/[0.12] dark:bg-white/[0.04]',
                     'group-hover:shadow-md',
                     tile.iconClass,
                   )}

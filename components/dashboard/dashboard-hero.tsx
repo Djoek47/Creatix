@@ -15,10 +15,10 @@ interface DashboardHeroProps {
 }
 
 function heroGradient(accent: DivineDashboardPreset['accent'] | undefined): string {
-  if (accent === 'circe') return 'from-circe/[0.12] via-background to-circe/[0.05]'
-  if (accent === 'venus') return 'from-venus/[0.12] via-background to-venus/[0.05]'
-  if (accent === 'gold') return 'from-gold/[0.1] via-background to-amber-500/[0.06]'
-  return 'from-circe/[0.07] via-background to-venus/[0.07]'
+  if (accent === 'circe') return 'from-circe/[0.05] via-transparent to-circe/[0.02]'
+  if (accent === 'venus') return 'from-venus/[0.05] via-transparent to-venus/[0.02]'
+  if (accent === 'gold') return 'from-gold/[0.04] via-transparent to-amber-500/[0.02]'
+  return 'from-circe/[0.04] via-transparent to-venus/[0.03]'
 }
 
 function titleGradient(accent: DivineDashboardPreset['accent'] | undefined): string {
@@ -54,29 +54,31 @@ export function DashboardHero({
     <div
       id="dashboard-platform-sync"
       className={cn(
-        'relative scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-white/45 bg-white/44 p-7 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150 constellation-bg md:p-10',
-        'bg-gradient-to-br dark:border-white/[0.09] dark:bg-slate-950/44 dark:shadow-[0_24px_70px_-32px_rgba(0,0,0,0.55)]',
+        'relative scroll-mt-24 overflow-hidden rounded-2xl border border-white/[0.2] bg-white/[0.08] p-7 shadow-none backdrop-blur-[10px] backdrop-saturate-[1.05] md:p-10',
+        'dark:border-white/[0.09] dark:bg-white/[0.02]',
+        'bg-gradient-to-br',
         bg,
       )}
     >
       <div
         className={cn(
-          'pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full blur-[64px] opacity-80 md:-right-20 md:-top-20 md:h-60 md:w-60 md:opacity-90',
+          'pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full blur-[80px] opacity-30 md:h-56 md:w-56 md:opacity-35',
           tierGlow,
         )}
       />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-venus/[0.07] blur-[72px] dark:bg-venus/[0.09]" />
-      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent dark:via-white/[0.14]" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-venus/[0.025] blur-[88px] dark:bg-venus/[0.035]" />
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent dark:via-white/[0.1]" aria-hidden />
       <div className="relative flex flex-col gap-8">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground/80">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/75">
               Command centre
             </p>
-            <h1 className="mt-3 font-serif text-[1.85rem] font-medium leading-[1.1] tracking-tight text-balance md:text-[2.65rem] md:leading-[1.06]">
-              <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', title)}>Your command centre</span>
+            <h1 className="mt-3.5 text-balance font-sans text-[1.7rem] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground md:text-[2.45rem] md:leading-[1.05]">
+              <span className="text-foreground">Your command </span>
+              <span className={cn('bg-gradient-to-r bg-clip-text text-transparent', title)}>centre</span>
             </h1>
-            <p className="mt-4 max-w-[34rem] text-base leading-relaxed text-muted-foreground/90 md:text-[1.05rem] md:leading-[1.55]">
+            <p className="mt-4 max-w-[34rem] text-[0.9375rem] font-normal leading-relaxed text-muted-foreground md:text-[1.015rem] md:leading-[1.55]">
               {subtitle}
             </p>
             {nonApiProtectionTier ? (
@@ -106,14 +108,14 @@ export function DashboardHero({
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-end sm:gap-5">
             {planLabel ? (
-              <span className="inline-flex items-center justify-center rounded-full border border-border/35 bg-background/55 px-4 py-2 text-[12px] font-medium text-muted-foreground shadow-sm backdrop-blur-md dark:border-white/[0.10] dark:bg-white/[0.06] sm:justify-start">
+              <span className="inline-flex items-center justify-center rounded-full border border-black/[0.06] bg-white/[0.35] px-3.5 py-1.5 text-[11px] font-medium text-muted-foreground backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] sm:justify-start">
                 Plan:
                 <span className="ml-1.5 tabular-nums text-foreground">{planLabel}</span>
               </span>
             ) : null}
             {!nonApiProtectionTier ? (
               <div className="flex flex-col items-end gap-2">
-                <span className="hidden text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85 sm:block">
+                <span className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75 sm:block">
                   Connected platforms
                 </span>
                 <ConnectedPlatforms />

@@ -157,41 +157,46 @@ export function Notifications() {
     try {
       const res = await fetch('/api/fansly/notifications')
       const json = await res.json().catch(() => ({}))
-      if (!res.ok || !Array.isArray(json.notifications)) {
+      if (!res.ok || json.error || !Array.isArray(json.notifications)) {
         setFanslyPullNotifications([])
         return
       }
-      const fsNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => ({
-        id: `fs-${String(n.id ?? n.notificationId ?? '')}`,
-        type: 'system',
-        title: stripHtml(
-          typeof n.title === 'string' && n.title.trim().length
-            ? n.title
-            : typeof n.type === 'string'
-              ? n.type
-              : 'Fansly notification',
-        ),
-        description: stripHtml(
-          typeof n.text === 'string' && n.text.trim().length
-            ? n.text
-            : typeof n.body === 'string' && n.body.trim().length
-              ? n.body
-              : typeof n.message === 'string'
-                ? n.message
-                : '',
-        ),
-        read: false,
-        created_at:
-          typeof n.createdAt === 'string'
-            ? n.createdAt
-            : typeof n.date === 'string'
-              ? n.date
-              : new Date().toISOString(),
-        link: '/dashboard/messages',
-        platform: 'fansly',
-        avatar_url: null,
-        origin: 'platform_pull' as const,
-      }))
+      const fsNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => {
+        const fanId = typeof n.fanId === 'string' && n.fanId.trim().length ? n.fanId.trim() : ''
+        return {
+          id: `fs-${String(n.id ?? n.notificationId ?? '')}`,
+          type: 'system',
+          title: stripHtml(
+            typeof n.title === 'string' && n.title.trim().length
+              ? n.title
+              : typeof n.type === 'string'
+                ? n.type
+                : 'Fansly notification',
+          ),
+          description: stripHtml(
+            typeof n.text === 'string' && n.text.trim().length
+              ? n.text
+              : typeof n.body === 'string' && n.body.trim().length
+                ? n.body
+                : typeof n.message === 'string'
+                  ? n.message
+                  : '',
+          ),
+          read: false,
+          created_at:
+            typeof n.createdAt === 'string'
+              ? n.createdAt
+              : typeof n.date === 'string'
+                ? n.date
+                : new Date().toISOString(),
+          link: fanId
+            ? `/dashboard/messages?platform=fansly&chat=${encodeURIComponent(fanId)}`
+            : '/dashboard/messages?platform=fansly',
+          platform: 'fansly',
+          avatar_url: null,
+          origin: 'platform_pull' as const,
+        }
+      })
       setFanslyPullNotifications(applyPullNotificationOverlay(uid, fsNotifs))
     } catch {
       setFanslyPullNotifications([])
@@ -267,6 +272,13 @@ export function Notifications() {
     }, 150)
     return () => clearTimeout(t)
   }, [open, scrollTargetId])
+
+  /** Prefetch platform pull feeds so the bell badge includes OF + Fansly without opening first. */
+  useEffect(() => {
+    if (!userId) return
+    void loadOnlyFansPull(userId)
+    void loadFanslyPull(userId)
+  }, [userId, loadOnlyFansPull, loadFanslyPull])
 
   useEffect(() => {
     if (!open || !userId) return
@@ -516,7 +528,7 @@ export function Notifications() {
               >
                 <span className="text-sm font-medium">Live</span>
                 <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  Messages & tips from your platforms
+                  OnlyFans + Fansly inbox (and saved webhooks)
                 </span>
               </TabsTrigger>
               <TabsTrigger
@@ -680,7 +692,7 @@ function NotificationRow({
                 {notification.platform === 'onlyfans' ? (
                   <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-5 w-5 object-contain" />
                 ) : (
-                  <img src="/fansly-logo.png" alt="Fansly" className="h-5 w-5 object-contain" />
+                  <img src="/fansly-logo.svg" alt="Fansly" className="h-5 w-5 object-contain" />
                 )}
               </div>
             )}
@@ -688,7 +700,7 @@ function NotificationRow({
               {notification.platform === 'onlyfans' ? (
                 <img src="/onlyfans-logo.png" alt="" className="h-3 w-3 object-contain" />
               ) : (
-                <img src="/fansly-logo.png" alt="" className="h-3 w-3 object-contain" />
+                <img src="/fansly-logo.svg" alt="" className="h-3 w-3 object-contain" />
               )}
             </div>
           </div>

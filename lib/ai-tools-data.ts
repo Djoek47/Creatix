@@ -18,6 +18,8 @@ export interface AIToolMeta {
   hasRunner?: boolean
   /** Omit from AI Studio tools grid (still in Divine Manager `run_ai_studio_tool` ids when hasRunner) */
   hiddenFromLibrary?: boolean
+  /** Omit from dashboard “pinned tool” picker — use when the capability lives inside another surface (e.g. Frame editor) */
+  hiddenFromFeatured?: boolean
   /** Shown in the library but not runnable yet (no API / runner) */
   comingSoon?: boolean
 }
@@ -87,10 +89,11 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Gift Suggester',
     description: 'Personalized gift recommendations',
     longDescription:
-      'Suggest gifts using fan context and optional budget. Save HTTPS product links on the Gift wishlist page (AI Studio) so runs can reference real items and prices.',
+      'Suggest gifts using fan context, budget, and your saved wishlist. Add any number of product links on the Gift wishlist (Well-being, or AI Studio → gifts); we extract title, price, and details when a retailer allows it. Chatter and this runner use that context when a fan wants to send something. Open the runner from Divine Manager.',
     category: 'engagement',
     credits: 1,
     hasRunner: true,
+    hiddenFromLibrary: true,
   },
   {
     id: 'whale-whisperer',
@@ -159,7 +162,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   },
   {
     id: 'brand-uniformity',
-    name: 'Brand Uniformity',
+    name: 'Branding',
     description: 'Creator brand profile for cross-tool consistency',
     longDescription:
       'Beta tool for defining your creator brand identity (voice, colors, logos, watermark defaults) and reusing it across captioning, ideation, and publishing flows.',
@@ -207,9 +210,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'retention-tease',
     name: 'Retention content tease',
-    description: 'Future-drop & calendar teasers for churn risk',
+    description: 'On-brand teasers for fans who are starting to slip—timed to your calendar.',
     longDescription:
-      'On the Retention page, add a few notes about what is coming on your calendar, then run a batch pass: you get concrete teaser ideas for the feed, stories, or DMs aimed at people who look ready to drift—timed around what you plan to post. Each run uses the same credits as the churn predictor background pass.',
+      'Jot what’s next on the Retention hub, run a single batch, and get ready-to-use lines for feed, stories, and DMs. Credits match one churn-predictor background pass.',
     category: 'analytics',
     credits: 3,
     hasRunner: true,
@@ -262,11 +265,12 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Competitor Analysis',
     description: 'You vs peers in your band & one tier up',
     longDescription:
-      'For Pro: compares you to other creators in a similar-size band, then to the next band up, using anonymized cohort stats from Creatix—not anyone’s private revenue. You can add public @handles or short positioning notes so the run has real names to contrast. Optional web discovery and our shared tips library fill in context. We do not break into paywalled sites or steal private metrics.',
+      'For Pro: compares you to other creators in a similar-size band, then to the next band up, using anonymized cohort stats from Creatix—not anyone’s private revenue. You can add public @handles or short positioning notes so the run has real names to contrast. Optional web discovery and our shared tips library fill in context. We do not break into paywalled sites or steal private metrics. Not listed in AI Studio → Tools—ask Divine Manager to run competitor-analysis (or pin it on the home dashboard).',
     category: 'premium',
     isPro: true,
     credits: 12,
     hasRunner: true,
+    hiddenFromLibrary: true,
   },
   {
     id: 'circe-protection-shield',
@@ -309,11 +313,12 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Frame AI Assist',
     description: 'Editing and pacing copilot for Frame',
     longDescription:
-      'A server-side editing and pacing copilot for Frame, billed like our other AI tools. Your Frame deployment or the logged-in dashboard can call it with the usual session or export token your setup already uses.',
+      'Backend copilot for the Frame editor (messages in / out). Use it from Media & vault → video editor, or from a deployed Frame with your export token—not as a standalone dashboard “tool.” Divine can still invoke it by id when you ask.',
     category: 'content',
     credits: 2,
     hasRunner: true,
     hiddenFromLibrary: true,
+    hiddenFromFeatured: true,
   },
   {
     id: 'ariadne-trace',

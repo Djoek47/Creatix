@@ -320,7 +320,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'overview',
         title: 'Well-being hub',
         description:
-          'One screen for inbox load, Mimic profile snapshot, and a cosmic calendar—so you can breathe and plan without juggling five tabs.',
+          'One screen for inbox load, Mimic profile snapshot, Gift wishlist (product context for fans and AI), and a cosmic calendar—so you can breathe and plan without juggling five tabs.',
       },
       {
         id: 'mimic-snapshot',
@@ -482,13 +482,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'wishlist',
         title: 'Gift wishlist',
         description:
-          'Save HTTPS product links with titles and prices so Gift Suggester and other tools can reference real items.',
+          'Save HTTPS product links; we pull titles, prices, and details when possible so Chatter, Divine, and Gift Suggester know what to suggest when a fan sends a gift.',
       },
       {
         id: 'use',
         title: 'Using in tools',
         description:
-          'Return to AI Studio → Tools to run Gift Suggester with wishlist context for a fan or campaign.',
+          'Build your list here, then run Gift Suggester from Divine Manager (or pin it on the home dashboard) when you want AI-ranked picks using this context.',
       },
     ],
   },

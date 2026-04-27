@@ -490,11 +490,12 @@ export function MediaVaultHub() {
       </Card>
 
       <Tabs defaultValue="creatix" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="creatix">Creatix vault</TabsTrigger>
           <TabsTrigger value="onlyfans" onClick={() => ofPosts.length === 0 && void loadOfPosts()}>
             OnlyFans feed
           </TabsTrigger>
+          <TabsTrigger value="fansly">Fansly feed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="creatix" className="mt-4 space-y-4">
@@ -634,6 +635,14 @@ export function MediaVaultHub() {
               </div>
             </ScrollArea>
           )}
+        </TabsContent>
+
+        <TabsContent value="fansly" className="mt-4">
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Fansly feed is coming soon. For now, add and manage items from <span className="font-medium text-foreground">Creatix vault</span>.
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

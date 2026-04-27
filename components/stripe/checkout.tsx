@@ -19,7 +19,10 @@ import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
 import { DEFAULT_BILLING_SEATS } from '@/lib/billing/seats'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null
+const STRIPE_CONFIG_ERROR =
+  'Stripe checkout is not configured yet. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to enable payments.'
 
 interface CheckoutProps {
   productId: string
@@ -55,6 +58,8 @@ export function Checkout({
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(false)
+
+  const stripeReady = stripePromise !== null
 
   const fetchClientSecret = useCallback(async () => {
     setLoading(true)
@@ -95,7 +100,7 @@ export function Checkout({
     >
       <DialogTrigger asChild>
         {children || (
-          <Button variant={buttonVariant} className={buttonClassName} disabled={disabled}>
+          <Button variant={buttonVariant} className={buttonClassName} disabled={disabled || !stripeReady}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {buttonText}
           </Button>
@@ -128,6 +133,10 @@ export function Checkout({
               </Button>
             </div>
           </div>
+        ) : !stripeReady ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+            {STRIPE_CONFIG_ERROR}
+          </div>
         ) : (
           <div id="checkout" className="min-h-[400px]">
             <EmbeddedCheckoutProvider
@@ -156,6 +165,14 @@ export function CheckoutEmbed({
   focusPlatforms?: AdultBillingPlatform[] | null
   seats?: number
 }) {
+  if (!stripePromise) {
+    return (
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+        {STRIPE_CONFIG_ERROR}
+      </div>
+    )
+  }
+
   const fetchClientSecret = useCallback(() => {
     if (productId === PAID_PLAN_ID) {
       if (billingVariant == null || tierIndex == null) {

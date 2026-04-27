@@ -170,7 +170,7 @@ export default function BrandUniformityPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Brand Uniformity</h1>
+          <h1 className="text-2xl font-semibold">branding</h1>
           <p className="text-sm text-muted-foreground">
             Define your brand once and reuse it across captions, ideas, and exports.
           </p>

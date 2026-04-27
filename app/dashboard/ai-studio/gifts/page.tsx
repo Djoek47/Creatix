@@ -134,8 +134,9 @@ export default function GiftWishlistPage() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Gift wishlist</h1>
             <p className="text-sm text-muted-foreground">
-              Save product links. We fetch title and price when possible; AI Chatter and Gift Suggester can use this
-              list.
+              Add as many HTTPS product links as you like. We extract title, price, and description when the store
+              allows it—edit anything by hand when it does not. Your list gives Chatter, Divine Manager, and Gift
+              Suggester real context when a fan wants to send a gift or you run a guided pick.
             </p>
           </div>
         </div>

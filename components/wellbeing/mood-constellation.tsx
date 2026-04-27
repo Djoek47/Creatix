@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { sereneEase } from '@/lib/wellbeing/motion'
 
 const MOODS = [
-  { id: 'calm', label: 'Calm' },
-  { id: 'creative', label: 'Creative' },
-  { id: 'charged', label: 'Charged' },
-  { id: 'fragile', label: 'Fragile' },
-  { id: 'focused', label: 'Focused' },
+  { id: 'calm', label: 'Calm', emoji: '😌' },
+  { id: 'creative', label: 'Creative', emoji: '🎨' },
+  { id: 'charged', label: 'Charged', emoji: '⚡' },
+  { id: 'fragile', label: 'Fragile', emoji: '🫧' },
+  { id: 'focused', label: 'Focused', emoji: '🎯' },
 ] as const
 
 export function MoodConstellation() {
@@ -20,7 +20,8 @@ export function MoodConstellation() {
   const [focus, setFocus] = useState(70)
 
   const stateSentence = useMemo(() => {
-    return `Mood: ${mood}. Energy ${energy}, stress ${stress}, focus ${focus}.`
+    const stressDisplay = 100 - stress
+    return `Mood: ${mood}. Energy ${energy}, stress ${stressDisplay}, focus ${focus}.`
   }, [mood, energy, stress, focus])
 
   return (
@@ -41,12 +42,16 @@ export function MoodConstellation() {
                 whileHover={{ scale: 1.03 }}
                 transition={{ duration: 0.2, ease: sereneEase }}
                 onClick={() => setMood(item.id)}
-                className={`relative rounded-full border px-4 py-2 text-sm transition-colors ${
+                aria-label={`${item.label} mood`}
+                className={`relative inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors ${
                   active
                     ? 'border-amber-400/70 bg-amber-300/20 text-foreground'
                     : 'border-border/60 bg-background/70 text-muted-foreground'
                 }`}
               >
+                <span className="relative z-10 text-base leading-none" aria-hidden>
+                  {item.emoji}
+                </span>
                 <span className="relative z-10">{item.label}</span>
                 {active ? (
                   <motion.span

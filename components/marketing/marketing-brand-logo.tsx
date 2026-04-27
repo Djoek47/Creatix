@@ -61,8 +61,8 @@ export function MarketingBrandLogo({
           width={width}
           height={height}
           className={cn(
-            'relative z-10 rounded-full shadow-lg ring-2 ring-primary/25 ring-offset-2 ring-offset-background',
-            isHero && 'marketing-float gold-glow sm:h-48 sm:w-48',
+            'relative z-10 shrink-0 sm:h-10 sm:w-10',
+            isHero && 'marketing-float sm:h-48 sm:w-48',
             className,
           )}
           priority={priority}

@@ -3,9 +3,13 @@
  * and JSON-LD stay aligned when bands or add-ons change.
  */
 
-import { PRICING_TIERS, BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
+import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
+import { getProduct } from '@/lib/products'
+import { PROTECTION_PLAN_ID } from '@/lib/billing/access'
 
 const TIER_COUNT = PRICING_TIERS.length
+
+const protectionProduct = getProduct('cev-protection') ?? { priceMonthly: 25, name: 'Protection' }
 
 function firstTier() {
   return PRICING_TIERS[0]
@@ -21,17 +25,17 @@ export function buildPricingMetaDescription(): string {
   const high = lastTier()
   const ofMin = low.prices.of
   const ofMax = high.prices.of
-  const uniMin = low.prices.unified
-  const uniMax = high.prices.unified
-  const mv = BUNDLE_ADDONS.MV_FLAT
-  return `Creator CRM pricing by monthly revenue: OnlyFans Focus $${ofMin}–$${ofMax}/mo, Unified $${uniMin}–$${uniMax}/mo, ManyVids Focus $${mv}/mo. Bundles: OF+Fansly +$${BUNDLE_ADDONS.FL_ON_OF}, OF+MV +$${BUNDLE_ADDONS.MV_ON_OF}, Unified +$${BUNDLE_ADDONS.UNIFIED_ON_OF} on OF base. 2-day trial (card required), per-seat billing.`
+  const bMin = low.prices.of_fl
+  const bMax = high.prices.of_fl
+  const prot = protectionProduct.priceMonthly ?? 25
+  return `Creator CRM pricing by monthly revenue: OnlyFans $${ofMin}–$${ofMax}/mo, Fansly line per band, Bundled (OF+FL) $${bMin}–$${bMax}/mo. Protection & Anti-Piracy (non-API platforms) $${prot}/mo add-on. 2-day trial (card required), per-seat billing on main plans.`
 }
 
 /** Short line for landing / cross-links (keep under ~120 chars). */
 export function buildHomePricingTeaserLine(): string {
   const minOf = firstTier().prices.of
-  const maxUni = lastTier().prices.unified
-  return `Transparent pricing from $${minOf}/mo (OnlyFans Focus) to $${maxUni}/mo (Unified).`
+  const maxBundled = lastTier().prices.of_fl
+  return `Transparent pricing from $${minOf}/mo (OnlyFans Focus) to $${maxBundled}/mo (Bundled). Protection add-on from $${protectionProduct.priceMonthly}/mo.`
 }
 
 /** Extra keywords including current entry price for long-tail queries. */
@@ -42,11 +46,13 @@ export function buildPricingKeywords(): string[] {
     'OnlyFans tools pricing',
     'Fansly pricing',
     'ManyVids',
+    'anti-piracy protection',
     'revenue-based subscription',
     'Circe et Venus',
     'creator SaaS',
     'Focus plan',
-    'Unified plan',
+    'Bundled plan',
+    PROTECTION_PLAN_ID,
     'per-seat billing',
     `OnlyFans CRM $${minOf}`,
     'adult creator platform pricing',
@@ -63,8 +69,9 @@ export function buildPricingKeywords(): string[] {
 export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<string, unknown>[] {
   const low = firstTier()
   const high = lastTier()
-  const minMonthly = Math.min(low.prices.of, BUNDLE_ADDONS.MV_FLAT)
-  const maxMonthly = high.prices.unified
+  const minMonthly = Math.min(low.prices.of, low.prices.fl)
+  const maxMonthly = high.prices.of_fl
+  const prot = protectionProduct.priceMonthly ?? 25
 
   return [
     {
@@ -81,11 +88,12 @@ export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<s
       },
       offers: {
         '@type': 'AggregateOffer',
-        url: pricingPageUrl,
         priceCurrency: 'USD',
         lowPrice: minMonthly,
         highPrice: maxMonthly,
-        offerCount: TIER_COUNT * 6,
+        offerCount: TIER_COUNT,
+        description: `Main plans ${minMonthly}–${maxMonthly} USD/mo; Protection add-on ${prot} USD/mo (stackable)`,
+        url: pricingPageUrl,
         availability: 'https://schema.org/InStock',
       },
     },

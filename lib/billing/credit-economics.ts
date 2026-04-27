@@ -9,7 +9,7 @@
  */
 
 import { ALL_TOOLS_META, resolveCanonicalToolId } from '@/lib/ai-tools-data'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { isPaidPlanId, isProtectionPlanId } from '@/lib/billing/access'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { getMonthlyPriceUsd, TIER_COUNT, type BillingVariant } from '@/lib/pricing-matrix'
 import { getPlanLimits } from '@/lib/billing/plan-limits'
@@ -21,6 +21,9 @@ export const CREDITS_PER_SUBSCRIPTION_USD = 20
 
 /** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
 export const TRIAL_AI_CREDITS_LIMIT = 250
+
+/** $25/mo Protection (`cev-protection`): fixed monthly AI pool (not 20% of $25). */
+export const PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS = 800
 
 /** Old DB rows used a huge sentinel for “unlimited”; sync + UI ignore these. */
 export const LEGACY_AI_CREDITS_DB_SENTINEL = 999000
@@ -96,11 +99,15 @@ export type SubscriptionRowForCredits = {
 
 /**
  * Monthly included credits for the current subscription row.
+ * Protection (`cev-protection`): {@link PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS} fixed.
  * Paid: 20% of monthly USD (after seats) at CREDIT_USD_VALUE per credit.
  * Otherwise: trial cap.
  */
 export function computeMonthlyCreditAllowance(row: SubscriptionRowForCredits): number {
   const planId = String(row.plan_id ?? '')
+  if (isProtectionPlanId(planId)) {
+    return PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS
+  }
   if (!isPaidPlanId(planId)) {
     return TRIAL_AI_CREDITS_LIMIT
   }
@@ -138,8 +145,12 @@ export function includedCreditsForMarketing(monthlySubscriptionUsd: number, seat
 export function effectiveMonthlyCreditLimit(
   row: SubscriptionRowForCredits & { ai_credits_limit?: number | null },
 ): number {
-  const computed = computeMonthlyCreditAllowance(row)
   const planId = String(row.plan_id ?? '')
+  if (isProtectionPlanId(planId)) {
+    return Math.max(0, computeMonthlyCreditAllowance(row))
+  }
+
+  const computed = computeMonthlyCreditAllowance(row)
   const raw = Number(row.ai_credits_limit ?? NaN)
 
   if (!isPaidPlanId(planId)) {

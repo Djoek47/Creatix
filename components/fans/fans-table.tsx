@@ -188,7 +188,7 @@ export function FansTable({
                       <img src="/onlyfans-logo.png" alt="" className="h-4 w-4 object-contain" />
                     )}
                     {fan.platform === 'fansly' && (
-                      <img src="/fansly-logo.png" alt="" className="h-4 w-4 object-contain" />
+                      <img src="/fansly-logo.svg" alt="" className="h-4 w-4 object-contain" />
                     )}
                     <Badge
                       variant="outline"

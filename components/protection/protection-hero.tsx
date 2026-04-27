@@ -34,6 +34,11 @@ export function ProtectionHero() {
                 Hunt infringing links, label scams and paywall traps, draft DMCAs, and keep a clean archive of what
                 you already handled—so nothing slips through the cracks.
               </p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/90">Covered store types</span> (no creator API required):{' '}
+                Clips4Sale · ManyVids · Loyalfans · Fanvue · MYM — add matching PNGs in{' '}
+                <code className="rounded bg-muted/80 px-1">public/brands/</code> (e.g. <code className="rounded bg-muted/80 px-1">fanvue.png</code>) to show logos here.
+              </p>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 
 const ROTATE_MS = 10_000
 
-type BaseKey = 'of' | 'fl' | 'mv'
+type BaseKey = 'of' | 'fl' | 'ap'
 
 type BaseOption = {
   key: BaseKey
@@ -21,10 +21,26 @@ type BaseOption = {
   logoSrc: string | null
 }
 
+type RotatingPlatformMark = {
+  name: string
+  logoSrc?: string
+  short?: string
+  className?: string
+}
+
 export function HomePricingSwitch() {
   const { mode } = useMarketingMode()
   const reduce = useReducedMotion()
   const tier0 = PRICING_TIERS[0]!
+  const antiPiracyPlatforms = useMemo<RotatingPlatformMark[]>(
+    () => [
+      { name: 'MYM', logoSrc: '/mym-logo.png', className: 'h-6 w-11' },
+      { name: 'Clips4Sale', logoSrc: '/clips4sale-logo.png', className: 'h-6 w-10' },
+      { name: 'LoyalFans', logoSrc: '/loyalfans-logo.svg', className: 'h-6 w-10' },
+      { name: 'Fanvue', logoSrc: '/fanvue-logo.png', className: 'h-6 w-6' },
+    ],
+    [],
+  )
 
   const bases = useMemo<BaseOption[]>(
     () => [
@@ -41,17 +57,18 @@ export function HomePricingSwitch() {
         logoSrc: '/fansly-logo.png',
       },
       {
-        key: 'mv',
-        name: 'ManyVids',
-        price: tier0.prices.mv,
+        key: 'ap',
+        name: 'Anti-piracy bundle',
+        price: 25,
         logoSrc: null,
       },
     ],
-    [tier0],
+    [tier0.prices.of, tier0.prices.fl],
   )
 
   const [active, setActive] = useState<BaseKey>('of')
   const [hovered, setHovered] = useState<BaseKey | null>(null)
+  const [antiPiracyIndex, setAntiPiracyIndex] = useState(0)
 
   const displayed = hovered ?? active
   const headlinePrice = bases.find((b) => b.key === displayed)?.price ?? tier0.prices.of
@@ -68,6 +85,14 @@ export function HomePricingSwitch() {
     const id = window.setInterval(advance, ROTATE_MS)
     return () => window.clearInterval(id)
   }, [reduce, hovered, advance])
+
+  useEffect(() => {
+    if (reduce) return
+    const id = window.setInterval(() => {
+      setAntiPiracyIndex((prev) => (prev + 1) % antiPiracyPlatforms.length)
+    }, 2400)
+    return () => window.clearInterval(id)
+  }, [reduce, antiPiracyPlatforms.length])
 
   if (mode === 'pro') return <LandingPricingSection embedded />
 
@@ -123,7 +148,35 @@ export function HomePricingSwitch() {
                 )}
               >
                 <span className="flex h-9 w-9 items-center justify-center sm:h-10 sm:w-10">
-                  {b.logoSrc ? (
+                  {b.key === 'ap' ? (
+                    <span className="relative inline-flex h-8 w-14 items-center justify-center rounded-md border border-amber-400/35 bg-gradient-to-br from-amber-400/15 via-primary/10 to-fuchsia-400/12 p-1 shadow-[0_0_22px_-12px_rgba(251,191,36,0.85)] sm:h-9 sm:w-16">
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.span
+                          key={antiPiracyPlatforms[antiPiracyIndex]?.name}
+                          initial={reduce ? false : { opacity: 0, y: 6, scale: 0.92 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.92 }}
+                          transition={{ duration: reduce ? 0 : 0.22 }}
+                          className={cn(
+                            'flex items-center justify-center text-[10px] font-semibold tracking-tight text-foreground/95',
+                            antiPiracyPlatforms[antiPiracyIndex]?.className ?? 'h-6 w-10',
+                          )}
+                        >
+                          {antiPiracyPlatforms[antiPiracyIndex]?.logoSrc ? (
+                            <Image
+                              src={antiPiracyPlatforms[antiPiracyIndex]!.logoSrc!}
+                              alt={antiPiracyPlatforms[antiPiracyIndex]!.name}
+                              width={56}
+                              height={28}
+                              className="h-full w-full rounded-sm object-contain"
+                            />
+                          ) : (
+                            antiPiracyPlatforms[antiPiracyIndex]?.short ?? antiPiracyPlatforms[antiPiracyIndex]?.name
+                          )}
+                        </motion.span>
+                      </AnimatePresence>
+                    </span>
+                  ) : b.logoSrc ? (
                     <Image
                       src={b.logoSrc}
                       alt=""
@@ -132,7 +185,7 @@ export function HomePricingSwitch() {
                       className="object-contain opacity-90"
                     />
                   ) : (
-                    <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">MV</span>
+                    <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">AP</span>
                   )}
                 </span>
                 <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
@@ -143,8 +196,6 @@ export function HomePricingSwitch() {
             )
           })}
         </div>
-        <p className="mt-3 text-[11px] text-muted-foreground/80">Hover a platform. Or wait — it cycles every ten seconds.</p>
-
         <div className="mt-8 flex justify-center">
           <Link
             href="/pricing"

@@ -527,7 +527,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-semibold">
                   <Sparkles className="h-5 w-5" />
-                  Brand Uniformity
+                  branding
                   <Badge variant="secondary">Beta</Badge>
                 </CardTitle>
                 <CardDescription>
@@ -536,7 +536,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild variant="outline">
-                  <Link href="/dashboard/brand-uniformity">Open Brand Uniformity</Link>
+                  <Link href="/dashboard/brand-uniformity">Open branding</Link>
                 </Button>
               </CardContent>
             </Card>

@@ -94,8 +94,8 @@ export function CommunityTipsFeed() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Lightbulb className="h-8 w-8 text-amber-500" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Lightbulb className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
           <h2 className="text-2xl font-semibold tracking-tight">Community tips</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">

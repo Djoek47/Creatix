@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   MessageSquare,
   Sparkles,
@@ -58,7 +61,17 @@ export type DashboardCommandTilesProps = {
   tierIndex?: number | null
 }
 
+const tileStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+}
+const tileItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } },
+}
+
 export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTilesProps) {
+  const reduce = useReducedMotion()
   const tierSheen =
     tierIndex != null && Number.isFinite(tierIndex) && Math.floor(tierIndex) >= 8
       ? 'shadow-[0_0_40px_-12px_rgba(168,85,247,0.25)]'
@@ -68,28 +81,35 @@ export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTil
 
   return (
     <div className="space-y-3">
-      <div className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-5', tierSheen)}>
+      <motion.div
+        className={cn('grid gap-3 sm:grid-cols-2 xl:grid-cols-5', tierSheen)}
+        variants={reduce ? undefined : tileStagger}
+        initial={reduce ? false : 'hidden'}
+        animate={reduce ? false : 'show'}
+      >
         {tiles.map((tile) => {
           const boosted =
             (accent === 'circe' && tile.href === '/dashboard/messages') ||
             (accent === 'gold' && tile.href === '/dashboard/ai-studio') ||
             (accent === 'venus' && tile.href === '/dashboard/well-being')
           return (
+            <motion.div key={tile.href} variants={reduce ? undefined : tileItem} className="min-w-0">
             <Link
-              key={tile.href}
               href={tile.href}
               className={cn(
-                'group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-all duration-300 md:p-5',
-                'shadow-sm hover:shadow-md',
+                'group relative block overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-shadow duration-300 md:p-5',
+                'shadow-sm hover:shadow-lg hover:shadow-amber-500/5',
+                'hover:-translate-y-0.5 motion-safe:transition-transform motion-safe:duration-300',
                 tile.accent,
                 boosted && 'ring-1 ring-gold/30 md:scale-[1.01]',
               )}
             >
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-violet-500/6 via-transparent to-amber-500/5 opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-amber-400/10 to-fuchsia-500/10 blur-2xl transition-opacity group-hover:opacity-100" />
               <div className="relative flex items-start gap-3">
                 <div
                   className={cn(
-                    'rounded-xl border border-border/50 bg-background/70 p-2.5 shadow-sm backdrop-blur-sm transition-transform group-hover:scale-[1.03]',
+                    'rounded-xl border border-border/50 bg-background/70 p-2.5 shadow-sm backdrop-blur-sm transition-transform duration-300 group-hover:scale-[1.05] group-hover:shadow-md',
                     tile.iconClass,
                   )}
                 >
@@ -101,9 +121,10 @@ export function DashboardCommandTiles({ accent, tierIndex }: DashboardCommandTil
                 </div>
               </div>
             </Link>
+            </motion.div>
           )
         })}
-      </div>
+      </motion.div>
       <div className="flex justify-end">
         <Link
           href="/dashboard/divine-manager"

@@ -13,8 +13,9 @@ import type { ReactNode } from 'react'
 const nav = [
   { href: '/', label: 'Home' },
   { href: '/features', label: 'Features' },
+  { href: '/demo', label: 'Demo' },
+  { href: '/mobile-app', label: 'Mobile App' },
   { href: '/pricing', label: 'Pricing' },
-  { href: '/how-it-works', label: 'How it works' },
 ] as const
 
 export function MarketingSiteChrome({ children }: { children: ReactNode }) {

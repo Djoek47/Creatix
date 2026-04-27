@@ -40,8 +40,8 @@ function ToolRunnerInner() {
     if (toolId === 'ariadne-trace') {
       router.replace('/dashboard/ai-studio/ariadne')
     }
-    if (toolId === 'frame-studio') {
-      router.replace('/dashboard/ai-studio')
+    if (toolId === 'frame-studio' || toolId === 'frame-ai-assist') {
+      router.replace('/dashboard/ai-studio?tab=library')
     }
     if (toolId === 'brand-uniformity') {
       router.replace('/dashboard/brand-uniformity')
@@ -71,6 +71,7 @@ function ToolRunnerInner() {
     toolId === 'circe-protection-shield' ||
     toolId === 'ariadne-trace' ||
     toolId === 'frame-studio' ||
+    toolId === 'frame-ai-assist' ||
     toolId === 'brand-uniformity' ||
     toolId === 'credits-planner'
   ) {

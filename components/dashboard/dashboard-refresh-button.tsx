@@ -26,6 +26,11 @@ const PLATFORM_META: Record<
     label: 'ManyVids',
     ring: 'shadow-[0_0_12px_rgba(233,30,99,0.45)]',
   },
+  loyalfans: {
+    short: 'LF',
+    label: 'LoyalFans',
+    ring: 'shadow-[0_0_12px_rgba(196,30,58,0.45)]',
+  },
 }
 
 function PlatformPulse({

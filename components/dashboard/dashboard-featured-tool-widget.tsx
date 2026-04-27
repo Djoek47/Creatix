@@ -106,8 +106,11 @@ export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
                 </span>
               ) : null}
             </CardTitle>
-            <CardDescription className="max-w-2xl text-sm">
-              {meta.longDescription || meta.description}
+            <CardDescription className="max-w-2xl space-y-2 text-left">
+              <p className="text-sm font-medium leading-snug text-foreground/95">{meta.description}</p>
+              {meta.longDescription && meta.longDescription.trim() !== meta.description.trim() ? (
+                <p className="text-sm font-normal leading-relaxed text-muted-foreground">{meta.longDescription}</p>
+              ) : null}
             </CardDescription>
           </div>
           <Button

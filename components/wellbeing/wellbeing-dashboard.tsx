@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Loader2, ArrowUpRight, Sparkles, AlertCircle } from 'lucide-react'
+import { Loader2, ArrowUpRight, Sparkles, AlertCircle, Gift, Info } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AmbientLayer } from '@/components/wellbeing/ambient-layer'
 import { MoodConstellation } from '@/components/wellbeing/mood-constellation'
@@ -15,6 +15,7 @@ import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-c
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 import { fadeInUp } from '@/lib/wellbeing/motion'
 
@@ -149,6 +150,52 @@ export function WellbeingDashboard() {
           {insight?.setupHint ? (
             <p className="max-w-3xl text-xs text-muted-foreground">{insight.setupHint}</p>
           ) : null}
+        </motion.section>
+
+        <motion.section {...fadeInUp}>
+          <Card className="relative h-full overflow-hidden border border-border/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-500/35 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_28px_-8px_rgba(168,85,247,0.35),0_12px_40px_-16px_rgba(0,0,0,0.2)]">
+            <CardContent className="p-4 pt-5">
+              <div className="flex items-start gap-1 sm:gap-2">
+                <Link
+                  href="/dashboard/ai-studio/gifts"
+                  className="group flex min-w-0 flex-1 items-start gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40"
+                  data-tour="well-being-gift-wishlist"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 transition-all duration-300 group-hover:from-pink-500/20 group-hover:via-amber-400/15 group-hover:to-cyan-500/15 group-hover:ring-purple-400/25">
+                    <Gift className="ai-tools-lib-icon h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1 py-0.5">
+                    <h2 className="ai-tools-lib-title text-[15px] font-semibold leading-tight">Gift wishlist</h2>
+                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                      Your saved gift links—so fans and AI have real products to talk about.
+                    </p>
+                  </div>
+                </Link>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label="How Gift wishlist works"
+                    >
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] text-sm" align="end" sideOffset={6}>
+                    <p className="font-medium text-foreground">How it works</p>
+                    <p className="mt-2 text-muted-foreground">
+                      Add any product links you like. We try to load title, price, and details when a store allows
+                      it—you can always edit. Chatter, Divine Manager, and Gift Suggester can use that context when
+                      a fan wants to send a gift. Managing the list is free; use Gift Suggester from Divine Manager
+                      (1 credit) when you want AI-ranked picks.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </CardContent>
+          </Card>
         </motion.section>
 
         <motion.section {...fadeInUp}>

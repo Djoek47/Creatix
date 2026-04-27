@@ -10,7 +10,7 @@ import {
   subscriptionFinancialFieldsFromMerged,
   type SubscriptionRowForCredits,
 } from '@/lib/billing/credit-economics'
-import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
+import { isPaidPlanId, isProtectionPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
@@ -149,6 +149,31 @@ async function notifyPlanChange(
   })
 }
 
+/** Protection is a second Stripe subscription — never mix into main `plan_id` / `status` period fields. */
+async function patchProtectionSubscription(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  stripeCustomerId: string,
+  sub: Stripe.Subscription,
+) {
+  const { data: existingRow } = await supabase
+    .from('subscriptions')
+    .select('user_id')
+    .eq('stripe_customer_id', stripeCustomerId)
+    .maybeSingle()
+  const userId = (existingRow as { user_id?: string } | null)?.user_id
+  if (!userId) return
+  const active = ['active', 'trialing', 'past_due'].includes(sub.status)
+  await supabase
+    .from('subscriptions')
+    .update({
+      protection_stripe_subscription_id: sub.id,
+      protection_plan_active: active,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+}
+
 async function upsertSubscriptionByStripeCustomerId(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -246,6 +271,17 @@ export async function POST(req: NextRequest) {
           break
         }
         const rawPlan = meta?.productId
+        if (userId && customerId && rawPlan && isProtectionPlanId(rawPlan)) {
+          const subRef = session.subscription
+          const subId =
+            typeof subRef === 'string' ? subRef : (subRef as Stripe.Subscription | null)?.id ?? null
+          await upsertSubscriptionByUserId(supabase, userId, {
+            stripe_customer_id: customerId,
+            protection_stripe_subscription_id: subId,
+            protection_plan_active: true,
+          })
+          break
+        }
         const planId = normalizePlanId(rawPlan)
         const tierMeta = metaPatch(meta)
         const trialEndsAt =
@@ -290,6 +326,10 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription
         const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
         const rawPlan = sub.metadata?.productId
+        if (isProtectionPlanId(rawPlan)) {
+          await patchProtectionSubscription(supabase, customerId, sub)
+          break
+        }
         const planId = normalizePlanId(rawPlan)
         const tierMeta = metaPatch(sub.metadata as Record<string, string>)
         const period = getSubscriptionPeriodSeconds(sub)
@@ -332,12 +372,39 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
         const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
-
-        await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
-          stripe_subscription_id: sub.id,
-          status: 'canceled',
-          cancel_at_period_end: false,
-        })
+        const { data: row } = await supabase
+          .from('subscriptions')
+          .select('user_id, stripe_subscription_id, protection_stripe_subscription_id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle()
+        const st = row as {
+          user_id: string
+          stripe_subscription_id: string | null
+          protection_stripe_subscription_id: string | null
+        } | null
+        if (st?.user_id) {
+          if (
+            isProtectionPlanId(sub.metadata?.productId) ||
+            st.protection_stripe_subscription_id === sub.id
+          ) {
+            await supabase
+              .from('subscriptions')
+              .update({
+                protection_stripe_subscription_id: null,
+                protection_plan_active: false,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', st.user_id)
+            break
+          }
+        }
+        if (st?.user_id && st.stripe_subscription_id === sub.id) {
+          await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
+            stripe_subscription_id: sub.id,
+            status: 'canceled',
+            cancel_at_period_end: false,
+          })
+        }
         break
       }
 

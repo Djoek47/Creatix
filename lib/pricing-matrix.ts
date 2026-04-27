@@ -30,6 +30,7 @@ export const REVENUE_TIERS: readonly RevenueTierRow[] = PRICING_TIERS.map((t) =>
   minUsd: t.revenueMin ?? 0,
   maxUsd: t.revenueMax,
   focusBaseUsd: t.prices.of,
+  /** Same as Bundled (OF+FL); `unified` key is legacy alias. */
   multiPriceUsd: t.prices.unified,
 }))
 
@@ -101,7 +102,7 @@ export function twoPlatformFocusUsd(
 export function focusPlatformDisplayName(platform: AdultBillingPlatform): string {
   if (platform === 'onlyfans') return 'OnlyFans'
   if (platform === 'fansly') return 'Fansly'
-  return 'ManyVids'
+  return 'Anti-piracy'
 }
 
 export function focusPlatformsShortLabel(platforms: AdultBillingPlatform[]): string {
@@ -118,7 +119,7 @@ function normalizeFocusPlatformsInput(
   const sorted = sortFocusPlatforms(platforms)
   if (sorted.length === 0) return ['onlyfans']
   if (sorted.length > 2) {
-    throw new Error('Focus supports at most 2 platforms; use Unified for all three.')
+    throw new Error('Focus supports at most 2 platforms; use Bundled (workspace) for OnlyFans + Fansly together.')
   }
   return sorted
 }
@@ -159,7 +160,7 @@ export function checkoutProductName(
   const row = getTierByIndex(tierIndex)
   if (!row) return 'Circe et Venus'
   if (variant === 'multi') {
-    return `Circe et Venus — Unified — ${row.label}`
+    return `Circe et Venus — Bundled (OnlyFans + Fansly) — ${row.label}`
   }
   const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
   const label = focusPlatformsShortLabel(fps)
@@ -174,7 +175,7 @@ export function checkoutProductDescription(
   const row = getTierByIndex(tierIndex)
   if (!row) return 'Monthly subscription'
   if (variant === 'multi') {
-    return `Monthly · ${row.label} · All adult platforms in one workspace`
+    return `Monthly · ${row.label} · OnlyFans + Fansly in one workspace (Bundled)`
   }
   const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
   if (fps.length === 1) {

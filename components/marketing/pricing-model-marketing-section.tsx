@@ -29,7 +29,7 @@ export function PricingModelMarketingSection({ layout = 'default' }: { layout?: 
               </div>
               <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">Focus (1–2 platforms)</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Choose the platforms you use. Picking all three moves you to Unified pricing in checkout.
+                Choose the platforms you use (one or two for Focus), or pick Bundled for OnlyFans + Fansly in one bill.
               </p>
             </div>
             <div className="rounded-2xl border border-circe/25 bg-gradient-to-br from-circe/5 to-card p-6 text-left shadow-sm">
@@ -43,9 +43,10 @@ export function PricingModelMarketingSection({ layout = 'default' }: { layout?: 
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-fuchsia-500/15 text-fuchsia-300">
                 <Sparkles className="h-5 w-5" aria-hidden />
               </div>
-              <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">Unified (all three)</h3>
+              <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">Bundled + Protection</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                One monthly price for OnlyFans, Fansly, and ManyVids — see the calculator on Pricing for your band.
+                Bundled is OnlyFans + Fansly. Non-API stores (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) use the
+                $25/mo Protection add-on — see Pricing.
               </p>
             </div>
           </div>

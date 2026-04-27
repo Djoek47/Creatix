@@ -163,6 +163,10 @@ const proTools = PRO_TOOL_ROWS.map((row) => {
   }
 })
 
+function showToolInSelectorGrid(tool: { id: string }) {
+  return !getToolMeta(resolveCanonicalToolId(tool.id))?.hiddenFromLibrary
+}
+
 // Caption Generator Result Interface
 interface CaptionResult {
   captions: Array<{ text: string; tone: string; length: string }>
@@ -1392,7 +1396,7 @@ export function AIToolsSelector({
         <CardContent>
           <ScrollArea className="h-[400px] pr-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {workingTools.map((tool) => (
+              {workingTools.filter(showToolInSelectorGrid).map((tool) => (
                 <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-primary/35">
                   <div
                     className="absolute right-2 top-2 z-10"
@@ -1511,7 +1515,7 @@ export function AIToolsSelector({
                 {isPro && <Badge className="bg-gold/20 text-gold text-[10px]">Unlocked</Badge>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {proTools.map((tool) => (
+                {proTools.filter(showToolInSelectorGrid).map((tool) => (
                   <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-gold/40">
                     <div
                       className="absolute right-2 top-2 z-10"

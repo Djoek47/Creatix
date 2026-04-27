@@ -1,4 +1,4 @@
--- CREATRIX Database Schema
+-- Creatix / Circe et Venus database schema (initial)
 -- Creator Management SaaS Platform
 
 -- Enable UUID extension

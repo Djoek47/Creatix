@@ -1,15 +1,15 @@
 import { cn } from '@/lib/utils'
 import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 
-/** How Focus vs Unified works — short; details live on /pricing. */
+/** How Focus vs Bundled works — short; details live on /pricing. */
 export function PricingModelInlineBlurb({ className }: { className?: string }) {
   return (
     <p className={cn('text-muted-foreground', className)}>
-      <strong className="text-foreground">Focus</strong> covers the adult platforms you select (one or two).{' '}
-      <strong className="text-foreground">Unified</strong> is OnlyFans, Fansly, and ManyVids in one bill (
-      <strong className="text-foreground">{`OnlyFans base + $${BUNDLE_ADDONS.UNIFIED_ON_OF}`}/mo</strong> for your
-      revenue band). Your price scales with a simple monthly revenue band — use the calculator on{' '}
-      <strong className="text-foreground">Pricing</strong> for exact numbers.
+      <strong className="text-foreground">Focus</strong> is one platform or a two-platform pair (e.g. OnlyFans + ManyVids) with band-specific list
+      prices. <strong className="text-foreground">Bundled</strong> is OnlyFans + Fansly in one bill for that band.{' '}
+      <strong className="text-foreground">Protection &amp; Anti-Piracy</strong> is a separate $25/mo add-on for Clips4Sale, ManyVids, Loyalfans,
+      Fanvue, MYM, and other non-API coverage (stackable with a main plan). List bundles like OF+FL use fixed band prices, not a simple +$
+      {BUNDLE_ADDONS.FL_ON_OF} on the OF line — use the <strong className="text-foreground">Pricing</strong> calculator for exact numbers.
     </p>
   )
 }

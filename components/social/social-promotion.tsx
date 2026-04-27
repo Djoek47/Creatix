@@ -275,7 +275,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
   return (
     <div className="min-w-0 space-y-8">
       <div className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
@@ -412,23 +412,25 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm">
-            <CardHeader className="pb-3">
+          <Card className="min-w-0 overflow-hidden rounded-2xl border-border/80 shadow-sm">
+            <CardHeader className="min-w-0 pb-3">
               <CardTitle className="text-base font-semibold tracking-tight">Templates</CardTitle>
               <CardDescription className="text-sm">Tap one to load into the editor.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="min-w-0">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 {promoTemplates.map((template) => (
                   <Button
                     key={template.name}
                     type="button"
                     variant="outline"
-                    className="h-auto flex-col items-start rounded-2xl border-border/70 p-4 text-left"
+                    className="flex h-auto min-h-[4.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-1 overflow-hidden rounded-2xl border-border/70 p-4 text-left whitespace-normal [text-wrap:pretty]"
                     onClick={() => applyTemplate(template)}
                   >
-                    <span className="font-medium">{template.name}</span>
-                    <span className="mt-1 line-clamp-2 text-xs text-muted-foreground">{template.template}</span>
+                    <span className="w-full min-w-0 font-medium leading-snug">{template.name}</span>
+                    <span className="line-clamp-3 w-full min-w-0 break-words text-left text-xs leading-relaxed text-muted-foreground">
+                      {template.template}
+                    </span>
                   </Button>
                 ))}
               </div>

@@ -11,10 +11,12 @@ import assert from 'node:assert/strict'
 import {
   CREDIT_USD_VALUE,
   TRIAL_AI_CREDITS_LIMIT,
+  PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
   computeMonthlyCreditAllowance,
+  effectiveMonthlyCreditLimit,
   includedCreditsForMarketing,
 } from '@/lib/billing/credit-economics'
-import { PAID_PLAN_ID } from '@/lib/billing/access'
+import { PAID_PLAN_ID, PROTECTION_PLAN_ID } from '@/lib/billing/access'
 import { getMonthlyPriceUsd, TIER_COUNT } from '@/lib/pricing-matrix'
 
 function expectedPaidCredits(
@@ -64,7 +66,7 @@ function run() {
   assert.equal(
     computeMonthlyCreditAllowance(multi),
     expectedPaidCredits('multi', 5, 1),
-    'multi (unified) price at tier 5',
+    'multi (Bundled OF+FL) price at tier 5',
   )
 
   const seats3 = {
@@ -95,6 +97,17 @@ function run() {
     includedCreditsForMarketing(100, 1),
     2000,
     '$100/mo → 20% → $20 → 2000 credits at $0.01/credit',
+  )
+
+  assert.equal(
+    computeMonthlyCreditAllowance({ plan_id: PROTECTION_PLAN_ID }),
+    PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+    'protection plan uses fixed monthly credits (not 20% of $25)',
+  )
+  assert.equal(
+    effectiveMonthlyCreditLimit({ plan_id: PROTECTION_PLAN_ID, ai_credits_limit: 999000 }),
+    PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+    'effective cap for protection ignores legacy huge ai_credits_limit',
   )
 
   console.log('credit-economics.test.ts: all assertions passed')

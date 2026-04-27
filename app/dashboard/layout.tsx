@@ -15,6 +15,8 @@ import { CirceTipPopupHost } from '@/components/community/circe-tip-popup'
 import { ProtocolTasksProvider } from '@/components/divine/protocol-tasks-context'
 import { DashboardDocumentScrollLock } from '@/components/dashboard/dashboard-document-scroll-lock'
 import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
+import { ProtectionOnlyRedirect } from '@/components/dashboard/protection-only-redirect'
+import { isMainApiPaid, isProtectionEntitled } from '@/lib/billing/access'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
 export const metadata: Metadata = {
@@ -48,10 +50,13 @@ export default async function DashboardLayout({
 
   const { data: subRow } = await supabase
     .from('subscriptions')
-    .select('plan_id,status,divine_voice_premium')
+    .select('plan_id,status,divine_voice_premium,protection_plan_active')
     .eq('user_id', user.id)
     .maybeSingle()
   const divineVoicePremium = hasDivineVoicePremium(subRow as SubscriptionRowForPremiumDivine | null)
+  const protectionOnly =
+    isProtectionEntitled(subRow as { protection_plan_active?: boolean | null }) &&
+    !isMainApiPaid(subRow as { plan_id?: string | null; status?: string | null })
 
   return (
     <OnboardingProvider 
@@ -66,6 +71,7 @@ export default async function DashboardLayout({
           <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
             <DashboardDocumentScrollLock />
             <DashboardRealmEntrance />
+            <ProtectionOnlyRedirect protectionOnly={protectionOnly} />
             <div className="flex h-dvh max-h-dvh min-h-0 overflow-hidden bg-background">
               {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
               <div className="hidden h-full min-h-0 md:flex md:flex-col">

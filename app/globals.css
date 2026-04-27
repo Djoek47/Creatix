@@ -1265,60 +1265,6 @@ body {
   overflow-x: hidden;
 }
 
-/*
- * Draggable dashboard (react-grid-layout):
- * - Items are position:absolute with explicit width/height; inner content must fill that box (flex) or it visually
- *   “floats” and overlaps the next row. RGL also briefly uses % positioning before mount — measureBeforeMount +
- *   useCSSTransforms={false} reduces that mismatch.
- */
-.dashboard-widgets-grid.react-grid-layout .react-grid-item {
-  box-sizing: border-box;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-  /* Avoid strict containment — it can break drag offsetParent / hit-testing with react-grid-layout v2. */
-}
-
-/* Widget wrapper sizes to content; grid row height is updated via ResizeObserver (no inner scrollbars). */
-.dashboard-widgets-grid.react-grid-layout .react-grid-item > *:first-child {
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  width: 100%;
-  min-width: 0;
-  align-self: flex-start;
-}
-
-.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-draggable-dragging,
-.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-resizable-resizing {
-  z-index: 20;
-  overflow: visible;
-  contain: none;
-}
-
-.dashboard-widgets-grid.react-grid-layout .react-grid-item.react-grid-placeholder {
-  background: oklch(0.65 0.16 85 / 0.22);
-  border-radius: 0.75rem;
-  opacity: 1;
-}
-
-/* Right-edge resize (width in grid columns): visible target, above card content */
-.dashboard-widgets-grid.react-grid-layout .react-grid-item .react-resizable-handle-e {
-  top: 0;
-  right: -4px;
-  width: 14px;
-  height: 100% !important;
-  min-height: 3rem;
-  z-index: 6;
-  transform: none;
-  cursor: ew-resize;
-  border-radius: 0 0.75rem 0.75rem 0;
-  background: oklch(0.55 0.02 280 / 0.12);
-}
-.dashboard-widgets-grid.react-grid-layout .react-grid-item .react-resizable-handle-e:hover,
-.dashboard-widgets-grid.react-grid-layout .react-grid-item .react-resizable-handle-e:active {
-  background: oklch(0.65 0.16 85 / 0.28);
-}
-
 /* Guide page — slow decorative orbit rings */
 @keyframes guide-orbit-spin {
   from {

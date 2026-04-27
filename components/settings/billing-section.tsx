@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Checkout } from '@/components/stripe/checkout'
-import { PRODUCTS, PAID_TIER_FEATURES } from '@/lib/products'
+import { PRODUCTS, PAID_TIER_FEATURES, getProduct } from '@/lib/products'
 import {
   getSubscriptionStatus,
   createCustomerPortalSession,
@@ -40,10 +40,8 @@ import {
   focusFanslyUsd,
   focusPlatformDisplayName,
   twoPlatformFocusUsd,
-  MANYVIDS_FOCUS_SINGLE_FLAT_USD,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
-import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
 import {
   ADULT_BILLING_PLATFORMS,
@@ -51,7 +49,7 @@ import {
   resolveAllowedFocusPlatforms,
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
-import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
+import { PAID_PLAN_ID, isPaidPlanId, PROTECTION_PLAN_ID, isProtectionEntitled } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
 
@@ -78,6 +76,8 @@ interface SubscriptionData {
   revenue_band_label?: string | null
   stripe_customer_id?: string | null
   billing_seats?: number | null
+  protection_plan_active?: boolean | null
+  protection_stripe_subscription_id?: string | null
 }
 
 type WalletSnapshot = {
@@ -149,7 +149,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
       const bs = (row as SubscriptionData).billing_seats
       if (typeof bs === 'number' && bs >= 1) setCheckoutSeats(Math.min(MAX_BILLING_SEATS, bs))
       if (row.billing_variant === 'multi') {
-        setPlatformSelection(new Set(ADULT_BILLING_PLATFORMS))
+        setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
       } else if (row.billing_variant === 'single') {
         const allowed = resolveAllowedFocusPlatforms(row.billing_focus_platforms, row.billing_focus_platform)
         setPlatformSelection(new Set(allowed))
@@ -337,6 +337,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         n.delete(p)
         return n
       }
+      if (n.size >= 2) return n
       n.add(p)
       return n
     })
@@ -346,7 +347,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
     () => sortFocusPlatforms([...platformSelection]),
     [platformSelection],
   )
-  const isUnifiedSelection = sortedSelection.length === 3
   const focusCheckoutList =
     sortedSelection.length >= 1 && sortedSelection.length <= 2 ? sortedSelection : null
 
@@ -487,7 +487,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </div>
             {paidActive && (
               <p className="mt-3 text-xs text-muted-foreground">
-                To change band, Focus platforms, or Unified, use checkout below (new session) or cancel and
+                To change band, Focus platforms, Bundled, or Protection, use checkout below (new session) or cancel and
                 resubscribe. The Stripe portal may not list every dynamic price.
               </p>
             )}
@@ -734,19 +734,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader>
           <CardTitle className="font-semibold">Plans & Pricing</CardTitle>
           <CardDescription>
-            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: OnlyFans uses the tier base; Fansly
-            follows the Fansly line (about <strong>10% below</strong> the OnlyFans base on most bands,{' '}
-            <strong>capped at $200/mo</strong> — the lowest band lists{' '}
-            <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OnlyFans and{' '}
-            <strong>{lowestRevenueTier ? focusFanslyUsd(lowestRevenueTier) : 0}</strong> Fansly). ManyVids{' '}
-            <strong>solo</strong> is <strong>$39/mo</strong> (any tier).
-            Two-platform Focus uses banded list prices (defaults: OnlyFans + <strong>${BUNDLE_ADDONS.FL_ON_OF}</strong>{' '}
-            with Fansly, OnlyFans + <strong>${BUNDLE_ADDONS.MV_ON_OF}</strong> with ManyVids, Fansly line +{' '}
-            <strong>${BUNDLE_ADDONS.MV_ON_FL}</strong> with ManyVids; the <strong>under $1k</strong> band uses the
-            amounts in the table below). <strong>Unified</strong> (all three) is banded too — from{' '}
+            Choose your <strong>revenue band</strong>. <strong>Focus</strong>: one platform, or a two-platform pair
+            with the banded list price (lowest band: <strong>${lowestRevenueTier?.focusBaseUsd ?? 0}</strong> OF /{' '}
+            <strong>{lowestRevenueTier ? focusFanslyUsd(lowestRevenueTier) : 0}</strong> Fansly / legacy ManyVids pairs
+            in the table). <strong>Bundled</strong> = OnlyFans + Fansly from{' '}
             <strong>${lowestRevenueTier?.multiPriceUsd ?? 0}/mo</strong> on the lowest band.{' '}
-            <strong>Seats</strong> = managers on the same creator account (price × seats). Connected OnlyFans /
-            Fansly earnings may adjust your band on the next invoice (see pricing FAQ).
+            <strong>Protection &amp; Anti-Piracy</strong> is a separate <strong>$25/mo</strong> add-on below.{' '}
+            <strong>Seats</strong> multiply the main plan price. Earnings data may move your band on the next invoice.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -813,24 +807,16 @@ export function BillingSection({ userId }: BillingSectionProps) {
               </label>
             ))}
           </div>
-          {isUnifiedSelection ? (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              All three selected — use <strong>Unified</strong> checkout for this price tier.
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select 1–2 for Focus. Two-platform pricing uses fixed bundles: OF+FL (+$
-              {BUNDLE_ADDONS.FL_ON_OF} on OF base), OF+MV (+${BUNDLE_ADDONS.MV_ON_OF} on OF base), or FL+MV (+$
-              {BUNDLE_ADDONS.MV_ON_FL} on Fansly line).
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Select 1–2 for Focus, or use <strong className="text-foreground">Bundled</strong> (OnlyFans + Fansly) in the
+            second card. ManyVids pair pricing is legacy/limited; for broad non-API coverage use Protection ($25/mo).
+          </p>
 
           <div className="grid gap-6 lg:grid-cols-1">
             <div
               className={cn(
                 'rounded-xl border-2 p-6 shadow-sm',
                 'border-amber-500/35 bg-amber-50/40 dark:border-amber-500/25 dark:bg-amber-950/15',
-                isUnifiedSelection && 'opacity-60',
               )}
             >
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">
@@ -877,17 +863,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
               className={cn(
                 'relative rounded-xl border-2 p-6 pt-8 shadow-md',
                 'border-amber-500/40 bg-zinc-950 text-zinc-100 dark:bg-zinc-950',
-                !isUnifiedSelection && 'ring-1 ring-dashed ring-amber-500/30',
+                'ring-1 ring-dashed ring-amber-500/30',
               )}
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <Badge className="border-amber-500/60 bg-amber-600/90 px-3 text-xs font-semibold text-white">
-                  All three
+                  OF + FL
                 </Badge>
               </div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Unified</p>
-              <h3 className="mt-1 font-serif text-2xl font-semibold text-white">Unified plan</h3>
-              <p className="mt-1 text-sm text-zinc-400">OnlyFans, Fansly, ManyVids in one workspace.</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/90">Bundled</p>
+              <h3 className="mt-1 font-serif text-2xl font-semibold text-white">Bundled plan</h3>
+              <p className="mt-1 text-sm text-zinc-400">OnlyFans and Fansly in one monthly price for this band.</p>
 
               <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/35 bg-zinc-900/80 p-4">
                 <div className="flex -space-x-2">
@@ -897,13 +883,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#009FFF] text-[10px] font-bold text-white">
                     FL
                   </span>
-                  <span className="flex size-9 items-center justify-center rounded-full border-2 border-zinc-950 bg-[#E91E63] text-[10px] font-bold text-white">
-                    MV
-                  </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-amber-200">Full bundle</p>
-                  <p className="text-xs text-zinc-500">Original multi-platform price per band</p>
+                  <p className="font-medium text-amber-200">Two platforms</p>
+                  <p className="text-xs text-zinc-500">Banded list price (not a simple +$ on OF from every cell)</p>
                 </div>
                 <div
                   className="flex size-8 shrink-0 items-center justify-center rounded border border-amber-500/60 bg-amber-500/20"
@@ -934,8 +917,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   onComplete={handleCheckoutComplete}
                   buttonText={
                     paidActive
-                      ? `Checkout Unified — $${unifiedCheckoutUsd}/mo`
-                      : `Subscribe — Unified — $${unifiedCheckoutUsd}/mo`
+                      ? `Checkout Bundled — $${unifiedCheckoutUsd}/mo`
+                      : `Subscribe — Bundled — $${unifiedCheckoutUsd}/mo`
                   }
                   buttonVariant="default"
                   buttonClassName="w-full bg-amber-600 text-white hover:bg-amber-600/90"
@@ -945,15 +928,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="p-3 text-left font-medium">Revenue</th>
-                  <th className="p-3 text-right font-medium">OF base</th>
+                  <th className="p-3 text-right font-medium">OnlyFans</th>
                   <th className="p-3 text-right font-medium">Fansly</th>
-                  <th className="p-3 text-right font-medium">ManyVids</th>
-                  <th className="p-3 text-right font-medium">×2 (OF+FL)</th>
-                  <th className="p-3 text-right font-medium">Unified</th>
+                  <th className="p-3 text-right font-medium">Bundled (OF+FL)</th>
                 </tr>
               </thead>
               <tbody>
@@ -967,16 +948,45 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     <td className="p-3">{row.label}</td>
                     <td className="p-3 text-right tabular-nums">${row.focusBaseUsd}</td>
                     <td className="p-3 text-right tabular-nums">${focusFanslyUsd(row)}</td>
-                    <td className="p-3 text-right tabular-nums">${MANYVIDS_FOCUS_SINGLE_FLAT_USD}</td>
                     <td className="p-3 text-right tabular-nums">
                       ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
                     </td>
-                    <td className="p-3 text-right tabular-nums">${row.multiPriceUsd}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card" id="protection-plan">
+        <CardHeader>
+          <CardTitle className="font-semibold">
+            {getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}
+          </CardTitle>
+          <CardDescription>
+            {getProduct(PROTECTION_PLAN_ID)?.description}
+            {subData && isProtectionEntitled(subData) ? (
+              <span className="mt-2 block text-emerald-600 dark:text-emerald-400">Active on your account.</span>
+            ) : null}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-2xl font-bold tabular-nums">
+            ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
+            <span className="text-base font-normal text-muted-foreground">/mo</span>
+          </p>
+          <Checkout
+            productId={PROTECTION_PLAN_ID}
+            buttonText={
+              subData && isProtectionEntitled(subData)
+                ? 'Update payment (Protection active)'
+                : `Subscribe — Protection — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
+            }
+            onComplete={handleCheckoutComplete}
+            buttonVariant="secondary"
+            buttonClassName="w-full"
+          />
         </CardContent>
       </Card>
 

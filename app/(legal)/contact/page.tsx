@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, MapPin, Clock, MessageSquare, Shield, CreditCard, Loader2, Check } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, Loader2, Check } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
@@ -69,21 +69,9 @@ export default function ContactPage() {
   const contactOptions = [
     {
       icon: MessageSquare,
-      title: 'General Inquiries',
-      description: 'Questions about our platform or services',
-      email: 'hello@circeetvenus.com',
-    },
-    {
-      icon: Shield,
-      title: 'Security & Privacy',
-      description: 'Report security issues or privacy concerns',
-      email: 'security@circeetvenus.com',
-    },
-    {
-      icon: CreditCard,
-      title: 'Billing Support',
-      description: 'Subscription, payments, and refunds',
-      email: 'billing@circeetvenus.com',
+      title: 'Support',
+      description: 'Questions about the platform, billing, or account help',
+      email: 'support@circeetvenus.com',
     },
   ]
 
@@ -132,22 +120,6 @@ export default function ContactPage() {
                 </CardContent>
               </Card>
             ))}
-
-            <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="text-base">Location</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                  <span>Montreal, Quebec, Canada</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Every day · 9am–6pm EST</span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Contact Form */}

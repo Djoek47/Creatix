@@ -187,7 +187,7 @@ export function RevenueChart({
                 )}
                 title={connectedFansly ? 'Fansly' : 'Fansly not connected'}
               >
-                <Image src="/fansly-logo.png" alt="" width={20} height={20} className="object-contain" />
+                <Image src="/fansly-logo.svg" alt="" width={20} height={20} className="object-contain" />
                 <span className="sr-only">Fansly</span>
               </button>
             </div>

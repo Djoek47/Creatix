@@ -81,7 +81,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Gift Suggester',
     description: 'Personalized gift recommendations',
     longDescription:
-      'Suggest gifts using fan context and budget. On web, save product links under AI Studio → Gift wishlist so runs can use real items and prices.',
+      'Suggest gifts using fan context, budget, and your saved wishlist. On web, add product links on the Gift wishlist (Well-being) so we store title, price, and details for Chatter and this runner.',
     category: 'engagement',
     credits: 1,
     hasRunner: true,
@@ -143,9 +143,9 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'retention-tease',
     name: 'Retention content tease',
-    description: 'Future-drop & calendar teasers for churn risk',
+    description: 'On-brand teasers for fans who are starting to slip—timed to your calendar.',
     longDescription:
-      'On web: Dashboard → Retention — optional calendar notes and batch digest with teaser lines for at-risk fans.',
+      'On web: Retention hub → short calendar notes, then one batch for feed / story / DM teaser lines. Same credit class as a churn background pass.',
     category: 'analytics',
     credits: 2,
     hasRunner: true,

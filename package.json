@@ -12,6 +12,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "check:forbidden-branding": "node scripts/check-forbidden-branding.mjs",
     "test:leaks": "tsx lib/leaks/canonical-logic.test.ts",
     "test:credits": "tsx lib/billing/credit-economics.test.ts",
     "test:credit-planner": "tsx lib/billing/credit-planner.test.ts",

@@ -376,6 +376,7 @@ export default function NewContentPage() {
                       onlyfans: { label: 'OnlyFans', color: '#00AFF0' },
                       fansly: { label: 'Fansly', color: '#009FFF' },
                       manyvids: { label: 'ManyVids', color: '#E91E63' },
+                      loyalfans: { label: 'LoyalFans', color: '#C41E3A' },
                     }[platform.platform] || { label: platform.platform, color: '#888' }
 
                     return (

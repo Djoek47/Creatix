@@ -581,12 +581,6 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
                 )}
               </>
             )}
-            {!isPro &&
-              (identityHandles.length > 0 || profiles.length > 0 || connectedPlatforms.length > 0) && (
-              <Badge variant="outline" className="text-xs">
-                Pro scan available with Venus Pro
-              </Badge>
-            )}
             <Button 
               variant="outline" 
               size="sm"

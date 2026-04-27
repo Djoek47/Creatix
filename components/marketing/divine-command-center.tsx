@@ -67,7 +67,7 @@ export function DivineCommandCenter({ className }: { className?: string }) {
           </motion.div>
           <p className="mt-6 text-center text-xs text-muted-foreground lg:text-left">
             <Volume2 className="mb-1 inline h-3.5 w-3.5 align-middle text-primary" />{' '}
-            Hands busy? Driving? On camera? Your empire still listens.
+            Your empire always listens.
           </p>
         </div>
 

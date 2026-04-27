@@ -313,7 +313,7 @@ export function FansGallery({
                         <img src="/onlyfans-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
                       )}
                       {fan.platform === 'fansly' && (
-                        <img src="/fansly-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
+                        <img src="/fansly-logo.svg" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
                       )}
                       <Badge
                         variant="outline"

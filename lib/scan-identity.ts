@@ -119,6 +119,7 @@ const PLATFORM_LABEL: Record<string, string> = {
   onlyfans: 'OnlyFans',
   fansly: 'Fansly',
   manyvids: 'ManyVids',
+  loyalfans: 'LoyalFans',
   twitter: 'X',
   instagram: 'Instagram',
   tiktok: 'TikTok',

@@ -1,4 +1,4 @@
-// Database Types for CREATRIX Platform
+// Database types — Circe et Venus / Creatix app
 
 import type { AudienceBadge } from '@/lib/fans/audience-classification'
 import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'

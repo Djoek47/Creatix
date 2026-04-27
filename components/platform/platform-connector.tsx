@@ -100,6 +100,16 @@ const ManyVidsLogo = () => (
   </svg>
 )
 
+// LoyalFans — swap to brand image in /public/loyalfans-logo.png when provided
+const LoyalFansLogo = () => (
+  <span
+    className="flex h-6 w-6 items-center justify-center rounded-md border border-amber-600/40 bg-zinc-950 text-[0.5rem] font-extrabold leading-none text-amber-400"
+    title="LoyalFans"
+  >
+    LF
+  </span>
+)
+
 // X (Twitter) Logo
 const XLogo = () => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
@@ -147,6 +157,15 @@ const PLATFORMS: Platform[] = [
     dataTypes: ['Sales', 'Fans', 'Videos', 'Tips'],
     comingSoon: true,
   },
+  {
+    id: 'loyalfans',
+    name: 'LoyalFans',
+    color: '#C41E3A',
+    gradient: 'from-[#C41E3A] to-[#7F1D1D]',
+    description: 'Connect your LoyalFans presence for status and (when available) protected workflows',
+    dataTypes: ['Profile', 'Sales', 'Subscribers'],
+    comingSoon: true,
+  },
 ]
 
 function getPlatformLogo(platformId: string) {
@@ -154,6 +173,7 @@ function getPlatformLogo(platformId: string) {
     case 'onlyfans': return <OnlyFansLogo />
     case 'fansly': return <FanslyLogo />
     case 'manyvids': return <ManyVidsLogo />
+    case 'loyalfans': return <LoyalFansLogo />
     default: return null
   }
 }

@@ -14,8 +14,9 @@ function PricingFaqs() {
   const { mode } = useMarketingMode()
   const items = [
     {
-      question: 'Focus vs Unified?',
-      answer: 'Focus = 1–2 platforms. Unified = all three. Price follows your monthly revenue band.',
+      question: 'Focus vs Bundled?',
+      answer:
+        'Focus = one platform or a two-platform pair with band-specific list prices. Bundled = OnlyFans + Fansly together. Non-API coverage (ManyVids, Clips4Sale, etc.) uses the separate $25/mo Protection plan.',
     },
     {
       question: 'How do AI credits work?',
@@ -30,7 +31,7 @@ function PricingFaqs() {
       ? [
           {
             question: 'Change plans later?',
-            answer: 'Yes. Swap platforms, Focus, Unified, or band in Settings → Billing.',
+            answer: 'Yes. Swap platforms, Focus, Bundled, Protection, or band in Settings → Billing.',
           },
         ]
       : []),
@@ -66,7 +67,7 @@ function PricingProSections() {
       paid: '20% of subscription/mo',
     },
     { feature: 'OnlyFans connection', trial: true, paid: true },
-    { feature: 'Fansly / ManyVids', trial: true, paid: true },
+    { feature: 'Fansly', trial: true, paid: true },
     { feature: 'Divine Manager', trial: true, paid: true },
     { feature: 'Leak & reputation tools', trial: 'Limited', paid: true },
     { feature: 'Priority support', trial: false, paid: true },
@@ -83,17 +84,13 @@ function PricingProSections() {
               </summary>
               <div className="border-t border-border/60 pb-4">
                 <div className="overflow-x-auto px-2 sm:px-4">
-                  <table className="w-full min-w-[1180px] border-collapse text-sm">
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
                         <th className="p-3 text-left font-serif font-semibold sm:p-4">Revenue tier</th>
-                        <th className="p-3 text-right font-medium sm:p-4">OF</th>
-                        <th className="p-3 text-right font-medium sm:p-4">FL</th>
-                        <th className="p-3 text-right font-medium sm:p-4">MV</th>
-                        <th className="p-3 text-right font-medium sm:p-4">OF + FL</th>
-                        <th className="p-3 text-right font-medium sm:p-4">OF + MV</th>
-                        <th className="p-3 text-right font-medium sm:p-4">FL + MV</th>
-                        <th className="p-3 text-right font-medium text-fuchsia-200 sm:p-4">Unified</th>
+                        <th className="p-3 text-right font-medium sm:p-4">OnlyFans</th>
+                        <th className="p-3 text-right font-medium sm:p-4">Fansly</th>
+                        <th className="p-3 text-right font-medium text-fuchsia-200 sm:p-4">Bundled (OF+FL)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -110,25 +107,18 @@ function PricingProSections() {
                             <SoloMatrixCell usd={tier.prices.fl} />
                           </td>
                           <td className="p-3 text-right sm:p-4">
-                            <SoloMatrixCell usd={tier.prices.mv} />
-                          </td>
-                          <td className="p-3 text-right sm:p-4">
                             <BundleMatrixCell tier={tier} combo="of_fl" />
-                          </td>
-                          <td className="p-3 text-right sm:p-4">
-                            <BundleMatrixCell tier={tier} combo="of_mv" />
-                          </td>
-                          <td className="p-3 text-right sm:p-4">
-                            <BundleMatrixCell tier={tier} combo="fl_mv" />
-                          </td>
-                          <td className="p-3 text-right sm:p-4">
-                            <BundleMatrixCell tier={tier} combo="unified" />
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="px-2 pt-3 text-center text-xs text-muted-foreground sm:px-4">
+                  <strong className="text-foreground/90">Protection &amp; Anti-Piracy</strong> (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and other
+                  non-API coverage) is a separate <strong className="text-foreground/90">$25/mo</strong> add-on — use it alone or stack it with a
+                  main plan. Checkout in the app.
+                </p>
               </div>
             </details>
           </MotionReveal>

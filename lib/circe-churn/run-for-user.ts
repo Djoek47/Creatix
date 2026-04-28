@@ -1,9 +1,8 @@
 import { generateText } from 'ai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
-import { isPaidSubscription } from '@/lib/billing/access'
-import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
-import { effectiveMonthlyCreditLimit, type SubscriptionRowForCredits } from '@/lib/billing/credit-economics'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 import {
   extractChurnFanSignalsFromDigest,
   normalizeRiskLevel,
@@ -227,14 +226,13 @@ export async function runCirceChurnForUser(
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (!isPaidSubscription(sub as { plan_id?: string | null; status?: string | null } | null)) {
-    return { ran: false, skippedReason: 'not_pro' }
+  if (!canUseCreditGatedProFeature(sub as { plan_id?: string | null; status?: string | null } | null)) {
+    return { ran: false, skippedReason: 'not_entitled' }
   }
 
-  const used = (sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = effectiveMonthlyCreditLimit(sub as SubscriptionRowForCredits & { ai_credits_limit?: number | null })
-  const creditsNeeded = settings.credits_per_run ?? 2
-  if (used + creditsNeeded > limit) {
+  const creditsNeeded = Math.min(10, Math.max(1, Math.round(Number(settings.credits_per_run ?? 2))))
+  const creditCheck = await hasEnoughAiCredits(supabase, userId, creditsNeeded)
+  if (!creditCheck.ok) {
     const ts = now.toISOString()
     await supabase
       .from('circe_churn_settings')

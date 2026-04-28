@@ -30,9 +30,9 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'map-intro',
-        title: 'Your CRM home',
+        title: 'Your home base',
         description:
-          'This dashboard is your home base: revenue, fans, inbox health, and quick entry to every area of Circe et Venus—similar to a creator CRM command center.',
+          'This dashboard is your home base: revenue, fans, inbox health, and quick entry to every area of Circe et Venus—your command center for day-to-day work.',
       },
       {
         id: 'map-divine',
@@ -54,9 +54,9 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'map-content-library',
-        title: 'Content library',
+        title: 'Content workspace',
         description:
-          'Content library is your media vault: describe assets for AI, link posts, and safe touch-ups—separate from the calendar on Content.',
+          'One sidebar entry opens Schedule, your media Vault, and a full list of posts — plan, shelf, and table without switching tools.',
       },
       {
         id: 'map-ai-studio',
@@ -74,7 +74,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'map-venus',
         title: 'Venus: growth',
         description:
-          'Under Venus: Fans CRM, Commenter + Fan Atlas (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
+          'Under Venus: Fans, Commenter + Fan Atlas (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
       },
       {
         id: 'map-community-guide',
@@ -164,7 +164,7 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'list',
-        title: 'Fans CRM',
+        title: 'Fans',
         description:
           'Subscriber and fan rows synced from connected platforms. Search, sort, and open a fan for notes, tags, and deep links to Messages.',
       },
@@ -178,13 +178,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'classify',
         title: 'Classification & lists',
         description:
-          'Use fan classification or smart lists on the Commenter page (Fan Atlas) to keep CRM segments aligned with OnlyFans lists.',
+          'Use fan classification or smart lists on the Commenter page (Fan Atlas) to keep your segments aligned with OnlyFans lists.',
       },
       {
         id: 'add',
         title: 'Manual fans',
         description:
-          'Add a fan manually when you need CRM notes or tracking for someone not yet synced—useful for cross-platform context.',
+          'Add a fan manually when you need notes or tracking for someone not yet synced—useful for cross-platform context.',
       },
     ],
   },
@@ -193,16 +193,28 @@ const TOURS: Record<string, TourConfig> = {
     tourId: 'content',
     steps: [
       {
-        id: 'calendar',
-        title: 'Content calendar',
+        id: 'workspace',
+        title: 'Content workspace',
         description:
-          'Planned posts and status: draft, scheduled, published. Track what goes out on which day across connected platforms.',
+          'Schedule, Vault, and All posts live behind one calm control — switch lenses without losing context.',
+      },
+      {
+        id: 'calendar',
+        title: 'Schedule',
+        description:
+          'Calendar view for draft, scheduled, and published drops — see the rhythm of your week.',
+      },
+      {
+        id: 'vault',
+        title: 'Vault',
+        description:
+          'Media, metadata for Divine Manager PPV and recommendations, and platform links — the shelf behind every post.',
       },
       {
         id: 'new',
         title: 'New post',
         description:
-          'Create new content from here: copy, media, schedule. Publish or schedule to connected accounts per integration settings.',
+          'Compose a drop when you are ready — attach media, set timing, match each platform’s rules.',
       },
     ],
   },
@@ -221,30 +233,6 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Schedule & publish',
         description:
           'Choose publish now or a future slot. Return to Content to edit or move items on the calendar.',
-      },
-    ],
-  },
-
-  '/dashboard/content-library': {
-    tourId: 'content-library',
-    steps: [
-      {
-        id: 'vault',
-        title: 'Media vault',
-        description:
-          'Describe and tag media for Divine Manager PPV and recommendations. Link vault items to OnlyFans posts when you need consistent metadata.',
-      },
-      {
-        id: 'photo',
-        title: 'Safe photo touch-up',
-        description:
-          'Request blur, lighting, or emoji overlays—no beautify or inpaint. Same pipeline as AI Studio safe edits.',
-      },
-      {
-        id: 'schedule-link',
-        title: 'Content schedule',
-        description:
-          'Jump to Content schedule from here when you want to place described assets on the calendar.',
       },
     ],
   },
@@ -598,13 +586,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'hub',
         title: 'Retention hub',
         description:
-          'Churn Predictor: scheduled digests for expiring subs and quiet fans, CRM-backed. Configure cadence, credits, and notifications here.',
+          'Churn Predictor: scheduled digests for expiring subs and quiet fans, using your synced fan data. Configure cadence, credits, and notifications here.',
       },
       {
         id: 'last-run',
         title: 'Last run & digest',
         description:
-          'Last run shows when the background job completed. Sync CRM so expiries and spend are accurate; some media may only fully play in the official platform app.',
+          'Last run shows when the background job completed. Keep Fans synced so expiries and spend are accurate; some media may only fully play in the official platform app.',
       },
       {
         id: 'protocols',
@@ -697,7 +685,6 @@ const TOUR_PATH_MATCH_ORDER: string[] = [
   '/dashboard/messages/mass',
   '/dashboard/protection/aegis',
   '/dashboard/commenter',
-  '/dashboard/content-library',
   '/dashboard/community',
   '/dashboard/content/new',
 ]

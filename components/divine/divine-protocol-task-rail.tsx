@@ -238,12 +238,7 @@ export function DivineProtocolTaskRail() {
               </Button>
               {briefingHint ? (
                 <p className="text-[12px] leading-relaxed text-muted-foreground/85">{briefingHint}</p>
-              ) : (
-                <p className="text-[12px] leading-relaxed text-muted-foreground/80">
-                  Voice + secretary panel, same as the bell. New briefings add tasks until you mark them done. Collapse
-                  when empty to tuck this away.
-                </p>
-              )}
+              ) : null}
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">

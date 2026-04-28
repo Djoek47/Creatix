@@ -1732,8 +1732,8 @@ export function ChatWindow({
                           )}
                         >
                           {fanSavedDeletedOnOF
-                            ? 'Fan deleted this on OnlyFans — we kept a red copy in your Creatix database.'
-                            : 'Removed on OnlyFans — still in your Creatix history.'}
+                            ? 'Fan deleted this on OnlyFans — we kept a red copy in your saved inbox.'
+                            : 'Removed on OnlyFans — still in your saved inbox.'}
                         </p>
                         {fanSavedDeletedOnOF && conversation.platform === 'onlyfans' ? (
                           <Button
@@ -1745,7 +1745,7 @@ export function ChatWindow({
                             onClick={() => {
                               const mid = String(msg.id)
                               if (!conversation?.user?.id) return
-                              if (!window.confirm('Remove this saved copy from Creatix? This cannot be undone.')) return
+                              if (!window.confirm('Remove this saved copy from your inbox? This cannot be undone.')) return
                               setPurgingCacheIds((prev) => new Set(prev).add(mid))
                               void fetch(
                                 `/api/onlyfans/messages/${encodeURIComponent(String(conversation.user.id))}/cache/${encodeURIComponent(mid)}`,
@@ -1775,7 +1775,7 @@ export function ChatWindow({
                             ) : (
                               <Trash2 className="mr-1 h-3.5 w-3.5" />
                             )}
-                            Remove from Creatix
+                            Remove saved copy
                           </Button>
                         ) : null}
                       </div>

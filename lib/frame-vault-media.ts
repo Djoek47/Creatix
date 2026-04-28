@@ -1,17 +1,18 @@
 import 'server-only'
 
+import { APP_USER_STORAGE_LIMIT_MB, resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
+
 export const VAULT_MEDIA_BUCKET = 'vault-media'
 
 /** Max export size (bytes) — align with bucket file_size_limit in SQL. */
 export const VAULT_EXPORT_MAX_BYTES = 500 * 1024 * 1024
-/** Practical per-user cap for app-managed vault media on free Supabase projects. */
-export const DEFAULT_VAULT_USER_QUOTA_MB = 256
+/** Practical per-user cap for app-managed vault media on Supabase (see `APP_USER_STORAGE_LIMIT_MB`). */
+export const DEFAULT_VAULT_USER_QUOTA_MB = APP_USER_STORAGE_LIMIT_MB
 
 const VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'application/octet-stream'])
 
 export function resolveVaultUserQuotaBytes(): number {
-  const envRaw = Number.parseInt(process.env.VAULT_USER_QUOTA_MB ?? '', 10)
-  const mb = Number.isFinite(envRaw) && envRaw > 0 ? envRaw : DEFAULT_VAULT_USER_QUOTA_MB
+  const mb = resolveAppVaultQuotaMb()
   return Math.max(1, mb) * 1024 * 1024
 }
 

@@ -88,7 +88,7 @@ export function WellbeingStateStrip({
 
   const flowMain = flow ? MOOD[flow.mood] : pulseLoading ? '…' : '—'
   const flowSub = flow
-    ? `E ${Math.round(flow.energy)} · S ${Math.round(flow.stress)} · F ${Math.round(flow.focus)}`
+    ? `⚡ E ${Math.round(flow.energy)} · 🧘 S ${Math.round(flow.stress)} · 🎯 F ${Math.round(flow.focus)}`
     : pulseLoading
       ? 'Composing readout'
       : flowUnavailable

@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import {
   parseCalendarTeaserStored,
   serializeCalendarTeaserStored,
@@ -41,7 +42,19 @@ type TeaserRow = { id: string; date: Date | undefined; text: string }
 
 const MAX_CAL_TEASER_ROWS = 24
 
+const surfaceCard =
+  'rounded-2xl border border-border/35 bg-card/60 shadow-none backdrop-blur-sm dark:border-border/25 dark:bg-card/45'
+const insetFieldGroup =
+  'rounded-2xl border border-border/25 bg-muted/[0.04] p-5 sm:p-6 dark:bg-muted/[0.07]'
+const sectionKicker = 'text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/75'
+const sectionHeading = 'text-lg font-semibold tracking-tight text-foreground sm:text-xl'
+const sectionSub = 'mt-2 max-w-prose text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]'
+const blockHeading = 'text-[15px] font-semibold tracking-tight text-foreground'
+const blockSub = 'mt-1.5 max-w-prose text-[13px] leading-relaxed text-muted-foreground'
+const labelClass = 'text-[13px] font-medium text-foreground/90'
+
 export default function ChurnPredictorHubPage() {
+  const { wallet, loading: creditsLoading, refresh: refreshCredits } = useCreditSnapshot()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -186,6 +199,15 @@ export default function ChurnPredictorHubPage() {
         }),
       })
       const data = await res.json().catch(() => ({}))
+      if (res.status === 402) {
+        setError(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Not enough AI credits. Add credits or lower “Credits per match” before saving automatic scans.',
+        )
+        await refreshCredits()
+        return
+      }
       if (!res.ok) {
         setError(typeof data.error === 'string' ? data.error : 'Save failed')
         return
@@ -223,6 +245,7 @@ export default function ChurnPredictorHubPage() {
       const data = await res.json().catch(() => ({}))
       if (res.status === 402) {
         setError(typeof data.error === 'string' ? data.error : 'Insufficient AI credits')
+        await refreshCredits()
         return
       }
       if (!res.ok) {
@@ -230,6 +253,7 @@ export default function ChurnPredictorHubPage() {
         return
       }
       await load()
+      await refreshCredits()
     } catch {
       setError('Scan failed')
     } finally {
@@ -240,97 +264,134 @@ export default function ChurnPredictorHubPage() {
   const hourOptions = Array.from({ length: 24 }, (_, i) => i)
 
   const scanCreditCost = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+  const creditsRemaining = wallet?.totalRemaining ?? 0
+  const canAffordScan = !creditsLoading && creditsRemaining >= scanCreditCost
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-7 w-7 animate-spin opacity-80" aria-hidden />
+        <p className="text-[13px] tracking-wide text-muted-foreground/90">Loading</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-10">
-      <header className="border-b border-border/80 pb-10">
-        <div className="flex flex-col gap-10 sm:flex-row sm:items-end sm:justify-between sm:gap-12">
-          <div className="max-w-lg space-y-5">
-            <p className="text-[13px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Pro · Background · Same credits as manual
-            </p>
-            <div className="space-y-3">
-              <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+    <div className="mx-auto max-w-2xl space-y-10 pb-16 pt-1 sm:space-y-12 sm:pb-20">
+      <header className="space-y-8">
+        <div className="flex flex-col gap-10 sm:flex-row sm:items-end sm:justify-between sm:gap-14">
+          <div className="max-w-md space-y-6">
+            <p className={sectionKicker}>Retention · Credits when a run finds matches</p>
+            <div className="space-y-4">
+              <h1 className="text-balance font-sans text-[32px] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-[36px]">
                 Churn Predictor
               </h1>
-              <p className="text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-                Spots fans before they slip away. One digest—why they may be drifting, what to try, and drafts to send.
-                Notified when it&apos;s ready.
+              <p className="text-pretty text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
+                Surfaces fans who may drift before they leave—one calm digest with context, ideas, and draft messages.
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
-            <div className="flex flex-col gap-1.5 sm:items-end">
+          <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:items-stretch">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-end">
+              <div className="flex flex-col gap-2 sm:items-end">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 rounded-xl px-7 text-[15px] font-medium shadow-sm"
+                  disabled={scanning || creditsLoading || !canAffordScan}
+                  onClick={() => void runScanNow()}
+                  title={
+                    !canAffordScan && !creditsLoading
+                      ? `Need at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} (you have ${creditsRemaining}). Add credits under Billing.`
+                      : `Uses up to ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} when at least one fan matches your churn rules (same as “Credits per run”). Nothing debited if no one qualifies.`
+                  }
+                >
+                  {scanning ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanLine className="mr-2 h-4 w-4 opacity-90" strokeWidth={2} />
+                  )}
+                  Scan now
+                </Button>
+                <p className="flex max-w-[16rem] items-start gap-2 text-[12px] leading-snug text-muted-foreground sm:text-right">
+                  <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                  <span>
+                    {creditsLoading ? (
+                      'Loading balance…'
+                    ) : (
+                      <>
+                        <span className="tabular-nums font-medium text-foreground/80">{creditsRemaining}</span> left ·{' '}
+                        <span className="tabular-nums font-medium text-foreground/80">{scanCreditCost}</span> if anyone
+                        matches ·{' '}
+                        {!canAffordScan ? (
+                          <Link
+                            href="/dashboard/settings?tab=billing"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            Add credits
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground/85">none if empty</span>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </p>
+              </div>
               <Button
-                type="button"
+                asChild
+                variant="outline"
                 size="lg"
-                className="h-11 rounded-full px-6 font-medium"
-                disabled={scanning}
-                onClick={() => void runScanNow()}
-                title={`Uses up to ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} when at least one fan matches your churn rules (same as “Credits per run”). Nothing debited if no one qualifies.`}
+                className="h-12 rounded-xl border-border/50 bg-background/50 px-6 text-[15px] font-medium shadow-none backdrop-blur-sm"
               >
-                {scanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanLine className="mr-2 h-4 w-4" />}
-                Scan now
+                <Link href="/dashboard/ai-studio/tools/churn-predictor">
+                  <BarChart3 className="mr-2 h-4 w-4 opacity-70" strokeWidth={2} />
+                  One fan
+                </Link>
               </Button>
-              <p className="flex items-center gap-1.5 text-[11px] leading-snug text-muted-foreground sm:max-w-[13.5rem] sm:text-right">
-                <Coins className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-                <span>
-                  <span className="tabular-nums font-medium text-foreground/85">{scanCreditCost}</span> credit
-                  {scanCreditCost === 1 ? '' : 's'} if at-risk fans are found ·{' '}
-                  <span className="text-muted-foreground/90">0 if no match</span>
-                </span>
-              </p>
             </div>
-            <Button asChild variant="outline" size="lg" className="h-11 rounded-full border-border/80 bg-transparent px-6 font-medium shadow-none">
-              <Link href="/dashboard/ai-studio/tools/churn-predictor">
-                <BarChart3 className="mr-2 h-4 w-4 opacity-70" />
-                Deep dive one fan
-              </Link>
-            </Button>
           </div>
         </div>
       </header>
 
       {error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/25 bg-destructive/[0.06] px-4 py-3 text-[14px] leading-snug text-destructive"
+        >
           {error}
         </div>
       ) : null}
 
       <section id="future-tease">
-        <Card className="border-border/80 bg-muted/10 shadow-none">
-          <CardHeader className="space-y-0 pb-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="max-w-xl space-y-1.5">
-                <CardTitle className="font-serif text-xl font-semibold tracking-tight">Content calendar</CardTitle>
-                <CardDescription className="text-[15px] leading-relaxed">
-                  Add dated plans so churn digests can reference real drops—not invented ones.
+        <Card className={cn(surfaceCard, 'overflow-hidden')}>
+          <CardHeader className="space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+              <div className="min-w-0 max-w-xl space-y-2">
+                <p className={sectionKicker}>Upcoming drops</p>
+                <CardTitle className="font-sans text-xl font-semibold tracking-tight text-foreground sm:text-[22px]">
+                  Content calendar
+                </CardTitle>
+                <CardDescription className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+                  Dates you add here can be referenced in digests—so suggestions stay aligned with your real plans.
                 </CardDescription>
               </div>
               <Switch
                 checked={teaseFutureContent}
                 onCheckedChange={setTeaseFutureContent}
                 aria-label="Include future content teasers in digest"
-                className="shrink-0 data-[state=checked]:bg-foreground"
+                className="mt-1 shrink-0 data-[state=checked]:bg-foreground"
               />
             </div>
           </CardHeader>
-          <CardContent className="space-y-4 pt-0">
+          <CardContent className="space-y-5 px-6 py-6 sm:px-8 sm:py-7 sm:pb-8">
             <div className="space-y-3">
               {teaserRows.map((row) => (
                 <div
                   key={row.id}
                   className={cn(
-                    'flex flex-col gap-2 sm:flex-row sm:items-center',
-                    !teaseFutureContent && 'pointer-events-none opacity-45',
+                    'flex flex-col gap-2.5 sm:flex-row sm:items-center',
+                    !teaseFutureContent && 'pointer-events-none opacity-40',
                   )}
                 >
                   <Popover>
@@ -340,15 +401,15 @@ export default function ChurnPredictorHubPage() {
                         variant="outline"
                         disabled={!teaseFutureContent}
                         className={cn(
-                          'h-10 w-full shrink-0 justify-start rounded-full border-border/80 px-3.5 font-normal shadow-none sm:w-[10.5rem]',
+                          'h-11 w-full shrink-0 justify-start rounded-xl border-border/45 bg-background/60 px-3.5 text-[14px] font-normal shadow-none sm:w-[11rem]',
                           !row.date && 'text-muted-foreground',
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-55" aria-hidden />
+                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" aria-hidden />
                         {row.date ? format(row.date, 'MMM d, yyyy') : 'Date'}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto overflow-hidden border-border/60 p-0 shadow-md" align="start">
+                    <PopoverContent className="w-auto overflow-hidden border-border/40 p-0 shadow-lg" align="start">
                       <Calendar
                         mode="single"
                         selected={row.date}
@@ -356,16 +417,16 @@ export default function ChurnPredictorHubPage() {
                         captionLayout="dropdown"
                         fromYear={new Date().getFullYear()}
                         toYear={new Date().getFullYear() + 2}
-                        className="rounded-lg"
+                        className="rounded-xl"
                       />
                     </PopoverContent>
                   </Popover>
                   <Input
                     value={row.text}
                     onChange={(e) => patchTeaserRow(row.id, { text: e.target.value.slice(0, 500) })}
-                    placeholder="What's planned that day"
+                    placeholder="What’s planned that day"
                     disabled={!teaseFutureContent}
-                    className="h-10 flex-1 rounded-full border-border/80 bg-background/80 shadow-none"
+                    className="h-11 flex-1 rounded-xl border-border/45 bg-background/70 text-[14px] shadow-none"
                     aria-label={`Plan for ${row.date ? format(row.date, 'yyyy-MM-dd') : 'undated row'}`}
                   />
                   <Button
@@ -373,7 +434,7 @@ export default function ChurnPredictorHubPage() {
                     variant="ghost"
                     size="icon"
                     disabled={!teaseFutureContent || teaserRows.length <= 1}
-                    className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                    className="h-11 w-11 shrink-0 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     onClick={() => removeTeaserRow(row.id)}
                     aria-label="Remove row"
                   >
@@ -382,344 +443,376 @@ export default function ChurnPredictorHubPage() {
                 </div>
               ))}
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-border/25 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={!teaseFutureContent || teaserRows.length >= MAX_CAL_TEASER_ROWS}
-                className="h-9 w-fit gap-1.5 rounded-full px-3 text-muted-foreground hover:text-foreground"
+                className="h-10 w-fit gap-2 rounded-xl px-3 text-[13px] text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                 onClick={addTeaserRow}
               >
                 <Plus className="h-4 w-4" />
-                Add date
+                Add row
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Saved with <span className="text-foreground">Save</span> or when you run <span className="text-foreground">Scan now</span>.
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                Persists with <span className="text-foreground/90">Save</span> or when you run{' '}
+                <span className="text-foreground/90">Scan now</span>.
               </p>
             </div>
           </CardContent>
         </Card>
       </section>
 
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <RadioTower className="h-5 w-5 text-primary" />
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="flex flex-row items-start gap-4 space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+            <RadioTower className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
           </div>
-          <div className="flex-1">
-            <CardTitle className="text-lg">Background radar</CardTitle>
-            <CardDescription>
-              When this is on, Circe can look for at-risk fans on the schedule you set below—daily, weekly, or off. You
-              only use{' '}
-              <span className="font-medium text-foreground">
-                {creditsPerRun} AI credit{creditsPerRun === 1 ? '' : 's'}
+          <div className="min-w-0 flex-1 space-y-1">
+            <CardTitle className="font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Automatic scans
+            </CardTitle>
+            <CardDescription className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+              Runs on the schedule below (daily, weekly, or off). When at-risk fans match your rules, up to{' '}
+              <span className="font-medium tabular-nums text-foreground/90">
+                {creditsPerRun} credit{creditsPerRun === 1 ? '' : 's'}
               </span>{' '}
-              when a run actually finds fans that match your rules—the same cost as tapping Scan now yourself.
+              are used for the digest—same as Scan now. The server blocks scheduled runs if you don&apos;t have enough
+              credits reserved.
             </CardDescription>
+            {!creditsLoading && !canAffordScan ? (
+              <p className="text-[13px] leading-relaxed text-amber-700 dark:text-amber-200/90">
+                You have{' '}
+                <span className="tabular-nums font-medium text-foreground">{creditsRemaining}</span> credit
+                {creditsRemaining === 1 ? '' : 's'}, but need at least{' '}
+                <span className="tabular-nums font-medium text-foreground">{scanCreditCost}</span> to run a churn digest.{' '}
+                <Link
+                  href="/dashboard/settings?tab=billing"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Add credits in Billing
+                </Link>{' '}
+                before turning automatic scans on, or lower &quot;Credits per match&quot; below.
+              </p>
+            ) : !creditsLoading ? (
+              <p className="text-[12px] tabular-nums leading-relaxed text-muted-foreground/85">
+                Balance:{' '}
+                <span className="font-medium text-foreground/90">{creditsRemaining}</span> AI credits
+              </p>
+            ) : null}
           </div>
-          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Churn background enabled" />
+          <Switch
+            checked={enabled}
+            disabled={creditsLoading}
+            onCheckedChange={(v) => {
+              if (v && !canAffordScan) {
+                setError(
+                  `Add at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} before enabling automatic scans (you have ${creditsRemaining}). Open Billing to top up.`,
+                )
+                return
+              }
+              setEnabled(v)
+            }}
+            aria-label="Automatic churn scans enabled"
+            className="mt-1 shrink-0"
+          />
         </CardHeader>
       </Card>
 
-      <Card className="rounded-2xl border-border/50 bg-card/80 shadow-none backdrop-blur-sm dark:bg-card/50">
-        <CardHeader className="space-y-3 pb-2">
-          <CardTitle className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Schedule &amp; rules
-          </CardTitle>
-          <CardDescription className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground/90">
-            Decide when automatic scans run, which subscribers qualify, and what you want to be notified about. Manual
-            &quot;Scan now&quot; always works on demand.
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="space-y-3 border-b border-border/25 px-6 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8">
+          <p className={sectionKicker}>Configuration</p>
+          <CardTitle className={`${sectionHeading} font-sans`}>Schedule &amp; rules</CardTitle>
+          <CardDescription className={`${sectionSub} !mt-3 max-w-none`}>
+            Set cadence, who qualifies, notifications, and follow-ups. Manual scans ignore the schedule.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-0 pb-8">
+        <CardContent className="space-y-0 px-6 pb-8 pt-8 sm:px-8 sm:pb-10 sm:pt-10">
           {/* When it runs */}
-          <section className="space-y-5 pb-10" aria-labelledby="churn-schedule-heading">
+          <section className="space-y-6 pb-12 sm:pb-14" aria-labelledby="churn-schedule-heading">
             <div>
-              <h2 id="churn-schedule-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              <h2 id="churn-schedule-heading" className={blockHeading}>
                 When it runs
               </h2>
-              <p className="mt-1 text-[13px] leading-snug text-muted-foreground/88">
-                Background radar follows this schedule. Turn it on in the card above.
-              </p>
+              <p className={blockSub}>Uses the automatic scan switch above. Off means manual only.</p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="churn-cadence" className="text-[13px] font-medium text-foreground/90">
-                  How often
-                </Label>
-                <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
-                  <SelectTrigger id="churn-cadence" className="h-11 rounded-xl text-[13px] md:text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="off">Off — manual scans only</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="churn-hour" className="text-[13px] font-medium text-foreground/90">
-                  Time of day
-                </Label>
-                <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
-                  <SelectTrigger id="churn-hour" className="h-11 rounded-xl text-[13px] md:text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {hourOptions.map((h) => (
-                      <SelectItem key={h} value={String(h)}>
-                        {h.toString().padStart(2, '0')}:00 UTC
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[12px] leading-snug text-muted-foreground/85">
-                  Universal Time (UTC). Used when you set How often to Daily or Weekly; safe to set in advance.
-                </p>
+            <div className={insetFieldGroup}>
+              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+                <div className="space-y-2">
+                  <Label htmlFor="churn-cadence" className={labelClass}>
+                    Frequency
+                  </Label>
+                  <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
+                    <SelectTrigger id="churn-cadence" className="h-11 rounded-xl border-border/40 text-[14px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">Off — manual only</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="churn-hour" className={labelClass}>
+                    Time (UTC)
+                  </Label>
+                  <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
+                    <SelectTrigger id="churn-hour" className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {hourOptions.map((h) => (
+                        <SelectItem key={h} value={String(h)}>
+                          {h.toString().padStart(2, '0')}:00
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                    Universal Time. Applies when frequency is daily or weekly.
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          <div className="h-px bg-border/50" aria-hidden />
+          <div className="h-px bg-border/30" aria-hidden />
 
           {/* Who qualifies */}
-          <section className="space-y-5 py-10" aria-labelledby="churn-who-heading">
+          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-who-heading">
             <div>
-              <h2 id="churn-who-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              <h2 id="churn-who-heading" className={blockHeading}>
                 Who qualifies
               </h2>
-              <p className="mt-1 text-[13px] leading-snug text-muted-foreground/88">
-                We look at OnlyFans and Fansly fans synced to your CRM. Tighter windows surface fewer, higher-signal names.
+              <p className={blockSub}>
+                OnlyFans and Fansly fans in your CRM. Narrow windows mean fewer, sharper names.
               </p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="exp-d" className="text-[13px] font-medium text-foreground/90">
-                  Renewal window
-                </Label>
-                <p className="text-[12px] leading-snug text-muted-foreground/85">
-                  Flag active subscriptions that end within this many days.
-                </p>
-                <Input
-                  id="exp-d"
-                  type="number"
-                  min={1}
-                  max={90}
-                  value={expiringWithinDays}
-                  onChange={(e) => setExpiringWithinDays(Number(e.target.value))}
-                  className="h-11 rounded-xl text-[13px] tabular-nums md:text-sm"
-                />
+            <div className={insetFieldGroup}>
+              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+                <div className="space-y-2">
+                  <Label htmlFor="exp-d" className={labelClass}>
+                    Renewal window
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                    Days until subscription end to include.
+                  </p>
+                  <Input
+                    id="exp-d"
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={expiringWithinDays}
+                    onChange={(e) => setExpiringWithinDays(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stale-d" className={labelClass}>
+                    Quiet subscriber
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                    Days since last message to treat as quiet.
+                  </p>
+                  <Input
+                    id="stale-d"
+                    type="number"
+                    min={3}
+                    max={60}
+                    value={staleDays}
+                    onChange={(e) => setStaleDays(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="stale-d" className="text-[13px] font-medium text-foreground/90">
-                  Quiet subscriber
-                </Label>
-                <p className="text-[12px] leading-snug text-muted-foreground/85">
-                  Treat someone as quiet if you haven&apos;t messaged them in this many days.
-                </p>
-                <Input
-                  id="stale-d"
-                  type="number"
-                  min={3}
-                  max={60}
-                  value={staleDays}
-                  onChange={(e) => setStaleDays(Number(e.target.value))}
-                  className="h-11 rounded-xl text-[13px] tabular-nums md:text-sm"
+              <div className="mt-8 flex gap-4 rounded-xl border border-border/25 bg-background/40 px-4 py-4 dark:bg-background/20">
+                <Checkbox
+                  id="stale-include"
+                  className="mt-0.5 border-border/50"
+                  checked={includeStale}
+                  onCheckedChange={(v) => setIncludeStale(v === true)}
                 />
-              </div>
-            </div>
-            <div className="flex gap-3 rounded-xl border border-border/50 bg-muted/15 px-4 py-3.5 dark:bg-muted/10">
-              <Checkbox
-                id="stale-include"
-                className="mt-0.5"
-                checked={includeStale}
-                onCheckedChange={(v) => setIncludeStale(v === true)}
-              />
-              <div className="min-w-0">
-                <label htmlFor="stale-include" className="cursor-pointer text-[13px] font-medium text-foreground">
-                  Include quiet fans, not only renewals
-                </label>
-                <p className="mt-1 text-[12px] leading-snug text-muted-foreground/85">
-                  Off means you only watch people nearing the end of their subscription period.
-                </p>
+                <div className="min-w-0">
+                  <label htmlFor="stale-include" className="cursor-pointer text-[14px] font-medium text-foreground">
+                    Include quiet fans, not only renewals
+                  </label>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                    When off, only subscribers nearing expiry are considered.
+                  </p>
+                </div>
               </div>
             </div>
           </section>
 
-          <div className="h-px bg-border/50" aria-hidden />
+          <div className="h-px bg-border/30" aria-hidden />
 
           {/* Batch size & credits */}
-          <section className="space-y-5 py-10" aria-labelledby="churn-batch-heading">
+          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-batch-heading">
             <div>
-              <h2 id="churn-batch-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
-                Batch size &amp; credits
+              <h2 id="churn-batch-heading" className={blockHeading}>
+                Batch &amp; credits
               </h2>
-              <p className="mt-1 text-[13px] leading-snug text-muted-foreground/88">
-                Caps how many people go into one digest. Credits apply only when at least one person matches—same as
-                &quot;Scan now.&quot;
-              </p>
+              <p className={blockSub}>Digest size and credits apply only when someone matches.</p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="max-f" className="text-[13px] font-medium text-foreground/90">
-                  Fans per digest
-                </Label>
-                <p className="text-[12px] leading-snug text-muted-foreground/85">Maximum at-risk fans in a single report (1–25).</p>
-                <Input
-                  id="max-f"
-                  type="number"
-                  min={1}
-                  max={25}
-                  value={maxFans}
-                  onChange={(e) => setMaxFans(Number(e.target.value))}
-                  className="h-11 rounded-xl text-[13px] tabular-nums md:text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="credits" className="text-[13px] font-medium text-foreground/90">
-                  Credits when matches are found
-                </Label>
-                <p className="text-[12px] leading-snug text-muted-foreground/85">
-                  AI credits debited after a successful digest, up to this amount (1–10).
-                </p>
-                <Input
-                  id="credits"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={creditsPerRun}
-                  onChange={(e) => setCreditsPerRun(Number(e.target.value))}
-                  className="h-11 rounded-xl text-[13px] tabular-nums md:text-sm"
-                />
+            <div className={insetFieldGroup}>
+              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+                <div className="space-y-2">
+                  <Label htmlFor="max-f" className={labelClass}>
+                    Fans per digest
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Maximum per report (1–25).</p>
+                  <Input
+                    id="max-f"
+                    type="number"
+                    min={1}
+                    max={25}
+                    value={maxFans}
+                    onChange={(e) => setMaxFans(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credits" className={labelClass}>
+                    Credits per match
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Up to this many after a successful digest (1–10).</p>
+                  <Input
+                    id="credits"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={creditsPerRun}
+                    onChange={(e) => setCreditsPerRun(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
               </div>
             </div>
           </section>
 
-          <div className="h-px bg-border/50" aria-hidden />
+          <div className="h-px bg-border/30" aria-hidden />
 
           {/* Notifications */}
-          <section className="space-y-4 py-10" aria-labelledby="churn-notify-heading">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
-                <Bell className="h-4 w-4" aria-hidden />
+          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-notify-heading">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+                <Bell className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
               </div>
               <div>
-                <h2 id="churn-notify-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+                <h2 id="churn-notify-heading" className={blockHeading}>
                   Notifications
                 </h2>
-                <p className="mt-1 text-[13px] leading-snug text-muted-foreground/88">
-                  Choose what pings your Divine inbox after each automatic run.
-                </p>
+                <p className={`${blockSub} !mt-2`}>After each automatic run, what should reach your inbox.</p>
               </div>
             </div>
-            <div className="space-y-1 rounded-2xl border border-border/45 bg-muted/10 p-1 dark:bg-muted/5">
-              <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 sm:px-4">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">Digest ready</p>
-                  <p className="text-[12px] leading-snug text-muted-foreground/85">When a new churn report is available in Divine.</p>
+            <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">Digest ready</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">New report is available.</p>
                 </div>
                 <Switch checked={notifySummary} onCheckedChange={setNotifySummary} aria-label="Notify when digest is ready" />
               </div>
-              <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 sm:px-4">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">No matches</p>
-                  <p className="text-[12px] leading-snug text-muted-foreground/85">When no subscriber met your rules this run.</p>
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">Empty run</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">No one matched this time.</p>
                 </div>
                 <Switch checked={notifyEmpty} onCheckedChange={setNotifyEmpty} aria-label="Notify on empty run" />
               </div>
             </div>
           </section>
 
-          <div className="h-px bg-border/50" aria-hidden />
+          <div className="h-px bg-border/30" aria-hidden />
 
           {/* Follow-ups */}
-          <section className="space-y-4 py-10" aria-labelledby="churn-followups-heading">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
-                <ListTodo className="h-4 w-4" aria-hidden />
+          <section className="space-y-6 py-12 sm:pb-10 sm:pt-14" aria-labelledby="churn-followups-heading">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+                <ListTodo className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
               </div>
               <div>
-                <h2 id="churn-followups-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+                <h2 id="churn-followups-heading" className={blockHeading}>
                   Follow-ups
                 </h2>
-                <p className="mt-1 text-[13px] leading-snug text-muted-foreground/88">
-                  Optionally turn each digest into concrete next steps in Divine Manager and on your protocol rail.
-                </p>
+                <p className={`${blockSub} !mt-2`}>Optional tasks in Manager and on your protocol list.</p>
               </div>
             </div>
-            <div className="space-y-1 rounded-2xl border border-border/45 bg-muted/10 p-1 dark:bg-muted/5">
-              <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 sm:px-4">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">Manager suggestion</p>
-                  <p className="text-[12px] leading-snug text-muted-foreground/85">Add a suggested task you can accept or dismiss.</p>
+            <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">Manager</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">Suggested task you can accept or dismiss.</p>
                 </div>
                 <Switch checked={linkMgr} onCheckedChange={setLinkMgr} aria-label="Create Divine Manager suggestion" />
               </div>
-              <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 sm:px-4">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">Protocol to-do</p>
-                  <p className="text-[12px] leading-snug text-muted-foreground/85">Surface a checklist item alongside your other automations.</p>
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">Protocol</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">Checklist item with your other automations.</p>
                 </div>
                 <Switch checked={linkProto} onCheckedChange={setLinkProto} aria-label="Create protocol task" />
               </div>
             </div>
             <Link
               href="/dashboard/divine-manager"
-              className="inline-flex text-[13px] font-medium text-foreground underline-offset-4 transition hover:underline"
+              className="inline-flex text-[14px] font-medium text-foreground underline-offset-[5px] transition hover:underline"
             >
               Open Divine Manager
             </Link>
           </section>
 
-          <div className="flex flex-col gap-3 border-t border-border/50 pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-t border-border/25 pt-10 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="h-11 rounded-xl px-6 text-[15px] font-medium"
+              className="h-12 rounded-xl px-8 text-[15px] font-medium shadow-sm"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save changes
+              Save
             </Button>
             {savedAt ? (
-              <span className="text-[13px] text-muted-foreground/90">Saved {savedAt}</span>
+              <span className="text-[13px] tabular-nums text-muted-foreground">Saved {savedAt}</span>
             ) : (
-              <span className="text-[13px] text-muted-foreground/70">Changes apply after you save.</span>
+              <span className="text-[13px] text-muted-foreground/80">Unsaved changes are lost if you leave.</span>
             )}
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Last run</CardTitle>
-          <CardDescription>
-            {lastRunAt ? `Completed ${new Date(lastRunAt).toLocaleString()}` : 'No background run yet.'}
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+          <p className={sectionKicker}>History</p>
+          <CardTitle className="mt-2 font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Last run
+          </CardTitle>
+          <CardDescription className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+            {lastRunAt ? `Completed ${new Date(lastRunAt).toLocaleString()}` : 'No automatic run yet.'}
             {lastError ? (
-              <span className="mt-1 block text-destructive">Error: {lastError}</span>
+              <span className="mt-2 block text-[13px] text-destructive">Error: {lastError}</span>
             ) : null}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 py-6 sm:px-8 sm:py-7">
           {digest ? (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                {digestAt ? `Digest ${new Date(digestAt).toLocaleString()}` : 'Latest digest'}
+            <div className="space-y-3">
+              <p className="text-[12px] tabular-nums text-muted-foreground">
+                {digestAt ? `${new Date(digestAt).toLocaleString()}` : 'Latest digest'}
               </p>
-              <div className="max-h-[480px] overflow-y-auto rounded-lg border border-border bg-muted/20 p-4">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">{digest}</pre>
+              <div className="max-h-[480px] overflow-y-auto rounded-xl border border-border/35 bg-muted/[0.06] p-5 dark:bg-muted/[0.08]">
+                <pre className="whitespace-pre-wrap font-sans text-[13px] leading-[1.6] text-foreground/88">{digest}</pre>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              No digest yet. When background churn runs on your schedule, the latest batch report will show here. Sync
-              OnlyFans or Fansly from{' '}
-              <Link href="/dashboard/fans" className="text-circe underline-offset-4 hover:underline">
+            <p className="text-[14px] leading-relaxed text-muted-foreground">
+              No digest yet. After a scheduled or manual batch run, it appears here. Keep{' '}
+              <Link href="/dashboard/fans" className="font-medium text-foreground underline-offset-4 hover:underline">
                 Fans
               </Link>{' '}
-              so subscription end dates and spend match the platform.
+              synced so renewals and spend stay accurate.
             </p>
           )}
         </CardContent>

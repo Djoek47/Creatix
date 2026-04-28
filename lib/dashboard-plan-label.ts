@@ -1,4 +1,4 @@
-import { isPaidPlanId, TRIAL_PLAN_ID } from '@/lib/billing/access'
+import { FREE_PLAN_ID, isPaidPlanId, TRIAL_PLAN_ID } from '@/lib/billing/access'
 import { focusPlatformsShortLabel } from '@/lib/pricing-matrix'
 import { resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 
@@ -38,6 +38,8 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
   }
 
   if (pid === TRIAL_PLAN_ID || st === 'trial') return 'Trial'
+
+  if (pid === FREE_PLAN_ID) return 'Free'
 
   return pid
     .split('-')

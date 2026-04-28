@@ -299,7 +299,7 @@ export function PricingPageCalculator({
             Same math as checkout
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Band, Focus or Bundled, and platforms—aligned with checkout below.
+            Band, Focus or Bundled, and platforms—aligned with Stripe checkout on the pricing page.
           </p>
         </div>
       ) : (
@@ -315,7 +315,12 @@ export function PricingPageCalculator({
         </header>
       )}
 
-      <div className={cn('grid gap-10 lg:grid-cols-2 lg:gap-14', surface === 'landing' ? 'mt-6' : 'mt-0')}>
+      <div
+        className={cn(
+          'grid gap-10 lg:grid-cols-2',
+          surface === 'landing' ? 'mt-6 lg:gap-14' : 'mt-0 lg:gap-12 xl:gap-16',
+        )}
+      >
         <div className="space-y-8">
           {!useRevenueForBand && (
             <div className="space-y-2">
@@ -585,8 +590,11 @@ export function PricingPageCalculator({
             </div>
           ) : (
             <p className="mt-10 text-xs leading-relaxed text-muted-foreground">
-              Use <span className="text-foreground">Focus</span> or <span className="text-foreground">Bundled</span>{' '}
-              checkout below to subscribe—totals use the same formula.
+              Subscribe from our{' '}
+              <Link href="/pricing" className="text-foreground underline-offset-4 hover:underline">
+                pricing page
+              </Link>
+              —totals use the same formula as this estimate.
             </p>
           )}
         </aside>

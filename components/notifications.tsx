@@ -100,6 +100,7 @@ function isDivineProductNotification(n: Notification): boolean {
     'dmca',
   ])
   if (primary.has(kind)) return true
+  if (kind === 'wellbeing_break_nudge') return true
   if (kind.startsWith('divine_') || kind === 'task' || kind === 'intent') return true
   return false
 }

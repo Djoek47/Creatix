@@ -77,7 +77,6 @@ interface Platform {
   color: string
   gradient: string
   description: string
-  dataTypes: string[]
   comingSoon?: boolean
 }
 
@@ -129,16 +128,14 @@ const PLATFORMS: Platform[] = [
     name: 'OnlyFans',
     color: '#00AFF0',
     gradient: 'from-[#00AFF0] to-[#0090C0]',
-    description: 'Connect your OnlyFans account to import fans, messages, and earnings',
-    dataTypes: ['Subscribers', 'Messages', 'Earnings', 'Tips', 'PPV Sales'],
+    description: 'Fans, messages, and revenue in one place.',
   },
   {
     id: 'fansly',
     name: 'Fansly',
     color: '#009FFF',
     gradient: 'from-[#009FFF] to-[#0066CC]',
-    description: 'Import your Fansly subscribers and analytics',
-    dataTypes: ['Subscribers', 'Messages', 'Earnings', 'Tips'],
+    description: 'Subscribers and performance data.',
   },
 ]
 
@@ -507,9 +504,9 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     const isCustom = draft.preset === 'custom'
 
     return (
-      <div className={cn('space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3', compactView && 'p-2.5')}>
-        <Label className={cn('text-xs font-medium text-muted-foreground', compactView && 'text-[11px]')}>
-          Status for this platform
+      <div className={cn('space-y-3 rounded-xl border border-border/35 bg-background/25 p-4', compactView && 'p-2.5')}>
+        <Label className={cn('text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground', compactView && 'text-[10px]')}>
+          Status on this platform
         </Label>
         <Select
           value={draft.preset}
@@ -969,7 +966,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       <>
         <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
         <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-xl">
-          <CardHeader className="border-b border-border/50 bg-muted/30 pb-4">
+          <CardHeader className="border-b border-border/50 bg-muted/30 px-4 pb-4 pt-6 sm:px-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -1170,7 +1167,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       <div className="space-y-6">
         <Alerts />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:max-w-5xl">
           {PLATFORMS.map((platform) => {
             const connected = isConnected(platform.id)
             const connection = getConnection(platform.id)
@@ -1178,77 +1175,59 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             return (
               <Card
                 key={platform.id}
-                className={`relative overflow-hidden border-2 transition-all duration-300 ${
+                className={cn(
+                  'relative overflow-hidden rounded-2xl border bg-card/30 shadow-none ring-1 ring-black/[0.04] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 dark:bg-slate-950/35 dark:ring-white/[0.07]',
                   connected
-                    ? 'border-green-500/50 bg-gradient-to-br from-green-500/5 to-transparent shadow-lg shadow-green-500/10'
-                    : 'border-border hover:border-primary/50 hover:shadow-lg'
-                }`}
+                    ? 'border-emerald-500/20 ring-emerald-500/10'
+                    : 'border-border/50 hover:border-border',
+                )}
               >
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${platform.gradient}`} />
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-80"
+                  style={{
+                    background: `linear-gradient(90deg, ${platform.color}, transparent)`,
+                  }}
+                  aria-hidden
+                />
 
-                <CardHeader className="pb-4 pt-6">
-                  <div className="flex items-center gap-4">
+                <CardHeader className="space-y-0 px-6 pb-2 pt-10 sm:pt-11">
+                  <div className="flex items-start gap-4">
                     <div
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
-                      style={{
-                        background: `linear-gradient(135deg, ${platform.color}20, ${platform.color}10)`,
-                        color: platform.color,
-                        border: `1px solid ${platform.color}30`,
-                      }}
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]"
+                      style={{ boxShadow: `inset 0 0 0 1px ${platform.color}18` }}
                     >
-                      {getPlatformLogo(platform.id)}
+                      <div className="scale-90">{getPlatformLogo(platform.id)}</div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {platform.name}
-                        {connected && (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shadow-sm">
-                            <Check className="h-3 w-3 text-white" />
-                          </div>
-                        )}
-                      </CardTitle>
-                      {connection?.platform_username && (
-                        <p className="text-sm text-muted-foreground">@{connection.platform_username}</p>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <CardTitle className="text-[1.125rem] font-semibold leading-tight tracking-tight text-foreground sm:text-[1.1875rem]">
+                          {platform.name}
+                        </CardTitle>
+                        {connected ? (
+                          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-600/90 dark:text-emerald-400/90">
+                            Connected
+                          </span>
+                        ) : null}
+                      </div>
+                      {connection?.platform_username ? (
+                        <p className="truncate text-[13px] text-muted-foreground">@{connection.platform_username}</p>
+                      ) : (
+                        <p className="text-[13px] text-muted-foreground">Not linked</p>
                       )}
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <CardDescription className="text-sm">{platform.description}</CardDescription>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {platform.dataTypes.map((type) => (
-                      <Badge
-                        key={type}
-                        variant="secondary"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: `${platform.color}10`,
-                          color: platform.color,
-                          borderColor: `${platform.color}20`,
-                        }}
-                      >
-                        {type}
-                      </Badge>
-                    ))}
-                  </div>
+                <CardContent className="space-y-6 px-6 pb-8 pt-4">
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">{platform.description}</p>
 
                   {connected ? (
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-5">
                       {platform.id === 'onlyfans' ? (
-                        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <Label className="text-xs font-medium text-muted-foreground">
-                            Your OnlyFans page type
+                        <div className="space-y-2">
+                          <Label className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                            Page type
                           </Label>
-                          <p className="text-[11px] text-muted-foreground leading-snug">
-                            Free page: $0 follow, revenue from PPV, tips, and messages. Paid page: fans pay a
-                            monthly sub; most feed posts are included. This is separate from each fan’s CRM
-                            tier. Divine and AI Chatter use it so replies match how you monetize.
-                            {(connection?.onlyfans_creator_page_model_source === 'api' && connection?.onlyfans_creator_page_model && connection.onlyfans_creator_page_model !== 'unknown') ? (
-                              <span className="block mt-1 text-primary/90">Inferred from API — change below if wrong.</span>
-                            ) : null}
-                          </p>
                           <Select
                             value={
                               connection?.onlyfans_creator_page_model === 'free' ||
@@ -1261,22 +1240,39 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             }
                             disabled={savingOfPageModel}
                           >
-                            <SelectTrigger className="h-9 text-sm bg-background">
-                              <SelectValue placeholder="Select page type" />
+                            <SelectTrigger className="h-10 rounded-xl border-border/40 bg-background/50 text-[14px]">
+                              <SelectValue placeholder="Choose" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="free">Free page (PPV / tips / messages)</SelectItem>
+                              <SelectItem value="free">Free page — PPV, tips, messages</SelectItem>
                               <SelectItem value="paid">Paid subscription page</SelectItem>
-                              <SelectItem value="unknown">Not sure — infer when possible</SelectItem>
+                              <SelectItem value="unknown">Let Circe infer when possible</SelectItem>
                             </SelectContent>
                           </Select>
+                          {(connection?.onlyfans_creator_page_model_source === 'api' &&
+                            connection?.onlyfans_creator_page_model &&
+                            connection.onlyfans_creator_page_model !== 'unknown') ? (
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                              Inferred from your account — correct above if needed.
+                            </p>
+                          ) : null}
+                          <details className="group rounded-xl border border-border/30 bg-background/[0.15] px-3 py-2 text-[12px] text-muted-foreground">
+                            <summary className="cursor-pointer list-none py-1 font-medium text-foreground/80 outline-none transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                              <span className="border-b border-dotted border-muted-foreground/40 pb-px">
+                                Why we ask
+                              </span>
+                            </summary>
+                            <p className="mt-2 leading-relaxed">
+                              Free pages monetize with PPV and tips; paid pages use subscriptions. We use this so AI
+                              replies match how you earn — separate from per-fan CRM tiers.
+                            </p>
+                          </details>
                         </div>
                       ) : null}
 
                       {renderStatusEditor(platform.id)}
 
-                      {platform.id === 'onlyfans' &&
-                      adultPlatformBilling?.onlyFansAccessBlocked ? (
+                      {platform.id === 'onlyfans' && adultPlatformBilling?.onlyFansAccessBlocked ? (
                         <Alert variant="destructive" className="border-amber-600/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription className="text-sm">
@@ -1284,7 +1280,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
                               Review billing
                             </Link>
-                            , or disconnect this platform until your plan matches.
+                            , or disconnect until your plan matches.
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1296,83 +1292,74 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
                               Review billing
                             </Link>
-                            , or disconnect this platform until your plan matches.
+                            , or disconnect until your plan matches.
                           </AlertDescription>
                         </Alert>
                       ) : null}
 
-                      {/* Connected status bar */}
-                      <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/8 px-3 py-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-                          <Check className="h-3.5 w-3.5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-green-600">Connected</p>
-                          {connection?.platform_username && (
-                            <p className="text-xs text-muted-foreground truncate">@{connection.platform_username}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Niche & boundaries editor for creator platforms */}
                       {(platform.id === 'onlyfans' || platform.id === 'fansly') && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Content niche & boundaries
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(Object.keys(NICHE_LABELS) as NicheKey[]).map((key) => {
-                              const active = (connection?.niches || []).includes(key)
-                              const isBoundary = BOUNDARY_NICHES.includes(key)
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => toggleNiche(platform.id, key)}
-                                  className={cn(
-                                    'rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
-                                    active
-                                      ? isBoundary
-                                        ? 'border-amber-500 bg-amber-500/10 text-amber-600'
-                                        : 'border-primary bg-primary/10 text-primary'
-                                      : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary'
-                                  )}
-                                >
-                                  {NICHE_LABELS[key]}
-                                </button>
-                              )
-                            })}
+                        <details className="rounded-xl border border-border/30 bg-background/[0.12]">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+                            Content niche &amp; boundaries
+                          </summary>
+                          <div className="border-t border-border/25 px-4 pb-4 pt-3">
+                            <div className="flex flex-wrap gap-1.5">
+                              {(Object.keys(NICHE_LABELS) as NicheKey[]).map((key) => {
+                                const active = (connection?.niches || []).includes(key)
+                                const isBoundary = BOUNDARY_NICHES.includes(key)
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => toggleNiche(platform.id, key)}
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
+                                      active
+                                        ? isBoundary
+                                          ? 'border-amber-500/50 bg-amber-500/[0.08] text-amber-700 dark:text-amber-200'
+                                          : 'border-primary/35 bg-primary/[0.08] text-primary'
+                                        : 'border-border/60 bg-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                                    )}
+                                  >
+                                    {NICHE_LABELS[key]}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                              Shapes tone and guardrails for AI replies.
+                            </p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            These tags help Circe & Venus tailor replies and respect your boundaries.
-                          </p>
-                        </div>
+                        </details>
                       )}
 
-                      {/* Actions */}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 gap-2"
+                          className="h-9 flex-1 gap-2 rounded-xl border-border/45"
                           onClick={() => handleSync(platform.id)}
                           disabled={syncing === platform.id}
                         >
-                          {syncing === platform.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <RefreshCw className="h-3.5 w-3.5" />}
-                          Sync Data
+                          {syncing === platform.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          )}
+                          Sync
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/60"
+                          variant="ghost"
+                          className="h-9 gap-2 rounded-xl text-muted-foreground hover:text-destructive"
                           onClick={() => handleDisconnect(platform.id)}
                           disabled={disconnecting === platform.id}
                         >
-                          {disconnecting === platform.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Unplug className="h-3.5 w-3.5" />}
+                          {disconnecting === platform.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Unplug className="h-3.5 w-3.5" />
+                          )}
                           Disconnect
                         </Button>
                       </div>
@@ -1380,20 +1367,24 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                   ) : (
                     <Button
                       size="sm"
-                      className="w-full shadow-lg transition-all hover:shadow-xl gap-2"
-                      style={{ background: `linear-gradient(135deg, ${platform.color}, ${platform.color}CC)` }}
+                      variant="outline"
+                      className="h-10 w-full gap-2 rounded-xl border-2 bg-background/30 text-[14px] font-medium transition-colors hover:bg-background/50"
+                      style={{
+                        borderColor: `${platform.color}44`,
+                        color: platform.color,
+                      }}
                       onClick={() => handleConnect(platform.id)}
                     >
-                      <ExternalLink className="h-4 w-4" />
+                      <Link2 className="h-4 w-4 opacity-80" />
                       Connect {platform.name}
                     </Button>
                   )}
 
-                  {connection?.last_sync_at && (
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                      Last synced: {new Date(connection.last_sync_at).toLocaleDateString()}
+                  {connection?.last_sync_at ? (
+                    <p className="text-center text-[11px] text-muted-foreground">
+                      Last synced {new Date(connection.last_sync_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                     </p>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             )

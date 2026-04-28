@@ -10,7 +10,13 @@ import {
   subscriptionFinancialFieldsFromMerged,
   type SubscriptionRowForCredits,
 } from '@/lib/billing/credit-economics'
-import { isPaidPlanId, isProtectionPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
+import {
+  FREE_PLAN_ID,
+  isPaidPlanId,
+  isProtectionPlanId,
+  PAID_PLAN_ID,
+  TRIAL_PLAN_ID,
+} from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
@@ -37,6 +43,42 @@ const TRIAL_DURATION_DAYS = 2
 function normalizePlanId(raw: string | undefined): string | undefined {
   if (!raw) return undefined
   return isPaidPlanId(raw) ? PAID_PLAN_ID : raw
+}
+
+/** Maps Stripe subscription state → our `plan_id` and `trial_ends_at` (clears trial when sub is no longer trialing). */
+function resolvedMainPlanAndTrialEnd(sub: Stripe.Subscription): {
+  planId: string
+  trialEndsAt: string | null
+} {
+  const rawPlan = sub.metadata?.productId
+  const cardRequiredTrial = sub.metadata?.trialSource === 'card_required'
+  const st = sub.status
+
+  const trialEndIso =
+    typeof sub.trial_end === 'number' ? new Date(sub.trial_end * 1000).toISOString() : null
+
+  if (st === 'trialing') {
+    const planId = cardRequiredTrial ? TRIAL_PLAN_ID : normalizePlanId(rawPlan) ?? PAID_PLAN_ID
+    return { planId, trialEndsAt: trialEndIso }
+  }
+
+  if (st === 'active' || st === 'past_due' || st === 'paused') {
+    return {
+      planId: normalizePlanId(rawPlan) ?? PAID_PLAN_ID,
+      trialEndsAt: null,
+    }
+  }
+
+  if (
+    st === 'canceled' ||
+    st === 'unpaid' ||
+    st === 'incomplete_expired' ||
+    st === 'incomplete'
+  ) {
+    return { planId: FREE_PLAN_ID, trialEndsAt: null }
+  }
+
+  return { planId: FREE_PLAN_ID, trialEndsAt: null }
 }
 
 function metaPatch(meta: Record<string, string> | null | undefined) {
@@ -349,18 +391,27 @@ export async function POST(req: NextRequest) {
           )
 
           const period = getSubscriptionPeriodSeconds(createdSub)
+          const trialEndIso =
+            typeof createdSub.trial_end === 'number'
+              ? new Date(createdSub.trial_end * 1000).toISOString()
+              : period
+                ? new Date(period.end * 1000).toISOString()
+                : undefined
           await upsertSubscriptionByUserId(supabase, userId, {
             stripe_customer_id: customerId,
             stripe_subscription_id: createdSub.id,
             plan_id: 'divine-trial',
             status: createdSub.status,
-            ...(period
+            trial_expiry_reminder_sent_at: null,
+            ...(period && trialEndIso
               ? {
                   current_period_start: new Date(period.start * 1000).toISOString(),
                   current_period_end: new Date(period.end * 1000).toISOString(),
-                  trial_ends_at: new Date(period.end * 1000).toISOString(),
+                  trial_ends_at: trialEndIso,
                 }
-              : {}),
+              : trialEndIso
+                ? { trial_ends_at: trialEndIso }
+                : {}),
             cancel_at_period_end: createdSub.cancel_at_period_end,
           })
           break
@@ -444,10 +495,7 @@ export async function POST(req: NextRequest) {
           await patchProtectionSubscription(supabase, customerId, sub)
           break
         }
-        const planId =
-          sub.status === 'trialing' && sub.metadata?.trialSource === 'card_required'
-            ? 'divine-trial'
-            : normalizePlanId(rawPlan)
+        const { planId, trialEndsAt } = resolvedMainPlanAndTrialEnd(sub)
         const tierMeta = metaPatch(sub.metadata as Record<string, string>)
         const period = getSubscriptionPeriodSeconds(sub)
         const lineQty = sub.items?.data?.[0]?.quantity
@@ -461,7 +509,8 @@ export async function POST(req: NextRequest) {
         await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
           stripe_subscription_id: sub.id,
           divine_voice_premium: subscriptionStripeHasDivineVoicePrice(sub),
-          ...(planId ? { plan_id: planId } : {}),
+          plan_id: planId,
+          trial_ends_at: trialEndsAt,
           ...(tierMeta.billing_variant != null ? { billing_variant: tierMeta.billing_variant } : {}),
           ...(tierMeta.revenue_tier != null ? { revenue_tier: tierMeta.revenue_tier } : {}),
           ...(tierMeta.revenue_band_label != null ? { revenue_band_label: tierMeta.revenue_band_label } : {}),
@@ -519,6 +568,8 @@ export async function POST(req: NextRequest) {
           await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
             stripe_subscription_id: sub.id,
             status: 'canceled',
+            plan_id: FREE_PLAN_ID,
+            trial_ends_at: null,
             cancel_at_period_end: false,
           })
         }
@@ -532,6 +583,7 @@ export async function POST(req: NextRequest) {
         if (customerId) {
           await upsertSubscriptionByStripeCustomerId(supabase, customerId, {
             status: 'active',
+            trial_ends_at: null,
           })
         }
         break

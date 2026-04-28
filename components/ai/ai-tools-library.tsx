@@ -36,7 +36,7 @@ import {
 } from 'lucide-react'
 import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
@@ -108,13 +108,14 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
         const { data } = await supabase
           .from('subscriptions')
           .select(
-            'ai_credits_used,ai_credits_limit,plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
+            'status,ai_credits_used,ai_credits_limit,plan_id,billing_variant,revenue_tier,billing_focus_platform,billing_focus_platforms,billing_seats',
           )
           .eq('user_id', user.id)
           .maybeSingle()
         if (data) {
-          const planId = (data as { plan_id?: string }).plan_id?.toLowerCase()
-          setIsPro(!!planId && isPaidPlanId(planId))
+          setIsPro(
+            canUseCreditGatedProFeature(data as { plan_id?: string | null; status?: string | null }),
+          )
         }
 
         const snapshotRes = await fetch('/api/billing/credit-snapshot', {

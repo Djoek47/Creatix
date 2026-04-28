@@ -5,7 +5,7 @@ import {
   runCirceChurnForUser,
   type CirceChurnSettingsRow,
 } from '@/lib/circe-churn/run-for-user'
-import { isPaidSubscription } from '@/lib/billing/access'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 
 /**
  * Manual "scan now" for Churn Predictor batch digest (same rules as scheduled runs, bypasses cadence).
@@ -25,8 +25,11 @@ export async function POST(request: NextRequest) {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!isPaidSubscription(sub as { plan_id?: string | null; status?: string | null } | null)) {
-    return NextResponse.json({ error: 'Pro subscription required' }, { status: 403 })
+  if (!canUseCreditGatedProFeature(sub as { plan_id?: string | null; status?: string | null } | null)) {
+    return NextResponse.json(
+      { error: 'Pro or active trial required. Churn uses your AI credits when fans match—no separate fee.' },
+      { status: 403 },
+    )
   }
 
   const { data: churnRow, error: churnErr } = await supabase

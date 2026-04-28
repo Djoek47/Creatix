@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Users,
-  Calendar,
   MessageSquare,
   BarChart3,
   Shield,
@@ -22,8 +21,7 @@ import {
   BookOpen,
   Crown,
   LucideIcon,
-  Library,
-  Lightbulb,
+  Layers,
   HeartPulse,
   MessagesSquare,
   Activity,
@@ -49,6 +47,18 @@ interface NavItem {
   href: string
   icon: LucideIcon
   beta?: boolean
+  /** If set, item is active when pathname matches any of these (exact or child path). */
+  activeMatch?: readonly string[]
+}
+
+function navItemIsActive(pathname: string, item: NavItem): boolean {
+  if (item.href === '/dashboard/fans') {
+    return pathname === '/dashboard/fans'
+  }
+  if (item.activeMatch?.length) {
+    return item.activeMatch.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  }
+  return pathname === item.href || pathname.startsWith(`${item.href}/`)
 }
 
 // Circe's domain (Purple) — all items always visible
@@ -83,11 +93,10 @@ const SIDEBAR_SIZE = {
 const silverNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
-  { name: 'Content Calendar', href: '/dashboard/content', icon: Calendar },
+  { name: 'Content', href: '/dashboard/content', icon: Layers },
   { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { name: 'Social', href: '/dashboard/social', icon: Share2 },
-  { name: 'Content library', href: '/dashboard/content-library', icon: Library },
 ]
 
 const aiStudioNavigation: NavItem[] = [
@@ -95,12 +104,17 @@ const aiStudioNavigation: NavItem[] = [
 ]
 
 const bottomNavigation: NavItem[] = [
-  { name: 'Community', href: '/dashboard/community', icon: Lightbulb, beta: true },
-  { name: 'Guide', href: '/dashboard/guide', icon: BookOpen },
+  {
+    name: 'Guide & suggestions',
+    href: '/dashboard/guide',
+    icon: BookOpen,
+    beta: true,
+    activeMatch: ['/dashboard/guide', '/dashboard/community'],
+  },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-/** Community preview — warm amber chip; readable on sidebar in light + dark. */
+/** Beta pill for guide / suggestions preview — warm amber chip. */
 const SIDEBAR_BETA_PILL =
   'rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-2 py-0.5 text-[0.6rem] font-semibold uppercase leading-none tracking-[0.1em] text-amber-950/80 tabular-nums dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]'
 
@@ -157,10 +171,7 @@ function NavLink({
   verticalDensity: SidebarVerticalDensity
   pulseNavSeverity?: PulseSeverity
 }) {
-  const isActive =
-    item.href === '/dashboard/fans'
-      ? pathname === '/dashboard/fans'
-      : pathname === item.href || pathname.startsWith(item.href + '/')
+  const isActive = navItemIsActive(pathname, item)
   const isAiStudio = variant === 'ai-studio'
   const styles = variantStyles[variant]
   const Icon = item.icon
@@ -219,7 +230,7 @@ function NavLink({
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
           {item.beta ? (
-            <span className={SIDEBAR_BETA_PILL}>Beta</span>
+            <span className={SIDEBAR_BETA_PILL}>Coming soon</span>
           ) : null}
         </div>
       )}
@@ -250,7 +261,7 @@ function NavLink({
             <span className="font-medium">{item.name}</span>
             {item.beta ? (
               <span className="ml-1.5 rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-950/80 dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]">
-                Beta
+                Coming soon
               </span>
             ) : null}
           </TooltipPrimitive.Content>

@@ -6,13 +6,13 @@
 /* CIRCE ET VENUS - Mythological Creator Management Platform */
 /* Color System: Gold (primary), Purple (Circe), White/Cream (Venus) */
 
-/* LIGHT THEME - Day Mode (Venus dominant) */
+/* LIGHT THEME — Day: soft parchment (less stark than pure white; whisper of gold) */
 :root {
-  --background: oklch(0.98 0.005 90);
+  --background: oklch(0.965 0.009 86);
   --foreground: oklch(0.15 0.01 285);
-  --card: oklch(1 0 0);
+  --card: oklch(0.99 0.006 86);
   --card-foreground: oklch(0.15 0.01 285);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.99 0.006 86);
   --popover-foreground: oklch(0.15 0.01 285);
   
   /* Gold primary */
@@ -29,16 +29,16 @@
   --venus-light: oklch(0.45 0.06 285);
   --venus-foreground: oklch(0.98 0 0);
   
-  --secondary: oklch(0.94 0.01 90);
+  --secondary: oklch(0.928 0.014 86);
   --secondary-foreground: oklch(0.2 0.01 285);
-  --muted: oklch(0.94 0.01 90);
+  --muted: oklch(0.928 0.014 86);
   --muted-foreground: oklch(0.45 0.01 285);
   --accent: oklch(0.65 0.16 85);
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.55 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.88 0.01 90);
-  --input: oklch(0.94 0.01 90);
+  --border: oklch(0.865 0.014 86);
+  --input: oklch(0.93 0.012 86);
   --ring: oklch(0.65 0.16 85);
   
   /* Charts */
@@ -51,13 +51,13 @@
   --radius: 0.5rem;
   
   /* Sidebar - Light */
-  --sidebar: oklch(0.96 0.005 90);
+  --sidebar: oklch(0.948 0.008 86);
   --sidebar-foreground: oklch(0.2 0.01 285);
   --sidebar-primary: oklch(0.65 0.16 85);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.92 0.01 90);
+  --sidebar-accent: oklch(0.915 0.012 86);
   --sidebar-accent-foreground: oklch(0.15 0.01 285);
-  --sidebar-border: oklch(0.88 0.01 90);
+  --sidebar-border: oklch(0.865 0.014 86);
   --sidebar-ring: oklch(0.65 0.16 85);
   
   --success: oklch(0.6 0.18 150);

@@ -25,10 +25,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Wand2 } from 'lucide-react'
+import { Archive, Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 export type VaultContentRow = {
   id: string
@@ -470,25 +471,38 @@ export function MediaVaultHub() {
       ) : null}
 
       <Tabs defaultValue="creatix" className="w-full">
-        <TabsList className="inline-flex h-10 w-full max-w-lg rounded-full bg-muted/40 p-1 sm:w-auto">
+        <TabsList className="inline-flex h-auto min-h-11 w-full max-w-lg items-stretch rounded-full bg-muted/40 p-1 sm:w-auto">
           <TabsTrigger
             value="creatix"
-            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+            className="flex flex-1 flex-col gap-1 rounded-full px-3 py-2 text-center text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none sm:min-w-[5.5rem] sm:text-sm"
           >
-            Vault
+            <Archive className="mx-auto h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} aria-hidden />
+            <span>Vault</span>
           </TabsTrigger>
           <TabsTrigger
             value="onlyfans"
-            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+            className="flex flex-1 flex-col gap-1 rounded-full px-3 py-2 text-center text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none sm:min-w-[5.5rem] sm:text-sm"
             onClick={() => ofPosts.length === 0 && void loadOfPosts()}
           >
-            OnlyFans
+            {/* eslint-disable-next-line @next/next/no-img-element -- small tab badge from public */}
+            <img
+              src={ONLYFANS_LOGO_SRC}
+              alt=""
+              className="mx-auto h-3.5 w-auto max-w-[3.25rem] object-contain opacity-90 dark:opacity-[0.92]"
+            />
+            <span>OnlyFans</span>
           </TabsTrigger>
           <TabsTrigger
             value="fansly"
-            className="flex-1 rounded-full px-4 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none"
+            className="flex flex-1 flex-col gap-1 rounded-full px-3 py-2 text-center text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none sm:min-w-[5.5rem] sm:text-sm"
           >
-            Fansly
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={FANSLY_LOGO_SRC}
+              alt=""
+              className="mx-auto h-3.5 w-auto max-w-[2.85rem] object-contain opacity-90 dark:opacity-[0.92]"
+            />
+            <span>Fansly</span>
           </TabsTrigger>
         </TabsList>
 
@@ -540,7 +554,7 @@ export function MediaVaultHub() {
             <div className="rounded-2xl border border-dashed border-border/80 py-14 text-center">
               <p className="text-sm text-muted-foreground">
                 Nothing here yet.{' '}
-                <Link href="/dashboard/content" className="font-medium text-foreground underline-offset-4 hover:underline">
+                <Link href="/dashboard/content?view=schedule" className="font-medium text-foreground underline-offset-4 hover:underline">
                   Open calendar
                 </Link>{' '}
                 or add an item above.

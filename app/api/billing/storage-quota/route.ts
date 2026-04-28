@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
 import {
   resolveVaultUserQuotaBytes,
   VAULT_MEDIA_BUCKET,
 } from '@/lib/frame-vault-media'
-import { resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
 
 function objectSizeBytes(metadata: unknown): number {
   if (!metadata || typeof metadata !== 'object') return 0
@@ -14,6 +14,10 @@ function objectSizeBytes(metadata: unknown): number {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+/**
+ * Billing-facing vault storage: quota matches Supabase Storage enforcement (see `VAULT_USER_QUOTA_MB`);
+ * usage is summed from `storage.objects` for the vault-media bucket (same as upload checks).
+ */
 export async function GET(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
   const {
@@ -26,6 +30,7 @@ export async function GET(req: NextRequest) {
   if (!url || !key) return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
 
   const service = createServiceClient(url, key)
+  const quotaMb = resolveAppVaultQuotaMb()
   const quotaBytes = resolveVaultUserQuotaBytes()
 
   const { data: objects, error } = await service
@@ -44,11 +49,20 @@ export async function GET(req: NextRequest) {
     usageBytes += objectSizeBytes(row.metadata)
   }
 
+  const trace = {
+    kind: 'supabase_storage_vault_media_per_user' as const,
+    limited: true,
+    /** Whether `VAULT_USER_QUOTA_MB` was set on the server (value is not exposed). */
+    quotaSource: process.env.VAULT_USER_QUOTA_MB ? ('environment' as const) : ('product_default' as const),
+  }
+
   return NextResponse.json({
-    usageBytes,
+    quotaMb,
     quotaBytes,
+    usageBytes,
+    usageMb: usageBytes / (1024 * 1024),
     remainingBytes: Math.max(0, quotaBytes - usageBytes),
     usagePercent: quotaBytes > 0 ? Math.min(100, Math.round((usageBytes / quotaBytes) * 100)) : 0,
-    recommendedPerUserMb: resolveAppVaultQuotaMb(),
+    trace,
   })
 }

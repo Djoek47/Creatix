@@ -37,6 +37,14 @@ export function isPaidSubscription(row: SubscriptionLike | null | undefined): bo
 /** Trial / free tier plan id */
 export const TRIAL_PLAN_ID = 'divine-trial'
 
+/** Main product lapsed (trial ended / sub canceled / unpaid) — not Pro, not trial entitlement. */
+export const FREE_PLAN_ID = 'cev-free'
+
+export function isFreePlanId(planId: string | null | undefined): boolean {
+  if (!planId) return false
+  return planId.toLowerCase() === FREE_PLAN_ID
+}
+
 export function isTrialPlanId(planId: string | null | undefined): boolean {
   return !planId || planId.toLowerCase() === TRIAL_PLAN_ID
 }
@@ -62,6 +70,14 @@ export interface ProtectionEntitlementFields {
 /** True when the $25/mo protection subscription is active (column synced from Stripe webhooks). */
 export function isProtectionEntitled(row: ProtectionEntitlementFields | null | undefined): boolean {
   return row?.protection_plan_active === true
+}
+
+/**
+ * Pro-tier AI tools that debit credits: paid subscription or active Divine trial.
+ * Credit sufficiency is enforced separately via requireAiToolSessionAndCredits / consumeAiCredits.
+ */
+export function canUseCreditGatedProFeature(row: SubscriptionLike | null | undefined): boolean {
+  return isPaidSubscription(row) || hasActiveDivineTrial(row)
 }
 
 /**

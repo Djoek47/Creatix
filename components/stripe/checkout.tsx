@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import {
   EmbeddedCheckout,
   EmbeddedCheckoutProvider,
@@ -32,7 +32,7 @@ interface CheckoutProps {
   focusPlatforms?: AdultBillingPlatform[] | null
   /** Managers on the same creator account (multiplies monthly price). */
   seats?: number
-  buttonText?: string
+  buttonText?: ReactNode
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
   customTopupUsdAmount?: number

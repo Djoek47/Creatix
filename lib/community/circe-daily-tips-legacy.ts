@@ -80,7 +80,7 @@ export const CIRCE_DAILY_TIPS_LEGACY = [
     title: 'Safe photo touch-ups only',
     body:
       'Use blur, emoji, and lighting tools for creator-owned media. Skip “beautify everything” pipelines — authenticity plus polish wins.',
-    link: { label: 'Content library', href: '/dashboard/content-library' },
+    link: { label: 'Content · Vault', href: '/dashboard/content?view=vault' },
   },
   {
     id: 'community-share',
@@ -143,7 +143,7 @@ export const CIRCE_DAILY_TIPS_LEGACY = [
     title: 'First line is the hook',
     body:
       'Assume previews truncate. Put curiosity or payoff in the first sentence; move hashtags and disclaimers below the fold.',
-    link: { label: 'Content library', href: '/dashboard/content-library' },
+    link: { label: 'Content · Vault', href: '/dashboard/content?view=vault' },
   },
   {
     id: 'refund-boundary',

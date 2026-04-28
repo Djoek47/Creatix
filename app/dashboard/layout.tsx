@@ -19,6 +19,7 @@ import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-e
 import { ProtectionOnlyRedirect } from '@/components/dashboard/protection-only-redirect'
 import { WorkspaceCapabilitiesProvider } from '@/components/dashboard/workspace-capabilities-context'
 import { DashboardPulseProvider } from '@/components/dashboard/dashboard-pulse-provider'
+import { WellbeingBreakNudgeScheduler } from '@/components/wellbeing/wellbeing-break-nudge-scheduler'
 import { resolveWorkspaceCapabilities, type SubscriptionCapsRow } from '@/lib/plan-capabilities'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
@@ -75,6 +76,7 @@ export default async function DashboardLayout({
                   <DashboardDocumentScrollLock />
                   <DashboardRealmEntrance />
                   <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />
+                  <WellbeingBreakNudgeScheduler />
                   <div className="relative flex h-dvh max-h-dvh min-h-0 overflow-hidden">
                     <DashboardCelestialBackdrop />
                     {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}

@@ -1,7 +1,7 @@
 import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { loadOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
 import { formatThreadTextForAi, normalizeSortedRawOfMessages } from '@/lib/divine/of-thread-text'
 import {
@@ -44,14 +44,15 @@ export async function POST(req: NextRequest) {
 
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('plan_id')
+    .select('plan_id, status')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const planId = (subscription as { plan_id?: string } | null)?.plan_id?.toLowerCase() || null
-  const isPro = Boolean(planId && isPaidPlanId(planId))
-  if (!isPro) {
-    return NextResponse.json({ error: 'Pro subscription required for Churn Predictor' }, { status: 403 })
+  if (!canUseCreditGatedProFeature(subscription)) {
+    return NextResponse.json(
+      { error: 'Pro or active trial required. Churn Predictor uses AI credits per run—no separate charge.' },
+      { status: 403 },
+    )
   }
 
   const access = await requireAiToolSessionAndCredits(req, 'churn-predictor')

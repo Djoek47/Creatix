@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
@@ -334,12 +334,14 @@ export function AIToolsSelector({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     
-    const { data } = await supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).single()
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('plan_id, status')
+      .eq('user_id', user.id)
+      .single()
 
     if (data) {
-      const planId = (data as { plan_id?: string | null }).plan_id as string | null | undefined
-      const normalized = planId?.toLowerCase() || null
-      setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
+      setIsPro(canUseCreditGatedProFeature(data as { plan_id?: string | null; status?: string | null }))
     }
   }, [supabase])
   

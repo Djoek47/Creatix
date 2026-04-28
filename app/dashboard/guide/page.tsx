@@ -71,6 +71,9 @@ export default function GuidePage() {
             <a href="#getting-started" className="text-primary underline-offset-4 hover:underline">
               Getting started
             </a>
+            <Link href="/dashboard/community" className="text-primary underline-offset-4 hover:underline">
+              Suggestions
+            </Link>
             <a href="#divine-manager" className="text-primary underline-offset-4 hover:underline">
               Divine Manager
             </a>

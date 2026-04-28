@@ -227,24 +227,33 @@ export type HousekeepingListsConfig = FanClassifyConfig
 /** Prefix for system-managed Fansly tags created by classify sync. */
 export const FAN_CLASSIFY_MANAGED_TAG_PREFIX = 'Creatix classify — '
 
+const FAN_CLASSIFY_LIST_SHORT_NAMES: Record<FanClassifySegmentKey, string> = {
+  whale_spend: 'Whales',
+  active_chatter: 'Active chatters',
+  cold: 'Cold / low engagement',
+  freeloader_new: 'Freeloaders (<45d)',
+  freeloader_mature: 'Freeloaders (45+d)',
+  spenders: 'Spenders',
+  subscriber_no_extra: 'Subscribers, no extra spend',
+  recent_sub_3d: 'Recent subs (3d)',
+}
+
+/** User-facing name on list/tag without the managed prefix (UI only; sync still uses full name). */
+export function fanClassifyListShortName(segment: FanClassifySegmentKey): string {
+  return FAN_CLASSIFY_LIST_SHORT_NAMES[segment]
+}
+
 export function defaultFanClassifyListName(segment: FanClassifySegmentKey): string {
-  const labels: Record<FanClassifySegmentKey, string> = {
-    whale_spend: 'Whales',
-    active_chatter: 'Active chatters',
-    cold: 'Cold / low engagement',
-    freeloader_new: 'Freeloaders (<45d)',
-    freeloader_mature: 'Freeloaders (45+d)',
-    spenders: 'Spenders',
-    subscriber_no_extra: 'Subscribers, no extra spend',
-    recent_sub_3d: 'Recent subs (3d)',
-  }
-  return `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}${labels[segment]}`
+  return `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}${fanClassifyListShortName(segment)}`
 }
 
 /** Default OnlyFans list / Fansly tag for “active chat” auto-sync. */
 export const FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME = `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}Active chat`
 
-/** Default Smart classify segment toggles for new setups (legacy API segments off). */
+/** UI label for active-chat list/tag (no managed prefix). */
+export const FAN_CLASSIFY_ACTIVE_CHAT_SHORT_LABEL = 'Active chat'
+
+/** Default Smart classify segment toggles for new setups (optional OnlyFans rules off). */
 export function defaultSmartClassifySegments(): FanClassifySegmentRule[] {
   return [
     { segment: 'freeloader_new', enabled: true },

@@ -9,8 +9,8 @@ export type DashboardPageMeta = {
   /** Primary page title (matches visible <h1> in DashboardRouteHero) */
   title: string
   subtitle: string
-  /** `ai-tools` = gold/purple glow; `minimal` = calm typography only */
-  heroVariant?: 'default' | 'ai-tools' | 'minimal'
+  /** `ai-tools` = gold/purple glow; `minimal` = calm typography; `system` = sans, spacious (e.g. Settings) */
+  heroVariant?: 'default' | 'ai-tools' | 'minimal' | 'system'
 }
 
 type Entry = { prefix: string; meta: DashboardPageMeta }
@@ -76,15 +76,6 @@ const ENTRIES: Entry[] = [
     },
   },
   {
-    prefix: '/dashboard/content-library',
-    meta: {
-      eyebrow: 'Library',
-      title: 'Content library',
-      subtitle: 'Vault, platform feeds, and metadata Divine uses for DMs and PPV timing.',
-      heroVariant: 'minimal',
-    },
-  },
-  {
     prefix: '/dashboard/content/new',
     meta: {
       eyebrow: 'Compose',
@@ -95,9 +86,10 @@ const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/content',
     meta: {
-      eyebrow: 'Rhythm',
-      title: 'Cosmic calendar',
-      subtitle: 'Schedule and orchestrate posts across platforms without losing the plot.',
+      eyebrow: 'Content',
+      title: 'Content',
+      subtitle: 'Plan the week, hold the vault, and scan every post — three calm lenses, one workspace.',
+      heroVariant: 'minimal',
     },
   },
   {
@@ -168,8 +160,8 @@ const ENTRIES: Entry[] = [
     meta: {
       eyebrow: 'Account',
       title: 'Settings',
-      subtitle: 'Profile, billing, integrations, and privacy — one calm place.',
-      heroVariant: 'minimal',
+      subtitle: 'Your profile, plan, connections, and privacy — in one quiet place.',
+      heroVariant: 'system',
     },
   },
   {

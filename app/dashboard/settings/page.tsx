@@ -12,10 +12,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { 
   User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
   Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles, BookOpen, Gauge
+  Mail, ExternalLink, Zap, RefreshCw, Eye, EyeOff, BookOpen, Gauge, ChevronDown
 } from 'lucide-react'
 
 // Social Media Logos
@@ -61,8 +67,37 @@ import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capab
 import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 import { cn } from '@/lib/utils'
 
-const SETTINGS_GLASS_CARD =
-  'rounded-2xl border border-white/45 bg-white/55 py-0 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.52)]'
+/** Precise, quiet surfaces — no heavy glass or SaaS glow. */
+const SETTINGS_SURFACE = cn(
+  'overflow-hidden rounded-2xl border border-border/55 bg-card',
+  'shadow-[0_1px_2px_rgba(0,0,0,0.045)]',
+  'dark:border-white/[0.07] dark:bg-zinc-950/40 dark:shadow-none',
+)
+
+const SETTINGS_CARD_HEADER =
+  'space-y-2 border-b border-border/45 px-8 pb-6 pt-10 sm:px-10 sm:pb-8 sm:pt-12'
+
+const SETTINGS_CARD_TITLE =
+  'font-sans text-xl font-semibold tracking-[-0.02em] text-foreground sm:text-[1.3125rem]'
+
+const SETTINGS_CARD_DESCRIPTION =
+  'font-sans text-[0.9375rem] leading-relaxed text-muted-foreground max-w-xl'
+
+const SETTINGS_CARD_CONTENT = 'px-8 py-8 sm:px-10 sm:py-10'
+
+const SETTINGS_FIELD_LABEL = 'font-sans text-sm font-medium text-foreground'
+
+const SETTINGS_SECTION_LABEL = 'font-sans text-[0.8125rem] font-medium text-muted-foreground'
+
+const SETTINGS_DESTRUCTIVE_SURFACE = cn(
+  SETTINGS_SURFACE,
+  'border-destructive/20 dark:border-destructive/28',
+)
+
+const SETTINGS_RESOURCE_LINK = cn(
+  'flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground',
+  'transition-colors duration-150 hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.04]',
+)
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'usage' | 'integrations' | 'data' | 'preferences'
 
@@ -107,6 +142,11 @@ export default function SettingsPage() {
     notify_subscription_renewed: false,
   })
   const [messagingAutoMarkReadOnOpen, setMessagingAutoMarkReadOnOpen] = useState(false)
+  const [avatarPlatformBusy, setAvatarPlatformBusy] = useState<null | 'onlyfans' | 'fansly'>(null)
+  const [avatarPlatformMessage, setAvatarPlatformMessage] = useState<{
+    variant: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [preferences, setPreferences] = useState({
     language: 'en',
     dateFormat: 'MM/DD/YYYY',
@@ -172,6 +212,18 @@ export default function SettingsPage() {
         setHasBirthdaySet(profile.has_birthday_set || false)
       }
 
+      const { data: platformRows } = await supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', user.id)
+
+      setIntegrations((prev) => ({
+        ...prev,
+        onlyfans: platformRows?.some((r) => r.platform === 'onlyfans' && r.is_connected) ?? false,
+        fansly: platformRows?.some((r) => r.platform === 'fansly' && r.is_connected) ?? false,
+        mym: platformRows?.some((r) => r.platform === 'mym' && r.is_connected) ?? false,
+      }))
+
       const prefsRes = await fetch('/api/user/notification-preferences')
       if (prefsRes.ok) {
         const prefs = await prefsRes.json()
@@ -228,6 +280,39 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  async function applyAvatarFromPlatform(platform: 'onlyfans' | 'fansly') {
+    setAvatarPlatformMessage(null)
+    setAvatarPlatformBusy(platform)
+    try {
+      const res = await fetch('/api/user/avatar-from-platform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ platform }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; avatar_url?: string }
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not update photo')
+      }
+      const url = data.avatar_url
+      if (url) {
+        setProfile((p) => (p ? { ...p, avatar_url: url } : p))
+      }
+      setAvatarPlatformMessage({
+        variant: 'success',
+        text: `Profile photo updated from ${platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}.`,
+      })
+      router.refresh()
+    } catch (e) {
+      setAvatarPlatformMessage({
+        variant: 'error',
+        text: e instanceof Error ? e.message : 'Could not load photo from platform.',
+      })
+    } finally {
+      setAvatarPlatformBusy(null)
+    }
+  }
+
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -271,8 +356,8 @@ export default function SettingsPage() {
       <div className="flex min-h-[42vh] items-center justify-center px-2">
         <div
           className={cn(
-            SETTINGS_GLASS_CARD,
-            'flex w-full max-w-[360px] items-center justify-center border-dashed py-20',
+            SETTINGS_SURFACE,
+            'flex w-full max-w-sm items-center justify-center border-dashed py-16',
           )}
         >
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label="Loading settings" />
@@ -322,135 +407,211 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="space-y-8">
-      <div className="grid min-w-0 gap-6 lg:grid-cols-4 lg:gap-8">
-        {/* Sidebar Navigation */}
-        <Card className={cn(SETTINGS_GLASS_CARD, 'h-fit min-w-0 lg:col-span-1')}>
-          <CardContent className="p-4 sm:p-5">
-            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Sections</p>
-            <nav className="space-y-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab.id)
-                    router.replace(`/dashboard/settings?tab=${tab.id}`, { scroll: false })
-                  }}
-                  className={cn(
-                    'flex w-full min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-[background-color,box-shadow,color] duration-200 ease-out',
-                    activeTab === tab.id
-                      ? 'bg-background/75 text-foreground shadow-sm ring-1 ring-border/40'
-                      : 'text-muted-foreground hover:bg-background/45 hover:text-foreground',
-                  )}
-                >
-                  <tab.icon className="h-4 w-4 shrink-0 opacity-80" />
-                  {tab.label}
-                </button>
-              ))}
+    <div className="settings-shell font-sans antialiased">
+      <div className="mx-auto max-w-6xl pb-24 sm:pb-28">
+        <div className="grid min-w-0 grid-cols-1 gap-12 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-14 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-20">
+          <aside
+            className="min-w-0 md:sticky md:top-28 md:self-start"
+            aria-label="Settings navigation"
+          >
+            <nav className="flex flex-col gap-0.5">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => {
+                      setActiveTab(tab.id)
+                      router.replace(`/dashboard/settings?tab=${tab.id}`, { scroll: false })
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] transition-[background-color,color,font-weight] duration-150',
+                      isActive
+                        ? 'bg-foreground/[0.06] font-medium text-foreground dark:bg-white/[0.07]'
+                        : 'text-muted-foreground hover:bg-foreground/[0.035] hover:text-foreground dark:hover:bg-white/[0.04]',
+                    )}
+                  >
+                    <tab.icon
+                      className={cn(
+                        'h-[17px] w-[17px] shrink-0',
+                        isActive ? 'text-foreground' : 'text-muted-foreground/70',
+                      )}
+                      strokeWidth={isActive ? 2 : 1.65}
+                    />
+                    <span className="leading-snug">{tab.label}</span>
+                  </button>
+                )
+              })}
             </nav>
-            <Separator className="my-4 bg-border/50" />
-            <div className="space-y-0.5 text-sm">
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                Terms
-              </a>
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                Privacy
-              </a>
-              <a
-                href="/contact"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                Support
-              </a>
-              <Link
-                href="/dashboard/welcome?openTour=1"
-                className="flex min-h-[40px] items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
-              >
-                <BookOpen className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                App tour
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Main Content */}
-        <div className="min-w-0 space-y-6 overflow-x-hidden lg:col-span-3 lg:space-y-8">
+            <div className="my-8 h-px w-full bg-border/40" />
+
+            <div>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground/75">
+                Resources
+              </p>
+              <div className="flex flex-col gap-0.5">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  Terms
+                </a>
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  Privacy
+                </a>
+                <a
+                  href="/contact"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  Support
+                </a>
+                <Link href="/dashboard/welcome?openTour=1" className={SETTINGS_RESOURCE_LINK}>
+                  <BookOpen className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  App tour
+                </Link>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0 space-y-10 overflow-x-hidden sm:space-y-12">
           {/* Profile Section */}
           {activeTab === 'profile' && (
             <>
-            <Card className={SETTINGS_GLASS_CARD}>
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <User className="h-5 w-5" />
-                Profile Information
-              </CardTitle>
-                <CardDescription>
-                  Update your personal details and public profile
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>Profile</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                  Name, photo, and how the app addresses you.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 border-2 border-border">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                  <Avatar className="h-[5.25rem] w-[5.25rem] border border-border/40 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_20px_-6px_rgba(0,0,0,0.45)]">
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary text-2xl text-primary-foreground">
+                    <AvatarFallback className="bg-muted text-xl font-medium tracking-tight text-foreground">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Upload className="h-4 w-4" />
-                      Change Avatar
-                    </Button>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      JPG, PNG or GIF. Max 2MB.
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 rounded-full border-border/45 px-4 text-[0.8125rem] font-normal shadow-none"
+                      >
+                        <Upload className="h-3.5 w-3.5 opacity-70" />
+                        Change photo
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!integrations.onlyfans && !integrations.fansly}
+                            className="h-9 gap-1.5 rounded-full border-border/45 px-4 text-[0.8125rem] font-normal shadow-none disabled:opacity-50"
+                          >
+                            <Link2 className="h-3.5 w-3.5 opacity-70" />
+                            From platform
+                            <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="min-w-[12rem]">
+                          <DropdownMenuItem
+                            disabled={!integrations.onlyfans || avatarPlatformBusy !== null}
+                            onClick={() => void applyAvatarFromPlatform('onlyfans')}
+                            className="gap-2"
+                          >
+                            OnlyFans
+                            {avatarPlatformBusy === 'onlyfans' ? (
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                            ) : null}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={!integrations.fansly || avatarPlatformBusy !== null}
+                            onClick={() => void applyAvatarFromPlatform('fansly')}
+                            className="gap-2"
+                          >
+                            Fansly
+                            {avatarPlatformBusy === 'fansly' ? (
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                            ) : null}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/75">
+                      JPEG or PNG, up to 2&nbsp;MB — or pull your public avatar from a linked account in{' '}
+                      <Link
+                        href="/dashboard/settings?tab=integrations"
+                        className="text-foreground/85 underline underline-offset-2 hover:text-foreground"
+                      >
+                        Integrations
+                      </Link>
+                      .
                     </p>
+                    {avatarPlatformMessage ? (
+                      <p
+                        className={cn(
+                          'text-[0.75rem] leading-snug',
+                          avatarPlatformMessage.variant === 'success'
+                            ? 'text-emerald-600 dark:text-emerald-400/90'
+                            : 'text-destructive',
+                        )}
+                      >
+                        {avatarPlatformMessage.text}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* Form Fields */}
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-x-8 gap-y-7 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName" className={SETTINGS_FIELD_LABEL}>
+                      Full name
+                    </Label>
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Your name"
-                      className="bg-input"
+                      className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className={SETTINGS_FIELD_LABEL}>
+                      Email
+                    </Label>
                     <Input
                       id="email"
                       defaultValue={user?.email || ''}
                       disabled
-                      className="bg-input"
+                      className="h-11 rounded-xl border-border/40 bg-muted/25 text-muted-foreground shadow-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Gender identity (optional)</Label>
+                    <Label htmlFor="gender" className={SETTINGS_FIELD_LABEL}>
+                      Gender identity{' '}
+                      <span className="normal-case tracking-normal text-muted-foreground/60">(optional)</span>
+                    </Label>
                     <Select value={genderIdentity} onValueChange={setGenderIdentity}>
-                      <SelectTrigger id="gender" className="bg-input">
+                      <SelectTrigger id="gender" className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue placeholder="Select gender identity" />
                       </SelectTrigger>
                       <SelectContent>
@@ -464,14 +625,16 @@ export default function SettingsPage() {
                         <SelectItem value="other">Other / describe in bio</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Used only so Circe, Venus, and Flirt speak about you correctly.
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">
+                      Used so Circe, Venus, and Flirt refer to you correctly.
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pronouns">Pronouns</Label>
+                    <Label htmlFor="pronouns" className={SETTINGS_FIELD_LABEL}>
+                      Pronouns
+                    </Label>
                     <Select value={pronouns} onValueChange={setPronouns}>
-                      <SelectTrigger id="pronouns" className="bg-input">
+                      <SelectTrigger id="pronouns" className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue placeholder="Select pronouns" />
                       </SelectTrigger>
                       <SelectContent>
@@ -486,20 +649,22 @@ export default function SettingsPage() {
                     </Select>
                     {pronouns === 'custom' && (
                       <Input
-                        className="mt-2 bg-input"
-                        placeholder="Enter your pronouns (e.g. fae/faer)"
+                        className="mt-2 h-11 rounded-xl border-border/40 bg-background/40 shadow-none"
+                        placeholder="e.g. fae/faer"
                         value={customPronouns}
                         onChange={(e) => setCustomPronouns(e.target.value)}
                       />
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      We&apos;ll use these everywhere in the app and in AI responses.
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">
+                      Shown in the product and in AI-generated copy.
                     </p>
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <Label htmlFor="timezone" className={SETTINGS_FIELD_LABEL}>
+                      Timezone
+                    </Label>
                     <Select value={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger className="bg-input">
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue placeholder="Select timezone" />
                       </SelectTrigger>
                       <SelectContent>
@@ -513,40 +678,56 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Theme Toggle */}
-                <div className="flex items-center justify-between rounded-xl border border-border/35 bg-background/30 p-4 backdrop-blur-sm">
-                  <div className="flex items-center gap-3">
-                    {theme === 'dark' ? (
-                      <Moon className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <Sun className="h-5 w-5 text-muted-foreground" />
-                    )}
+                <div className="flex flex-col gap-4 border-t border-border/30 pt-10 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={cn(
+                        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/35 bg-muted/20',
+                      )}
+                      aria-hidden
+                    >
+                      {theme === 'dark' ? (
+                        <Moon className="h-[18px] w-[18px] text-muted-foreground/65" />
+                      ) : (
+                        <Sun className="h-[18px] w-[18px] text-muted-foreground/65" />
+                      )}
+                    </div>
                     <div>
-                      <p className="text-sm font-medium">Appearance</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-[0.9375rem] font-medium text-foreground">Appearance</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">
                         {theme === 'dark' ? 'Dark' : 'Light'}
                       </p>
                     </div>
                   </div>
                   <Button
-                    variant="outline"
+                    type="button"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-lg border-border/40"
+                    className="h-9 self-start rounded-full px-4 text-[0.8125rem] font-normal text-foreground hover:bg-foreground/[0.06] sm:self-center"
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                   >
-                    Use {theme === 'dark' ? 'light' : 'dark'}
+                    Switch to {theme === 'dark' ? 'light' : 'dark'}
                   </Button>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleSignOut}>
-                    Sign Out
+                <div className="flex flex-col-reverse items-stretch gap-3 border-t border-border/30 pt-8 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 justify-center rounded-full text-muted-foreground hover:text-foreground sm:justify-start"
+                    onClick={handleSignOut}
+                  >
+                    Sign out
                   </Button>
-                  <Button onClick={handleSaveProfile} disabled={saving}>
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="h-10 rounded-full px-8 text-[0.9375rem] font-medium shadow-none"
+                  >
                     {saving ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
+                        Saving…
                       </>
                     ) : saved ? (
                       <>
@@ -554,26 +735,34 @@ export default function SettingsPage() {
                         Saved
                       </>
                     ) : (
-                      'Save Changes'
+                      'Save'
                     )}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className={SETTINGS_GLASS_CARD}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-semibold">
-                  <Sparkles className="h-5 w-5" />
-                  branding
-                  <Badge variant="secondary">Beta</Badge>
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={cn(SETTINGS_CARD_TITLE, 'flex flex-wrap items-center gap-2')}>
+                  Branding
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border border-border/40 bg-muted/40 px-2.5 py-0 text-[0.625rem] font-medium uppercase tracking-[0.08em] text-muted-foreground"
+                  >
+                    Beta
+                  </Badge>
                 </CardTitle>
-                <CardDescription>
-                  Define your creator brand once and reuse it in captions, ideas, and watermark defaults.
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                  One place for captions, ideas, and watermark defaults.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button asChild variant="outline">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'pt-6')}>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-10 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                >
                   <Link href="/dashboard/brand-uniformity">Open branding</Link>
                 </Button>
               </CardContent>
@@ -591,44 +780,45 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           {activeTab === 'notifications' && (
-            <Card className={SETTINGS_GLASS_CARD}>
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Bell className="h-5 w-5" />
-                Notification Preferences
-              </CardTitle>
-                <CardDescription>
-                  Choose what notifications you want to receive
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>Notifications</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                  Choose what you want to hear about.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
                 <div>
-                  <h4 className="mb-4 font-medium">Alerts</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <h4 className={SETTINGS_SECTION_LABEL}>Alerts</h4>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Email Notifications</p>
-                        <p className="text-sm text-muted-foreground">Receive email updates about your account</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Email notifications</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Account updates by email</p>
                       </div>
                       <Switch 
                         checked={notifications.email}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Leak Alerts</p>
-                        <Badge variant="outline" className="text-circe">Circe</Badge>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">Leak alerts</p>
+                        <Badge variant="outline" className="shrink-0 text-circe">
+                          Circe
+                        </Badge>
                       </div>
                       <Switch 
                         checked={notifications.leakAlerts}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, leakAlerts: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Reputation Alerts</p>
-                        <Badge variant="outline" className="text-venus">Venus</Badge>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">Reputation alerts</p>
+                        <Badge variant="outline" className="shrink-0 text-venus">
+                          Venus
+                        </Badge>
                       </div>
                       <Switch 
                         checked={notifications.reputationAlerts}
@@ -637,17 +827,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-2 font-medium">Platform activity (OnlyFans & Fansly)</h4>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Choose which in-app notifications you get when something happens on your connected platforms—like using OnlyFans or Fansly directly.
+                  <h4 className={SETTINGS_SECTION_LABEL}>Platform activity</h4>
+                  <p className="mb-5 max-w-[40rem] text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                    In-app notices when something changes on connected platforms (e.g. OnlyFans or Fansly).
                   </p>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Every new message</p>
-                        <p className="text-sm text-muted-foreground">Notify me for each new DM received</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Every new message</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Notify for each new DM</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_message}
@@ -657,10 +847,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Every new subscriber</p>
-                        <p className="text-sm text-muted-foreground">Notify me when someone subscribes</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Every new subscriber</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">When someone subscribes</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_subscriber}
@@ -670,10 +860,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">New tips</p>
-                        <p className="text-sm text-muted-foreground">Notify me for tips (e.g. $50+)</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">New tips</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">e.g. $50+ tips</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_tip}
@@ -683,10 +873,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Subscription expired</p>
-                        <p className="text-sm text-muted-foreground">Notify me when a fan’s subscription lapses</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Subscription expired</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">When a fan&apos;s subscription lapses</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_subscription_expired}
@@ -696,10 +886,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Subscription renewed</p>
-                        <p className="text-sm text-muted-foreground">Notify me when a fan renews</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Subscription renewed</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">When a fan renews</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_subscription_renewed}
@@ -711,18 +901,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-2 font-medium">Messages (read state)</h4>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    OnlyFans marks chats as read on their servers when you open them in Creatix—only if you opt in below.
-                    You can always mark read or unread from each thread&apos;s menu. Per-thread overrides live there too.
+                  <h4 className={SETTINGS_SECTION_LABEL}>Messages</h4>
+                  <p className="mb-5 max-w-[40rem] text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                    OnlyFans can mark chats read on their servers when you open threads here—only if you opt in. You can still change read state per thread from its menu.
                   </p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-medium">Auto-mark as read when I open a thread</p>
-                      <p className="text-sm text-muted-foreground">
-                        Off by default so you can preview without clearing unread until you choose
+                      <p className="text-[0.9375rem] font-medium text-foreground">Auto-mark read when I open a thread</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">
+                        Off by default so previews don&apos;t clear unread until you choose
                       </p>
                     </div>
                     <Switch
@@ -738,44 +927,44 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-4 font-medium">Reports & Updates</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <h4 className={SETTINGS_SECTION_LABEL}>Reports &amp; updates</h4>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Daily Digest</p>
-                        <p className="text-sm text-muted-foreground">Daily summary of your activity</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Daily digest</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Summary of your activity</p>
                       </div>
                       <Switch 
                         checked={notifications.dailyDigest}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, dailyDigest: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Weekly Report</p>
-                        <p className="text-sm text-muted-foreground">Weekly analytics and insights</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Weekly report</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Analytics and highlights</p>
                       </div>
                       <Switch 
                         checked={notifications.weeklyReport}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReport: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">New Features</p>
-                        <p className="text-sm text-muted-foreground">Get notified about new platform features</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">New features</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Product announcements</p>
                       </div>
                       <Switch 
                         checked={notifications.newFeatures}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, newFeatures: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Marketing Emails</p>
-                        <p className="text-sm text-muted-foreground">Promotions and special offers</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Marketing email</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Offers and updates from us</p>
                       </div>
                       <Switch 
                         checked={notifications.marketingEmails}
@@ -793,30 +982,38 @@ export default function SettingsPage() {
             <>
               <SecuritySettings />
 
-              <Card className={SETTINGS_GLASS_CARD}>
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Globe className="h-5 w-5" />
-                Active Sessions
-              </CardTitle>
-                  <CardDescription>
-                    Devices where you are currently logged in
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>Active sessions</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                    Devices where you&apos;re signed in.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <Globe className="h-5 w-5 text-primary" />
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-4')}>
+                  <div
+                    className={cn(
+                      'flex items-center justify-between gap-4 rounded-2xl border border-border/30 bg-muted/[0.18] px-4 py-4 sm:px-5',
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/30 bg-background/50">
+                        <Globe className="h-5 w-5 text-muted-foreground/70" />
                       </div>
-                      <div>
-                        <p className="font-medium">Current Session</p>
-                        <p className="text-sm text-muted-foreground">Chrome on MacOS - Los Angeles, CA</p>
+                      <div className="min-w-0">
+                        <p className="text-[0.9375rem] font-medium text-foreground">This device</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Chrome on macOS · Los Angeles</p>
                       </div>
                     </div>
-                    <Badge>Active</Badge>
+                    <Badge className="shrink-0 rounded-full border border-border/40 bg-muted/30 font-normal text-muted-foreground">
+                      Active
+                    </Badge>
                   </div>
-                  <Button variant="outline" className="w-full">Sign Out All Other Sessions</Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full rounded-full border-border/45 text-[0.875rem] font-normal shadow-none"
+                  >
+                    Sign out other sessions
+                  </Button>
                 </CardContent>
               </Card>
             </>
@@ -831,7 +1028,7 @@ export default function SettingsPage() {
 
           {/* Integrations Section */}
           {activeTab === 'integrations' && (
-            <div data-tour="settings-integrations" className="flex flex-col gap-6">
+            <div data-tour="settings-integrations" className="flex flex-col gap-8">
               {workspaceCaps.canUsePlatformIntegrationsSettings ? (
                 <>
                   <PlatformConnector />
@@ -840,39 +1037,45 @@ export default function SettingsPage() {
                     fanPlatformConnected={integrations.onlyfans || integrations.fansly}
                   />
 
-                  <Card className={SETTINGS_GLASS_CARD}>
-                    <CardHeader>
-                      <CardTitle className="font-semibold">Social Media</CardTitle>
-                      <CardDescription>
-                        Connect social accounts for reputation monitoring
+                  <Card className={SETTINGS_SURFACE}>
+                    <CardHeader className={SETTINGS_CARD_HEADER}>
+                      <CardTitle className={SETTINGS_CARD_TITLE}>Social</CardTitle>
+                      <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                        Link accounts for reputation monitoring.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-3')}>
                       {socialIntegrations.map((social) => (
-                        <div key={social.key} className="flex items-center justify-between rounded-lg border border-border p-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${social.color} text-white`}>
+                        <div
+                          key={social.key}
+                          className="flex items-center justify-between gap-4 rounded-2xl border border-border/30 bg-muted/[0.15] px-4 py-3.5 sm:px-5"
+                        >
+                          <div className="flex min-w-0 items-center gap-3.5">
+                            <div
+                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${social.color} text-white shadow-sm`}
+                            >
                               <social.icon />
                             </div>
-                            <div>
-                              <p className="font-medium">{social.name}</p>
-                              <p className="text-sm text-muted-foreground">
+                            <div className="min-w-0">
+                              <p className="text-[0.9375rem] font-medium text-foreground">{social.name}</p>
+                              <p className="text-[0.8125rem] text-muted-foreground/78">
                                 {social.connected ? 'Connected' : 'Not connected'}
                               </p>
                             </div>
                           </div>
-                          <Button 
-                            variant={social.connected ? 'outline' : 'default'} 
+                          <Button
+                            variant={social.connected ? 'outline' : 'default'}
                             size="sm"
+                            className={cn(
+                              'h-9 shrink-0 rounded-full px-4 text-[0.8125rem] font-normal',
+                              !social.connected && 'shadow-none',
+                            )}
                             onClick={() => {
                               if (social.connected) {
-                                // Disconnect
-                                fetch(`/api/${social.key}/disconnect`, { method: 'POST' })
-                                  .then(() => {
-                                    setIntegrations(prev => ({ ...prev, [social.key]: false }))
-                                  })
+                                fetch(`/api/${social.key}/disconnect`, { method: 'POST' }).then(() => {
+                                  setIntegrations((prev) => ({ ...prev, [social.key]: false }))
+                                })
                               } else {
-                                // Redirect to OAuth
                                 window.location.href = `/api/${social.key}/auth`
                               }
                             }}
@@ -885,14 +1088,19 @@ export default function SettingsPage() {
                   </Card>
                 </>
               ) : (
-                <Card className={SETTINGS_GLASS_CARD}>
-                  <CardHeader>
-                    <CardTitle className="font-semibold">Creator API & integrations</CardTitle>
-                    <CardDescription>{getNonApiUpgradeMessage()}</CardDescription>
+                <Card className={SETTINGS_SURFACE}>
+                  <CardHeader className={SETTINGS_CARD_HEADER}>
+                    <CardTitle className={SETTINGS_CARD_TITLE}>API &amp; integrations</CardTitle>
+                    <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                      {getNonApiUpgradeMessage()}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <Button asChild>
-                      <Link href="/dashboard/settings?tab=billing">View plans &amp; upgrade</Link>
+                  <CardContent className={SETTINGS_CARD_CONTENT}>
+                    <Button
+                      asChild
+                      className="h-10 rounded-full px-6 text-[0.875rem] font-medium shadow-none"
+                    >
+                      <Link href="/dashboard/settings?tab=billing">View plans</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -903,90 +1111,106 @@ export default function SettingsPage() {
           {/* Data & Privacy Section */}
           {activeTab === 'data' && (
             <>
-              <Card className={SETTINGS_GLASS_CARD}>
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Database className="h-5 w-5" />
-                Your Data
-              </CardTitle>
-                  <CardDescription>
-                    Manage and export your data
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>Your data</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                    Export or refresh what we store for you.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Download className="h-5 w-5 text-muted-foreground" />
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3.5">
+                      <Download className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
                       <div>
-                        <p className="font-medium">Export All Data</p>
-                        <p className="text-sm text-muted-foreground">Download a copy of your data</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Export</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Download a copy of your data</p>
                       </div>
                     </div>
-                    <Button variant="outline">Request Export</Button>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <RefreshCw className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Sync Data</p>
-                        <p className="text-sm text-muted-foreground">Last synced: 2 hours ago</p>
-                      </div>
-                    </div>
-                    <Button variant="outline">Sync Now</Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className={SETTINGS_GLASS_CARD}>
-                <CardHeader>
-                  <CardTitle className="font-semibold">Privacy Settings</CardTitle>
-                  <CardDescription>Control how your data is used</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Analytics & Improvements</p>
-                      <p className="text-sm text-muted-foreground">Help us improve with anonymous usage data</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Personalized AI</p>
-                      <p className="text-sm text-muted-foreground">Allow AI to learn from your preferences</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className={cn(SETTINGS_GLASS_CARD, 'border-destructive/35 ring-1 ring-destructive/10')}>
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                Danger Zone
-              </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Delete All Data</p>
-                      <p className="text-sm text-muted-foreground">Remove all your data (keeps account)</p>
-                    </div>
-                    <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
-                      Delete Data
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                    >
+                      Request export
                     </Button>
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Delete Account</p>
-                      <p className="text-sm text-muted-foreground">Permanently delete account and data</p>
+                  <Separator className="bg-border/35" />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3.5">
+                      <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
+                      <div>
+                        <p className="text-[0.9375rem] font-medium text-foreground">Sync</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">Last synced 2 hours ago</p>
+                      </div>
                     </div>
-                    <Button variant="destructive" onClick={handleDeleteAccount}>
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                    >
+                      Sync now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>Privacy</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                    How we use telemetry and personalization.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Analytics</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">Anonymous usage to improve the product</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Personalized AI</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">Learn from your preferences</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SETTINGS_DESTRUCTIVE_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={cn(SETTINGS_CARD_TITLE, 'text-destructive')}>Danger zone</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                    Irreversible actions—proceed only if you mean it.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Delete data</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">Remove stored data, keep your account</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-destructive/35 text-destructive hover:bg-destructive/10"
+                    >
+                      Delete data
+                    </Button>
+                  </div>
+                  <Separator className="bg-border/35" />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Delete account</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">Permanently remove your account</p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      className="h-10 shrink-0 rounded-full px-5 shadow-none"
+                      onClick={handleDeleteAccount}
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Account
+                      Delete account
                     </Button>
                   </div>
                 </CardContent>
@@ -996,22 +1220,22 @@ export default function SettingsPage() {
 
           {/* Preferences Section */}
           {activeTab === 'preferences' && (
-            <Card className={SETTINGS_GLASS_CARD}>
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Settings2 className="h-5 w-5" />
-                Preferences
-              </CardTitle>
-                <CardDescription>
-                  Customize your experience
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>Preferences</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                  Locale, drafts, and gentle in-app guidance.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select value={preferences.language} onValueChange={(v) => setPreferences({...preferences, language: v})}>
-                      <SelectTrigger className="bg-input">
+                    <Label className={SETTINGS_FIELD_LABEL}>Language</Label>
+                    <Select
+                      value={preferences.language}
+                      onValueChange={(v) => setPreferences({ ...preferences, language: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1024,9 +1248,12 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Date Format</Label>
-                    <Select value={preferences.dateFormat} onValueChange={(v) => setPreferences({...preferences, dateFormat: v})}>
-                      <SelectTrigger className="bg-input">
+                    <Label className={SETTINGS_FIELD_LABEL}>Date format</Label>
+                    <Select
+                      value={preferences.dateFormat}
+                      onValueChange={(v) => setPreferences({ ...preferences, dateFormat: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1036,10 +1263,13 @@ export default function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Currency</Label>
-                    <Select value={preferences.currency} onValueChange={(v) => setPreferences({...preferences, currency: v})}>
-                      <SelectTrigger className="bg-input">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className={SETTINGS_FIELD_LABEL}>Currency</Label>
+                    <Select
+                      value={preferences.currency}
+                      onValueChange={(v) => setPreferences({ ...preferences, currency: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none sm:max-w-md">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1052,83 +1282,102 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                 </div>
-                <Separator />
-                <div className="space-y-4 rounded-lg border border-sky-500/25 bg-sky-500/[0.04] p-4">
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="rounded-2xl border border-border/30 bg-muted/[0.18] p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Allow fan-facing drafts (Mimic beta)</p>
-                        <Badge variant="outline" className="border-sky-500/30 text-sky-600 dark:text-sky-300">
-                          Mimic
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">Fan-facing drafts (Mimic)</p>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-border/45 text-[0.625rem] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+                        >
+                          Beta
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Enables Mimic to draft fan-facing replies for review in Divine and Messages. Drafts are still
-                        review-first unless you separately change review policy in Divine tools.
+                      <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                        Lets Mimic draft replies for review in Divine and Messages. Review-first unless you change policy
+                        in Divine tools.
                       </p>
                     </div>
                     <Switch
+                      className="shrink-0"
                       checked={mimicProfile.consentFanFacingDrafts === true}
                       disabled={mimicSaving}
                       onCheckedChange={(checked) => void handleMimicDraftToggle(checked)}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    For best results, complete your{' '}
-                    <Link href="/dashboard/divine-manager?section=mimic" className="underline underline-offset-2">
-                      Mimic Test in Divine Manager
+                  <p className="mt-4 text-[0.75rem] leading-snug text-muted-foreground/75">
+                    For best results, finish the{' '}
+                    <Link
+                      href="/dashboard/divine-manager?section=mimic"
+                      className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground"
+                    >
+                      Mimic test
                     </Link>{' '}
-                    so drafts match your real tone.
+                    in Divine Manager.
                   </p>
                   {mimicSaveMessage ? (
-                    <p className="text-xs text-muted-foreground">{mimicSaveMessage}</p>
+                    <p className="mt-2 text-[0.75rem] text-muted-foreground">{mimicSaveMessage}</p>
                   ) : null}
                 </div>
-                <Separator />
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-medium">Auto-Save Drafts</p>
-                      <p className="text-sm text-muted-foreground">Automatically save content as you type</p>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Auto-save drafts</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">Save while you type</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={preferences.autoSave}
-                      onCheckedChange={(checked) => setPreferences({...preferences, autoSave: checked})}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, autoSave: checked })}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-medium">Sound Effects</p>
-                      <p className="text-sm text-muted-foreground">Play sounds for notifications</p>
+                      <p className="text-[0.9375rem] font-medium text-foreground">Sound</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">UI sounds for notices</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={preferences.soundEffects}
-                      onCheckedChange={(checked) => setPreferences({...preferences, soundEffects: checked})}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, soundEffects: checked })}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">Cosmic Guidance</p>
-                      <Badge variant="outline" className="text-primary">AI</Badge>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="text-[0.9375rem] font-medium text-foreground">Cosmic guidance</p>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 rounded-full border-border/45 text-[0.625rem] font-medium text-muted-foreground"
+                      >
+                        AI
+                      </Badge>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={preferences.cosmicGuidance}
-                      onCheckedChange={(checked) => setPreferences({...preferences, cosmicGuidance: checked})}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, cosmicGuidance: checked })}
                     />
                   </div>
                 </div>
-                <Separator />
-                <div className="space-y-4">
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="space-y-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Daily tip popups</p>
-                        <Badge variant="outline" className="shrink-0 text-circe-light border-circe/40">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">Tip popups</p>
+                        <Badge variant="outline" className="shrink-0 border-border/45 text-circe-light">
                           Circe
                         </Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Random creator-economy insights while you use the dashboard (auto-dismiss after you read). The full numbered list lives on the Community tips page — {getCirceTipCount()} insights total.
+                      <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                        Short insights while you work—dismiss when you&apos;re done reading. Full list:{' '}
+                        {getCirceTipCount()} tips on the Circe daily page.
                       </p>
                     </div>
                     <Switch
@@ -1141,18 +1390,23 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                      <Link href="/dashboard/community/circe-daily">Open full tips page</Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full rounded-full border-border/45 text-[0.8125rem] font-normal shadow-none sm:w-auto"
+                      asChild
+                    >
+                      <Link href="/dashboard/community/circe-daily">Open tips</Link>
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="w-full sm:w-auto"
+                      className="h-9 w-full rounded-full text-[0.8125rem] font-normal shadow-none sm:w-auto"
                       disabled={!tipPopupsEnabled}
                       onClick={() => requestTipPopupPreview()}
                     >
-                      Preview a tip
+                      Preview
                     </Button>
                   </div>
                 </div>
@@ -1160,6 +1414,7 @@ export default function SettingsPage() {
             </Card>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

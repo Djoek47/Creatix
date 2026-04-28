@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Check, Copy, ListTree, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, Copy, ListTree, Loader2, RefreshCw, Sparkles, Tags } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -122,6 +122,9 @@ export default function CommenterPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [meta, setMeta] = useState<CommenterListMeta | null>(null)
+  const [classifyRunning, setClassifyRunning] = useState(false)
+  const [classifyMessage, setClassifyMessage] = useState<string | null>(null)
+  const [classifyError, setClassifyError] = useState<string | null>(null)
   const autoSyncAttempted = useRef(false)
 
   const load = useCallback(async () => {
@@ -204,6 +207,39 @@ export default function CommenterPage() {
     }, 120)
     return () => window.clearTimeout(t)
   }, [housekeepingSection, loading])
+
+  const onRunClassify = async () => {
+    setClassifyRunning(true)
+    setClassifyMessage(null)
+    setClassifyError(null)
+    try {
+      const res = await fetch('/api/fans/classify/sync-now', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        code?: string
+        message?: string
+        details?: string[]
+      }
+      if (res.status === 422 && data.code === 'CLASSIFY_DISABLED') {
+        setClassifyError(data.message ?? 'Turn on smart lists under Fans → Arrangements first.')
+        return
+      }
+      if (!res.ok) {
+        setClassifyError(data.error || data.message || 'Classification failed')
+        return
+      }
+      const details = Array.isArray(data.details) ? data.details.filter(Boolean) : []
+      const tail = details.length ? details.slice(-4).join(' · ') : 'Lists and tags updated from your CRM.'
+      setClassifyMessage(tail)
+    } catch {
+      setClassifyError('Could not run classification')
+    } finally {
+      setClassifyRunning(false)
+    }
+  }
 
   const onSync = async () => {
     setSyncing(true)
@@ -307,42 +343,6 @@ export default function CommenterPage() {
           Sync
         </Button>
       </div>
-
-      <Card
-        id="commenter-housekeeping"
-        className={cn(
-          'border-border/80 bg-muted/15',
-          housekeepingSection && 'ring-2 ring-amber-500/35',
-        )}
-      >
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex flex-wrap items-center gap-2 font-semibold">
-            <ListTree className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden />
-            Fan Atlas
-            <Badge variant="outline" className="text-[10px] font-medium">
-              Beta
-            </Badge>
-          </CardTitle>
-          <CardDescription>
-            Smart classify and list sync: OnlyFans user lists and Fansly CRM tags from your rules (
-            <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
-              Fans → Arrangements
-            </Link>
-            ). Server cron keeps segments aligned—pair with comment review above so public-comment signals land in the same CRM.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2 pb-4">
-          <Button variant="secondary" size="sm" asChild className="gap-2">
-            <Link href="/dashboard/fans#arrangements">
-              <ListTree className="h-4 w-4" aria-hidden />
-              Open Arrangements
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/settings">Integration settings</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       {syncResult && (
         <p className="text-sm text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/30">{syncResult}</p>
@@ -519,6 +519,68 @@ export default function CommenterPage() {
           })}
         </ul>
       )}
+
+      <Card
+        id="commenter-housekeeping"
+        className={cn(
+          'border-border/80 bg-muted/15',
+          housekeepingSection && 'ring-2 ring-amber-500/35',
+        )}
+      >
+        <CardHeader className="pb-2">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-base font-semibold">
+            <ListTree className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+            Fan Atlas
+            <Badge variant="outline" className="text-[10px] font-medium">
+              Beta
+            </Badge>
+          </CardTitle>
+          <CardDescription className="text-sm leading-relaxed">
+            Segment fans from your CRM by{' '}
+            <strong className="font-medium text-foreground">subscription status</strong>,{' '}
+            <strong className="font-medium text-foreground">lifetime spend</strong>, and the rules in{' '}
+            <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
+              Fans → Arrangements
+            </Link>
+            —then push matches to OnlyFans lists and Fansly tags. Scheduled sync still runs in the background; use the
+            button below when you want an immediate refresh.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 pb-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="gap-2"
+              onClick={() => void onRunClassify()}
+              disabled={classifyRunning}
+            >
+              {classifyRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tags className="h-4 w-4" aria-hidden />}
+              Classify fans now
+            </Button>
+            <Button variant="secondary" size="sm" asChild className="gap-2">
+              <Link href="/dashboard/fans#arrangements">
+                <ListTree className="h-4 w-4" aria-hidden />
+                Edit rules
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/settings?tab=integrations">Integrations</Link>
+            </Button>
+          </div>
+          {classifyMessage ? (
+            <p className="text-xs leading-relaxed text-muted-foreground">{classifyMessage}</p>
+          ) : null}
+          {classifyError ? (
+            <p className="text-xs leading-relaxed text-destructive">
+              {classifyError}{' '}
+              <Link href="/dashboard/fans#arrangements" className="font-medium underline underline-offset-2">
+                Open Arrangements
+              </Link>
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   )
 }

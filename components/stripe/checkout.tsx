@@ -6,12 +6,8 @@ import {
   EmbeddedCheckoutProvider,
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
-import {
-  parsePaidCheckoutBlockedError,
-  startCheckoutSession,
-  startCustomCreditTopupCheckout,
-  startPaidSubscriptionCheckout,
-} from '@/app/actions/stripe'
+import { startCheckoutSession, startCustomCreditTopupCheckout, startPaidSubscriptionCheckout } from '@/app/actions/stripe'
+import { parsePaidCheckoutBlockedError } from '@/lib/billing/paid-checkout-blocked'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'

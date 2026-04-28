@@ -32,39 +32,15 @@ import {
   isRevenueTierBelowObservation,
   loadScopedPlatformObservationsForUser,
 } from '@/lib/billing/onlyfans-billing-gate'
-
-export const PAID_CHECKOUT_BELOW_OBSERVED_CODE = 'revenue_tier_below_observed' as const
-
-export type PaidCheckoutBlockedPayload = {
-  code: typeof PAID_CHECKOUT_BELOW_OBSERVED_CODE
-  requiredMinTier: number
-  bandLabel: string
-}
-export function paidCheckoutBlockedErrorMessage(payload: PaidCheckoutBlockedPayload): string {
-  return JSON.stringify(payload)
-}
-
-export function parsePaidCheckoutBlockedError(err: unknown): PaidCheckoutBlockedPayload | null {
-  const raw = err instanceof Error ? err.message : String(err)
-  try {
-    const o = JSON.parse(raw) as Partial<PaidCheckoutBlockedPayload>
-    if (
-      o?.code === PAID_CHECKOUT_BELOW_OBSERVED_CODE &&
-      typeof o.requiredMinTier === 'number' &&
-      typeof o.bandLabel === 'string'
-    ) {
-      return {
-        code: PAID_CHECKOUT_BELOW_OBSERVED_CODE,
-        requiredMinTier: o.requiredMinTier,
-        bandLabel: o.bandLabel,
-      }
-    }
-  } catch {
-    //
-  }
-  return null
-}
-
+import {
+  PAID_CHECKOUT_BELOW_OBSERVED_CODE,
+  paidCheckoutBlockedErrorMessage,
+} from '@/lib/billing/paid-checkout-blocked'
+import {
+  focusPlatformsForPaidSubscriptionRow,
+  updateStripePaidSubscriptionItemToTier,
+} from '@/lib/billing/stripe-paid-tier-subscription-update'
+import { getAppUrl } from '@/lib/site-url'
 
 /** Embedded Checkout (`@stripe/react-stripe-js`). API expects `embedded_page`; older SDK unions may still say `embedded`. */
 const CHECKOUT_EMBEDDED_UI_MODE =
@@ -433,6 +409,114 @@ export async function startPaidSubscriptionCheckout(params: {
     throw new Error('Stripe Checkout did not return client_secret')
   }
   return session.client_secret
+}
+
+export type CatchUpPaidSubscriptionToObservedTierResult =
+  | { ok: true; mode: 'already_aligned' }
+  | { ok: true; mode: 'proration_initiated' }
+  | { ok: false; error: string }
+
+/**
+ * When linked OF/Fansly observations imply a higher revenue band than the subscription row,
+ * bumps the Stripe subscription item with proration (user-initiated from dashboard banner).
+ */
+export async function catchUpPaidSubscriptionToObservedTier(): Promise<CatchUpPaidSubscriptionToObservedTierResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.id) {
+    return { ok: false, error: 'Not signed in' }
+  }
+
+  const { data: sub, error: subErr } = await supabase
+    .from('subscriptions')
+    .select(
+      'stripe_subscription_id, revenue_tier, billing_variant, billing_focus_platforms, billing_seats, plan_id, status, revenue_tier_sync_paused_until',
+    )
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (subErr) {
+    return { ok: false, error: subErr.message }
+  }
+  if (!sub) {
+    return { ok: false, error: 'No subscription row found' }
+  }
+
+  const row = sub as {
+    stripe_subscription_id: string | null
+    revenue_tier: number | null
+    billing_variant: string | null
+    billing_focus_platforms: unknown
+    billing_seats: number | null
+    plan_id: string
+    status: string | null
+    revenue_tier_sync_paused_until: string | null
+  }
+
+  if (!row.stripe_subscription_id) {
+    return { ok: false, error: 'No Stripe subscription on file' }
+  }
+
+  const st = (row.status || '').toLowerCase()
+  if (st !== 'active' && st !== 'trialing') {
+    return { ok: false, error: 'Subscription must be active or trialing to align' }
+  }
+
+  const pauseUntil = row.revenue_tier_sync_paused_until
+  if (pauseUntil) {
+    const t = Date.parse(pauseUntil)
+    if (Number.isFinite(t) && t > Date.now()) {
+      return { ok: false, error: 'Tier sync is temporarily paused on your account' }
+    }
+  }
+
+  if (!isPaidPlanId(row.plan_id)) {
+    return { ok: false, error: 'Catch-up applies to paid plan subscriptions only' }
+  }
+
+  const { onlyfans, fansly } = await loadScopedPlatformObservationsForUser(supabase, user.id)
+  const required = computeRequiredRevenueTierFromScopedObservations({ onlyfans, fansly })
+  if (required == null) {
+    return { ok: true, mode: 'already_aligned' }
+  }
+
+  const subscribed =
+    typeof row.revenue_tier === 'number' &&
+    Number.isFinite(row.revenue_tier) &&
+    row.revenue_tier >= 0 &&
+    row.revenue_tier <= 10
+      ? row.revenue_tier
+      : 0
+
+  if (required <= subscribed) {
+    return { ok: true, mode: 'already_aligned' }
+  }
+
+  const variant: BillingVariant = row.billing_variant === 'multi' ? 'multi' : 'single'
+  const focusPlatforms = focusPlatformsForPaidSubscriptionRow(row)
+  const seats = clampBillingSeats(row.billing_seats ?? DEFAULT_BILLING_SEATS)
+
+  try {
+    const stripe = getStripe()
+    await updateStripePaidSubscriptionItemToTier({
+      stripe,
+      stripeSubscriptionId: row.stripe_subscription_id,
+      userId: user.id,
+      variant,
+      focusPlatforms,
+      seats,
+      targetTierIndex: required,
+      prorationBehavior: 'create_prorations',
+    })
+    return { ok: true, mode: 'proration_initiated' }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Stripe update failed',
+    }
+  }
 }
 
 export async function createCustomerPortalSession() {

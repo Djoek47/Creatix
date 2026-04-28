@@ -107,6 +107,16 @@ function metaPatch(meta: Record<string, string> | null | undefined) {
         billing_focus_platforms = ['onlyfans']
       }
     }
+  } else if (billingVariant === 'multi') {
+    const raw =
+      typeof meta.focusPlatforms === 'string'
+        ? meta.focusPlatforms.toLowerCase().trim()
+        : typeof meta.focusPlatform === 'string'
+          ? meta.focusPlatform.toLowerCase().trim()
+          : ''
+    if (raw === 'manyvids' || raw.split(',').some((s) => s.trim() === 'manyvids')) {
+      billing_focus_platforms = ['manyvids']
+    }
   }
 
   const billing_focus_platform = billing_focus_platforms?.[0] ?? null
@@ -478,7 +488,10 @@ export async function POST(req: NextRequest) {
                   billing_focus_platform: tierMeta.billing_focus_platform,
                 }
               : tierMeta.billing_variant === 'multi'
-                ? { billing_focus_platforms: null, billing_focus_platform: null }
+                ? {
+                    billing_focus_platforms: tierMeta.billing_focus_platforms,
+                    billing_focus_platform: tierMeta.billing_focus_platform,
+                  }
                 : {}),
           })
           if (planId) await notifyPlanChange(supabase, userId, planId)
@@ -521,7 +534,10 @@ export async function POST(req: NextRequest) {
                 billing_focus_platform: tierMeta.billing_focus_platform,
               }
             : tierMeta.billing_variant === 'multi'
-              ? { billing_focus_platforms: null, billing_focus_platform: null }
+              ? {
+                  billing_focus_platforms: tierMeta.billing_focus_platforms,
+                  billing_focus_platform: tierMeta.billing_focus_platform,
+                }
               : {}),
           status: sub.status,
           ...(period

@@ -31,7 +31,7 @@ import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
-import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 
 // Real SVG Icons for social platforms
 const InstagramIcon = () => (
@@ -115,8 +115,8 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
   const [useAllHandles, setUseAllHandles] = useState(true)
   const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
   const [unreviewedCount, setUnreviewedCount] = useState<number | null>(null)
-  const [reputationScanCreditBlock, setReputationScanCreditBlock] = useState(false)
   const supabase = createClient()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const { handles: identityHandles, reload: reloadIdentity } = useScanIdentity()
 
   useEffect(() => {
@@ -301,7 +301,13 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
       const data = await response.json()
 
       if (response.status === 402) {
-        setReputationScanCreditBlock(true)
+        const payload = data as { used?: number; limit?: number }
+        openCreditInsufficientModal({
+          requiredCredits: CREDITS_REPUTATION_WEB_SCAN,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: 'Reputation scan',
+        })
         setError(null)
         return
       }
@@ -603,12 +609,6 @@ export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' 
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {reputationScanCreditBlock ? (
-          <InsufficientCreditsCallout
-            requiredCredits={CREDITS_REPUTATION_WEB_SCAN}
-            actionContext="a reputation scan (Social hub)"
-          />
-        ) : null}
         {error && (
           <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
             {error}

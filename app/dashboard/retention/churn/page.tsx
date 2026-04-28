@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import {
   parseCalendarTeaserStored,
@@ -55,6 +56,7 @@ const labelClass = 'text-[13px] font-medium text-foreground/90'
 
 export default function ChurnPredictorHubPage() {
   const { wallet, loading: creditsLoading, refresh: refreshCredits } = useCreditSnapshot()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -200,11 +202,14 @@ export default function ChurnPredictorHubPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (res.status === 402) {
-        setError(
-          typeof data.error === 'string'
-            ? data.error
-            : 'Not enough AI credits. Add credits or lower “Credits per match” before saving automatic scans.',
-        )
+        const payload = data as { used?: number; limit?: number }
+        const perRun = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+        openCreditInsufficientModal({
+          requiredCredits: perRun,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: 'Churn retention settings',
+        })
         await refreshCredits()
         return
       }
@@ -244,7 +249,14 @@ export default function ChurnPredictorHubPage() {
       const res = await fetch('/api/circe-churn/run', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (res.status === 402) {
-        setError(typeof data.error === 'string' ? data.error : 'Insufficient AI credits')
+        const payload = data as { used?: number; limit?: number }
+        const cost = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+        openCreditInsufficientModal({
+          requiredCredits: cost,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: 'Churn scan',
+        })
         await refreshCredits()
         return
       }

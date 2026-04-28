@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { refreshFanslyObservedRevenueForBilling } from '@/lib/fansly/billing-observation'
 import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
+import { notifyPlatformConnectionChange } from '@/lib/notifications/platform-connection-notify'
 
 // POST: Connect Fansly account with username/password
 // Handles initial connection and 2FA verification
@@ -102,6 +103,18 @@ export async function POST(request: NextRequest) {
 
         await refreshFanslyObservedRevenueForBilling(supabase, user.id)
 
+        const flUser = username.split('@')[0]
+        if (user.email) {
+          void notifyPlatformConnectionChange({
+            supabase,
+            userId: user.id,
+            userEmail: user.email,
+            platform: 'fansly',
+            event: 'connected',
+            platformUsername: flUser,
+          })
+        }
+
         return NextResponse.json({ 
           success: true, 
           accountId: result.account_id,
@@ -167,6 +180,18 @@ export async function POST(request: NextRequest) {
         )
 
       await refreshFanslyObservedRevenueForBilling(supabase, user.id)
+
+      const flUser = username.split('@')[0]
+      if (user.email && !sameFanslyAccount) {
+        void notifyPlatformConnectionChange({
+          supabase,
+          userId: user.id,
+          userEmail: user.email,
+          platform: 'fansly',
+          event: 'connected',
+          platformUsername: flUser,
+        })
+      }
 
       return NextResponse.json({ 
         success: true, 

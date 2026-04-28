@@ -6,13 +6,7 @@ import {
   VAULT_MEDIA_BUCKET,
 } from '@/lib/frame-vault-media'
 import { resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
-
-function objectSizeBytes(metadata: unknown): number {
-  if (!metadata || typeof metadata !== 'object') return 0
-  const raw = (metadata as { size?: unknown }).size
-  const n = typeof raw === 'number' ? raw : Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
+import { sumVaultMediaUsageBytes } from '@/lib/vault-storage-usage'
 
 export async function GET(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -28,20 +22,10 @@ export async function GET(req: NextRequest) {
   const service = createServiceClient(url, key)
   const quotaBytes = resolveVaultUserQuotaBytes()
 
-  const { data: objects, error } = await service
-    .schema('storage')
-    .from('objects')
-    .select('name,metadata')
-    .eq('bucket_id', VAULT_MEDIA_BUCKET)
-    .like('name', `${user.id}/%`)
+  const { bytes: usageBytes, error } = await sumVaultMediaUsageBytes(service, user.id)
 
   if (error) {
-    return NextResponse.json({ error: error.message || 'Could not load storage usage' }, { status: 500 })
-  }
-
-  let usageBytes = 0
-  for (const row of (objects ?? []) as Array<{ metadata?: unknown }>) {
-    usageBytes += objectSizeBytes(row.metadata)
+    return NextResponse.json({ error: error || `Could not load storage usage (${VAULT_MEDIA_BUCKET})` }, { status: 500 })
   }
 
   return NextResponse.json({

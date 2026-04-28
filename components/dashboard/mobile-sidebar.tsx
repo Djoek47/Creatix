@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -225,7 +225,13 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
 
         <div className="space-y-1">
           <div className="mb-0.5 flex items-center gap-2 px-1">
-            <Moon className={cn(compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5', 'shrink-0 text-circe-light/35')} aria-hidden />
+            <Moon
+              className={cn(
+                compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                'circe-nav-moon-glow shrink-0 text-circe-light/45 dark:text-circe-light/55',
+              )}
+              aria-hidden
+            />
             <span
               className={cn(
                 'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',
@@ -242,7 +248,13 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
 
         <div className="space-y-1">
           <div className="mb-0.5 flex items-center gap-2 px-1">
-            <Sun className={cn(compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5', 'shrink-0 text-gold/38')} aria-hidden />
+            <Sun
+              className={cn(
+                compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                'venus-nav-sun-glow shrink-0 text-gold/48 dark:text-gold/55',
+              )}
+              aria-hidden
+            />
             <span
               className={cn(
                 'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',

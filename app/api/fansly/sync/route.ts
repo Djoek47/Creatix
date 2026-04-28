@@ -5,7 +5,8 @@ import { fanslyMonthToDateRevenueUsd } from '@/lib/fansly/observed-month-to-date
 import { writeFanslyConnectionBillingSnapshot } from '@/lib/fansly/billing-observation'
 import { subscriptionFieldsFromFanslyFan } from '@/lib/fans/subscription-dates'
 
-// POST: Sync Fansly data for a user
+// POST: Sync Fansly data for a user. Intentionally no adult-platform billing gate here — sync must run to refresh
+// scoped revenue observations used by revenue-band enforcement (see lib/billing/onlyfans-billing-gate.ts).
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)

@@ -10,15 +10,9 @@ import {
   VAULT_EXPORT_MAX_BYTES,
   VAULT_MEDIA_BUCKET,
 } from '@/lib/frame-vault-media'
+import { sumVaultMediaUsageBytes, vaultObjectSizeBytes } from '@/lib/vault-storage-usage'
 
 export const runtime = 'nodejs'
-
-function objectSizeBytes(metadata: unknown): number {
-  if (!metadata || typeof metadata !== 'object') return 0
-  const raw = (metadata as { size?: unknown }).size
-  const n = typeof raw === 'number' ? raw : Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
 
 /**
  * Upload edited video: either Frame service (X-Frame-Export-Secret + exportToken) or logged-in user (session).
@@ -101,33 +95,13 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   const quotaBytes = resolveVaultUserQuotaBytes()
   const currentPath = (row as { vault_storage_path?: string | null }).vault_storage_path ?? null
-  const [{ data: objects, error: objectsErr }, { data: existingObj }] = await Promise.all([
-    service
-      .schema('storage')
-      .from('objects')
-      .select('name,metadata')
-      .eq('bucket_id', VAULT_MEDIA_BUCKET)
-      .like('name', `${userId}/%`),
-    currentPath
-      ? service
-          .schema('storage')
-          .from('objects')
-          .select('metadata')
-          .eq('bucket_id', VAULT_MEDIA_BUCKET)
-          .eq('name', currentPath)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-  ])
 
-  if (objectsErr) {
-    return NextResponse.json({ error: objectsErr.message || 'Could not verify vault usage' }, { status: 500 })
+  const usageResult = await sumVaultMediaUsageBytes(service, userId)
+  if (usageResult.error) {
+    return NextResponse.json({ error: usageResult.error || 'Could not verify vault usage' }, { status: 500 })
   }
-
-  let usageBytes = 0
-  for (const item of (objects ?? []) as Array<{ metadata?: unknown }>) {
-    usageBytes += objectSizeBytes(item.metadata)
-  }
-  const existingBytes = objectSizeBytes((existingObj as { metadata?: unknown } | null)?.metadata)
+  let usageBytes = usageResult.bytes
+  const existingBytes = currentPath ? await vaultObjectSizeBytes(service, currentPath) : 0
   const projectedBytes = usageBytes - existingBytes + file.size
   if (projectedBytes > quotaBytes) {
     return NextResponse.json(

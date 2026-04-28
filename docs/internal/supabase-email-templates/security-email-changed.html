@@ -1,0 +1,41 @@
+<!--
+  Supabase → Email address changed (notification)
+  Subject: Your Circe et Venus login email was updated
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+<style type="text/css">
+  .cetv-body { font-family: 'DM Sans', -apple-system, sans-serif !important; }
+  .cetv-title { font-family: 'Cinzel', Georgia, serif !important; }
+</style>
+
+<table role="presentation" width="100%" bgcolor="#f5f5f7" cellpadding="0" cellspacing="0"><tr>
+  <td align="center" style="padding:52px 20px;">
+    <table role="presentation" width="600" style="width:100%;max-width:600px;"><tr>
+      <td bgcolor="#ffffff" style="border-radius:22px;border:1px solid #d8d8dd;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,0.04);">
+        <table width="100%"><tr><td bgcolor="#5c4dbf" height="3" style="height:3px;line-height:0;font-size:0;"></td></tr></table>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:40px 44px 8px;"><img src="https://www.circeetvenus.com/icon.png" width="44" height="44" style="border-radius:999px;display:block;opacity:0.95;" alt="" /></td></tr>
+          <tr><td style="padding:4px 44px 0;">
+            <p style="margin:0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#5c4dbf;font-family:'DM Sans',sans-serif;">Account security</p>
+            <h1 class="cetv-title" style="margin:10px 0 0;font-family:'Cinzel',Georgia,serif;font-size:24px;font-weight:600;line-height:1.14;color:#1d1d1f;">Email updated</h1>
+          </td></tr>
+          <tr><td style="padding:22px 44px 42px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr><td style="padding:0 0 12px;font-size:13px;color:#86868b;font-family:'DM Sans',sans-serif;">Before</td></tr>
+              <tr><td style="padding:0 0 20px;font-size:15px;line-height:22px;color:#1d1d1f;font-weight:500;font-family:'DM Sans',sans-serif;word-break:break-all;">{{ .OldEmail }}</td></tr>
+              <tr><td style="padding:0 0 12px;font-size:13px;color:#86868b;font-family:'DM Sans',sans-serif;">After</td></tr>
+              <tr><td style="padding:0;font-size:15px;line-height:22px;color:#1d1d1f;font-weight:600;font-family:'DM Sans',sans-serif;word-break:break-all;">{{ .Email }}</td></tr>
+            </table>
+            <p class="cetv-body" style="margin:28px 0 0;font-size:15px;line-height:24px;color:#6e6e73;">Unexpected? <a href="mailto:support@circeetvenus.com" style="color:#5c4dbf;text-decoration:none;border-bottom:1px solid rgba(92,76,191,0.42);padding-bottom:2px;">support@circeetvenus.com</a></p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+    <tr><td align="center" style="padding:24px 16px 0;"><p style="margin:0;font-size:11px;color:#aeaeb2;font-family:'DM Sans',sans-serif;">Circe et Venus</p></td></tr>
+    </table>
+  </td>
+</tr></table>

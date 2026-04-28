@@ -63,4 +63,5 @@ When you add a **new public API** or change **auth requirements**, add one line 
 - `POST /api/ariadne/test/run` — when `ARIADNE_ATTRIBUTION_TEST_API=1`, runs in-process append-v1 + microdot harness; no credits.
 - `POST app/api/ariadne/embed-v2` — session auth; queues async `ariadne_embed_v2` jobs (FFmpeg worker path) when `ARIADNE_V2_EMBED_ENABLED=true`.
 - `POST app/api/ariadne/detect-v2` — session auth; robust multi-frame detector with confidence + candidate payload outputs when `ARIADNE_V2_DETECT_ENABLED=true`.
+- `POST app/api/fansly/disconnect` — session auth (cookie or Bearer); clears `platform_connections` for Fansly and fires Divine + optional Resend disconnect notifications (no upstream OAuth revoke).
 - `GET app/api/ariadne/evidence/[exportId]` — canonical legal packet endpoint (`?format=packet` for JSON packet envelope).

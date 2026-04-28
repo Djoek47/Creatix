@@ -2,6 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckoutEmbed } from '@/components/stripe/checkout'
+import { TRIAL_PLAN_ID } from '@/lib/billing/access'
+import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,6 +59,8 @@ interface OnboardingModalProps {
 
 function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
   const router = useRouter()
+  const [trialCardComplete, setTrialCardComplete] = useState(false)
+
   return (
     <div className="flex flex-col items-center px-1 pb-2 text-center">
       <div className="mb-8 flex size-14 items-center justify-center rounded-full bg-muted/70 ring-1 ring-border/60">
@@ -68,6 +73,37 @@ function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
         Take the full guided tour—sidebar, AI Studio, retention, protection—about thirty short stops. Replay anytime with{' '}
         <span className="font-medium text-foreground/90">Start live tour</span> in the header.
       </p>
+
+      <div className="mt-8 w-full max-w-md text-left">
+        <p className="text-center text-[13px] font-medium leading-snug text-foreground">
+          Activate trial credits
+        </p>
+        <p className="mx-auto mt-1.5 max-w-[22rem] text-center text-[12px] leading-relaxed text-muted-foreground">
+          Add a card with Stripe below—same flow as billing. Credits unlock as soon as setup completes; billing follows
+          your trial terms.
+        </p>
+        {trialCardComplete ? (
+          <p
+            className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center text-[13px] font-medium leading-snug text-emerald-800 dark:text-emerald-200"
+            role="status"
+          >
+            Card on file — trial credits are activating. You can continue in a few seconds.
+          </p>
+        ) : (
+          <div className="mt-4 min-h-[22rem] w-full overflow-hidden rounded-xl border border-border/50 bg-muted/10 p-1 sm:min-h-[24rem]">
+            <CheckoutEmbed
+              rootId="onboarding-trial-checkout"
+              productId={TRIAL_PLAN_ID}
+              className="min-h-[20rem] w-full"
+              onComplete={() => {
+                setTrialCardComplete(true)
+                void router.refresh()
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       <Button
         type="button"
         className="mt-9 h-11 w-full max-w-sm rounded-full font-medium tracking-tight shadow-sm"
@@ -85,10 +121,16 @@ function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
       <div className="mt-8 flex flex-wrap justify-center gap-2">
         <Badge
           variant="outline"
-          className="border-border/55 bg-muted/25 px-2.5 py-1 font-normal text-[11px] text-muted-foreground"
+          className="onboarding-credits-bait-badge inline-flex items-center gap-1 border-border/55 bg-muted/25 px-2.5 py-1 font-normal text-[11px]"
         >
-          <Zap className="mr-1 size-3 opacity-70" aria-hidden />
-          100 AI credits · after card
+          <Zap
+            className="size-3 shrink-0 text-amber-400 motion-safe:animate-pulse motion-reduce:opacity-80"
+            aria-hidden
+          />
+          <span className="onboarding-credits-bait-num tabular-nums">
+            {TRIAL_AI_CREDITS_LIMIT.toLocaleString()} AI credits
+          </span>
+          <span className="text-muted-foreground">· after card</span>
         </Badge>
         <Badge
           variant="outline"
@@ -532,6 +574,8 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           'border-border/45 bg-background/95 shadow-[0_26px_80px_-32px_rgba(0,0,0,0.55)]',
           'duration-300 sm:max-w-[26rem]',
           'p-0',
+          currentStepData.id === 'complete' &&
+            'max-h-[min(96dvh,58rem)] sm:max-w-[min(100%,32rem)]',
         )}
         onPointerDownOutside={(e) => e.preventDefault()}
       >

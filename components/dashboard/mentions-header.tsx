@@ -11,19 +11,20 @@ import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 
 const STORAGE_KEY = 'mentions_selected_handles'
 
 export function MentionsHeader() {
   const router = useRouter()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const [loading, setLoading] = useState(false)
   const [useAll, setUseAll] = useState(true)
   const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
   const { handles: identityHandles } = useScanIdentity()
   const { wallet, loading: creditsLoading, error: creditsError, refresh: refreshCredits } = useCreditSnapshot()
   const [scanError, setScanError] = useState<string | null>(null)
-  const [apiCreditBlocked, setApiCreditBlocked] = useState(false)
 
   const creditsRemaining = wallet?.totalRemaining
   const scanDisabledByBalance =
@@ -102,7 +103,6 @@ export function MentionsHeader() {
   const handleRefreshVision = async () => {
     if (!canScan || loading) return
     setScanError(null)
-    setApiCreditBlocked(false)
     setLoading(true)
     try {
       const body: Record<string, unknown> = { mode: 'both' }
@@ -117,7 +117,13 @@ export function MentionsHeader() {
       const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string }
       if (!res.ok) {
         if (res.status === 402) {
-          setApiCreditBlocked(true)
+          const payload = data as { used?: number; limit?: number }
+          openCreditInsufficientModal({
+            requiredCredits: CREDITS_REPUTATION_WEB_SCAN,
+            used: typeof payload.used === 'number' ? payload.used : undefined,
+            limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+            contextLabel: 'Web scan',
+          })
           void refreshCredits()
           return
         }
@@ -228,7 +234,7 @@ export function MentionsHeader() {
         </div>
       </div>
 
-      {(scanDisabledByBalance || apiCreditBlocked) && (
+      {(scanDisabledByBalance) && (
         <div className="mt-6">
           <InsufficientCreditsCallout
             requiredCredits={CREDITS_REPUTATION_WEB_SCAN}
@@ -237,7 +243,7 @@ export function MentionsHeader() {
         </div>
       )}
 
-      {scanError && !apiCreditBlocked ? (
+      {scanError ? (
         <p className="mt-4 text-[13px] text-destructive" role="alert">
           {scanError}
         </p>

@@ -1,0 +1,40 @@
+Supabase → Authentication → Email templates
+Each .html maps 1:1 to a Dashboard row; paste Body + Subject from header comments.
+
+Identity linked / Identity unlinked
+------------------------------------
+OAuth identity templates (Go template). `.Provider` is a single string; branches are ordered so multiflag matches first:
+• Multi (both platforms): composites such as `onlyfans+fansly`, `ONLYFANS+FANSLY`, `onlyfans_fansly`,
+  `onlyfans,fansly`, `onlyfansfansly`, `multi`, `both`, `of_fl` — shows OnlyFans+Fansly in one row; with the Circe icon above = three marks total.
+• OnlyFans-only / Fansly-only: `onlyfans`, `OnlyFans`, `oauth_onlyfans`, etc. vs `fansly`, `Fansly`, …
+
+Configure the composite slug on your IdP/custom hook if Supabase must emit both platforms in one email.
+They do NOT send for Settings “connect Vault” OAuth callback flows tracked in platform_connections —
+those emails use application Resend (see lib/notifications/platform-connection-notify.ts).
+
+Visual system (v2 · calm / premium restraint)
+--------------------------------------------
+Canvas: aluminum #f5f5f7 · card #ffffff · border #d8d8dd · shadow soft / broad
+Accent: ONE 3px violet hairline (#5c4dbf) on transactional mails only
+Typography: headline Cinzel ~24–26px / #1d1d1f · body DM Sans ~15–17px / #494949 secondary #6e6e73
+CTA (auth): charcoal pill (#1d1d1f) · white · 999px radius — no gold slabs
+Security mails: monochrome card top rule #ececee · label “Account security”
+Links: understated underline charcoal or muted violet (#5c4dbf + alpha) sparingly
+
+Files → Dashboard
+-----------------
+confirm-signup.html              Confirm sign up
+magic-link.html                  Magic link
+reset-password.html              Reset password
+change-email-address.html        Change email address
+invite-user.html                 Invite user
+reauthentication.html            Reauthentication
+security-password-changed.html   Password changed (notification)
+security-email-changed.html      Email address changed (notification)
+security-phone-changed.html      Phone number changed (notification)
+security-mfa-enrolled.html       MFA enrolled (notification)
+security-mfa-unenrolled.html     MFA unenrolled (notification)
+security-identity-linked.html    Identity linked (optional) — OAuth; OF/Fansly logos per `.Provider`
+security-identity-unlinked.html Identity unlinked (optional) — same logo rules as linked
+
+Refs: https://supabase.com/docs/guides/auth/auth-email-templates

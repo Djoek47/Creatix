@@ -16,6 +16,12 @@ import { getPlanLimits } from '@/lib/billing/plan-limits'
 
 export const CREDIT_USD_VALUE = 0.01
 
+/** Minimum USD for one-time custom credit top-up (Stripe checkout). Preset packs may be lower. */
+export const CUSTOM_CREDIT_TOPUP_MIN_USD = 5
+
+/** Default USD shown in the custom top-up field (user may lower to the minimum). */
+export const CUSTOM_CREDIT_TOPUP_DEFAULT_USD = 25
+
 /** Included credits per $1 of monthly subscription (20% back at $0.01 per credit). */
 export const CREDITS_PER_SUBSCRIPTION_USD = 20
 

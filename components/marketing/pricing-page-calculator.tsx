@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -29,10 +29,11 @@ import {
   focusPlatformDisplayName,
   focusPlatformsShortLabel,
   pairBundleDescription,
-  percentVsOnlyFansBase,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { Checkout } from '@/components/stripe/checkout'
+import { PAID_PLAN_ID, PROTECTION_PLAN_ID } from '@/lib/billing/access'
 import {
   sortFocusPlatforms,
   type AdultBillingPlatform,
@@ -42,16 +43,52 @@ import {
   PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
 } from '@/lib/billing/credit-economics'
 import { cn } from '@/lib/utils'
+import {
+  BILLING_INSET_PANEL_CLASS,
+  BILLING_PRIMARY_CHECKOUT_CTA_CLASS,
+  BILLING_PRIMARY_TRIAL_CTA_CLASS,
+  BILLING_TRIPLE_STACK_CHECKOUT_CTA_CLASS,
+} from '@/lib/billing/billing-plan-visual'
+import { CLIP_FOCUS_ADDON_CAROUSEL } from '@/lib/billing/clip-focus-addon-carousel'
 
 const FOCUS_PLATFORMS: AdultBillingPlatform[] = ['onlyfans', 'fansly']
 
 const OTHER_PLATFORM_BUNDLE_ADDON_USD = 25
-const MULTIPLATFORM_LOGOS = [
-  '/mym-logo.png',
-  '/clips4sale-logo.png',
-  '/fanvue-logo.png',
-  '/loyalfans-logo.svg',
-] as const
+/** Protection marketing strip — same storefronts as billing ManyVids row (logos only). */
+const MULTIPLATFORM_LOGOS = CLIP_FOCUS_ADDON_CAROUSEL.map((e) => e.logoSrc).filter(
+  (src): src is string => src != null,
+)
+
+/** Amber rim when off; violet + gold gradient when checked — stays legible on dark billing surfaces. */
+const PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS = cn(
+  'relative size-[1.125rem] shrink-0 rounded-[6px] border-2',
+  'border-amber-400/85 bg-black/[0.18] shadow-[inset_0_1px_0_0_rgba(253,230,138,0.32),0_0_14px_-1px_rgba(251,191,36,0.32)]',
+  'dark:border-amber-400/90 dark:bg-zinc-950/95 dark:shadow-[inset_0_1px_0_0_rgba(251,191,36,0.14),0_0_22px_-2px_rgba(251,191,36,0.3)]',
+  'transition-[box-shadow,color,background]',
+  'data-[state=checked]:border-transparent',
+  'data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-amber-400 data-[state=checked]:to-violet-600',
+  'data-[state=checked]:text-white',
+  'data-[state=checked]:shadow-[0_0_26px_-2px_rgba(168,85,247,0.5)]',
+  'dark:data-[state=checked]:from-amber-500 dark:data-[state=checked]:to-violet-500 dark:data-[state=checked]:shadow-[0_0_26px_-2px_rgba(147,51,234,0.45)]',
+  'focus-visible:ring-[3px] focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+)
+
+/** Summary column — shared inset surface + layout (settings + landing). */
+const PRICING_SUMMARY_ASIDE = cn(
+  'flex min-h-0 w-full min-w-0 flex-col justify-between p-8 sm:p-10',
+  BILLING_INSET_PANEL_CLASS,
+  'lg:min-w-[min(100%,20.5rem)]',
+)
+
+const PRICING_SUMMARY_ASIDE_BUNDLED = cn(
+  'border-amber-300/35 dark:border-amber-400/18',
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_52px_-24px_rgba(245,158,11,0.18),0_28px_56px_-36px_rgba(0,0,0,0.55)]',
+)
+
+const PRICING_SUMMARY_ASIDE_FOCUS = cn(
+  'border-violet-300/40 dark:border-violet-400/16',
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_48px_-24px_rgba(139,92,246,0.16),0_28px_56px_-36px_rgba(0,0,0,0.55)]',
+)
 
 export type PricingCalculatorControlledProps = {
   tierIndex: number
@@ -72,12 +109,24 @@ export type PricingPageCalculatorProps = {
   className?: string
   /** Billing: single source of truth with parent state. */
   controlled?: PricingCalculatorControlledProps
+  /** Billing settings: invoked after embedded Stripe checkout completes (sync subscription + credits). */
+  onCheckoutComplete?: () => void | Promise<void>
+  /** Lowest selectable tier index when linked OF/Fansly scoped revenue implies a floor (billing settings). */
+  requiredMinTierFromObservation?: number | null
+  /** Latest scoped observation timestamp from `/api/billing/revenue-band-status` (settings copy). */
+  observationCapturedAtIso?: string | null
+  /** Billing settings: rendered under the OnlyFans / Fansly row when the platform picker is visible; otherwise after controls in the estimate column. */
+  belowFocusPlatformsSlot?: ReactNode
 }
 
 export function PricingPageCalculator({
   surface = 'default',
   className,
   controlled,
+  onCheckoutComplete,
+  requiredMinTierFromObservation = null,
+  observationCapturedAtIso = null,
+  belowFocusPlatformsSlot,
 }: PricingPageCalculatorProps = {}) {
   const isControlled = controlled != null
   const reduceMotion = useReducedMotion()
@@ -125,6 +174,39 @@ export function PricingPageCalculator({
     })
   }
 
+  /** Selecting both API platforms in Focus → same workspace as Bundled (checkout + UX). */
+  useEffect(() => {
+    if (protectionOnly) return
+    if (variant !== 'single') return
+    if (platformSelection.size !== 2) return
+    if (!platformSelection.has('onlyfans') || !platformSelection.has('fansly')) return
+
+    setProtectionOnly(false)
+    if (isControlled) {
+      controlled.onVariantChange('multi')
+      return
+    }
+    setVariantInternal('multi')
+    setPlatformSelectionInternal((prev) => {
+      const next = new Set<AdultBillingPlatform>(['onlyfans', 'fansly'])
+      if (prev.has('manyvids')) next.add('manyvids')
+      return next
+    })
+  }, [protectionOnly, variant, platformSelection, isControlled, controlled])
+
+  const tierFloor =
+    surface === 'settings' && typeof requiredMinTierFromObservation === 'number'
+      ? requiredMinTierFromObservation
+      : null
+
+  const onTierIndexChangeCb = controlled?.onTierIndexChange
+  useEffect(() => {
+    if (!isControlled || tierFloor == null || !onTierIndexChangeCb) return
+    if (tierIndex < tierFloor) {
+      onTierIndexChangeCb(tierFloor)
+    }
+  }, [isControlled, tierFloor, tierIndex, onTierIndexChangeCb])
+
   const bandDemoActive =
     !isControlled && !useRevenueForBand && surface !== 'settings' && !bandCyclePaused
 
@@ -168,11 +250,17 @@ export function PricingPageCalculator({
   }, [revenueInput])
 
   const suggestedRow = useMemo(() => getTierByIndex(derivedTier), [derivedTier])
-  const effectiveTier = useRevenueForBand ? derivedTier : tierIndex
+  const baseTier = useRevenueForBand ? derivedTier : tierIndex
+  const effectiveTier =
+    surface === 'settings' && tierFloor != null ? Math.max(baseTier, tierFloor) : baseTier
   const tierRow = getTierByIndex(effectiveTier)
 
   const sortedPlatforms = useMemo(() => {
-    if (variant === 'multi') return sortFocusPlatforms(['onlyfans', 'fansly'])
+    if (variant === 'multi') {
+      const s = new Set<AdultBillingPlatform>(['onlyfans', 'fansly'])
+      if (platformSelection.has('manyvids')) s.add('manyvids')
+      return sortFocusPlatforms([...s])
+    }
     return sortFocusPlatforms([...platformSelection])
   }, [variant, platformSelection])
 
@@ -182,8 +270,18 @@ export function PricingPageCalculator({
     platformSelection.has('onlyfans') &&
     platformSelection.has('fansly')
 
+  /** Bundled OF+Fansly plus Multiplatform protection add-on in the estimate. */
+  const tripleStackCheckout =
+    !protectionOnly && variant === 'multi' && otherPlatformBundleEnabled
+
   const focusListForPrice: AdultBillingPlatform[] | undefined =
-    variant === 'multi' ? undefined : sortedPlatforms.length ? sortedPlatforms : ['onlyfans']
+    variant === 'multi'
+      ? platformSelection.has('manyvids')
+        ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+        : undefined
+      : sortedPlatforms.length
+        ? sortedPlatforms
+        : ['onlyfans']
 
   const planMonthlyOneSeat =
     tierRow && !protectionOnly ? getMonthlyPriceUsd(variant, effectiveTier, focusListForPrice) : 0
@@ -200,21 +298,31 @@ export function PricingPageCalculator({
     ? PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS
     : includedCreditsForMarketing(planMonthlySubtotal, 1)
 
-  const pctVsOf =
-    protectionOnly || !tierRow ? 0 : percentVsOnlyFansBase(tierRow, planMonthlyOneSeat)
-
   const breakdown = useMemo(() => {
     if (protectionOnly) {
       return {
         lines: [{ label: 'Multiplatform protection', usd: OTHER_PLATFORM_BUNDLE_ADDON_USD }],
-        note: 'Standalone plan for non-API platform protection coverage.',
+        note: 'Standalone plan for leak alerts and DMCA-style coverage on extra fan and clip storefronts.',
       }
     }
     if (!tierRow) return null
     if (variant === 'multi') {
+      const lines: { label: string; usd: number }[] = [
+        { label: 'Bundled (OnlyFans + Fansly)', usd: tierRow.multiPriceUsd },
+      ]
+      if (sortedPlatforms.includes('manyvids')) {
+        const full = getMonthlyPriceUsd('multi', effectiveTier, ['onlyfans', 'fansly', 'manyvids'])
+        lines.push({
+          label: 'ManyVids anti-piracy (with Bundled Focus only)',
+          usd: full - tierRow.multiPriceUsd,
+        })
+      }
       return {
-        lines: [{ label: 'Bundled (OnlyFans + Fansly)', usd: tierRow.multiPriceUsd }],
-        note: 'One monthly price for both platforms. Non-API sites: add Protection.',
+        lines,
+        note:
+          surface === 'settings'
+            ? 'One bill for Bundled Focus (OnlyFans + Fansly). ManyVids above is part of that subscription, not standalone. Broader storefront coverage is the separate Protection add-on card below.'
+            : 'One monthly price for OnlyFans and Fansly. Optional ManyVids add-on. For more storefronts, add Protection on the full pricing page.',
       }
     }
     if (sortedPlatforms.length === 1) {
@@ -243,15 +351,17 @@ export function PricingPageCalculator({
       }
     }
     return null
-  }, [tierRow, variant, sortedPlatforms, effectiveTier, protectionOnly])
+  }, [tierRow, variant, sortedPlatforms, effectiveTier, protectionOnly, surface])
 
   const setBundled = () => {
     setProtectionOnly(false)
     setVariant('multi')
+    const next = new Set<AdultBillingPlatform>(['onlyfans', 'fansly'])
+    if (platformSelection.has('manyvids')) next.add('manyvids')
     if (!isControlled) {
-      setPlatformSelectionInternal(new Set(['onlyfans', 'fansly']))
+      setPlatformSelectionInternal(next)
     } else {
-      controlled.setPlatformSelection(new Set(['onlyfans', 'fansly']))
+      controlled.setPlatformSelection(next)
     }
   }
 
@@ -280,6 +390,8 @@ export function PricingPageCalculator({
   const bundledGlowSurface = variant === 'multi' && !protectionOnly
   const focusDualGlow =
     variant === 'single' && focusBothApiPlatforms && !protectionOnly
+  const isSettings = surface === 'settings'
+  const platformsPickerVisible = !protectionOnly && (variant === 'single' || variant === 'multi')
 
   return (
     <Root
@@ -293,15 +405,19 @@ export function PricingPageCalculator({
       {surface === 'landing' ? (
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Your plan</p>
       ) : surface === 'settings' ? (
-        <div className="mb-8 border-b border-border/30 pb-8">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Estimate</p>
-          <h2 className="mt-2 font-serif text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
-            Same math as checkout
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Band, Focus or Bundled, and platforms—aligned with Stripe checkout on the pricing page.
+        <header className="mb-5 flex flex-col gap-3 border-b border-border/20 pb-5 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-8 sm:pb-6 dark:border-white/[0.06]">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
+              Estimate
+            </p>
+            <h2 className="font-serif text-xl font-medium tracking-tight text-foreground sm:text-2xl">
+              Same math as checkout
+            </h2>
+          </div>
+          <p className="max-w-md text-[13px] leading-snug text-muted-foreground sm:max-w-[20rem] sm:text-right">
+            Revenue band, plan shape, and platforms match Stripe before taxes or discounts.
           </p>
-        </div>
+        </header>
       ) : (
         <header className="mb-10 border-b border-border/25 pb-8">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Pricing</p>
@@ -317,11 +433,14 @@ export function PricingPageCalculator({
 
       <div
         className={cn(
-          'grid gap-10 lg:grid-cols-2',
-          surface === 'landing' ? 'mt-6 lg:gap-14' : 'mt-0 lg:gap-12 xl:gap-16',
+          'grid',
+          isSettings && 'mt-0 gap-6 lg:grid-cols-[minmax(0,1fr)_min(18.5rem,36%)] lg:items-start lg:gap-8 xl:gap-10',
+          !isSettings && 'gap-10 lg:grid-cols-2',
+          surface === 'landing' && 'mt-6 lg:gap-14',
+          surface !== 'landing' && !isSettings && 'mt-0 lg:gap-12 xl:gap-16',
         )}
       >
-        <div className="space-y-8">
+        <div className={cn('min-w-0', isSettings ? 'space-y-5' : 'space-y-8')}>
           {!useRevenueForBand && (
             <div className="space-y-2">
               <Label htmlFor="pricing-tier-select" className="text-xs text-muted-foreground">
@@ -340,23 +459,47 @@ export function PricingPageCalculator({
                 <SelectTrigger
                   id="pricing-tier-select"
                   className={cn(
-                    'h-11 rounded-xl border-border/60 bg-background/50 transition-[box-shadow,transform] duration-500',
+                    'h-11 rounded-xl border-border/60 bg-background/50 transition-[box-shadow] duration-500',
+                    'motion-safe:animate-[marketing-float-soft_5s_ease-in-out_infinite] motion-reduce:animate-none',
                     bandDemoActive &&
-                      'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)] animate-pulse',
+                      'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)]',
                   )}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {REVENUE_TIERS.map((t) => (
-                    <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
+                    <SelectItem
+                      key={t.tierIndex}
+                      value={String(t.tierIndex)}
+                      disabled={tierFloor != null && t.tierIndex < tierFloor}
+                    >
                       {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Same tiers as checkout. Pick the interval that matches your gross monthly billings.
+              <p className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed')}>
+                {isSettings && tierFloor != null ? (
+                  <>
+                    Based on linked account activity
+                    {observationCapturedAtIso ? (
+                      <>
+                        {' '}
+                        (updated{' '}
+                        {Number.isFinite(Date.parse(observationCapturedAtIso))
+                          ? new Date(observationCapturedAtIso).toLocaleString()
+                          : observationCapturedAtIso}
+                        )
+                      </>
+                    ) : null}
+                    , checkout cannot go below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}.
+                  </>
+                ) : isSettings ? (
+                  'Tier mirrors gross monthly billings at checkout.'
+                ) : (
+                  'Same tiers as checkout. Pick the interval that matches your gross monthly billings.'
+                )}
               </p>
               {bandDemoActive ? (
                 <p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/90">
@@ -370,10 +513,14 @@ export function PricingPageCalculator({
             <Checkbox
               id="pricing-revenue-override"
               checked={useRevenueForBand}
+              className={PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS}
               onCheckedChange={(v) => {
                 const on = v === true
                 setUseRevenueForBand(on)
-                if (!on) setTierIndex(derivedTier)
+                if (!on) {
+                  const next = tierFloor != null ? Math.max(derivedTier, tierFloor) : derivedTier
+                  setTierIndex(next)
+                }
               }}
             />
             <Label htmlFor="pricing-revenue-override" className="cursor-pointer text-sm font-normal text-foreground/90">
@@ -394,25 +541,38 @@ export function PricingPageCalculator({
                 aria-describedby="pricing-revenue-hint"
                 className="h-11 rounded-xl border-border/60"
               />
-              <p id="pricing-revenue-hint" className="text-xs text-muted-foreground">
-                Maps to {suggestedRow?.label ?? '—'}, same as billing.
+              <p
+                id="pricing-revenue-hint"
+                className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs')}
+              >
+                {isSettings
+                  ? `Maps to ${suggestedRow?.label ?? '—'}.`
+                  : `Maps to ${suggestedRow?.label ?? '—'}, same as billing.`}
               </p>
+              {tierFloor != null && derivedTier < tierFloor ? (
+                <p className="text-[11px] leading-snug text-amber-800/90 dark:text-amber-400/85">
+                  Linked accounts require at least {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}; the preview uses that minimum so totals match checkout.
+                </p>
+              ) : null}
             </div>
           )}
 
-          <div className="space-y-3">
-            <span className="text-xs text-muted-foreground">Plan</span>
-            <div className="flex rounded-full bg-muted/40 p-1">
+          <div className={cn(isSettings ? 'space-y-2' : 'space-y-3')}>
+            <span className={cn('text-muted-foreground', isSettings ? 'text-[11px] font-medium' : 'text-xs')}>Plan</span>
+            <div className="flex rounded-full bg-muted/35 p-0.5 dark:bg-muted/25">
               <button
                 type="button"
                 onClick={setFocusMode}
                 className={cn(
-                  'flex-1 rounded-full py-2.5 text-sm font-medium transition-all duration-300',
+                  'flex-1 rounded-full text-sm font-medium transition-[color,box-shadow,transform] duration-300',
+                  isSettings ? 'py-2' : 'py-2.5',
                   variant === 'single' && !protectionOnly
                     ? cn(
                         'bg-background text-foreground shadow-sm',
                         focusBothApiPlatforms &&
-                          'shadow-[0_0_20px_rgba(139,92,246,0.22)] ring-1 ring-violet-400/45',
+                          (isSettings
+                            ? 'ring-1 ring-border/50 dark:ring-white/[0.08]'
+                            : 'shadow-[0_0_20px_rgba(139,92,246,0.22)] ring-1 ring-violet-400/45'),
                       )
                     : 'text-muted-foreground hover:text-foreground',
                 )}
@@ -426,24 +586,29 @@ export function PricingPageCalculator({
                   setBundled()
                 }}
                 className={cn(
-                  'flex-1 rounded-full py-2.5 text-sm font-medium transition-all duration-300',
+                  'flex-1 rounded-full text-sm font-medium transition-[color,box-shadow,transform] duration-300',
+                  isSettings ? 'py-2' : 'py-2.5',
                   variant === 'multi' && !protectionOnly
-                    ? 'bg-background text-foreground shadow-md shadow-amber-500/25 ring-1 ring-amber-400/50'
+                    ? cn(
+                        'bg-background text-foreground shadow-sm',
+                        isSettings
+                          ? 'ring-1 ring-border/50 dark:ring-amber-400/15'
+                          : 'shadow-md shadow-amber-500/25 ring-1 ring-amber-400/50',
+                      )
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 Bundled
               </button>
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Focus: one or two platforms at list price. Bundled: OnlyFans + Fansly on the combined band price.
-            </p>
           </div>
 
-          {!protectionOnly && (variant === 'single' || variant === 'multi') ? (
-            <div className="space-y-3">
-              <span className="text-xs text-muted-foreground">Platforms</span>
-              <div className="flex flex-wrap gap-3">
+          {platformsPickerVisible ? (
+            <div className={cn(isSettings ? 'space-y-2' : 'space-y-3')}>
+              <span className={cn('text-muted-foreground', isSettings ? 'text-[11px] font-medium' : 'text-xs')}>
+                Platforms
+              </span>
+              <div className={cn('flex flex-wrap', isSettings ? 'gap-2' : 'gap-3')}>
                 {FOCUS_PLATFORMS.map((p) => {
                   const selected = platformSelection.has(p)
                   const bundledRow = variant === 'multi'
@@ -466,15 +631,28 @@ export function PricingPageCalculator({
                         togglePlatform(p)
                       }}
                       className={cn(
-                        'flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-all duration-300',
+                        'flex items-center rounded-xl border text-sm transition-[border-color,background-color,box-shadow] duration-300',
+                        isSettings ? 'min-h-10 gap-2 px-2.5 py-1.5' : 'min-h-11 gap-3 px-3 py-2',
                         bundledRow &&
-                          'border-amber-500/45 bg-amber-500/10 shadow-[0_0_18px_rgba(245,158,11,0.22)]',
-                        !bundledRow && selected &&
-                          'border-violet-500/45 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.28)]',
+                          (isSettings
+                            ? 'border-border/55 bg-muted/20 dark:border-amber-400/20 dark:bg-amber-500/[0.06]'
+                            : 'border-amber-500/45 bg-amber-500/10 shadow-[0_0_18px_rgba(245,158,11,0.22)]'),
+                        !bundledRow &&
+                          selected &&
+                          (isSettings
+                            ? 'border-border/60 bg-muted/25 ring-1 ring-border/30 dark:border-white/[0.09] dark:bg-white/[0.04]'
+                            : 'border-violet-500/45 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.28)]'),
                         !bundledRow && !selected && 'border-border/50 bg-background/60 hover:bg-muted/20',
                       )}
                     >
-                      <span className="inline-flex h-8 min-w-[3.5rem] max-w-[4.5rem] items-center justify-center overflow-hidden rounded-md border border-border/40 bg-card/80 px-0.5">
+                      <span
+                        className={cn(
+                          'inline-flex items-center justify-center',
+                          isSettings
+                            ? 'relative h-8 min-w-[2.85rem] max-w-[5rem] overflow-visible bg-transparent px-0'
+                            : 'h-8 min-w-[3.5rem] max-w-[4.5rem] overflow-hidden rounded-md border border-border/40 bg-card/80 px-0.5',
+                        )}
+                      >
                         {p === 'onlyfans' ? (
                           <Image
                             src={ONLYFANS_LOGO_SRC}
@@ -482,7 +660,9 @@ export function PricingPageCalculator({
                             width={88}
                             height={20}
                             className={cn(
-                              'h-5 w-auto max-w-full object-contain object-left',
+                              isSettings
+                                ? 'h-11 w-auto max-w-none object-contain object-left sm:h-12'
+                                : 'h-5 w-auto max-w-full object-contain object-left',
                               selected || bundledRow ? 'opacity-100' : 'opacity-45 grayscale',
                             )}
                           />
@@ -493,7 +673,9 @@ export function PricingPageCalculator({
                             width={76}
                             height={20}
                             className={cn(
-                              'h-5 w-auto max-w-full object-contain object-left',
+                              isSettings
+                                ? 'h-11 w-auto max-w-none object-contain object-left sm:h-12'
+                                : 'h-5 w-auto max-w-full object-contain object-left',
                               selected || bundledRow ? 'opacity-100' : 'opacity-45 grayscale',
                             )}
                           />
@@ -504,97 +686,190 @@ export function PricingPageCalculator({
                   )
                 })}
               </div>
+              {isSettings && belowFocusPlatformsSlot ? (
+                <div className="mt-3 border-t border-border/25 pt-4">{belowFocusPlatformsSlot}</div>
+              ) : null}
             </div>
+          ) : null}
+          {isSettings && belowFocusPlatformsSlot && !platformsPickerVisible ? (
+            <div className="border-t border-border/25 pt-5">{belowFocusPlatformsSlot}</div>
           ) : null}
         </div>
 
         <aside
           className={cn(
-            'flex flex-col justify-between rounded-2xl border p-6 sm:p-8 transition-[box-shadow,background-color,border-color] duration-500',
-            'border-border/40 bg-muted/15',
-            bundledGlowSurface &&
-              'border-amber-500/40 bg-gradient-to-br from-amber-500/[0.08] via-transparent to-purple-500/[0.09] shadow-[0_0_36px_rgba(245,158,11,0.14)]',
-            focusDualGlow &&
-              !bundledGlowSurface &&
-              'border-violet-500/35 bg-gradient-to-br from-violet-500/[0.07] via-transparent to-transparent shadow-[0_0_30px_rgba(139,92,246,0.12)]',
-            planGlowPulse && 'ring-2 ring-primary/30 ring-offset-2 ring-offset-background',
+            PRICING_SUMMARY_ASIDE,
+            isSettings && 'p-6 sm:p-7 lg:min-w-0',
+            bundledGlowSurface && PRICING_SUMMARY_ASIDE_BUNDLED,
+            focusDualGlow && !bundledGlowSurface && PRICING_SUMMARY_ASIDE_FOCUS,
+            planGlowPulse &&
+              cn(
+                'ring-1 ring-offset-2 ring-offset-background',
+                isSettings
+                  ? 'ring-amber-400/20 dark:ring-amber-300/18'
+                  : 'ring-amber-400/30 dark:ring-amber-300/25',
+              ),
           )}
         >
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Estimated monthly
-            </p>
-            <motion.p
-              key={`${monthlyUsd}-${effectiveTier}-${variant}-${protectionOnly ? 'p' : 'f'}`}
-              className="mt-3 font-serif text-4xl font-medium tabular-nums tracking-tight text-foreground sm:text-5xl"
-              initial={reduceMotion ? false : { opacity: 0.75, y: 8 }}
-              animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-            >
-              ${monthlyUsd}
-              <span className="text-xl font-normal text-muted-foreground sm:text-2xl">/mo</span>
-            </motion.p>
-            {monthlyUsd > 0 && (
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                <span className="font-medium text-foreground">Paid AI credits</span> — about{' '}
-                {paidCredits.toLocaleString()}/mo included at this tier (tool access per plan).
+          <div className="flex flex-col">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-muted-foreground/80 dark:text-muted-foreground/65">
+                Estimated monthly
               </p>
-            )}
-            {tierRow && !protectionOnly && (
-              <p
+              <motion.div
+                key={`${monthlyUsd}-${effectiveTier}-${variant}-${protectionOnly ? 'p' : 'f'}`}
+                className={cn(isSettings ? 'mt-5' : 'mt-8')}
+                initial={reduceMotion ? false : { opacity: 0.82, y: 10 }}
+                animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 34, mass: 0.85 }}
+              >
+                <p
+                  className={cn(
+                    'font-serif font-medium leading-none tracking-tight text-foreground',
+                    isSettings ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl',
+                  )}
+                >
+                  <span className="tabular-nums">${monthlyUsd}</span>
+                  <span
+                    className={cn(
+                      'ml-1.5 align-baseline font-normal text-muted-foreground/85',
+                      isSettings ? 'text-lg sm:text-xl' : 'text-[1.35rem] sm:text-2xl',
+                    )}
+                  >
+                    /mo
+                  </span>
+                </p>
+              </motion.div>
+            </div>
+
+            {monthlyUsd > 0 ? (
+              <div
                 className={cn(
-                  'mt-3 text-sm',
-                  pctVsOf > 0 && 'text-emerald-600 dark:text-emerald-400',
-                  pctVsOf < 0 && 'text-amber-700 dark:text-amber-400',
-                  pctVsOf === 0 && 'text-muted-foreground',
+                  'border-t border-border/[0.08] dark:border-white/[0.06]',
+                  isSettings ? 'mt-8 pt-6' : 'mt-12 pt-10',
                 )}
               >
-                {pctVsOf > 0 && `About ${pctVsOf}% below OnlyFans list in this band (per seat).`}
-                {pctVsOf < 0 && `About ${-pctVsOf}% above OnlyFans list in this band (per seat).`}
-                {pctVsOf === 0 && 'Aligned with OnlyFans list in this band (per seat).'}
-              </p>
-            )}
+                <dl className="space-y-0">
+                  <dt className="text-[11px] font-medium tracking-wide text-muted-foreground">Included AI credits</dt>
+                  <dd
+                    className={cn(
+                      'mt-2 font-serif font-medium tabular-nums tracking-tight text-foreground',
+                      isSettings ? 'text-2xl sm:text-[1.75rem]' : 'text-3xl sm:text-[2.125rem]',
+                    )}
+                  >
+                    {paidCredits.toLocaleString()}
+                  </dd>
+                  <dd
+                    className={cn(
+                      'text-muted-foreground',
+                      isSettings
+                        ? 'mt-2 max-w-[26ch] text-[12px] leading-snug'
+                        : 'mt-3 max-w-[30ch] text-[13px] leading-[1.58]',
+                    )}
+                  >
+                    {isSettings
+                      ? 'Applied each cycle for AI tools on this plan. Top up anytime.'
+                      : 'Credited every billing cycle for assistants and automations on this plan. Add credits whenever you need more runway.'}
+                  </dd>
+                </dl>
+              </div>
+            ) : null}
 
-            {breakdown && breakdown.lines.length > 0 && (
-              <ul className="mt-8 space-y-3 border-t border-border/30 pt-6 text-sm">
-                {breakdown.lines.map((row) => (
-                  <li key={row.label} className="flex justify-between gap-4 tabular-nums text-foreground/85">
-                    <span className="text-muted-foreground">{row.label}</span>
-                    <span>${row.usd}</span>
-                  </li>
-                ))}
-                {otherPlatformBundleEnabled && !protectionOnly ? (
-                  <li className="flex justify-between gap-4 tabular-nums">
-                    <span className="text-muted-foreground">Multiplatform protection</span>
-                    <span>+${OTHER_PLATFORM_BUNDLE_ADDON_USD}</span>
-                  </li>
+            {breakdown && breakdown.lines.length > 0 ? (
+              <div
+                className={cn(
+                  'border-t border-border/[0.08] dark:border-white/[0.06]',
+                  isSettings ? 'mt-8 pt-6' : 'mt-12 pt-10',
+                )}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/75 dark:text-muted-foreground/65">
+                  Composition
+                </p>
+                <ul className={cn('leading-snug', isSettings ? 'mt-3 space-y-3 text-[12px]' : 'mt-5 space-y-4 text-[13px]')}>
+                  {breakdown.lines.map((row) => (
+                    <li key={row.label} className="flex items-baseline justify-between gap-4 tabular-nums sm:gap-6">
+                      <span className="min-w-0 text-muted-foreground">{row.label}</span>
+                      <span className="shrink-0 font-medium text-foreground">${row.usd}</span>
+                    </li>
+                  ))}
+                  {otherPlatformBundleEnabled && !protectionOnly ? (
+                    <li className="flex items-baseline justify-between gap-4 tabular-nums sm:gap-6">
+                      <span className="min-w-0 text-muted-foreground">Multiplatform protection</span>
+                      <span className="shrink-0 font-medium text-foreground">+${OTHER_PLATFORM_BUNDLE_ADDON_USD}</span>
+                    </li>
+                  ) : null}
+                </ul>
+                {breakdown.note ? (
+                  <p
+                    className={cn(
+                      'leading-relaxed text-muted-foreground/90',
+                      isSettings ? 'mt-4 text-[11px]' : 'mt-6 text-[12px]',
+                    )}
+                  >
+                    {breakdown.note}
+                  </p>
                 ) : null}
-                <li className="pt-1 text-xs leading-relaxed text-muted-foreground">{breakdown.note}</li>
-              </ul>
-            )}
+              </div>
+            ) : null}
           </div>
 
           {showMarketingChrome ? (
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-              <Button asChild className="h-11 gap-2 rounded-full px-6">
+            <div className="mt-14 flex flex-col gap-3 sm:mt-16 sm:flex-row sm:items-stretch">
+              <Button asChild className={BILLING_PRIMARY_TRIAL_CTA_CLASS}>
                 <Link href="/auth/sign-up" className="inline-flex items-center">
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4 opacity-95" />
                   Start free trial
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 rounded-full border-border/60 bg-transparent px-6 shadow-none">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-2xl border-border/45 bg-transparent px-6 text-[15px] font-medium shadow-none transition-colors hover:border-border/70 hover:bg-muted/20"
+              >
                 <Link href={surface === 'landing' ? '/pricing' : '/dashboard/settings?tab=billing'}>
                   {surface === 'landing' ? 'Full pricing page' : 'Open billing'}
                 </Link>
               </Button>
             </div>
+          ) : surface === 'settings' && onCheckoutComplete ? (
+            <div className={cn('flex flex-col gap-2.5', isSettings ? 'mt-8 sm:mt-10' : 'mt-14 sm:mt-16')}>
+              {!protectionOnly && planMonthlySubtotal > 0 ? (
+                <Checkout
+                  productId={PAID_PLAN_ID}
+                  billingVariant={variant}
+                  tierIndex={effectiveTier}
+                  focusPlatforms={
+                    variant === 'single'
+                      ? sortedPlatforms
+                      : variant === 'multi' && platformSelection.has('manyvids')
+                        ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+                        : null
+                  }
+                  buttonText={`Subscribe — $${planMonthlySubtotal}/mo`}
+                  buttonClassName={cn(
+                    BILLING_PRIMARY_CHECKOUT_CTA_CLASS,
+                    isSettings && 'h-11',
+                    tripleStackCheckout && BILLING_TRIPLE_STACK_CHECKOUT_CTA_CLASS,
+                  )}
+                  onComplete={onCheckoutComplete}
+                />
+              ) : null}
+              {protectionOnly ? (
+                <Checkout
+                  productId={PROTECTION_PLAN_ID}
+                  buttonText={`Subscribe — Protection $${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo`}
+                  buttonClassName={cn(BILLING_PRIMARY_CHECKOUT_CTA_CLASS, isSettings && 'h-11')}
+                  onComplete={onCheckoutComplete}
+                />
+              ) : null}
+            </div>
           ) : (
-            <p className="mt-10 text-xs leading-relaxed text-muted-foreground">
+            <p className={cn('text-[12px] leading-relaxed text-muted-foreground', isSettings ? 'mt-8 sm:mt-10' : 'mt-14 sm:mt-16')}>
               Subscribe from our{' '}
-              <Link href="/pricing" className="text-foreground underline-offset-4 hover:underline">
+              <Link href="/pricing" className="font-medium text-foreground underline-offset-4 hover:underline">
                 pricing page
               </Link>
-              —totals use the same formula as this estimate.
+              . Totals match this estimate.
             </p>
           )}
         </aside>
@@ -715,7 +990,8 @@ export function PricingPageCalculator({
                 </Popover>
               </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Non-API coverage at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo. Add to your plan or subscribe standalone.
+                Extra storefront coverage at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo. Add to your estimate or subscribe on
+                its own.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

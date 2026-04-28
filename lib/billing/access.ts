@@ -24,6 +24,8 @@ export interface SubscriptionLike {
   plan_id?: string | null
   status?: string | null
   revenue_tier?: number | null
+  /** When set in the future, Stripe tier alignment cron skips this subscriber (admin/support override). */
+  revenue_tier_sync_paused_until?: string | null
 }
 
 /** Active paid subscription (including legacy SKUs and trial grandfathering handled elsewhere). */

@@ -230,8 +230,8 @@ export async function GET(request: NextRequest) {
       }
       hasMore = raw.length >= limit
     } else {
-      // Smaller OnlyFans chat list pulls reduce Cloudflare / partner rate limits (GET /chats).
-      const pool = Math.min(55, Math.max(offset + limit + 8, limit + 12))
+      // Fixed pool size keeps OnlyFans inbox cache key stable across pagination (see inboxOnlyFansChatsCacheKey pool mode).
+      const pool = 55
       const { data: ofConn } = await supabase
         .from('platform_connections')
         .select('access_token')

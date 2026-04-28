@@ -11,6 +11,7 @@ import {
   shouldApplyApiInferenceForCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
 import { onlyFansSubscribersAndFollows } from '@/lib/onlyfans/onlyfans-snapshot-audience'
+import { notifyPlatformConnectionChange } from '@/lib/notifications/platform-connection-notify'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -101,6 +102,17 @@ export async function POST(request: NextRequest) {
         )
       }
       return NextResponse.json({ error: 'Failed to save connection' }, { status: 500 })
+    }
+
+    if (user?.email && !sameOnlyfansAccount) {
+      void notifyPlatformConnectionChange({
+        supabase,
+        userId,
+        userEmail: user.email,
+        platform: 'onlyfans',
+        event: 'connected',
+        platformUsername: typeof username === 'string' && username.length ? username : null,
+      })
     }
 
     await syncOnlyFansData(request, userId, accountId)

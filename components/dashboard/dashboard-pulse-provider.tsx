@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { PulsePayload } from '@/lib/wellbeing/pulse-engine'
+import { writeFlowTabHiddenTimestamp } from '@/lib/wellbeing/energy-away-recovery'
 
 type CacheMeta = { hit: boolean; ttlSec: number; ageSec: number }
 
@@ -67,7 +68,11 @@ export function DashboardPulseProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === 'visible') void refresh(false)
+      if (document.visibilityState === 'hidden') {
+        writeFlowTabHiddenTimestamp()
+        return
+      }
+      void refresh(false)
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)

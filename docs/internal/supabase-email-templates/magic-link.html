@@ -1,0 +1,51 @@
+<!--
+  Supabase → Magic link
+  Subject: Sign in — Circe et Venus
+
+  Paste everything after this comment into Message.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+<style type="text/css">
+  .cetv-sheet { margin: 0; padding: 0; border-collapse: collapse; }
+  .cetv-body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+  .cetv-title { font-family: 'Cinzel', Georgia, serif !important; letter-spacing: -0.025em !important; }
+</style>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f5f5f7" style="background-color:#f5f5f7;">
+  <tr>
+    <td align="center" class="cetv-body" style="padding:52px 20px;background-color:#f5f5f7;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;">
+        <tr>
+          <td bgcolor="#ffffff" style="background-color:#ffffff;border-radius:22px;border:1px solid #d8d8dd;box-shadow:0 1px 2px rgba(0,0,0,0.04),0 6px 20px rgba(0,0,0,0.04);overflow:hidden;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="3" bgcolor="#5c4dbf" style="height:3px;line-height:0;background-color:#5c4dbf;"></td></tr></table>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="padding:40px 44px 10px;"><img src="https://www.circeetvenus.com/icon.png" width="48" height="48" alt="" style="display:block;border-radius:999px;" /></td></tr>
+              <tr><td style="padding:0 44px 0;">
+                <h1 class="cetv-title" style="margin:0;font-family:'Cinzel',Georgia,serif;font-size:26px;line-height:1.12;font-weight:600;color:#1d1d1f;">Sign in</h1>
+                <p style="margin:18px 0 0;font-size:17px;line-height:26px;color:#6e6e73;font-family:'DM Sans',-apple-system,sans-serif;">Secure link for <span style="color:#1d1d1f;font-weight:500;word-break:break-all;">{{ .Email }}</span></p>
+                <p style="margin:14px 0 0;font-size:17px;line-height:26px;color:#494949;font-family:'DM Sans',-apple-system,sans-serif;">Expires soon · use once · this device preferred.</p>
+              </td></tr>
+              <tr><td style="padding:36px 44px;text-align:center;">
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>
+                  <td bgcolor="#1d1d1f" style="border-radius:999px;background-color:#1d1d1f;mso-padding-alt:15px 32px;"><a href="{{ .ConfirmationURL }}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:15px 32px;font-family:'DM Sans',-apple-system,sans-serif;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Continue</a></td>
+                </tr></table>
+              </td></tr>
+              <tr><td style="padding:0 44px 42px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #ececec;">&nbsp;</td></tr></table>
+                <p style="margin:26px 0 0;font-size:13px;line-height:20px;color:#86868b;font-family:'DM Sans',-apple-system,sans-serif;">Alternative link:</p>
+                <p style="margin:10px 0 0;font-size:12px;line-height:17px;color:#aeaeb2;word-break:break-all;font-family:'DM Sans',-apple-system,sans-serif;">{{ .ConfirmationURL }}</p>
+                <p style="margin:24px 0 0;font-size:13px;line-height:20px;color:#86868b;font-family:'DM Sans',-apple-system,sans-serif;">Didn’t request this? Ignore — nothing changes.</p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr><td align="center" style="padding:26px 12px 0;">
+          <p style="margin:0;font-size:11px;line-height:17px;color:#aeaeb2;font-family:'DM Sans',-apple-system,sans-serif;">Circe et Venus {{ if .SiteURL }}· <a href="{{ .SiteURL }}" style="color:#86868b;text-decoration:none;border-bottom:1px solid #d8d8dd;">{{ .SiteURL }}</a>{{ end }}</p>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+</table>

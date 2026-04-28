@@ -2,21 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
-import {
-  resolveVaultUserQuotaBytes,
-  VAULT_MEDIA_BUCKET,
-} from '@/lib/frame-vault-media'
-
-function objectSizeBytes(metadata: unknown): number {
-  if (!metadata || typeof metadata !== 'object') return 0
-  const raw = (metadata as { size?: unknown }).size
-  const n = typeof raw === 'number' ? raw : Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
+import { resolveVaultUserQuotaBytes, VAULT_MEDIA_BUCKET } from '@/lib/frame-vault-media'
+import { sumVaultMediaUsageBytes } from '@/lib/vault-storage-usage'
 
 /**
  * Billing-facing vault storage: quota matches Supabase Storage enforcement (see `VAULT_USER_QUOTA_MB`);
- * usage is summed from `storage.objects` for the vault-media bucket (same as upload checks).
+ * usage is summed from vault-media bucket objects under `userId/…` via Storage list-v2 API (same total as Postgres `storage.objects` when synced).
  */
 export async function GET(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -33,20 +24,10 @@ export async function GET(req: NextRequest) {
   const quotaMb = resolveAppVaultQuotaMb()
   const quotaBytes = resolveVaultUserQuotaBytes()
 
-  const { data: objects, error } = await service
-    .schema('storage')
-    .from('objects')
-    .select('name,metadata')
-    .eq('bucket_id', VAULT_MEDIA_BUCKET)
-    .like('name', `${user.id}/%`)
+  const { bytes: usageBytes, error } = await sumVaultMediaUsageBytes(service, user.id)
 
   if (error) {
-    return NextResponse.json({ error: error.message || 'Could not load storage usage' }, { status: 500 })
-  }
-
-  let usageBytes = 0
-  for (const row of (objects ?? []) as Array<{ metadata?: unknown }>) {
-    usageBytes += objectSizeBytes(row.metadata)
+    return NextResponse.json({ error: error || `Could not load storage usage (${VAULT_MEDIA_BUCKET})` }, { status: 500 })
   }
 
   const trace = {

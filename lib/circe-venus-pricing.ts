@@ -8,8 +8,8 @@
  * - **OnlyFans, Fansly, Bundled (OF+FL):** list prices are defined per revenue band in `RAW_TIERS` (amended 2026 model).
  * - **Bundled** = one monthly price for OnlyFans + Fansly together (`of_fl`); this is also what `multi` / legacy `unified` bills.
  * - **Fansly** uses `flOverride` per band (not a single % of OF).
- * - **ManyVids (legacy / grandfathering):** `mv` is flat; `of_mv` / `fl_mv` use default add-ons when not overridden. New sales use the
- *   separate Protection product ($25/mo) rather than ManyVids on this matrix — see `cev-protection` in billing.
+ * - **ManyVids Focus solo line:** `mv` is flat (`MV_FLAT`, currently $25/mo). `of_mv` / `fl_mv` bundle list prices use add-ons
+ *   when not overridden. Separate **Protection** subscriptions ($25/mo) are distinct — see `cev-protection`.
  */
 
 export type PlatformCombo =
@@ -32,7 +32,7 @@ export interface PricingTier {
   savingsPct: Record<'of_fl' | 'of_mv' | 'fl_mv' | 'unified', number>
 }
 
-const MV_FLAT = 39
+const MV_FLAT = 25
 const FL_CAP = 200
 const FL_DISCOUNT = 0.9
 

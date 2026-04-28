@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,21 +38,39 @@ import { Label } from '@/components/ui/label'
 import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
+  getTierByIndex,
   focusFanslyUsd,
   focusPlatformDisplayName,
   twoPlatformFocusUsd,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
 import {
-  ADULT_BILLING_PLATFORMS,
   resolveAllowedFocusPlatforms,
+  sortFocusPlatforms,
   type AdultBillingPlatform,
 } from '@/lib/billing/platform-variant'
 import { isPaidPlanId, PROTECTION_PLAN_ID, TRIAL_PLAN_ID, isProtectionEntitled, hasActiveDivineTrial } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
+import {
+  CREDIT_USD_VALUE,
+  CUSTOM_CREDIT_TOPUP_DEFAULT_USD,
+  CUSTOM_CREDIT_TOPUP_MIN_USD,
+  effectiveMonthlyCreditLimit,
+  PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+  TRIAL_AI_CREDITS_LIMIT,
+} from '@/lib/billing/credit-economics'
 import { APP_USER_STORAGE_LIMIT_MB } from '@/lib/billing/app-storage-cap'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
+import { BILLING_INSET_PANEL_CLASS, BILLING_PRIMARY_CHECKOUT_CTA_CLASS } from '@/lib/billing/billing-plan-visual'
+import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
+
+type LinkedFocusSlide = 'onlyfans' | 'fansly' | 'pair'
+
+const LINKED_FOCUS_BADGE_LABEL: Record<LinkedFocusSlide, string> = {
+  onlyfans: 'OnlyFans',
+  fansly: 'Fansly',
+  pair: 'Both linked',
+}
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
 const BILLING_GLASS =
@@ -97,12 +116,6 @@ type WalletSnapshot = {
   totalRemaining: number
 }
 
-const PLATFORM_BADGE: Record<AdultBillingPlatform, string> = {
-  onlyfans: 'Base',
-  fansly: '≤$200',
-  manyvids: 'Solo $39',
-}
-
 type VaultBillingStorageSnapshot = {
   quotaMb: number
   usageBytes: number
@@ -135,33 +148,92 @@ export function BillingSection({ userId }: BillingSectionProps) {
     () => new Set(['onlyfans']),
   )
   const [checkoutTierIndex, setCheckoutTierIndex] = useState(4)
+  const [revenueBandHints, setRevenueBandHints] = useState<{
+    requiredMinTier: number | null
+    observationCapturedAtMax: string | null
+  } | null>(null)
   const [checkoutQuoteVariant, setCheckoutQuoteVariant] = useState<BillingVariant>('single')
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
   const [vaultStorage, setVaultStorage] = useState<VaultBillingStorageSnapshot | null>(null)
   const [creditPulse, setCreditPulse] = useState<'consume' | 'grant' | null>(null)
-  const [customTopupAmount, setCustomTopupAmount] = useState<string>('20')
+  const [customTopupAmount, setCustomTopupAmount] = useState<string>(String(CUSTOM_CREDIT_TOPUP_DEFAULT_USD))
   const [paymentState, setPaymentState] = useState<'idle' | 'processing' | 'success' | 'pending'>('idle')
   const [paymentMessage, setPaymentMessage] = useState<string | null>(null)
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const prevTotalRef = useRef<number | null>(null)
+  const [linkedOnlyfans, setLinkedOnlyfans] = useState(false)
+  const [linkedFansly, setLinkedFansly] = useState(false)
+  const [linkedSlideIdx, setLinkedSlideIdx] = useState(0)
   const supabase = createClient()
   const loadSubscriptionData = useCallback(async (): Promise<WalletSnapshot | null> => {
     if (!userId) return null
 
     await syncSubscriptionCreditsFromPlanAction()
 
-    const { data } = await supabase.from('subscriptions').select('*').eq('user_id', userId).single()
+    const [{ data }, rbRes, { data: connRows }] = await Promise.all([
+      supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle(),
+      fetch('/api/billing/revenue-band-status', { credentials: 'include' }),
+      supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', userId)
+        .in('platform', ['onlyfans', 'fansly']),
+    ])
+
+    const rows = connRows ?? []
+    setLinkedOnlyfans(rows.some((r) => r.platform === 'onlyfans' && r.is_connected))
+    setLinkedFansly(rows.some((r) => r.platform === 'fansly' && r.is_connected))
+
+    let minTierFromObservation: number | null = null
+    let observationCapturedAtMax: string | null = null
+    if (rbRes.ok) {
+      try {
+        const j = (await rbRes.json()) as {
+          requiredMinTier?: unknown
+          observationCapturedAtMax?: string | null
+        }
+        minTierFromObservation =
+          typeof j.requiredMinTier === 'number' ? j.requiredMinTier : null
+        observationCapturedAtMax =
+          j.observationCapturedAtMax != null && String(j.observationCapturedAtMax).trim() !== ''
+            ? String(j.observationCapturedAtMax)
+            : null
+      } catch {
+        minTierFromObservation = null
+        observationCapturedAtMax = null
+      }
+    }
+
+    setRevenueBandHints(
+      rbRes.ok && (minTierFromObservation != null || observationCapturedAtMax != null)
+        ? { requiredMinTier: minTierFromObservation, observationCapturedAtMax }
+        : null,
+    )
 
     if (data) {
       setSubData(data as SubscriptionData)
       const row = data as SubscriptionData
-      if (typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10) {
-        setCheckoutTierIndex(row.revenue_tier)
-      }
+      const baseline =
+        typeof row.revenue_tier === 'number' && row.revenue_tier >= 0 && row.revenue_tier <= 10
+          ? row.revenue_tier
+          : 4
+      setCheckoutTierIndex(
+        minTierFromObservation != null ? Math.max(baseline, minTierFromObservation) : baseline,
+      )
       if (row.billing_variant === 'multi') {
         setCheckoutQuoteVariant('multi')
-        setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
+        const hasManyvidsAddon =
+          (Array.isArray(row.billing_focus_platforms) &&
+            row.billing_focus_platforms.some((x) => String(x).toLowerCase() === 'manyvids')) ||
+          String(row.billing_focus_platform ?? '')
+            .toLowerCase()
+            .trim() === 'manyvids'
+        setPlatformSelection(
+          new Set<AdultBillingPlatform>(
+            hasManyvidsAddon ? ['onlyfans', 'fansly', 'manyvids'] : ['onlyfans', 'fansly'],
+          ),
+        )
       } else if (row.billing_variant === 'single') {
         setCheckoutQuoteVariant('single')
         const allowed = resolveAllowedFocusPlatforms(row.billing_focus_platforms, row.billing_focus_platform)
@@ -174,6 +246,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
       // Do not bootstrap trial credits client-side. Trial credits are only activated
       // by Stripe webhook after card setup (status becomes "trialing").
       setSubData(null)
+      if (minTierFromObservation != null) {
+        setCheckoutTierIndex((prev) => Math.max(prev, minTierFromObservation))
+      }
     }
 
     let walletSnap: WalletSnapshot | null = null
@@ -310,8 +385,37 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
   useEffect(() => {
     if (checkoutQuoteVariant !== 'multi') return
-    setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
+    setPlatformSelection((prev) => {
+      const next = new Set<AdultBillingPlatform>(['onlyfans', 'fansly'])
+      if (prev.has('manyvids')) next.add('manyvids')
+      return next
+    })
   }, [checkoutQuoteVariant])
+
+  const linkedFocusSlides = useMemo<LinkedFocusSlide[]>(() => {
+    if (linkedOnlyfans && linkedFansly) return ['onlyfans', 'fansly', 'pair']
+    if (linkedOnlyfans) return ['onlyfans']
+    if (linkedFansly) return ['fansly']
+    return ['onlyfans']
+  }, [linkedOnlyfans, linkedFansly])
+
+  useEffect(() => {
+    setLinkedSlideIdx(0)
+  }, [linkedOnlyfans, linkedFansly])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (linkedFocusSlides.length <= 1) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const n = linkedFocusSlides.length
+    const id = window.setInterval(() => {
+      setLinkedSlideIdx((i) => (i + 1) % n)
+    }, 2600)
+    return () => window.clearInterval(id)
+  }, [linkedFocusSlides])
+
+  const linkedSlide: LinkedFocusSlide =
+    linkedFocusSlides[linkedSlideIdx % linkedFocusSlides.length] ?? 'onlyfans'
 
   const handleManageBilling = async () => {
     setLoadingPortal(true)
@@ -353,7 +457,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
         n.delete(p)
         return n
       }
-      if (n.size >= 2) return n
+      const maxSize = checkoutQuoteVariant === 'multi' ? 3 : 2
+      if (n.size >= maxSize) return n
       n.add(p)
       return n
     })
@@ -382,7 +487,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
           (subData.billing_variant as BillingVariant) || 'single',
           typeof subData.revenue_tier === 'number' ? subData.revenue_tier : 4,
           subData.billing_variant === 'multi'
-            ? undefined
+            ? (Array.isArray(subData.billing_focus_platforms) &&
+                subData.billing_focus_platforms.some((x) => String(x).toLowerCase() === 'manyvids')) ||
+                String(subData.billing_focus_platform ?? '')
+                  .toLowerCase()
+                  .trim() === 'manyvids'
+              ? (['manyvids'] as const)
+              : undefined
             : resolveAllowedFocusPlatforms(subData.billing_focus_platforms, subData.billing_focus_platform),
         ) * seatMultiplier
       : null
@@ -425,10 +536,32 @@ export function BillingSection({ userId }: BillingSectionProps) {
     ? Math.max(0, Math.ceil((effectivePeriodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 14
   const customTopupUsd = Number.parseInt(customTopupAmount, 10)
-  const customTopupValid = Number.isFinite(customTopupUsd) && customTopupUsd >= 20
+  const customTopupValid =
+    Number.isFinite(customTopupUsd) && customTopupUsd >= CUSTOM_CREDIT_TOPUP_MIN_USD
   const lastSyncedLabel = lastSyncedAt
     ? `${lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
     : 'Not synced yet'
+
+  const checkoutTierRow = useMemo(() => getTierByIndex(checkoutTierIndex), [checkoutTierIndex])
+  /** Paired Focus (OF·MV vs FL·MV) totals at selected band — same matrix as `/pricing`. */
+  const manyvidsPairUsdRangeLabel = useMemo(() => {
+    if (!checkoutTierRow) return '—'
+    const withOf = twoPlatformFocusUsd(checkoutTierRow, 'onlyfans', 'manyvids')
+    const withFl = twoPlatformFocusUsd(checkoutTierRow, 'fansly', 'manyvids')
+    if (withOf === withFl) return String(withOf)
+    return `${Math.min(withOf, withFl)}–${Math.max(withOf, withFl)}`
+  }, [checkoutTierRow])
+
+  const manyvidsFocusSelectedTotalUsd = useMemo(() => {
+    if (!platformSelection.has('manyvids')) return null
+    if (checkoutQuoteVariant === 'single') {
+      return getMonthlyPriceUsd('single', checkoutTierIndex, sortFocusPlatforms([...platformSelection]))
+    }
+    if (checkoutQuoteVariant === 'multi') {
+      return getMonthlyPriceUsd('multi', checkoutTierIndex, ['onlyfans', 'fansly', 'manyvids'])
+    }
+    return null
+  }, [checkoutQuoteVariant, checkoutTierIndex, platformSelection])
 
   if (loading) {
     return (
@@ -580,8 +713,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     Credits activate after card setup in Stripe.
                   </p>
                 ) : null}
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  100 credits per $1. Included pool matches your plan; tools debit by estimated provider cost.
+                <p className="text-xs leading-snug text-muted-foreground">
+                  {Math.round(1 / CREDIT_USD_VALUE)} credits per $1.
                 </p>
               </div>
               <Progress
@@ -748,8 +881,8 @@ export function BillingSection({ userId }: BillingSectionProps) {
               productId="credit-topup-10000"
               buttonText={
                 <>
-                  <span className="block leading-tight">2,000 credits</span>
-                  <span className="mt-0.5 block text-xs font-normal opacity-90">$20</span>
+                  <span className="block leading-tight">2,500 credits</span>
+                  <span className="mt-0.5 block text-xs font-normal opacity-90">$25</span>
                 </>
               }
               buttonClassName={BILLING_TOPUP_BTN}
@@ -763,18 +896,22 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 <Input
                   id="custom-topup"
                   type="number"
-                  min={5}
+                  min={CUSTOM_CREDIT_TOPUP_MIN_USD}
                   step={1}
                   value={customTopupAmount}
                   onChange={(e) => setCustomTopupAmount(e.target.value)}
                   onBlur={(e) => {
                     const v = Number.parseInt(e.target.value, 10)
-                    if (Number.isFinite(v) && v < 5) setCustomTopupAmount('5')
+                    if (Number.isFinite(v) && v < CUSTOM_CREDIT_TOPUP_MIN_USD) {
+                      setCustomTopupAmount(String(CUSTOM_CREDIT_TOPUP_MIN_USD))
+                    }
                   }}
                   className="bg-background/70"
-                  placeholder="20"
+                  placeholder={String(CUSTOM_CREDIT_TOPUP_DEFAULT_USD)}
                 />
-                <p className="text-xs text-muted-foreground">Minimum $20 for checkout (100 credits per $1)</p>
+                <p className="text-xs text-muted-foreground">
+                  Minimum ${CUSTOM_CREDIT_TOPUP_MIN_USD} for checkout (100 credits per $1)
+                </p>
               </div>
               <div className="min-w-0 flex-1">
                 <Checkout
@@ -790,7 +927,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         </span>
                       </>
                     ) : (
-                      'Enter at least $20'
+                      `Enter at least $${CUSTOM_CREDIT_TOPUP_MIN_USD}`
                     )
                   }
                   buttonClassName={cn(BILLING_TOPUP_BTN, 'disabled:opacity-50')}
@@ -815,54 +952,189 @@ export function BillingSection({ userId }: BillingSectionProps) {
       </Card>
 
       <Card id="revenue-pricing" className={BILLING_GLASS}>
-        <CardHeader className={BILLING_CARD_HEADER}>
-          <CardTitle className="font-semibold">Plans &amp; pricing</CardTitle>
-          <CardDescription>
-            Same estimate as <Link href="/pricing" className="text-primary underline-offset-4 hover:underline">public pricing</Link>
-            . Tiers match Stripe; new subscriptions complete checkout there with the same formula.
+        <CardHeader className="space-y-1.5 px-5 pb-4 pt-8 sm:px-6 sm:pt-9">
+          <CardTitle className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Plans &amp; pricing
+          </CardTitle>
+          <CardDescription className="max-w-2xl text-[13px] leading-snug text-muted-foreground">
+            Same tiers as the{' '}
+            <Link href="/pricing" className="font-medium text-foreground/90 underline-offset-4 hover:underline">
+              public pricing page
+            </Link>
+            . Checkout uses the total shown in the estimate below.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-8 px-4 sm:px-6">
+        <CardContent className="space-y-5 px-5 pb-8 pt-0 sm:px-6 sm:pb-9">
           <PricingPageCalculator
             surface="settings"
+            onCheckoutComplete={handleCheckoutComplete}
+            requiredMinTierFromObservation={revenueBandHints?.requiredMinTier ?? null}
+            observationCapturedAtIso={revenueBandHints?.observationCapturedAtMax ?? null}
             controlled={{
               tierIndex: checkoutTierIndex,
               onTierIndexChange: setCheckoutTierIndex,
               variant: checkoutQuoteVariant,
               onVariantChange: (v) => {
                 setCheckoutQuoteVariant(v)
-                if (v === 'multi') setPlatformSelection(new Set<AdultBillingPlatform>(['onlyfans', 'fansly']))
+                if (v === 'multi') {
+                  setPlatformSelection((prev) => {
+                    const next = new Set<AdultBillingPlatform>(['onlyfans', 'fansly'])
+                    if (prev.has('manyvids')) next.add('manyvids')
+                    return next
+                  })
+                }
               },
               platformSelection,
               togglePlatform,
               setPlatformSelection,
             }}
+            belowFocusPlatformsSlot={
+              <label
+                htmlFor="billing-manyvids-antipiracy-addon"
+                className={cn(
+                  'relative block rounded-2xl border p-4 transition-[border-color,box-shadow,background-color,opacity] sm:p-5',
+                  platformSelection.has('manyvids')
+                    ? 'cursor-pointer border-violet-500/45 bg-gradient-to-br from-violet-500/[0.08] via-transparent to-transparent shadow-[0_0_28px_-6px_rgba(139,92,246,0.22)]'
+                    : 'cursor-pointer border-border/40 bg-background/28 backdrop-blur-sm hover:bg-background/38',
+                )}
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                  <div className="flex min-w-0 gap-3">
+                    <Checkbox
+                      id="billing-manyvids-antipiracy-addon"
+                      className="mt-0.5"
+                      checked={platformSelection.has('manyvids')}
+                      onCheckedChange={(v) => {
+                        const on = v === true
+                        if (on) {
+                          setCheckoutQuoteVariant('multi')
+                          setPlatformSelection(
+                            new Set<AdultBillingPlatform>(['onlyfans', 'fansly', 'manyvids']),
+                          )
+                        } else {
+                          setPlatformSelection((prev) => {
+                            const next = new Set(prev)
+                            next.delete('manyvids')
+                            return next
+                          })
+                        }
+                      }}
+                      aria-label={`Include Anti-piracy (ManyVids) on Bundled Focus (OnlyFans + Fansly), ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                        <span className="font-semibold text-[15px] leading-tight tracking-tight text-foreground">
+                          {focusPlatformDisplayName('manyvids')}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-border/40 px-2 py-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                        >
+                          ManyVids
+                        </Badge>
+                        <div
+                          className="flex flex-col items-start gap-1"
+                          aria-live="polite"
+                          aria-label="Linked platforms that pair with ManyVids on Focus"
+                        >
+                          <Badge
+                            variant="secondary"
+                            className="rounded-full px-2 py-0 text-[10px] font-medium uppercase tracking-wide"
+                          >
+                            {LINKED_FOCUS_BADGE_LABEL[linkedSlide]}
+                          </Badge>
+                          <div
+                            className={cn(
+                              'flex h-9 items-center justify-center overflow-hidden rounded-md border border-border/45 bg-card/80 px-1 shadow-inner motion-reduce:transition-none',
+                              linkedSlide === 'pair' ? 'w-[6.75rem] gap-1' : 'w-[4.75rem]',
+                            )}
+                          >
+                            {linkedSlide === 'pair' ? (
+                              <>
+                                <Image
+                                  key="linked-of-pair"
+                                  src={ONLYFANS_LOGO_SRC}
+                                  alt=""
+                                  width={72}
+                                  height={24}
+                                  className="h-5 w-auto max-w-[46%] shrink-0 object-contain motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
+                                />
+                                <Image
+                                  key="linked-fl-pair"
+                                  src={FANSLY_LOGO_SRC}
+                                  alt=""
+                                  width={72}
+                                  height={24}
+                                  className="h-5 w-auto max-w-[46%] shrink-0 object-contain motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
+                                />
+                              </>
+                            ) : (
+                              <Image
+                                key={linkedSlide}
+                                src={linkedSlide === 'fansly' ? FANSLY_LOGO_SRC : ONLYFANS_LOGO_SRC}
+                                alt=""
+                                width={88}
+                                height={28}
+                                className="h-6 w-auto max-w-full object-contain motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-primary/35 px-2 py-0 text-[10px]"
+                        >
+                          With Bundled Focus
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-emerald-500/35 px-2 py-0 text-[10px] font-medium tabular-nums text-foreground"
+                        >
+                          {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits / mo
+                        </Badge>
+                      </div>
+                      <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground">
+                        <span className="font-medium text-foreground/90">
+                          {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits
+                        </span>{' '}
+                        included each billing cycle for ManyVids anti-piracy tools while this add-on stays on your plan.
+                        This line item bundles into <span className="text-foreground/85">Bundled</span> Focus (OnlyFans +
+                        Fansly)—same subscription and checkout total—not a standalone monthly plan.
+                      </p>
+                      <p className="sr-only">
+                        Includes {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing
+                        cycle. ManyVids anti-piracy on this row is only with Bundled Focus; the Protection add-on card
+                        below is the standalone storefront option, billed separately. Price follows your revenue band
+                        like the public pricing page.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 sm:pt-1 sm:text-right">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      {platformSelection.has('manyvids')
+                        ? 'Bundled Focus total'
+                        : 'ManyVids add-on (est.)'}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-1 justify-end tabular-nums">
+                      <span className="font-serif text-[1.625rem] font-medium leading-none text-foreground sm:text-[1.75rem]">
+                        $
+                        {manyvidsFocusSelectedTotalUsd != null
+                          ? String(manyvidsFocusSelectedTotalUsd)
+                          : manyvidsPairUsdRangeLabel}
+                      </span>
+                      <span className="pb-px text-[13px] font-normal leading-none text-muted-foreground">
+                        /
+                        <span className="ml-px">mo</span>
+                      </span>
+                    </div>
+                    <p className="mt-2 max-w-[11.5rem] text-right text-[11px] font-medium leading-snug text-foreground/85 tabular-nums sm:max-w-none">
+                      {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits / mo included
+                    </p>
+                  </div>
+                </div>
+              </label>
+            }
           />
-
-          <div className="flex flex-col gap-2 border-t border-border/30 pt-6 sm:flex-row sm:items-center sm:gap-4">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
-                checked={platformSelection.has('manyvids')}
-                onCheckedChange={() => {
-                  setCheckoutQuoteVariant('single')
-                  togglePlatform('manyvids')
-                }}
-                aria-label="ManyVids"
-              />
-              <span className="font-medium">{focusPlatformDisplayName('manyvids')}</span>
-              <Badge variant="outline" className="text-[10px]">
-                {PLATFORM_BADGE.manyvids}
-              </Badge>
-            </label>
-            <p className="text-[11px] leading-snug text-muted-foreground sm:ml-auto sm:max-w-[16rem]">
-              Main plan: <span className="text-foreground/90">OnlyFans + Fansly</span> (ManyVids optional). Clips / DMCA / other
-              sites:{' '}
-              <Link href="#protection-plan" className="font-medium text-primary underline-offset-4 hover:underline">
-                Protection
-              </Link>
-              .
-            </p>
-          </div>
 
           <Collapsible defaultOpen={false} className="space-y-2">
             <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/35 bg-background/25 px-4 py-3 text-left text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-background/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -912,33 +1184,48 @@ export function BillingSection({ userId }: BillingSectionProps) {
         </CardContent>
       </Card>
 
-      <Card className={BILLING_GLASS} id="protection-plan">
-        <CardHeader className={BILLING_CARD_HEADER}>
-          <CardTitle className="font-semibold">
+      <Card
+        id="protection-plan"
+        className={cn(
+          'flex flex-col gap-0 overflow-hidden py-0 text-card-foreground',
+          BILLING_INSET_PANEL_CLASS,
+        )}
+      >
+        <CardHeader className="space-y-2 border-b border-border/[0.08] px-6 pb-5 pt-7 dark:border-white/[0.06] sm:px-8 sm:pb-6 sm:pt-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
+            Stand alone
+          </p>
+          <CardTitle className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             {getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}
           </CardTitle>
-          <CardDescription>
-            {getProduct(PROTECTION_PLAN_ID)?.description}
+          <CardDescription className="max-w-prose text-[13px] leading-snug text-muted-foreground">
+            Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated
+            Protection hub. Separate bill from Focus: ManyVids on Bundled Focus above rides your Focus subscription;
+            Protection is its own subscription for broader storefront coverage.
             {subData && isProtectionEntitled(subData) ? (
-              <span className="mt-2 block text-emerald-600 dark:text-emerald-400">Active on your account.</span>
+              <span className="mt-2 block font-medium text-emerald-600 dark:text-emerald-400">Active on your account.</span>
             ) : null}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="mb-4 text-2xl font-bold tabular-nums">
-            ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
-            <span className="text-base font-normal text-muted-foreground">/mo</span>
-          </p>
+        <CardContent className="flex flex-col gap-6 px-6 pb-7 pt-6 sm:px-8 sm:pb-8 sm:pt-7">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
+              Monthly
+            </p>
+            <p className="mt-2 font-serif text-3xl font-medium tabular-nums tracking-tight text-foreground sm:text-[2rem]">
+              ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
+              <span className="ml-1 text-lg font-normal text-muted-foreground/85 sm:text-xl">/mo</span>
+            </p>
+          </div>
           <Checkout
             productId={PROTECTION_PLAN_ID}
             buttonText={
               subData && isProtectionEntitled(subData)
-                ? 'Update payment (Protection active)'
-                : `Subscribe — Protection — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
+                ? 'Update payment'
+                : `Subscribe — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
             }
             onComplete={handleCheckoutComplete}
-            buttonVariant="secondary"
-            buttonClassName="w-full"
+            buttonClassName={BILLING_PRIMARY_CHECKOUT_CTA_CLASS}
           />
         </CardContent>
       </Card>

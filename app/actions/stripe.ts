@@ -2,6 +2,7 @@
 
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
+import { CUSTOM_CREDIT_TOPUP_MIN_USD } from '@/lib/billing/credit-economics'
 import { PRODUCTS, getProduct } from '@/lib/products'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -26,9 +27,48 @@ import {
 } from '@/lib/billing/platform-variant'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
-import { getAppUrl } from '@/lib/site-url'
+import {
+  computeRequiredRevenueTierFromScopedObservations,
+  isRevenueTierBelowObservation,
+  loadScopedPlatformObservationsForUser,
+} from '@/lib/billing/onlyfans-billing-gate'
 
-const TRIAL_DURATION_DAYS = 2
+export const PAID_CHECKOUT_BELOW_OBSERVED_CODE = 'revenue_tier_below_observed' as const
+
+export type PaidCheckoutBlockedPayload = {
+  code: typeof PAID_CHECKOUT_BELOW_OBSERVED_CODE
+  requiredMinTier: number
+  bandLabel: string
+}
+export function paidCheckoutBlockedErrorMessage(payload: PaidCheckoutBlockedPayload): string {
+  return JSON.stringify(payload)
+}
+
+export function parsePaidCheckoutBlockedError(err: unknown): PaidCheckoutBlockedPayload | null {
+  const raw = err instanceof Error ? err.message : String(err)
+  try {
+    const o = JSON.parse(raw) as Partial<PaidCheckoutBlockedPayload>
+    if (
+      o?.code === PAID_CHECKOUT_BELOW_OBSERVED_CODE &&
+      typeof o.requiredMinTier === 'number' &&
+      typeof o.bandLabel === 'string'
+    ) {
+      return {
+        code: PAID_CHECKOUT_BELOW_OBSERVED_CODE,
+        requiredMinTier: o.requiredMinTier,
+        bandLabel: o.bandLabel,
+      }
+    }
+  } catch {
+    //
+  }
+  return null
+}
+
+
+/** Embedded Checkout (`@stripe/react-stripe-js`). API expects `embedded_page`; older SDK unions may still say `embedded`. */
+const CHECKOUT_EMBEDDED_UI_MODE =
+  'embedded_page' as unknown as Stripe.Checkout.SessionCreateParams.UiMode
 
 function clampBillingSeats(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_BILLING_SEATS
@@ -148,7 +188,7 @@ export async function startCheckoutSession(productId: string) {
       throw new Error('Free trial is only available once per account.')
     }
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded',
+      ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
       redirect_on_completion: 'never',
       customer: customerId,
       mode: 'setup',
@@ -174,7 +214,7 @@ export async function startCheckoutSession(productId: string) {
   }
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-    ui_mode: 'embedded',
+    ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
     redirect_on_completion: 'never',
     customer: customerId,
     line_items: [
@@ -232,8 +272,8 @@ export async function startCreditTopupCheckout(packId: string) {
 
 export async function startCustomCreditTopupCheckout(amountUsd: number) {
   const normalizedAmount = Number(amountUsd)
-  if (!Number.isFinite(normalizedAmount) || normalizedAmount < 20) {
-    throw new Error('Custom top-up minimum is $20')
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount < CUSTOM_CREDIT_TOPUP_MIN_USD) {
+    throw new Error(`Custom top-up minimum is $${CUSTOM_CREDIT_TOPUP_MIN_USD}`)
   }
   const roundedUsd = Math.round(normalizedAmount)
   const amountCents = roundedUsd * 100
@@ -250,7 +290,7 @@ export async function startCustomCreditTopupCheckout(amountUsd: number) {
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded',
+    ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'payment',
@@ -313,7 +353,10 @@ function paidCheckoutMetadata(
 export async function startPaidSubscriptionCheckout(params: {
   variant: BillingVariant
   tierIndex: number
-  /** Focus (`single`): 1–2 platforms; ignored for Unified (`multi`). */
+  /**
+   * Focus (`single`): 1–2 platforms.
+   * Unified (`multi`): omit or pass without `manyvids` for OF+FL only; include `manyvids` (e.g. `['onlyfans','fansly','manyvids']`) for bundled + ManyVids add-on.
+   */
   focusPlatforms?: AdultBillingPlatform[] | null
   /** Managers on the same creator account; unit price × seats. */
   seats?: number
@@ -341,13 +384,28 @@ export async function startPaidSubscriptionCheckout(params: {
     throw new Error('User not authenticated')
   }
 
+  const { onlyfans, fansly } = await loadScopedPlatformObservationsForUser(supabase, user.id)
+  if (isRevenueTierBelowObservation({ requestedTierIndex: tierIndex, onlyfans, fansly })) {
+    const requiredMinTier = computeRequiredRevenueTierFromScopedObservations({ onlyfans, fansly })
+    if (requiredMinTier != null) {
+      const bandRow = getTierByIndex(requiredMinTier)
+      throw new Error(
+        paidCheckoutBlockedErrorMessage({
+          code: PAID_CHECKOUT_BELOW_OBSERVED_CODE,
+          requiredMinTier,
+          bandLabel: bandRow?.label ?? `Tier ${requiredMinTier}`,
+        }),
+      )
+    }
+  }
+
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms, seats)
   const unitAmount = getMonthlyPriceCents(variant, tierIndex, focusPlatforms ?? undefined)
 
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded',
+    ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'subscription',

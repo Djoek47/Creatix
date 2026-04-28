@@ -7,15 +7,17 @@ import {
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import {
+  parsePaidCheckoutBlockedError,
   startCheckoutSession,
   startCustomCreditTopupCheckout,
   startPaidSubscriptionCheckout,
 } from '@/app/actions/stripe'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import type { BillingVariant } from '@/lib/pricing-matrix'
-import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
+import { sortFocusPlatforms, type AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID } from '@/lib/billing/access'
 import { DEFAULT_BILLING_SEATS } from '@/lib/billing/seats'
 
@@ -58,10 +60,12 @@ export function Checkout({
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [completed, setCompleted] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   const stripeReady = stripePromise !== null
 
   const fetchClientSecret = useCallback(async () => {
+    setCheckoutError(null)
     setLoading(true)
     try {
       if (typeof customTopupUsdAmount === 'number') {
@@ -75,11 +79,29 @@ export function Checkout({
           variant: billingVariant,
           tierIndex,
           focusPlatforms:
-            billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
+            billingVariant === 'single'
+              ? focusPlatforms?.length
+                ? focusPlatforms
+                : ['onlyfans']
+              : billingVariant === 'multi' &&
+                  focusPlatforms?.length &&
+                  sortFocusPlatforms(focusPlatforms).includes('manyvids')
+                ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+                : null,
           seats,
         })
       }
       return await startCheckoutSession(productId)
+    } catch (e) {
+      const blocked = parsePaidCheckoutBlockedError(e)
+      setCheckoutError(
+        blocked
+          ? `Linked account activity requires at least ${blocked.bandLabel} (tier ${blocked.requiredMinTier}). Raise your tier in the estimate above, then try again—or disconnect a platform under Connections if it should not affect billing yet.`
+          : e instanceof Error
+            ? e.message
+            : 'Checkout failed',
+      )
+      throw e
     } finally {
       setLoading(false)
     }
@@ -95,7 +117,11 @@ export function Checkout({
       open={open}
       onOpenChange={(next) => {
         setOpen(next)
-        if (!next) setCompleted(false)
+        if (next) setCheckoutError(null)
+        else {
+          setCompleted(false)
+          setCheckoutError(null)
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -138,7 +164,12 @@ export function Checkout({
             {STRIPE_CONFIG_ERROR}
           </div>
         ) : (
-          <div id="checkout" className="min-h-[400px]">
+          <div id="checkout" className="min-h-[400px] space-y-3">
+            {checkoutError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{checkoutError}</AlertDescription>
+              </Alert>
+            ) : null}
             <EmbeddedCheckoutProvider
               stripe={stripePromise}
               options={{ fetchClientSecret, onComplete: handleComplete }}
@@ -158,12 +189,20 @@ export function CheckoutEmbed({
   tierIndex,
   focusPlatforms,
   seats = DEFAULT_BILLING_SEATS,
+  onComplete,
+  className,
+  rootId = 'checkout',
 }: {
   productId: string
   billingVariant?: BillingVariant
   tierIndex?: number
   focusPlatforms?: AdultBillingPlatform[] | null
   seats?: number
+  /** Fires when Stripe Embedded Checkout completes (e.g. trial card collected). */
+  onComplete?: () => void | Promise<void>
+  className?: string
+  /** Avoid duplicate `id="checkout"` when multiple embeds exist in the DOM. */
+  rootId?: string
 }) {
   if (!stripePromise) {
     return (
@@ -182,18 +221,30 @@ export function CheckoutEmbed({
         variant: billingVariant,
         tierIndex,
         focusPlatforms:
-          billingVariant === 'single' ? (focusPlatforms?.length ? focusPlatforms : ['onlyfans']) : null,
+          billingVariant === 'single'
+            ? focusPlatforms?.length
+              ? focusPlatforms
+              : ['onlyfans']
+            : billingVariant === 'multi' &&
+                focusPlatforms?.length &&
+                sortFocusPlatforms(focusPlatforms).includes('manyvids')
+              ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+              : null,
         seats,
       })
     }
     return startCheckoutSession(productId)
   }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
 
+  const handleComplete = useCallback(() => {
+    void onComplete?.()
+  }, [onComplete])
+
   return (
-    <div id="checkout">
+    <div id={rootId} className={className}>
       <EmbeddedCheckoutProvider
         stripe={stripePromise}
-        options={{ fetchClientSecret }}
+        options={{ fetchClientSecret, onComplete: handleComplete }}
       >
         <EmbeddedCheckout />
       </EmbeddedCheckoutProvider>

@@ -12,6 +12,7 @@ import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
 import { SignUpFeatureShowcase } from '@/components/auth/sign-up-feature-showcase'
 import { createClient } from '@/lib/supabase/client'
+import { getEmailConfirmationRedirectUrlClient } from '@/lib/supabase/email-confirmation-redirect'
 import { cn } from '@/lib/utils'
 
 export default function SignUpPage() {
@@ -32,8 +33,9 @@ export default function SignUpPage() {
       email,
       password,
       options: {
-        emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || 
-          `${window.location.origin}/dashboard`,
+        emailRedirectTo:
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL?.trim() ||
+          getEmailConfirmationRedirectUrlClient(),
         data: {
           full_name: fullName,
         },

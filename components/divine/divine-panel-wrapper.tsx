@@ -2,6 +2,7 @@
 
 import type { User } from '@supabase/supabase-js'
 import { DivinePanelProvider } from '@/components/divine/divine-panel-context'
+import { CreditInsufficientModalProvider } from '@/components/billing/credit-insufficient-modal-context'
 
 /**
  * Provides Divine panel context (voice bridge, Divine Manager sync) without rendering
@@ -14,5 +15,9 @@ export function DivinePanelWrapper({
   user: User
   children: React.ReactNode
 }) {
-  return <DivinePanelProvider user={user}>{children}</DivinePanelProvider>
+  return (
+    <CreditInsufficientModalProvider>
+      <DivinePanelProvider user={user}>{children}</DivinePanelProvider>
+    </CreditInsufficientModalProvider>
+  )
 }

@@ -206,7 +206,7 @@ export function percentSavingsTwoPlatformFocus(
 export const FOCUS_PLATFORM_SAVINGS_PCT = {
   onlyfans: 0,
   fansly: Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100),
-  /** ManyVids Focus solo is flat $39 — % vs OF varies by band; 0 = “see matrix”. */
+  /** ManyVids Focus solo is flat (see `MV_FLAT` in circe-venus-pricing) — % vs OF varies by band; 0 = “see matrix”. */
   manyvids: 0,
 } as const satisfies Record<AdultBillingPlatform, number>
 

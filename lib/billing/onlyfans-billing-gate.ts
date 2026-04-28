@@ -22,7 +22,7 @@ export type ScopedPlatformObservation = {
   observationScopedPartnerAccountId: string | null | undefined
 }
 
-function subscribedRevenueTierIndex(row: SubscriptionLike | null | undefined): number {
+export function subscribedRevenueTierIndex(row: SubscriptionLike | null | undefined): number {
   const t = typeof row?.revenue_tier === 'number' ? row.revenue_tier : null
   if (t == null || !Number.isFinite(t) || t < 0 || t > 10) return 0
   return t
@@ -91,6 +91,27 @@ export function computeRequiredRevenueTierFromScopedObservations(args: {
   return Math.max(...tiers)
 }
 
+function latestScopedObservationCaptureMs(
+  onlyfans: ScopedPlatformObservation | null,
+  fansly: ScopedPlatformObservation | null,
+): number | null {
+  let maxMs: number | null = null
+  for (const obs of [onlyfans, fansly]) {
+    if (!obs) continue
+    const scoped = observedScopedRevenueForBilling({
+      currentPartnerAccountId: obs.partnerAccountId,
+      observedMonthlyRevenueUsd: obs.observedMonthlyRevenueUsd,
+      observedRevenueCapturedAt: obs.observedRevenueCapturedAt,
+      observationScopedPartnerAccountId: obs.observationScopedPartnerAccountId,
+    })
+    if (scoped.capturedAt == null || String(scoped.capturedAt).trim() === '') continue
+    const ms = Date.parse(scoped.capturedAt)
+    if (Number.isNaN(ms)) continue
+    maxMs = maxMs == null ? ms : Math.max(maxMs, ms)
+  }
+  return maxMs
+}
+
 /**
  * Subscribed revenue band must cover the highest implied tier across OnlyFans and Fansly (each scoped to its connected account id).
  */
@@ -107,6 +128,15 @@ export function denialForRevenueTierUndershootMulti(args: {
   const requiredTier = Math.max(...tiers)
   const subscribedTier = subscribedRevenueTierIndex(args.subscription)
   if (subscribedTier >= requiredTier) return null
+
+  const graceHours = Number(process.env.REVENUE_BAND_MISMATCH_GRACE_HOURS_AFTER_OBSERVATION ?? '0')
+  if (graceHours > 0 && Number.isFinite(graceHours)) {
+    const latestMs = latestScopedObservationCaptureMs(args.onlyfans, args.fansly)
+    if (latestMs != null && (Date.now() - latestMs) / 3_600_000 < graceHours) {
+      return null
+    }
+  }
+
   return {
     code: 'REVENUE_TIER_MISMATCH',
     message:
@@ -131,6 +161,19 @@ export function evaluateAdultPlatformBillingDenial(args: {
   )
 }
 
+/** Whether requested tier is allowed given scoped observation revenue (checkout / subscription upsert). */
+export function isRevenueTierBelowObservation(args: {
+  requestedTierIndex: number
+  onlyfans: ScopedPlatformObservation | null
+  fansly: ScopedPlatformObservation | null
+}): boolean {
+  const minTier = computeRequiredRevenueTierFromScopedObservations({
+    onlyfans: args.onlyfans,
+    fansly: args.fansly,
+  })
+  if (minTier == null) return false
+  return args.requestedTierIndex < minTier
+}
 export type PlatformConnectionObservedRow = {
   access_token?: string | null
   platform_user_id?: string | null
@@ -181,8 +224,35 @@ export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRo
   }
 }
 
-const PLATFORM_OBSERVED_SELECT =
+/** Columns needed to derive scoped revenue observations for checkout + billing gates. */
+export const PLATFORM_CONNECTION_OBSERVED_SELECT =
   'access_token, platform_user_id, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id, is_connected'
+
+export async function loadScopedPlatformObservationsForUser(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ onlyfans: ScopedPlatformObservation | null; fansly: ScopedPlatformObservation | null }> {
+  const [{ data: ofConn }, { data: fsConn }] = await Promise.all([
+    supabase
+      .from('platform_connections')
+      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
+      .eq('user_id', userId)
+      .eq('platform', 'onlyfans')
+      .eq('is_connected', true)
+      .maybeSingle(),
+    supabase
+      .from('platform_connections')
+      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
+      .eq('user_id', userId)
+      .eq('platform', 'fansly')
+      .eq('is_connected', true)
+      .maybeSingle(),
+  ])
+  return {
+    onlyfans: scopedObservationFromOnlyFansRow(ofConn),
+    fansly: scopedObservationFromFanslyRow(fsConn),
+  }
+}
 
 export type AdultPlatformBillingContext = {
   onlyfansAccessToken: string | null
@@ -201,14 +271,14 @@ export async function loadAdultPlatformBillingContext(
   const [{ data: ofConn }, { data: fsConn }, { data: subscription }] = await Promise.all([
     supabase
       .from('platform_connections')
-      .select(PLATFORM_OBSERVED_SELECT)
+      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
       .eq('user_id', user.id)
       .eq('platform', 'onlyfans')
       .eq('is_connected', true)
       .maybeSingle(),
     supabase
       .from('platform_connections')
-      .select(PLATFORM_OBSERVED_SELECT)
+      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
       .eq('user_id', user.id)
       .eq('platform', 'fansly')
       .eq('is_connected', true)
@@ -224,11 +294,36 @@ export async function loadAdultPlatformBillingContext(
         ? String(fsConn.platform_user_id)
         : null
 
+  const onlyfansObs = scopedObservationFromOnlyFansRow(ofConn)
+  const fanslyObs = scopedObservationFromFanslyRow(fsConn)
+
   const denial = evaluateAdultPlatformBillingDenial({
     subscription,
-    onlyfans: scopedObservationFromOnlyFansRow(ofConn),
-    fansly: scopedObservationFromFanslyRow(fsConn),
+    onlyfans: onlyfansObs,
+    fansly: fanslyObs,
   })
+
+  const sampleRate = Number(process.env.REVENUE_BAND_EVAL_LOG_SAMPLE_RATE ?? '0')
+  if (sampleRate > 0 && Number.isFinite(sampleRate) && Math.random() < Math.min(1, Math.max(0, sampleRate))) {
+    const requiredTier = computeRequiredRevenueTierFromScopedObservations({
+      onlyfans: onlyfansObs,
+      fansly: fanslyObs,
+    })
+    try {
+      console.info(
+        '[revenue_band_eval]',
+        JSON.stringify({
+          userId: user.id,
+          declaredTier: subscribedRevenueTierIndex(subscription),
+          requiredTier,
+          hasObservation: requiredTier != null,
+          denialCode: denial?.code ?? null,
+        }),
+      )
+    } catch {
+      // ignore logging failures
+    }
+  }
 
   return { onlyfansAccessToken, fanslyAccessToken, denial }
 }
@@ -239,6 +334,9 @@ export function onlyFansBillingDenialToResponse(denial: OnlyFansBillingDenial): 
       error: denial.message,
       code: 'ONLYFANS_BILLING_BLOCKED',
       reason: denial.code,
+      ...(denial.code === 'REVENUE_TIER_MISMATCH'
+        ? { billing_reason: 'revenue_tier_below_observed' as const }
+        : {}),
       ...(denial.subscribedTier !== undefined ? { subscribedRevenueTier: denial.subscribedTier } : {}),
       ...(denial.requiredTier !== undefined ? { requiredRevenueTier: denial.requiredTier } : {}),
       ...(denial.observedMonthlyUsd !== undefined ? { observedMonthlyRevenueUsd: denial.observedMonthlyUsd } : {}),

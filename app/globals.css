@@ -621,6 +621,36 @@
   }
 }
 
+/* Sidebar “Circe” section moon — luminous stroke (reads on parchment + charcoal) */
+.circe-nav-moon-glow {
+  filter: drop-shadow(0 0 0.5px oklch(0.52 0.2 295 / 0.55))
+    drop-shadow(0 0 5px oklch(0.58 0.16 295 / 0.38))
+    drop-shadow(0 0 10px oklch(0.72 0.1 85 / 0.22))
+    drop-shadow(0 0 14px oklch(0.78 0.08 90 / 0.1));
+}
+
+.dark .circe-nav-moon-glow {
+  filter: drop-shadow(0 0 0.5px oklch(0.78 0.12 85 / 0.35))
+    drop-shadow(0 0 4px oklch(0.58 0.2 295 / 0.55))
+    drop-shadow(0 0 11px oklch(0.52 0.18 298 / 0.42))
+    drop-shadow(0 0 18px oklch(0.48 0.15 300 / 0.22));
+}
+
+/* Sidebar “Venus” section sun — luminous gold stroke (pairs with Circe moon) */
+.venus-nav-sun-glow {
+  filter: drop-shadow(0 0 0.5px oklch(0.62 0.17 82 / 0.55))
+    drop-shadow(0 0 5px oklch(0.72 0.13 82 / 0.4))
+    drop-shadow(0 0 10px oklch(0.8 0.1 88 / 0.22))
+    drop-shadow(0 0 14px oklch(0.55 0.16 298 / 0.12));
+}
+
+.dark .venus-nav-sun-glow {
+  filter: drop-shadow(0 0 0.75px oklch(0.88 0.11 82 / 0.45))
+    drop-shadow(0 0 4px oklch(0.78 0.14 85 / 0.52))
+    drop-shadow(0 0 11px oklch(0.72 0.12 75 / 0.38))
+    drop-shadow(0 0 16px oklch(0.58 0.18 295 / 0.14));
+}
+
 /* Dashboard sky — imperceptible-at-a-glance rotation (like a long-exposure sky); overscan avoids corner gaps.
    Centering lives on a parent; this layer only rotates so the pivot stays the viewport center. */
 @keyframes dashboard-celestial-sky-drift {
@@ -815,6 +845,12 @@
 
 .marketing-float {
   animation: marketing-float-soft 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-float {
+    animation: none;
+  }
 }
 
 .login-scenic-bg {
@@ -2310,6 +2346,59 @@ body {
   }
 }
 
+/* Billing — Subscribe CTA when bundled Focus + Multiplatform protection (3-line stack) */
+@keyframes billing-cta-triple-bg-drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes billing-cta-triple-aura-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
+      0 14px 44px -18px rgba(124, 58, 237, 0.52),
+      0 0 28px -6px rgba(245, 158, 11, 0.22),
+      0 0 0 0 rgba(167, 139, 250, 0);
+  }
+  35% {
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+      0 22px 58px -14px rgba(168, 85, 247, 0.72),
+      0 0 52px 0 rgba(251, 191, 36, 0.42),
+      0 0 80px 4px rgba(192, 132, 252, 0.38);
+  }
+  70% {
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.16) inset,
+      0 18px 52px -16px rgba(245, 158, 11, 0.55),
+      0 0 44px 2px rgba(236, 72, 153, 0.35),
+      0 0 72px 0 rgba(124, 58, 237, 0.42);
+  }
+}
+
+.billing-checkout-cta-triple-stack {
+  background-size: 220% 100%;
+  animation:
+    billing-cta-triple-bg-drift 3.2s ease-in-out infinite,
+    billing-cta-triple-aura-pulse 1.65s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-checkout-cta-triple-stack {
+    animation: none;
+    background-size: 100% 100%;
+    background-position: 50% 50%;
+  }
+}
+
 /* Sign-up page — bright constellation + gold→violet frame burst when feature changes */
 @keyframes sign-up-star-drift {
   0%,
@@ -2408,4 +2497,69 @@ body {
     radial-gradient(circle at 72% 92%, rgba(196, 181, 253, 0.88) 1px, transparent 1.1px);
   background-size: 100% 100%;
   transform: translate(8px, -6px);
+}
+
+/* Onboarding: rainbow + pulse on trial credit count (draw the eye; respects reduced motion below) */
+@keyframes onboarding-credits-rainbow {
+  0% {
+    background-position: 0% 50%;
+    filter: brightness(1.05) saturate(1.2);
+  }
+  50% {
+    filter: brightness(1.35) saturate(1.45);
+  }
+  100% {
+    background-position: 200% 50%;
+    filter: brightness(1.05) saturate(1.2);
+  }
+}
+
+@keyframes onboarding-credits-badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent),
+      0 0 12px -2px rgba(168, 85, 247, 0.25);
+  }
+  45% {
+    transform: scale(1.035);
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--primary) 45%, transparent),
+      0 0 22px 0 rgba(251, 191, 36, 0.35),
+      0 0 28px 2px rgba(168, 85, 247, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-credits-bait-badge,
+  .onboarding-credits-bait-num {
+    animation: none !important;
+  }
+}
+
+.onboarding-credits-bait-badge {
+  animation: onboarding-credits-badge-pulse 1.85s ease-in-out infinite;
+}
+
+.onboarding-credits-bait-num {
+  display: inline-block;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background-image: linear-gradient(
+    95deg,
+    #fb7185,
+    #fbbf24,
+    #bef264,
+    #22d3ee,
+    #a78bfa,
+    #f472b6,
+    #fb7185
+  );
+  background-size: 280% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: onboarding-credits-rainbow 2.4s linear infinite;
 }

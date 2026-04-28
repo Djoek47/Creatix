@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
-import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -325,8 +325,8 @@ export function AIToolsSelector({
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
   const [toolRunError, setToolRunError] = useState<string | null>(null)
-  const [toolRunCreditGateCredits, setToolRunCreditGateCredits] = useState<number | null>(null)
   const supabase = createClient()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const { wallet: creditWallet, loading: creditWalletLoading, refresh: refreshCreditWallet } = useCreditSnapshot()
   
   // Check subscription status
@@ -523,7 +523,6 @@ export function AIToolsSelector({
     setLoading(true)
     setResult(null)
     setToolRunError(null)
-    setToolRunCreditGateCredits(null)
 
     try {
       let response: Response
@@ -756,8 +755,14 @@ export function AIToolsSelector({
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         if (response.status === 402) {
+          const body = data as { used?: number; limit?: number; code?: string }
+          openCreditInsufficientModal({
+            requiredCredits: getCreditsForToolId(selectedTool.id),
+            used: typeof body.used === 'number' ? body.used : undefined,
+            limit: typeof body.limit === 'number' ? body.limit : undefined,
+            contextLabel: 'AI Studio',
+          })
           setToolRunError(null)
-          setToolRunCreditGateCredits(getCreditsForToolId(selectedTool.id))
           setResult(null)
           void loadSubscription()
           void refreshCreditWallet()
@@ -767,13 +772,11 @@ export function AIToolsSelector({
           typeof data.error === 'string'
             ? data.error
             : `Request failed (${response.status})`
-        setToolRunError(msg)
-        setToolRunCreditGateCredits(null)
-        setResult(null)
+      setToolRunError(msg)
+      setResult(null)
         return
       }
 
-      setToolRunCreditGateCredits(null)
       setResult(data)
       void loadSubscription()
       void refreshCreditWallet()
@@ -790,7 +793,6 @@ export function AIToolsSelector({
     setSelectedTool(null)
     setContentStudioSubtab('ideas')
     setToolRunError(null)
-    setToolRunCreditGateCredits(null)
     setResult(null)
     setContentDescription('')
     setFanMessage('')
@@ -1705,12 +1707,7 @@ export function AIToolsSelector({
         </div>
       </CardHeader>
       <CardContent className="space-y-6 px-6 pb-8 pt-8">
-        {toolRunCreditGateCredits != null ? (
-          <InsufficientCreditsCallout
-            requiredCredits={toolRunCreditGateCredits}
-            actionContext="this AI Studio tool run"
-          />
-        ) : toolRunError ? (
+        {toolRunError ? (
           <Alert variant="destructive">
             <AlertTitle>Could not run tool</AlertTitle>
             <AlertDescription>{toolRunError}</AlertDescription>

@@ -1,0 +1,47 @@
+<!--
+  Supabase → Change email address
+  Subject: Confirm your new email — Circe et Venus
+
+  Paste everything after this comment into Message.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+<style type="text/css">
+  .cetv-body { font-family: 'DM Sans', -apple-system, sans-serif !important; }
+  .cetv-title { font-family: 'Cinzel', Georgia, serif !important; }
+</style>
+<table role="presentation" width="100%" bgcolor="#f5f5f7" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f5f7;">
+  <tr>
+    <td align="center" style="padding:52px 20px;">
+      <table role="presentation" width="600" style="width:100%;max-width:600px;border-collapse:separate;">
+        <tr>
+          <td bgcolor="#ffffff" style="border-radius:22px;border:1px solid #d8d8dd;box-shadow:0 6px 20px rgba(0,0,0,0.04);overflow:hidden;">
+            <table width="100%"><tr><td height="3" bgcolor="#5c4dbf"></td></tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:40px 44px 8px;"><img src="https://www.circeetvenus.com/icon.png" width="48" height="48" style="border-radius:999px;" alt="" /></td></tr>
+              <tr><td style="padding:8px 44px 0;">
+                <h1 class="cetv-title" style="margin:0;font-size:26px;line-height:1.12;font-weight:600;color:#1d1d1f;font-family:'Cinzel',Georgia,serif;">Verify new email</h1>
+                <p style="margin:20px 0 0;font-size:17px;line-height:26px;color:#494949;font-family:'DM Sans',sans-serif;">Going forward:<br/><span style="font-size:22px;line-height:30px;font-weight:600;color:#1d1d1f;display:block;margin-top:8px;">{{ .NewEmail }}</span></p>
+                {{ if .Email }}<p style="margin:12px 0 0;font-size:15px;line-height:23px;color:#6e6e73;font-family:'DM Sans',sans-serif;">Previously: {{ .Email }}</p>{{ end }}
+              </td></tr>
+              <tr><td style="padding:34px 44px;text-align:center;">
+                <table align="center" cellpadding="0" cellspacing="0"><tr>
+                  <td bgcolor="#1d1d1f" style="border-radius:999px;mso-padding-alt:15px 32px;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:15px 32px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Confirm</a></td>
+                </tr></table>
+              </td></tr>
+              <tr><td style="padding:0 44px 42px;">
+                <table width="100%"><tr><td style="border-top:1px solid #ececec;"></td></tr></table>
+                <p style="margin:26px 0 0;font-size:12px;color:#aeaeb2;word-break:break-all;line-height:17px;">{{ .ConfirmationURL }}</p>
+                <p style="margin:22px 0 0;font-size:13px;line-height:20px;color:#86868b;font-family:'DM Sans',sans-serif;">Unsolicited change? Reach <a href="mailto:support@circeetvenus.com" style="color:#5c4dbf;text-decoration:none;border-bottom:1px solid rgba(92,76,191,0.35);padding-bottom:1px;">support@circeetvenus.com</a></p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        {{ if .SiteURL }}<tr><td align="center" style="padding:26px;"><a href="{{ .SiteURL }}" style="font-size:11px;color:#86868b;text-decoration:none;border-bottom:1px solid #dedede;font-family:'DM Sans',sans-serif;">{{ .SiteURL }}</a></td></tr>{{ end }}
+      </table>
+    </td>
+  </tr>
+</table>

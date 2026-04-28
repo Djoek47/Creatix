@@ -47,5 +47,14 @@ When upstream sends `x-rate-limit-limit-minute`, `x-rate-limit-remaining-minute`
 
 ## Related server-side coalescing
 
-- `GET /api/messages/inbox` uses cached `getConversations` (`/chats`) with min-refresh, TTL, rate-limit cooldown, and singleflight (`lib/onlyfans-inbox-chats-cache.ts`). Clients can pass `refresh=true` to bypass min-refresh when the user explicitly reloads the list.
-- `GET /api/onlyfans/conversations` and `GET /api/onlyfans/notifications` apply similar min-refresh and stale-return patterns.
+- `GET /api/messages/inbox` uses cached `getConversations` (`/chats`) with min-refresh, TTL, rate-limit cooldown, and singleflight (`lib/onlyfans-inbox-chats-cache.ts`). For `platform=all`, the OnlyFans pool size is **fixed at 55** so pagination does not change the cache key and trigger redundant upstream `/chats` calls. Clients can pass `refresh=true` to bypass min-refresh when the user explicitly reloads the list.
+- `GET /api/onlyfans/notifications` uses min-refresh, TTL, stale-return patterns **plus concurrent inflight coalescing** (`notificationsInflight` in [`app/api/onlyfans/notifications/route.ts`](app/api/onlyfans/notifications/route.ts)): parallel GETs with the same cache key await one upstream `counts + list` burst (matches inbox chats).
+- `GET /api/onlyfans/conversations` applies similar min-refresh and stale-return patterns (see that route’s handler).
+
+### Bell / header prefetch (`components/notifications.tsx`)
+
+- Client-side pulls honor **`ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS`** ([`lib/onlyfans-client-throttle.ts`](lib/onlyfans-client-throttle.ts), **60s**, aligned with server min refresh).
+- Initial prefetch uses **`force: false`** so mounts/remounts do not bypass that throttle.
+- Manual refresh controls keep **`force: true`** where appropriate.
+- Stale JSON with **`retry_after_ms`** from a partner rate-limit path triggers a short deferred backoff window before further pulls.
+

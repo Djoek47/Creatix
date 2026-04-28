@@ -30,6 +30,7 @@ import {
 } from '@/lib/notification-briefing-types'
 import { dispatchProtocolTasksRefresh } from '@/lib/dashboard/notification-ui-bridge'
 import { DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 
 export type { DivineUiAction, DmSuggestionBridgePayload } from '@/lib/divine/divine-ui-actions'
 
@@ -155,6 +156,7 @@ export function DivinePanelProvider({
   children: ReactNode
 }) {
   const router = useRouter()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(true)
   const [focusedFan, setFocusedFan] = useState<FocusedFan | null>(null)
@@ -621,8 +623,13 @@ export function DivinePanelProvider({
         if (res.status === 403 && err.code === 'subscription_required') {
           assistantMsg = DIVINE_FULL_UPGRADE_MESSAGE
         } else if (res.status === 402 || err.code === 'ai_credits_exhausted') {
-          assistantMsg =
-            'Insufficient AI credits. Top up or wait for renewal in Settings → Subscription, then try again.'
+          const payload = err as { used?: number; limit?: number }
+          openCreditInsufficientModal({
+            used: typeof payload.used === 'number' ? payload.used : undefined,
+            limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+            contextLabel: 'Divine chat',
+          })
+          return
         }
         setChatMessages((prev) => [...prev, { role: 'assistant', content: assistantMsg }])
         return
@@ -722,7 +729,7 @@ export function DivinePanelProvider({
       setChatLoading(false)
       setChatWorkingHint(null)
     }
-  }, [chatInput, chatMessages, chatLoading, focusedFan, applyDivineUiActionsWithBridge])
+  }, [chatInput, chatMessages, chatLoading, focusedFan, applyDivineUiActionsWithBridge, openCreditInsufficientModal])
 
   const requestGenerate = useCallback(async () => {
     const prompt = generatePrompt.trim()
@@ -751,9 +758,13 @@ export function DivinePanelProvider({
         if (res.status === 403 && err.code === 'subscription_required') {
           setGeneratedText(DIVINE_FULL_UPGRADE_MESSAGE)
         } else if (res.status === 402 || err.code === 'ai_credits_exhausted') {
-          setGeneratedText(
-            'Insufficient AI credits. Top up or wait for renewal in Settings → Subscription, then try again.',
-          )
+          const payload = err as { used?: number; limit?: number }
+          openCreditInsufficientModal({
+            used: typeof payload.used === 'number' ? payload.used : undefined,
+            limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+            contextLabel: 'Divine message generator',
+          })
+          return
         } else {
           setGeneratedText(typeof err.error === 'string' && err.error.trim() ? err.error.trim() : 'Generate failed.')
         }
@@ -768,7 +779,7 @@ export function DivinePanelProvider({
     } finally {
       setGenerateLoading(false)
     }
-  }, [generatePrompt, generateLoading])
+  }, [generatePrompt, generateLoading, openCreditInsufficientModal])
 
   const copyGenerated = useCallback(() => {
     if (generatedText && typeof navigator !== 'undefined' && navigator.clipboard) {

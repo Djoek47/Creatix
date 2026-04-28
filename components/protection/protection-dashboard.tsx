@@ -49,6 +49,7 @@ import { isPaidPlanId } from '@/lib/billing/access'
 import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { LeakMediaType, LeakSeverity } from '@/lib/types'
@@ -340,6 +341,7 @@ function severityRank(s: string | undefined): number {
 
 export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const router = useRouter()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
 
@@ -759,11 +761,18 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         )
       } else {
         const base = data.error || 'Scan failed.'
-        setScanSummary(
-          res.status === 402
-            ? `${base} Open Billing to top up credits or upgrade your plan.`
-            : base,
-        )
+        if (res.status === 402) {
+          const payload = data as { used?: number; limit?: number }
+          openCreditInsufficientModal({
+            requiredCredits: CREDITS_LEAK_SCAN,
+            used: typeof payload.used === 'number' ? payload.used : undefined,
+            limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+            contextLabel: 'Leak scan',
+          })
+          setScanSummary(null)
+        } else {
+          setScanSummary(base)
+        }
       }
       void refreshLeakScanCredits()
       router.refresh()

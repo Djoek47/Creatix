@@ -403,7 +403,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               <Moon
                 className={cn(
                   compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
-                  'shrink-0 text-circe-light/35',
+                  'circe-nav-moon-glow shrink-0 text-circe-light/45 dark:text-circe-light/55',
                 )}
                 aria-hidden
               />
@@ -441,7 +441,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               <Sun
                 className={cn(
                   compactDensity ? 'h-3 w-3' : 'h-3.5 w-3.5',
-                  'shrink-0 text-gold/38',
+                  'venus-nav-sun-glow shrink-0 text-gold/48 dark:text-gold/55',
                 )}
                 aria-hidden
               />

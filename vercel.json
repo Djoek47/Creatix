@@ -93,6 +93,10 @@
       "schedule": "15 4 * * *"
     },
     {
+      "path": "/api/cron/revenue-band-mismatch-notify",
+      "schedule": "35 4 * * *"
+    },
+    {
       "path": "/api/cron/trial-expiry-reminders",
       "schedule": "15 * * * *"
     },

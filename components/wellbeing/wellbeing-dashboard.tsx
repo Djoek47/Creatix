@@ -22,6 +22,7 @@ import { useDashboardPulse } from '@/components/dashboard/dashboard-pulse-provid
 import { cn } from '@/lib/utils'
 import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import { WellbeingLunarCalendar } from '@/components/wellbeing/wellbeing-lunar-calendar'
+import { useFlowEnergyAwayRecovery } from '@/hooks/use-flow-energy-away-recovery'
 
 function severityLabel(s: PulseSeverity): string {
   if (s === 'steady') return 'Steady'
@@ -91,6 +92,9 @@ export function WellbeingDashboard() {
 
   const pageLoading = pulseLoading && !pulse
 
+  const pulseFlow = pulse?.flow ?? null
+  const flowState = useFlowEnergyAwayRecovery(pulseFlow) ?? pulseFlow
+
   const baselineNote = useMemo(() => {
     if (!insight?.insightSource || insight.insightSource === 'location') return null
     if (insight.insightSource === 'birthday') {
@@ -99,8 +103,7 @@ export function WellbeingDashboard() {
     return 'Baseline mode without location. Add birthday or location in Settings to personalize.'
   }, [insight])
 
-  const flowState = pulse?.flow ?? null
-  const flowUnavailable = !pulseLoading && !pulse?.flow
+  const flowUnavailable = !pulseLoading && !pulseFlow
 
   if (pageLoading) {
     return (

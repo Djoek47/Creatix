@@ -1,0 +1,56 @@
+<!--
+  Supabase → Identity linked (notification)
+  Subject: New sign-in method linked — Circe et Venus
+  `.Provider` is a single string per Supabase Auth event. Matching rules:
+    • Multi (OnlyFans + Fansly together): `.Provider` must be a composite slug you configure on the OAuth
+      connector (see elseif list below) — renders both platform marks in one row (with the Circe icon above = 3 marks).
+    • OnlyFans-only or Fansly-only: standard provider slugs, one logo row.
+  Vault “connect OAuth” mails from the app still use Resend (platform-connection-notify), not Auth templates.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+<style type="text/css">
+  .cetv-body { font-family: 'DM Sans', -apple-system, sans-serif !important; }
+  .cetv-title { font-family: 'Cinzel', Georgia, serif !important; }
+</style>
+
+<table role="presentation" width="100%" bgcolor="#f5f5f7" cellpadding="0" cellspacing="0"><tr>
+  <td align="center" style="padding:52px 20px;">
+    <table role="presentation" width="600" style="width:100%;max-width:600px;"><tr>
+      <td bgcolor="#ffffff" style="border-radius:22px;border:1px solid #d8d8dd;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,0.04);">
+        <table width="100%"><tr><td bgcolor="#5c4dbf" height="3" style="height:3px;line-height:0;font-size:0;"></td></tr></table>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:40px 44px 8px;"><img src="https://www.circeetvenus.com/icon.png" width="44" height="44" style="border-radius:999px;display:block;opacity:0.95;" alt="" /></td></tr>
+          <tr><td style="padding:4px 44px 0;">
+            <p style="margin:0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#5c4dbf;font-family:'DM Sans',sans-serif;">Account security</p>
+            <h1 class="cetv-title" style="margin:10px 0 0;font-family:'Cinzel',Georgia,serif;font-size:24px;font-weight:600;line-height:1.14;color:#1d1d1f;">Provider linked</h1>
+          </td></tr>
+          {{ if or (eq .Provider "onlyfans+fansly") (eq .Provider "ONLYFANS+FANSLY") (eq .Provider "onlyfans_fansly") (eq .Provider "onlyfans,fansly") (eq .Provider "onlyfansfansly") (eq .Provider "multi") (eq .Provider "both") (eq .Provider "of_fl") }}
+          <tr><td style="padding:12px 44px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="vertical-align:middle;padding:0 16px 0 0;"><img src="https://www.circeetvenus.com/onlyfans-logo.png" width="136" height="32" alt="OnlyFans" style="display:block;width:136px;max-width:100%;height:auto;border:0;outline:none;" /></td>
+                <td style="vertical-align:middle;padding:0 12px;line-height:0;font-size:0;"><span style="font-family:'DM Sans',sans-serif;font-size:15px;color:#d2d2d7;">+</span></td>
+                <td style="vertical-align:middle;padding:0;"><img src="https://www.circeetvenus.com/fansly-logo.png" width="120" height="32" alt="Fansly" style="display:block;width:120px;max-width:100%;height:auto;border:0;outline:none;" /></td>
+              </tr>
+            </table>
+          </td></tr>
+          {{ else if or (eq .Provider "onlyfans") (eq .Provider "OnlyFans") (eq .Provider "ONLYFANS") (eq .Provider "oauth_onlyfans") }}
+          <tr><td style="padding:12px 44px 0;"><img src="https://www.circeetvenus.com/onlyfans-logo.png" width="136" height="32" alt="OnlyFans" style="display:block;width:136px;max-width:100%;height:auto;border:0;outline:none;" /></td></tr>
+          {{ else if or (eq .Provider "fansly") (eq .Provider "Fansly") (eq .Provider "FANSLY") (eq .Provider "oauth_fansly") }}
+          <tr><td style="padding:12px 44px 0;"><img src="https://www.circeetvenus.com/fansly-logo.png" width="120" height="32" alt="Fansly" style="display:block;width:120px;max-width:100%;height:auto;border:0;outline:none;" /></td></tr>
+          {{ end }}
+          <tr><td style="padding:22px 44px 42px;">
+            <p class="cetv-body" style="margin:0;font-family:'DM Sans',sans-serif;font-size:17px;line-height:26px;color:#494949;"><strong style="font-weight:600;color:#1d1d1f;text-transform:none;">{{ .Provider }}</strong> · {{ .Email }}</p>
+            <p class="cetv-body" style="margin:22px 0 0;font-size:15px;line-height:24px;color:#6e6e73;">Unfamiliar linkage? Undo in settings · <a href="mailto:support@circeetvenus.com" style="color:#5c4dbf;text-decoration:none;border-bottom:1px solid rgba(92,76,191,0.42);padding-bottom:2px;">support@circeetvenus.com</a></p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+    <tr><td align="center" style="padding:24px 16px 0;"><p style="margin:0;font-size:11px;color:#aeaeb2;font-family:'DM Sans',sans-serif;">Circe et Venus</p></td></tr>
+    </table>
+  </td>
+</tr></table>

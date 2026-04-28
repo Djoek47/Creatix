@@ -44,6 +44,7 @@ import {
   markAllPullNotificationsRead,
   markPullNotificationRead,
 } from '@/lib/platform-pull-notification-state'
+import { ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS } from '@/lib/onlyfans-client-throttle'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
 
@@ -121,26 +122,45 @@ export function Notifications() {
   /** Divine voice: scroll this CRM id into view when popover opens. */
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
   const supabase = createClient()
-  /** Skip duplicate platform pull when popover opens shortly after prefetch for the same user (ms). */
+  /** Skip duplicate platform pull when popover opens shortly after prefetch for the same user (aligned with server min refresh). */
   const onlyFansPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
   const fanslyPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
+  /** After stale ONLYFANS_RATE_LIMIT JSON from `/api/onlyfans/notifications`, pause pulls until `retry_after_ms` elapsed (cap 120s). */
+  const onlyFansPullBackoffUntilRef = useRef(0)
 
   const loadOnlyFansPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
     const force = opts?.force === true
     const last = onlyFansPullLastOkRef.current
+    if (!force && uid && Date.now() < onlyFansPullBackoffUntilRef.current) {
+      return
+    }
     if (
       !force &&
       uid &&
       last.userId === uid &&
       last.at > 0 &&
-      Date.now() - last.at < 30_000
+      Date.now() - last.at < ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS
     ) {
       return
     }
     try {
       const res = await fetch('/api/onlyfans/notifications')
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok || json.error || !Array.isArray(json.notifications)) {
+      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      const backoffMs =
+        typeof json.retry_after_ms === 'number' && json.retry_after_ms > 0
+          ? Math.min(json.retry_after_ms, 120_000)
+          : 0
+      if (!force && json.code === 'ONLYFANS_RATE_LIMIT' && backoffMs > 0) {
+        onlyFansPullBackoffUntilRef.current = Date.now() + backoffMs
+      }
+      const stale = json.stale === true
+      if (
+        !res.ok ||
+        !Array.isArray(json.notifications) ||
+        (typeof json.error === 'string' &&
+          json.error.length > 0 &&
+          !stale)
+      ) {
         setOfPullNotifications([])
         return
       }
@@ -177,6 +197,9 @@ export function Notifications() {
       }))
       setOfPullNotifications(applyPullNotificationOverlay(uid, ofNotifs))
       onlyFansPullLastOkRef.current = { userId: uid, at: Date.now() }
+      if (json.code !== 'ONLYFANS_RATE_LIMIT') {
+        onlyFansPullBackoffUntilRef.current = 0
+      }
     } catch {
       setOfPullNotifications([])
     }
@@ -190,7 +213,7 @@ export function Notifications() {
       uid &&
       last.userId === uid &&
       last.at > 0 &&
-      Date.now() - last.at < 30_000
+      Date.now() - last.at < ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS
     ) {
       return
     }
@@ -317,8 +340,8 @@ export function Notifications() {
   /** Prefetch platform pull feeds so the bell badge includes OF + Fansly without opening first. */
   useEffect(() => {
     if (!userId) return
-    void loadOnlyFansPull(userId, { force: true })
-    void loadFanslyPull(userId, { force: true })
+    void loadOnlyFansPull(userId, { force: false })
+    void loadFanslyPull(userId, { force: false })
   }, [userId, loadOnlyFansPull, loadFanslyPull])
 
   useEffect(() => {

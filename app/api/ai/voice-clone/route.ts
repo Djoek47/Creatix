@@ -67,5 +67,5 @@ Additional context: ${context || 'General content creation'}
 Generate 3 different message variations in this exact voice style. Make them sound natural and authentic to the original voice.`,
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }

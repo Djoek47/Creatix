@@ -35,7 +35,10 @@ export async function POST(request: NextRequest) {
     let profile = { username: '', displayName: '', avatar: '', subscribersCount: 0, followersCount: 0 }
     let fans = { data: [] as any[], count: 0 }
     let earnings = { total: 0, subscriptions: 0, tips: 0, messages: 0, period: { start: '', end: '' } }
-    let followers = { data: [], count: 0 }
+    let followers: {
+      data: { id: string; username: string; displayName: string; avatar: string }[]
+      count: number
+    } = { data: [], count: 0 }
 
     try {
       profile = await api.getProfile(accountId)

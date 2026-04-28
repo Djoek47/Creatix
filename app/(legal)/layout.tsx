@@ -2,9 +2,7 @@ import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/seo/marketing-metadata'
 
 export const metadata: Metadata = {
-  title: {
-    default: `Legal | ${SITE_NAME}`,
-  },
+  title: `Legal | ${SITE_NAME}`,
   description: `Terms, privacy, cookies, and company information for ${SITE_NAME} (Creatix).`,
 }
 

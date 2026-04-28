@@ -9,7 +9,7 @@ import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { useDivineProtocolBriefing } from '@/components/divine/use-divine-protocol-briefing'
-import { ProtocolOpenTasksList } from '@/components/divine/protocol-task-ui'
+import { ProtocolOpenTasksListManage } from '@/components/divine/protocol-task-ui'
 
 /** Main Divine Manager section: same protocol queue as the floating crown panel (notifications, scans, tool follow-ups). */
 export function DivineManagerProtocolTasksCard() {
@@ -73,7 +73,7 @@ export function DivineManagerProtocolTasksCard() {
           </p>
         ) : (
           <ScrollArea className="max-h-[min(60vh,520px)] pr-3">
-            <ProtocolOpenTasksList tasks={openTasks} textAlign="left" />
+            <ProtocolOpenTasksListManage tasks={openTasks} textAlign="left" />
           </ScrollArea>
         )}
       </CardContent>

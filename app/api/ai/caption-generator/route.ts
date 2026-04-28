@@ -5,7 +5,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { callGrokVision } from '@/lib/ai/grok-tools'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
-import { getBrandContext } from '@/lib/brand/get-brand-context'
+import { getBrandContext, type BrandContextPayload } from '@/lib/brand/get-brand-context'
 import { evaluateBrandTextCompliance } from '@/lib/brand/brand-governance'
 
 export const maxDuration = 60
@@ -183,7 +183,7 @@ async function finalizeResponse(
   supabase: Awaited<ReturnType<typeof createRouteHandlerClient>>,
   userId: string | null,
   output: CaptionOutput,
-  brandProfile: Awaited<ReturnType<typeof getBrandContext>>['full'] | null,
+  brandProfile: BrandContextPayload['full'] | null,
 ) {
   const complianceText = [
     ...output.captions.map((c) => c.text),

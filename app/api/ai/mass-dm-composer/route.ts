@@ -75,5 +75,5 @@ Generate:
 Use placeholders like {name}, {tier}, {last_purchase} that can be replaced with real data.`,
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }

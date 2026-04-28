@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { isDivineFullAccess } from '@/lib/divine/divine-full-access'
 import {
   runToolCall,
@@ -19,7 +20,10 @@ import {
   consumeAiCredits,
   insufficientAiCreditsResponse,
 } from '@/lib/billing/consume-ai-credits'
-import { CREDITS_MESSAGE_GENERATION_LIGHT } from '@/lib/billing/credit-economics'
+import {
+  CREDITS_MESSAGE_GENERATION_LIGHT,
+  DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD,
+} from '@/lib/billing/credit-economics'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -1209,16 +1213,22 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-idempotency-key') ||
       req.headers.get('x-request-id') ||
       `${Date.now()}`
-    const lightDebit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_GENERATION_LIGHT, {
-      reasonCode: 'message_generation_light',
-      reasonRef: `divine_manager_chat:${(lastUserMessage?.content ?? '').slice(0, 64)}:${requestNonce}`,
-      idempotencyKey: `divine_manager_chat:${user.id}:${requestNonce}`,
-      metadata: { endpoint: '/api/ai/divine-manager-chat' },
-    })
-    if (!lightDebit.ok) return insufficientAiCreditsResponse(lightDebit.used, lightDebit.limit)
 
-    const { ok: divineFull } = await isDivineFullAccess(supabase, user.id)
-    const connectionSnapshot = await getPlatformConnectionSnapshot(supabase, user.id)
+    const { data: subForAccess } = await supabase
+      .from('subscriptions')
+      .select('plan_id, status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!canUseCreditGatedProFeature(subForAccess as { plan_id?: string | null; status?: string | null } | null)) {
+      return NextResponse.json(
+        {
+          error:
+            'Divine Manager chat requires an active paid subscription or an active Divine trial with a card on file.',
+          code: 'subscription_required',
+        },
+        { status: 403 },
+      )
+    }
 
     const { data: settings } = await supabase
       .from('divine_manager_settings')
@@ -1232,6 +1242,36 @@ export async function POST(req: NextRequest) {
           'Divine Manager is currently turned off. Switch it to suggest-only or semi-automatic mode in the Divine Manager page before asking for advice.',
       })
     }
+
+    const { data: bundleClaim, error: bundleErr } = await supabase.rpc('claim_divine_manager_text_bundle', {
+      p_user_id: user.id,
+      p_limit: DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD,
+    })
+    const claim =
+      typeof bundleClaim === 'object' && bundleClaim !== null
+        ? (bundleClaim as { ok?: boolean; mode?: string; error?: string })
+        : {}
+    if (
+      bundleErr ||
+      !claim.ok ||
+      (claim.mode !== 'bundled' && claim.mode !== 'credits')
+    ) {
+      console.error('[divine-manager-chat] claim_divine_manager_text_bundle', bundleErr ?? claim)
+      return NextResponse.json({ error: 'Could not start chat turn', code: 'bundle_claim_failed' }, { status: 500 })
+    }
+
+    if (claim.mode === 'credits') {
+      const lightDebit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_GENERATION_LIGHT, {
+        reasonCode: 'message_generation_light',
+        reasonRef: `divine_manager_chat:${(lastUserMessage?.content ?? '').slice(0, 64)}:${requestNonce}`,
+        idempotencyKey: `divine_manager_chat:${user.id}:${requestNonce}`,
+        metadata: { endpoint: '/api/ai/divine-manager-chat' },
+      })
+      if (!lightDebit.ok) return insufficientAiCreditsResponse(lightDebit.used, lightDebit.limit)
+    }
+
+    const { ok: divineFull } = await isDivineFullAccess(supabase, user.id)
+    const connectionSnapshot = await getPlatformConnectionSnapshot(supabase, user.id)
 
     const { data: tasks } = await supabase
       .from('divine_manager_tasks')

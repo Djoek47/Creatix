@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -169,7 +169,15 @@ export default function SettingsPage() {
   const [mimicSaveMessage, setMimicSaveMessage] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const appearanceIsDark = useMemo(() => {
+    if (theme === 'system') {
+      if (resolvedTheme != null) return resolvedTheme === 'dark'
+      if (typeof document !== 'undefined') return document.documentElement.classList.contains('dark')
+      return false
+    }
+    return theme === 'dark'
+  }, [theme, resolvedTheme])
 
   // Handle tab from URL query param
   useEffect(() => {
@@ -675,39 +683,68 @@ export default function SettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">
+                      For calendars and reminders only. It does{' '}
+                      <span className="font-medium text-foreground/85">not</span> switch light vs dark—that is Appearance
+                      below or the header control.
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-4 border-t border-border/30 pt-10 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-5 border-t border-border/30 pt-10 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+                  <div className="flex min-w-0 flex-1 gap-4">
                     <div
                       className={cn(
                         'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/35 bg-muted/20',
                       )}
                       aria-hidden
                     >
-                      {theme === 'dark' ? (
+                      {appearanceIsDark ? (
                         <Moon className="h-[18px] w-[18px] text-muted-foreground/65" />
                       ) : (
                         <Sun className="h-[18px] w-[18px] text-muted-foreground/65" />
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1 space-y-1.5">
                       <p className="text-[0.9375rem] font-medium text-foreground">Appearance</p>
-                      <p className="text-[0.8125rem] text-muted-foreground/78">
-                        {theme === 'dark' ? 'Dark' : 'Light'}
+                      <p className="text-[0.8125rem] leading-snug text-muted-foreground/78">
+                        {theme === 'system'
+                          ? appearanceIsDark
+                            ? 'Following device — Circe (dark)'
+                            : 'Following device — Venus (light)'
+                          : theme === 'dark'
+                            ? 'Pinned — Circe (dark)'
+                            : 'Pinned — Venus (light)'}
                       </p>
+                      {theme === 'system' ? (
+                        <p className="text-[0.75rem] leading-relaxed text-muted-foreground/72">
+                          OS light/dark only. Calendar times still use the timezone you set above—not this preview.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 self-start rounded-full px-4 text-[0.8125rem] font-normal text-foreground hover:bg-foreground/[0.06] sm:self-center"
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  >
-                    Switch to {theme === 'dark' ? 'light' : 'dark'}
-                  </Button>
+                  <div className="flex shrink-0 flex-col items-stretch gap-2 sm:max-w-[13rem] sm:items-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 rounded-full px-4 text-[0.8125rem] font-normal text-foreground hover:bg-foreground/[0.06]"
+                      onClick={() => setTheme(appearanceIsDark ? 'light' : 'dark')}
+                    >
+                      {appearanceIsDark ? 'Pin Venus (light)' : 'Pin Circe (dark)'}
+                    </Button>
+                    {theme !== 'system' ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-full px-4 text-[0.75rem] font-normal text-muted-foreground hover:text-foreground"
+                        onClick={() => setTheme('system')}
+                      >
+                        Match device instead
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="flex flex-col-reverse items-stretch gap-3 border-t border-border/30 pt-8 sm:flex-row sm:items-center sm:justify-between">

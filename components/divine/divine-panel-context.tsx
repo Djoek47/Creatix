@@ -29,6 +29,7 @@ import {
   type NotificationBriefingItem,
 } from '@/lib/notification-briefing-types'
 import { dispatchProtocolTasksRefresh } from '@/lib/dashboard/notification-ui-bridge'
+import { DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
 
 export type { DivineUiAction, DmSuggestionBridgePayload } from '@/lib/divine/divine-ui-actions'
 
@@ -611,7 +612,21 @@ export function DivinePanelProvider({
           divine_session_id: getOrCreateDivineSessionId(),
         }),
       })
-      if (!res.ok) throw new Error('Chat request failed')
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string
+          code?: string
+        }
+        let assistantMsg = typeof err.error === 'string' && err.error.trim() ? err.error.trim() : 'Chat request failed.'
+        if (res.status === 403 && err.code === 'subscription_required') {
+          assistantMsg = DIVINE_FULL_UPGRADE_MESSAGE
+        } else if (res.status === 402 || err.code === 'ai_credits_exhausted') {
+          assistantMsg =
+            'Insufficient AI credits. Top up or wait for renewal in Settings → Subscription, then try again.'
+        }
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: assistantMsg }])
+        return
+      }
       const ct = res.headers.get('content-type') || ''
       if (ct.includes('text/event-stream') && res.body) {
         setChatMessages((prev) => [...prev, { role: 'assistant', content: '' }])
@@ -728,7 +743,22 @@ export function DivinePanelProvider({
           divine_session_id: getOrCreateDivineSessionId(),
         }),
       })
-      if (!res.ok) throw new Error('Generate failed')
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as {
+          error?: string
+          code?: string
+        }
+        if (res.status === 403 && err.code === 'subscription_required') {
+          setGeneratedText(DIVINE_FULL_UPGRADE_MESSAGE)
+        } else if (res.status === 402 || err.code === 'ai_credits_exhausted') {
+          setGeneratedText(
+            'Insufficient AI credits. Top up or wait for renewal in Settings → Subscription, then try again.',
+          )
+        } else {
+          setGeneratedText(typeof err.error === 'string' && err.error.trim() ? err.error.trim() : 'Generate failed.')
+        }
+        return
+      }
       const data = (await res.json()) as { reply?: string }
       if (data.reply) {
         setGeneratedText(data.reply.trim())

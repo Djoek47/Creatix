@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       )
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
-    data = fb.data
+    data = (fb.data ?? []).map((row) => ({ ...row, vault_storage_path: null }))
     error = fb.error
   }
 

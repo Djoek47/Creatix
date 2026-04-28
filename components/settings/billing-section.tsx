@@ -840,7 +840,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
           />
 
           <div className="flex flex-col gap-2 border-t border-border/30 pt-6 sm:flex-row sm:items-center sm:gap-4">
-            <span className="text-xs text-muted-foreground">Legacy Focus</span>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <Checkbox
                 checked={platformSelection.has('manyvids')}
@@ -855,8 +854,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 {PLATFORM_BADGE.manyvids}
               </Badge>
             </label>
-            <p className="text-xs text-muted-foreground sm:ml-auto sm:max-w-md">
-              Bundled above is OnlyFans + Fansly only. ManyVids uses banded pair pricing from the matrix.
+            <p className="text-[11px] leading-snug text-muted-foreground sm:ml-auto sm:max-w-[16rem]">
+              Main plan: <span className="text-foreground/90">OnlyFans + Fansly</span> (ManyVids optional). Clips / DMCA / other
+              sites:{' '}
+              <Link href="#protection-plan" className="font-medium text-primary underline-offset-4 hover:underline">
+                Protection
+              </Link>
+              .
             </p>
           </div>
 

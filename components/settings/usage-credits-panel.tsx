@@ -15,6 +15,7 @@ import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-ma
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { CREDIT_USD_VALUE } from '@/lib/billing/credit-economics'
+import { formatUsdFromCents } from '@/lib/billing/format-usd'
 
 type CreditTimelineRow = {
   id: string

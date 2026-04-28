@@ -220,10 +220,6 @@ export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats
   walletRowsCount: number
   /** Subscriptions rows counted for credits sum. */
   subscriptionsRowCount: number
-  walletTotalRemainingAllUsers: number
-  walletIncludedRemainingAllUsers: number
-  walletPurchasedRemainingAllUsers: number
-  walletRowsCount: number
   authUsersTotal: number
   authSignedInLast7d: number
   authSignedInLast30d: number

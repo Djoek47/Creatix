@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { sereneEase } from '@/lib/wellbeing/motion'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 import type { FlowStatePayload } from '@/lib/wellbeing/flow-state-ai'
-import type { DashboardPulse, PulseSeverity } from '@/lib/wellbeing/pulse-engine'
+import type { PulsePayload, PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 
 const stripTransition = { duration: 0.4, ease: sereneEase }
 
@@ -24,7 +24,7 @@ const MOOD: Record<FlowStatePayload['mood'], string> = {
 }
 
 type Props = {
-  pulse: DashboardPulse | null
+  pulse: PulsePayload | null
   pulseLoading: boolean
   insight: GlowInsightsPayload | null
   flow: FlowStatePayload | null

@@ -147,6 +147,7 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
+          storageKey="creatix-ui-theme"
         >
           {children}
           <CookieConsent />

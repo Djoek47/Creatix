@@ -1,6 +1,8 @@
 import { getTierByIndex, tierIndexFromMonthlyRevenue, type RevenueTierRow } from '@/lib/pricing-matrix'
 import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
 
+export type AssessGoalRealismMode = IncomePredictorFocusMode
+
 export type RealismLevel = 'realistic' | 'ambitious' | 'unrealistic'
 
 /**
@@ -42,7 +44,7 @@ function tierLabel(t: RevenueTierRow | undefined): string {
 export function assessGoalRealism(args: {
   currentMonthlyUsd: number | null
   goalUsd: number | null
-  mode: 'maintain' | 'grow'
+  mode: AssessGoalRealismMode
 }): GoalRealismAssessment {
   const { mode, goalUsd } = args
   const current = args.currentMonthlyUsd != null && Number.isFinite(args.currentMonthlyUsd) ? Math.max(0, args.currentMonthlyUsd) : null

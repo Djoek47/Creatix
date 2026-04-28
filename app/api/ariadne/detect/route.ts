@@ -237,12 +237,7 @@ export async function POST(request: NextRequest) {
       return j(request, { error: 'Credit debit failed' }, 500)
     }
     const responseBody = {
-      match:
-        matchState === 'marker_valid_registered'
-          ? true
-          : matchState === 'marker_valid_unregistered'
-            ? 'unregistered'
-            : false,
+      match: false,
       matchState,
       algorithmVersion: null,
       message:
@@ -291,13 +286,18 @@ export async function POST(request: NextRequest) {
     return j(request, responseBody, 200)
   }
 
+  const markerPayload = extracted.payload
+  if (!markerPayload) {
+    return j(request, { error: 'Decoded marker payload missing', code: 'marker_payload_missing' }, 422)
+  }
+
   const { data: exp, error: expErr } = await service
     .from('ariadne_exports')
     .select(
       'id, content_id, content_title, recipient_key, recipient_fan_id, recipient_platform, recipient_platform_fan_id, recipient_username, recipient_display_name, source, origin_message_id, origin_mass_batch_id, export_path, algorithm_version, created_at, payload_id',
     )
     .eq('user_id', userId)
-    .eq('payload_id', extracted.payload.payloadId)
+    .eq('payload_id', markerPayload.payloadId)
     .maybeSingle()
 
   const unregisteredState: DetectMatchState = 'marker_valid_unregistered'
@@ -309,15 +309,15 @@ export async function POST(request: NextRequest) {
     ? { ok: true as const }
     : await consumeAiCredits(supabase, userId, toolCost, {
         reasonCode: 'ariadne_detect',
-        reasonRef: `ariadne_detect:${extracted.payload.payloadId}`,
-        idempotencyKey: `ariadne_detect:${userId}:${extracted.payload.payloadId}`,
+        reasonRef: `ariadne_detect:${markerPayload.payloadId}`,
+        idempotencyKey: `ariadne_detect:${userId}:${markerPayload.payloadId}`,
         metadata: {
           tool: 'ariadne-detect',
           match: !(expErr || !exp),
           match_state: expErr || !exp ? unregisteredState : registeredState,
           confidence: expErr || !exp ? unregisteredSignal.confidence : registeredSignal.confidence,
           reason: expErr || !exp ? unregisteredSignal.reason : registeredSignal.reason,
-          payload_id: extracted.payload.payloadId,
+          payload_id: markerPayload.payloadId,
           export_id: exp?.id ?? null,
           content_id: exp?.content_id ?? null,
           recipient_key: exp?.recipient_key ?? null,
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
     const responseBody = {
       match: 'unregistered' as const,
       matchState: unregisteredState,
-      payload: extracted.payload,
+      payload: markerPayload,
       confidence: unregisteredSignal.confidence,
       reason: unregisteredSignal.reason,
       message: 'Marker decoded but no matching export row for your account (wrong account or old export).',
@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
       billingMode: isSvcReq ? 'service' : 'user_credits',
     }
     await persistDetectEvent({
-      payloadId: extracted.payload.payloadId,
+      payloadId: markerPayload.payloadId,
       matchState: 'unregistered',
       metadata: {
         tool: 'ariadne-detect',
@@ -378,7 +378,7 @@ export async function POST(request: NextRequest) {
     match: true as const,
     matchState: registeredState,
     export: exp,
-    payload: extracted.payload,
+    payload: markerPayload,
     confidence: registeredSignal.confidence,
     reason: registeredSignal.reason,
     creditsCharged: toolCost,
@@ -388,7 +388,7 @@ export async function POST(request: NextRequest) {
   }
   await persistDetectEvent({
     exportId: exp.id,
-    payloadId: extracted.payload.payloadId,
+    payloadId: markerPayload.payloadId,
     matchState: 'registered',
     metadata: {
       tool: 'ariadne-detect',

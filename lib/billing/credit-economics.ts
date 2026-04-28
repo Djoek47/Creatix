@@ -61,6 +61,9 @@ export function creditsForProviderUsdEstimate(providerUsd: number): number {
 /** Product-level overrides (routes + Divine tools). Aligned to PROVIDER_USD_ESTIMATE. */
 export const CREDITS_DIVINE_CHAT_MESSAGE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.chatMiniTurn)
 export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
+
+/** Divine Manager text chat: included turns per billing period before wallet debits (same pool as `claim_divine_manager_text_bundle`). Not shown in product copy. */
+export const DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD = 100
 /** Scan + Circe + Venus + Flirt in one sync package. */
 export const CREDITS_MESSAGE_GENERATION_BUNDLE = CREDITS_MESSAGE_GENERATION_LIGHT * 4
 export const CREDITS_MESSAGE_SEND_PLATFORM = 1

@@ -94,5 +94,5 @@ Provide:
 Format as actionable recommendations with expected impact on revenue.`,
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }

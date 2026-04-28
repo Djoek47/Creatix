@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,8 @@ const menuItemClass = cn(
 
 const menuIconWrap = 'flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40 dark:bg-muted/25'
 
+const THEME_STORAGE_KEY = 'creatix-ui-theme'
+
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
@@ -44,6 +47,22 @@ export function ThemeToggle() {
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  /**
+   * Keep Radix RadioGroup in sync with next-themes + localStorage. Right after hydration, `theme`
+   * can be undefined briefly; reading the storage key avoids a wrong selection and missed updates.
+   */
+  const appearanceValue = React.useMemo<'light' | 'dark' | 'system'>(() => {
+    if (theme === 'light' || theme === 'dark' || theme === 'system') return theme
+    if (typeof window === 'undefined') return 'dark'
+    try {
+      const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+      if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+    } catch {
+      /* private mode */
+    }
+    return 'dark'
+  }, [theme])
 
   if (!mounted) {
     return (
@@ -73,56 +92,72 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className={menuContentClass}>
-        <DropdownMenuItem onClick={() => setTheme('light')} className={menuItemClass}>
-          <span className={menuIconWrap}>
-            <Sun className="size-4 text-amber-600/85 dark:text-amber-400/90" strokeWidth={1.75} aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block">Venus</span>
-            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/85">Light appearance</span>
-          </span>
-          <Check
-            className={cn('size-4 shrink-0 text-foreground/40', theme !== 'light' && 'opacity-0')}
-            strokeWidth={2.25}
-            aria-hidden
-          />
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme('dark')}
-          className={menuItemClass}
+        <DropdownMenuRadioGroup
+          value={appearanceValue}
+          onValueChange={(v) => {
+            if (v === 'light' || v === 'dark' || v === 'system') setTheme(v)
+          }}
         >
-          <span className={menuIconWrap}>
-            <Moon className="size-4 text-circe/90 dark:text-circe-light/90" strokeWidth={1.75} aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block">Circe</span>
-            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/85">Dark appearance</span>
-          </span>
-          <Check
-            className={cn('size-4 shrink-0 text-foreground/40', theme !== 'dark' && 'opacity-0')}
-            strokeWidth={2.25}
-            aria-hidden
-          />
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')} className={menuItemClass}>
-          <span className={menuIconWrap}>
-            <span
-              className="text-[10px] font-semibold tabular-nums tracking-wide text-muted-foreground/75"
-              aria-hidden
-            >
-              Auto
+          <DropdownMenuRadioItem
+            value="light"
+            className={cn(menuItemClass, 'pl-3 [&>span:first-child]:hidden')}
+          >
+            <span className={menuIconWrap}>
+              <Sun className="size-4 text-amber-600/85 dark:text-amber-400/90" strokeWidth={1.75} aria-hidden />
             </span>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block">System</span>
-            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/85">Match device</span>
-          </span>
-          <Check
-            className={cn('size-4 shrink-0 text-foreground/40', theme !== 'system' && 'opacity-0')}
-            strokeWidth={2.25}
-            aria-hidden
-          />
-        </DropdownMenuItem>
+            <span className="min-w-0 flex-1">
+              <span className="block">Venus</span>
+              <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/85">Light appearance</span>
+            </span>
+            <Check
+              className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'light' && 'opacity-0')}
+              strokeWidth={2.25}
+              aria-hidden
+            />
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="dark"
+            className={cn(menuItemClass, 'pl-3 [&>span:first-child]:hidden')}
+          >
+            <span className={menuIconWrap}>
+              <Moon className="size-4 text-circe/90 dark:text-circe-light/90" strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block">Circe</span>
+              <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/85">Dark appearance</span>
+            </span>
+            <Check
+              className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'dark' && 'opacity-0')}
+              strokeWidth={2.25}
+              aria-hidden
+            />
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            value="system"
+            className={cn(menuItemClass, 'pl-3 [&>span:first-child]:hidden')}
+            title="Automatically uses light or dark to match your device."
+          >
+            <span className={menuIconWrap}>
+              <span
+                className="text-[10px] font-semibold tabular-nums tracking-wide text-muted-foreground/75"
+                aria-hidden
+              >
+                Auto
+              </span>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block">Match device</span>
+              <span className="mt-0.5 block text-[11px] font-normal leading-snug text-muted-foreground/85">
+                OS light/dark only—not your profile timezone
+              </span>
+            </span>
+            <Check
+              className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'system' && 'opacity-0')}
+              strokeWidth={2.25}
+              aria-hidden
+            />
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

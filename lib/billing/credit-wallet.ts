@@ -137,13 +137,8 @@ async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: strin
 
   if (!cycleNeedsReset) return
 
-  const limit = !isCreditEligible
-    ? 0
-    : sub
-    ? effectiveMonthlyCreditLimit(sub)
-    : Number.isFinite(Number(sub?.ai_credits_limit)) && Number(sub?.ai_credits_limit) > 0
-      ? Number(sub?.ai_credits_limit)
-      : 0
+  const limit =
+    !isCreditEligible ? 0 : sub != null ? effectiveMonthlyCreditLimit(sub) : 0
 
   await supabase
     .from('credit_wallets')

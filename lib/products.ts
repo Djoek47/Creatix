@@ -65,12 +65,12 @@ export const PRODUCTS: Product[] = [
     id: 'cev-protection',
     name: 'Protection & Anti-Piracy',
     description:
-      'Anti-piracy and protection for Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and other non-API surfaces. Can be used alone or with a main Creatix plan.',
+      'Anti-piracy and protection for Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and other non-API surfaces. Use stand-alone or together with our main creator plan (Connected platforms & AI toolkit).',
     priceInCents: 2500,
     priceMonthly: 25,
     features: [
       'DMCA and leak-monitoring workflow',
-      'Stackable with a main Creatix subscription',
+      'Stacks with a full creator subscription',
       'Focused dashboard for non-API platform coverage',
     ],
     mode: 'subscription',

@@ -148,7 +148,7 @@ export async function startCheckoutSession(productId: string) {
       throw new Error('Free trial is only available once per account.')
     }
     const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded_page',
+      ui_mode: 'embedded',
       redirect_on_completion: 'never',
       customer: customerId,
       mode: 'setup',
@@ -174,7 +174,7 @@ export async function startCheckoutSession(productId: string) {
   }
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-    ui_mode: 'embedded_page',
+    ui_mode: 'embedded',
     redirect_on_completion: 'never',
     customer: customerId,
     line_items: [
@@ -250,7 +250,7 @@ export async function startCustomCreditTopupCheckout(amountUsd: number) {
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded_page',
+    ui_mode: 'embedded',
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'payment',
@@ -347,7 +347,7 @@ export async function startPaidSubscriptionCheckout(params: {
 
   const stripe = getStripe()
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded_page',
+    ui_mode: 'embedded',
     redirect_on_completion: 'never',
     customer: customerId,
     mode: 'subscription',

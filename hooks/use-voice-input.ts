@@ -170,7 +170,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 // Add types for Web Speech API
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
+    SpeechRecognition?: typeof SpeechRecognition
+    webkitSpeechRecognition?: typeof SpeechRecognition
   }
 }

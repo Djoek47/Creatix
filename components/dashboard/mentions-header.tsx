@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
 import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
@@ -163,6 +164,7 @@ export function MentionsHeader() {
                 scanDisabledByBalance && 'border-destructive/35 bg-destructive/8 text-destructive',
               )}
               title="Included monthly pool plus any purchases — same balance as other AI features."
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
             >
               <Coins className="h-3.5 w-3.5 shrink-0 opacity-75" aria-hidden />
               {creditsLoading && !creditsError ? (

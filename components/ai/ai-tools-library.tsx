@@ -38,6 +38,7 @@ import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -191,7 +192,10 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/35 bg-background/40 px-3 py-1.5 text-[13px] tabular-nums text-muted-foreground backdrop-blur-md">
+          <div
+            className="inline-flex items-center gap-2 rounded-full border border-border/35 bg-background/40 px-3 py-1.5 text-[13px] tabular-nums text-muted-foreground backdrop-blur-md"
+            {...DASHBOARD_CREDIT_SUMMARY_MARK}
+          >
             <Zap className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             {creditSnapshot ? (
               <span>

@@ -511,14 +511,17 @@ export function Notifications() {
   const bellTriggerClass = cn(
     'relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0',
     hasUnread &&
-      'text-amber-700 shadow-[0_0_22px_-6px_rgba(245,158,11,0.55)] ring-1 ring-amber-500/35 dark:text-amber-200 dark:shadow-[0_0_26px_-4px_rgba(251,191,36,0.45)] dark:ring-amber-400/40',
+      'text-amber-600/85 ring-1 ring-amber-500/22 dark:text-amber-300/90 dark:ring-amber-500/28',
   )
 
-  const unreadBadgeClass = cn(
-    'absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none text-white',
-    'bg-gradient-to-b from-amber-400 to-amber-600 dark:from-amber-300 dark:to-amber-600',
-    'shadow-[0_0_12px_rgba(251,191,36,0.85),0_2px_6px_-2px_rgba(180,83,9,0.4)]',
-    'ring-2 ring-background dark:ring-slate-950',
+  const unreadPipInner = cn(
+    'flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full px-0.5',
+    'bg-background/95 dark:bg-slate-950/92',
+  )
+
+  const unreadPipText = cn(
+    'bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[9px] font-semibold tabular-nums leading-none text-transparent',
+    'dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300',
   )
 
   if (!mounted) {
@@ -526,8 +529,13 @@ export function Notifications() {
       <Button variant="ghost" size="icon" className={bellTriggerClass} aria-label="Notifications">
         <Bell className="h-5 w-5" aria-hidden />
         {hasUnread ? (
-          <span className={cn(unreadBadgeClass, unreadCount > 9 && 'min-w-[1.375rem] px-1.5')}>
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span
+            className="header-tools-rainbow-pip pointer-events-none absolute -right-0.5 -top-0.5 inline-flex"
+            aria-hidden
+          >
+            <span className={cn(unreadPipInner, unreadCount > 9 && 'min-w-[1.375rem] px-1')}>
+              <span className={unreadPipText}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+            </span>
           </span>
         ) : null}
       </Button>
@@ -555,8 +563,13 @@ export function Notifications() {
         >
           <Bell className="h-5 w-5" aria-hidden />
           {hasUnread ? (
-            <span className={cn(unreadBadgeClass, unreadCount > 9 && 'min-w-[1.375rem] px-1.5')}>
-              {unreadCount > 9 ? '9+' : unreadCount}
+            <span
+              className="header-tools-rainbow-pip pointer-events-none absolute -right-0.5 -top-0.5 inline-flex"
+              aria-hidden
+            >
+              <span className={cn(unreadPipInner, unreadCount > 9 && 'min-w-[1.375rem] px-1')}>
+                <span className={unreadPipText}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              </span>
             </span>
           ) : null}
         </Button>

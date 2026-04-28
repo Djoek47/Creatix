@@ -269,6 +269,28 @@
   box-shadow: 0 0 22px -4px oklch(0.55 0.2 295 / 0.4), 0 0 16px -2px oklch(0.78 0.12 85 / 0.3);
 }
 
+/* Header — notification count: same language as Tools (gradient ring, calm inner) */
+.header-tools-rainbow-pip {
+  border-radius: 9999px;
+  padding: 1.5px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.78 0.14 85),
+    oklch(0.65 0.22 295),
+    oklch(0.72 0.15 200),
+    oklch(0.78 0.14 85),
+    oklch(0.62 0.24 310),
+    oklch(0.78 0.14 85)
+  );
+  background-size: 200% 100%;
+  animation: header-tools-rainbow-shift 7s linear infinite;
+  box-shadow: 0 0 12px -3px oklch(0.55 0.2 295 / 0.28), 0 0 8px -2px oklch(0.78 0.12 85 / 0.2);
+}
+
+.dark .header-tools-rainbow-pip {
+  box-shadow: 0 0 14px -3px oklch(0.55 0.2 295 / 0.32), 0 0 10px -2px oklch(0.78 0.12 85 / 0.22);
+}
+
 /* Header — Well-being heart */
 @keyframes header-wellbeing-heartbeat {
   0%,
@@ -300,8 +322,85 @@
   filter: drop-shadow(0 0 8px oklch(0.78 0.12 85 / 0.5));
 }
 
+.header-wellbeing-pulse-steady {
+  animation-duration: 2.55s;
+  color: oklch(0.62 0.11 155);
+  filter: drop-shadow(0 0 6px oklch(0.55 0.08 155 / 0.35));
+}
+
+.dark .header-wellbeing-pulse-steady {
+  color: oklch(0.78 0.1 155);
+  filter: drop-shadow(0 0 8px oklch(0.55 0.1 155 / 0.35));
+}
+
+.header-wellbeing-pulse-attend {
+  animation-duration: 1.95s;
+  color: oklch(0.72 0.14 85);
+  filter: drop-shadow(0 0 7px oklch(0.72 0.12 85 / 0.45));
+}
+
+.dark .header-wellbeing-pulse-attend {
+  color: oklch(0.88 0.11 85);
+  filter: drop-shadow(0 0 9px oklch(0.78 0.12 85 / 0.48));
+}
+
+.header-wellbeing-pulse-intervene {
+  animation-duration: 1.55s;
+  color: oklch(0.58 0.2 25);
+  filter: drop-shadow(0 0 8px oklch(0.58 0.2 25 / 0.42));
+}
+
+.dark .header-wellbeing-pulse-intervene {
+  color: oklch(0.75 0.16 25);
+  filter: drop-shadow(0 0 10px oklch(0.55 0.18 25 / 0.45));
+}
+
+.sidebar-nav-pulse-steady {
+  animation: header-wellbeing-heartbeat 2.55s ease-in-out infinite;
+  color: oklch(0.55 0.09 155) !important;
+  filter: drop-shadow(0 0 5px oklch(0.5 0.08 155 / 0.35));
+}
+
+.dark .sidebar-nav-pulse-steady {
+  color: oklch(0.72 0.09 155) !important;
+  filter: drop-shadow(0 0 6px oklch(0.55 0.1 155 / 0.3));
+}
+
+.sidebar-nav-pulse-attend {
+  animation: header-wellbeing-heartbeat 1.95s ease-in-out infinite;
+  color: oklch(0.68 0.13 85) !important;
+  filter: drop-shadow(0 0 6px oklch(0.7 0.12 85 / 0.38));
+}
+
+.dark .sidebar-nav-pulse-attend {
+  color: oklch(0.85 0.11 85) !important;
+  filter: drop-shadow(0 0 8px oklch(0.76 0.12 85 / 0.42));
+}
+
+.sidebar-nav-pulse-intervene {
+  animation: header-wellbeing-heartbeat 1.55s ease-in-out infinite;
+  color: oklch(0.55 0.19 25) !important;
+  filter: drop-shadow(0 0 7px oklch(0.52 0.2 25 / 0.4));
+}
+
+.dark .sidebar-nav-pulse-intervene {
+  color: oklch(0.72 0.15 25) !important;
+  filter: drop-shadow(0 0 9px oklch(0.5 0.18 25 / 0.42));
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .sidebar-nav-pulse-steady,
+  .sidebar-nav-pulse-attend,
+  .sidebar-nav-pulse-intervene {
+    animation: none;
+  }
+
   .header-tools-rainbow-wrap {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
+  .header-tools-rainbow-pip {
     animation: none;
     background-position: 50% 50%;
   }

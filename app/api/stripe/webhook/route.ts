@@ -257,22 +257,14 @@ export async function POST(req: NextRequest) {
         if (isTrialSetup && userId && customerId) {
           const { data: existingSubRow } = await supabase
             .from('subscriptions')
-            .select('stripe_subscription_id,status,plan_id')
+            .select('stripe_subscription_id')
             .eq('user_id', userId)
             .maybeSingle()
-          const existingTrial = existingSubRow as {
-            stripe_subscription_id?: string | null
-            status?: string | null
-            plan_id?: string | null
-          } | null
-          if (
-            existingTrial?.stripe_subscription_id &&
-            (existingTrial.status === 'trialing' || existingTrial.status === 'active')
-          ) {
+          const existingTrial = existingSubRow as { stripe_subscription_id?: string | null } | null
+          /** One card-required trial per account: any past or present main Stripe sub blocks another trial_setup. */
+          if (existingTrial?.stripe_subscription_id) {
             await upsertSubscriptionByUserId(supabase, userId, {
               stripe_customer_id: customerId,
-              plan_id: existingTrial.plan_id ?? 'divine-trial',
-              status: existingTrial.status ?? 'trialing',
             })
             break
           }
@@ -373,7 +365,7 @@ export async function POST(req: NextRequest) {
           })
           break
         }
-        if (isCreditTopup && userId) {
+        if (isCreditTopup && userId && session.mode === 'payment' && session.payment_status === 'paid') {
           const credits = Number.parseInt(meta?.credits ?? '0', 10)
           if (Number.isFinite(credits) && credits > 0) {
             await grantPurchasedCredits({

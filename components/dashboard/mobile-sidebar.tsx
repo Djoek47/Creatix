@@ -31,6 +31,8 @@ import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
+import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
+import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 
 interface MobileSidebarProps {
   user: User
@@ -82,6 +84,8 @@ const bottomNavigation: NavItem[] = [
 
 export function MobileSidebar({ user, profile }: MobileSidebarProps) {
   const pathname = usePathname()
+  const pulseOptional = useDashboardPulseOptional()
+  const pulseNavSeverity = pulseOptional?.pulse?.severity
   const [compactMobile, setCompactMobile] = useState(false)
 
   const handleRealmReload = () => {
@@ -102,12 +106,29 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
   const navTextClass = compactMobile ? 'text-[0.86rem] leading-snug' : mobileNavText
   const navIconClass = compactMobile ? 'h-4 w-4' : mobileNavIcon
 
-  const NavLink = ({ item, variant = 'default' }: { item: NavItem, variant?: 'default' | 'circe' | 'venus' | 'ai-studio' }) => {
+  const NavLink = ({
+    item,
+    variant = 'default',
+    pulseNavSeverity: pulseSev,
+  }: {
+    item: NavItem
+    variant?: 'default' | 'circe' | 'venus' | 'ai-studio'
+    pulseNavSeverity?: PulseSeverity
+  }) => {
     const isActive =
       item.href === '/dashboard/fans'
         ? pathname === '/dashboard/fans'
         : pathname === item.href || pathname.startsWith(item.href + '/')
     const isAiStudio = variant === 'ai-studio'
+
+    const wellbeingPulseClass =
+      item.href === '/dashboard/well-being' && pulseSev
+        ? pulseSev === 'intervene'
+          ? 'sidebar-nav-pulse-intervene'
+          : pulseSev === 'attend'
+            ? 'sidebar-nav-pulse-attend'
+            : 'sidebar-nav-pulse-steady'
+        : null
     
     const variantStyles = {
       default: {
@@ -151,7 +172,11 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
             className={cn(
               navIconClass,
               'flex-shrink-0 transition-colors duration-150 ease-out',
-              isActive ? 'text-foreground' : styles.icon,
+              wellbeingPulseClass
+                ? cn(wellbeingPulseClass, isActive && 'opacity-100')
+                : isActive
+                  ? 'text-foreground'
+                  : styles.icon,
             )}
           />
           <div className="flex min-w-0 items-center gap-2">
@@ -180,7 +205,12 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
       >
         <div className="space-y-1">
           {silverNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="default" />
+            <NavLink
+              key={item.name}
+              item={item}
+              variant="default"
+              pulseNavSeverity={item.href === '/dashboard/well-being' ? pulseNavSeverity : undefined}
+            />
           ))}
         </div>
 

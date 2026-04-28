@@ -18,6 +18,7 @@ import { DashboardDocumentScrollLock } from '@/components/dashboard/dashboard-do
 import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { ProtectionOnlyRedirect } from '@/components/dashboard/protection-only-redirect'
 import { WorkspaceCapabilitiesProvider } from '@/components/dashboard/workspace-capabilities-context'
+import { DashboardPulseProvider } from '@/components/dashboard/dashboard-pulse-provider'
 import { resolveWorkspaceCapabilities, type SubscriptionCapsRow } from '@/lib/plan-capabilities'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
@@ -60,38 +61,40 @@ export default async function DashboardLayout({
 
   return (
     <WorkspaceCapabilitiesProvider value={workspaceCaps}>
-      <OnboardingProvider 
-        userId={user.id} 
-        userName={profile?.full_name || undefined}
-        onboardingCompleted={profile?.onboarding_completed || false}
-      >
-        <TourProvider>
-          {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
-          <DivinePanelWrapper user={user}>
-            <ProtocolTasksProvider>
-            <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
-              <DashboardDocumentScrollLock />
-              <DashboardRealmEntrance />
-              <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />
-              <div className="relative flex h-dvh max-h-dvh min-h-0 overflow-hidden">
-                <DashboardCelestialBackdrop />
-                {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
-                <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">
-                  <DashboardSidebar user={user} profile={profile} />
-                </div>
-                <MessagesFocusChromeProvider>
-                  <DashboardMessagesChrome user={user} profile={profile}>
-                    <DashboardMainShell>{children}</DashboardMainShell>
-                  </DashboardMessagesChrome>
-                </MessagesFocusChromeProvider>
-              </div>
-              <VoiceControlPopup />
-              <CirceTipPopupHost />
-            </VoiceSessionProvider>
-            </ProtocolTasksProvider>
-          </DivinePanelWrapper>
-        </TourProvider>
-      </OnboardingProvider>
+      <DashboardPulseProvider>
+        <OnboardingProvider
+          userId={user.id}
+          userName={profile?.full_name || undefined}
+          onboardingCompleted={profile?.onboarding_completed || false}
+        >
+          <TourProvider>
+            {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
+            <DivinePanelWrapper user={user}>
+              <ProtocolTasksProvider>
+                <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
+                  <DashboardDocumentScrollLock />
+                  <DashboardRealmEntrance />
+                  <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />
+                  <div className="relative flex h-dvh max-h-dvh min-h-0 overflow-hidden">
+                    <DashboardCelestialBackdrop />
+                    {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
+                    <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">
+                      <DashboardSidebar user={user} profile={profile} />
+                    </div>
+                    <MessagesFocusChromeProvider>
+                      <DashboardMessagesChrome user={user} profile={profile}>
+                        <DashboardMainShell>{children}</DashboardMainShell>
+                      </DashboardMessagesChrome>
+                    </MessagesFocusChromeProvider>
+                  </div>
+                  <VoiceControlPopup />
+                  <CirceTipPopupHost />
+                </VoiceSessionProvider>
+              </ProtocolTasksProvider>
+            </DivinePanelWrapper>
+          </TourProvider>
+        </OnboardingProvider>
+      </DashboardPulseProvider>
     </WorkspaceCapabilitiesProvider>
   )
 }

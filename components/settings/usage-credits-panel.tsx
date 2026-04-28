@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, CreditCard, ExternalLink, Loader2 } from 'lucide-react'
 import { createCustomerPortalSessionForFlow } from '@/app/actions/stripe'
 import { getProduct, PRODUCTS } from '@/lib/products'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 
 type Wallet = {
   includedRemaining: number
@@ -177,7 +178,7 @@ export function UsageCreditsPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
+          <div {...DASHBOARD_CREDIT_SUMMARY_MARK}>
             <p className="text-sm text-muted-foreground">Total available</p>
             <p className="text-4xl font-semibold tabular-nums">{wallet.totalRemaining.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-1">credits</p>

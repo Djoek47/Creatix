@@ -33,7 +33,9 @@ import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
+import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
+import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -145,6 +147,7 @@ function NavLink({
   collapsed,
   compactDensity,
   verticalDensity,
+  pulseNavSeverity,
 }: {
   item: NavItem
   variant?: NavVariant
@@ -152,6 +155,7 @@ function NavLink({
   collapsed: boolean
   compactDensity: boolean
   verticalDensity: SidebarVerticalDensity
+  pulseNavSeverity?: PulseSeverity
 }) {
   const isActive =
     item.href === '/dashboard/fans'
@@ -182,6 +186,15 @@ function NavLink({
     isActive ? styles.active : styles.inactive,
   )
 
+  const wellbeingPulseClass =
+    item.href === '/dashboard/well-being' && pulseNavSeverity
+      ? pulseNavSeverity === 'intervene'
+        ? 'sidebar-nav-pulse-intervene'
+        : pulseNavSeverity === 'attend'
+          ? 'sidebar-nav-pulse-attend'
+          : 'sidebar-nav-pulse-steady'
+      : null
+
   const linkInner = (
     <>
       {collapsed && (
@@ -195,7 +208,11 @@ function NavLink({
           'relative z-[1] flex-shrink-0 transition-colors',
           navEase,
           compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-          isActive ? 'text-sidebar-foreground' : styles.icon,
+          wellbeingPulseClass
+            ? cn(wellbeingPulseClass, isActive && 'opacity-100')
+            : isActive
+              ? 'text-sidebar-foreground'
+              : styles.icon,
         )}
       />
       {!collapsed && (
@@ -254,6 +271,8 @@ function NavLink({
 }
 
 export function DashboardSidebar({ profile }: SidebarProps) {
+  const pulseOptional = useDashboardPulseOptional()
+  const pulseNavSeverity = pulseOptional?.pulse?.severity
   const caps = useWorkspaceCapabilities()
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
@@ -357,6 +376,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               collapsed={collapsed}
               compactDensity={compactDensity}
               verticalDensity={verticalDensity}
+              pulseNavSeverity={item.href === '/dashboard/well-being' ? pulseNavSeverity : undefined}
             />
           ))}
         </div>

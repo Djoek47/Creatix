@@ -139,6 +139,14 @@ export async function startCheckoutSession(productId: string) {
 
   const stripe = getStripe()
   if (product.id === 'divine-trial') {
+    const { data: trialSub } = await supabase
+      .from('subscriptions')
+      .select('stripe_subscription_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (trialSub?.stripe_subscription_id) {
+      throw new Error('Free trial is only available once per account.')
+    }
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'embedded_page',
       redirect_on_completion: 'never',

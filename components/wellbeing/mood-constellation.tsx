@@ -1,106 +1,187 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { sereneEase } from '@/lib/wellbeing/motion'
+import { cn } from '@/lib/utils'
+import type { FlowStatePayload } from '@/lib/wellbeing/flow-state-ai'
 
-const MOODS = [
-  { id: 'calm', label: 'Calm', emoji: '😌' },
-  { id: 'creative', label: 'Creative', emoji: '🎨' },
-  { id: 'charged', label: 'Charged', emoji: '⚡' },
-  { id: 'fragile', label: 'Fragile', emoji: '🫧' },
-  { id: 'focused', label: 'Focused', emoji: '🎯' },
-] as const
+const MOOD_META: Record<FlowStatePayload['mood'], { label: string; emoji: string }> = {
+  calm: { label: 'Calm', emoji: '😌' },
+  creative: { label: 'Creative', emoji: '🎨' },
+  charged: { label: 'Charged', emoji: '⚡' },
+  fragile: { label: 'Fragile', emoji: '🫧' },
+  focused: { label: 'Focused', emoji: '🎯' },
+}
 
-export function MoodConstellation() {
-  const [mood, setMood] = useState<(typeof MOODS)[number]['id']>('calm')
-  const [energy, setEnergy] = useState(62)
-  const [stress, setStress] = useState(28)
-  const [focus, setFocus] = useState(70)
+type Props = {
+  flowState: FlowStatePayload | null
+  /** Set when page finished loading but flow-state could not be computed */
+  flowUnavailable?: boolean
+  /** Flatter surface when nested in the well-being bento */
+  embedded?: boolean
+}
 
-  const stateSentence = useMemo(() => {
-    const stressDisplay = 100 - stress
-    return `Mood: ${mood}. Energy ${energy}, ease ${stressDisplay}, focus ${focus}.`
-  }, [mood, energy, stress, focus])
+function FlowMeters({
+  flowState,
+  flowUnavailable,
+  meta,
+  summary,
+  embedded,
+}: {
+  flowState: FlowStatePayload | null
+  flowUnavailable: boolean
+  meta: { label: string; emoji: string } | null
+  summary: string | null
+  embedded: boolean
+}) {
+  if (!flowState) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {flowUnavailable
+          ? 'Could not compute flow yet. Try again in a moment.'
+          : 'Loading your activity readout…'}
+      </p>
+    )
+  }
 
   return (
-    <Card className="rounded-2xl border-border/70 bg-card/40 shadow-none backdrop-blur-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold tracking-tight">Mood</CardTitle>
-        <CardDescription className="text-sm">How you feel right now—local only, adjusts the readout below.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap gap-1.5">
-          {MOODS.map((item) => {
-            const active = mood === item.id
-            return (
-              <motion.button
-                key={item.id}
-                type="button"
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.15, ease: sereneEase }}
-                onClick={() => setMood(item.id)}
-                aria-pressed={active}
-                aria-label={`${item.label} mood`}
-                className={
-                  active
-                    ? 'inline-flex items-center gap-1.5 rounded-full border border-foreground/20 bg-foreground px-3 py-1.5 text-sm font-medium text-background'
-                    : 'inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/15 hover:text-foreground'
-                }
-              >
-                <span className="text-base leading-none" aria-hidden>
-                  {item.emoji}
-                </span>
-                {item.label}
-              </motion.button>
-            )
-          })}
-        </div>
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <motion.span
+          layout
+          className="inline-flex items-center gap-2 rounded-full border border-foreground/12 bg-foreground/[0.04] px-3.5 py-1.5 text-sm font-medium text-foreground"
+          transition={{ duration: 0.2, ease: sereneEase }}
+        >
+          {embedded ? null : (
+            <span className="text-base leading-none" aria-hidden>
+              {meta?.emoji}
+            </span>
+          )}
+          {meta?.label}
+        </motion.span>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <FluidMeter label="Energy" value={energy} onChange={setEnergy} />
-          <FluidMeter label="Stress" value={stress} onChange={setStress} reverse />
-          <FluidMeter label="Focus" value={focus} onChange={setFocus} />
-        </div>
+      <div className="grid gap-2.5 sm:grid-cols-3 sm:gap-3">
+        <ReadoutMeter embedded={embedded} label="Energy" value={flowState.energy} accent="bg-emerald-500/65" />
+        <ReadoutMeter embedded={embedded} label="Stress" value={flowState.stress} accent="bg-amber-500/60" />
+        <ReadoutMeter embedded={embedded} label="Focus" value={flowState.focus} accent="bg-violet-500/60" />
+      </div>
 
-        <p className="text-xs text-muted-foreground">{stateSentence}</p>
-      </CardContent>
-    </Card>
+      <div className="space-y-2.5 text-xs leading-relaxed text-muted-foreground">
+        <p className="text-[13px] leading-relaxed">{flowState.rationale}</p>
+        <p className="text-foreground/85">{flowState.goalAlignment}</p>
+        {summary ? <p className="text-[11px] tabular-nums text-muted-foreground/80">{summary}</p> : null}
+      </div>
+    </>
   )
 }
 
-function FluidMeter({
+function ReadoutMeter({
   label,
   value,
-  onChange,
-  reverse = false,
+  accent,
+  embedded,
 }: {
   label: string
   value: number
-  onChange: (value: number) => void
-  reverse?: boolean
+  accent: string
+  embedded?: boolean
 }) {
-  const shown = reverse ? 100 - value : value
+  const v = Math.min(100, Math.max(0, Math.round(value)))
   return (
-    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
-      <div className="mb-2 flex items-center justify-between text-xs">
+    <div
+      className={cn(
+        'rounded-xl border bg-background/50 p-3',
+        embedded ? 'border-border/25 bg-background/30 p-2.5' : 'border-border/50',
+      )}
+    >
+      <div className="mb-1.5 flex items-center justify-between text-[11px] sm:text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums font-medium text-foreground">{shown}</span>
+        <span className="tabular-nums font-medium text-foreground">{v}</span>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer accent-foreground"
-      />
-      <motion.div
-        className="mt-2 h-1 rounded-full bg-foreground/15"
-        animate={{ width: `${shown}%` }}
-        transition={{ duration: 0.28, ease: sereneEase }}
-      />
+      <div
+        className={cn(
+          'h-2 w-full overflow-hidden rounded-full bg-foreground/10',
+          embedded && 'h-1.5 bg-foreground/8',
+        )}
+      >
+        <motion.div
+          className={['h-full rounded-full', accent].join(' ')}
+          initial={false}
+          animate={{ width: `${v}%` }}
+          transition={{ duration: 0.35, ease: sereneEase }}
+        />
+      </div>
     </div>
+  )
+}
+
+export function MoodConstellation({ flowState, flowUnavailable = false, embedded = false }: Props) {
+  const meta = flowState ? MOOD_META[flowState.mood] : null
+  const summary = useMemo(() => {
+    if (!flowState) return null
+    return `Mood: ${flowState.mood}. Energy ${flowState.energy}, stress ${flowState.stress}, focus ${flowState.focus}.`
+  }, [flowState])
+
+  if (embedded) {
+    return (
+      <div className="rounded-2xl border border-border/30 bg-background/40 px-4 py-5 sm:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">Flow</h3>
+            <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">
+              Inferred from inbox, protocols, manager queue, goals, and glow. No manual input.
+            </p>
+          </div>
+          {flowState ? (
+            <Badge variant="secondary" className="shrink-0 rounded-full text-[10px] font-medium uppercase tracking-wide">
+              {flowState.source === 'ai' ? 'Model' : 'Heuristic'}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="mt-5 space-y-6">
+          <FlowMeters
+            embedded
+            flowState={flowState}
+            flowUnavailable={flowUnavailable}
+            meta={meta}
+            summary={summary}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Card className="rounded-2xl border border-border/40 bg-card/35 shadow-none backdrop-blur-sm">
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-base font-semibold tracking-tight">Flow state</CardTitle>
+            <CardDescription className="text-sm">
+              Inferred from your inbox sync, protocol backlog, Divine Manager queue, saved goals, and environmental glow.
+              No manual input—review only.
+            </CardDescription>
+          </div>
+          {flowState ? (
+            <Badge variant="secondary" className="shrink-0 text-[10px] font-medium uppercase tracking-wide">
+              {flowState.source === 'ai' ? 'Model' : 'Fallback'}
+            </Badge>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <FlowMeters
+          embedded={false}
+          flowState={flowState}
+          flowUnavailable={flowUnavailable}
+          meta={meta}
+          summary={summary}
+        />
+      </CardContent>
+    </Card>
   )
 }

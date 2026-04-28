@@ -19,7 +19,7 @@ export const CREDIT_USD_VALUE = 0.01
 /** Included credits per $1 of monthly subscription (20% back at $0.01 per credit). */
 export const CREDITS_PER_SUBSCRIPTION_USD = 20
 
-/** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
+/** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). Matches DB default in `079_trial_policy_2_days_250_credits.sql`. */
 export const TRIAL_AI_CREDITS_LIMIT = 100
 
 /** $25/mo Protection (`cev-protection`): fixed monthly AI pool (not 20% of $25). */

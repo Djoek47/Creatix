@@ -1,46 +1,88 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  jdFromDateUtc,
+  localSiderealDegrees,
+  projectAltAzNormalized,
+  raDecToAltAzDeg,
+} from '@/lib/stellar/astronomy'
+import { STAR_STICK_FIGURES } from '@/lib/stellar/stick-figures'
+import { seededObservationLatLon } from '@/lib/stellar/seeded-location'
+import {
+  loadSkyContextForCanvas,
+  readSessionSkyCache,
+  type SkyCanvasContext,
+} from '@/lib/stellar/sky-context-client'
 
-type Node = { x: number; y: number; vx: number; vy: number; seed: number }
+/** Minimum altitude to draw (~horizon skim + refraction fudge). */
+const MIN_ALT_DRAW_DEG = -4
+
+function projectedPoint(
+  raDeg: number,
+  decDeg: number,
+  lat: number,
+  lstDeg: number,
+): { x: number; y: number; ok: boolean } {
+  const h = raDecToAltAzDeg(raDeg, decDeg, lat, lstDeg)
+  if (h.altitudeDeg < MIN_ALT_DRAW_DEG) return { x: 0, y: 0, ok: false }
+  const p = projectAltAzNormalized(h.altitudeDeg, h.azimuthDeg)
+  return { x: p.x, y: p.y, ok: true }
+}
 
 /**
- * Procedural constellations: nodes drift with Brownian + curl noise; edges appear when
- * pairs fall within a slowly breathing distance — topology evolves unpredictably.
+ * Authentic stick figures rotated for current sidereal time and viewer lat/lon
+ * from Settings (encrypted vault), otherwise a seeded random temperate site —
+ * procedural drift kept only as faint ambient specks.
  */
 export function DashboardLivingConstellation() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [ctxLoaded, setCtxLoaded] = useState<SkyCanvasContext | null>(() =>
+    typeof window !== 'undefined' ? readSessionSkyCache() : null,
+  )
+
+  useEffect(() => {
+    if (readSessionSkyCache() !== null) return
+
+    let cancelled = false
+    async function load() {
+      try {
+        const ctx = await loadSkyContextForCanvas()
+        if (!cancelled) setCtxLoaded(ctx)
+      } catch {
+        /* network / 401 → local-only fallback once */
+        if (!cancelled) setCtxLoaded(seedOnlyClient())
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const wrap = wrapRef.current
     const canvas = canvasRef.current
-    if (!wrap || !canvas) return
+    if (!wrap || !canvas || !ctxLoaded) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const nodeCount = reduced ? 24 : 46
-    let nodes: Node[] = []
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false
     let w = 1
     let h = 1
     let dpr = 1
     let raf = 0
-    const t0 = performance.now()
-    let lastReseed = performance.now()
+    let ro: ResizeObserver
+
+    /** Specks when motion OK */
+    let dustPx: Float32Array | null = null
+    let dustLen = reduced ? 0 : 96
 
     function darkMode() {
       return document.documentElement.classList.contains('dark')
-    }
-
-    function initNodes() {
-      nodes = Array.from({ length: nodeCount }, () => ({
-        x: 8 + Math.random() * Math.max(8, w - 16),
-        y: 8 + Math.random() * Math.max(8, h - 16),
-        vx: (Math.random() - 0.5) * (reduced ? 0.03 : 0.14),
-        vy: (Math.random() - 0.5) * (reduced ? 0.03 : 0.14),
-        seed: Math.random() * Math.PI * 2,
-      }))
     }
 
     function resize() {
@@ -53,127 +95,122 @@ export function DashboardLivingConstellation() {
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      if (nodes.length === 0) {
-        initNodes()
-      } else {
-        for (const n of nodes) {
-          n.x = Math.min(w - 8, Math.max(8, n.x))
-          n.y = Math.min(h - 8, Math.max(8, n.y))
+      if (!reduced && dustLen > 0) {
+        dustPx = new Float32Array(dustLen * 4)
+        for (let i = 0; i < dustLen; i += 1) {
+          const o = i * 4
+          dustPx[o] = Math.random() * w
+          dustPx[o + 1] = Math.random() * h
+          dustPx[o + 2] = Math.random()
+          dustPx[o + 3] = Math.random()
         }
       }
     }
 
-    const ro = new ResizeObserver(resize)
+    ro = new ResizeObserver(resize)
     ro.observe(wrap)
     resize()
 
-    function partialReseed() {
-      const k = Math.max(3, Math.floor(nodeCount * 0.18))
-      for (let i = 0; i < k; i++) {
-        const n = nodes[Math.floor(Math.random() * nodes.length)]
-        if (!n) continue
-        n.x = 8 + Math.random() * Math.max(8, w - 16)
-        n.y = 8 + Math.random() * Math.max(8, h - 16)
-        n.vx = (Math.random() - 0.5) * 0.55
-        n.vy = (Math.random() - 0.5) * 0.55
-      }
-    }
+    let t0 = performance.now()
 
-    function step(now: number) {
-      const t = (now - t0) * 0.00045
-      const dark = darkMode()
-      const maxDist =
-        (dark ? 92 : 84) + (reduced ? 8 : 32) * Math.sin(t * 0.13 + 0.62) + 12 * Math.sin(t * 0.047 + 1.1)
-      const jitter = reduced ? 0.008 : 0.032
-
-      if (!reduced && now - lastReseed > 52_000 + Math.random() * 36_000) {
-        lastReseed = now
-        partialReseed()
-      }
-
-      for (const n of nodes) {
-        n.vx += (Math.random() - 0.5) * jitter
-        n.vy += (Math.random() - 0.5) * jitter
-        n.vx *= 0.989
-        n.vy *= 0.989
-        n.vx += Math.sin(t * 0.38 + n.seed) * (reduced ? 0.002 : 0.006)
-        n.vy += Math.cos(t * 0.33 + n.seed * 1.07) * (reduced ? 0.002 : 0.006)
-        n.x += n.vx
-        n.y += n.vy
-        const pad = 6
-        if (n.x < pad) {
-          n.x = pad
-          n.vx *= -0.65 - Math.random() * 0.2
-        } else if (n.x > w - pad) {
-          n.x = w - pad
-          n.vx *= -0.65 - Math.random() * 0.2
-        }
-        if (n.y < pad) {
-          n.y = pad
-          n.vy *= -0.65 - Math.random() * 0.2
-        } else if (n.y > h - pad) {
-          n.y = h - pad
-          n.vy *= -0.65 - Math.random() * 0.2
-        }
-      }
-
-      if (!reduced && Math.random() < 0.007) {
-        const n = nodes[Math.floor(Math.random() * nodes.length)]
-        if (n) {
-          n.vx += (Math.random() - 0.5) * 0.95
-          n.vy += (Math.random() - 0.5) * 0.95
-        }
-      }
-
+    function drawFrame(nowMs: number) {
       ctx.clearRect(0, 0, w, h)
 
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i]!
-          const b = nodes[j]!
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const d = Math.hypot(dx, dy)
-          if (d < maxDist && d > 0.5) {
-            const fade = 1 - d / maxDist
-            const hueGate = 0.42 + 0.42 * Math.sin((i * 2.1 + j * 1.3) + t * 0.85 + a.seed)
-            if (dark) {
-              ctx.strokeStyle =
-                hueGate > 0.62
-                  ? `rgba(251,191,36,${fade * 0.24})`
-                  : `rgba(196,181,253,${fade * 0.2})`
-            } else {
-              ctx.strokeStyle =
-                hueGate > 0.62
-                  ? `rgba(180,83,9,${fade * 0.17})`
-                  : `rgba(109,40,217,${fade * 0.15})`
-            }
-            ctx.lineWidth = 0.28 + fade * 0.22
-            ctx.beginPath()
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(b.x, b.y)
-            ctx.stroke()
-          }
+      const jd = jdFromDateUtc(new Date())
+      const lst = localSiderealDegrees(jd, ctxLoaded.longitude)
+      const { latitude } = ctxLoaded
+      const cx = w / 2
+      const cy = h / 2
+      const radial = Math.min(w, h) * 0.42
+      const dark = darkMode()
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, radial * 1.02, 0, Math.PI * 2)
+      ctx.strokeStyle = dark ? 'rgba(168,85,247,0.07)' : 'rgba(88,28,135,0.06)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.lineCap = 'round'
+      ctx.globalAlpha = dark ? 0.55 : 0.42
+
+      for (const edge of STAR_STICK_FIGURES) {
+        const [raA, decA] = edge.raDecA
+        const [raB, decB] = edge.raDecB
+      const pa = projectedPoint(raA, decA, latitude, lst)
+      const pb = projectedPoint(raB, decB, latitude, lst)
+        if (!pa.ok || !pb.ok) continue
+        const xa = cx + pa.x * radial
+        const ya = cy + pa.y * radial
+        const xb = cx + pb.x * radial
+        const yb = cy + pb.y * radial
+
+        ctx.strokeStyle = dark ? 'rgba(251,191,36,0.45)' : 'rgba(120,53,18,0.35)'
+        ctx.lineWidth = 0.9
+        ctx.beginPath()
+        ctx.moveTo(xa, ya)
+        ctx.lineTo(xb, yb)
+        ctx.stroke()
+
+        ctx.fillStyle = dark ? 'rgba(255,247,237,0.55)' : 'rgba(109,40,217,0.45)'
+        for (const p of [
+          [xa, ya],
+          [xb, yb],
+        ] as const) {
+          ctx.beginPath()
+          ctx.arc(p[0], p[1], 1.2, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
+      ctx.restore()
 
-      for (const n of nodes) {
-        const tw = 0.52 + Math.sin(t * 0.75 + n.seed) * 0.18
-        ctx.fillStyle = dark ? `rgba(255,250,235,${0.22 + tw * 0.12})` : `rgba(88,28,135,${0.18 + tw * 0.1})`
-        ctx.beginPath()
-        ctx.arc(n.x, n.y, tw, 0, Math.PI * 2)
-        ctx.fill()
+      /* Faint drifting dust — does not resemble real asterisms */
+      if (!reduced && dustPx) {
+        const dt = ((nowMs - t0) / 45000) * (Math.PI / 180)
+        ctx.globalAlpha = dark ? 0.065 : 0.045
+        for (let i = 0; i < dustLen; i += 1) {
+          const o = i * 4
+          let x = dustPx[o]
+          let yy = dustPx[o + 1]
+          yy += Math.sin(dt * 1.17 + dustPx[o + 2]) * 0.12
+          x += Math.cos(dt * 0.92 + dustPx[o + 3]) * 0.1
+          if (yy > h || yy < 0) yy = Math.random() * h
+          if (x > w || x < 0) x = Math.random() * w
+          dustPx[o] = x
+          dustPx[o + 1] = yy
+          ctx.fillStyle = dustPx[o + 3] > 0.62 ? '#c7b5ff44' : '#fef3c744'
+          ctx.fillRect(Math.floor(x), Math.floor(yy), 1, 1)
+        }
+        ctx.globalAlpha = 1
       }
 
-      raf = requestAnimationFrame(step)
+      if (reduced) return
+      raf = requestAnimationFrame(drawFrame)
     }
 
-    raf = requestAnimationFrame(step)
+    raf = requestAnimationFrame(drawFrame)
+    const interval = reduced
+      ? window.setInterval(() => {
+          t0 = performance.now()
+          drawFrame(performance.now())
+        }, 60_000)
+      : undefined
+
     return () => {
       cancelAnimationFrame(raf)
+      if (interval) clearInterval(interval)
       ro.disconnect()
     }
-  }, [])
+  }, [ctxLoaded])
+
+  function seedOnlyClient(): SkyCanvasContext {
+    const k =
+      typeof document !== 'undefined' && document.cookie
+        ? `${document.cookie.slice(0, 72)}`.replace(/\s+/g, '')
+        : `anon-${Math.floor(Date.now() / 86_400_000)}`
+
+    const { latitude, longitude } = seededObservationLatLon(k)
+    return { latitude, longitude, skySource: 'random_seed' }
+  }
 
   return (
     <div

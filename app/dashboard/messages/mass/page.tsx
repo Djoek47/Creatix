@@ -8,6 +8,7 @@ import { fetchCrmFansHybrid } from '@/lib/crm/fetch-crm-fans-client'
 import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
 import { estimateMassCampaignCredits } from '@/lib/messages/mass-campaign-credits'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -938,7 +939,7 @@ export default function MassMessagesPage() {
             <p className="text-sm font-semibold">3) Credits and launch</p>
             <p className="text-xs text-muted-foreground">Transparent cost before execution.</p>
           </div>
-          <Badge variant={hasEnoughForRunAll ? 'secondary' : 'destructive'}>
+          <Badge variant={hasEnoughForRunAll ? 'secondary' : 'destructive'} {...DASHBOARD_CREDIT_SUMMARY_MARK}>
             {creditSnapshotLoading ? 'Loading credits…' : remainingCredits != null ? `${Math.floor(remainingCredits)} credits left` : 'Credit snapshot unavailable'}
           </Badge>
         </div>

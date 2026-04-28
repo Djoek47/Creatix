@@ -2,33 +2,74 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 
-export function GlowCorePanel({ insight }: { insight: GlowInsightsPayload }) {
+type Props = {
+  insight: GlowInsightsPayload
+  /** Sits inside a parent surface — fewer borders, calmer type */
+  embedded?: boolean
+}
+
+export function GlowCorePanel({ insight, embedded = false }: Props) {
+  if (embedded) {
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Glow</p>
+            <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-foreground">
+              {insight.glowScore}
+            </p>
+          </div>
+          <Badge
+            variant="secondary"
+            className="rounded-full border-amber-500/20 bg-amber-500/10 text-[10px] font-medium uppercase tracking-wide text-amber-900 dark:text-amber-200"
+          >
+            {insight.nextGoldenHour.start}–{insight.nextGoldenHour.end}
+          </Badge>
+        </div>
+        <p className="text-[15px] leading-relaxed text-muted-foreground">
+          Next golden hour in{' '}
+          <span className="font-medium text-foreground">{insight.nextGoldenHour.minutesUntil} min</span>
+        </p>
+        <p className="text-sm leading-relaxed text-foreground/90">{insight.insightSentence}</p>
+      </div>
+    )
+  }
+
   return (
-    <Card className="border-border/60 bg-card/85 backdrop-blur">
-      <CardHeader>
-        <CardTitle className="text-lg">Glow Core</CardTitle>
-        <CardDescription>
-          Golden hour and atmospheric quality for high-conversion visual content.
+    <Card
+      className={cn(
+        'border-border/40 bg-card/50 shadow-none backdrop-blur-md',
+        'shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]',
+      )}
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold tracking-tight">Glow</CardTitle>
+        <CardDescription className="text-sm leading-relaxed">
+          Golden hour and light quality for your next shoot.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Glow score</p>
-            <p className="text-4xl font-semibold">{insight.glowScore}</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Score</p>
+            <p className="text-3xl font-semibold tabular-nums tracking-tight">{insight.glowScore}</p>
           </div>
-          <Badge className="bg-amber-400/20 text-amber-700 dark:text-amber-300">
-            {insight.nextGoldenHour.start} - {insight.nextGoldenHour.end}
+          <Badge
+            variant="secondary"
+            className="rounded-full border-amber-500/20 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+          >
+            {insight.nextGoldenHour.start} – {insight.nextGoldenHour.end}
           </Badge>
         </div>
-        <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+        <div className="rounded-2xl border border-border/30 bg-background/50 px-4 py-3">
           <p className="text-sm text-muted-foreground">
-            Next golden hour starts in <span className="font-medium text-foreground">{insight.nextGoldenHour.minutesUntil} min</span>.
+            Next window in <span className="font-medium text-foreground">{insight.nextGoldenHour.minutesUntil} min</span>.
           </p>
         </div>
-        <p className="text-sm">{insight.insightSentence}</p>
+        <p className="text-sm leading-relaxed text-foreground/90">{insight.insightSentence}</p>
       </CardContent>
     </Card>
   )

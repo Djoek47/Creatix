@@ -51,6 +51,7 @@ import {
 } from '@/lib/billing/platform-variant'
 import { PAID_PLAN_ID, isPaidPlanId, PROTECTION_PLAN_ID, TRIAL_PLAN_ID, isProtectionEntitled } from '@/lib/billing/access'
 import { effectiveMonthlyCreditLimit, TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
@@ -529,6 +530,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 creditPulse === 'consume' && 'border-amber-500/35 shadow-[0_0_20px_-8px_rgba(250,204,21,0.35)]',
                 creditPulse === 'grant' && 'border-violet-500/35 shadow-[0_0_20px_-8px_rgba(167,139,250,0.35)]',
               )}
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
             >
               <Zap className="mx-auto h-5 w-5 text-muted-foreground" />
               <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">AI credits</p>

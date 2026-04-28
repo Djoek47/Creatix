@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { clearSessionSkyContextCache } from '@/lib/stellar/sky-context-client'
 
 type Props = {
   userId: string
@@ -70,6 +71,7 @@ export function LocationVaultSettings({ userId }: Props) {
         setError(data.error || 'Failed to save location')
         return
       }
+      clearSessionSkyContextCache()
       setHasLocationSet(Boolean(data.hasLocationSet))
       setLocationHint(data.locationHint ?? null)
       setQuery('')
@@ -147,6 +149,7 @@ export function LocationVaultSettings({ userId }: Props) {
         setError('Failed to delete location')
         return
       }
+      clearSessionSkyContextCache()
       setHasLocationSet(false)
       setLocationHint(null)
       setMessage('Location removed from vault.')

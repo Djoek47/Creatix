@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -1575,7 +1576,10 @@ export function AIToolsSelector({
             </div>
             
             {/* Credits — wallet total (same source as chat / billing) */}
-            <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3">
+            <div
+              className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3"
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
+            >
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" aria-hidden />
                 <span className="text-sm">Credits available</span>
@@ -1661,6 +1665,7 @@ export function AIToolsSelector({
               href="/dashboard/settings?tab=billing"
               title="Billing — top up or view usage"
               className="inline-flex"
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
             >
               <Badge
                 variant="outline"

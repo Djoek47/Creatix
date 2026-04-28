@@ -45,6 +45,7 @@ import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { cn } from '@/lib/utils'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { stripHtml } from '@/lib/html-utils'
 import type { NormalizedChatMessage } from '@/lib/ai/message-suggestions'
 import { createClient } from '@/lib/supabase/client'
@@ -1859,7 +1860,11 @@ export function ChatWindow({
                 </Button>
               </CollapsibleTrigger>
               <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
-              <Badge variant="outline" className="shrink-0 gap-1 border-amber-500/30 bg-amber-500/[0.08] text-[10px]">
+              <Badge
+                variant="outline"
+                className="shrink-0 gap-1 border-amber-500/30 bg-amber-500/[0.08] text-[10px]"
+                {...DASHBOARD_CREDIT_SUMMARY_MARK}
+              >
                 <Sparkles className="h-3 w-3 text-amber-500" />
                 {creditSnapshot ? `${creditSnapshot.totalRemaining} credits left` : 'AI credits'}
               </Badge>

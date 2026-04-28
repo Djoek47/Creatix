@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/select'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -1153,6 +1154,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
               leakScanBlockedByBalance && 'border-destructive/35 bg-destructive/8 text-destructive',
             )}
             title="AI credit wallet: included monthly pool plus any purchases."
+            {...DASHBOARD_CREDIT_SUMMARY_MARK}
           >
             <Coins className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
             {creditsWalletLoading && !creditsLoadError ? (

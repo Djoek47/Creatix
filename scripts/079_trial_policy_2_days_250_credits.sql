@@ -1,4 +1,4 @@
--- 079: Update trial policy to 2 days, 250 credits, card-required onboarding path.
+-- 079: Update trial policy to 2 days, 100 credits, card-required onboarding path.
 --
 -- Note:
 -- - Card collection is enforced in app checkout (Stripe setup-mode trial start).
@@ -7,7 +7,7 @@
 BEGIN;
 
 ALTER TABLE public.subscriptions
-  ALTER COLUMN ai_credits_limit SET DEFAULT 250;
+  ALTER COLUMN ai_credits_limit SET DEFAULT 100;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -40,7 +40,7 @@ BEGIN
     'divine-trial',
     'trial',
     0,
-    250,
+    100,
     0,
     5120,
     (now() AT TIME ZONE 'utc') + interval '2 days',

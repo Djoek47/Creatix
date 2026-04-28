@@ -15,7 +15,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Sparkles } from 'lucide-react'
+import { Info, Sparkles } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   REVENUE_TIERS,
   getMonthlyPriceUsd,
@@ -82,8 +87,8 @@ export function PricingPageCalculator({
   const [tierIndexInternal, setTierIndexInternal] = useState(2)
   const [bandCyclePaused, setBandCyclePaused] = useState(false)
   const [planGlowPulse, setPlanGlowPulse] = useState(false)
-  /** Multiplatform logo grid: `'all'` = four small together; `0..3` = spotlight one tile at a time (no overlap pop). */
-  const [multiLogoSpotlight, setMultiLogoSpotlight] = useState<'all' | number>('all')
+  /** Multiplatform mark: one logo at a time, full frame, cycling through supported services. */
+  const [multiLogoIndex, setMultiLogoIndex] = useState(0)
   const planGlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [otherPlatformBundleEnabled, setOtherPlatformBundleEnabled] = useState(false)
   const [protectionOnly, setProtectionOnly] = useState(false)
@@ -146,36 +151,14 @@ export function PricingPageCalculator({
 
   useEffect(() => {
     if (surface === 'settings' || reduceMotion) return
-    let cancelled = false
-    let step = 0
-    let timeoutId: ReturnType<typeof setTimeout>
-
-    const schedule = () => {
-      if (cancelled) return
-      if (step === 0) {
-        setMultiLogoSpotlight('all')
-        timeoutId = setTimeout(() => {
-          step = 1
-          schedule()
-        }, 1500)
-      } else if (step >= 1 && step <= MULTIPLATFORM_LOGOS.length) {
-        setMultiLogoSpotlight(step - 1)
-        timeoutId = setTimeout(() => {
-          step = step === MULTIPLATFORM_LOGOS.length ? 0 : step + 1
-          schedule()
-        }, 720)
-      }
-    }
-
-    schedule()
-    return () => {
-      cancelled = true
-      clearTimeout(timeoutId)
-    }
+    const id = setInterval(() => {
+      setMultiLogoIndex((i) => (i + 1) % MULTIPLATFORM_LOGOS.length)
+    }, 2600)
+    return () => clearInterval(id)
   }, [surface, reduceMotion])
 
   useEffect(() => {
-    if (reduceMotion) setMultiLogoSpotlight('all')
+    if (reduceMotion) setMultiLogoIndex(0)
   }, [reduceMotion])
 
   const derivedTier = useMemo(() => {
@@ -612,40 +595,117 @@ export function PricingPageCalculator({
       {showProtectionFooter ? (
         <div className="mt-10 border-t border-border/25 pt-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="grid h-[4.5rem] w-[4.5rem] shrink-0 grid-cols-2 gap-1 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-1.5 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20">
-              {MULTIPLATFORM_LOGOS.map((src, idx) => {
-                const quartet = multiLogoSpotlight === 'all'
-                const spotlighted = !quartet && multiLogoSpotlight === idx
-                const dimmed = !quartet && multiLogoSpotlight !== idx
-                return (
-                  <span
-                    key={src}
-                    className={cn(
-                      'inline-flex min-h-0 min-w-0 items-center justify-center rounded-md bg-card/90 transition-all duration-500 ease-out',
-                      quartet && 'scale-[0.9] opacity-[0.72]',
-                      spotlighted &&
-                        'z-[1] scale-100 opacity-100 ring-2 ring-amber-400/75 shadow-[0_0_12px_rgba(251,191,36,0.35)]',
-                      dimmed && 'scale-[0.78] opacity-[0.28]',
-                    )}
-                  >
-                    <Image
-                      src={src}
-                      alt=""
-                      width={40}
-                      height={40}
-                      className={cn(
-                        'object-contain transition-all duration-500 ease-out',
-                        quartet && 'h-[14px] w-[14px] sm:h-4 sm:w-4',
-                        spotlighted && 'h-7 w-7 sm:h-8 sm:w-8',
-                        dimmed && 'h-[11px] w-[11px] sm:h-3 sm:w-3',
-                      )}
-                    />
-                  </span>
-                )
-              })}
+            <div
+              className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
+              aria-hidden
+            >
+              <motion.span
+                key={multiLogoIndex}
+                className="flex h-full w-full items-center justify-center rounded-md bg-card/85"
+                initial={reduceMotion ? false : { opacity: 0.35 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.45, ease: 'easeOut' }}
+              >
+                <Image
+                  src={MULTIPLATFORM_LOGOS[multiLogoIndex]}
+                  alt=""
+                  width={112}
+                  height={112}
+                  sizes="80px"
+                  className="h-full w-full object-contain p-0.5"
+                />
+              </motion.span>
             </div>
             <div className="min-w-0 flex-1 space-y-3">
-              <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="What multiplatform protection includes on your dashboard"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    side="top"
+                    sideOffset={6}
+                    className="w-[min(22.5rem,calc(100vw-2rem))] rounded-xl border-border/70 p-4 text-[13px] leading-relaxed shadow-lg sm:p-5"
+                  >
+                    <div className="space-y-4">
+                      <header className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          Multiplatform protection
+                        </p>
+                        <p className="text-sm font-semibold text-foreground sm:text-[15px]">What you get</p>
+                        <p className="text-[13px] text-muted-foreground">
+                          Extend Circe beyond your linked platforms so more of your presence stays covered in one subscription.
+                        </p>
+                      </header>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">Available tools</p>
+                        <ul className="mt-2 space-y-2.5 text-muted-foreground">
+                          <li className="flex gap-2">
+                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
+                              ·
+                            </span>
+                            <span>
+                              <span className="font-medium text-foreground">Extra site coverage — </span>
+                              add fan-market and clip-market accounts so your protection isn’t limited to direct API-connected
+                              apps alone.
+                            </span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
+                              ·
+                            </span>
+                            <span>
+                              <span className="font-medium text-foreground">Your Protection workspace — </span>
+                              a dedicated area in{' '}
+                              <Link
+                                href="/dashboard/protection"
+                                className="font-medium text-foreground underline underline-offset-2 hover:text-foreground/90"
+                              >
+                                the dashboard
+                              </Link>{' '}
+                              to review activity, see what&apos;s resolved, and keep everything in context.
+                            </span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
+                              ·
+                            </span>
+                            <span>
+                              <span className="font-medium text-foreground">Clear timelines — </span>
+                              transparency into findings and outcomes so you always know where things stand—while this add-on is
+                              active on your account.
+                            </span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
+                              ·
+                            </span>
+                            <span>
+                              <span className="font-medium text-foreground">Fits how you subscribe — </span>
+                              roll it into{' '}
+                              <span className="text-foreground">your main Circe plan</span>, or choose{' '}
+                              <span className="text-foreground">protection-only billing</span> at{' '}
+                              <span className="tabular-nums">${OTHER_PLATFORM_BUNDLE_ADDON_USD}/month</span> when that&apos;s
+                              all you need.
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                      <p className="border-t border-border/45 pt-3 text-[11px] leading-snug text-muted-foreground">
+                        Exact feature mix can vary by site and plan; availability is shown in-app when you&apos;re signed in.
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Non-API coverage at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo. Add to your plan or subscribe standalone.
               </p>

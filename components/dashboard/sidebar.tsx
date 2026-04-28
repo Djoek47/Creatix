@@ -46,7 +46,6 @@ interface NavItem {
   name: string
   href: string
   icon: LucideIcon
-  beta?: boolean
   /** If set, item is active when pathname matches any of these (exact or child path). */
   activeMatch?: readonly string[]
 }
@@ -108,15 +107,10 @@ const bottomNavigation: NavItem[] = [
     name: 'Guide & suggestions',
     href: '/dashboard/guide',
     icon: BookOpen,
-    beta: true,
     activeMatch: ['/dashboard/guide', '/dashboard/community'],
   },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
-
-/** Beta pill for guide / suggestions preview — warm amber chip. */
-const SIDEBAR_BETA_PILL =
-  'rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-2 py-0.5 text-[0.6rem] font-semibold uppercase leading-none tracking-[0.1em] text-amber-950/80 tabular-nums dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]'
 
 /** Shared motion: short, precise — no decorative easing. */
 const navEase = 'duration-150 ease-out'
@@ -229,9 +223,6 @@ function NavLink({
       {!collapsed && (
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
-          {item.beta ? (
-            <span className={SIDEBAR_BETA_PILL}>Coming soon</span>
-          ) : null}
         </div>
       )}
     </>
@@ -259,11 +250,6 @@ function NavLink({
             )}
           >
             <span className="font-medium">{item.name}</span>
-            {item.beta ? (
-              <span className="ml-1.5 rounded-full border border-amber-500/28 bg-amber-500/[0.13] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-950/80 dark:border-amber-400/24 dark:bg-amber-400/[0.11] dark:text-amber-50/[0.9]">
-                Coming soon
-              </span>
-            ) : null}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>

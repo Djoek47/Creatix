@@ -340,7 +340,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
     setPaymentState('processing')
     setPaymentMessage('Payment confirmed. Syncing your latest credits...')
 
-    const waitsMs = [800, 1200, 1800, 2600, 3500]
+    const waitsMs = [800, 1200, 1800, 2600, 3500, 4500, 6000]
     let updated = false
     for (const waitMs of waitsMs) {
       await new Promise((resolve) => window.setTimeout(resolve, waitMs))

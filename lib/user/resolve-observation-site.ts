@@ -1,5 +1,5 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { decryptLocationPayload, type StoredLocationPayload } from '@/lib/location-vault'
+import { tryDecryptLocationPayload } from '@/lib/location-vault'
 
 function parseLocationFallback(raw: unknown): { encrypted: string; hint?: string | null } | null {
   if (!raw || typeof raw !== 'object') return null
@@ -30,7 +30,8 @@ export async function resolveDecryptedObservationSite(
 
   if (!encryptedLocation) return null
 
-  const location = decryptLocationPayload(user.id, String(encryptedLocation)) as StoredLocationPayload
+  const location = tryDecryptLocationPayload(user.id, String(encryptedLocation))
+  if (!location) return null
 
   const labelHint =
     typeof hint === 'string' && hint.length ? hint : typeof location.label === 'string' ? location.label : null

@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import Image from 'next/image'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import {
   Select,
   SelectContent,
@@ -10,9 +8,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { PlatformWordmark } from '@/components/platform/platform-wordmark'
 import { cn } from '@/lib/utils'
 
 const ALLOWED = new Set(['onlyfans', 'fansly'])
+
+const triggerLayout =
+  'w-full min-w-[11rem] h-11 min-h-11 justify-between gap-2 rounded-xl border-border/50 bg-background/65 px-3 py-2 text-left shadow-sm transition-[border-color,box-shadow] hover:border-border/70 [&_[data-slot=select-value]]:min-h-10 [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:!gap-3.5 [&_[data-slot=select-value]]:!overflow-visible [&_[data-slot=select-value]]:line-clamp-none'
+
+/** Row shown in the closed trigger and in the list — Radix clones selected item markup into SelectValue only (no duplicate mark). */
+function PlatformChoiceRow({
+  platform,
+  label,
+  size,
+}: {
+  platform: 'onlyfans' | 'fansly'
+  label: string
+  size: 'lg' | 'md'
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      <PlatformWordmark platform={platform} size={size === 'lg' ? 'lg' : 'md'} />
+      <span
+        className={cn(
+          'min-w-0 truncate font-medium tracking-tight text-foreground',
+          size === 'lg' ? 'text-[15px] leading-none' : 'text-[14px] leading-tight',
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  )
+}
 
 export function OfFanslyPlatformSelect({
   value,
@@ -32,49 +59,18 @@ export function OfFanslyPlatformSelect({
     onValueChange('onlyfans')
   }, [value, onValueChange])
 
-  const logoSrc = normalized === 'onlyfans' ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC
-
   return (
     <Select value={normalized} onValueChange={onValueChange}>
-      <SelectTrigger
-        id={id}
-        className={cn('w-full min-w-[11rem] justify-between gap-2', triggerClassName)}
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          <Image
-            src={logoSrc}
-            alt=""
-            width={88}
-            height={28}
-            className="h-5 w-auto max-w-[48%] shrink-0 object-contain opacity-95 dark:opacity-100"
-          />
-          <SelectValue />
-        </span>
+      <SelectTrigger id={id} className={cn(triggerLayout, triggerClassName)}>
+        {/* Single lockup comes from SelectItem markup — never add a second logo here */}
+        <SelectValue placeholder="Platform" />
       </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="onlyfans" textValue="OnlyFans" className="cursor-pointer">
-          <span className="flex items-center gap-2 py-0.5">
-            <Image
-              src={ONLYFANS_LOGO_SRC}
-              alt=""
-              width={88}
-              height={28}
-              className="h-5 w-auto max-w-[44%] shrink-0 object-contain"
-            />
-            <span>OnlyFans</span>
-          </span>
+      <SelectContent className="rounded-xl border-border/45">
+        <SelectItem value="onlyfans" textValue="OnlyFans" className="cursor-pointer rounded-lg py-2.5">
+          <PlatformChoiceRow platform="onlyfans" label="OnlyFans" size="lg" />
         </SelectItem>
-        <SelectItem value="fansly" textValue="Fansly" className="cursor-pointer">
-          <span className="flex items-center gap-2 py-0.5">
-            <Image
-              src={FANSLY_LOGO_SRC}
-              alt=""
-              width={88}
-              height={28}
-              className="h-5 w-auto max-w-[44%] shrink-0 object-contain"
-            />
-            <span>Fansly</span>
-          </span>
+        <SelectItem value="fansly" textValue="Fansly" className="cursor-pointer rounded-lg py-2.5">
+          <PlatformChoiceRow platform="fansly" label="Fansly" size="lg" />
         </SelectItem>
       </SelectContent>
     </Select>

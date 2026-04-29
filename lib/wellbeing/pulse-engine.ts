@@ -8,6 +8,17 @@ import { heuristicFlowState, type FlowStatePayload } from '@/lib/wellbeing/flow-
 export const pulseSeveritySchema = z.enum(['steady', 'attend', 'intervene'])
 export type PulseSeverity = z.infer<typeof pulseSeveritySchema>
 
+/** Sidebar “Well-being” label: uses `--sidebar-wellbeing-pulse-*-fg` with `.sidebar-nav-pulse-*` icons (`app/globals.css`). */
+export function wellbeingNavTextPulseClass(severity: PulseSeverity | undefined): string | null {
+  if (!severity) return null
+  const map: Record<PulseSeverity, string> = {
+    steady: 'sidebar-wellbeing-nav-text-pulse-steady',
+    attend: 'sidebar-wellbeing-nav-text-pulse-attend',
+    intervene: 'sidebar-wellbeing-nav-text-pulse-intervene',
+  }
+  return map[severity]
+}
+
 export const pulseSourceSchema = z.object({
   id: z.string(),
   lens: z.enum(['safety', 'reputation', 'operations', 'trajectory', 'rhythm']),

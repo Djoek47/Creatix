@@ -1,5 +1,5 @@
 import type { User, SupabaseClient } from '@supabase/supabase-js'
-import { decryptLocationPayload } from '@/lib/location-vault'
+import { tryDecryptLocationPayload } from '@/lib/location-vault'
 import { fetchOpenMeteoAqi, fetchOpenMeteoForecast } from '@/lib/wellbeing/open-meteo'
 import { computeGlowScore, scoreReason, skyGradientFromScore } from '@/lib/wellbeing/glow-score'
 import { azimuthToCompass, buildGoldenHourWindow, minutesUntil, sunsetAzimuth } from '@/lib/wellbeing/golden-hour'
@@ -184,137 +184,156 @@ export async function computeGlowInsightsForUser(
     return { ok: true, data: buildFallbackPayload(Boolean(profile?.has_birthday_set)) }
   }
 
-  const location = decryptLocationPayload(user.id, String(encryptedLocation))
-  const [forecast, aqi] = await Promise.all([
-    fetchOpenMeteoForecast(location.latitude, location.longitude),
-    fetchOpenMeteoAqi(location.latitude, location.longitude),
-  ])
-  if (!forecast.daily?.sunset?.length || !forecast.daily?.sunrise?.length) {
-    return { ok: false, error: 'Forecast data unavailable for this location', status: 502 }
+  const location = tryDecryptLocationPayload(user.id, String(encryptedLocation))
+  if (!location) {
+    console.warn(
+      '[computeGlowInsightsForUser] encrypted_location could not be decrypted (vault secret mismatch, corrupt blob, or legacy ciphertext); using baseline glow',
+    )
+    return { ok: true, data: buildFallbackPayload(Boolean(profile?.has_birthday_set)) }
   }
 
-  const now = Date.now()
-  const windows = forecast.daily.sunset.map((sunsetIso) => buildGoldenHourWindow(sunsetIso))
-  const nextGolden = windows.find((w) => new Date(w.endIso).getTime() > now) ?? windows[0]
-
-  const perfectShotDays: PerfectShotDay[] = forecast.daily.time.slice(0, 5).map((date, index) => {
-    const sunsetIso = forecast.daily.sunset[index]
-    const window = buildGoldenHourWindow(sunsetIso)
-    const cloudCover = Number(
-      pickHourlyByDate(forecast.hourly.time, forecast.hourly.cloud_cover, sunsetIso) ?? 55,
-    )
-    const humidity = Number(
-      pickHourlyByDate(forecast.hourly.time, forecast.hourly.relative_humidity_2m, sunsetIso) ?? 55,
-    )
-    const visibilityMeters = Number(
-      pickHourlyByDate(forecast.hourly.time, forecast.hourly.visibility, sunsetIso) ?? 10000,
-    )
-    const visibilityKm = Math.round((visibilityMeters / 1000) * 10) / 10
-    const aqiAtSunset = nearestAqiValue(aqi.byIsoTime, sunsetIso)
-    const score = computeGlowScore({
-      cloudCover,
-      humidity,
-      visibilityKm,
-      aqi: aqiAtSunset,
-    })
-    return {
-      date,
-      dayLabel: new Date(date).toLocaleDateString([], { weekday: 'short' }),
-      score,
-      bestWindowStart: humanTime(window.startIso),
-      bestWindowEnd: humanTime(window.endIso),
-      reason: scoreReason(score, cloudCover),
-      skyGradient: skyGradientFromScore(score),
-      cloudCover,
-      humidity,
-      visibilityKm,
+  try {
+    const [forecast, aqi] = await Promise.all([
+      fetchOpenMeteoForecast(location.latitude, location.longitude),
+      fetchOpenMeteoAqi(location.latitude, location.longitude),
+    ])
+    if (!forecast.daily?.sunset?.length || !forecast.daily?.sunrise?.length) {
+      return { ok: false, error: 'Forecast data unavailable for this location', status: 502 }
     }
-  })
 
-  const topDay = [...perfectShotDays].sort((a, b) => b.score - a.score)[0]
-  const nextSunsetIso = nextGolden?.sunsetIso ?? forecast.daily.sunset[0]
-  const nextCloud = Number(
-    pickHourlyByDate(forecast.hourly.time, forecast.hourly.cloud_cover, nextSunsetIso) ?? 50,
-  )
-  const nextHumidity = Number(
-    pickHourlyByDate(forecast.hourly.time, forecast.hourly.relative_humidity_2m, nextSunsetIso) ?? 55,
-  )
-  const nextVisibilityM = Number(
-    pickHourlyByDate(forecast.hourly.time, forecast.hourly.visibility, nextSunsetIso) ?? 10000,
-  )
-  const nextVisibilityKm = Math.round((nextVisibilityM / 1000) * 10) / 10
-  const glowScore = computeGlowScore({
-    cloudCover: nextCloud,
-    humidity: nextHumidity,
-    visibilityKm: nextVisibilityKm,
-    aqi: null,
-  })
+    const now = Date.now()
+    const windows = forecast.daily.sunset.map((sunsetIso) => buildGoldenHourWindow(sunsetIso))
+    const nextGolden = windows.find((w) => new Date(w.endIso).getTime() > now) ?? windows[0]
+    if (!nextGolden) {
+      return { ok: true, data: buildFallbackPayload(Boolean(profile?.has_birthday_set)) }
+    }
 
-  const azimuthDeg = Math.round(sunsetAzimuth(location.latitude, nextSunsetIso))
-  const bestFacingDirection = azimuthToCompass(azimuthDeg)
+    const perfectShotDays: PerfectShotDay[] = forecast.daily.time.slice(0, 5).map((date, index) => {
+      const sunsetIso = forecast.daily.sunset[index]
+      const window = buildGoldenHourWindow(sunsetIso)
+      const cloudCover = Number(
+        pickHourlyByDate(forecast.hourly.time, forecast.hourly.cloud_cover, sunsetIso) ?? 55,
+      )
+      const humidity = Number(
+        pickHourlyByDate(forecast.hourly.time, forecast.hourly.relative_humidity_2m, sunsetIso) ?? 55,
+      )
+      const visibilityMeters = Number(
+        pickHourlyByDate(forecast.hourly.time, forecast.hourly.visibility, sunsetIso) ?? 10000,
+      )
+      const visibilityKm = Math.round((visibilityMeters / 1000) * 10) / 10
+      const aqiAtSunset = nearestAqiValue(aqi.byIsoTime, sunsetIso)
+      const score = computeGlowScore({
+        cloudCover,
+        humidity,
+        visibilityKm,
+        aqi: aqiAtSunset,
+      })
+      return {
+        date,
+        dayLabel: new Date(date).toLocaleDateString([], { weekday: 'short' }),
+        score,
+        bestWindowStart: humanTime(window.startIso),
+        bestWindowEnd: humanTime(window.endIso),
+        reason: scoreReason(score, cloudCover),
+        skyGradient: skyGradientFromScore(score),
+        cloudCover,
+        humidity,
+        visibilityKm,
+      }
+    })
 
-  const payload: GlowInsightsPayload = {
-    insightSource: 'location',
-    locationHint: locationHint || location.label,
-    glowScore,
-    nextGoldenHour: {
-      start: humanTime(nextGolden.startIso),
-      end: humanTime(nextGolden.endIso),
-      minutesUntil: minutesUntil(nextGolden.startIso),
-    },
-    timeline: [
-      {
-        key: 'sunrise',
-        label: 'Sunrise',
-        time: humanTime(forecast.daily.sunrise[0]),
-        type: 'sunrise',
+    if (!perfectShotDays.length) {
+      return { ok: true, data: buildFallbackPayload(Boolean(profile?.has_birthday_set)) }
+    }
+
+    const topDay = [...perfectShotDays].sort((a, b) => b.score - a.score)[0]
+    const nextSunsetIso = nextGolden.sunsetIso ?? forecast.daily.sunset[0]
+    const nextCloud = Number(
+      pickHourlyByDate(forecast.hourly.time, forecast.hourly.cloud_cover, nextSunsetIso) ?? 50,
+    )
+    const nextHumidity = Number(
+      pickHourlyByDate(forecast.hourly.time, forecast.hourly.relative_humidity_2m, nextSunsetIso) ?? 55,
+    )
+    const nextVisibilityM = Number(
+      pickHourlyByDate(forecast.hourly.time, forecast.hourly.visibility, nextSunsetIso) ?? 10000,
+    )
+    const nextVisibilityKm = Math.round((nextVisibilityM / 1000) * 10) / 10
+    const glowScore = computeGlowScore({
+      cloudCover: nextCloud,
+      humidity: nextHumidity,
+      visibilityKm: nextVisibilityKm,
+      aqi: null,
+    })
+
+    const azimuthDeg = Math.round(sunsetAzimuth(location.latitude, nextSunsetIso))
+    const bestFacingDirection = azimuthToCompass(azimuthDeg)
+
+    const payload: GlowInsightsPayload = {
+      insightSource: 'location',
+      locationHint: locationHint || location.label,
+      glowScore,
+      nextGoldenHour: {
+        start: humanTime(nextGolden.startIso),
+        end: humanTime(nextGolden.endIso),
+        minutesUntil: minutesUntil(nextGolden.startIso),
       },
-      {
-        key: 'golden_start',
-        label: 'Golden start',
-        time: humanTime(nextGolden.startIso),
-        type: 'golden_start',
+      timeline: [
+        {
+          key: 'sunrise',
+          label: 'Sunrise',
+          time: humanTime(forecast.daily.sunrise[0]),
+          type: 'sunrise',
+        },
+        {
+          key: 'golden_start',
+          label: 'Golden start',
+          time: humanTime(nextGolden.startIso),
+          type: 'golden_start',
+        },
+        {
+          key: 'sunset',
+          label: 'Sunset',
+          time: humanTime(nextGolden.sunsetIso),
+          type: 'sunset',
+        },
+        {
+          key: 'golden_end',
+          label: 'Blue edge',
+          time: humanTime(nextGolden.endIso),
+          type: 'golden_end',
+        },
+      ],
+      perfectShotDays,
+      positioning: {
+        azimuthDeg,
+        bestFacingDirection,
+        environments: ['Open skyline', 'Water reflections', 'Rooftop edges'],
       },
-      {
-        key: 'sunset',
-        label: 'Sunset',
-        time: humanTime(nextGolden.sunsetIso),
-        type: 'sunset',
-      },
-      {
-        key: 'golden_end',
-        label: 'Blue edge',
-        time: humanTime(nextGolden.endIso),
-        type: 'golden_end',
-      },
-    ],
-    perfectShotDays,
-    positioning: {
-      azimuthDeg,
-      bestFacingDirection,
-      environments: ['Open skyline', 'Water reflections', 'Rooftop edges'],
-    },
-    actionCapsules: [
-      {
-        id: 'step_outside',
-        label: 'Step outside at golden hour',
-        detail: `${humanTime(nextGolden.startIso)} - ${humanTime(nextGolden.endIso)}`,
-      },
-      {
-        id: 'five_min_reset',
-        label: '5-min reset before sunset',
-        detail: 'Breathing + hydration to lower nervous load before creation.',
-      },
-      {
-        id: 'best_day',
-        label: `Best day: ${topDay.dayLabel}`,
-        detail: `${topDay.bestWindowStart} - ${topDay.bestWindowEnd}`,
-      },
-    ],
-    insightSentence: `High-output window: glow score ${glowScore}. Best capture angle is ${bestFacingDirection}; strongest sky diffusion on ${topDay.dayLabel}.`,
-    setupHint: undefined,
-    updatedAt: new Date().toISOString(),
+      actionCapsules: [
+        {
+          id: 'step_outside',
+          label: 'Step outside at golden hour',
+          detail: `${humanTime(nextGolden.startIso)} - ${humanTime(nextGolden.endIso)}`,
+        },
+        {
+          id: 'five_min_reset',
+          label: '5-min reset before sunset',
+          detail: 'Breathing + hydration to lower nervous load before creation.',
+        },
+        {
+          id: 'best_day',
+          label: `Best day: ${topDay.dayLabel}`,
+          detail: `${topDay.bestWindowStart} - ${topDay.bestWindowEnd}`,
+        },
+      ],
+      insightSentence: `High-output window: glow score ${glowScore}. Best capture angle is ${bestFacingDirection}; strongest sky diffusion on ${topDay.dayLabel}.`,
+      setupHint: undefined,
+      updatedAt: new Date().toISOString(),
+    }
+
+    return { ok: true, data: payload }
+  } catch (err) {
+    console.warn('[computeGlowInsightsForUser] location decrypt / weather / assemble failed; using baseline glow', err)
+    return { ok: true, data: buildFallbackPayload(Boolean(profile?.has_birthday_set)) }
   }
-
-  return { ok: true, data: payload }
 }

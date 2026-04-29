@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PlatformWordmark } from '@/components/platform/platform-wordmark'
 import { Loader2, Search, Shield, Upload, Video } from 'lucide-react'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
 import { uiFadeTransition, uiPanelTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
@@ -310,9 +311,21 @@ export function AriadneTracePanel() {
                       <SelectValue placeholder="Optional platform" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                      <SelectItem value="fansly">Fansly</SelectItem>
+                      <SelectItem value="none" textValue="No platform">
+                        <span className="text-[14px] text-muted-foreground">No platform</span>
+                      </SelectItem>
+                      <SelectItem value="onlyfans" textValue="OnlyFans">
+                        <span className="flex items-center gap-3 py-0.5">
+                          <PlatformWordmark platform="onlyfans" size="md" />
+                          <span className="text-[14px] font-medium text-foreground">OnlyFans</span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="fansly" textValue="Fansly">
+                        <span className="flex items-center gap-3 py-0.5">
+                          <PlatformWordmark platform="fansly" size="md" />
+                          <span className="text-[14px] font-medium text-foreground">Fansly</span>
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

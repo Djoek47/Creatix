@@ -39,6 +39,7 @@ import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
 import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 
 type WizardStep = 1 | 2 | 3 | 4
 
@@ -1999,7 +2000,7 @@ export default function DivineManagerPage() {
                         <div className="space-y-2">
                           {(lastToolResult.captions as { text?: string; hashtags?: string[] }[]).map((cap, i) => (
                             <div key={i} className="rounded border border-border bg-background/50 p-2 text-xs">
-                              {cap.text && <p className="text-foreground whitespace-pre-wrap">{cap.text}</p>}
+                              {cap.text ? <AiToolMarkdownReadout content={cap.text} variant="neutral" className="text-xs" /> : null}
                               {cap.hashtags && cap.hashtags.length > 0 && (
                                 <p className="text-muted-foreground mt-1">{(cap.hashtags as string[]).join(' ')}</p>
                               )}
@@ -2023,16 +2024,18 @@ export default function DivineManagerPage() {
                           </div>
                         </div>
                       )}
-                      {lastToolResult.content && (
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{String(lastToolResult.content)}</p>
-                      )}
+                      {lastToolResult.content ? (
+                        <AiToolMarkdownReadout content={String(lastToolResult.content)} variant="neutral" className="text-xs text-muted-foreground" />
+                      ) : null}
                     </>
                   )}
                   {(lastToolName === 'get_retention_insights' || lastToolName === 'get_whale_advice') && (
-                    <div className="rounded border border-border bg-background/50 p-2 text-xs text-muted-foreground whitespace-pre-wrap">
-                      {typeof lastToolResult.content === 'string'
-                        ? lastToolResult.content
-                        : JSON.stringify(lastToolResult)}
+                    <div className="rounded border border-border bg-background/50 p-2 text-xs text-muted-foreground">
+                      {typeof lastToolResult.content === 'string' ? (
+                        <AiToolMarkdownReadout content={lastToolResult.content} variant="circeRetention" className="text-xs" />
+                      ) : (
+                        JSON.stringify(lastToolResult)
+                      )}
                     </div>
                   )}
                   {lastToolName === 'predict_income' && (
@@ -2044,7 +2047,9 @@ export default function DivineManagerPage() {
                         return (
                           <>
                             {headline ? <p className="font-medium text-foreground">{headline}</p> : null}
-                            {summary ? <p className="text-muted-foreground whitespace-pre-wrap">{summary}</p> : null}
+                            {summary ? (
+                              <AiToolMarkdownReadout content={summary} variant="income" className="text-xs text-muted-foreground" />
+                            ) : null}
                             {!headline && !summary ? (
                               <pre className="text-muted-foreground whitespace-pre-wrap overflow-x-auto">
                                 {JSON.stringify(lastToolResult, null, 2)}

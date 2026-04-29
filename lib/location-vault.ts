@@ -63,3 +63,18 @@ export function decryptLocationPayload(userId: string, encryptedBase64: string):
   }
   return parsed
 }
+
+/**
+ * Same as {@link decryptLocationPayload} but returns null on missing/short vault secret, corrupt
+ * ciphertext, GCM auth failure ("Unsupported state or unable to authenticate data"), or malformed JSON.
+ */
+export function tryDecryptLocationPayload(
+  userId: string,
+  encryptedBase64: string,
+): StoredLocationPayload | null {
+  try {
+    return decryptLocationPayload(userId, encryptedBase64)
+  } catch {
+    return null
+  }
+}

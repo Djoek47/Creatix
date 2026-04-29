@@ -20,6 +20,7 @@ import { useCreditInsufficientModal } from '@/components/billing/credit-insuffic
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { Loader2, RadioTower, BarChart3, Bell, ListTodo, ScanLine, Coins, CalendarDays } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 
 const surfaceCard =
   'rounded-2xl border border-border/35 bg-card/60 shadow-none backdrop-blur-sm dark:border-border/25 dark:bg-card/45'
@@ -243,7 +244,8 @@ export default function ChurnPredictorHubPage() {
                       'Loading balance…'
                     ) : (
                       <>
-                        <span className="tabular-nums font-medium text-foreground/80">{creditsRemaining}</span> left ·{' '}
+                        <span className="tabular-nums font-medium text-foreground/80">{creditsRemaining}</span> left ·
+                        OnlyFans + Fansly ·{' '}
                         <span className="tabular-nums font-medium text-foreground/80">{scanCreditCost}</span> if anyone
                         matches ·{' '}
                         {!canAffordScan ? (
@@ -315,12 +317,13 @@ export default function ChurnPredictorHubPage() {
               Automatic scans
             </CardTitle>
             <CardDescription className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-              Runs on the schedule below (daily, weekly, or off). When at-risk fans match your rules, up to{' '}
+              Runs on the schedule below (daily, weekly, or off).               When at-risk fans match your rules, up to{' '}
               <span className="font-medium tabular-nums text-foreground/90">
                 {creditsPerRun} credit{creditsPerRun === 1 ? '' : 's'}
               </span>{' '}
-              are used for that run—same as Scan now. The server blocks scheduled runs if you don&apos;t have enough
-              credits reserved.
+              are charged for that run (same credit setting as Scan now). Scheduled runs cap batch size with Fans per
+              run; manual Scan now looks at all synced fans from both platforms, up to 25 qualifiers. The server blocks
+              scheduled runs if you don&apos;t have enough credits reserved.
             </CardDescription>
             {!creditsLoading && !canAffordScan ? (
               <p className="text-[13px] leading-relaxed text-amber-700 dark:text-amber-200/90">
@@ -495,7 +498,7 @@ export default function ChurnPredictorHubPage() {
               <h2 id="churn-batch-heading" className={blockHeading}>
                 Batch &amp; credits
               </h2>
-              <p className={blockSub}>Batch size and credits apply only when someone matches.</p>
+              <p className={blockSub}>Credits when someone matches apply to every path. Scheduled runs use Fans per run; Scan now analyzes all synced CRM (OnlyFans + Fansly together, up to 25 qualifiers).</p>
             </div>
             <div className={insetFieldGroup}>
               <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
@@ -503,7 +506,9 @@ export default function ChurnPredictorHubPage() {
                   <Label htmlFor="max-f" className={labelClass}>
                     Fans per run
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Maximum per report (1–25).</p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                    Automatic scans: max per report (1–25). Scan now considers both platforms together, up to 25 qualifiers.
+                  </p>
                   <Input
                     id="max-f"
                     type="number"
@@ -644,7 +649,7 @@ export default function ChurnPredictorHubPage() {
                 {digestAt ? `${new Date(digestAt).toLocaleString()}` : 'Latest output'}
               </p>
               <div className="max-h-[480px] overflow-y-auto rounded-xl border border-border/35 bg-muted/[0.06] p-5 dark:bg-muted/[0.08]">
-                <pre className="whitespace-pre-wrap font-sans text-[13px] leading-[1.6] text-foreground/88">{digest}</pre>
+                <AiToolMarkdownReadout content={digest} variant="circeRetention" className="text-[13px]" />
               </div>
             </div>
           ) : (

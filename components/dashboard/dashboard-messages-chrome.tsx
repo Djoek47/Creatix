@@ -44,11 +44,13 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
       ) : null}
       <main
         className={cn(
-          'min-h-0 flex-1 overflow-x-hidden bg-transparent',
+          /* Avoid `overflow-x: hidden` on this scrollport — it breaks `position: sticky` for route heroes
+             (Chrome/WebKit). Rely on `min-w-0` + page layout to contain width. */
+          'min-h-0 flex-1 bg-transparent',
+          !isMessagesInbox && 'w-full min-w-0 overflow-y-auto p-4 sm:p-6',
           /* Inbox (normal or focus): column flex + min-h-0 so chat composer + Divine strip stay in view */
           isMessagesInbox &&
             'flex min-h-0 flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom,0px)]',
-          !isMessagesInbox && 'overflow-y-auto p-4 sm:p-6',
         )}
       >
         {children}

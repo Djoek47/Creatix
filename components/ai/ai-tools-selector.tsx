@@ -52,6 +52,7 @@ import {
   compressImageForVision,
   extractVideoFrameAsDataUrl,
 } from '@/components/ai/caption-media-utils'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
@@ -1106,15 +1107,17 @@ export function AIToolsSelector({
       ) : null}
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</h4>
-        <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3">{res.executiveSummary}</p>
+        <div className="rounded-lg border border-border bg-muted/20 p-3">
+          <AiToolMarkdownReadout content={res.executiveSummary} variant="competitor" />
+        </div>
       </div>
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market context</h4>
-        <p className="whitespace-pre-wrap text-muted-foreground">{res.marketContext}</p>
+        <AiToolMarkdownReadout content={res.marketContext} variant="competitor" className="text-muted-foreground" />
       </div>
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tier note (qualitative)</h4>
-        <p className="whitespace-pre-wrap">{res.qualitativeTierNote}</p>
+        <AiToolMarkdownReadout content={res.qualitativeTierNote} variant="competitor" />
       </div>
       {res.peerArchetypes?.length ? (
         <div className="space-y-2">
@@ -1189,9 +1192,9 @@ export function AIToolsSelector({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Your cohort (imported fans)
           </h4>
-          <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
-            {res.cohortPercentileSummary}
-          </p>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
+            <AiToolMarkdownReadout content={res.cohortPercentileSummary} variant="competitor" />
+          </div>
         </div>
       ) : null}
       {res.improvementPriorities?.length ? (
@@ -1209,7 +1212,9 @@ export function AIToolsSelector({
           </ul>
         </div>
       ) : null}
-      <p className="text-xs text-amber-600 dark:text-amber-400">{res.caveats}</p>
+      {(res.caveats && String(res.caveats).trim()) ? (
+        <AiToolMarkdownReadout content={res.caveats} variant="caveat" className="text-xs" />
+      ) : null}
     </div>
   )
 
@@ -1226,7 +1231,7 @@ export function AIToolsSelector({
         <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
           {ai?.headline ? <p className="text-sm font-semibold text-foreground">{ai.headline}</p> : null}
           {ai?.summary ? (
-            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{ai.summary}</p>
+            <AiToolMarkdownReadout content={ai.summary} variant="income" className="text-muted-foreground" />
           ) : null}
           {!ai?.headline && !ai?.summary ? (
             <p className="text-xs text-muted-foreground">No summary returned. Open the full Income Predictor for details.</p>
@@ -1338,7 +1343,7 @@ export function AIToolsSelector({
         Circe retention readout
       </p>
       <div className="rounded-xl border border-violet-500/25 bg-violet-950/25 p-4 dark:bg-violet-950/35">
-        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{res.content}</p>
+        <AiToolMarkdownReadout content={res.content} variant="circeRetention" />
       </div>
       {res.suggestions && res.suggestions.length > 0 && (
         <ul className="space-y-1 text-sm text-muted-foreground">
@@ -1358,7 +1363,7 @@ export function AIToolsSelector({
     <div className="space-y-4 pt-4 border-t border-border">
       <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
         {typeof (res as AIResult).content === 'string' && (res as AIResult).content.trim() ? (
-          <p className="text-sm whitespace-pre-wrap text-foreground">{(res as AIResult).content}</p>
+          <AiToolMarkdownReadout content={(res as AIResult).content} variant="neutral" />
         ) : (
           <pre className="max-h-48 overflow-auto text-left text-xs text-muted-foreground whitespace-pre-wrap break-words">
             {JSON.stringify(res, null, 2)}

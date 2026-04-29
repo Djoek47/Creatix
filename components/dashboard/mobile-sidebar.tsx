@@ -30,7 +30,7 @@ import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
-import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
+import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 
 interface MobileSidebarProps {
   user: User
@@ -128,6 +128,7 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
   }) => {
     const isActive = navItemIsActive(pathname, item)
     const isAiStudio = variant === 'ai-studio'
+    const isDivineManager = item.href === '/dashboard/divine-manager'
 
     const wellbeingPulseClass =
       item.href === '/dashboard/well-being' && pulseSev
@@ -137,7 +138,10 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
             ? 'sidebar-nav-pulse-attend'
             : 'sidebar-nav-pulse-steady'
         : null
-    
+
+    const wellbeingTextPulseClass =
+      item.href === '/dashboard/well-being' ? wellbeingNavTextPulseClass(pulseSev) : null
+
     const variantStyles = {
       default: {
         active: 'bg-muted/55 text-foreground',
@@ -163,19 +167,28 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
     
     const styles = variantStyles[variant]
     
-    return (
-      <SheetClose asChild>
-        <Link
-          href={item.href}
-          data-tour={item.href}
-          className={cn(
-            compactMobile
-              ? 'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors duration-150 ease-out'
-              : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
-            navTextClass,
-            isActive ? styles.active : styles.inactive
-          )}
-        >
+    const linkClassName = cn(
+      compactMobile
+        ? 'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors duration-150 ease-out'
+        : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
+      navTextClass,
+      isActive ? styles.active : styles.inactive,
+      isAiStudio && 'w-full min-w-0 bg-card rounded-[calc(0.75rem-2px)]',
+    )
+
+    const linkEl = (
+      <Link href={item.href} data-tour={item.href} className={linkClassName}>
+        {isAiStudio ? (
+          <Star
+            aria-hidden
+            className={cn(navIconClass, 'flex-shrink-0 ai-studio-sidebar-star')}
+          />
+        ) : isDivineManager ? (
+          <Crown
+            aria-hidden
+            className={cn(navIconClass, 'flex-shrink-0 sidebar-divine-manager-crown')}
+          />
+        ) : (
           <item.icon
             className={cn(
               navIconClass,
@@ -187,11 +200,28 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                   : styles.icon,
             )}
           />
-          <div className="flex min-w-0 items-center gap-2">
-            <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
-          </div>
-        </Link>
-      </SheetClose>
+        )}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn(
+              isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
+              isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+              wellbeingTextPulseClass,
+              (wellbeingTextPulseClass || isDivineManager) && 'transition-colors duration-150 ease-out',
+            )}
+          >
+            {item.name}
+          </span>
+        </div>
+      </Link>
+    )
+
+    return isAiStudio ? (
+      <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">
+        <SheetClose asChild>{linkEl}</SheetClose>
+      </span>
+    ) : (
+      <SheetClose asChild>{linkEl}</SheetClose>
     )
   }
 

@@ -243,7 +243,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                       : tool.id === 'housekeeping'
                         ? '/dashboard/commenter?section=housekeeping'
                         : tool.id === 'churn-predictor'
-                          ? '/dashboard/retention/churn'
+                          ? '/dashboard/ai-studio/tools/churn-predictor'
                           : tool.id === 'retention-tease'
                             ? '/dashboard/retention/tease'
                             : `/dashboard/ai-studio/tools/${tool.id}`

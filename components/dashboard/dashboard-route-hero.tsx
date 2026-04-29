@@ -21,24 +21,24 @@ export function DashboardRouteHero() {
   if (meta.heroVariant === 'system') {
     return (
       <header className="mb-10 sm:mb-14">
-        {/* Sticks within dashboard `main` scroll: eyebrow + title stay; subtitle rolls away */}
+        {/* Sticks within dashboard `main` scroll: eyebrow, title, and subtitle stay under the header bar */}
         <div
           className={cn(
-            'sticky top-0 z-10 -mx-4 border-b border-border/30 px-4 pb-4 sm:-mx-6 sm:px-6 sm:pb-5',
-            'bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70',
-            'dark:border-border/25 dark:bg-background/80',
+            'sticky top-0 z-20 -mx-4 border-b border-border/30 px-4 pb-4 sm:-mx-6 sm:px-6 sm:pb-5',
+            'bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75',
+            'dark:border-border/25 dark:bg-background/85',
           )}
         >
           <p className="text-sm font-normal text-muted-foreground">{meta.eyebrow}</p>
           <h1 className="mt-3 font-sans text-[2.5rem] font-semibold tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.75rem] sm:leading-[1.06]">
             {meta.title}
           </h1>
+          {meta.subtitle ? (
+            <p className="mt-4 max-w-lg text-base font-normal leading-[1.55] text-muted-foreground sm:text-[1.0625rem]">
+              {meta.subtitle}
+            </p>
+          ) : null}
         </div>
-        {meta.subtitle ? (
-          <p className="mt-4 max-w-lg text-base font-normal leading-[1.55] text-muted-foreground sm:text-[1.0625rem]">
-            {meta.subtitle}
-          </p>
-        ) : null}
       </header>
     )
   }

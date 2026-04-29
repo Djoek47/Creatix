@@ -33,7 +33,7 @@ import type { Profile } from '@/lib/types'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
-import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
+import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -167,6 +167,7 @@ function NavLink({
 }) {
   const isActive = navItemIsActive(pathname, item)
   const isAiStudio = variant === 'ai-studio'
+  const isDivineManager = item.href === '/dashboard/divine-manager'
   const styles = variantStyles[variant]
   const Icon = item.icon
 
@@ -189,6 +190,7 @@ function NavLink({
               : 'min-h-10 py-2.5',
         ),
     isActive ? styles.active : styles.inactive,
+    isAiStudio && 'w-full min-w-0 bg-sidebar rounded-[calc(0.75rem-2px)]',
   )
 
   const wellbeingPulseClass =
@@ -200,45 +202,85 @@ function NavLink({
           : 'sidebar-nav-pulse-steady'
       : null
 
+  const wellbeingTextPulseClass =
+    item.href === '/dashboard/well-being'
+      ? wellbeingNavTextPulseClass(pulseNavSeverity)
+      : null
+
   const linkInner = (
     <>
-      {collapsed && (
+      {collapsed && !isAiStudio && !isDivineManager && (
         <span
           className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-0 rounded-xl"
           aria-hidden
         />
       )}
-      <Icon
-        className={cn(
-          'relative z-[1] flex-shrink-0 transition-colors',
-          navEase,
-          compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-          wellbeingPulseClass
-            ? cn(wellbeingPulseClass, isActive && 'opacity-100')
-            : isActive
-              ? 'text-sidebar-foreground'
-              : styles.icon,
-        )}
-      />
+      {isAiStudio ? (
+        <Star
+          aria-hidden
+          className={cn(
+            'relative z-[1] flex-shrink-0',
+            navEase,
+            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+            'ai-studio-sidebar-star',
+          )}
+        />
+      ) : isDivineManager ? (
+        <Crown
+          aria-hidden
+          className={cn(
+            'relative z-[1] flex-shrink-0',
+            navEase,
+            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+            'sidebar-divine-manager-crown',
+          )}
+        />
+      ) : (
+        <Icon
+          className={cn(
+            'relative z-[1] flex-shrink-0 transition-colors',
+            navEase,
+            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+            wellbeingPulseClass
+              ? cn(wellbeingPulseClass, isActive && 'opacity-100')
+              : isActive
+                ? 'text-sidebar-foreground'
+                : styles.icon,
+          )}
+        />
+      )}
       {!collapsed && (
         <div className="flex min-w-0 items-center gap-2">
-          <span className={cn(isAiStudio && 'font-medium tracking-tight')}>{item.name}</span>
+          <span
+            className={cn(
+              isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
+              isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+              wellbeingTextPulseClass,
+              (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
+            )}
+          >
+            {item.name}
+          </span>
         </div>
       )}
     </>
+  )
+
+  const linkEl = (
+    <Link href={item.href} data-tour={item.href} className={linkClassName}>
+      {linkInner}
+    </Link>
   )
 
   if (collapsed) {
     return (
       <TooltipPrimitive.Root delayDuration={0}>
         <TooltipPrimitive.Trigger asChild>
-          <Link
-            href={item.href}
-            data-tour={item.href}
-            className={linkClassName}
-          >
-            {linkInner}
-          </Link>
+          {isAiStudio ? (
+            <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">{linkEl}</span>
+          ) : (
+            linkEl
+          )}
         </TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
@@ -249,21 +291,26 @@ function NavLink({
               'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=right]:slide-in-from-left-2',
             )}
           >
-            <span className="font-medium">{item.name}</span>
+            <span
+              className={cn(
+                'font-medium',
+                isDivineManager && 'sidebar-divine-manager-text',
+                wellbeingTextPulseClass,
+                (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
+              )}
+            >
+              {item.name}
+            </span>
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>
     )
   }
 
-  return (
-    <Link
-      href={item.href}
-      data-tour={item.href}
-      className={linkClassName}
-    >
-      {linkInner}
-    </Link>
+  return isAiStudio ? (
+    <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">{linkEl}</span>
+  ) : (
+    linkEl
   )
 }
 

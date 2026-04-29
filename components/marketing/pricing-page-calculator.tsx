@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -35,7 +36,11 @@ import {
 } from '@/lib/pricing-matrix'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { Checkout } from '@/components/stripe/checkout'
-import { PAID_PLAN_ID, PROTECTION_PLAN_ID } from '@/lib/billing/access'
+import {
+  MULTIPLATFORM_PROTECTION_COMING_SOON,
+  PAID_PLAN_ID,
+  PROTECTION_PLAN_ID,
+} from '@/lib/billing/access'
 import {
   sortFocusPlatforms,
   type AdultBillingPlatform,
@@ -159,8 +164,12 @@ export function PricingPageCalculator({
   /** Multiplatform mark: one logo at a time, full frame, cycling through supported services. */
   const [multiLogoIndex, setMultiLogoIndex] = useState(0)
   const planGlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [otherPlatformBundleEnabled, setOtherPlatformBundleEnabled] = useState(false)
-  const [protectionOnly, setProtectionOnly] = useState(false)
+  const [otherPlatformBundleEnabledInternal, setOtherPlatformBundleEnabled] = useState(false)
+  const [protectionOnlyInternal, setProtectionOnly] = useState(false)
+  const otherPlatformBundleEnabled = MULTIPLATFORM_PROTECTION_COMING_SOON
+    ? false
+    : otherPlatformBundleEnabledInternal
+  const protectionOnly = MULTIPLATFORM_PROTECTION_COMING_SOON ? false : protectionOnlyInternal
   const [variantInternal, setVariantInternal] = useState<BillingVariant>('single')
   const [platformSelectionInternal, setPlatformSelectionInternal] = useState<Set<AdultBillingPlatform>>(
     () => new Set<AdultBillingPlatform>(['onlyfans', 'fansly']),
@@ -357,8 +366,11 @@ export function PricingPageCalculator({
       }
       return {
         lines,
-        note:
-          surface === 'settings'
+        note: MULTIPLATFORM_PROTECTION_COMING_SOON
+          ? surface === 'settings'
+            ? 'One Bundled bill. Anti‑Piracy is the ManyVids storefront connector (800 credits allocated per cycle above). Standalone Multiplatform Protection is coming soon.'
+            : 'Bundled workspace for OnlyFans and Fansly. Anti‑Piracy adds ManyVids and the connector line item. Standalone Protection for extra storefronts is coming soon.'
+          : surface === 'settings'
             ? 'One Bundled bill. Anti‑Piracy is the ManyVids storefront connector (800 credits allocated per cycle above). Multiplatform Protection is billed separately.'
             : 'Bundled workspace for OnlyFans and Fansly. Anti‑Piracy adds ManyVids and the connector line item; Protection for extra storefronts is on the pricing page.',
       }
@@ -424,7 +436,7 @@ export function PricingPageCalculator({
   )
 
   const showMarketingChrome = surface !== 'settings'
-  const showProtectionFooter = surface !== 'settings'
+  const showProtectionFooter = MULTIPLATFORM_PROTECTION_COMING_SOON ? true : surface !== 'settings'
   const bundledGlowSurface = variant === 'multi' && !protectionOnly
   const focusDualGlow =
     variant === 'single' && focusBothApiPlatforms && !protectionOnly
@@ -983,128 +995,161 @@ export function PricingPageCalculator({
 
       {showProtectionFooter ? (
         <div className="mt-10 border-t border-border/25 pt-10">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div
-              className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
-              aria-hidden
-            >
-              <motion.span
-                key={multiLogoIndex}
-                className="flex h-full w-full items-center justify-center rounded-md bg-card/85"
-                initial={reduceMotion ? false : { opacity: 0.35 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, ease: 'easeOut' }}
+          {MULTIPLATFORM_PROTECTION_COMING_SOON ? (
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <div
+                className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 opacity-90 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
+                aria-hidden
               >
-                <Image
-                  src={MULTIPLATFORM_LOGOS[multiLogoIndex]}
-                  alt=""
-                  width={112}
-                  height={112}
-                  sizes="80px"
-                  className="h-full w-full object-contain p-0.5"
-                />
-              </motion.span>
+                <span className="flex h-full w-full items-center justify-center rounded-md bg-card/85">
+                  <Image
+                    src={MULTIPLATFORM_LOGOS[0] ?? '/clips4sale-logo.png'}
+                    alt=""
+                    width={112}
+                    height={112}
+                    sizes="80px"
+                    className="h-full w-full object-contain p-0.5"
+                  />
+                </span>
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+                  <Badge variant="secondary" className="font-medium">
+                    Coming soon
+                  </Badge>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Extra storefront coverage (beyond OnlyFans &amp; Fansly) as its own Protection subscription is not
+                  available for new sign-ups yet—we’ll announce it here when enrollment opens.
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h3 className="font-medium text-foreground">Multiplatform protection</h3>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="What multiplatform protection includes — storefronts beyond OnlyFans and Fansly (see logos)"
+          ) : (
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <div
+                className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
+                aria-hidden
+              >
+                <motion.span
+                  key={multiLogoIndex}
+                  className="flex h-full w-full items-center justify-center rounded-md bg-card/85"
+                  initial={reduceMotion ? false : { opacity: 0.35 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.45, ease: 'easeOut' }}
+                >
+                  <Image
+                    src={MULTIPLATFORM_LOGOS[multiLogoIndex]}
+                    alt=""
+                    width={112}
+                    height={112}
+                    sizes="80px"
+                    className="h-full w-full object-contain p-0.5"
+                  />
+                </motion.span>
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="What multiplatform protection includes — storefronts beyond OnlyFans and Fansly (see logos)"
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      side="top"
+                      sideOffset={8}
+                      className="w-[min(22.5rem,calc(100vw-2rem))] rounded-2xl border border-border/35 bg-popover/95 p-6 text-[13px] leading-[1.45] text-muted-foreground shadow-[0_24px_64px_-16px_rgba(0,0,0,0.55)] backdrop-blur-sm antialiased sm:p-7"
                     >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    side="top"
-                    sideOffset={8}
-                    className="w-[min(22.5rem,calc(100vw-2rem))] rounded-2xl border border-border/35 bg-popover/95 p-6 text-[13px] leading-[1.45] text-muted-foreground shadow-[0_24px_64px_-16px_rgba(0,0,0,0.55)] backdrop-blur-sm antialiased sm:p-7"
+                      <div className="flex flex-col gap-8">
+                        <header>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/65">
+                            Multiplatform protection
+                          </p>
+                        </header>
+
+                        <section className="space-y-3" aria-labelledby="protection-popover-storefronts">
+                          <p
+                            id="protection-popover-storefronts"
+                            className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
+                          >
+                            Storefronts
+                          </p>
+                          <ul className="flex flex-col gap-2.5">
+                            {CLIP_FOCUS_ADDON_CAROUSEL.map((e) => (
+                              <li
+                                key={e.id}
+                                className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
+                              >
+                                {e.label}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-border/50 to-transparent" aria-hidden />
+
+                        <section className="space-y-3" aria-labelledby="protection-popover-tools">
+                          <p
+                            id="protection-popover-tools"
+                            className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
+                          >
+                            Tools
+                          </p>
+                          <ul className="flex flex-col gap-2.5">
+                            {PROTECTION_POPOVER_TOOLS.map((label) => (
+                              <li
+                                key={label}
+                                className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
+                              >
+                                {label}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Extra storefront coverage (beyond OnlyFans &amp; Fansly) at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo as a
+                  separate Protection subscription—include it in your estimate here or subscribe on its own.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={otherPlatformBundleEnabled && !protectionOnly ? 'default' : 'outline'}
+                    className="rounded-full"
+                    onClick={() => {
+                      setProtectionOnly(false)
+                      setOtherPlatformBundleEnabled((v) => !v)
+                    }}
                   >
-                    <div className="flex flex-col gap-8">
-                      <header>
-                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/65">
-                          Multiplatform protection
-                        </p>
-                      </header>
-
-                      <section className="space-y-3" aria-labelledby="protection-popover-storefronts">
-                        <p
-                          id="protection-popover-storefronts"
-                          className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
-                        >
-                          Storefronts
-                        </p>
-                        <ul className="flex flex-col gap-2.5">
-                          {CLIP_FOCUS_ADDON_CAROUSEL.map((e) => (
-                            <li
-                              key={e.id}
-                              className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
-                            >
-                              {e.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
-
-                      <div className="h-px w-full bg-gradient-to-r from-transparent via-border/50 to-transparent" aria-hidden />
-
-                      <section className="space-y-3" aria-labelledby="protection-popover-tools">
-                        <p
-                          id="protection-popover-tools"
-                          className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
-                        >
-                          Tools
-                        </p>
-                        <ul className="flex flex-col gap-2.5">
-                          {PROTECTION_POPOVER_TOOLS.map((label) => (
-                            <li
-                              key={label}
-                              className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
-                            >
-                              {label}
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Extra storefront coverage (beyond OnlyFans &amp; Fansly) at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo as a separate Protection subscription—include it in your estimate here or subscribe on its own.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={otherPlatformBundleEnabled && !protectionOnly ? 'default' : 'outline'}
-                  className="rounded-full"
-                  onClick={() => {
-                    setProtectionOnly(false)
-                    setOtherPlatformBundleEnabled((v) => !v)
-                  }}
-                >
-                  {otherPlatformBundleEnabled && !protectionOnly ? 'Added (+$25/mo)' : 'Add to estimate (+$25/mo)'}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={protectionOnly ? 'default' : 'outline'}
-                  className="rounded-full"
-                  onClick={() => {
-                    setOtherPlatformBundleEnabled(false)
-                    setProtectionOnly((v) => !v)
-                  }}
-                >
-                  {protectionOnly ? 'Protection only ($25/mo)' : 'Protection only'}
-                </Button>
+                    {otherPlatformBundleEnabled && !protectionOnly ? 'Added (+$25/mo)' : 'Add to estimate (+$25/mo)'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={protectionOnly ? 'default' : 'outline'}
+                    className="rounded-full"
+                    onClick={() => {
+                      setOtherPlatformBundleEnabled(false)
+                      setProtectionOnly((v) => !v)
+                    }}
+                  >
+                    {protectionOnly ? 'Protection only ($25/mo)' : 'Protection only'}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       ) : null}
     </Root>

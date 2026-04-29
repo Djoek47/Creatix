@@ -58,6 +58,7 @@ import {
 } from '@/lib/billing/platform-variant'
 import {
   isPaidPlanId,
+  MULTIPLATFORM_PROTECTION_COMING_SOON,
   PROTECTION_PLAN_ID,
   TRIAL_PLAN_ID,
   isProtectionEntitled,
@@ -1065,9 +1066,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     />
                     <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-                        <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
-                          {focusPlatformDisplayName('manyvids')}
-                        </h3>
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                          <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
+                            {focusPlatformDisplayName('manyvids')}
+                          </h3>
+                          <Badge variant="secondary" className="h-6 shrink-0 px-2 text-[10px] font-semibold uppercase tracking-wide">
+                            Beta
+                          </Badge>
+                        </div>
                         <AntiPiracyStorefrontLogoCycle />
                       </div>
                       <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
@@ -1100,8 +1106,18 @@ export function BillingSection({ userId }: BillingSectionProps) {
                               MYM, and similar). Bundled into your workspace total—not a separate subscription.
                             </p>
                             <p className="mt-3 text-muted-foreground">
-                              For standalone protection across more sites, use the Protection add-on below (separate
-                              bill).
+                              {MULTIPLATFORM_PROTECTION_COMING_SOON ? (
+                                <>
+                                  Broader standalone Protection (separate bill) is{' '}
+                                  <span className="font-medium text-foreground/90">coming soon</span> from the
+                                  Protection card below—we are not enrolling new plans yet.
+                                </>
+                              ) : (
+                                <>
+                                  For standalone protection across more sites, use the Protection add-on below (separate
+                                  bill).
+                                </>
+                              )}
                             </p>
                           </PopoverContent>
                         </Popover>
@@ -1109,7 +1125,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       <p className="sr-only">
                         ManyVids anti-piracy with Bundled plan only.{' '}
                         {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle. Price
-                        follows your revenue band. Protection add-on below is billed separately.
+                        follows your revenue band.{' '}
+                        {MULTIPLATFORM_PROTECTION_COMING_SOON
+                          ? 'Standalone Multiplatform Protection below is coming soon for new subscriptions.'
+                          : 'Protection add-on below is billed separately.'}
                       </p>
                     </div>
                   </div>
@@ -1198,38 +1217,62 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
             Stand alone
           </p>
-          <CardTitle className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            {getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}
+          <CardTitle className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            <span>{getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}</span>
+            {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
+              <Badge variant="secondary" className="font-medium">
+                Coming soon
+              </Badge>
+            ) : null}
           </CardTitle>
           <CardDescription className="max-w-prose text-[13px] leading-snug text-muted-foreground">
-            Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated
-            Protection hub. Separate bill from single-platform and Bundled plans: ManyVids on the Bundled plan above is part of that subscription;
-            Protection is its own subscription for broader storefront coverage.
+            {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
+              <>
+                Standalone anti-piracy for extra fan and clip storefronts will be available as its own Protection
+                subscription—we are not enrolling new plans yet. ManyVids Bundled add-on above stays on your main
+                subscription when selected.
+              </>
+            ) : (
+              <>
+                Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated
+                Protection hub. Separate bill from single-platform and Bundled plans: ManyVids on the Bundled plan above is part of that subscription;
+                Protection is its own subscription for broader storefront coverage.
+              </>
+            )}
             {subData && isProtectionEntitled(subData) ? (
               <span className="mt-2 block font-medium text-emerald-600 dark:text-emerald-400">Active on your account.</span>
             ) : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-6 pb-7 pt-6 sm:px-8 sm:pb-8 sm:pt-7">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
-              Monthly
+          {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
+            <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground">
+              New subscriptions are not open yet. We will enable checkout on this card when Multiplatform Protection
+              enrollment launches.
             </p>
-            <p className="mt-2 font-serif text-3xl font-medium tabular-nums tracking-tight text-foreground sm:text-[2rem]">
-              ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
-              <span className="ml-1 text-lg font-normal text-muted-foreground/85 sm:text-xl">/mo</span>
-            </p>
-          </div>
-          <Checkout
-            productId={PROTECTION_PLAN_ID}
-            buttonText={
-              subData && isProtectionEntitled(subData)
-                ? 'Update payment'
-                : `Subscribe — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
-            }
-            onComplete={handleCheckoutComplete}
-            buttonClassName={BILLING_PRIMARY_CHECKOUT_CTA_CLASS}
-          />
+          ) : (
+            <>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
+                  Monthly
+                </p>
+                <p className="mt-2 font-serif text-3xl font-medium tabular-nums tracking-tight text-foreground sm:text-[2rem]">
+                  ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
+                  <span className="ml-1 text-lg font-normal text-muted-foreground/85 sm:text-xl">/mo</span>
+                </p>
+              </div>
+              <Checkout
+                productId={PROTECTION_PLAN_ID}
+                buttonText={
+                  subData && isProtectionEntitled(subData)
+                    ? 'Update payment'
+                    : `Subscribe — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
+                }
+                onComplete={handleCheckoutComplete}
+                buttonClassName={BILLING_PRIMARY_CHECKOUT_CTA_CLASS}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 

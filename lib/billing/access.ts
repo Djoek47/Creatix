@@ -8,6 +8,9 @@ export const PAID_PLAN_ID = 'cev-paid'
 /** Flat $25/mo Protection & Anti-Piracy (separate Stripe subscription; can stack with cev-paid or standalone) */
 export const PROTECTION_PLAN_ID = 'cev-protection'
 
+/** When true, standalone Multiplatform Protection ($25/mo add-on) is not purchasable — show Coming soon in pricing + billing. */
+export const MULTIPLATFORM_PROTECTION_COMING_SOON = true
+
 /** Grandfathered Stripe / DB values that still grant full Pro access */
 export const LEGACY_PAID_PLAN_IDS = ['venus-pro', 'circe-elite', 'divine-duo'] as const
 

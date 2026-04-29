@@ -119,6 +119,25 @@ function cycleWindow(sub: SubscriptionCycleRow | null): { start: Date; end: Date
   return monthBoundsFrom(new Date())
 }
 
+/**
+ * If Stripe reported billing-window dates but `credit_wallets` still reflects an older cycle
+ * (e.g. calendar month with a future end and 0 included credits), `cycleNeedsReset` must run
+ * or trialing/active users stay at 0 until the stale cycle ends.
+ */
+function walletSubscriptionCycleMismatch(
+  wallet: WalletRow | null,
+  sub: SubscriptionCycleRow | null,
+): boolean {
+  if (!sub?.current_period_start || !sub?.current_period_end) return false
+  const ss = new Date(sub.current_period_start).getTime()
+  const se = new Date(sub.current_period_end).getTime()
+  if (!wallet?.included_cycle_start || !wallet?.included_cycle_end) return true
+  const ws = new Date(wallet.included_cycle_start).getTime()
+  const we = new Date(wallet.included_cycle_end).getTime()
+  const toleranceMs = 120_000
+  return Math.abs(ws - ss) > toleranceMs || Math.abs(we - se) > toleranceMs
+}
+
 export function purchasedTopupExpiryFromSubscription(sub: SubscriptionCycleRow | null): Date {
   const { end } = cycleWindow(sub)
   return plusOneMonth(end)
@@ -133,7 +152,11 @@ async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: strin
   const walletCycleEndMs = wallet?.included_cycle_end ? new Date(wallet.included_cycle_end).getTime() : 0
   const hasIncludedCredits = Number(wallet?.included_credits_remaining ?? 0) > 0
   const cycleNeedsReset =
-    !wallet || !wallet.included_cycle_end || walletCycleEndMs <= nowMs || (!isCreditEligible && hasIncludedCredits)
+    !wallet ||
+    !wallet.included_cycle_end ||
+    walletCycleEndMs <= nowMs ||
+    (!isCreditEligible && hasIncludedCredits) ||
+    walletSubscriptionCycleMismatch(wallet, sub)
 
   if (!cycleNeedsReset) return
 
@@ -171,13 +194,21 @@ async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: strin
   })
 }
 
+/** Runs the same prelude as billing UI: wallet row exists, expiry applied, cycle matched to subscription grant. */
+export async function reconcileIncludedCreditsWallet(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  await ensureWallet(supabase, userId)
+  await expireWalletCredits(supabase, userId)
+  await syncIncludedGrantIfNeeded(supabase, userId)
+}
+
 export async function getCreditWalletState(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<CreditWalletState> {
-  await ensureWallet(supabase, userId)
-  await expireWalletCredits(supabase, userId)
-  await syncIncludedGrantIfNeeded(supabase, userId)
+  await reconcileIncludedCreditsWallet(supabase, userId)
   const wallet = await readWalletRow(supabase, userId)
   const includedRemaining = Number(wallet?.included_credits_remaining ?? 0)
   const purchasedRemaining = Number(wallet?.purchased_credits_remaining ?? 0)

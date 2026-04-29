@@ -46,11 +46,14 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
+  if (profileError) {
+    console.error('[dashboard/layout] profiles:', profileError.message)
+  }
 
   const { data: subRow } = await supabase
     .from('subscriptions')

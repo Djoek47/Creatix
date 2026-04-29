@@ -657,171 +657,176 @@ function parseStripeSubscriptionMeta(sub: {
 }
 
 export async function getSubscriptionStatus() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { status: 'none', plan: null }
-  }
-
-  let { data } = await supabase
-    .from('subscriptions')
-    .select(
-      'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_tier,revenue_band_label,billing_seats',
-    )
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (!data) return { status: 'none', plan: null }
-
-  const needsSync =
-    !data.plan_id ||
-    !data.status ||
-    data.status === 'trial' ||
-    !data.stripe_subscription_id
-
   try {
-    if (needsSync) {
-      let customerId = data.stripe_customer_id as string | null | undefined
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      if (!customerId && user.email) {
-        customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
-      }
+    if (!user) {
+      return { status: 'none', plan: null }
+    }
 
-      if (customerId) {
-        const stripe = getStripe()
-        const subs = await stripe.subscriptions.list({
-          customer: customerId,
-          status: 'all',
-          limit: 1,
-          expand: ['data.items'],
-        })
+    let { data } = await supabase
+      .from('subscriptions')
+      .select(
+        'plan_id,status,current_period_end,cancel_at_period_end,stripe_customer_id,stripe_subscription_id,billing_variant,billing_focus_platform,billing_focus_platforms,revenue_tier,revenue_band_label,billing_seats',
+      )
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-        const sub = subs.data[0]
-        if (sub) {
-          const stripeSub = sub as Stripe.Subscription
-          const parsed = parseStripeSubscriptionMeta({
-            metadata: stripeSub.metadata,
-            items: stripeSub.items,
-          })
-          const planIdFromMetadata = parsed.planId || data.plan_id
-          const normalizedPlan =
-            stripeSub.status === 'trialing' && parsed.trialSource === 'card_required'
-              ? 'divine-trial'
-              : planIdFromMetadata && isPaidPlanId(planIdFromMetadata)
-                ? PAID_PLAN_ID
-                : planIdFromMetadata
-          const period = getSubscriptionPeriodSeconds(stripeSub)
+    if (!data) return { status: 'none', plan: null }
 
-          await upsertSubscriptionRow(user.id, {
-            stripe_customer_id: customerId,
-            stripe_subscription_id: stripeSub.id,
-            plan_id: normalizedPlan || undefined,
-            status: stripeSub.status,
-            ...(period
-              ? {
-                  current_period_start: new Date(period.start * 1000).toISOString(),
-                  current_period_end: new Date(period.end * 1000).toISOString(),
-                }
-              : {}),
-            cancel_at_period_end: stripeSub.cancel_at_period_end,
-            billing_variant: parsed.billing_variant,
-            billing_focus_platform:
-              parsed.billing_variant === 'single' ? (parsed.billing_focus_platform ?? 'onlyfans') : null,
-            billing_focus_platforms:
-              parsed.billing_variant === 'single' ? parsed.billing_focus_platforms : null,
-            revenue_tier: parsed.revenue_tier,
-            revenue_band_label: parsed.revenue_band_label,
-            billing_seats: parsed.billing_seats,
+    const needsSync =
+      !data.plan_id ||
+      !data.status ||
+      data.status === 'trial' ||
+      !data.stripe_subscription_id
+
+    try {
+      if (needsSync) {
+        let customerId = data.stripe_customer_id as string | null | undefined
+
+        if (!customerId && user.email) {
+          customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
+        }
+
+        if (customerId) {
+          const stripe = getStripe()
+          const subs = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'all',
+            limit: 1,
+            expand: ['data.items'],
           })
 
-          data = {
-            ...data,
-            plan_id: normalizedPlan,
-            status: stripeSub.status,
-            ...(period
-              ? { current_period_end: new Date(period.end * 1000).toISOString() }
-              : {}),
-            cancel_at_period_end: stripeSub.cancel_at_period_end,
-            billing_variant: parsed.billing_variant ?? data.billing_variant,
-            billing_focus_platform:
-              parsed.billing_variant === 'single'
-                ? (parsed.billing_focus_platform ??
-                  (data as { billing_focus_platform?: string | null }).billing_focus_platform ??
-                  'onlyfans')
-                : parsed.billing_variant === 'multi'
-                  ? null
-                  : (data as { billing_focus_platform?: string | null }).billing_focus_platform,
-            billing_focus_platforms:
-              parsed.billing_variant === 'single'
-                ? (parsed.billing_focus_platforms ??
-                  (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms)
-                : parsed.billing_variant === 'multi'
-                  ? null
-                  : (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
-            revenue_tier: parsed.revenue_tier ?? data.revenue_tier,
-            revenue_band_label: parsed.revenue_band_label ?? data.revenue_band_label,
-            billing_seats: parsed.billing_seats,
-          } as typeof data
+          const sub = subs.data[0]
+          if (sub) {
+            const stripeSub = sub as Stripe.Subscription
+            const parsed = parseStripeSubscriptionMeta({
+              metadata: stripeSub.metadata,
+              items: stripeSub.items,
+            })
+            const planIdFromMetadata = parsed.planId || data.plan_id
+            const normalizedPlan =
+              stripeSub.status === 'trialing' && parsed.trialSource === 'card_required'
+                ? 'divine-trial'
+                : planIdFromMetadata && isPaidPlanId(planIdFromMetadata)
+                  ? PAID_PLAN_ID
+                  : planIdFromMetadata
+            const period = getSubscriptionPeriodSeconds(stripeSub)
+
+            await upsertSubscriptionRow(user.id, {
+              stripe_customer_id: customerId,
+              stripe_subscription_id: stripeSub.id,
+              plan_id: normalizedPlan || undefined,
+              status: stripeSub.status,
+              ...(period
+                ? {
+                    current_period_start: new Date(period.start * 1000).toISOString(),
+                    current_period_end: new Date(period.end * 1000).toISOString(),
+                  }
+                : {}),
+              cancel_at_period_end: stripeSub.cancel_at_period_end,
+              billing_variant: parsed.billing_variant,
+              billing_focus_platform:
+                parsed.billing_variant === 'single' ? (parsed.billing_focus_platform ?? 'onlyfans') : null,
+              billing_focus_platforms:
+                parsed.billing_variant === 'single' ? parsed.billing_focus_platforms : null,
+              revenue_tier: parsed.revenue_tier,
+              revenue_band_label: parsed.revenue_band_label,
+              billing_seats: parsed.billing_seats,
+            })
+
+            data = {
+              ...data,
+              plan_id: normalizedPlan,
+              status: stripeSub.status,
+              ...(period
+                ? { current_period_end: new Date(period.end * 1000).toISOString() }
+                : {}),
+              cancel_at_period_end: stripeSub.cancel_at_period_end,
+              billing_variant: parsed.billing_variant ?? data.billing_variant,
+              billing_focus_platform:
+                parsed.billing_variant === 'single'
+                  ? (parsed.billing_focus_platform ??
+                    (data as { billing_focus_platform?: string | null }).billing_focus_platform ??
+                    'onlyfans')
+                  : parsed.billing_variant === 'multi'
+                    ? null
+                    : (data as { billing_focus_platform?: string | null }).billing_focus_platform,
+              billing_focus_platforms:
+                parsed.billing_variant === 'single'
+                  ? (parsed.billing_focus_platforms ??
+                    (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms)
+                  : parsed.billing_variant === 'multi'
+                    ? null
+                    : (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
+              revenue_tier: parsed.revenue_tier ?? data.revenue_tier,
+              revenue_band_label: parsed.revenue_band_label ?? data.revenue_band_label,
+              billing_seats: parsed.billing_seats,
+            } as typeof data
+          }
         }
       }
+    } catch {
+      // fall back to DB
     }
-  } catch {
-    // fall back to DB
-  }
 
-  const planId = data.plan_id as string
-  const paid = isPaidPlanId(planId)
-  let planLabel: string | null = null
-  if (paid) {
-    const tierIdx = data.revenue_tier
-    const bv = data.billing_variant
-    const row = typeof tierIdx === 'number' ? getTierByIndex(tierIdx) : undefined
-    const fps = (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms
-    const leg = (data as { billing_focus_platform?: string | null }).billing_focus_platform
-    const sorted =
-      fps?.length && fps.length <= 2
-        ? sortFocusPlatforms(fps as AdultBillingPlatform[])
-        : leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)
-          ? [leg as AdultBillingPlatform]
-          : (['onlyfans'] as AdultBillingPlatform[])
-    const vlab =
-      bv === 'multi' ? 'Unified' : bv === 'single' ? `Focus (${focusPlatformsShortLabel(sorted)})` : ''
-    const band = row?.label || (data.revenue_band_label as string) || ''
-    planLabel = [band, vlab].filter(Boolean).join(' · ') || 'Circe et Venus Pro'
-  } else {
-    const product = PRODUCTS.find((p) => p.id === planId)
-    planLabel = product?.name || planId || null
-  }
-
-  return {
-    status: data.status,
-    plan: planLabel,
-    currentPeriodEnd: data.current_period_end ? new Date(data.current_period_end).toISOString() : undefined,
-    cancelAtPeriodEnd: data.cancel_at_period_end ?? undefined,
-    planId: data.plan_id,
-    billingVariant: data.billing_variant as BillingVariant | null | undefined,
-    billingFocusPlatform: (data as { billing_focus_platform?: string | null }).billing_focus_platform as
-      | AdultBillingPlatform
-      | null
-      | undefined,
-    billingFocusPlatforms: (() => {
+    const planId = data.plan_id as string
+    const paid = isPaidPlanId(planId)
+    let planLabel: string | null = null
+    if (paid) {
+      const tierIdx = data.revenue_tier
+      const bv = data.billing_variant
+      const row = typeof tierIdx === 'number' ? getTierByIndex(tierIdx) : undefined
       const fps = (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms
-      if (fps?.length) return sortFocusPlatforms(fps as AdultBillingPlatform[])
       const leg = (data as { billing_focus_platform?: string | null }).billing_focus_platform
-      if (leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)) {
-        return [leg as AdultBillingPlatform]
-      }
-      return undefined
-    })(),
-    revenueTier: data.revenue_tier as number | null | undefined,
-    revenueBandLabel: data.revenue_band_label as string | null | undefined,
-    billingSeats:
-      typeof (data as { billing_seats?: number }).billing_seats === 'number' &&
-      (data as { billing_seats?: number }).billing_seats! >= 1
-        ? (data as { billing_seats: number }).billing_seats
-        : DEFAULT_BILLING_SEATS,
+      const sorted =
+        fps?.length && fps.length <= 2
+          ? sortFocusPlatforms(fps as AdultBillingPlatform[])
+          : leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)
+            ? [leg as AdultBillingPlatform]
+            : (['onlyfans'] as AdultBillingPlatform[])
+      const vlab =
+        bv === 'multi' ? 'Unified' : bv === 'single' ? `Focus (${focusPlatformsShortLabel(sorted)})` : ''
+      const band = row?.label || (data.revenue_band_label as string) || ''
+      planLabel = [band, vlab].filter(Boolean).join(' · ') || 'Circe et Venus Pro'
+    } else {
+      const product = PRODUCTS.find((p) => p.id === planId)
+      planLabel = product?.name || planId || null
+    }
+
+    return {
+      status: data.status,
+      plan: planLabel,
+      currentPeriodEnd: data.current_period_end ? new Date(data.current_period_end).toISOString() : undefined,
+      cancelAtPeriodEnd: data.cancel_at_period_end ?? undefined,
+      planId: data.plan_id,
+      billingVariant: data.billing_variant as BillingVariant | null | undefined,
+      billingFocusPlatform: (data as { billing_focus_platform?: string | null }).billing_focus_platform as
+        | AdultBillingPlatform
+        | null
+        | undefined,
+      billingFocusPlatforms: (() => {
+        const fps = (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms
+        if (fps?.length) return sortFocusPlatforms(fps as AdultBillingPlatform[])
+        const leg = (data as { billing_focus_platform?: string | null }).billing_focus_platform
+        if (leg && (ADULT_BILLING_PLATFORMS as readonly string[]).includes(leg)) {
+          return [leg as AdultBillingPlatform]
+        }
+        return undefined
+      })(),
+      revenueTier: data.revenue_tier as number | null | undefined,
+      revenueBandLabel: data.revenue_band_label as string | null | undefined,
+      billingSeats:
+        typeof (data as { billing_seats?: number }).billing_seats === 'number' &&
+        (data as { billing_seats?: number }).billing_seats! >= 1
+          ? (data as { billing_seats: number }).billing_seats
+          : DEFAULT_BILLING_SEATS,
+    }
+  } catch (err) {
+    console.error('[getSubscriptionStatus]', err)
+    return { status: 'none', plan: null }
   }
 }

@@ -70,9 +70,14 @@ export function WellbeingLunarCalendar() {
             </div>
             <div>
               <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Lunar year</dt>
-              <dd className="mt-1.5 text-foreground">
-                <span className="font-medium">{lunarYear.animal}</span>
-                <span className="text-muted-foreground"> · {lunarYear.han}</span>
+              <dd className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-foreground">
+                <span className="text-5xl leading-none select-none sm:text-6xl" aria-hidden>
+                  {lunarYear.emoji}
+                </span>
+                <span className="min-w-0">
+                  <span className="font-medium">{lunarYear.animal}</span>
+                  <span className="text-muted-foreground"> · {lunarYear.han}</span>
+                </span>
               </dd>
             </div>
           </dl>

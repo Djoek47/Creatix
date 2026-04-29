@@ -33,6 +33,7 @@ import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import {
+  bottomTwinChipIconClasses,
   bottomTwinInnerMobile,
   bottomTwinRimGold,
   bottomTwinRimPurple,
@@ -318,14 +319,14 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
         )}
       >
         <div className="flex gap-2">
-          <div className={cn('min-w-0 flex-1', bottomTwinRimPurple)}>
+          <div className={cn('flex min-w-min flex-[5]', bottomTwinRimPurple)}>
             <SheetClose asChild>
               <Link
                 href={footerGuideNav.href}
                 data-tour={footerGuideNav.href}
                 className={cn(
                   bottomTwinInnerMobile,
-                  'justify-start gap-2 px-3 text-[0.9375rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'justify-start gap-2 px-2.5 text-[0.8125rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   footerGuideActive
                     ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
                     : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
@@ -333,21 +334,21 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                 aria-current={footerGuideActive ? 'page' : undefined}
               >
                 <BookOpen
-                  className={cn(navIconClass, footerGuideActive ? 'text-foreground' : 'text-foreground/55')}
+                  className={bottomTwinChipIconClasses('guide', footerGuideActive, 'sheet')}
                   aria-hidden
                 />
-                <span className="min-w-0 truncate">{footerGuideNav.name}</span>
+                <span className="shrink-0 whitespace-nowrap">{footerGuideNav.name}</span>
               </Link>
             </SheetClose>
           </div>
-          <div className={cn('min-w-0 flex-1', bottomTwinRimGold)}>
+          <div className={cn('flex min-w-min flex-[9]', bottomTwinRimGold)}>
             <SheetClose asChild>
               <Link
                 href={footerSettingsNav.href}
                 data-tour={footerSettingsNav.href}
                 className={cn(
                   bottomTwinInnerMobile,
-                  'justify-start gap-2 px-3 text-[0.9375rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'w-full justify-center gap-2 px-2.5 text-[0.8125rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   footerSettingsActive
                     ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
                     : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
@@ -355,10 +356,10 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                 aria-current={footerSettingsActive ? 'page' : undefined}
               >
                 <Settings
-                  className={cn(navIconClass, footerSettingsActive ? 'text-foreground' : 'text-foreground/55')}
+                  className={bottomTwinChipIconClasses('settings', footerSettingsActive, 'sheet')}
                   aria-hidden
                 />
-                <span className="min-w-0 truncate">{footerSettingsNav.name}</span>
+                <span className="shrink-0 whitespace-nowrap">{footerSettingsNav.name}</span>
               </Link>
             </SheetClose>
           </div>

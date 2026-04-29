@@ -95,9 +95,11 @@ const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/fans',
     meta: {
-      eyebrow: 'Devotion',
-      title: 'Fan sanctum',
-      subtitle: 'Who spends, who stays, who matters — your subscriber universe, distilled.',
+      eyebrow: 'Audience',
+      title: 'Fans',
+      subtitle:
+        'Synced subscribers from your CRM, search and segments, optional live previews when platforms are connected.',
+      heroVariant: 'minimal',
     },
   },
   {

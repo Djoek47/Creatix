@@ -31,6 +31,10 @@ export function normalizeFanFromRow(row: Record<string, unknown>): Fan {
     total_spent: Number(row.total_spent) || 0,
     subscription_price: subPrice,
     subscription_account_type,
+    subscription_status:
+      typeof row.subscription_status === 'string' && row.subscription_status.trim()
+        ? row.subscription_status.trim()
+        : null,
     spend_subscriptions: numOrNull(row.spend_subscriptions),
     spend_tips: numOrNull(row.spend_tips),
     spend_messages: numOrNull(row.spend_messages),

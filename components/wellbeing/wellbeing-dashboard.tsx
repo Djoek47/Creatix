@@ -9,7 +9,6 @@ import { MoodConstellation } from '@/components/wellbeing/mood-constellation'
 import { GlowCorePanel } from '@/components/wellbeing/glow-core-panel'
 import { GoldenHourTimeline } from '@/components/wellbeing/golden-hour-timeline'
 import { PerfectShotCarousel } from '@/components/wellbeing/perfect-shot-carousel'
-import { PositionCompass } from '@/components/wellbeing/position-compass'
 import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
 import { WellbeingStateStrip } from '@/components/wellbeing/wellbeing-state-strip'
 import { Button } from '@/components/ui/button'
@@ -302,18 +301,13 @@ export function WellbeingDashboard() {
             >
               <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
                 <div>
-                  <span>Light &amp; place</span>
-                  <p className="mt-0.5 text-xs font-normal text-muted-foreground">Glow, position, and golden-hour timing</p>
+                  <span>Light &amp; golden hour</span>
+                  <p className="mt-0.5 text-xs font-normal text-muted-foreground">Glow score and golden-hour timing</p>
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-8 border-t border-border/20 p-4 sm:p-5 sm:space-y-9">
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="space-y-4 lg:col-span-2">
-                    <GlowCorePanel insight={insight} embedded />
-                  </div>
-                  <PositionCompass positioning={insight.positioning} />
-                </div>
+                <GlowCorePanel insight={insight} embedded />
                 <GoldenHourTimeline timeline={insight.timeline} />
                 <PerfectShotCarousel days={insight.perfectShotDays} />
                 <div className="space-y-3">

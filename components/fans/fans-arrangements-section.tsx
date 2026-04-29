@@ -243,18 +243,14 @@ export function FansArrangementsSection({
             Arrangements
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Creatix <strong className="text-foreground">detects segments automatically</strong> from your CRM —
-            spend, subscription tenure, and activity. When sync is on, matching{' '}
+            Segments are <strong className="text-foreground">detected automatically</strong> from your CRM — spend,
+            subscription tenure, and activity. When sync is on, matching{' '}
             <strong className="text-foreground">OnlyFans lists</strong> and{' '}
-            <strong className="text-foreground">Fansly tags</strong> are kept up to date on schedule. No list IDs or
-            manual mapping required.
+            <strong className="text-foreground">Fansly tags</strong> are kept current on schedule. No list IDs or manual
+            mapping.
           </p>
         </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Automatic smart lists from CRM signals — toggle sync below; lists and tags use predictable names.
-        </p>
-      )}
+      ) : null}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -487,29 +483,30 @@ export function FansArrangementsSection({
             )}
           >
             <div className="p-6 sm:p-7">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3.5 sm:gap-4">
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/40 bg-background/55"
                   aria-hidden
                 >
                   <MessageCircle className="h-5 w-5 text-foreground/75" strokeWidth={1.75} />
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 flex-1 space-y-2">
                   <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                     Recent chats
                   </p>
-                  <h3 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
-                    Put active conversations in one place
+                  <h3 className="text-[1.0625rem] font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
+                    Active reply queue
                   </h3>
-                  <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
-                    When someone DMs you, Creatix can tag them on the platform so they appear in a single “still warm”
-                    group. When they stop messaging for a while, they drop off automatically — so the list stays a
-                    quick reply queue, not a second CRM.
+                  <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+                    Optional. While you’re in an active DM, that fan can stay on one platform tag or list so everyone you’re
+                    actively talking to appears together. When they’ve been quiet for the duration you set—no message from
+                    them—they leave the queue on the next sync. That keeps a short reply list, separate from your full
+                    audience.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 space-y-5">
+              <div className="mt-7 space-y-5">
                 {!connected ? (
                   <p className="text-sm text-muted-foreground">
                     Connect OnlyFans or Fansly under Settings → Integrations to use this.
@@ -524,10 +521,11 @@ export function FansArrangementsSection({
                     >
                       <div className="min-w-0">
                         <Label htmlFor="ac-enabled" className="text-sm font-medium text-foreground">
-                          Show recent messengers on the platform
+                          Tag active messengers
                         </Label>
                         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          Off by default. Turn on only if you want that live list or tag alongside smart lists.
+                          Off by default. On: one list or tag on the platform stays in sync with who you’re actively
+                          messaging, alongside your smart lists.
                         </p>
                       </div>
                       <Switch id="ac-enabled" checked={activeChatEnabled} onCheckedChange={setActiveChatEnabled} />
@@ -540,8 +538,8 @@ export function FansArrangementsSection({
                       )}
                     >
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                        <Label className="text-xs font-medium text-foreground/90">How long “recent” means</Label>
-                        <span className="text-xs tabular-nums text-muted-foreground">{windowMinutes} min quiet</span>
+                        <Label className="text-xs font-medium text-foreground/90">Idle before they leave</Label>
+                        <span className="text-xs tabular-nums text-muted-foreground">{windowMinutes} min</span>
                       </div>
                       <Slider
                         className="w-full"
@@ -552,8 +550,7 @@ export function FansArrangementsSection({
                         onValueChange={([v]) => setActiveChatWindowMins(v ?? 30)}
                       />
                       <p className="text-[11px] leading-relaxed text-muted-foreground">
-                        After this many minutes without a message from them, they&apos;re removed from the queue on the
-                        next sync.
+                        If they don’t message for this long, they’re removed from the active queue on the next sync.
                       </p>
                     </div>
 
@@ -568,42 +565,92 @@ export function FansArrangementsSection({
           </div>
 
           <Collapsible open={activityOpen} onOpenChange={setActivityOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-              <ChevronDown className={`h-4 w-4 transition-transform ${activityOpen ? 'rotate-180' : ''}`} />
-              Activity snapshot (refreshes every 15s)
+            <CollapsibleTrigger
+              className={cn(
+                'flex w-full items-start justify-between gap-3 rounded-xl border border-border/40 bg-background/25 px-4 py-3.5 text-left',
+                'transition-[background-color,border-color] duration-200 hover:bg-muted/20',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+              )}
+              type="button"
+            >
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">Live snapshot</p>
+                <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                  Inbound volume and who fits your active window — updates every 15s while this page is open.
+                </p>
+              </div>
+              <ChevronDown
+                className={cn(
+                  'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/80 transition-transform duration-200',
+                  activityOpen ? 'rotate-180' : '',
+                )}
+                aria-hidden
+              />
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3">
-              <Card className="border-border bg-card">
-                <CardContent className="space-y-4 pt-6">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border border-border p-4">
-                      <p className="text-xs text-muted-foreground">Messages in last 1 min</p>
-                      <p className="text-2xl font-semibold tabular-nums">{activity?.messages_last_1min ?? '—'}</p>
-                    </div>
-                    <div className="rounded-lg border border-border p-4">
-                      <p className="text-xs text-muted-foreground">
-                        Fans in active window (~{activity?.window_minutes ?? '—'}m)
-                      </p>
-                      <p className="text-2xl font-semibold tabular-nums">{activity?.active_chats_tracked ?? '—'}</p>
-                    </div>
+            <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0">
+              <div
+                className={cn(
+                  'mt-3 overflow-hidden rounded-xl border border-border/35',
+                  'bg-gradient-to-b from-muted/[0.09] to-transparent shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]',
+                )}
+              >
+                <div className="grid divide-y divide-border/35 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                  <div className="px-4 py-4 sm:px-5 sm:py-5">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                      Fan messages · 60s
+                    </p>
+                    <p className="mt-2 tabular-nums text-[1.75rem] font-semibold leading-none tracking-tight text-foreground sm:text-[2rem]">
+                      {activity == null ? '—' : activity.messages_last_1min}
+                    </p>
+                    <p className="mt-2.5 max-w-[16rem] text-[11px] leading-relaxed text-muted-foreground">
+                      Inbound only, from synced DM data (OnlyFans + Fansly).
+                    </p>
                   </div>
-                  {activity?.tracked_preview?.length ? (
-                    <ul className="space-y-1 text-xs text-muted-foreground">
-                      {activity.tracked_preview.map((t) => (
-                        <li key={`${t.platform}-${t.platform_fan_id}`}>
-                          <span className="text-foreground">{t.username || t.platform_fan_id}</span>
-                          <span className="mx-1">·</span>
-                          {t.platform}
-                          <span className="mx-1">·</span>
-                          {new Date(t.last_at).toLocaleString()}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No fans in the current window.</p>
-                  )}
-                </CardContent>
-              </Card>
+                  <div className="px-4 py-4 sm:px-5 sm:py-5">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                      In active window
+                    </p>
+                    <p className="mt-2 tabular-nums text-[1.75rem] font-semibold leading-none tracking-tight text-foreground sm:text-[2rem]">
+                      {activity == null ? '—' : activity.active_chats_tracked}
+                    </p>
+                    <p className="mt-2.5 max-w-[16rem] text-[11px] leading-relaxed text-muted-foreground">
+                      Last inbound from them within{' '}
+                      <span className="tabular-nums text-foreground/90">
+                        {activity?.window_minutes ?? activeChatWindowMins}
+                      </span>{' '}
+                      min — same window as your idle setting above.
+                    </p>
+                  </div>
+                </div>
+
+                {activity?.tracked_preview?.length ? (
+                  <ul className="space-y-0 border-t border-border/35">
+                    {activity.tracked_preview.map((t) => (
+                      <li
+                        key={`${t.platform}-${t.platform_fan_id}`}
+                        className="flex items-baseline justify-between gap-3 border-b border-border/[0.06] px-4 py-2.5 last:border-b-0 sm:px-5"
+                      >
+                        <span className="min-w-0 truncate text-[13px] font-medium text-foreground">
+                          {t.username || t.platform_fan_id}
+                        </span>
+                        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                          <span className="capitalize">{t.platform}</span>
+                          <span className="mx-1.5 text-border">·</span>
+                          {new Date(t.last_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : activity ? (
+                  <div className="border-t border-border/35 px-4 py-4 sm:px-5">
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">
+                      {activity.messages_last_1min === 0 && activity.active_chats_tracked === 0
+                        ? 'Quiet — nothing new in the last minute, and no one inside your active window yet.'
+                        : 'No rows in this sample — counts above still reflect the full window.'}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             </CollapsibleContent>
           </Collapsible>
 

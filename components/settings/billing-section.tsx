@@ -151,6 +151,7 @@ function formatStorageUsageMbDisplay(mb: number): string {
 
 export function BillingSection({ userId }: BillingSectionProps) {
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
   const [subscription, setSubscription] = useState<{
     status: string
     plan: string | null

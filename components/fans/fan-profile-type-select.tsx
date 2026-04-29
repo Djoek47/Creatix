@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { FanProfileType } from '@/lib/fans/profile-types'
 
@@ -25,43 +24,49 @@ export function FanProfileTypeSelect({
     id: AudienceProfileValue
     label: string
     hint: string
-    activeClassName: string
+    selectedClassName: string
   }> = [
     {
       id: 'fan',
       label: 'Typical fan',
-      hint: 'Default conversational segment',
-      activeClassName: 'border-emerald-500/55 bg-emerald-500/12 text-emerald-100',
+      hint: 'Default segment',
+      selectedClassName:
+        'border-emerald-600/45 bg-emerald-500/[0.07] ring-emerald-600/25 dark:border-emerald-400/40 dark:bg-emerald-500/[0.11] dark:ring-emerald-400/20',
     },
     {
       id: 'whale',
       label: 'Whale',
-      hint: 'High-value / VIP fan',
-      activeClassName: 'border-violet-500/55 bg-violet-500/12 text-violet-100',
+      hint: 'High spend / VIP',
+      selectedClassName:
+        'border-violet-600/45 bg-violet-500/[0.07] ring-violet-600/25 dark:border-violet-400/40 dark:bg-violet-500/[0.11] dark:ring-violet-400/20',
     },
     {
       id: 'creator',
       label: 'Creator',
       hint: 'Likely fellow creator',
-      activeClassName: 'border-rose-500/55 bg-rose-500/12 text-rose-100',
+      selectedClassName:
+        'border-rose-600/45 bg-rose-500/[0.07] ring-rose-600/25 dark:border-rose-400/40 dark:bg-rose-500/[0.11] dark:ring-rose-400/20',
     },
     {
       id: 'paying_creator',
       label: 'Paying creator',
-      hint: 'Creator-type with paid intent',
-      activeClassName: 'border-fuchsia-500/55 bg-fuchsia-500/12 text-fuchsia-100',
+      hint: 'Paid crossover intent',
+      selectedClassName:
+        'border-fuchsia-600/45 bg-fuchsia-500/[0.07] ring-fuchsia-600/25 dark:border-fuchsia-400/40 dark:bg-fuchsia-500/[0.11] dark:ring-fuchsia-400/20',
     },
     {
       id: 'advertisement',
       label: 'Advertisement',
-      hint: 'Promo / spam behavior',
-      activeClassName: 'border-amber-500/55 bg-amber-500/12 text-amber-100',
+      hint: 'Promo / spam',
+      selectedClassName:
+        'border-amber-600/45 bg-amber-500/[0.07] ring-amber-600/25 dark:border-amber-400/40 dark:bg-amber-500/[0.11] dark:ring-amber-400/20',
     },
     {
       id: 'freeloader',
       label: 'Freeloader',
-      hint: 'Low-value long-term segment',
-      activeClassName: 'border-slate-500/55 bg-slate-500/12 text-slate-100',
+      hint: 'Low engagement',
+      selectedClassName:
+        'border-slate-500/45 bg-slate-500/[0.08] ring-slate-500/25 dark:border-slate-400/35 dark:bg-slate-500/[0.12] dark:ring-slate-400/18',
     },
   ]
 
@@ -78,34 +83,28 @@ export function FanProfileTypeSelect({
       {options.map((option) => {
         const active = value === option.id
         return (
-          <motion.button
+          <button
             key={option.id}
             type="button"
             role="radio"
             aria-checked={active}
             disabled={disabled}
             onClick={() => onChange(option.id)}
-            whileTap={disabled ? undefined : { scale: 0.985 }}
             className={cn(
-              'relative rounded-lg border px-2.5 py-2 text-left transition-colors',
+              'rounded-lg border px-2.5 py-2 text-left transition-[border-color,background-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'border-border/70 bg-background/35 text-muted-foreground hover:border-border hover:text-foreground',
+              'enabled:active:scale-[0.985]',
               size === 'sm' && 'px-2 py-1.5',
-              active && option.activeClassName,
+              active && cn('text-foreground shadow-sm ring-2 ring-offset-1 ring-offset-background', option.selectedClassName),
+              !active && 'ring-transparent',
               disabled && 'cursor-not-allowed opacity-60',
             )}
           >
-            {active ? (
-              <motion.span
-                layoutId="fan-profile-type-active-indicator"
-                className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-white/10"
-                transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.55 }}
-              />
-            ) : null}
             <span className="block text-[11px] font-semibold uppercase tracking-[0.12em]">
               {option.label}
             </span>
             <span className="mt-0.5 block text-[10px] leading-snug opacity-85">{option.hint}</span>
-          </motion.button>
+          </button>
         )
       })}
     </div>

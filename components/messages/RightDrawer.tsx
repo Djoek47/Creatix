@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
+import { PlatformLogoChip } from '@/components/messages/platform-logo-chip'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { cn } from '@/lib/utils'
 import type { Conversation } from './conversation-list'
@@ -60,12 +62,17 @@ const disclosureTriggerClass =
 const statRowClass =
   'flex items-baseline justify-between gap-4 border-b border-border/15 py-3 last:border-0 dark:border-white/[0.06]'
 
+const shortcutRowClass =
+  'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[12px] font-medium text-foreground/85 transition-colors duration-150 hover:bg-foreground/[0.04] dark:hover:bg-white/[0.04]'
+
 export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: RightDrawerProps) {
   const fan = conversation.user
   const { reduced } = useUiMotionPreferences()
   const fade = uiFadeTransition(reduced)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [ordersOpen, setOrdersOpen] = useState(false)
+
+  const fansSearchHref = `/dashboard/fans?platform=${encodeURIComponent(conversation.platform)}&q=${encodeURIComponent(fan.username)}`
 
   const recentOrders = useMemo(
     () =>
@@ -75,6 +82,9 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
       })),
     [fanContext?.recentOrders],
   )
+
+  const churn = conversation.crm?.churnRisk
+  const showChurnHint = churn != null && churn !== 'unknown'
 
   return (
     <Card
@@ -102,15 +112,29 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
               Member since {formatDateLabel(fanContext?.memberSince)}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-border/35 bg-background/30 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-                {conversation.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-              </span>
+              <PlatformLogoChip platform={conversation.platform} size="sm" />
               {conversation.unreadCount > 0 ? (
                 <span className="rounded-full bg-foreground/[0.06] px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-foreground/85 dark:bg-white/[0.08]">
                   {conversation.unreadCount} unread
                 </span>
               ) : null}
             </div>
+            {churnQuiet ? (
+              <p className="mt-3 text-[11px] leading-snug text-muted-foreground/78">
+                Churn risk{' '}
+                <span className="font-medium capitalize text-foreground/85">{churn}</span>
+                {conversation.crm?.churnOneLine ? (
+                  <span className="text-muted-foreground/70"> · {conversation.crm.churnOneLine}</span>
+                ) : null}
+                {' · '}
+                <Link
+                  href="/dashboard/ai-studio/tools/churn-predictor"
+                  className="font-medium text-foreground/90 underline decoration-border/55 underline-offset-[3px] transition-colors hover:decoration-foreground/40"
+                >
+                  Predictor
+                </Link>
+              </p>
+            ) : null}
           </div>
         </div>
         <Button
@@ -184,16 +208,26 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
               transition={fade}
               className="space-y-0.5 px-1 pb-4"
             >
-              {['Add to VIP list', 'Create broadcast', 'Add note', 'Mute notifications'].map((tool) => (
-                <button
-                  key={tool}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[12px] font-medium text-foreground/85 transition-colors duration-150 hover:bg-foreground/[0.04] dark:hover:bg-white/[0.04]"
-                >
-                  {tool}
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
-                </button>
-              ))}
+              <Link href={fansSearchHref} className={shortcutRowClass}>
+                <span>Open in Fans</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              </Link>
+              <Link href="/dashboard/messages/mass" className={shortcutRowClass}>
+                <span>Mass message</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              </Link>
+              <Link href="/dashboard/retention/churn" className={shortcutRowClass}>
+                <span>Retention</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              </Link>
+              <Link href="/dashboard/ai-studio/tools/churn-predictor" className={shortcutRowClass}>
+                <span>Churn predictor</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              </Link>
+              <button type="button" onClick={onOpenFanProfile} className={shortcutRowClass}>
+                <span>Labels · CRM profile</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45" aria-hidden />
+              </button>
             </motion.div>
           </CollapsibleContent>
         </Collapsible>
@@ -227,9 +261,12 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
                       </span>
                     </div>
                   ))}
-                  <Button variant="ghost" size="sm" className="mt-1 h-9 w-full justify-center rounded-lg text-[12px] font-medium text-muted-foreground hover:text-foreground">
-                    View all orders
-                  </Button>
+                  <Link
+                    href={fansSearchHref}
+                    className="mt-1 flex h-9 w-full items-center justify-center rounded-lg text-[12px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.04]"
+                  >
+                    View in Fans
+                  </Link>
                 </>
               ) : (
                 <p className="px-3 py-2 text-[12px] leading-relaxed text-muted-foreground/80">No recent orders yet.</p>

@@ -27,6 +27,8 @@ function platformSublabel(name: 'OnlyFans' | 'Fansly', fans: number, follows: nu
 interface FansStatsProps {
   stats: {
     totalFans: number
+    /** Current list length when it differs from headline (filters, live source, etc.). */
+    rowsInView?: number
     whales: number
     totalRevenue: number
     activeFans: number
@@ -54,11 +56,25 @@ export function FansStats({
         .join(' · ')
     : undefined
 
-  const cards = [
+  const totalFansFootnote =
+    stats.rowsInView != null && stats.rowsInView !== stats.totalFans
+      ? `${formatNumber(stats.rowsInView)} in this view`
+      : undefined
+
+  const cards: Array<{
+    title: string
+    value: string
+    sublabel?: string
+    footnote?: string
+    icon: typeof Users
+    color: string
+    bgColor: string
+  }> = [
     {
-      title: 'Total Fans',
+      title: 'Total fans',
       value: formatNumber(stats.totalFans),
       sublabel: totalFansSublabel,
+      footnote: totalFansFootnote,
       icon: Users,
       color: 'text-chart-1',
       bgColor: 'bg-chart-1/10',
@@ -67,6 +83,7 @@ export function FansStats({
       title: 'Whale Tier',
       value: formatNumber(stats.whales),
       sublabel: undefined,
+      footnote: undefined,
       icon: Crown,
       color: 'text-chart-4',
       bgColor: 'bg-chart-4/10',
@@ -75,6 +92,7 @@ export function FansStats({
       title: 'Total Revenue',
       value: `$${formatNumber(stats.totalRevenue)}`,
       sublabel: undefined,
+      footnote: undefined,
       icon: DollarSign,
       color: 'text-chart-2',
       bgColor: 'bg-chart-2/10',
@@ -83,6 +101,7 @@ export function FansStats({
       title: 'Active Fans',
       value: formatNumber(stats.activeFans),
       sublabel: undefined,
+      footnote: undefined,
       icon: Activity,
       color: 'text-chart-5',
       bgColor: 'bg-chart-5/10',
@@ -102,6 +121,9 @@ export function FansStats({
               <p className="text-xl font-bold">{card.value}</p>
               {card.sublabel ? (
                 <p className="text-xs text-muted-foreground mt-0.5">{card.sublabel}</p>
+              ) : null}
+              {card.footnote ? (
+                <p className="mt-0.5 text-[11px] text-muted-foreground/90">{card.footnote}</p>
               ) : null}
             </div>
           </CardContent>

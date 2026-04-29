@@ -300,6 +300,50 @@
   box-shadow: 0 0 14px -3px oklch(0.55 0.2 295 / 0.32), 0 0 10px -2px oklch(0.78 0.12 85 / 0.22);
 }
 
+/* Sidebar — Guide chip: violet-only rim (animated; same mechanics as Tools, single hue lane) */
+.sidebar-guide-twin-wrap {
+  border-radius: 0.625rem;
+  padding: 1px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.52 0.19 290),
+    oklch(0.6 0.21 298),
+    oklch(0.52 0.2 284),
+    oklch(0.56 0.22 306),
+    oklch(0.53 0.19 294),
+    oklch(0.52 0.19 290)
+  );
+  background-size: 200% 100%;
+  animation: header-tools-rainbow-shift 5.5s linear infinite;
+  box-shadow: 0 0 12px -3px oklch(0.52 0.2 295 / 0.32);
+}
+
+.dark .sidebar-guide-twin-wrap {
+  box-shadow: 0 0 16px -3px oklch(0.58 0.17 298 / 0.42);
+}
+
+/* Sidebar — Settings chip: amber-only rim */
+.sidebar-settings-twin-wrap {
+  border-radius: 0.625rem;
+  padding: 1px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.7 0.14 76),
+    oklch(0.74 0.13 82),
+    oklch(0.62 0.17 71),
+    oklch(0.76 0.12 87),
+    oklch(0.67 0.15 74),
+    oklch(0.7 0.14 76)
+  );
+  background-size: 200% 100%;
+  animation: header-tools-rainbow-shift 6s linear infinite;
+  box-shadow: 0 0 12px -3px oklch(0.72 0.14 76 / 0.32);
+}
+
+.dark .sidebar-settings-twin-wrap {
+  box-shadow: 0 0 15px -3px oklch(0.78 0.12 80 / 0.38);
+}
+
 /* Sidebar — AI Studio row: gold ↔ violet ring (same pattern as .header-tools-rainbow-wrap; no cyan/teal) */
 .sidebar-ai-studio-glow-wrap {
   border-radius: 0.75rem;
@@ -689,6 +733,12 @@
   }
 
   .sidebar-ai-studio-glow-wrap {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
+  .sidebar-guide-twin-wrap,
+  .sidebar-settings-twin-wrap {
     animation: none;
     background-position: 50% 50%;
   }
@@ -3282,5 +3332,46 @@ body {
     box-shadow:
       0 0 0 1px color-mix(in oklch, oklch(0.72 0.15 75) 45%, transparent),
       0 0 14px -10px color-mix(in oklch, oklch(0.68 0.14 75) 32%, transparent);
+  }
+}
+
+/* Messages thread menu — gear affordance (gold + violet rim, one-shot spin when open) */
+@keyframes thread-toolbar-gear-once {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes thread-toolbar-glow-swap {
+  0%,
+  100% {
+    box-shadow:
+      0 0 14px -3px color-mix(in oklch, oklch(0.62 0.2 295) 55%, transparent),
+      0 0 6px -2px color-mix(in oklch, oklch(0.78 0.14 85) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 16px -2px color-mix(in oklch, oklch(0.78 0.14 85) 55%, transparent),
+      0 0 8px -2px color-mix(in oklch, oklch(0.58 0.2 295) 45%, transparent);
+  }
+}
+
+.thread-toolbar-gear-btn[data-state='open'] {
+  animation: thread-toolbar-glow-swap 2.1s ease-in-out infinite;
+}
+
+.thread-toolbar-gear-btn[data-state='open'] .thread-toolbar-gear-icon {
+  animation: thread-toolbar-gear-once 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thread-toolbar-gear-btn[data-state='open'] {
+    animation: none;
+  }
+  .thread-toolbar-gear-btn[data-state='open'] .thread-toolbar-gear-icon {
+    animation: none;
   }
 }

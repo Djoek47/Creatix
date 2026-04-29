@@ -38,6 +38,7 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import {
+  bottomTwinChipIconClasses,
   bottomTwinInner,
   bottomTwinRimGold,
   bottomTwinRimPurple,
@@ -181,24 +182,23 @@ function SidebarBottomTwinNav({
       ? 'gap-1.5'
       : 'gap-2'
 
-  const linkText = cn(
-    'font-semibold tracking-tight',
-    compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
+  const twinChipLabelClass = cn(
+    'font-semibold tracking-tight text-[0.8125rem] leading-tight',
+    compactDensity && 'text-[0.8rem]',
   )
-  const iconSz = compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox
 
   const TwinChip = ({
     item,
     active,
     rimClass,
     label,
-    iconHoverTint,
+    accent,
   }: {
     item: NavItem
     active: boolean
     rimClass: string
     label: string
-    iconHoverTint: string
+    accent: 'guide' | 'settings'
   }) => {
     const Icon = item.icon
 
@@ -209,7 +209,12 @@ function SidebarBottomTwinNav({
         className={cn(
           bottomTwinInner,
           'group relative flex outline-none ring-sidebar-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
-          collapsed ? 'min-h-[2.375rem] flex-1 justify-center px-0 py-1.5' : 'min-w-0 w-full flex-1 justify-start gap-1 px-2 py-2',
+          collapsed
+            ? 'min-h-8 flex-1 justify-center px-0 py-1'
+            : cn(
+                'w-full min-w-min flex-1 items-center gap-1.5 px-2 py-1.5',
+                accent === 'settings' ? 'justify-center' : 'justify-start',
+              ),
           active
             ? 'bg-sidebar-accent/55 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
             : [
@@ -221,23 +226,34 @@ function SidebarBottomTwinNav({
         aria-current={active ? 'page' : undefined}
       >
         <Icon
-          className={cn(
-            'relative z-[1] shrink-0 transition-colors',
-            navEase,
-            iconSz,
-            active ? 'text-sidebar-foreground' : cn('text-sidebar-foreground/52', iconHoverTint),
-          )}
+          className={cn(bottomTwinChipIconClasses(accent, active), 'transition-colors', navEase)}
           aria-hidden
         />
         {!collapsed && (
-          <span className={cn('min-w-0 truncate', linkText, active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/82')}>
+          <span
+            className={cn(
+              'shrink-0 whitespace-nowrap',
+              twinChipLabelClass,
+              active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/82',
+            )}
+          >
             {label}
           </span>
         )}
       </Link>
     )
 
-    const wrapped = <div className={cn('flex min-w-0 flex-1', rimClass)}>{linkBody}</div>
+    const wrapped = (
+      <div
+        className={cn(
+          'flex min-w-min',
+          collapsed ? 'min-w-0 flex-1' : accent === 'guide' ? 'flex-[5]' : 'flex-[9]',
+          rimClass,
+        )}
+      >
+        {linkBody}
+      </div>
+    )
 
     if (collapsed) {
       return (
@@ -269,14 +285,14 @@ function SidebarBottomTwinNav({
         active={guideActive}
         rimClass={bottomTwinRimPurple}
         label="Guide"
-        iconHoverTint="group-hover:text-circe-light/82"
+        accent="guide"
       />
       <TwinChip
         item={settings}
         active={settingsActive}
         rimClass={bottomTwinRimGold}
         label="Settings"
-        iconHoverTint="group-hover:text-amber-200/85"
+        accent="settings"
       />
     </div>
   )

@@ -23,6 +23,7 @@ import {
   FanProfileTypeSelect,
   type AudienceProfileValue,
 } from '@/components/fans/fan-profile-type-select'
+import { PlatformLogoChip } from '@/components/messages/platform-logo-chip'
 import { cn } from '@/lib/utils'
 import type { FanProfileType } from '@/lib/fans/profile-types'
 
@@ -62,6 +63,29 @@ function formatProfileSection(profileJson: unknown): { label: string; items: str
     out.push({ label: 'Tone', items: [o.tone.trim()] })
   }
   return out
+}
+
+function threadInsightMetaLine(ti: {
+  lastThreadRefreshAt?: string | null
+  lastScanKind?: string | null
+  lastScanAt?: string | null
+  lastUpdateAt?: string | null
+}): string | null {
+  const parts: string[] = []
+  if (ti.lastThreadRefreshAt) {
+    parts.push(`Refreshed ${new Date(ti.lastThreadRefreshAt).toLocaleString()}`)
+  }
+  if (ti.lastScanKind && ti.lastScanAt) {
+    const kind = ti.lastScanKind === 'thread_update' ? 'Thread update' : 'Manual scan'
+    parts.push(`${kind} · ${new Date(ti.lastScanAt).toLocaleString()}`)
+  } else if (ti.lastScanAt) {
+    parts.push(`Scan ${new Date(ti.lastScanAt).toLocaleString()}`)
+  }
+  if (ti.lastUpdateAt) {
+    parts.push(`Auto-update ${new Date(ti.lastUpdateAt).toLocaleString()}`)
+  }
+  if (parts.length === 0) return null
+  return parts.join(' · ')
 }
 
 export function FanProfileModal({
@@ -124,6 +148,13 @@ export function FanProfileModal({
     ).badges
   }, [data])
 
+  const effectiveProfileType = useMemo(
+    () => ((data?.audienceProfileOverride ?? data?.profileType ?? 'fan') as FanProfileType) as AudienceProfileValue,
+    [data?.audienceProfileOverride, data?.profileType],
+  )
+
+  const fansCrmHref = `/dashboard/fans?platform=${encodeURIComponent(platform)}&q=${encodeURIComponent(username)}`
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -153,6 +184,14 @@ export function FanProfileModal({
                     {displayName}
                   </h2>
                   <p className="truncate text-[15px] text-muted-foreground/88">@{username}</p>
+                  <p className="pt-1">
+                    <Link
+                      href={fansCrmHref}
+                      className="text-[12px] font-medium text-muted-foreground underline decoration-border/55 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/35"
+                    >
+                      Open in Fans
+                    </Link>
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -188,9 +227,7 @@ export function FanProfileModal({
                 <span className="rounded-full border border-border/35 bg-background/35 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
                   ID {fanId}
                 </span>
-                <span className="rounded-full border border-border/35 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
-                </span>
+                <PlatformLogoChip platform={platform} />
                 {audienceBadges.map((b) => (
                   <Badge
                     key={b.key}
@@ -241,13 +278,11 @@ export function FanProfileModal({
                 <Label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
                   CRM profile type
                 </Label>
-                <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                  Manual type overrides inferred signals until you clear it.
+                <p className="text-[12px] leading-snug text-muted-foreground/82">
+                  Override replaces inferred classification until you clear it in CRM.
                 </p>
                 <FanProfileTypeSelect
-                  value={
-                    ((data?.audienceProfileOverride ?? data?.profileType ?? 'fan') as FanProfileType) as AudienceProfileValue
-                  }
+                  value={effectiveProfileType}
                   disabled={profileTypeSaving || loading || !fanId}
                   onChange={async (v) => {
                     if (!data) return
@@ -287,19 +322,22 @@ export function FanProfileModal({
                   }}
                   className="w-full"
                 />
-                <p className="text-[11px] text-muted-foreground/80">
-                  Active · <span className="font-medium text-foreground/90">{data?.profileType?.replace(/_/g, ' ')}</span>
-                  <span className="text-muted-foreground/50"> · </span>
-                  <span className="uppercase tracking-[0.08em] text-muted-foreground/70">{data?.profileTypeSource}</span>
-                </p>
+                {data ? (
+                  <p className="text-[11px] text-muted-foreground/80">
+                    Applied ·{' '}
+                    <span className="font-medium text-foreground/90">{effectiveProfileType.replace(/_/g, ' ')}</span>
+                    <span className="text-muted-foreground/50"> · </span>
+                    <span className="uppercase tracking-[0.08em] text-muted-foreground/70">{data.profileTypeSource}</span>
+                  </p>
+                ) : null}
               </div>
 
               {data?.crm != null && (
-                <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                  Spend ${Math.round(data.crm.totalSpent)}
-                  {data.crm.subscriptionTier ? ` · tier ${data.crm.subscriptionTier}` : ''}
+                <p className="text-[12px] leading-snug text-muted-foreground/85">
+                  ${Math.round(data.crm.totalSpent)} spent
+                  {data.crm.subscriptionTier ? ` · ${data.crm.subscriptionTier}` : ''}
                   {data.crm.subscriptionAccountType && data.crm.subscriptionAccountType !== 'unknown'
-                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free follower' : 'paid sub'}`
+                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free' : 'paid'}`
                     : ''}
                   {data.crm.subscriptionPrice != null && !Number.isNaN(data.crm.subscriptionPrice)
                     ? ` · list $${data.crm.subscriptionPrice.toFixed(2)}`
@@ -408,13 +446,13 @@ export function FanProfileModal({
             <div className="mt-10 space-y-4 border-t border-border/25 pt-8 dark:border-white/[0.06]">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">OnlyFans bio</p>
-                <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">
-                  Used for creator detection. Cached ~24h — refresh sparingly.
+                <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">
+                  Feeds creator detection: official API when possible; otherwise general web snippets (best-effort). Cached ~24h.
                 </p>
               </div>
               {data.platformAboutSource !== 'none' ? (
                 <p className="text-[11px] text-muted-foreground/75">
-                  {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Serper fallback'} · {data.platformAboutFreshness}
+                  {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Web snippet fallback'} · {data.platformAboutFreshness}
                 </p>
               ) : null}
               {data.platformAbout?.trim() ? (
@@ -592,20 +630,12 @@ export function FanProfileModal({
               <p className="max-h-[min(50vh,28rem)] overflow-auto rounded-xl border border-border/25 bg-muted/10 p-4 text-[12px] leading-relaxed whitespace-pre-wrap text-muted-foreground/88 dark:border-white/[0.06]">
                 {data.threadInsight.threadSnapshotExcerpt}
               </p>
-              <div className="space-y-1 text-[11px] text-muted-foreground/70">
-                {data.threadInsight.lastThreadRefreshAt ? (
-                  <p>Refreshed {new Date(data.threadInsight.lastThreadRefreshAt).toLocaleString()}</p>
-                ) : null}
-                {data.threadInsight.lastScanKind ? (
-                  <p>{data.threadInsight.lastScanKind === 'thread_update' ? 'Thread update' : 'Manual scan'}</p>
-                ) : null}
-                {data.threadInsight.lastScanAt ? (
-                  <p>Manual scan {new Date(data.threadInsight.lastScanAt).toLocaleString()}</p>
-                ) : null}
-                {data.threadInsight.lastUpdateAt ? (
-                  <p>Auto update {new Date(data.threadInsight.lastUpdateAt).toLocaleString()}</p>
-                ) : null}
-              </div>
+              {(() => {
+                const meta = threadInsightMetaLine(data.threadInsight!)
+                return meta ? (
+                  <p className="text-[11px] leading-snug text-muted-foreground/72">{meta}</p>
+                ) : null
+              })()}
             </div>
           )}
 

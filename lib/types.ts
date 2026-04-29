@@ -102,6 +102,8 @@ export interface Fan {
   subscription_price?: number | null
   /** Free-page vs paid tier when derivable from price or sync. */
   subscription_account_type?: SubscriptionAccountType
+  /** From platform CRM sync (`active`, `expired`, `pending`, …). */
+  subscription_status?: string | null
   /** Partial revenue breakdown (null = not tracked yet for this row). */
   spend_subscriptions?: number | null
   spend_tips?: number | null

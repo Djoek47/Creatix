@@ -2,20 +2,43 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { runOnlyFansFullChatScan } from '@/lib/fans/onlyfans-chat-scan-client'
+import { postQuickFanPlatformSync } from '@/lib/fans/post-quick-fan-sync'
 import { runAllThreadInsightBatches } from '@/lib/fans/thread-insights-batch-client'
-import { ChevronDown, Loader2, Search, Filter, Download, RefreshCw } from 'lucide-react'
+import { ChevronDown, Loader2, RefreshCw } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { FansFilter } from './fans-page-client'
+
+/** Primary line on the trigger — calm, scannable; menu holds nuance. */
+const TRIGGER_LABELS: Record<FansFilter, string> = {
+  database: 'All synced',
+  expiring: 'Renewals soon',
+  active: 'Active now',
+  expired: 'Recently ended',
+  latest: 'Newest first',
+  top: 'Top spenders',
+}
+
+function filterTriggerLabel(filter: FansFilter): string {
+  return TRIGGER_LABELS[filter]
+}
+
+function filterDataSourceLine(filter: FansFilter): string {
+  return filter === 'database' || filter === 'expiring' ? 'Stored in Circe' : 'Live from platforms'
+}
 
 interface FansHeaderProps {
   filter?: FansFilter
@@ -41,15 +64,7 @@ export function FansHeader({
   const router = useRouter()
   const [syncBusy, setSyncBusy] = useState(false)
 
-  async function quickPlatformSync(): Promise<void> {
-    const [ofRes, flRes] = await Promise.all([
-      fetch('/api/onlyfans/sync', { method: 'POST' }),
-      fetch('/api/fansly/sync', { method: 'POST' }),
-    ])
-    if (!ofRes.ok && !flRes.ok) {
-      // No connections or both failed — still refresh
-    }
-  }
+  const liveEnabled = hasOnlyFansConnected || hasFanslyConnected
 
   async function handleQuickSync() {
     if (!hasFanPlatformsConnected) {
@@ -59,7 +74,7 @@ export function FansHeader({
     setSyncBusy(true)
     onSyncStatus?.('Syncing subscribers and stats from connected platforms…')
     try {
-      await quickPlatformSync()
+      await postQuickFanPlatformSync()
       onSyncStatus?.('Quick sync finished.')
       router.refresh()
     } catch {
@@ -77,7 +92,7 @@ export function FansHeader({
     setSyncBusy(true)
     onSyncStatus?.('Step 1/2: syncing subscribers and stats…')
     try {
-      await quickPlatformSync()
+      await postQuickFanPlatformSync()
       router.refresh()
       if (!hasOnlyFansConnected) {
         onSyncStatus?.('Quick sync done. Connect OnlyFans to include all DM threads in CRM.')
@@ -105,7 +120,7 @@ export function FansHeader({
 
   async function handleThreadInsightsAll() {
     if (filter !== 'database') {
-      onSyncStatus?.('Switch the fan list to “From database” first, then run this again.')
+      onSyncStatus?.('Switch the fan list to “All synced” first, then run this again.')
       return
     }
     if (!hasOnlyFansConnected) {
@@ -131,21 +146,13 @@ export function FansHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap sm:ml-auto">
-        <div className="relative w-full sm:w-auto min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search fans..."
-            className="w-full bg-input pl-9 sm:w-64 min-h-[44px] sm:min-h-0"
-          />
-        </div>
-
         <div className="flex flex-wrap gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="gap-1.5 min-h-[44px] sm:min-h-9"
-                disabled={syncBusy || loadingLive}
+                className="gap-1.5 rounded-full border-border/40 min-h-[44px] px-4 shadow-none hover:bg-muted/40 sm:min-h-[2.5rem]"
+                disabled={syncBusy}
                 title="Sync subscribers, all DM threads, or thread insights"
               >
                 {syncBusy ? (
@@ -190,68 +197,185 @@ export function FansHeader({
               >
                 <span className="font-medium">Thread insights (full pass)</span>
                 <span className="block text-xs text-muted-foreground">
-                  AI thread snapshots for all fans in CRM — use “From database” view
+                  Runs on CRM when the table shows &quot;All synced&quot; fans.
                 </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 min-h-[44px] sm:min-h-0">
-                <Filter className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline truncate max-w-[140px]">
-                  {filter === 'database'
-                    ? 'From database'
-                    : filter === 'expiring'
-                      ? 'Expiring soon (CRM)'
-                      : filter === 'active'
-                        ? 'Live: Active'
-                        : filter === 'expired'
-                          ? 'Live: Expired'
-                          : filter === 'latest'
-                            ? 'Live: Latest'
-                            : filter === 'top'
-                              ? 'Live: Top'
-                              : 'Filter'}
+              <Button
+                variant="outline"
+                className={cn(
+                  '!flex h-auto min-h-[44px] w-full max-w-[min(100%,18rem)] items-start justify-between gap-3 rounded-full whitespace-normal sm:w-auto',
+                  'border-border/40 bg-background/50 px-4 py-2.5 shadow-none',
+                  'transition-[background-color,border-color,color] duration-200 hover:bg-muted/40 sm:min-h-[2.5rem] sm:min-w-[12.5rem] sm:py-2',
+                )}
+                title="Choose CRM data or a live slice from connected platforms"
+                aria-label={`Fan list: ${filterTriggerLabel(filter)}. ${filterDataSourceLine(filter)}.`}
+                type="button"
+                disabled={syncBusy}
+              >
+                <span className="flex min-w-0 flex-1 flex-col items-start text-left">
+                  <span
+                    className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                    aria-hidden
+                  >
+                    Fan list
+                  </span>
+                  <span className="mt-0.5 truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
+                    {filterTriggerLabel(filter)}
+                  </span>
+                  <span className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
+                    {filterDataSourceLine(filter)}
+                  </span>
                 </span>
+                <ChevronDown
+                  className="mt-1 h-4 w-4 shrink-0 opacity-45"
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onFilterChange?.('database')}>
-                From database
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilterChange?.('expiring')}>
-                Expiring soon (CRM, 14 days)
-              </DropdownMenuItem>
-              {(hasOnlyFansConnected || hasFanslyConnected) && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onFilterChange?.('active')}>
-                    Live: Active
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('expired')}>
-                    Live: Expired
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('latest')}>
-                    Live: Latest
-                    <span className="block text-xs text-muted-foreground">
-                      OnlyFans: newest subscribers; Fansly: active list (API)
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-[min(calc(100vw-2rem),21rem)] rounded-2xl border-border/50 p-2 shadow-lg"
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              <DropdownMenuLabel className="px-3 pb-2 pt-1.5 text-[11px] font-medium leading-snug text-muted-foreground">
+                What appears in the table
+              </DropdownMenuLabel>
+
+              <DropdownMenuRadioGroup
+                value={filter}
+                onValueChange={(value) => onFilterChange?.(value as FansFilter)}
+              >
+                <DropdownMenuGroup className="space-y-0.5">
+                  <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
+                    In Circe CRM
+                  </div>
+                  <DropdownMenuRadioItem
+                    value="database"
+                    disabled={syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        All synced fans
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        Full searchable list · default
+                      </span>
                     </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('top')}>
-                    Live: Top spenders
-                    <span className="block text-xs text-muted-foreground">
-                      OnlyFans: by spend; Fansly: active list (API)
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="expiring"
+                    disabled={syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        Renewals soon
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        Ending within 14 days · CRM dates
+                      </span>
                     </span>
-                  </DropdownMenuItem>
-                </>
-              )}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="my-2 bg-border/60" />
+
+                <DropdownMenuGroup className="space-y-0.5">
+                  <div className="flex items-baseline justify-between gap-2 px-3 pb-1.5 pt-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
+                      Live snapshot
+                    </span>
+                    {loadingLive ? (
+                      <span className="text-[10px] font-normal text-muted-foreground">Updating…</span>
+                    ) : null}
+                  </div>
+
+                  {!liveEnabled ? (
+                    <p className="px-3 pb-2 text-[12px] leading-relaxed text-muted-foreground">
+                      Connect{' '}
+                      <Link
+                        href="/dashboard/settings?tab=integrations"
+                        className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+                      >
+                        OnlyFans or Fansly
+                      </Link>{' '}
+                      for smaller live slices from each platform&apos;s API.
+                    </p>
+                  ) : null}
+
+                  <DropdownMenuRadioItem
+                    value="active"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        Active subscriptions
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        Currently billed as active (~50 per request)
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="expired"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        Recently expired
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        Live list · may differ slightly from nightly CRM sync
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="latest"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        Newest first
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        Ordering from each platform&apos;s API
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="top"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        Highest spend
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">
+                        OnlyFans exposes spend · Fansly may mirror active cohort
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuGroup>
+              </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator className="my-2 bg-border/60" />
+
+              <p className="px-3 pb-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                CRM lists scale for search and bulk work. Live uses quick API batches for freshness.
+              </p>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0">
-            <Download className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>

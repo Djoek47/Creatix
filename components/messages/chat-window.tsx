@@ -16,16 +16,22 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Switch } from '@/components/ui/switch'
 import {
   Send,
   Paperclip,
   DollarSign,
-  MoreVertical,
+  Settings,
   User,
   Crown,
   Loader2,
@@ -40,6 +46,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsDown,
+  MessageCircle,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -63,6 +70,8 @@ import { uiFadeTransition, useUiMotionPreferences } from '@/components/ui/motion
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useMessagesFocusChromeOptional } from '@/components/messages/messages-focus-chrome-context'
 import { PlatformConnector } from '@/components/platform/platform-connector'
+
+const FOLLOW_THREAD_LATEST_KEY = 'creatix-messages-follow-latest'
 
 /** Logged in `divine_dm_send_events` — drives creator bubble color + AI-assisted label. */
 type DmSendSource = 'user' | 'divine' | 'divine_scheduled' | 'circe' | 'venus' | 'flirt' | 'mimic'
@@ -695,6 +704,28 @@ export function ChatWindow({
   }, [])
 
   const [showScrollLatestFab, setShowScrollLatestFab] = useState(false)
+  const [followThreadLatest, setFollowThreadLatest] = useState(true)
+  const [chatDeleteDialogOpen, setChatDeleteDialogOpen] = useState(false)
+  const [chatDeleteBusy, setChatDeleteBusy] = useState(false)
+  const prevMsgLenForScrollRef = useRef(0)
+
+  useEffect(() => {
+    try {
+      const v = typeof window !== 'undefined' ? window.localStorage.getItem(FOLLOW_THREAD_LATEST_KEY) : null
+      if (v === 'false') setFollowThreadLatest(false)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const persistFollowLatest = useCallback((on: boolean) => {
+    setFollowThreadLatest(on)
+    try {
+      window.localStorage.setItem(FOLLOW_THREAD_LATEST_KEY, on ? 'true' : 'false')
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   useEffect(() => {
     const el = messagesContainerRef.current
@@ -1013,6 +1044,27 @@ export function ChatWindow({
     [conversation],
   )
 
+  const confirmDeleteOnlyFansChat = useCallback(async () => {
+    if (!conversation || conversation.platform !== 'onlyfans') return
+    const cid = String(conversation.chatId || conversation.user.id)
+    setChatDeleteBusy(true)
+    try {
+      const res = await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setChatDeleteDialogOpen(false)
+        onMessageSent?.()
+      } else {
+        setError('Could not delete this chat. Try again.')
+      }
+    } catch {
+      setError('Could not delete this chat.')
+    } finally {
+      setChatDeleteBusy(false)
+    }
+  }, [conversation, onMessageSent])
+
   // Load messages when conversation changes
   useEffect(() => {
     if (!conversation) {
@@ -1147,7 +1199,7 @@ export function ChatWindow({
     // Do not depend on `onMessageSent` — parent identity changes must not wipe the thread.
   }, [conversation?.user?.id, conversation?.platform])
 
-  // After paint: snap to bottom when opening a long thread; otherwise only follow if near bottom. Skip when the list fits (no overflow).
+  // After paint: snap to bottom when opening; follow new messages when opted in; otherwise only if near bottom.
   useLayoutEffect(() => {
     if (!conversation || loading) return
     const el = messagesContainerRef.current
@@ -1157,7 +1209,12 @@ export function ChatWindow({
     if (prevConvIdForScrollRef.current !== convId) {
       prevConvIdForScrollRef.current = convId
       didSnapBottomForConvRef.current = null
+      prevMsgLenForScrollRef.current = 0
     }
+
+    const messageCount = messages.length
+    const grew = messageCount > prevMsgLenForScrollRef.current
+    prevMsgLenForScrollRef.current = messageCount
 
     if (el.scrollHeight <= el.clientHeight + 2) return
 
@@ -1168,10 +1225,18 @@ export function ChatWindow({
     if (needInitialSnap) {
       el.scrollTop = el.scrollHeight
       didSnapBottomForConvRef.current = convId
-    } else if (nearBottom) {
+      return
+    }
+
+    if (followThreadLatest && grew) {
+      el.scrollTop = el.scrollHeight
+      return
+    }
+
+    if (nearBottom) {
       el.scrollTop = el.scrollHeight
     }
-  }, [conversation, loading, messages])
+  }, [conversation, loading, messages, followThreadLatest])
 
   // Poll for new messages (OnlyFans route only). Delay first poll + slower interval to reduce rate-limit bursts with voice navigation + thread refresh.
   useEffect(() => {
@@ -1415,15 +1480,12 @@ export function ChatWindow({
       >
         <div className="flex w-full max-w-lg flex-col items-center px-8 py-12 text-center">
           {!showPlatformConnectActions ? (
-            <svg
-              className="mb-5 h-14 w-14 text-muted-foreground/55"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+            <div
+              className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-border/50 bg-muted/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] dark:bg-muted/25"
               aria-hidden
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+              <MessageCircle className="h-8 w-8 text-muted-foreground/65" strokeWidth={1.5} />
+            </div>
           ) : null}
           <p className="text-[1.0625rem] font-semibold tracking-tight text-foreground">{title}</p>
           {showPlatformConnectActions ? (
@@ -1472,11 +1534,29 @@ export function ChatWindow({
           </p>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Thread actions">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <button
+                type="button"
+                className={cn(
+                  'thread-toolbar-gear-btn relative shrink-0 rounded-full p-[1.5px]',
+                  'outline-none ring-sidebar-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  'bg-gradient-to-br from-amber-400/78 via-violet-500/58 to-violet-950/90',
+                  'shadow-[0_0_14px_-4px_rgba(139,92,246,0.42)]',
+                  'transition-shadow duration-300 hover:shadow-[0_0_17px_-3px_rgba(167,139,250,0.48)]',
+                )}
+                aria-haspopup="menu"
+                aria-label="Thread tools"
+              >
+                <span
+                  className={cn(
+                    'flex h-[34px] w-[34px] items-center justify-center rounded-[10px]',
+                    'border border-white/12 bg-background/94 backdrop-blur-sm dark:bg-slate-950/90',
+                  )}
+                >
+                  <Settings className="thread-toolbar-gear-icon h-[17px] w-[17px] text-amber-200/92" aria-hidden />
+                </span>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-[min(100vw-1.25rem,20rem)]">
               <DropdownMenuItem asChild>
                 <a href="/dashboard/divine-manager" className="flex items-center">
                   <Crown className="mr-2 h-4 w-4" />
@@ -1499,22 +1579,22 @@ export function ChatWindow({
                     return
                   }
                   setLoading(true)
-                fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
-                  .then((res) => res.json())
-                  .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
-                    const normalized = normalizeAndSortMessages(data.messages || [])
-                    setMessages(normalized)
-                    lastGoodMessagesByConversationRef.current[
-                      `${conversation.platform}:${String(conversation.user.id)}`
-                    ] = normalized
-                    if (data.stale === true || data.source === 'cache') {
-                      setThreadStaleReason(
-                        'Showing cached messages while OnlyFans refreshes in the background.',
-                      )
-                    } else {
-                      setThreadStaleReason(null)
-                    }
-                  })
+                  fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
+                    .then((res) => res.json())
+                    .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
+                      const normalized = normalizeAndSortMessages(data.messages || [])
+                      setMessages(normalized)
+                      lastGoodMessagesByConversationRef.current[
+                        `${conversation.platform}:${String(conversation.user.id)}`
+                      ] = normalized
+                      if (data.stale === true || data.source === 'cache') {
+                        setThreadStaleReason(
+                          'Showing cached messages while OnlyFans refreshes in the background.',
+                        )
+                      } else {
+                        setThreadStaleReason(null)
+                      }
+                    })
                     .finally(() => setLoading(false))
                 }}
               >
@@ -1523,6 +1603,22 @@ export function ChatWindow({
               </DropdownMenuItem>
               {conversation.platform === 'onlyfans' && (
                 <>
+                  <DropdownMenuSeparator />
+                  <div
+                    role="presentation"
+                    className="flex items-center justify-between gap-3 px-2 py-2.5"
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-[13px] font-medium leading-tight text-foreground">Stay on latest</span>
+                    <Switch
+                      checked={followThreadLatest}
+                      onCheckedChange={(v) => persistFollowLatest(v)}
+                      aria-label="Scroll to latest when new messages arrive"
+                    />
+                  </div>
+                  <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">
+                    When on, new messages pull the view to the bottom. Turn off to read earlier without being moved.
+                  </p>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={async () => {
@@ -1542,48 +1638,50 @@ export function ChatWindow({
                     <Mail className="mr-2 h-4 w-4" />
                     Mark as unread
                   </DropdownMenuItem>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="cursor-default">
-                      Auto-mark read when opening…
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="min-w-[14rem]">
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground leading-snug">
-                        Controls whether Creatix tells OnlyFans this chat is read when you open it here. Default is off—use
-                        Settings → Notifications to enable for all threads, or pick per thread below.
-                      </p>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => void setChatReadBehavior('inherit')}
-                        className={onlyFansChatReadMode === 'inherit' ? 'bg-accent/60' : ''}
-                      >
-                        Use account default
-                        {messagingReadPrefs?.auto_mark_on_open ? ' (on)' : ' (off)'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => void setChatReadBehavior('auto')}
-                        className={onlyFansChatReadMode === 'auto' ? 'bg-accent/60' : ''}
-                      >
-                        Always for this thread
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => void setChatReadBehavior('never')}
-                        className={onlyFansChatReadMode === 'never' ? 'bg-accent/60' : ''}
-                      >
-                        Never for this thread
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 pb-1 pt-1.5">
+                    <p className="text-[11px] font-medium text-foreground">Mark read when opening</p>
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                      OnlyFans server read state. Default is under Settings → Messages.
+                    </p>
+                  </div>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      void setChatReadBehavior('inherit')
+                    }}
+                    className={cn('cursor-pointer', onlyFansChatReadMode === 'inherit' && 'bg-accent/70')}
+                  >
+                    <span className="flex w-full flex-col gap-0.5">
+                      <span className="text-[13px] font-medium leading-tight">Account default</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Messaging preference is{' '}
+                        {messagingReadPrefs?.auto_mark_on_open ? 'on' : 'off'}
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      void setChatReadBehavior('auto')
+                    }}
+                    className={cn('cursor-pointer', onlyFansChatReadMode === 'auto' && 'bg-accent/70')}
+                  >
+                    <span className="text-[13px] font-medium">Always for this thread</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      void setChatReadBehavior('never')
+                    }}
+                    className={cn('cursor-pointer', onlyFansChatReadMode === 'never' && 'bg-accent/70')}
+                  >
+                    <span className="text-[13px] font-medium">Never for this thread</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={async () => {
-                      const cid = String(conversation.chatId || conversation.user.id)
-                      const ok = window.confirm('Delete this chat on OnlyFans? This cannot be undone.')
-                      if (!ok) return
-                      const res = await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}`, {
-                        method: 'DELETE',
-                      })
-                      if (res.ok) onMessageSent?.()
-                    }}
+                    onClick={() => setChatDeleteDialogOpen(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete chat
@@ -2333,6 +2431,36 @@ export function ChatWindow({
         />
       )}
     </Card>
+      <AlertDialog open={chatDeleteDialogOpen} onOpenChange={setChatDeleteDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              OnlyFans removes this conversation on their servers. You can&apos;t restore it afterward.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={chatDeleteBusy}
+              onClick={() => setChatDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              disabled={chatDeleteBusy}
+              className="gap-2"
+              onClick={() => void confirmDeleteOnlyFansChat()}
+            >
+              {chatDeleteBusy ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /> : null}
+              Delete chat
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }

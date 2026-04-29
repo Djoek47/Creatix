@@ -26,11 +26,22 @@ function readStored(userId: string): Stored {
   }
 }
 
-function writeStored(userId: string, next: Stored) {
-  if (typeof window === 'undefined') return
-  const read = [...new Set(next.read)].slice(-MAX_IDS)
-  const dismissed = [...new Set(next.dismissed)].slice(-MAX_IDS)
-  window.localStorage.setItem(PREFIX + userId, JSON.stringify({ read, dismissed }))
+function writeStored(userId: string, next: Stored): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const read = [...new Set(next.read)].slice(-MAX_IDS)
+    const dismissed = [...new Set(next.dismissed)].slice(-MAX_IDS)
+    window.localStorage.setItem(PREFIX + userId, JSON.stringify({ read, dismissed }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Confirms dismissed id was written (handles private mode / quota failures). Idempotent for duplicates. */
+function verifyDismissStored(userId: string, id: string): boolean {
+  const dismissed = readStored(userId).dismissed
+  return dismissed.includes(id)
 }
 
 export function applyPullNotificationOverlay<T extends { id: string; read?: boolean }>(
@@ -49,28 +60,30 @@ export function applyPullNotificationOverlay<T extends { id: string; read?: bool
     }))
 }
 
-export function markPullNotificationRead(userId: string, id: string) {
-  if (!id.startsWith('of-') && !id.startsWith('fs-')) return
+export function markPullNotificationRead(userId: string, id: string): boolean {
+  if (!id.startsWith('of-') && !id.startsWith('fs-')) return false
   const s = readStored(userId)
   if (!s.read.includes(id)) s.read.push(id)
-  writeStored(userId, s)
+  return writeStored(userId, s)
 }
 
-export function dismissPullNotification(userId: string, id: string) {
-  if (!id.startsWith('of-') && !id.startsWith('fs-')) return
+/** Idempotent: repeated dismiss calls keep the same stored end state with no duplicate rows. */
+export function dismissPullNotification(userId: string, id: string): boolean {
+  if (!id.startsWith('of-') && !id.startsWith('fs-')) return false
   const s = readStored(userId)
   if (!s.dismissed.includes(id)) s.dismissed.push(id)
   s.read = s.read.filter((x) => x !== id)
-  writeStored(userId, s)
+  const ok = writeStored(userId, s)
+  return ok && verifyDismissStored(userId, id)
 }
 
-export function markAllPullNotificationsRead(userId: string, ids: string[]) {
+export function markAllPullNotificationsRead(userId: string, ids: string[]): boolean {
   const pullIds = ids.filter((id) => id.startsWith('of-') || id.startsWith('fs-'))
-  if (pullIds.length === 0) return
+  if (pullIds.length === 0) return true
   const s = readStored(userId)
   const set = new Set([...s.read, ...pullIds])
   s.read = [...set].slice(-MAX_IDS)
-  writeStored(userId, s)
+  return writeStored(userId, s)
 }
 
 /** Clears dismissed pull IDs so previously hidden rows can show again (read flags unchanged). */

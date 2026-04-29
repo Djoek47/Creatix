@@ -104,6 +104,8 @@ export type ThreadInsightBrief = {
   platform_fan_id: string
   profile_json: unknown
   thread_snapshot_text: string | null
+  /** From inbox/thread scans — fills Last active when CRM `last_interaction` is empty. */
+  last_seen_fan_message_at?: string | null
 }
 
 /**
@@ -163,9 +165,17 @@ export function mergeThreadInsightsIntoFan(
   const avatar_url =
     fan.avatar_url && String(fan.avatar_url).trim().length > 0 ? fan.avatar_url : insightAvatar
 
+  const fromCrm = fan.last_interaction != null && String(fan.last_interaction).trim().length > 0
+  const fromInsight =
+    insight?.last_seen_fan_message_at != null && String(insight.last_seen_fan_message_at).trim().length > 0
+      ? String(insight.last_seen_fan_message_at).trim()
+      : null
+  const last_interaction = fromCrm ? String(fan.last_interaction).trim() : fromInsight || fan.last_interaction
+
   return {
     ...fan,
     avatar_url,
+    last_interaction,
     audience: applyAudienceProfileOverride(fan, baseAudience, tierForAudience),
   }
 }

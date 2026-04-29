@@ -31,7 +31,7 @@ export default async function FansPage() {
       .limit(30),
     supabase
       .from('fan_thread_insights')
-      .select('platform, platform_fan_id, profile_json, thread_snapshot_text')
+      .select('platform, platform_fan_id, profile_json, thread_snapshot_text, last_seen_fan_message_at')
       .eq('user_id', user.id),
   ])
 
@@ -47,24 +47,24 @@ export default async function FansPage() {
   const hasOnlyFansConnected = connections?.some((c: { platform: string }) => c.platform === 'onlyfans') ?? false
   const hasFanslyConnected = connections?.some((c: { platform: string }) => c.platform === 'fansly') ?? false
 
-  // Mirror dashboard logic: derive total fans from the latest snapshot per platform
-  const latestByPlatform = new Map<
-    string,
-    { platform: string; total_fans?: number | null; total_follows?: number | null; date: string }
-  >()
-  ;(analytics || []).forEach((a: any) => {
-    if (!latestByPlatform.has(a.platform) || new Date(a.date) > new Date(latestByPlatform.get(a.platform)!.date)) {
-      latestByPlatform.set(a.platform, a)
-    }
-  })
-  const analyticsTotalFans =
-    Array.from(latestByPlatform.values()).reduce((sum, a) => sum + (a.total_fans || 0), 0) || 0
-  const snapshotFansByPlatform: Record<string, number> = {}
-  const snapshotFollowsByPlatform: Record<string, number> = {}
-  latestByPlatform.forEach((a, key) => {
-    snapshotFansByPlatform[key] = a.total_fans ?? 0
-    snapshotFollowsByPlatform[key] = a.total_follows ?? 0
-  })
+  // OnlyFans + Fansly only — do not sum TikTok/X/Instagram rows from analytics_snapshots
+  type SnapRow = { total_fans?: number | null; total_follows?: number | null; date: string }
+  const latestOfFl = new Map<string, SnapRow>()
+  for (const a of analytics || []) {
+    const row = a as SnapRow & { platform?: string }
+    const canon = String(row.platform || '').toLowerCase()
+    if (canon !== 'onlyfans' && canon !== 'fansly') continue
+    const prev = latestOfFl.get(canon)
+    if (!prev || new Date(row.date) > new Date(prev.date)) latestOfFl.set(canon, row)
+  }
+  const snapshotFansByPlatform = {
+    onlyfans: latestOfFl.get('onlyfans')?.total_fans ?? 0,
+    fansly: latestOfFl.get('fansly')?.total_fans ?? 0,
+  }
+  const snapshotFollowsByPlatform = {
+    onlyfans: latestOfFl.get('onlyfans')?.total_follows ?? 0,
+    fansly: latestOfFl.get('fansly')?.total_follows ?? 0,
+  }
 
   return (
     <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading fans…</div>}>
@@ -74,7 +74,6 @@ export default async function FansPage() {
         hasOnlyFansConnected={hasOnlyFansConnected}
         hasFanslyConnected={hasFanslyConnected}
         hasFanPlatformsConnected={hasFanPlatformsConnected}
-        analyticsTotalFans={analyticsTotalFans}
         snapshotFansByPlatform={snapshotFansByPlatform}
         snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />

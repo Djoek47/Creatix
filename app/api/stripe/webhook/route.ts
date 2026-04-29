@@ -37,8 +37,12 @@ function divineVoicePatchFromCheckoutMeta(meta: Record<string, string> | undefin
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 const TRIAL_DURATION_DAYS = 2
+
+function stripeWebhookSecret(): string | undefined {
+  const raw = process.env.STRIPE_WEBHOOK_SECRET
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined
+}
 
 function normalizePlanId(raw: string | undefined): string | undefined {
   if (!raw) return undefined
@@ -276,6 +280,7 @@ async function upsertSubscriptionByStripeCustomerId(
 }
 
 export async function POST(req: NextRequest) {
+  const webhookSecret = stripeWebhookSecret()
   if (!webhookSecret) {
     return NextResponse.json({ error: 'Missing STRIPE_WEBHOOK_SECRET' }, { status: 500 })
   }

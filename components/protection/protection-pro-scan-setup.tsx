@@ -195,30 +195,55 @@ export function ProtectionProScanSetup({
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="group flex w-full items-center justify-between gap-4 rounded-[1.125rem] border border-white/[0.07] bg-background/25 px-5 py-4 text-left outline-none backdrop-blur-sm transition-colors duration-300 hover:bg-background/35 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-background/[0.07] dark:hover:bg-background/[0.12]"
+            className={cn(
+              'group flex w-full items-center justify-between gap-5 rounded-2xl border border-border/35 bg-background/35 px-6 py-5 text-left outline-none',
+              'transition-[background-color,border-color,box-shadow] duration-200 ease-out',
+              'hover:border-border/45 hover:bg-background/45',
+              'focus-visible:border-border/50 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'dark:border-white/[0.06] dark:bg-background/[0.06] dark:hover:border-white/[0.09] dark:hover:bg-background/[0.1]',
+              advancedOpen
+                ? [
+                    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(96,165,250,0.22),0_0_28px_-8px_rgba(59,130,246,0.22),0_0_52px_-14px_rgba(139,92,246,0.14)]',
+                    'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(96,165,250,0.32),0_0_34px_-8px_rgba(59,130,246,0.28),0_0_60px_-14px_rgba(167,139,250,0.18)]',
+                    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(147,197,253,0.16),0_0_36px_-8px_rgba(96,165,250,0.26),0_0_68px_-16px_rgba(167,139,250,0.16)]',
+                    'dark:hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(147,197,253,0.22),0_0_42px_-8px_rgba(96,165,250,0.34),0_0_76px_-18px_rgba(167,139,250,0.22)]',
+                  ]
+                : [
+                    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_0_1px_rgba(148,163,184,0.14),0_0_22px_-10px_rgba(59,130,246,0.14),0_0_44px_-14px_rgba(139,92,246,0.08)]',
+                    'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(96,165,250,0.22),0_0_28px_-10px_rgba(59,130,246,0.2),0_0_52px_-14px_rgba(167,139,250,0.12)]',
+                    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_0_1px_rgba(255,255,255,0.06),0_0_28px_-10px_rgba(96,165,250,0.18),0_0_52px_-16px_rgba(167,139,250,0.1)]',
+                    'dark:hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(147,197,253,0.12),0_0_34px_-10px_rgba(96,165,250,0.26),0_0_64px_-16px_rgba(167,139,250,0.16)]',
+                  ],
+            )}
           >
-            <span className="min-w-0">
-              <span className="block text-[17px] font-semibold tracking-tight text-foreground">Profile hints</span>
-              <span className="mt-1 block text-[14px] font-normal leading-relaxed text-muted-foreground/85">
-                Saved aliases and phrases—not required for every run.
+            <span className="min-w-0 flex-1 space-y-1.5">
+              <span className="block text-[1.0625rem] font-semibold tracking-[-0.015em] text-foreground">
+                Alternate names & titles
+              </span>
+              <span className="block max-w-[42rem] text-[0.8125rem] leading-[1.45] text-muted-foreground">
+                List <span className="text-foreground/80">multiple</span> usernames, handles, and phrases—each scan can use a
+                different mix. Saved to your profile; skip this section anytime.
               </span>
             </span>
             <ChevronDown
               className={cn(
-                'h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-300 motion-safe:ease-out',
+                'h-[1.125rem] w-[1.125rem] shrink-0 text-muted-foreground/70 transition-transform duration-200 ease-out motion-safe:duration-300',
                 advancedOpen && 'rotate-180',
               )}
+              strokeWidth={2}
               aria-hidden
             />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent className="data-[state=open]:motion-safe:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2 data-[state=open]:motion-safe:duration-300 motion-reduce:data-[state=open]:animate-none">
-          <div className="mt-6 space-y-8 rounded-[1.125rem] border border-dashed border-border/40 bg-muted/[0.12] px-5 py-6 dark:bg-muted/[0.08]">
+          <div className="mt-5 space-y-8 rounded-2xl border border-border/30 bg-muted/[0.08] px-6 py-7 dark:bg-muted/[0.06]">
             <div className="space-y-2">
               <Label htmlFor="alias-input-pro" className="text-[13px] font-medium text-foreground">
-                Extra names and handles
+                Aliases & handles
               </Label>
-              <p className="text-[12px] text-muted-foreground/80">Comma or new lines. Combined with linked platforms.</p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                Many entries welcome—comma or new lines. Merged with linked platforms when you run a scan.
+              </p>
               <Textarea
                 id="alias-input-pro"
                 value={aliasInput}
@@ -232,7 +257,9 @@ export function ProtectionProScanSetup({
               <Label htmlFor="former-input-pro" className="text-[13px] font-medium text-foreground">
                 Former usernames
               </Label>
-              <p className="text-[12px] text-muted-foreground/80">Stored on your profile for future scans.</p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                Past handles—list as many as apply. Kept on your profile for later scans.
+              </p>
               <Textarea
                 id="former-input-pro"
                 value={formerInput}
@@ -246,7 +273,9 @@ export function ProtectionProScanSetup({
               <Label htmlFor="title-hints-pro" className="text-[13px] font-medium text-foreground">
                 Title phrases
               </Label>
-              <p className="text-[12px] text-muted-foreground/80">One per line; merged when library titles are on.</p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground/85">
+                One phrase per line when library titles are included—you can add several.
+              </p>
               <Textarea
                 id="title-hints-pro"
                 value={titleHintsInput}

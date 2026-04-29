@@ -11,6 +11,7 @@ import {
   Undo2,
   RefreshCw,
   Info,
+  Gavel,
 } from 'lucide-react'
 import type { LeakAttributionApiResponse } from '@/lib/ariadne/attribution-types'
 import { Button } from '@/components/ui/button'
@@ -134,9 +135,116 @@ function compactLeakOpenClasses(severity: LeakSeverity | undefined, visited: boo
   return cn(
     accent,
     'border-y border-r border-white/[0.07] bg-gradient-to-br from-background/90 to-muted/[0.1]',
-    'shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] dark:border-white/[0.06] dark:from-background/55 dark:to-muted/[0.06]',
+    'dark:border-white/[0.06] dark:from-background/55 dark:to-muted/[0.06]',
     'hover:to-muted/[0.15] hover:border-white/[0.1]',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/28 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+  )
+}
+
+/** Severity-matched luminous rim for “Open leaked page” (bottom actions). Visited keeps a quiet neutral halo. */
+function openLeakPillEdgeGlow(severity: LeakSeverity | undefined, visited: boolean): string {
+  const transition = 'transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-out'
+  if (visited) {
+    return cn(
+      'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(148,163,184,0.22),0_0_16px_-8px_rgba(100,116,139,0.18)]',
+      'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_0_1px_rgba(148,163,184,0.14),0_0_20px_-8px_rgba(148,163,184,0.16)]',
+      'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(148,163,184,0.28),0_0_22px_-8px_rgba(100,116,139,0.22)]',
+      transition,
+    )
+  }
+  switch (severity ?? 'medium') {
+    case 'critical':
+      return cn(
+        'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(248,113,113,0.52),0_0_24px_-6px_rgba(239,68,68,0.55),0_0_48px_-14px_rgba(185,28,28,0.35)]',
+        'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(252,165,165,0.42),0_0_30px_-8px_rgba(239,68,68,0.58),0_0_58px_-14px_rgba(220,38,38,0.38)]',
+        'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.09),0_0_0_1px_rgba(252,165,165,0.58),0_0_32px_-8px_rgba(239,68,68,0.65),0_0_58px_-14px_rgba(220,38,38,0.42)]',
+        transition,
+      )
+    case 'high':
+      return cn(
+        'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(251,146,60,0.48),0_0_24px_-6px_rgba(249,115,22,0.45),0_0_48px_-14px_rgba(234,88,12,0.28)]',
+        'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(253,186,116,0.36),0_0_30px_-8px_rgba(249,115,22,0.5),0_0_56px_-14px_rgba(234,88,12,0.32)]',
+        'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.09),0_0_0_1px_rgba(253,186,116,0.5),0_0_32px_-8px_rgba(249,115,22,0.55),0_0_58px_-14px_rgba(234,88,12,0.36)]',
+        transition,
+      )
+    case 'medium':
+      return cn(
+        'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(251,191,36,0.42),0_0_24px_-6px_rgba(245,158,11,0.4),0_0_48px_-14px_rgba(217,119,6,0.24)]',
+        'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(252,211,77,0.32),0_0_30px_-8px_rgba(245,158,11,0.44),0_0_56px_-14px_rgba(217,119,6,0.26)]',
+        'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(252,211,77,0.48),0_0_34px_-8px_rgba(245,158,11,0.5),0_0_56px_-14px_rgba(217,119,6,0.3)]',
+        transition,
+      )
+    case 'low':
+    default:
+      return cn(
+        'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(56,189,248,0.4),0_0_24px_-6px_rgba(14,165,233,0.38),0_0_48px_-14px_rgba(3,105,161,0.24)]',
+        'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(125,211,252,0.3),0_0_30px_-8px_rgba(14,165,233,0.45),0_0_56px_-14px_rgba(3,105,161,0.26)]',
+        'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(125,211,252,0.45),0_0_34px_-8px_rgba(14,165,233,0.5),0_0_56px_-14px_rgba(3,105,161,0.3)]',
+        transition,
+      )
+  }
+}
+
+type OpenLeakPageAnchorProps = {
+  alert: LeakAlert
+  linkVisited: boolean
+  leakPageHost: string
+  onLeakLinkAuxNavigate: (e: ReactMouseEvent<HTMLAnchorElement>) => void
+  onLeakLinkActivated: () => void
+}
+
+function OpenLeakPageAnchor({
+  alert,
+  linkVisited,
+  leakPageHost,
+  onLeakLinkAuxNavigate,
+  onLeakLinkActivated,
+}: OpenLeakPageAnchorProps) {
+  return (
+    <a
+      href={alert.source_url}
+      target="_blank"
+      rel="noreferrer"
+      onMouseDown={onLeakLinkAuxNavigate}
+      onClick={onLeakLinkActivated}
+      aria-label={
+        linkVisited
+          ? `${leakPageHost} — reopen in new tab`
+          : `Open leaked page on ${leakPageHost} in new tab (${String(alert.severity ?? 'medium')})`
+      }
+      className={cn(
+        'group inline-flex max-w-full min-w-0 items-center gap-3 rounded-[0.75rem] pl-3.5 pr-2 py-2.5',
+        'max-w-[min(100%,22rem)]',
+        'motion-safe:transition-[background-color,border-color,transform,box-shadow] motion-safe:duration-200 motion-safe:active:scale-[0.993]',
+        compactLeakOpenClasses(alert.severity, linkVisited),
+        openLeakPillEdgeGlow(alert.severity, linkVisited),
+      )}
+    >
+      <span className="flex min-w-0 flex-1 flex-col gap-0 text-left leading-tight">
+        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-[13px] font-semibold tracking-[-0.02em] text-foreground">
+            {linkVisited ? 'Opened — view again' : 'Open leaked page'}
+          </span>
+          {!linkVisited ? (
+            <span className={cn('text-[10px] font-semibold uppercase tracking-[0.13em]', severityLabelTone(alert.severity))}>
+              {alert.severity ?? 'medium'}
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/75">Visited</span>
+          )}
+        </span>
+        <span className="mt-1 truncate text-[11.5px] text-muted-foreground/88">{leakPageHost}</span>
+      </span>
+      <span
+        className={cn(
+          'flex h-[2rem] w-[2rem] shrink-0 items-center justify-center rounded-md',
+          linkVisited ? 'bg-muted/50 text-muted-foreground' : 'bg-muted/40 text-muted-foreground/82 group-hover:bg-muted/52 group-hover:text-foreground/82',
+        )}
+        aria-hidden
+      >
+        {linkVisited ? <Check className="h-3.5 w-3.5" strokeWidth={2.75} /> : <ArrowUpRight className="h-[13px] w-[13px]" strokeWidth={2.25} />}
+      </span>
+    </a>
   )
 }
 
@@ -276,7 +384,7 @@ export function LeakAlertCard(props: {
             ),
       )}
     >
-      <div className={cn(pinned ? 'mb-5 space-y-3' : 'mb-6 space-y-4')}>
+      <div className={cn(pinned ? 'mb-5 space-y-3' : 'mb-6')}>
         <div
           className={cn(
             'grid transition-[grid-template-rows] duration-500',
@@ -303,54 +411,6 @@ export function LeakAlertCard(props: {
               <LeakAlertFlowStrip alert={alert} linkOpened={linkVisited} />
             </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-end justify-between gap-3 gap-y-3">
-          <a
-            href={alert.source_url}
-            target="_blank"
-            rel="noreferrer"
-            onMouseDown={onLeakLinkAuxNavigate}
-            onClick={onLeakLinkActivated}
-            aria-label={
-              linkVisited
-                ? `${leakPageHost} — reopen in new tab`
-                : `Open leaked page on ${leakPageHost} in new tab (${String(alert.severity ?? 'medium')})`
-            }
-            className={cn(
-              'group inline-flex max-w-full items-center gap-3 rounded-[0.75rem] pl-3.5 pr-2 py-2.5',
-              'max-w-[min(100%,20.5rem)] sm:max-w-[22rem]',
-              'motion-safe:transition-[background-color,border-color,transform] motion-safe:duration-200 motion-safe:active:scale-[0.993]',
-              compactLeakOpenClasses(alert.severity, linkVisited),
-            )}
-          >
-            <span className="flex min-w-0 flex-1 flex-col gap-0 text-left leading-tight">
-              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-[13px] font-semibold tracking-[-0.02em] text-foreground">
-                  {linkVisited ? 'Opened — view again' : 'Open leaked page'}
-                </span>
-                {!linkVisited ? (
-                  <span className={cn('text-[10px] font-semibold uppercase tracking-[0.13em]', severityLabelTone(alert.severity))}>
-                    {alert.severity ?? 'medium'}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/75">Visited</span>
-                )}
-              </span>
-              <span className="mt-1 truncate text-[11.5px] text-muted-foreground/88">{leakPageHost}</span>
-            </span>
-            <span
-              className={cn(
-                'flex h-[2rem] w-[2rem] shrink-0 items-center justify-center rounded-md',
-                linkVisited ? 'bg-muted/50 text-muted-foreground' : 'bg-muted/40 text-muted-foreground/82 group-hover:bg-muted/52 group-hover:text-foreground/82',
-              )}
-              aria-hidden
-            >
-              {linkVisited ? <Check className="h-3.5 w-3.5" strokeWidth={2.75} /> : <ArrowUpRight className="h-[13px] w-[13px]" strokeWidth={2.25} />}
-            </span>
-          </a>
-          <p className="hidden max-w-[14rem] leading-snug tracking-wide text-muted-foreground/52 md:block md:text-[11px]">
-            New tab · external
-          </p>
         </div>
       </div>
 
@@ -458,42 +518,51 @@ export function LeakAlertCard(props: {
           ) : null}
         </div>
 
-        {/* Primary action strip: triage swipe OR confirmed pin controls */}
+        {/* Primary action strip: helper → open leaked page + triage or confirmed pin */}
         <div
           className={cn(
-            'flex flex-wrap items-center justify-between gap-3 border-t border-border/30',
+            'space-y-3 border-t border-border/30',
             pinned ? 'mt-5 pt-5' : 'mt-8 pt-6',
           )}
         >
           {pinned ? (
             <>
-              <p className="max-w-[20rem] text-[11px] leading-snug text-muted-foreground/80">
+              <p className="max-w-[26rem] text-[11px] leading-snug text-muted-foreground/80">
                 Confirmed as your content. Undo to re-triage or dismiss if mistaken.
               </p>
-              <div className="flex w-full min-w-[min(100%,26rem)] flex-wrap justify-end gap-2 sm:w-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 flex-1 rounded-full border-border/55 px-4 text-[13px] font-medium tracking-tight sm:max-w-[12rem]"
-                  onClick={() => void commitUndoConfirm()}
-                >
-                  <Undo2 className="mr-2 h-[16px] w-[16px] opacity-85" aria-hidden />
-                  Undo
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    'h-10 flex-1 rounded-full px-4 text-[13px] font-medium tracking-tight sm:max-w-[12rem]',
-                    'motion-safe:active:scale-[0.98]',
-                  )}
-                  onClick={() => void commitSwipeLeft()}
-                >
-                  <X className="mr-2 h-[16px] w-[16px] opacity-80" aria-hidden />
-                  Not mine
-                </Button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <OpenLeakPageAnchor
+                  alert={alert}
+                  linkVisited={linkVisited}
+                  leakPageHost={leakPageHost}
+                  onLeakLinkAuxNavigate={onLeakLinkAuxNavigate}
+                  onLeakLinkActivated={onLeakLinkActivated}
+                />
+                <div className="flex w-full min-w-[min(100%,26rem)] flex-wrap justify-end gap-2 sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 flex-1 rounded-full border-border/55 px-4 text-[13px] font-medium tracking-tight sm:max-w-[12rem]"
+                    onClick={() => void commitUndoConfirm()}
+                  >
+                    <Undo2 className="mr-2 h-[16px] w-[16px] opacity-85" aria-hidden />
+                    Undo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-10 flex-1 rounded-full px-4 text-[13px] font-medium tracking-tight sm:max-w-[12rem]',
+                      'motion-safe:active:scale-[0.98]',
+                    )}
+                    onClick={() => void commitSwipeLeft()}
+                  >
+                    <X className="mr-2 h-[16px] w-[16px] opacity-80" aria-hidden />
+                    Not mine
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
@@ -501,30 +570,39 @@ export function LeakAlertCard(props: {
               <p className="text-[11px] leading-relaxed text-muted-foreground/70">
                 Swipe card or use buttons.<span className="sr-only"> Left: not yours. Right: confirms your content leaked.</span>
               </p>
-              <div className="flex w-full gap-3 sm:w-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={cn(
-                    'h-12 flex-1 rounded-full border-border/55 font-medium tracking-tight sm:min-w-[9.5rem]',
-                    'motion-safe:active:scale-[0.98]',
-                  )}
-                  onClick={() => void commitSwipeLeft()}
-                >
-                  <X className="mr-2 h-[18px] w-[18px] opacity-80" aria-hidden />
-                  Not mine
-                </Button>
-                <Button
-                  type="button"
-                  className={cn(
-                    'h-12 flex-1 rounded-full bg-foreground text-background hover:bg-foreground/90',
-                    'font-medium tracking-tight shadow-sm sm:min-w-[9.5rem] motion-safe:active:scale-[0.98]',
-                  )}
-                  onClick={() => void commitSwipeRight()}
-                >
-                  <Check className="mr-2 h-[18px] w-[18px] opacity-90" aria-hidden />
-                  Confirm match
-                </Button>
+              <div className="flex flex-col gap-3 min-[520px]:flex-row min-[520px]:flex-wrap min-[520px]:items-center min-[520px]:justify-between">
+                <OpenLeakPageAnchor
+                  alert={alert}
+                  linkVisited={linkVisited}
+                  leakPageHost={leakPageHost}
+                  onLeakLinkAuxNavigate={onLeakLinkAuxNavigate}
+                  onLeakLinkActivated={onLeakLinkActivated}
+                />
+                <div className="flex min-h-[3rem] w-full gap-3 min-[520px]:w-auto min-[520px]:max-w-none min-[520px]:flex-1 min-[520px]:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'h-12 flex-1 rounded-full border-border/55 font-medium tracking-tight min-[520px]:min-w-[9.5rem] min-[520px]:flex-none',
+                      'motion-safe:active:scale-[0.98]',
+                    )}
+                    onClick={() => void commitSwipeLeft()}
+                  >
+                    <X className="mr-2 h-[18px] w-[18px] opacity-80" aria-hidden />
+                    Not mine
+                  </Button>
+                  <Button
+                    type="button"
+                    className={cn(
+                      'h-12 flex-1 rounded-full bg-foreground text-background hover:bg-foreground/90',
+                      'font-medium tracking-tight shadow-sm min-[520px]:min-w-[9.5rem] min-[520px]:flex-none motion-safe:active:scale-[0.98]',
+                    )}
+                    onClick={() => void commitSwipeRight()}
+                  >
+                    <Check className="mr-2 h-[18px] w-[18px] opacity-90" aria-hidden />
+                    Confirm match
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -630,106 +708,122 @@ export function LeakAlertCard(props: {
         </details>
       )}
 
-      <div className={cn('space-y-5 border-t border-border/25', pinned ? 'mt-4 pt-4' : 'mt-6 pt-5')}>
+      <div className={cn('space-y-4 border-t border-border/25', pinned ? 'mt-4 pt-4' : 'mt-6 pt-5')}>
         <div className="flex flex-wrap gap-2">
           <HostReportDestinationUI sourceUrl={alert.source_url} notes={alert.notes ?? null} variant="inline" />
-        {isPro && alert.severity === 'critical' ? (
-          <div className="flex flex-wrap items-center gap-1">
+          {isPro && alert.severity === 'critical' ? (
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-10 rounded-xl px-4 text-[13px] font-semibold tracking-tight',
+                  'border-amber-500/55 bg-gradient-to-b from-amber-500/[0.1] to-amber-500/[0.02] text-foreground shadow-sm',
+                  'hover:from-amber-500/[0.16] hover:to-amber-500/[0.05] hover:border-amber-400/70',
+                  'focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  verifying ? 'opacity-90' : 'leak-reverify-cta',
+                )}
+                disabled={verifying}
+                onClick={() => void onVerify(alert.id)}
+                aria-label="Re-verify: fetch live page excerpt and second-pass model check."
+              >
+                {verifying ? (
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4 shrink-0 opacity-95" aria-hidden />
+                )}
+                Re-verify page
+                <span
+                  className="ml-2 inline-flex items-center rounded-md border border-amber-500/35 bg-black/25 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground"
+                  title={`Estimated workload ${PAGE_VERIFY_CREDITS_ESTIMATE} credits (${PAGE_VERIFY_USD_ESTIMATE} USD); not billed today.`}
+                >
+                  ~{PAGE_VERIFY_CREDITS_ESTIMATE}c
+                </span>
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                    aria-label="About re-verify page and credit estimate"
+                  >
+                    <Info className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="w-[min(calc(100vw-2rem),20rem)] space-y-3 border-border/60 p-4 text-[13px] shadow-lg"
+                >
+                  <div className="space-y-2">
+                    <p className="font-semibold leading-snug text-foreground">Second pass • page verify</p>
+                    <p className="leading-relaxed text-muted-foreground">
+                      The first signal uses snippets only. Re-verify retrieves public page text when the host responds, then
+                      runs a tighter check against your connected handles and recent titles—so you are not drafting on vague
+                      search blurbs alone.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/45 bg-muted/25 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
+                    <span className="font-medium text-foreground/95">Workload equivalent:</span>{' '}
+                    <span className="tabular-nums font-medium text-foreground">{PAGE_VERIFY_CREDITS_ESTIMATE}</span> credits
+                    (~USD {PAGE_VERIFY_USD_ESTIMATE} at ${CREDIT_USD_VALUE}/credit).{' '}
+                    <span className="font-medium text-foreground">Not debited</span> from your AI balance today. Venus Pro is
+                    required to run this pass.
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:max-w-none sm:flex-row sm:items-center sm:gap-3 lg:min-w-[min(100%,22rem)]">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className={cn(
-                'h-10 rounded-xl px-4 text-[13px] font-semibold tracking-tight',
-                'border-amber-500/55 bg-gradient-to-b from-amber-500/[0.1] to-amber-500/[0.02] text-foreground shadow-sm',
-                'hover:from-amber-500/[0.16] hover:to-amber-500/[0.05] hover:border-amber-400/70',
-                'focus-visible:ring-2 focus-visible:ring-amber-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                verifying ? 'opacity-90' : 'leak-reverify-cta',
-              )}
-              disabled={verifying}
-              onClick={() => void onVerify(alert.id)}
-              aria-label="Re-verify: fetch live page excerpt and second-pass model check."
+              className="h-10 shrink-0 rounded-xl px-4 text-[13px]"
+              disabled={tracing}
+              title="Runs a sample attribution check on this URL. Deeper in-dashboard trace UX ships on the same window as MarkIt integration."
+              onClick={() => void onTrace(alert)}
             >
-              {verifying ? (
-                <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4 shrink-0 opacity-95" aria-hidden />
-              )}
-              Re-verify page
-              <span
-                className="ml-2 inline-flex items-center rounded-md border border-amber-500/35 bg-black/25 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground"
-                title={`Estimated workload ${PAGE_VERIFY_CREDITS_ESTIMATE} credits (${PAGE_VERIFY_USD_ESTIMATE} USD); not billed today.`}
-              >
-                ~{PAGE_VERIFY_CREDITS_ESTIMATE}c
-              </span>
+              {tracing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanSearch className="mr-2 h-4 w-4 opacity-80" />}
+              Trace to original recipient
             </Button>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/55 hover:text-foreground"
-                  aria-label="About re-verify page and credit estimate"
-                >
-                  <Info className="h-4 w-4 shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-[min(calc(100vw-2rem),20rem)] space-y-3 border-border/60 p-4 text-[13px] shadow-lg"
+            <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-border/40 sm:pl-3">
+              <Badge
+                variant="secondary"
+                className="h-6 border-amber-500/35 bg-amber-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-100/90"
               >
-                <div className="space-y-2">
-                  <p className="font-semibold leading-snug text-foreground">Second pass • page verify</p>
-                  <p className="leading-relaxed text-muted-foreground">
-                    The first signal uses snippets only. Re-verify retrieves public page text when the host responds, then
-                    runs a tighter check against your connected handles and recent titles—so you are not drafting on vague
-                    search blurbs alone.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/45 bg-muted/25 px-3 py-2.5 text-[12px] leading-snug text-muted-foreground">
-                  <span className="font-medium text-foreground/95">Workload equivalent:</span>{' '}
-                  <span className="tabular-nums font-medium text-foreground">{PAGE_VERIFY_CREDITS_ESTIMATE}</span> credits
-                  (~USD {PAGE_VERIFY_USD_ESTIMATE} at ${CREDIT_USD_VALUE}/credit).{' '}
-                  <span className="font-medium text-foreground">Not debited</span> from your AI balance today. Venus Pro is
-                  required to run this pass.
-                </div>
-              </PopoverContent>
-            </Popover>
+                Soon
+              </Badge>
+              <IntegrationCountdownPills />
+            </div>
           </div>
-        ) : null}
-        <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-10 shrink-0 rounded-xl px-4 text-[13px]"
-            disabled={tracing}
-            title="Runs a sample attribution check on this URL. Deeper in-dashboard trace UX ships on the same window as MarkIt integration."
-            onClick={() => void onTrace(alert)}
-          >
-            {tracing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanSearch className="mr-2 h-4 w-4 opacity-80" />}
-            Trace to original recipient
-          </Button>
-          <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-border/40 sm:pl-3">
-            <Badge
-              variant="secondary"
-              className="h-6 border-amber-500/35 bg-amber-500/10 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-100/90"
+
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 lg:w-auto lg:max-w-none lg:flex-1">
+            <Button
+              type="button"
+              size="sm"
+              title="Prepare a DMCA notice draft, proof attachments, and filing helpers for this URL."
+              aria-label="DMCA takedown: open draft notice and filing bundle for this leak."
+              className={cn(
+                'h-10 shrink-0 rounded-xl bg-primary px-5 text-[13px] font-medium text-primary-foreground',
+                'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_0_0_1px_rgba(180,130,0,0.2),0_0_22px_-8px_rgba(245,158,11,0.38),0_0_44px_-14px_rgba(251,191,36,0.2)]',
+                'transition-[background-color,box-shadow] duration-200 ease-out',
+                'hover:bg-primary/92 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_0_0_1px_rgba(180,130,0,0.3),0_0_28px_-8px_rgba(245,158,11,0.48),0_0_52px_-14px_rgba(251,191,36,0.26)]',
+                'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(251,191,36,0.18),0_0_26px_-8px_rgba(245,158,11,0.36),0_0_52px_-14px_rgba(251,191,36,0.16)]',
+                'dark:hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(251,191,36,0.26),0_0_32px_-8px_rgba(245,158,11,0.46),0_0_58px_-14px_rgba(251,191,36,0.22)]',
+              )}
+              onClick={() => onDmca(alert)}
             >
-              Soon
-            </Badge>
-            <IntegrationCountdownPills />
+              <Gavel className="mr-2 h-4 w-4 shrink-0 opacity-95" aria-hidden />
+              DMCA takedown
+            </Button>
           </div>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          className="ml-auto h-10 rounded-xl bg-primary px-5 text-[13px] font-medium text-primary-foreground shadow-none"
-          onClick={() => onDmca(alert)}
-        >
-          DMCA bundle
-        </Button>
-      </div>
       </div>
 
       {attributionError ? (

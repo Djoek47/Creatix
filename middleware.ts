@@ -2,6 +2,11 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  /** Stripe must verify HMAC against the exact raw body — skip Supabase session/auth here. */
+  if (request.nextUrl.pathname.startsWith('/api/stripe/webhook')) {
+    return NextResponse.next()
+  }
+
   try {
     return await updateSession(request)
   } catch (err) {

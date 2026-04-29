@@ -192,6 +192,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  /**
+   * When set, OnlyFans/Fansly connect is blocked (user not entitled or billing not in good shape).
+   * Derived from /api/onlyfans/check-connection when at least one platform is still unlinked.
+   */
+  const [adultPlatformConnectDenialMessage, setAdultPlatformConnectDenialMessage] = useState<string | null>(null)
   /** From /api/onlyfans/check-connection — which platform(s) billing blocks (OF vs Fansly can differ). */
   const [adultPlatformBilling, setAdultPlatformBilling] = useState<{
     message: string
@@ -295,10 +300,16 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
     const ofConnected = (data || []).some((c) => c.platform === 'onlyfans' && c.is_connected)
     const fsConnected = (data || []).some((c) => c.platform === 'fansly' && c.is_connected)
-    if (ofConnected || fsConnected) {
-      try {
-        const res = await fetch('/api/onlyfans/check-connection')
-        const j = await res.json().catch(() => ({}))
+
+    try {
+      const res = await fetch('/api/onlyfans/check-connection')
+      const j = await res.json().catch(() => ({}))
+      const denial = j.adultPlatformBillingDenial as { code?: string; message?: string } | null | undefined
+      const denialMsg = typeof denial?.message === 'string' ? denial.message : null
+      const blockNewLinks = Boolean(denialMsg && (!ofConnected || !fsConnected))
+      setAdultPlatformConnectDenialMessage(blockNewLinks ? denialMsg : null)
+
+      if (ofConnected || fsConnected) {
         const msg =
           typeof j.adultPlatformBillingDenial?.message === 'string'
             ? j.adultPlatformBillingDenial.message
@@ -314,10 +325,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         } else {
           setAdultPlatformBilling(null)
         }
-      } catch {
+      } else {
         setAdultPlatformBilling(null)
       }
-    } else {
+    } catch {
+      setAdultPlatformConnectDenialMessage(null)
       setAdultPlatformBilling(null)
     }
 
@@ -595,6 +607,10 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
   const connectOnlyfansWithSdk = async () => {
     if (onlyfansSdkInProgress) return
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
+      return
+    }
     // Prevent double authentication: do not start if already connected
     if (isConnected('onlyfans')) {
       setError('OnlyFans is already connected. Disconnect in Settings if you want to link a different account.')
@@ -612,6 +628,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       const res = await fetch('/api/onlyfans/auth')
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
+        if (res.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+          setError(typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || 'Subscription required.')
+          setOnlyfansSdkInProgress(false)
+          return
+        }
         if (res.status === 409 && data?.code === 'ALREADY_CONNECTED') {
           setError(data.error || 'OnlyFans is already connected.')
           await loadConnections()
@@ -644,6 +665,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             })
             if (!cbRes.ok) {
               const err = await cbRes.json().catch(() => ({}))
+              if (cbRes.status === 403 && err?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+                setError(typeof err.error === 'string' ? err.error : adultPlatformConnectDenialMessage || 'Subscription required.')
+                setOnlyfansSdkInProgress(false)
+                return
+              }
               if (cbRes.status === 409 && err?.code === 'ONLYFANS_ACCOUNT_ALREADY_CONNECTED') {
                 setError('This OnlyFans account is already connected to another Circe et Venus workspace. If you believe this is a mistake, please contact support.')
               } else {
@@ -688,6 +714,10 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       setError('Fansly is already connected. Disconnect in Settings if you want to link a different account.')
       return
     }
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
+      return
+    }
     setFanslyEmail('')
     setFanslyPassword('')
     setFansly2FAToken(null)
@@ -713,6 +743,15 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       })
 
       const data = await response.json()
+
+      if (response.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+        setFanslyDialogOpen(false)
+        setError(
+          typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || 'Subscription required.',
+        )
+        setFanslyLoading(false)
+        return
+      }
 
       if (response.status === 403 && data?.code === 'BILLING_FOCUS_UPGRADE_REQUIRED') {
         setFanslyDialogOpen(false)
@@ -768,6 +807,10 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
   const handleConnect = (platformId: string) => {
     setError(null)
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
+      return
+    }
     const platform = PLATFORMS.find(p => p.id === platformId)
     if (platform?.comingSoon) return
 
@@ -849,17 +892,31 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
           {success ? (
             <p className="text-center text-[13px] leading-snug text-emerald-600 dark:text-emerald-400">{success}</p>
           ) : null}
+          {adultPlatformConnectDenialMessage &&
+          (!isConnected('onlyfans') || !isConnected('fansly')) ? (
+            <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <AlertDescription className="text-[13px]">
+                {adultPlatformConnectDenialMessage}{' '}
+                <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                  Open billing
+                </Link>
+                .
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
             <button
               type="button"
               onClick={() => handleConnect('onlyfans')}
-              disabled={onlyfansSdkInProgress}
+              disabled={onlyfansSdkInProgress || (!isConnected('onlyfans') && !!adultPlatformConnectDenialMessage)}
               className={cn(
                 'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
                 'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
                 onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+                !isConnected('onlyfans') && adultPlatformConnectDenialMessage && 'pointer-events-none opacity-45',
               )}
             >
               <img
@@ -872,13 +929,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             <button
               type="button"
               onClick={() => handleConnect('fansly')}
-              disabled={onlyfansSdkInProgress}
+              disabled={onlyfansSdkInProgress || (!isConnected('fansly') && !!adultPlatformConnectDenialMessage)}
               className={cn(
                 'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
                 'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
                 onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+                !isConnected('fansly') && adultPlatformConnectDenialMessage && 'pointer-events-none opacity-45',
               )}
             >
               <img
@@ -1000,6 +1058,19 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
               </div>
             )}
 
+            {adultPlatformConnectDenialMessage &&
+            (!isConnected('onlyfans') || !isConnected('fansly')) ? (
+              <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <AlertDescription className="text-xs">
+                  {adultPlatformConnectDenialMessage}{' '}
+                  <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                    Billing
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {PLATFORMS.map((platform) => {
               const connected = isConnected(platform.id)
               const connection = getConnection(platform.id)
@@ -1103,6 +1174,10 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                       className="h-8 px-4 text-xs font-medium shadow-sm"
                       style={{ background: `linear-gradient(135deg, ${platform.color}, ${platform.color}CC)` }}
                       onClick={() => handleConnect(platform.id)}
+                      disabled={
+                        !!adultPlatformConnectDenialMessage &&
+                        !isConnected(platform.id)
+                      }
                     >
                       Connect
                     </Button>
@@ -1365,19 +1440,37 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                       </div>
                     </div>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-10 w-full gap-2 rounded-xl border-2 bg-background/30 text-[14px] font-medium transition-colors hover:bg-background/50"
-                      style={{
-                        borderColor: `${platform.color}44`,
-                        color: platform.color,
-                      }}
-                      onClick={() => handleConnect(platform.id)}
-                    >
-                      <Link2 className="h-4 w-4 opacity-80" />
-                      Connect {platform.name}
-                    </Button>
+                    <>
+                      {adultPlatformConnectDenialMessage ? (
+                        <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-[13px]">
+                            {adultPlatformConnectDenialMessage}{' '}
+                            <Link
+                              href="/dashboard/settings?tab=billing"
+                              className="font-medium underline underline-offset-2"
+                            >
+                              Open billing
+                            </Link>
+                            .
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-10 w-full gap-2 rounded-xl border-2 bg-background/30 text-[14px] font-medium transition-colors hover:bg-background/50"
+                        style={{
+                          borderColor: `${platform.color}44`,
+                          color: platform.color,
+                        }}
+                        onClick={() => handleConnect(platform.id)}
+                        disabled={!!adultPlatformConnectDenialMessage}
+                      >
+                        <Link2 className="h-4 w-4 opacity-80" />
+                        Connect {platform.name}
+                      </Button>
+                    </>
                   )}
 
                   {connection?.last_sync_at ? (

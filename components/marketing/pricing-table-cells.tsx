@@ -33,7 +33,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
   )
 }
 
-/** Solo platform column — plain USD (Focus line). */
+/** Solo platform column — plain USD (single-platform line). */
 export function SoloMatrixCell({ usd }: { usd: number }) {
   return <span className="text-base font-semibold tabular-nums text-foreground sm:text-lg">${usd}</span>
 }

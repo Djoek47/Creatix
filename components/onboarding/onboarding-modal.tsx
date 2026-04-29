@@ -512,7 +512,7 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
             </div>
             <div className="min-w-0 space-y-0.5">
               <p className="text-[13px] font-medium tracking-tight text-foreground">Retention</p>
-              <p className="text-[12px] leading-snug text-muted-foreground">Churn hub · digests · predictor</p>
+              <p className="text-[12px] leading-snug text-muted-foreground">Churn hub · scans · predictor</p>
             </div>
           </div>
           <div className={obRow}>

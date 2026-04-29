@@ -2,7 +2,6 @@
 
 import type { MutableRefObject } from 'react'
 import { Loader2, Mic } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -123,61 +122,67 @@ export function PhotoEnhancerRunnerInputs({
           />
         )}
         <p className="text-xs text-muted-foreground">
-          Say what you want in plain language — e.g. &quot;blur the background more&quot;, &quot;brighter&quot;,
-          &quot;heart emoji top right&quot;. Mic uses voice-to-text (same idea as Mimic interview).
+          Describe what to change in plain language — blur, brighten, stickers, and similar edits work well.
         </p>
       </div>
       {voiceSession && (
-        <div className="space-y-2 rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-sky-700 dark:text-sky-300">
-            <Mic className="h-3.5 w-3.5" />
-            OpenAI Realtime voice (like Mimic interview)
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Speak naturally; the assistant calls the same safe edit pipeline. Keep this tab open. Results appear below
-            when a tool applies.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={
-                !photoEditImageDataUrl ||
-                voiceSession.status === 'connecting' ||
-                voiceSession.status === 'connected'
-              }
-              onClick={() =>
-                void voiceSession.startVoiceCall({
-                  realtimePath: '/api/ai/photo-touchup-realtime',
-                  toolPath: '/api/ai/photo-touchup-voice-tool',
-                  getToolBodyExtras: () => ({
-                    imageBase64: photoVoiceImageRef.current || '',
-                  }),
-                })
-              }
-            >
-              {voiceSession.status === 'connecting' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-              <span className="ml-1.5">
-                {voiceSession.status === 'connected' ? 'Voice active' : 'Start voice session'}
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="min-w-0 text-sm text-muted-foreground">
+              <span className="sr-only">OpenAI Realtime voice. </span>
+              <span className="tabular-nums capitalize" aria-live="polite">
+                {voiceSession.status === 'idle' && 'Ready'}
+                {voiceSession.status === 'connecting' && 'Connecting'}
+                {voiceSession.status === 'connected' && 'Live'}
+                {voiceSession.status === 'error' && 'Error'}
               </span>
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={voiceSession.status !== 'connected'}
-              onClick={() => voiceSession.endVoiceCall()}
-            >
-              End voice
-            </Button>
-            <Badge variant="outline" className="text-[10px] capitalize">
-              {voiceSession.status}
-            </Badge>
+            </p>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="default"
+                className="h-10 w-10 rounded-full"
+                disabled={
+                  !photoEditImageDataUrl ||
+                  voiceSession.status === 'connecting' ||
+                  voiceSession.status === 'connected'
+                }
+                aria-label={
+                  voiceSession.status === 'connecting'
+                    ? 'Connecting voice session'
+                    : voiceSession.status === 'connected'
+                      ? 'Voice session active'
+                      : 'Start OpenAI Realtime voice session'
+                }
+                onClick={() =>
+                  void voiceSession.startVoiceCall({
+                    realtimePath: '/api/ai/photo-touchup-realtime',
+                    toolPath: '/api/ai/photo-touchup-voice-tool',
+                    getToolBodyExtras: () => ({
+                      imageBase64: photoVoiceImageRef.current || '',
+                    }),
+                  })
+                }
+              >
+                {voiceSession.status === 'connecting' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Mic className="h-4 w-4" aria-hidden />
+                )}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-9 px-2 text-muted-foreground hover:text-foreground"
+                disabled={voiceSession.status !== 'connected'}
+                aria-label="End voice session"
+                onClick={() => voiceSession.endVoiceCall()}
+              >
+                End
+              </Button>
+            </div>
           </div>
         </div>
       )}

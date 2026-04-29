@@ -1,5 +1,5 @@
 /**
- * Canonical **copy** for the subscription model (revenue bands × Focus/Unified).
+ * Canonical **copy** for the subscription model (revenue bands × single-platform vs Bundled).
  * Dollar amounts and tiers always come from `lib/circe-venus-pricing.ts` (via `lib/pricing-matrix.ts`).
  *
  * Also update shared UI: `PricingModelInlineBlurb`, `PricingModelHeadline`, `LandingPricingSection`,

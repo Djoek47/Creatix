@@ -133,7 +133,8 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
           <div>
             <h3 className="text-sm font-semibold tracking-tight text-foreground">Flow</h3>
             <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">
-              Inferred from inbox, protocols, manager queue, goals, and glow. No manual input.
+              Inferred from inbox, protocols, manager queue, goals, glow, and light dashboard engagement signals (UTC).
+              No manual input.
             </p>
           </div>
           {flowState ? (
@@ -162,8 +163,8 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
           <div>
             <CardTitle className="text-base font-semibold tracking-tight">Flow state</CardTitle>
             <CardDescription className="text-sm">
-              Inferred from your inbox sync, protocol backlog, Divine Manager queue, saved goals, and environmental glow.
-              No manual input—review only.
+              Inferred from inbox sync, protocol backlog, Divine Manager queue, saved goals, environmental glow, and light
+              dashboard engagement telemetry (UTC-day actions). No manual input—review only.
             </CardDescription>
           </div>
           {flowState ? (

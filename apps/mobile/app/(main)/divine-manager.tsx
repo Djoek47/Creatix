@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   RefreshControl,
@@ -13,10 +14,16 @@ import {
 } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useLocalSearchParams } from 'expo-router'
 import { motion } from '@/constants/motion'
 import { theme } from '@/constants/theme'
 import { formatApiScreenError } from '@/lib/api-errors'
 import { apiFetch } from '@/lib/api'
+import {
+  divineManagerMobileScrollTarget,
+  isDivineManagerScrollSection,
+  type DivineManagerMobileScrollTarget,
+} from '@/lib/divine-manager-deep-link'
 import { supabase } from '@/lib/supabase'
 import { useResponsive } from '@/hooks/use-responsive'
 import { DivineVoiceVisual } from '@/components/divine-voice-visual'
@@ -56,10 +63,19 @@ type TodayPlanPayload = {
   error?: string
 }
 
+function normalizeRouteParam(value: string | string[] | undefined): string | undefined {
+  if (value == null) return undefined
+  return Array.isArray(value) ? value[0] : value
+}
+
 export default function DivineManagerScreen() {
+  const params = useLocalSearchParams<{ section?: string | string[] }>()
   const r = useResponsive()
   const voice = useDivineVoiceSession()
   const dismissVoicePending = voice.dismissPendingConfirmation
+  const listRef = useRef<FlatList<ChatMessage>>(null)
+  const chatInputRef = useRef<TextInput>(null)
+  const sectionOffsetRef = useRef<Partial<Record<DivineManagerMobileScrollTarget, number>>>({})
 
   const [settings, setSettings] = useState<DivineSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,6 +89,7 @@ export default function DivineManagerScreen() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [dmPreviewLoading, setDmPreviewLoading] = useState(false)
   const [todayPlan, setTodayPlan] = useState<TodayPlanPayload | null>(null)
+  const pad = r.scaleSpace(16)
 
   const load = useCallback(async () => {
     setError(null)
@@ -98,6 +115,45 @@ export default function DivineManagerScreen() {
   useEffect(() => {
     load().finally(() => setLoading(false))
   }, [load])
+
+  const onSectionLayout = useCallback((key: DivineManagerMobileScrollTarget) => {
+    return (e: LayoutChangeEvent) => {
+      sectionOffsetRef.current[key] = e.nativeEvent.layout.y
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loading) return
+    const section = normalizeRouteParam(params.section)
+    if (!section) return
+
+    const scrollFor = () => {
+      const list = listRef.current
+      const headerOffset = pad
+      if (section === 'chat' || section === 'text') {
+        const y = sectionOffsetRef.current.chat
+        if (y != null && list) {
+          list.scrollToOffset({ offset: Math.max(0, headerOffset + y - 16), animated: true })
+        }
+        chatInputRef.current?.focus()
+        return
+      }
+      if (!isDivineManagerScrollSection(section)) return
+      const target = divineManagerMobileScrollTarget(section)
+      if (target == null || target === 'chat') return
+      const y = sectionOffsetRef.current[target]
+      if (y != null && list) {
+        list.scrollToOffset({ offset: Math.max(0, headerOffset + y - 16), animated: true })
+      }
+    }
+
+    const t1 = setTimeout(scrollFor, 200)
+    const t2 = setTimeout(scrollFor, 550)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [loading, pad, params.section, todayPlan, settings])
 
   async function onRefresh() {
     setRefreshing(true)
@@ -243,8 +299,6 @@ export default function DivineManagerScreen() {
     }
   }, [])
 
-  const pad = r.scaleSpace(16)
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -269,6 +323,7 @@ export default function DivineManagerScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         <FlatList
+          ref={listRef}
           data={chatMessages}
           keyExtractor={(_, i) => `m-${i}`}
           contentContainerStyle={{ padding: pad, paddingBottom: r.scaleSpace(24) }}
@@ -358,7 +413,7 @@ export default function DivineManagerScreen() {
                 </Pressable>
               </View>
 
-              <View style={[styles.card, { padding: r.scaleSpace(16), marginBottom: r.scaleSpace(16) }]}>
+              <View style={[styles.card, { padding: r.scaleSpace(16), marginBottom: r.scaleSpace(16) }]} onLayout={onSectionLayout('voice')}>
                 <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15) }]}>Voice (Realtime)</Text>
                 {voice.error ? (
                   <Text style={[styles.err, { fontSize: r.scaleFont(13), marginBottom: 8 }]}>{voice.error}</Text>
@@ -448,10 +503,14 @@ export default function DivineManagerScreen() {
                 </View>
               )}
 
-              <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15), marginBottom: 8 }]}>Divine (text)</Text>
-              <Text style={[styles.muted, { fontSize: r.scaleFont(12), marginBottom: r.scaleSpace(10) }]}>
-                Same flow as the web text sheet — pair with AI Chatter on the dashboard for automations.
-              </Text>
+              <View onLayout={onSectionLayout('chat')}>
+                <Text style={[styles.cardTitle, { fontSize: r.scaleFont(15), marginBottom: 8 }]}>Divine (text)</Text>
+                <Text style={[styles.muted, { fontSize: r.scaleFont(12), marginBottom: r.scaleSpace(10) }]}>
+                  Same flow as the web text sheet — pair with AI Chatter on the dashboard for automations. Append
+                  ?section=chat, protocol, tasks, voice, or alerts to this screen&apos;s URL to scroll (same keys as web;
+                  Mimic and the full protocol card are on desktop).
+                </Text>
+              </View>
             </Animated.View>
           }
           renderItem={({ item }) => (
@@ -468,6 +527,7 @@ export default function DivineManagerScreen() {
 
         <View style={[styles.composer, { paddingHorizontal: pad, paddingBottom: r.scaleSpace(12) }]}>
           <TextInput
+            ref={chatInputRef}
             style={[styles.input, { fontSize: r.scaleFont(15), minHeight: r.scaleSpace(44) }]}
             placeholder="Message Divine…"
             placeholderTextColor={theme.textDim}

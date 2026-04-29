@@ -36,13 +36,13 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     badge: 'Popular',
     credits: 1,
     hasRunner: true,
-    /** Fused into Content Ideas (Content Studio) — open Ideas + Captions from one card. */
+    /** Fused into Content and Caption (Content Studio) — open Ideas + Captions from one card. */
     hiddenFromLibrary: true,
   },
   { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', badge: 'Popular', credits: 2, hasRunner: true },
   {
     id: 'content-ideas',
-    name: 'Content Ideas',
+    name: 'Content and Caption',
     description: 'Trending ideas & AI captions',
     longDescription:
       'Two modes in one place: get trending content ideas for your niche, or switch to the caption generator—upload media (or describe with text/voice) for platform-ready captions, hashtags, and PPV copy.',
@@ -69,7 +69,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'Work from the Commenter page on your dashboard. It pulls comments on your posts, stories, and streams so you can see who said what and how heated or positive it feels. You get several suggested public replies in different tones—playful, warm, flirty, or straight professional—plus one “best” blend to start from. Nothing posts for you: you copy what you like into OnlyFans. Odd or worrying threads can surface as Divine alerts so you do not miss them. If you want replies to lean a bit harder into upsell, you can turn that up in Divine Manager under automation settings for Commenter. Fan Atlas (smart list sync) lives on the same page when you want segments to stay honest.',
     category: 'engagement',
-    badge: 'MVP',
     credits: 0,
     hasRunner: true,
   },
@@ -161,18 +160,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     hiddenFromLibrary: true,
   },
   {
-    id: 'brand-uniformity',
-    name: 'Branding',
-    description: 'Creator brand profile for cross-tool consistency',
-    longDescription:
-      'Beta tool for defining your creator brand identity (voice, colors, logos, watermark defaults) and reusing it across captioning, ideation, and publishing flows.',
-    category: 'content',
-    badge: 'Beta',
-    credits: 1,
-    hasRunner: true,
-    hiddenFromLibrary: false,
-  },
-  {
     id: 'credits-planner',
     name: 'Credits Planner',
     description: 'Smart monthly credit strategy',
@@ -200,7 +187,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     id: 'churn-predictor',
     name: 'Churn Predictor',
     description: "Who's at risk — Circe's Oracle for retention",
-    badge: 'Circe Pro',
     longDescription:
       'Surfaces who is slipping away and what to try next—expiring subs, gone-quiet regulars, and similar patterns. The Retention area on your dashboard can send batch digests, Divine alerts, and saved reports. From AI Studio you can still run a one-fan deep dive with the same signals you already trust.',
     category: 'analytics',
@@ -212,7 +198,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     name: 'Retention content tease',
     description: 'On-brand teasers for fans who are starting to slip—timed to your calendar.',
     longDescription:
-      'Jot what’s next on the Retention hub, run a single batch, and get ready-to-use lines for feed, stories, and DMs. Credits match one churn-predictor background pass.',
+      'Jot what’s next on User retention by tease (Retention → calendar), run a single batch from the Churn hub, and get ready-to-use lines for feed, stories, and DMs. Credits match one churn-predictor background pass.',
     category: 'analytics',
     credits: 3,
     hasRunner: true,
@@ -280,7 +266,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Open the Aegis hub under Protection: master shield toggle, Sentinel schedule (UTC), leak scan defaults, optional Hammer auto-drafts, and links to Mentions for reputation (separate from leak alerts).',
     category: 'premium',
     isPro: true,
-    badge: 'Circe Pro',
     credits: 8,
     hasRunner: true,
   },
@@ -292,7 +277,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Lists your newest subscribers from CRM + live platform lists, then drafts warm introductions, first-touch care, and follow-ups. Tags saved CRM fans for Churn Predictor follow-through — new subs churn easily until they feel seen.',
     category: 'premium',
     isPro: true,
-    badge: 'Venus Pro',
     credits: 5,
     hasRunner: true,
   },

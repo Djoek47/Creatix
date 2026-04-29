@@ -31,6 +31,7 @@ import {
   compressImageForVision,
   extractVideoFrameAsDataUrl,
 } from '@/components/ai/caption-media-utils'
+import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
 
 interface Caption {
   text: string
@@ -178,16 +179,7 @@ export function CaptionGenerator() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="platform">Platform</Label>
-            <Select value={platform} onValueChange={setPlatform}>
-              <SelectTrigger id="platform">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                <SelectItem value="fansly">Fansly</SelectItem>
-                <SelectItem value="mym">MYM</SelectItem>
-              </SelectContent>
-            </Select>
+            <OfFanslyPlatformSelect id="platform" value={platform} onValueChange={setPlatform} />
           </div>
           <div className="space-y-2 md:col-span-1">
             <Label>&nbsp;</Label>

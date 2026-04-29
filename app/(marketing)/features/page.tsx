@@ -89,7 +89,7 @@ const shippedCapabilityLines = [
   'OnlyFans and Fansly sync with clear connection status',
   'Profile and platform health in one header menu',
   'Protection scans and mention review in the same workflow',
-  'Billing-aware paths — Focus vs bundled — without switching accounts',
+  'Billing-aware paths — single platform vs bundled — without switching accounts',
 ]
 
 /** Early access; appears as tools mature. */

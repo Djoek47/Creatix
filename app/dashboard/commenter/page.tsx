@@ -330,9 +330,6 @@ export default function CommenterPage() {
           <h1 className="text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2">
             <Sparkles className="h-7 w-7 text-amber-500" />
             Commenter
-            <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
-              MVP
-            </Badge>
           </h1>
           <p className="text-muted-foreground mt-1 max-w-xl text-sm">
             Fan comments on your posts—draft replies here, then paste on OnlyFans.

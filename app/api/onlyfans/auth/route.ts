@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
+import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 
 /**
  * OnlyFans connection uses the OnlyFansAPI.com SDK flow only.
@@ -31,6 +34,25 @@ export async function GET(request: NextRequest) {
           code: 'ALREADY_CONNECTED',
         },
         { status: 409 }
+      )
+    }
+
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!canConnectAdultPartnerPlatform(subscription)) {
+      logPartnerConnectEntitlementDenied('GET /api/onlyfans/auth', user.id)
+      const denial = denialForAdultPlatformConnectEntitlement(subscription)
+      return NextResponse.json(
+        {
+          error: denial?.message ?? 'Subscription or Divine trial required before connecting platforms.',
+          code: 'CONNECT_ENTITLEMENT_REQUIRED',
+          reason: 'CONNECT_ENTITLEMENT_REQUIRED',
+        },
+        { status: 403 },
       )
     }
 

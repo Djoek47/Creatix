@@ -40,7 +40,7 @@ export default function CirceDailyTipsPage() {
           className="inline-flex items-center gap-1.5 font-medium text-foreground/90 underline-offset-4 transition hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />
-          Community
+          Suggestions
         </Link>
         <span className="text-border/80" aria-hidden>
           /

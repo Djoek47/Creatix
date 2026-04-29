@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Gift, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Gift, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { StudioBackLink } from '@/components/ai/studio-back-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -124,11 +125,7 @@ export default function GiftWishlistPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/ai-studio/tools" aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        <StudioBackLink href="/dashboard/ai-studio/tools" aria-label="Back to tools" />
         <div className="flex items-center gap-2">
           <Gift className="h-7 w-7 text-primary" />
           <div>

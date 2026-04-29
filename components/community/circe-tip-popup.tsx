@@ -12,9 +12,12 @@ import {
   TIP_POPUP_FORCE_EVENT,
   TIP_POPUP_DELAY_MAX_MS,
   TIP_POPUP_DELAY_MIN_MS,
-  TIP_POPUP_ROLL_CHANCE,
-  canShowTipPopupNow,
+  TIP_POPUP_SITE_WIDE_RETRY_MS,
+  accountAgeDaysFromCreatedAt,
+  canShowAutomaticPopup,
+  effectiveRollChance,
   fullTipsPageHrefForTip,
+  incrementLifetimeTipsShown,
   readTipPopupsEnabled,
   writeTipPopupLastShownAt,
   writeTipPopupLastTipId,
@@ -35,7 +38,12 @@ function pathAllowsPopup(pathname: string | null): boolean {
   return !EXCLUDED_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 
-export function CirceTipPopupHost() {
+type CirceTipPopupHostProps = {
+  /** Supabase `user.created_at` — shorter cooldowns / higher rolls for brand-new accounts in this browser. */
+  accountCreatedAt?: string | null
+}
+
+export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHostProps) {
   const pathname = usePathname()
   const [visible, setVisible] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -46,6 +54,21 @@ export function CirceTipPopupHost() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const scheduleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scheduleGeneration = useRef(0)
+  const pathnameRef = useRef<string | null>(null)
+  const visibleRef = useRef(false)
+  const accountAgeDaysRef = useRef<number | null>(null)
+
+  const accountAgeDays = useMemo(() => accountAgeDaysFromCreatedAt(accountCreatedAt), [accountCreatedAt])
+
+  useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
+  useEffect(() => {
+    visibleRef.current = visible
+  }, [visible])
+  useEffect(() => {
+    accountAgeDaysRef.current = accountAgeDays
+  }, [accountAgeDays])
 
   const clearTimers = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
@@ -103,6 +126,34 @@ export function CirceTipPopupHost() {
     [clearTimers, dismiss],
   )
 
+  const queueDelayedAutomaticAttempt = useCallback(() => {
+    if (scheduleRef.current) {
+      clearTimeout(scheduleRef.current)
+      scheduleRef.current = null
+    }
+    const gen = scheduleGeneration.current
+    const delay =
+      TIP_POPUP_DELAY_MIN_MS + Math.random() * (TIP_POPUP_DELAY_MAX_MS - TIP_POPUP_DELAY_MIN_MS)
+
+    scheduleRef.current = setTimeout(() => {
+      scheduleRef.current = null
+      if (gen !== scheduleGeneration.current) return
+      const path = pathnameRef.current
+      if (!pathAllowsPopup(path)) return
+      if (!readTipPopupsEnabled()) return
+      if (visibleRef.current) return
+      const age = accountAgeDaysRef.current
+      if (!canShowAutomaticPopup(age)) return
+      if (Math.random() > effectiveRollChance(age)) return
+
+      const lastId = readTipPopupLastTipId()
+      const next = pickRandomCirceTip(lastId)
+      writeTipPopupLastTipId(next.id)
+      incrementLifetimeTipsShown()
+      showWithTip(next, true)
+    }, delay)
+  }, [showWithTip])
+
   useEffect(() => {
     const onPrefs = () => {
       if (!readTipPopupsEnabled()) {
@@ -137,28 +188,22 @@ export function CirceTipPopupHost() {
 
     if (!pathAllowsPopup(pathname)) return
     if (!readTipPopupsEnabled()) return
-    if (!canShowTipPopupNow()) return
 
-    const gen = scheduleGeneration.current
-    const delay = TIP_POPUP_DELAY_MIN_MS + Math.random() * (TIP_POPUP_DELAY_MAX_MS - TIP_POPUP_DELAY_MIN_MS)
-
-    scheduleRef.current = setTimeout(() => {
-      if (gen !== scheduleGeneration.current) return
-      if (!readTipPopupsEnabled()) return
-      if (!canShowTipPopupNow()) return
-      if (Math.random() > TIP_POPUP_ROLL_CHANCE) return
-
-      const lastId = readTipPopupLastTipId()
-      const next = pickRandomCirceTip(lastId)
-      writeTipPopupLastTipId(next.id)
-      showWithTip(next, true)
-    }, delay)
+    queueDelayedAutomaticAttempt()
 
     return () => {
       scheduleGeneration.current += 1
       clearTimers()
     }
-  }, [pathname, clearTimers, showWithTip])
+  }, [pathname, clearTimers, queueDelayedAutomaticAttempt])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!readTipPopupsEnabled()) return
+      queueDelayedAutomaticAttempt()
+    }, TIP_POPUP_SITE_WIDE_RETRY_MS)
+    return () => clearInterval(id)
+  }, [queueDelayedAutomaticAttempt])
 
   const href = useMemo(() => (tip ? fullTipsPageHrefForTip(tip.id) : '#'), [tip])
 

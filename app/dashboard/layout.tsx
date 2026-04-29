@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { serializeAuthUserForRsc } from '@/lib/supabase/serialize-auth-user-for-rsc'
+import type { Profile } from '@/lib/types'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardMessagesChrome } from '@/components/dashboard/dashboard-messages-chrome'
 import { MessagesFocusChromeProvider } from '@/components/messages/messages-focus-chrome-context'
@@ -19,6 +22,7 @@ import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-e
 import { ProtectionOnlyRedirect } from '@/components/dashboard/protection-only-redirect'
 import { WorkspaceCapabilitiesProvider } from '@/components/dashboard/workspace-capabilities-context'
 import { DashboardPulseProvider } from '@/components/dashboard/dashboard-pulse-provider'
+import { WellbeingActivityReporter } from '@/components/wellbeing/wellbeing-activity-reporter'
 import { WellbeingBreakNudgeScheduler } from '@/components/wellbeing/wellbeing-break-nudge-scheduler'
 import { resolveWorkspaceCapabilities, type SubscriptionCapsRow } from '@/lib/plan-capabilities'
 
@@ -46,6 +50,8 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
+  const serializableUser = serializeAuthUserForRsc(user)
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
@@ -53,6 +59,15 @@ export default async function DashboardLayout({
     .maybeSingle()
   if (profileError) {
     console.error('[dashboard/layout] profiles:', profileError.message)
+  }
+
+  let serializableProfile: Profile | null = profile as Profile | null
+  if (profile) {
+    try {
+      serializableProfile = JSON.parse(JSON.stringify(profile)) as Profile
+    } catch {
+      serializableProfile = profile as Profile
+    }
   }
 
   const { data: subRow } = await supabase
@@ -66,14 +81,15 @@ export default async function DashboardLayout({
   return (
     <WorkspaceCapabilitiesProvider value={workspaceCaps}>
       <DashboardPulseProvider>
+        <WellbeingActivityReporter />
         <OnboardingProvider
           userId={user.id}
-          userName={profile?.full_name || undefined}
-          onboardingCompleted={profile?.onboarding_completed || false}
+          userName={serializableProfile?.full_name || undefined}
+          onboardingCompleted={serializableProfile?.onboarding_completed || false}
         >
           <TourProvider>
             {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
-            <DivinePanelWrapper user={user}>
+            <DivinePanelWrapper user={serializableUser}>
               <ProtocolTasksProvider>
                 <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
                   <DashboardDocumentScrollLock />
@@ -84,16 +100,18 @@ export default async function DashboardLayout({
                     <DashboardCelestialBackdrop />
                     {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
                     <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">
-                      <DashboardSidebar user={user} profile={profile} />
+                      <DashboardSidebar user={serializableUser} profile={serializableProfile} />
                     </div>
                     <MessagesFocusChromeProvider>
-                      <DashboardMessagesChrome user={user} profile={profile}>
+                      <DashboardMessagesChrome user={serializableUser} profile={serializableProfile}>
                         <DashboardMainShell>{children}</DashboardMainShell>
                       </DashboardMessagesChrome>
                     </MessagesFocusChromeProvider>
                   </div>
-                  <VoiceControlPopup />
-                  <CirceTipPopupHost />
+                  <Suspense fallback={null}>
+                    <VoiceControlPopup />
+                  </Suspense>
+                  <CirceTipPopupHost accountCreatedAt={serializableUser.created_at ?? null} />
                 </VoiceSessionProvider>
               </ProtocolTasksProvider>
             </DivinePanelWrapper>

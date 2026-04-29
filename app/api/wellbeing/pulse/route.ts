@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { computeGlowInsightsForUser } from '@/lib/wellbeing/compute-glow-insights'
 import { gatherPulseSignals } from '@/lib/wellbeing/pulse-signals'
 import { buildPulsePayload, pulsePayloadSchema } from '@/lib/wellbeing/pulse-engine'
+import { gatherFlowPresenceSignals } from '@/lib/wellbeing/flow-presence-signals'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 
 export const maxDuration = 60
@@ -67,7 +68,8 @@ export async function GET(request: NextRequest) {
     const glow: GlowInsightsPayload = glowResult.ok ? glowResult.data : degradedGlow()
 
     const raw = await gatherPulseSignals(supabase, user.id)
-    const pulse = await buildPulsePayload({ raw, glow })
+    const presence = await gatherFlowPresenceSignals(supabase, user.id)
+    const pulse = await buildPulsePayload({ raw, glow, presence })
 
     const { error: writeErr } = await supabase.from('creator_pulse_snapshots').upsert(
       {

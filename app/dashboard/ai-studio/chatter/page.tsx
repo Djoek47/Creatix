@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Bot, Crown, Loader2, Play, Trash2 } from 'lucide-react'
+import { Bot, Crown, Loader2, Play, Trash2 } from 'lucide-react'
+import { StudioBackLink } from '@/components/ai/studio-back-link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -351,11 +352,7 @@ function AiChatterDashboardInner() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/ai-studio/tools" aria-label="Back to tools">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        <StudioBackLink href="/dashboard/ai-studio/tools" aria-label="Back to tools" />
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Bot className="h-6 w-6 shrink-0 text-primary" aria-hidden />
           <span>OnlyFans · Mimic, thread context, queue by default</span>

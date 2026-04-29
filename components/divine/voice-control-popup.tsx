@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, type MouseEvent, type PointerEvent } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineWorkingLogo } from '@/components/divine/divine-working-logo'
 import { Button } from '@/components/ui/button'
@@ -75,6 +75,7 @@ export function VoiceControlPopup() {
   const workspaceCaps = useWorkspaceCapabilities()
   const voice = useVoiceSession()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const messagesRouteDefault = pathname?.startsWith('/dashboard/messages') === true
   const [expanded, setExpanded] = useState(false)
   const [launcherOpen, setLauncherOpen] = useState(false)
@@ -355,6 +356,11 @@ export function VoiceControlPopup() {
     canManualHangup,
     divineVoicePremium,
   } = voice
+
+  const suppressIdleDivineFabStack =
+    pathname === '/dashboard/ai-studio/tools/content-ideas' &&
+    searchParams.get('tab') !== 'captions' &&
+    status === 'idle'
 
   const primaryLabel =
     status === 'idle'
@@ -646,6 +652,7 @@ export function VoiceControlPopup() {
   return (
     <>
       <DivineTranscriptStack />
+      {!suppressIdleDivineFabStack ? (
       <div
         ref={fabRef}
         onPointerDownCapture={handleFabPointerDown}
@@ -835,6 +842,7 @@ export function VoiceControlPopup() {
           {renderCrownButton()}
         </div>
       </div>
+      ) : null}
     </>
   )
 }

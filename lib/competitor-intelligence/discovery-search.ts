@@ -29,13 +29,11 @@ export async function runCompetitorDiscoverySearch(params: {
 
   const niche = params.niche.trim() || 'adult content creator'
   const plat =
-    params.platform === 'multi'
-      ? 'subscription platform'
+    params.platform === 'fansly'
+      ? 'Fansly'
       : params.platform === 'onlyfans'
         ? 'OnlyFans'
-        : params.platform === 'fansly'
-          ? 'Fansly'
-          : params.platform
+        : 'OnlyFans'
 
   const queries = [
     `${niche} ${plat} creator marketing tips`,

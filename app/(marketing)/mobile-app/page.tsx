@@ -58,14 +58,10 @@ export default function MobileAppPage() {
               <Link href="/launch-list">
                 <Button
                   size="lg"
-                  className="h-12 gap-2 rounded-full bg-gradient-to-r from-primary to-circe/90 px-8 text-primary-foreground shadow-xl shadow-primary/20 hover:opacity-[0.97]"
+                  className="min-h-12 gap-2 rounded-full bg-gradient-to-r from-primary to-circe/90 px-6 sm:px-8 py-3 text-center text-sm leading-snug text-primary-foreground shadow-xl shadow-primary/20 hover:opacity-[0.97] whitespace-normal sm:text-base max-w-[min(100%,24rem)]"
                 >
-                  Join launch list <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/demo">
-                <Button variant="outline" size="lg" className="h-12 rounded-full px-8">
-                  Explore web demo
+                  Be the first to know when we release{' '}
+                  <ArrowRight className="inline h-4 w-4 shrink-0 align-middle" aria-hidden />
                 </Button>
               </Link>
             </div>
@@ -100,7 +96,7 @@ export default function MobileAppPage() {
       <section className="px-4 pb-20 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-5xl rounded-3xl border border-primary/25 bg-gradient-to-br from-card/90 via-card/70 to-primary/[0.06] p-6 sm:p-8">
           <MotionReveal>
-            <h2 className="font-serif text-2xl font-semibold sm:text-3xl">Launch foundation</h2>
+            <h2 className="font-serif text-2xl font-semibold sm:text-3xl">Mobile app</h2>
             <ul className="mt-5 space-y-2.5">
               {launchPillars.map((line) => (
                 <li key={line} className="flex items-start gap-2 text-sm text-foreground/90 sm:text-base">

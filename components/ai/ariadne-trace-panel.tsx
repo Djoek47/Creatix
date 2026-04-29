@@ -26,7 +26,7 @@ type AriadneExportRow = {
   content_id: string
   content_title: string | null
   recipient_key: string
-  recipient_platform: 'onlyfans' | 'fansly' | 'mym' | null
+  recipient_platform: 'onlyfans' | 'fansly' | null
   recipient_platform_fan_id: string | null
   recipient_username: string | null
   recipient_display_name: string | null
@@ -56,7 +56,7 @@ export function AriadneTracePanel() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
-  const [recipientPlatform, setRecipientPlatform] = useState<'onlyfans' | 'fansly' | 'mym' | ''>('')
+  const [recipientPlatform, setRecipientPlatform] = useState<'onlyfans' | 'fansly' | ''>('')
   const [recipientPlatformFanId, setRecipientPlatformFanId] = useState('')
   const [recipientUsername, setRecipientUsername] = useState('')
   const [recipientDisplayName, setRecipientDisplayName] = useState('')
@@ -303,7 +303,7 @@ export function AriadneTracePanel() {
                   <Select
                     value={recipientPlatform || 'none'}
                     onValueChange={(value) =>
-                      setRecipientPlatform(value === 'none' ? '' : (value as 'onlyfans' | 'fansly' | 'mym'))
+                      setRecipientPlatform(value === 'none' ? '' : (value as 'onlyfans' | 'fansly'))
                     }
                   >
                     <SelectTrigger>
@@ -313,7 +313,6 @@ export function AriadneTracePanel() {
                       <SelectItem value="none">None</SelectItem>
                       <SelectItem value="onlyfans">OnlyFans</SelectItem>
                       <SelectItem value="fansly">Fansly</SelectItem>
-                      <SelectItem value="mym">MYM</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

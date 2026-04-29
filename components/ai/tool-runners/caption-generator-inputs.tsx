@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import {
   compressImageForVision,
@@ -45,16 +46,7 @@ export function CaptionGeneratorRunnerInputs({
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Platform</Label>
-          <Select value={platform} onValueChange={setPlatform}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="onlyfans">OnlyFans</SelectItem>
-              <SelectItem value="fansly">Fansly</SelectItem>
-              <SelectItem value="mym">MYM</SelectItem>
-            </SelectContent>
-          </Select>
+          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
         <div className="space-y-2">
           <Label>Upload a photo (or describe below)</Label>
@@ -146,16 +138,7 @@ export function CaptionGeneratorRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>Platform</Label>
-          <Select value={platform} onValueChange={setPlatform}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="onlyfans">OnlyFans</SelectItem>
-              <SelectItem value="fansly">Fansly</SelectItem>
-              <SelectItem value="mym">MYM</SelectItem>
-            </SelectContent>
-          </Select>
+          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">

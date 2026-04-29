@@ -16,9 +16,9 @@ export const metadata: Metadata = buildPublicMetadata({
 
 const pricingJsonLdFaqs = [
   {
-    question: 'Focus vs Bundled vs Protection?',
+    question: 'Single platform vs Bundled vs Protection?',
     answer:
-      'Focus = one adult platform or a two-platform pair. Bundled = OnlyFans + Fansly together. Protection = $25/mo for anti-piracy on Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and similar; stackable with a main plan or standalone.',
+      'Single platform = one adult platform or a two-platform pair. Bundled = OnlyFans + Fansly together. Protection = $25/mo for anti-piracy on Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and similar; stackable with a main plan or standalone.',
   },
   {
     question: 'How do AI credits work?',
@@ -31,7 +31,7 @@ const pricingJsonLdFaqs = [
   },
   {
     question: 'Change plans later?',
-    answer: 'Yes. Swap platforms, Focus, Unified, or band in Settings → Billing.',
+    answer: 'Yes. Swap platforms, single-platform vs Bundled, or band in Settings → Billing.',
   },
 ]
 

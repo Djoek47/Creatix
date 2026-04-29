@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
@@ -315,6 +315,8 @@ export function AIToolsSelector({
   const photoVoiceImageRef = useRef<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
   /** Fused "Content Ideas" workspace: trending ideas vs caption generator (same card). */
   const [contentStudioSubtab, setContentStudioSubtab] = useState<'ideas' | 'captions'>('ideas')
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
@@ -363,6 +365,19 @@ export function AIToolsSelector({
     [effectiveRunnerId],
   )
   const { mode: runnerMode, setMode: setRunnerMode } = useToolRunnerUiMode(runnerStorageKey)
+
+  const isContentStudioIdeasOnly = useMemo(
+    () => selectedTool?.id === 'content-ideas' && contentStudioSubtab === 'ideas',
+    [selectedTool, contentStudioSubtab],
+  )
+  const toolInputsRunnerMode = useMemo(
+    () => (isContentStudioIdeasOnly ? 'easy' : runnerMode),
+    [isContentStudioIdeasOnly, runnerMode],
+  )
+  const showGenerateCreditHint = useMemo(
+    () => (isContentStudioIdeasOnly || runnerMode === 'easy') && Boolean(effectiveRunnerId),
+    [isContentStudioIdeasOnly, runnerMode, effectiveRunnerId],
+  )
 
   useEffect(() => {
     if (!initialToolId) {
@@ -817,7 +832,7 @@ export function AIToolsSelector({
 
     return runToolInputsSwitch({
       effectiveRunnerId,
-      runnerMode,
+      runnerMode: toolInputsRunnerMode,
       platform,
       setPlatform,
       contentType,
@@ -1650,8 +1665,16 @@ export function AIToolsSelector({
                 <Tabs
                   value={contentStudioSubtab}
                   onValueChange={(v) => {
-                    setContentStudioSubtab(v as 'ideas' | 'captions')
+                    const next = v as 'ideas' | 'captions'
+                    setContentStudioSubtab(next)
                     setResult(null)
+                    if (pathname === '/dashboard/ai-studio/tools/content-ideas') {
+                      if (next === 'captions') {
+                        router.replace('/dashboard/ai-studio/tools/content-ideas?tab=captions', { scroll: false })
+                      } else {
+                        router.replace('/dashboard/ai-studio/tools/content-ideas', { scroll: false })
+                      }
+                    }
                   }}
                   className="mt-3 w-full max-w-md"
                 >
@@ -1692,19 +1715,21 @@ export function AIToolsSelector({
             </Badge>
           </div>
         </div>
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-muted/15 px-4 py-3.5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.04]">
-          <p className="text-[13px] leading-snug text-muted-foreground">
-            <span className="font-medium text-foreground">Easy</span> keeps steps short.{' '}
-            <span className="font-medium text-foreground">Pro</span> exposes every option. Credits apply when a run
-            succeeds.
-          </p>
-          <EasyProModeToggle
-            value={runnerMode}
-            onChange={setRunnerMode}
-            ariaLabel="AI tool layout mode"
-            className="shrink-0 self-start sm:self-center"
-          />
-        </div>
+        {!isContentStudioIdeasOnly ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-muted/15 px-4 py-3.5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.04]">
+            <p className="text-[13px] leading-snug text-muted-foreground">
+              <span className="font-medium text-foreground">Easy</span> keeps steps short.{' '}
+              <span className="font-medium text-foreground">Pro</span> exposes every option. Credits apply when a run
+              succeeds.
+            </p>
+            <EasyProModeToggle
+              value={runnerMode}
+              onChange={setRunnerMode}
+              ariaLabel="AI tool layout mode"
+              className="shrink-0 self-start sm:self-center"
+            />
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-6 px-6 pb-8 pt-8">
         {toolRunError ? (
@@ -1747,13 +1772,13 @@ export function AIToolsSelector({
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4 opacity-90" />
-              {runnerMode === 'easy' && effectiveRunnerId
+              {showGenerateCreditHint
                 ? `Generate — ${formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))}`
                 : 'Generate'}
             </>
           )}
         </Button>
-        {runnerMode === 'easy' && effectiveRunnerId ? (
+        {showGenerateCreditHint ? (
           <p className="text-center text-xs text-muted-foreground/90">
             This run uses {formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))} when it completes
             successfully.

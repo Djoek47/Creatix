@@ -35,7 +35,7 @@ export function buildPricingMetaDescription(): string {
 export function buildHomePricingTeaserLine(): string {
   const minOf = firstTier().prices.of
   const maxBundled = lastTier().prices.of_fl
-  return `Transparent pricing from $${minOf}/mo (OnlyFans Focus) to $${maxBundled}/mo (Bundled). Protection add-on from $${protectionProduct.priceMonthly}/mo.`
+  return `Transparent pricing from $${minOf}/mo (OnlyFans single-platform) to $${maxBundled}/mo (Bundled). Protection add-on from $${protectionProduct.priceMonthly}/mo.`
 }
 
 /** Extra keywords including current entry price for long-tail queries. */
@@ -50,7 +50,7 @@ export function buildPricingKeywords(): string[] {
     'revenue-based subscription',
     'Circe et Venus',
     'creator SaaS',
-    'Focus plan',
+    'Single-platform plan',
     'Bundled plan',
     PROTECTION_PLAN_ID,
     'per-seat billing',

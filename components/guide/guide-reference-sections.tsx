@@ -74,6 +74,24 @@ export function GuideReferenceSections() {
               replace you; it recommends, drafts, and organizes, and you stay in control of what sends or publishes.
             </p>
 
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
+              <h4 className="mb-2 font-medium text-foreground">First-time setup (wizard)</h4>
+              <p className="mb-2">
+                Until you finish setup, you&apos;ll see a four-step wizard:{' '}
+                <strong className="text-foreground">Persona &amp; boundaries</strong> (tone, flirty level, limits, optional example phrases),{' '}
+                <strong className="text-foreground">Goals, archetype &amp; notifications</strong> (what you&apos;re aiming for, manager style, alert level),{' '}
+                <strong className="text-foreground">Automation rules</strong> (scheduled help and voice auto options), then{' '}
+                <strong className="text-foreground">Review and activate</strong> (beta acknowledgment and manager mode). You can change everything later in the console or under Preferences.
+              </p>
+              <p className="text-xs">
+                Deep links: <code className="rounded bg-muted px-1 py-0.5 text-[11px]">?section=text</code> or{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">?section=chat</code> opens the text sheet;{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">?section=protocol</code> scrolls to the{' '}
+                <strong className="text-foreground">Today plan + protocol tasks</strong> block;{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">?section=tasks</code> scrolls straight to the tasks card.
+              </p>
+            </div>
+
             <div className="rounded-lg border border-border bg-background/80 p-4">
               <h4 className="mb-2 flex items-center gap-2 font-medium text-foreground">
                 <Mic className="h-4 w-4 text-amber-500" />
@@ -103,7 +121,8 @@ export function GuideReferenceSections() {
               <h4 className="mb-2 font-medium text-foreground">Text chat</h4>
               <p className="mb-2">
                 Open the <strong>text sheet</strong> for the same Divine Manager brain when you prefer typing. It shares
-                context with voice and is ideal for longer instructions or pasting links.
+                context with voice and is ideal for longer instructions or pasting links. The same sheet opens when the URL includes{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">?section=chat</code>.
               </p>
               <p>
                 <Link href="/dashboard/divine-manager?section=text" className="text-primary underline hover:no-underline">
@@ -171,6 +190,10 @@ export function GuideReferenceSections() {
                 >
                   Today plan
                 </Link>
+                , the{' '}
+                <Link href="/dashboard/divine-manager?section=protocol" className="text-primary underline hover:no-underline">
+                  protocol block
+                </Link>
                 , or open the{' '}
                 <Link href="/dashboard/divine-manager?section=tasks" className="text-primary underline hover:no-underline">
                   tasks
@@ -180,6 +203,15 @@ export function GuideReferenceSections() {
                   alerts
                 </Link>{' '}
                 sections.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-background/80 p-4">
+              <h4 className="mb-2 font-medium text-foreground">Background AI &amp; cron</h4>
+              <p className="mb-2 text-xs">
+                <strong>Enriched background runs</strong> in Divine Manager call a scheduled route (<code className="rounded bg-muted px-1">GET /api/cron/divine-manager</code>) protected by{' '}
+                <code className="rounded bg-muted px-1">CRON_SECRET</code> or Vercel Cron (<code className="rounded bg-muted px-1">x-vercel-cron</code>). Enable background
+                switches only when that job is configured for your environment.
               </p>
             </div>
 
@@ -447,7 +479,7 @@ export function GuideReferenceSections() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Also linked from{' '}
                 <Link href="/dashboard/community" className="text-primary underline hover:no-underline">
-                  Community
+                  Suggestions
                 </Link>{' '}
                 at the top of the screen.
               </p>

@@ -25,26 +25,22 @@ export function CirceDailyPromo() {
               >
                 <Moon className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <div className="min-w-0 space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85">
+              <div className="min-w-0">
+                <p
+                  id="circe-daily-heading"
+                  className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85"
+                >
                   Circe daily
                 </p>
-                <h2 id="circe-daily-heading" className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                  Product context
-                </h2>
               </div>
             </div>
             <p className="shrink-0 tabular-nums text-[13px] text-muted-foreground/90">
               {n} <span className="text-muted-foreground/60">/</span> {total || '—'}
             </p>
           </div>
-          <p className="max-w-xl text-[14px] leading-relaxed text-muted-foreground/88">
-            One research-backed insight per day (UTC). Different from creator-submitted tips below. Random brief cards may
-            also appear while you work—same archive.
-          </p>
           <div className="space-y-3 border-t border-border/40 pt-6">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/75">Today</p>
-            <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground sm:text-xl">{tip.title}</h3>
+            <h2 className="text-lg font-semibold leading-snug tracking-tight text-foreground sm:text-xl">{tip.title}</h2>
             <p className="max-w-2xl text-[15px] leading-[1.55] text-muted-foreground/90">{tip.body}</p>
           </div>
         </div>

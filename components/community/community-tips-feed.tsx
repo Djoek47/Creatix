@@ -43,7 +43,7 @@ export function CommunityTipsFeed() {
       const res = await fetch('/api/community/tips')
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Could not load community tips.')
+        setError(typeof json.error === 'string' ? json.error : 'Could not load suggestions.')
         setFeed([])
         setMySubmissions([])
         return
@@ -51,7 +51,7 @@ export function CommunityTipsFeed() {
       setFeed(Array.isArray(json.feed) ? json.feed : [])
       setMySubmissions(Array.isArray(json.mySubmissions) ? json.mySubmissions : [])
     } catch {
-      setError('Could not load community tips.')
+      setError('Could not load suggestions.')
     } finally {
       setLoading(false)
     }
@@ -192,7 +192,7 @@ export function CommunityTipsFeed() {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium">From the community</h2>
+        <h2 className="text-lg font-medium">Published suggestions</h2>
         <p className="text-xs text-muted-foreground">
           Approved tips may be summarized anonymously into the shared best-practices library used by Competitor Analysis
           (no names or IDs attached).

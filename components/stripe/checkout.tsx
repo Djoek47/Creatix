@@ -6,8 +6,14 @@ import {
   EmbeddedCheckoutProvider,
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
-import { startCheckoutSession, startCustomCreditTopupCheckout, startPaidSubscriptionCheckout } from '@/app/actions/stripe'
+import {
+  startCheckoutSession,
+  startCustomCreditTopupCheckout,
+  startPaidSubscriptionCheckout,
+  type CheckoutClientSecretResult,
+} from '@/app/actions/stripe'
 import { parsePaidCheckoutBlockedError } from '@/lib/billing/paid-checkout-blocked'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -22,11 +28,23 @@ const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : 
 const STRIPE_CONFIG_ERROR =
   'Stripe checkout is not configured yet. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to enable payments.'
 
+/** Must sit above nested host dialogs (e.g. insufficient-credits modal at z-[100]). */
+const CHECKOUT_DIALOG_Z = 'z-[200]'
+
+async function checkoutClientSecret(
+  resultPromise: Promise<string | CheckoutClientSecretResult>,
+): Promise<string> {
+  const r = await resultPromise
+  if (typeof r === 'string') return r
+  if (r.ok) return r.clientSecret
+  throw new Error(r.error)
+}
+
 interface CheckoutProps {
   productId: string
   billingVariant?: BillingVariant
   tierIndex?: number
-  /** Focus (`single`): 1–2 platforms; omit for Unified (`multi`). */
+  /** Single-platform (`single`): 1–2 platforms; omit for Unified (`multi`). */
   focusPlatforms?: AdultBillingPlatform[] | null
   /** Managers on the same creator account (multiplies monthly price). */
   seats?: number
@@ -65,29 +83,31 @@ export function Checkout({
     setLoading(true)
     try {
       if (typeof customTopupUsdAmount === 'number') {
-        return await startCustomCreditTopupCheckout(customTopupUsdAmount)
+        return await checkoutClientSecret(startCustomCreditTopupCheckout(customTopupUsdAmount))
       }
       if (productId === PAID_PLAN_ID) {
         if (billingVariant == null || tierIndex == null) {
           throw new Error('Choose revenue band and plan type before checkout.')
         }
-        return await startPaidSubscriptionCheckout({
-          variant: billingVariant,
-          tierIndex,
-          focusPlatforms:
-            billingVariant === 'single'
-              ? focusPlatforms?.length
-                ? focusPlatforms
-                : ['onlyfans']
-              : billingVariant === 'multi' &&
-                  focusPlatforms?.length &&
-                  sortFocusPlatforms(focusPlatforms).includes('manyvids')
-                ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
-                : null,
-          seats,
-        })
+        return await checkoutClientSecret(
+          startPaidSubscriptionCheckout({
+            variant: billingVariant,
+            tierIndex,
+            focusPlatforms:
+              billingVariant === 'single'
+                ? focusPlatforms?.length
+                  ? focusPlatforms
+                  : ['onlyfans']
+                : billingVariant === 'multi' &&
+                    focusPlatforms?.length &&
+                    sortFocusPlatforms(focusPlatforms).includes('manyvids')
+                  ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+                  : null,
+            seats,
+          }),
+        )
       }
-      return await startCheckoutSession(productId)
+      return await checkoutClientSecret(startCheckoutSession(productId))
     } catch (e) {
       const blocked = parsePaidCheckoutBlockedError(e)
       setCheckoutError(
@@ -128,7 +148,10 @@ export function Checkout({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        overlayClassName={CHECKOUT_DIALOG_Z}
+        className={cn('max-w-2xl max-h-[90vh] overflow-y-auto', CHECKOUT_DIALOG_Z)}
+      >
         <DialogHeader>
           <DialogTitle>{completed ? 'Payment complete' : 'Complete your purchase'}</DialogTitle>
         </DialogHeader>
@@ -213,23 +236,25 @@ export function CheckoutEmbed({
       if (billingVariant == null || tierIndex == null) {
         return Promise.reject(new Error('Missing billing options'))
       }
-      return startPaidSubscriptionCheckout({
-        variant: billingVariant,
-        tierIndex,
-        focusPlatforms:
-          billingVariant === 'single'
-            ? focusPlatforms?.length
-              ? focusPlatforms
-              : ['onlyfans']
-            : billingVariant === 'multi' &&
-                focusPlatforms?.length &&
-                sortFocusPlatforms(focusPlatforms).includes('manyvids')
-              ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
-              : null,
-        seats,
-      })
+      return checkoutClientSecret(
+        startPaidSubscriptionCheckout({
+          variant: billingVariant,
+          tierIndex,
+          focusPlatforms:
+            billingVariant === 'single'
+              ? focusPlatforms?.length
+                ? focusPlatforms
+                : ['onlyfans']
+              : billingVariant === 'multi' &&
+                  focusPlatforms?.length &&
+                  sortFocusPlatforms(focusPlatforms).includes('manyvids')
+                ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+                : null,
+          seats,
+        }),
+      )
     }
-    return startCheckoutSession(productId)
+    return checkoutClientSecret(startCheckoutSession(productId))
   }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
 
   const handleComplete = useCallback(() => {

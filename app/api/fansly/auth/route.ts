@@ -3,6 +3,9 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { refreshFanslyObservedRevenueForBilling } from '@/lib/fansly/billing-observation'
 import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
+import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
+import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 import { notifyPlatformConnectionChange } from '@/lib/notifications/platform-connection-notify'
 
 // POST: Connect Fansly account with username/password
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
     const [{ data: subRow }, { data: connRows }] = await Promise.all([
       supabase
         .from('subscriptions')
-        .select('billing_variant, billing_focus_platform, billing_focus_platforms, status')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase
@@ -53,6 +56,19 @@ export async function POST(request: NextRequest) {
           error:
             'Your current plan is Focus for OnlyFans only. Upgrade to Unified (priced by your revenue tier) under Billing to connect Fansly.',
           code: 'BILLING_FOCUS_UPGRADE_REQUIRED',
+        },
+        { status: 403 },
+      )
+    }
+
+    if (!canConnectAdultPartnerPlatform(subRow)) {
+      logPartnerConnectEntitlementDenied('POST /api/fansly/auth', user.id)
+      const denial = denialForAdultPlatformConnectEntitlement(subRow)
+      return NextResponse.json(
+        {
+          error: denial?.message ?? 'Subscription or Divine trial required before connecting platforms.',
+          code: 'CONNECT_ENTITLEMENT_REQUIRED',
+          reason: 'CONNECT_ENTITLEMENT_REQUIRED',
         },
         { status: 403 },
       )

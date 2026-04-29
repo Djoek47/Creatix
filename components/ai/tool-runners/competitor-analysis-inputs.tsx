@@ -4,13 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
 import { VoiceInputButton } from '@/components/voice-input-button'
 
 export type CompetitorAnalysisRunnerInputsProps = {
@@ -50,17 +44,7 @@ export function CompetitorAnalysisRunnerInputs({
           </div>
           <div className="space-y-2">
             <Label>Platform</Label>
-            <Select value={platform} onValueChange={setPlatform}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                <SelectItem value="fansly">Fansly</SelectItem>
-                <SelectItem value="mym">MYM</SelectItem>
-                <SelectItem value="multi">Multi-platform</SelectItem>
-              </SelectContent>
-            </Select>
+            <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
           </div>
         </div>
         <div className="space-y-2">
@@ -106,17 +90,7 @@ export function CompetitorAnalysisRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>Primary platform</Label>
-          <Select value={platform} onValueChange={setPlatform}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="onlyfans">OnlyFans</SelectItem>
-              <SelectItem value="fansly">Fansly</SelectItem>
-              <SelectItem value="mym">MYM</SelectItem>
-              <SelectItem value="multi">Multi-platform</SelectItem>
-            </SelectContent>
-          </Select>
+          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">

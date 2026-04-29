@@ -68,7 +68,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'map-circe',
         title: 'Circe: retention & shield',
         description:
-          'Under Circe: Analytics (revenue and fans), Retention (churn hub and digests), Protection (leaks, DMCA, Aegis). Purple = stay, protect, analyze.',
+          'Under Circe: Analytics (revenue and fans), Retention (churn hub and scheduled scans), Protection (leaks, DMCA, Aegis). Purple = stay, protect, analyze.',
       },
       {
         id: 'map-venus',
@@ -316,7 +316,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'welcome',
         title: 'Welcome to Divine Manager',
         description:
-          'Operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. Scroll the page if you landed on a deep link.',
+          'Operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. First visit runs a short setup wizard (example phrases, goals, notifications); after that, tune goals under Preferences. Guide links and `?section=protocol`, `tasks`, or `chat` jump the page or open text chat—scroll if you landed mid-page.',
       },
       {
         id: 'voice',
@@ -334,7 +334,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'protocol-rail',
         title: 'Protocol tasks',
         description:
-          'The collapsible rail lists follow-ups and workflows. Collapse it for a clean screen; link tasks to inbox items when possible.',
+          'The protocol card lists follow-ups and workflows (same queue as the crown menu). `?section=tasks` focuses this card; `?section=protocol` scrolls the whole Today plan + tasks block. Open the crown menu anytime for the same queue without leaving voice.',
       },
       {
         id: 'bell',
@@ -352,7 +352,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'today-plan',
         title: 'Today plan and tasks',
         description:
-          'Suggested moves for the day, automation hooks, and large-tip rules when configured. Anchor links jump to Today plan or tasks.',
+          'When beta mode is on, suggested moves for the day sit above protocol tasks in one section (`#divine-section-protocol`). Open it from the Guide or `?section=protocol`; automation hooks and large-tip rules appear here when configured.',
       },
       {
         id: 'voice-settings',
@@ -586,11 +586,11 @@ const TOURS: Record<string, TourConfig> = {
         id: 'hub',
         title: 'Retention hub',
         description:
-          'Churn Predictor: scheduled digests for expiring subs and quiet fans, using your synced fan data. Configure cadence, credits, and notifications here.',
+          'Churn Predictor: scheduled scans for expiring subs and quiet fans, using your synced fan data. Configure cadence, credits, and notifications here.',
       },
       {
         id: 'last-run',
-        title: 'Last run & digest',
+        title: 'Last run & output',
         description:
           'Last run shows when the background job completed. Keep Fans synced so expiries and spend are accurate; some media may only fully play in the official platform app.',
       },
@@ -604,7 +604,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tease',
         title: 'Future tease',
         description:
-          'Optional calendar notes feed retention teasers in digests—align with Content calendar for consistent messaging.',
+          'Optional calendar notes feed retention teasers in scans—align with Content calendar for consistent messaging.',
       },
     ],
   },

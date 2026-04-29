@@ -124,8 +124,8 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
               aria-hidden
             />
             <span>Video editor</span>
-            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.7rem] uppercase leading-none tracking-wide text-amber-500">
-              Beta
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.62rem] uppercase leading-none tracking-tight text-amber-500 sm:text-[0.7rem] sm:tracking-wide">
+              Coming soon
             </span>
           </span>
         </Button>

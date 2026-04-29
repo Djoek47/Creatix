@@ -16,6 +16,7 @@ import {
   type DivineManagerAutomationRules,
   type DivineBackgroundOps,
 } from '@/lib/divine-manager'
+import { isDivineManagerScrollSection, divineManagerScrollElementId } from '@/lib/divine-manager-deep-link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +66,7 @@ export default function DivineManagerPage() {
     examplePhrases: [],
   })
   const [boundaryInput, setBoundaryInput] = useState('')
+  const [examplePhraseInput, setExamplePhraseInput] = useState('')
   const [goals, setGoals] = useState<DivineManagerGoals>({
     qualitativeGoals: [],
     targetSubscribers: undefined,
@@ -72,6 +74,8 @@ export default function DivineManagerPage() {
     targetARPU: undefined,
   })
   const [goalInput, setGoalInput] = useState('')
+  const goalsRef = useRef(goals)
+  goalsRef.current = goals
   const [automationRules, setAutomationRules] = useState<DivineManagerAutomationRules>({
     autoPostSchedule: { enabled: false, maxPerDay: 2 },
     autoWelcomeDm: { enabled: false, maxPerDay: 50 },
@@ -150,8 +154,8 @@ export default function DivineManagerPage() {
       }, 200)
       return () => clearTimeout(t)
     }
-    if (!['mimic', 'voice', 'tasks', 'alerts', 'protocol'].includes(section)) return
-    const id = section === 'protocol' ? 'divine-section-tasks' : `divine-section-${section}`
+    if (!isDivineManagerScrollSection(section)) return
+    const id = divineManagerScrollElementId(section)
     const t = window.setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 200)
@@ -308,6 +312,19 @@ export default function DivineManagerPage() {
     }
   }
 
+  const persistGoals = async (next: DivineManagerGoals) => {
+    if (!userId) return
+    setGoals(next)
+    try {
+      const supabase = createClient()
+      const row = await upsertSettings(supabase, userId, { goals: next })
+      setSettings(row)
+      if (row.goals) setGoals(row.goals)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const handleRunManager = async () => {
     if (!userId) return
     setRunningBrain(true)
@@ -402,6 +419,8 @@ export default function DivineManagerPage() {
         boundaries: [],
         examplePhrases: [],
       })
+      setExamplePhraseInput('')
+      setGoalInput('')
       setGoals({
         qualitativeGoals: [],
         targetSubscribers: undefined,
@@ -857,7 +876,7 @@ export default function DivineManagerPage() {
               </div>
               <CardDescription className="text-sm">
                 {wizardStep === 1 && 'Persona & boundaries'}
-                {wizardStep === 2 && 'Archetype & notifications'}
+                {wizardStep === 2 && 'Goals, archetype & notifications'}
                 {wizardStep === 3 && 'Automation rules'}
                 {wizardStep === 4 && 'Review and activate'}
               </CardDescription>
@@ -927,12 +946,157 @@ export default function DivineManagerPage() {
                     </div>
                   )}
                 </div>
+                <div className="space-y-2">
+                  <Label>Example phrases (optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Short lines you like so Divine can echo your vibe in drafts.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Hey love — thanks for being here"
+                      value={examplePhraseInput}
+                      onChange={(e) => setExamplePhraseInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && examplePhraseInput.trim()) {
+                          setPersona((p) => ({
+                            ...p,
+                            examplePhrases: [...(p.examplePhrases ?? []), examplePhraseInput.trim()],
+                          }))
+                          setExamplePhraseInput('')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (examplePhraseInput.trim()) {
+                          setPersona((p) => ({
+                            ...p,
+                            examplePhrases: [...(p.examplePhrases ?? []), examplePhraseInput.trim()],
+                          }))
+                          setExamplePhraseInput('')
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {(persona.examplePhrases?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(persona.examplePhrases ?? []).map((phrase, i) => (
+                        <Badge key={i} variant="outline" className="text-xs max-w-full break-words">
+                          {phrase}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
             {wizardStep === 2 && (
               <>
                 <p className="text-sm text-muted-foreground">
+                  What you&apos;re working toward — plus how Divine should feel day to day.
+                </p>
+                <div className="space-y-2 rounded-lg border border-border p-4">
+                  <Label>Goals (one at a time)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Grow VIP list, launch collab tier"
+                      value={goalInput}
+                      onChange={(e) => setGoalInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && goalInput.trim()) {
+                          setGoals((g) => ({
+                            ...g,
+                            qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                          }))
+                          setGoalInput('')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (goalInput.trim()) {
+                          setGoals((g) => ({
+                            ...g,
+                            qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                          }))
+                          setGoalInput('')
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {(goals.qualitativeGoals?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(goals.qualitativeGoals ?? []).map((g, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {g}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid gap-3 pt-2 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target subs (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="—"
+                        value={goals.targetSubscribers ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetSubscribers: raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0)),
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target retention % (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        placeholder="—"
+                        value={goals.targetRetention ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetRetention: raw === '' ? undefined : Math.max(0, Math.min(100, Number(raw) || 0)),
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target ARPU (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder="—"
+                        value={goals.targetARPU ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetARPU: raw === '' ? undefined : Math.max(0, Number(raw) || 0),
+                          }))
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground pt-2">
                   Choose your Divine Manager&apos;s style and how often it should ping you.
                 </p>
                 <div className="space-y-3">
@@ -1193,6 +1357,33 @@ export default function DivineManagerPage() {
                 <p className="font-serif text-sm font-medium text-foreground">Review and activate</p>
                 <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
                   <p className="text-sm text-muted-foreground">Tone: {persona.tone} · Flirty: {persona.flirtyLevel}</p>
+                  {(persona.examplePhrases?.length ?? 0) > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Example phrases: {(persona.examplePhrases ?? []).slice(0, 3).join(' · ')}
+                      {(persona.examplePhrases ?? []).length > 3 ? '…' : ''}
+                    </p>
+                  ) : null}
+                  <p className="text-sm text-muted-foreground">
+                    Goals:{' '}
+                    {(goals.qualitativeGoals?.length ?? 0) > 0
+                      ? (goals.qualitativeGoals ?? []).join(', ')
+                      : 'None listed'}
+                    {[
+                      goals.targetSubscribers != null && `${goals.targetSubscribers} subs`,
+                      goals.targetRetention != null && `${goals.targetRetention}% retention`,
+                      goals.targetARPU != null && `ARPU ${goals.targetARPU}`,
+                    ]
+                      .filter(Boolean)
+                      .length > 0
+                      ? ` · ${[
+                          goals.targetSubscribers != null && `${goals.targetSubscribers} subs`,
+                          goals.targetRetention != null && `${goals.targetRetention}% retention`,
+                          goals.targetARPU != null && `ARPU ${goals.targetARPU}`,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}`
+                      : ''}
+                  </p>
                   <p className="text-sm text-muted-foreground">Archetype: {managerArchetype}</p>
                   <p className="text-sm text-muted-foreground">
                     Automation: {[automationRules.autoPostSchedule?.enabled && 'Posts', automationRules.autoWelcomeDm?.enabled && 'Welcome DMs', automationRules.autoFollowUpAfterTips?.enabled && 'Tip follow-up'].filter(Boolean).join(', ') || 'None'}
@@ -1305,11 +1496,12 @@ export default function DivineManagerPage() {
           </nav>
         </header>
 
-        {settings.beta_acknowledged && mode !== 'off' ? (
-          <div id="divine-section-protocol" className="scroll-mt-24">
+        <div id="divine-section-protocol" className="scroll-mt-24 space-y-10">
+          {settings.beta_acknowledged && mode !== 'off' ? (
             <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
-          </div>
-        ) : null}
+          ) : null}
+          <DivineManagerProtocolTasksCard />
+        </div>
 
         <div id="divine-section-mimic" className="scroll-mt-24">
           <MimicTestWizard />
@@ -1575,9 +1767,7 @@ export default function DivineManagerPage() {
           </Button>
         </div>
 
-      <DivineManagerProtocolTasksCard />
-
-      {settings.beta_acknowledged && mode !== 'off' && (
+        {settings.beta_acknowledged && mode !== 'off' && (
         <Card id="divine-section-voice" className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -2064,7 +2254,7 @@ export default function DivineManagerPage() {
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
 
       <Card className="divine-card rounded-2xl">
         <CardHeader>
@@ -2078,6 +2268,120 @@ export default function DivineManagerPage() {
           <p><span className="font-medium text-foreground">Tone:</span> {String(settings.persona?.tone ?? '—')} · Flirty: {String(settings.persona?.flirtyLevel ?? '—')}</p>
           <p><span className="font-medium text-foreground">Archetype:</span> {settings.manager_archetype || 'hermes'}</p>
           <p><span className="font-medium text-foreground">Notifications:</span> {settings.notification_settings?.level ?? 'daily_digest'}</p>
+          <div className="space-y-3 border-t border-border pt-3">
+            <p className="font-medium text-foreground">Goals</p>
+            <p className="text-xs text-muted-foreground">Qualitative targets and optional numbers (subs, retention %, ARPU). Used when Divine plans your week.</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add a goal"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && goalInput.trim()) {
+                    const g = goalsRef.current
+                    void persistGoals({
+                      ...g,
+                      qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                    })
+                    setGoalInput('')
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!goalInput.trim()) return
+                  const g = goalsRef.current
+                  void persistGoals({
+                    ...g,
+                    qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                  })
+                  setGoalInput('')
+                }}
+              >
+                Add
+              </Button>
+            </div>
+            {(goals.qualitativeGoals?.length ?? 0) > 0 && (
+              <ul className="flex flex-wrap gap-1.5">
+                {(goals.qualitativeGoals ?? []).map((g, i) => (
+                  <li key={`${g}-${i}`}>
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer gap-1 pr-1 text-xs font-normal"
+                      onClick={() => {
+                        const g = goalsRef.current
+                        void persistGoals({
+                          ...g,
+                          qualitativeGoals: (g.qualitativeGoals ?? []).filter((_, j) => j !== i),
+                        })
+                      }}
+                    >
+                      {g}
+                      <span className="text-[10px] opacity-70">×</span>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Target subs</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="—"
+                  value={goals.targetSubscribers ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetSubscribers: raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0)),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Target retention %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  placeholder="—"
+                  value={goals.targetRetention ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetRetention: raw === '' ? undefined : Math.max(0, Math.min(100, Number(raw) || 0)),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Target ARPU</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="—"
+                  value={goals.targetARPU ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetARPU: raw === '' ? undefined : Math.max(0, Number(raw) || 0),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+            </div>
+          </div>
           <p className="font-medium text-foreground">AI voice</p>
           <Select
             value={getDivineVoice(settings.notification_settings?.voice)}

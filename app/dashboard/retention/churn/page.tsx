@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { format, isValid, parseISO } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -16,32 +15,11 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
-import {
-  parseCalendarTeaserStored,
-  serializeCalendarTeaserStored,
-} from '@/lib/circe-churn/calendar-teaser-notes-format'
-import {
-  Loader2,
-  RadioTower,
-  BarChart3,
-  Bell,
-  ListTodo,
-  Calendar as CalendarIcon,
-  ScanLine,
-  Plus,
-  X,
-  Coins,
-} from 'lucide-react'
+import { Loader2, RadioTower, BarChart3, Bell, ListTodo, ScanLine, Coins, CalendarDays } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
-
-type TeaserRow = { id: string; date: Date | undefined; text: string }
-
-const MAX_CAL_TEASER_ROWS = 24
 
 const surfaceCard =
   'rounded-2xl border border-border/35 bg-card/60 shadow-none backdrop-blur-sm dark:border-border/25 dark:bg-card/45'
@@ -74,10 +52,6 @@ export default function ChurnPredictorHubPage() {
   const [creditsPerRun, setCreditsPerRun] = useState(2)
   const [linkMgr, setLinkMgr] = useState(true)
   const [linkProto, setLinkProto] = useState(true)
-  const [teaseFutureContent, setTeaseFutureContent] = useState(true)
-  const [teaserRows, setTeaserRows] = useState<TeaserRow[]>(() => [
-    { id: crypto.randomUUID(), date: undefined, text: '' },
-  ])
 
   const [scanning, setScanning] = useState(false)
 
@@ -112,20 +86,6 @@ export default function ChurnPredictorHubPage() {
       setCreditsPerRun(s.credits_per_run ?? 2)
       setLinkMgr(s.link_divine_manager_tasks !== false)
       setLinkProto(s.link_protocol_tasks !== false)
-      setTeaseFutureContent(s.tease_future_content !== false)
-      const lines = parseCalendarTeaserStored(s.calendar_teaser_notes)
-      setTeaserRows(
-        lines.length > 0
-          ? lines.map((l) => {
-              let date: Date | undefined
-              if (l.date) {
-                const d = parseISO(l.date)
-                date = isValid(d) ? d : undefined
-              }
-              return { id: crypto.randomUUID(), date, text: l.text }
-            })
-          : [{ id: crypto.randomUUID(), date: undefined, text: '' }],
-      )
       setLastRunAt(s.last_run_at)
       setLastError(s.last_run_error)
       setDigest(s.last_digest_markdown ?? null)
@@ -137,43 +97,9 @@ export default function ChurnPredictorHubPage() {
     }
   }, [])
 
-  const serializedCalendarTeasers = serializeCalendarTeaserStored(
-    teaserRows.map((r) => ({
-      date: r.date ? format(r.date, 'yyyy-MM-dd') : '',
-      text: r.text,
-    })),
-  )
-
-  const patchTeaserRow = useCallback((id: string, patch: Partial<Pick<TeaserRow, 'date' | 'text'>>) => {
-    setTeaserRows((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)))
-  }, [])
-
-  const addTeaserRow = useCallback(() => {
-    setTeaserRows((rows) =>
-      rows.length >= MAX_CAL_TEASER_ROWS
-        ? rows
-        : [...rows, { id: crypto.randomUUID(), date: undefined, text: '' }],
-    )
-  }, [])
-
-  const removeTeaserRow = useCallback((id: string) => {
-    setTeaserRows((rows) => {
-      const next = rows.filter((r) => r.id !== id)
-      return next.length > 0 ? next : [{ id: crypto.randomUUID(), date: undefined, text: '' }]
-    })
-  }, [])
-
   useEffect(() => {
     void load()
   }, [load])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.location.hash !== '#future-tease') return
-    requestAnimationFrame(() => {
-      document.getElementById('future-tease')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [])
 
   const save = async () => {
     setSaving(true)
@@ -196,8 +122,6 @@ export default function ChurnPredictorHubPage() {
           credits_per_run: creditsPerRun,
           link_divine_manager_tasks: linkMgr,
           link_protocol_tasks: linkProto,
-          tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: serializedCalendarTeasers,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -233,19 +157,6 @@ export default function ChurnPredictorHubPage() {
     setScanning(true)
     setError(null)
     try {
-      const saveFirst = await fetch('/api/circe-churn/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: serializedCalendarTeasers,
-        }),
-      })
-      if (!saveFirst.ok) {
-        const data = await saveFirst.json().catch(() => ({}))
-        setError(typeof data.error === 'string' ? data.error : 'Could not save teaser settings')
-        return
-      }
       const res = await fetch('/api/circe-churn/run', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (res.status === 402) {
@@ -299,7 +210,7 @@ export default function ChurnPredictorHubPage() {
                 Churn Predictor
               </h1>
               <p className="text-pretty text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-                Surfaces fans who may drift before they leave—one calm digest with context, ideas, and draft messages.
+                Surfaces fans who may drift before they leave—one calm report with context, ideas, and draft messages.
               </p>
             </div>
           </div>
@@ -375,106 +286,24 @@ export default function ChurnPredictorHubPage() {
         </div>
       ) : null}
 
-      <section id="future-tease">
-        <Card className={cn(surfaceCard, 'overflow-hidden')}>
-          <CardHeader className="space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-              <div className="min-w-0 max-w-xl space-y-2">
-                <p className={sectionKicker}>Upcoming drops</p>
-                <CardTitle className="font-sans text-xl font-semibold tracking-tight text-foreground sm:text-[22px]">
-                  Content calendar
-                </CardTitle>
-                <CardDescription className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-                  Dates you add here can be referenced in digests—so suggestions stay aligned with your real plans.
-                </CardDescription>
-              </div>
-              <Switch
-                checked={teaseFutureContent}
-                onCheckedChange={setTeaseFutureContent}
-                aria-label="Include future content teasers in digest"
-                className="mt-1 shrink-0 data-[state=checked]:bg-foreground"
-              />
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardContent className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-muted/[0.08]">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-5 px-6 py-6 sm:px-8 sm:py-7 sm:pb-8">
-            <div className="space-y-3">
-              {teaserRows.map((row) => (
-                <div
-                  key={row.id}
-                  className={cn(
-                    'flex flex-col gap-2.5 sm:flex-row sm:items-center',
-                    !teaseFutureContent && 'pointer-events-none opacity-40',
-                  )}
-                >
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!teaseFutureContent}
-                        className={cn(
-                          'h-11 w-full shrink-0 justify-start rounded-xl border-border/45 bg-background/60 px-3.5 text-[14px] font-normal shadow-none sm:w-[11rem]',
-                          !row.date && 'text-muted-foreground',
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" aria-hidden />
-                        {row.date ? format(row.date, 'MMM d, yyyy') : 'Date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto overflow-hidden border-border/40 p-0 shadow-lg" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={row.date}
-                        onSelect={(d) => patchTeaserRow(row.id, { date: d })}
-                        captionLayout="dropdown"
-                        fromYear={new Date().getFullYear()}
-                        toYear={new Date().getFullYear() + 2}
-                        className="rounded-xl"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Input
-                    value={row.text}
-                    onChange={(e) => patchTeaserRow(row.id, { text: e.target.value.slice(0, 500) })}
-                    placeholder="What’s planned that day"
-                    disabled={!teaseFutureContent}
-                    className="h-11 flex-1 rounded-xl border-border/45 bg-background/70 text-[14px] shadow-none"
-                    aria-label={`Plan for ${row.date ? format(row.date, 'yyyy-MM-dd') : 'undated row'}`}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={!teaseFutureContent || teaserRows.length <= 1}
-                    className="h-11 w-11 shrink-0 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    onClick={() => removeTeaserRow(row.id)}
-                    aria-label="Remove row"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 border-t border-border/25 pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!teaseFutureContent || teaserRows.length >= MAX_CAL_TEASER_ROWS}
-                className="h-10 w-fit gap-2 rounded-xl px-3 text-[13px] text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                onClick={addTeaserRow}
-              >
-                <Plus className="h-4 w-4" />
-                Add row
-              </Button>
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                Persists with <span className="text-foreground/90">Save</span> or when you run{' '}
-                <span className="text-foreground/90">Scan now</span>.
+            <div className="min-w-0 space-y-1">
+              <p className="text-[14px] font-semibold text-foreground">Upcoming drops for scans</p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                Edit your content calendar on its own page so churn scans can reference what you actually plan to post.
               </p>
             </div>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+          <Button asChild variant="outline" className="h-10 shrink-0 rounded-xl px-4">
+            <Link href="/dashboard/retention/tease">User retention by tease</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className={cn(surfaceCard, 'overflow-hidden')}>
         <CardHeader className="flex flex-row items-start gap-4 space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
@@ -490,7 +319,7 @@ export default function ChurnPredictorHubPage() {
               <span className="font-medium tabular-nums text-foreground/90">
                 {creditsPerRun} credit{creditsPerRun === 1 ? '' : 's'}
               </span>{' '}
-              are used for the digest—same as Scan now. The server blocks scheduled runs if you don&apos;t have enough
+              are used for that run—same as Scan now. The server blocks scheduled runs if you don&apos;t have enough
               credits reserved.
             </CardDescription>
             {!creditsLoading && !canAffordScan ? (
@@ -498,7 +327,7 @@ export default function ChurnPredictorHubPage() {
                 You have{' '}
                 <span className="tabular-nums font-medium text-foreground">{creditsRemaining}</span> credit
                 {creditsRemaining === 1 ? '' : 's'}, but need at least{' '}
-                <span className="tabular-nums font-medium text-foreground">{scanCreditCost}</span> to run a churn digest.{' '}
+                <span className="tabular-nums font-medium text-foreground">{scanCreditCost}</span> to run a churn scan.{' '}
                 <Link
                   href="/dashboard/settings?tab=billing"
                   className="font-medium text-primary underline-offset-2 hover:underline"
@@ -666,13 +495,13 @@ export default function ChurnPredictorHubPage() {
               <h2 id="churn-batch-heading" className={blockHeading}>
                 Batch &amp; credits
               </h2>
-              <p className={blockSub}>Digest size and credits apply only when someone matches.</p>
+              <p className={blockSub}>Batch size and credits apply only when someone matches.</p>
             </div>
             <div className={insetFieldGroup}>
               <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
                 <div className="space-y-2">
                   <Label htmlFor="max-f" className={labelClass}>
-                    Fans per digest
+                    Fans per run
                   </Label>
                   <p className="text-[12px] leading-relaxed text-muted-foreground/85">Maximum per report (1–25).</p>
                   <Input
@@ -689,7 +518,7 @@ export default function ChurnPredictorHubPage() {
                   <Label htmlFor="credits" className={labelClass}>
                     Credits per match
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Up to this many after a successful digest (1–10).</p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Up to this many after a successful run (1–10).</p>
                   <Input
                     id="credits"
                     type="number"
@@ -722,10 +551,10 @@ export default function ChurnPredictorHubPage() {
             <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[14px] font-medium text-foreground">Digest ready</p>
+                  <p className="text-[14px] font-medium text-foreground">Run ready</p>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">New report is available.</p>
                 </div>
-                <Switch checked={notifySummary} onCheckedChange={setNotifySummary} aria-label="Notify when digest is ready" />
+                <Switch checked={notifySummary} onCheckedChange={setNotifySummary} aria-label="Notify when a run completes with matches" />
               </div>
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
@@ -812,7 +641,7 @@ export default function ChurnPredictorHubPage() {
           {digest ? (
             <div className="space-y-3">
               <p className="text-[12px] tabular-nums text-muted-foreground">
-                {digestAt ? `${new Date(digestAt).toLocaleString()}` : 'Latest digest'}
+                {digestAt ? `${new Date(digestAt).toLocaleString()}` : 'Latest output'}
               </p>
               <div className="max-h-[480px] overflow-y-auto rounded-xl border border-border/35 bg-muted/[0.06] p-5 dark:bg-muted/[0.08]">
                 <pre className="whitespace-pre-wrap font-sans text-[13px] leading-[1.6] text-foreground/88">{digest}</pre>
@@ -820,7 +649,7 @@ export default function ChurnPredictorHubPage() {
             </div>
           ) : (
             <p className="text-[14px] leading-relaxed text-muted-foreground">
-              No digest yet. After a scheduled or manual batch run, it appears here. Keep{' '}
+              No results yet. After a scheduled or manual batch run, they appear here. Keep{' '}
               <Link href="/dashboard/fans" className="font-medium text-foreground underline-offset-4 hover:underline">
                 Fans
               </Link>{' '}

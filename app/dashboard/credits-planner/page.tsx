@@ -13,9 +13,9 @@ export default function CreditsPlannerPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="font-serif text-2xl font-semibold">Credits Planner</h1>
-          <p className="text-sm text-muted-foreground">
-            Smart monthly planner that scans fans + revenue and optimizes premium protection spend.
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Credits planner</h1>
+          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Monthly allocation from your live fan and revenue picture—minimal noise, one clear action.
           </p>
         </div>
       </div>

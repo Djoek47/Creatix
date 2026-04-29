@@ -83,6 +83,14 @@ export function canUseCreditGatedProFeature(row: SubscriptionLike | null | undef
 }
 
 /**
+ * May start a new OnlyFans / Fansly partner (OnlyFansAPI / Fansly) link — per-account cost to Circe.
+ * Same bar as Pro credit-gated tools; keep one entry point if policy diverges later.
+ */
+export function canConnectAdultPartnerPlatform(row: SubscriptionLike | null | undefined): boolean {
+  return canUseCreditGatedProFeature(row)
+}
+
+/**
  * Can open the main API dashboard (revenue tools, DMs, etc.): cev-paid or legacy — not protection-only.
  * Use with `isProtectionEntitled` for stacked users.
  */

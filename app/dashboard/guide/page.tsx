@@ -77,9 +77,6 @@ export default function GuidePage() {
             <a href="#divine-manager" className="text-primary underline-offset-4 hover:underline">
               Divine Manager
             </a>
-            <a href="#onlyfans" className="text-primary underline-offset-4 hover:underline">
-              OnlyFans
-            </a>
             <a href="#troubleshooting" className="text-primary underline-offset-4 hover:underline">
               Troubleshooting
             </a>

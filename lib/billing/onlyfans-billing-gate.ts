@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isPaidPlanId, isPaidSubscription, type SubscriptionLike } from '@/lib/billing/access'
+import {
+  canConnectAdultPartnerPlatform,
+  isPaidPlanId,
+  isPaidSubscription,
+  type SubscriptionLike,
+} from '@/lib/billing/access'
 import { tierIndexFromMonthlyRevenue } from '@/lib/pricing-matrix'
 
-export type OnlyFansBillingDenialCode = 'SUBSCRIPTION_INACTIVE' | 'REVENUE_TIER_MISMATCH'
+export type OnlyFansBillingDenialCode =
+  | 'SUBSCRIPTION_INACTIVE'
+  | 'REVENUE_TIER_MISMATCH'
+  /** No active paid plan or Divine trial — block new partner API connections (per-account cost). */
+  | 'CONNECT_ENTITLEMENT_REQUIRED'
 
 export type OnlyFansBillingDenial = {
   code: OnlyFansBillingDenialCode
@@ -26,6 +35,21 @@ export function subscribedRevenueTierIndex(row: SubscriptionLike | null | undefi
   const t = typeof row?.revenue_tier === 'number' ? row.revenue_tier : null
   if (t == null || !Number.isFinite(t) || t < 0 || t > 10) return 0
   return t
+}
+
+/**
+ * OnlyFans/Fansly partner connections bill per linked account. Require an active paid plan or Divine trial
+ * before starting auth (UI + server must enforce).
+ */
+export function denialForAdultPlatformConnectEntitlement(
+  subscription: SubscriptionLike | null | undefined,
+): OnlyFansBillingDenial | null {
+  if (canConnectAdultPartnerPlatform(subscription)) return null
+  return {
+    code: 'CONNECT_ENTITLEMENT_REQUIRED',
+    message:
+      'Start a subscription or Divine trial under Billing before connecting OnlyFans or Fansly. Linked accounts use our data partner and incur a per-account fee.',
+  }
 }
 
 /**
@@ -153,6 +177,7 @@ export function evaluateAdultPlatformBillingDenial(args: {
 }): OnlyFansBillingDenial | null {
   return (
     denialForInactivePaidSubscription(args.subscription) ??
+    denialForAdultPlatformConnectEntitlement(args.subscription) ??
     denialForRevenueTierUndershootMulti({
       subscription: args.subscription,
       onlyfans: args.onlyfans,

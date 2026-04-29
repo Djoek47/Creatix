@@ -34,7 +34,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', badge: 'Popular', credits: 2, hasRunner: true },
   {
     id: 'content-ideas',
-    name: 'Content Ideas',
+    name: 'Content and Caption',
     description: 'Trending ideas & AI captions',
     longDescription:
       'Two modes: trending content ideas for your niche, or the caption generator (upload or describe) for captions, hashtags, and PPV copy.',
@@ -61,7 +61,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     longDescription:
       'Web-only: open the dashboard in a browser — /dashboard/commenter — for comment sync, persona drafts, safety flags, and Fan Atlas (smart lists).',
     category: 'engagement',
-    badge: 'MVP',
     credits: 0,
     hasRunner: true,
   },
@@ -133,7 +132,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     id: 'churn-predictor',
     name: 'Churn Predictor',
     description: "Who's at risk — Circe's Oracle for retention",
-    badge: 'Circe Pro',
     longDescription:
       'Circe\'s Oracle merged into Churn Predictor: at-risk fans, reasons, and retention plays. Web: Retention hub + AI Studio single-fan runs with CRM/thread context.',
     category: 'analytics',
@@ -201,7 +199,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'On web: Protection → Aegis for scheduled scans, optional draft DMCAs, and links to Mentions (reputation is a separate pipeline).',
     category: 'premium',
     isPro: true,
-    badge: 'Circe Pro',
     credits: 6,
     hasRunner: true,
   },
@@ -213,7 +210,6 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
       'Lists your newest subscribers from CRM + live platform lists, then drafts warm introductions, first-touch care, and follow-ups. Tags saved CRM fans for Churn Predictor follow-through — new subs churn easily until they feel seen.',
     category: 'premium',
     isPro: true,
-    badge: 'Venus Pro',
     credits: 5,
     hasRunner: true,
   },

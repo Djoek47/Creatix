@@ -13,7 +13,6 @@ import {
   Zap,
   Lock,
   Crown,
-  ArrowLeft,
   Wand2,
   PenTool,
   Target,
@@ -30,7 +29,6 @@ import {
   ListTree,
   Calendar,
   TrendingUp,
-  Sparkles,
   BarChart3,
   Info,
 } from 'lucide-react'
@@ -39,6 +37,7 @@ import { createClient } from '@/lib/supabase/client'
 import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
+import { StudioBackLink } from '@/components/ai/studio-back-link'
 import { cn } from '@/lib/utils'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -60,7 +59,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'competitor-analysis': Eye,
   'circe-protection-shield': Shield,
   'venus-cupid': Target,
-  'brand-uniformity': Sparkles,
   'credits-planner': BarChart3,
 }
 
@@ -168,16 +166,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {showBackButton ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-xl border border-border/35 bg-background/40 backdrop-blur-sm"
-              asChild
-            >
-              <Link href="/dashboard/ai-studio" aria-label="Back to AI Studio">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
+            <StudioBackLink href="/dashboard/ai-studio" aria-label="Back to AI Studio" />
           ) : null}
           <div className="relative min-w-0 flex-1 sm:max-w-md">
             <Search
@@ -256,7 +245,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                         : tool.id === 'churn-predictor'
                           ? '/dashboard/retention/churn'
                           : tool.id === 'retention-tease'
-                            ? '/dashboard/retention/churn#future-tease'
+                            ? '/dashboard/retention/tease'
                             : `/dashboard/ai-studio/tools/${tool.id}`
 
               const toolInfoHover = (

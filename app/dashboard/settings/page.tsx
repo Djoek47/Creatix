@@ -779,32 +779,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className={SETTINGS_SURFACE}>
-              <CardHeader className={SETTINGS_CARD_HEADER}>
-                <CardTitle className={cn(SETTINGS_CARD_TITLE, 'flex flex-wrap items-center gap-2')}>
-                  Branding
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full border border-border/40 bg-muted/40 px-2.5 py-0 text-[0.625rem] font-medium uppercase tracking-[0.08em] text-muted-foreground"
-                  >
-                    Beta
-                  </Badge>
-                </CardTitle>
-                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
-                  One place for captions, ideas, and watermark defaults.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'pt-6')}>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-10 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
-                >
-                  <Link href="/dashboard/brand-uniformity">Open branding</Link>
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Cosmic Birthday Section */}
             {user && (
               <BirthdaySettings userId={user.id} hasBirthdaySet={hasBirthdaySet} />
@@ -1413,8 +1387,8 @@ export default function SettingsPage() {
                         </Badge>
                       </div>
                       <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground/78">
-                        Short insights while you work—dismiss when you&apos;re done reading. Full list:{' '}
-                        {getCirceTipCount()} tips on the Circe daily page.
+                        Short insights while you browse the dashboard—turn off to stop random pop-ups (you can still open
+                        the archive anytime). Full list: {getCirceTipCount()} tips on the Circe daily page.
                       </p>
                     </div>
                     <Switch

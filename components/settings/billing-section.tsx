@@ -970,6 +970,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
             onCheckoutComplete={handleCheckoutComplete}
             requiredMinTierFromObservation={revenueBandHints?.requiredMinTier ?? null}
             observationCapturedAtIso={revenueBandHints?.observationCapturedAtMax ?? null}
+            lockRevenueBand={linkedOnlyfans || linkedFansly}
             controlled={{
               tierIndex: checkoutTierIndex,
               onTierIndexChange: setCheckoutTierIndex,
@@ -1019,7 +1020,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                           })
                         }
                       }}
-                      aria-label={`Include Anti-piracy (ManyVids) on Bundled Focus (OnlyFans + Fansly), ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle`}
+                      aria-label={`Include ManyVids anti-piracy with the Bundled plan, ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle`}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -1035,7 +1036,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         <div
                           className="flex flex-col items-start gap-1"
                           aria-live="polite"
-                          aria-label="Linked platforms that pair with ManyVids on Focus"
+                          aria-label="Linked platforms that pair with ManyVids on the Bundled plan"
                         >
                           <Badge
                             variant="secondary"
@@ -1084,7 +1085,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                           variant="outline"
                           className="rounded-full border-primary/35 px-2 py-0 text-[10px]"
                         >
-                          With Bundled Focus
+                          With Bundled plan
                         </Badge>
                         <Badge
                           variant="outline"
@@ -1097,13 +1098,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         <span className="font-medium text-foreground/90">
                           {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits
                         </span>{' '}
-                        included each billing cycle for ManyVids anti-piracy tools while this add-on stays on your plan.
-                        This line item bundles into <span className="text-foreground/85">Bundled</span> Focus (OnlyFans +
-                        Fansly)—same subscription and checkout total—not a standalone monthly plan.
+                        included each billing cycle for ManyVids anti-piracy while this add-on stays on your plan. Coverage
+                        aligns with the multi-platform storefront row on pricing—Clips4Sale, Fanvue, Loyalfans, MYM, and
+                        related clip markets (brand marks shown there). This line bundles into your{' '}
+                        <span className="text-foreground/85">Bundled plan</span> total—same subscription and checkout
+                        total—not a standalone monthly plan.
                       </p>
                       <p className="sr-only">
                         Includes {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing
-                        cycle. ManyVids anti-piracy on this row is only with Bundled Focus; the Protection add-on card
+                        cycle. ManyVids anti-piracy on this row is only with the Bundled plan; the Protection add-on card
                         below is the standalone storefront option, billed separately. Price follows your revenue band
                         like the public pricing page.
                       </p>
@@ -1112,7 +1115,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   <div className="shrink-0 sm:pt-1 sm:text-right">
                     <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       {platformSelection.has('manyvids')
-                        ? 'Bundled Focus total'
+                        ? 'Bundled plan total'
                         : 'ManyVids add-on (est.)'}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-baseline gap-1 justify-end tabular-nums">
@@ -1200,7 +1203,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </CardTitle>
           <CardDescription className="max-w-prose text-[13px] leading-snug text-muted-foreground">
             Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated
-            Protection hub. Separate bill from Focus: ManyVids on Bundled Focus above rides your Focus subscription;
+            Protection hub. Separate bill from single-platform and Bundled plans: ManyVids on the Bundled plan above is part of that subscription;
             Protection is its own subscription for broader storefront coverage.
             {subData && isProtectionEntitled(subData) ? (
               <span className="mt-2 block font-medium text-emerald-600 dark:text-emerald-400">Active on your account.</span>

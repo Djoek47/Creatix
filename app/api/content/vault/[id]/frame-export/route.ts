@@ -144,7 +144,6 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
   const patch: Record<string, unknown> = {
     file_url: signed.signedUrl,
     vault_storage_path: path,
-    source_platform: 'app_upload',
     updated_at: new Date().toISOString(),
   }
 

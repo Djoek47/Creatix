@@ -109,6 +109,7 @@ export function FansArrangementsSection({
   const [activity, setActivity] = useState<ActivityJson | null>(null)
   const [legacyOpen, setLegacyOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [persistError, setPersistError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -159,29 +160,59 @@ export function FansArrangementsSection({
     return () => clearInterval(t)
   }, [pollActivity])
 
-  const save = async () => {
+  /** Build JSON for `divine_manager_settings.housekeeping_lists` — same shape the classify API reads. */
+  function buildHousekeepingPayload(enabledFlag: boolean): FanClassifyConfig {
+    const ac: FanClassifyActiveChatConfig = {
+      enabled: activeChatEnabled,
+      window_minutes: activeChatWindowMins,
+      tag_name: FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME,
+      list_name: FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME,
+    }
+    return {
+      enabled: enabledFlag,
+      auto_create_lists: enabledFlag,
+      segments: enabledFlag ? segmentsForAutosyncSave(segments) : segments,
+      active_chat: ac,
+      last_sync_at: lastSync ?? undefined,
+    }
+  }
+
+  async function persistHousekeepingLists(enabledFlag: boolean) {
     const supabase = createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) throw new Error('Not signed in')
+    const payload = buildHousekeepingPayload(enabledFlag)
+    await upsertSettings(supabase, user.id, { housekeeping_lists: payload })
+    setSegments(mergeSegments(payload.segments))
+  }
+
+  const save = async () => {
+    setSaving(true)
+    setPersistError(null)
+    try {
+      await persistHousekeepingLists(enabled)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not save settings'
+      setPersistError(msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onMasterSwitchChange = async (next: boolean) => {
+    if (!connected) return
+    const prev = enabled
+    setEnabled(next)
+    setPersistError(null)
     setSaving(true)
     try {
-      const ac: FanClassifyActiveChatConfig = {
-        enabled: activeChatEnabled,
-        window_minutes: activeChatWindowMins,
-        tag_name: FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME,
-        list_name: FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME,
-      }
-      const payload: FanClassifyConfig = {
-        enabled,
-        auto_create_lists: enabled,
-        segments: enabled ? segmentsForAutosyncSave(segments) : segments,
-        active_chat: ac,
-        last_sync_at: lastSync ?? undefined,
-      }
-      await upsertSettings(supabase, user.id, { housekeeping_lists: payload })
-      setSegments(mergeSegments(payload.segments))
+      await persistHousekeepingLists(next)
+    } catch (e) {
+      setEnabled(prev)
+      const msg = e instanceof Error ? e.message : 'Could not save. Try again or use Save below.'
+      setPersistError(msg)
     } finally {
       setSaving(false)
     }
@@ -252,17 +283,23 @@ export function FansArrangementsSection({
                   </Label>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {connected
-                      ? 'Keeps matching lists and tags updated on your platforms. Runs on the daily sync job.'
+                      ? 'Keeps matching lists and tags updated on your platforms. Runs on the daily sync job. This switch saves immediately — no separate step for turning smart lists on.'
                       : 'Connect OnlyFans or Fansly under Settings → Integrations to sync lists and tags.'}
                   </p>
                 </div>
                 <Switch
                   id="sc-enabled"
                   checked={enabled}
-                  disabled={!connected}
-                  onCheckedChange={setEnabled}
+                  disabled={!connected || saving}
+                  onCheckedChange={(v) => void onMasterSwitchChange(v)}
                 />
               </div>
+
+              {persistError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {persistError}
+                </p>
+              ) : null}
 
               {lastSync ? (
                 <p className="text-xs text-muted-foreground">Last sync: {new Date(lastSync).toLocaleString()}</p>

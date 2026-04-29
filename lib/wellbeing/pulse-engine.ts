@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { generateObject } from 'ai'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 import type { PulseRawSignals } from '@/lib/wellbeing/pulse-signals'
+import type { FlowPresenceSignals } from '@/lib/wellbeing/flow-presence-signals'
 import { heuristicFlowState, type FlowStatePayload } from '@/lib/wellbeing/flow-state-ai'
 
 export const pulseSeveritySchema = z.enum(['steady', 'attend', 'intervene'])
@@ -205,7 +206,24 @@ function heuristicNarrative(
   }
 }
 
-function buildPromptFacts(raw: PulseRawSignals, severity: PulseSeverity, flow: FlowStatePayload) {
+function buildPromptFacts(
+  raw: PulseRawSignals,
+  severity: PulseSeverity,
+  flow: FlowStatePayload,
+  presence?: FlowPresenceSignals | null,
+) {
+  let presenceBlock = ''
+  if (process.env.FLOW_V2_LLM === '1' && presence) {
+    presenceBlock = `
+Presence / engagement (UTC day bucket for actions):
+- Hours since last meaningful dashboard action: ${presence.hoursSinceLastMeaningfulAction == null ? 'unknown' : `${Math.round(presence.hoursSinceLastMeaningfulAction * 10) / 10}h`}
+- Foreground heartbeat fresh (≈5m window): ${presence.heartbeatFresh ? 'yes' : 'no'}
+- Approx idle streak while heartbeat fresh: ${Math.round(presence.idleStreakApproxMinutes)}m
+- Meaningful UI actions today (UTC): ${presence.meaningfulActionsToday}; quiet-day relief eligible: ${presence.quietDay ? 'yes' : 'no'}
+- Platform staleness (worst connected sync age, hours): ${presence.platformStaleHoursMin == null ? 'unknown' : `${Math.round(presence.platformStaleHoursMin * 10) / 10}h`}
+`
+  }
+
   return `Severity (fixed, do not change): ${severity}
 
 Facts:
@@ -216,15 +234,16 @@ Facts:
 - Unread mentions: ${raw.mentionsUnread}; mentions last 7d: ${raw.mentionsRecent7d}
 - Churn high/critical fans: ${raw.churnHighOrCritical}; medium: ${raw.churnMedium}
 - Flow heuristic: mood ${flow.mood}, stress ${flow.stress}/100, energy ${flow.energy}/100
-
+${presenceBlock}
 Write a headline (max 8 words), one short observational paragraph (no diagnosis), and at most 3 bullets starting with "We're seeing…" or similar neutral phrasing.`
 }
 
 export async function buildPulsePayload(args: {
   raw: PulseRawSignals
   glow: GlowInsightsPayload
+  presence?: FlowPresenceSignals | null
 }): Promise<PulsePayload> {
-  const { raw, glow } = args
+  const { raw, glow, presence } = args
   const severity = deriveSeverity(raw)
   const nextAction = pickNextAction(raw, severity)
   const minutesUntilGolden =
@@ -237,6 +256,7 @@ export async function buildPulsePayload(args: {
     glowScore: glow.glowScore,
     minutesUntilGolden,
     compositePressure: raw.compositePressure,
+    presence: presence ?? null,
   })
 
   const sources = buildSources(raw, glow)
@@ -250,7 +270,7 @@ export async function buildPulsePayload(args: {
         schema: pulseNarrativeSchema,
         system:
           'You help independent creators with occupational wellbeing copy. Observational tone only: "We are seeing…". No medical, psychiatric, or diagnostic claims. No therapy role. Keep headline short.',
-        prompt: buildPromptFacts(raw, severity, flow),
+        prompt: buildPromptFacts(raw, severity, flow, presence),
       })
       copy = object
       narrativeSource = 'ai'

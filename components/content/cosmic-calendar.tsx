@@ -1016,7 +1016,7 @@ export function CosmicCalendar() {
                                   </div>
                                   
                                   <div>
-                                    <p className="text-xs font-medium sm:text-sm">Content Ideas:</p>
+                                    <p className="text-xs font-medium sm:text-sm">Content and Caption:</p>
                                     <ul className="mt-1 space-y-0.5">
                                       {spot.contentIdeas.map((idea, j) => (
                                         <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">

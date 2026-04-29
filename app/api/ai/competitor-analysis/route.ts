@@ -110,11 +110,8 @@ type InternalBenchmarkRow = {
   computed_at: string
 }
 
-function platformKeysForBenchmarks(platform: string): string[] {
-  const p = platform.toLowerCase()
-  if (p === 'onlyfans' || p === 'fansly' || p === 'mym') return [p, 'all']
-  if (p === 'multi') return ['onlyfans', 'fansly', 'mym', 'all']
-  return ['all']
+function platformKeysForBenchmarks(platform: 'onlyfans' | 'fansly'): string[] {
+  return [platform, 'all']
 }
 
 function scoreBenchmarkNicheMatch(row: InternalBenchmarkRow, niche: string): number {
@@ -289,7 +286,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}))
     const niche = typeof body.niche === 'string' ? body.niche.trim() : ''
-    const platform = typeof body.platform === 'string' ? body.platform.trim() : 'onlyfans'
+    const rawPlat = typeof body.platform === 'string' ? body.platform.trim().toLowerCase() : 'onlyfans'
+    const platform: 'onlyfans' | 'fansly' = rawPlat === 'fansly' ? 'fansly' : 'onlyfans'
     const competitorTargets =
       typeof body.competitorTargets === 'string' ? body.competitorTargets.trim() : ''
     const goals = typeof body.goals === 'string' ? body.goals.trim() : typeof body.contentDescription === 'string' ? body.contentDescription.trim() : ''
@@ -359,7 +357,7 @@ export async function POST(req: NextRequest) {
       fanCount != null && `Approx. fans in CRM (imported): ${fanCount}`,
       tz && `Timezone: ${tz}`,
       niche && `Stated niche: ${niche}`,
-      platform && `Primary platform focus: ${platform}`,
+      `Primary platform focus: ${platform === 'fansly' ? 'Fansly' : 'OnlyFans'}`,
       competitorTargets && `Creator-supplied peer / competitor notes (public cues only):\n${competitorTargets}`,
       goals && `Goals / questions:\n${goals}`,
     ]

@@ -42,9 +42,20 @@ import {
 } from '@/lib/billing/stripe-paid-tier-subscription-update'
 import { getAppUrl } from '@/lib/site-url'
 
+/** Must match `app/api/stripe/webhook/route.ts` trial subscription length. */
+const TRIAL_DURATION_DAYS = 2
+
 /** Embedded Checkout (`@stripe/react-stripe-js`). API expects `embedded_page`; older SDK unions may still say `embedded`. */
 const CHECKOUT_EMBEDDED_UI_MODE =
   'embedded_page' as unknown as Stripe.Checkout.SessionCreateParams.UiMode
+
+/**
+ * Checkout server actions return this instead of throwing for expected failures so the client
+ * gets HTTP 200 (avoids generic production 500s on billing / trial flows).
+ */
+export type CheckoutClientSecretResult =
+  | { ok: true; clientSecret: string }
+  | { ok: false; error: string }
 
 function clampBillingSeats(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_BILLING_SEATS
@@ -137,111 +148,119 @@ async function findOrCreateStripeCustomer(params: { userId: string; email: strin
 }
 
 /** Trial / one-off checkout (e.g. divine-trial). */
-export async function startCheckoutSession(productId: string) {
-  const product = PRODUCTS.find((p) => p.id === productId)
-  if (!product) {
-    throw new Error(`Product with id "${productId}" not found`)
-  }
-
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user?.email) {
-    throw new Error('User not authenticated')
-  }
-
-  const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
-
-  const stripe = getStripe()
-  if (product.id === 'divine-trial') {
-    const { data: trialSub } = await supabase
-      .from('subscriptions')
-      .select('stripe_subscription_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (trialSub?.stripe_subscription_id) {
-      throw new Error('Free trial is only available once per account.')
+export async function startCheckoutSession(productId: string): Promise<CheckoutClientSecretResult> {
+  try {
+    const product = PRODUCTS.find((p) => p.id === productId)
+    if (!product) {
+      return { ok: false, error: `Product with id "${productId}" not found` }
     }
-    const session = await stripe.checkout.sessions.create({
+
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user?.email) {
+      return { ok: false, error: 'User not authenticated' }
+    }
+
+    const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
+
+    const stripe = getStripe()
+    if (product.id === 'divine-trial') {
+      const { data: trialSub } = await supabase
+        .from('subscriptions')
+        .select('stripe_subscription_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (trialSub?.stripe_subscription_id) {
+        return { ok: false, error: 'Free trial is only available once per account.' }
+      }
+      const session = await stripe.checkout.sessions.create({
+        ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
+        redirect_on_completion: 'never',
+        customer: customerId,
+        mode: 'setup',
+        payment_method_types: ['card'],
+        metadata: {
+          productId: product.id,
+          userId: user.id,
+          type: 'trial_setup',
+          trialDays: String(TRIAL_DURATION_DAYS),
+          trialSource: 'card_required',
+          trialConversionPlanId: PAID_PLAN_ID,
+          trialConversionVariant: 'single',
+          trialConversionTier: '0',
+          trialConversionFocusPlatforms: 'onlyfans',
+          trialConversionFocusPlatform: 'onlyfans',
+          trialConversionSeats: String(DEFAULT_BILLING_SEATS),
+        },
+      })
+      if (!session.client_secret) {
+        return { ok: false, error: 'Stripe Checkout did not return client_secret' }
+      }
+      return { ok: true, clientSecret: session.client_secret }
+    }
+
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
       redirect_on_completion: 'never',
       customer: customerId,
-      mode: 'setup',
-      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: product.name,
+              description: product.description,
+            },
+            unit_amount: product.priceInCents,
+            ...(product.mode === 'subscription' ? { recurring: { interval: 'month' } } : {}),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: product.mode,
       metadata: {
         productId: product.id,
         userId: user.id,
-        type: 'trial_setup',
-        trialDays: String(TRIAL_DURATION_DAYS),
-        trialSource: 'card_required',
-        trialConversionPlanId: PAID_PLAN_ID,
-        trialConversionVariant: 'single',
-        trialConversionTier: '0',
-        trialConversionFocusPlatforms: 'onlyfans',
-        trialConversionFocusPlatform: 'onlyfans',
-        trialConversionSeats: String(DEFAULT_BILLING_SEATS),
+        ...(typeof product.credits === 'number'
+          ? {
+              type: 'credit_topup',
+              packId: product.id,
+              credits: String(product.credits),
+            }
+          : {}),
       },
-    })
-    if (!session.client_secret) {
-      throw new Error('Stripe Checkout did not return client_secret')
-    }
-    return session.client_secret
-  }
-
-  const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-    ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
-    redirect_on_completion: 'never',
-    customer: customerId,
-    line_items: [
-      {
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: product.name,
-            description: product.description,
-          },
-          unit_amount: product.priceInCents,
-          ...(product.mode === 'subscription' ? { recurring: { interval: 'month' } } : {}),
-        },
-        quantity: 1,
-      },
-    ],
-    mode: product.mode,
-    metadata: {
-      productId: product.id,
-      userId: user.id,
-      ...(typeof product.credits === 'number'
+      ...(product.mode === 'subscription'
         ? {
-            type: 'credit_topup',
-            packId: product.id,
-            credits: String(product.credits),
+            subscription_data: {
+              metadata: {
+                productId: product.id,
+                userId: user.id,
+              },
+            },
           }
         : {}),
-    },
-    ...(product.mode === 'subscription'
-      ? {
-          subscription_data: {
-            metadata: {
-              productId: product.id,
-              userId: user.id,
-            },
-          },
-        }
-      : {}),
-  }
+    }
 
-  const session = await stripe.checkout.sessions.create(sessionConfig)
-  if (!session.client_secret) {
-    throw new Error('Stripe Checkout did not return client_secret')
+    const session = await stripe.checkout.sessions.create(sessionConfig)
+    if (!session.client_secret) {
+      return { ok: false, error: 'Stripe Checkout did not return client_secret' }
+    }
+    return { ok: true, clientSecret: session.client_secret }
+  } catch (e) {
+    console.error('[startCheckoutSession]', e)
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Checkout could not be started. Try again in a moment.',
+    }
   }
-  return session.client_secret
 }
 
-export async function startCreditTopupCheckout(packId: string) {
+export async function startCreditTopupCheckout(packId: string): Promise<CheckoutClientSecretResult> {
   const pack = getProduct(packId)
   if (!pack || typeof pack.credits !== 'number' || pack.mode !== 'payment') {
-    throw new Error('Invalid credit pack')
+    return { ok: false, error: 'Invalid credit pack' }
   }
   return startCheckoutSession(packId)
 }

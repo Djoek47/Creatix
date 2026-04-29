@@ -185,10 +185,44 @@ function LedgerInsightsSkeleton() {
   )
 }
 
+/** Shell: stable hook count before any loading guard; heavy UI + ledger hooks live in `UsageCreditsPanelBody`. */
 export function UsageCreditsPanel() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<UsageDashboard | null>(null)
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing/usage-dashboard', { credentials: 'include' })
+      if (!res.ok) {
+        throw new Error('Could not load usage')
+      }
+      const json = (await res.json()) as UsageDashboard
+      setData(json)
+    } catch {
+      //
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  if (loading || !data) {
+    return <UsageCreditsPanelSkeleton />
+  }
+
+  return <UsageCreditsPanelBody data={data} onDashboardSaved={load} />
+}
+
+function UsageCreditsPanelBody({
+  data,
+  onDashboardSaved,
+}: {
+  data: UsageDashboard
+  onDashboardSaved: () => void | Promise<void>
+}) {
   const [creditTopCategories, setCreditTopCategories] = useState<
     Array<{ reasonKey?: string; reason: string; amount: number }>
   >([])
@@ -227,33 +261,18 @@ export function UsageCreditsPanel() {
     }
   }, [activityPeriod])
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/billing/usage-dashboard', { credentials: 'include' })
-      if (!res.ok) {
-        throw new Error('Could not load usage')
-      }
-      const json = (await res.json()) as UsageDashboard
-      setData(json)
-    } catch {
-      //
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
-    void load()
-  }, [load])
-
-  useEffect(() => {
-    if (!data) return
     void refreshInsights()
   }, [data, refreshInsights])
 
-  if (loading || !data) {
-    return <UsageCreditsPanelSkeleton />
-  }
+  const autoTopupSnapshot = useMemo(
+    () => ({
+      autoTopupSettings: data.autoTopupSettings,
+      stripe: data.stripe,
+      flags: data.flags,
+    }),
+    [data],
+  )
 
   const { wallet, aiCreditsUsed, aiCreditsLimitEffective } = data
   const includedPct =
@@ -265,15 +284,6 @@ export function UsageCreditsPanel() {
       ? Math.round((wallet.includedRemaining / wallet.totalRemaining) * 1000) / 10
       : 0
   const purchasedBar = Math.max(0, 100 - includedBar)
-
-  const autoTopupSnapshot = useMemo(
-    () => ({
-      autoTopupSettings: data.autoTopupSettings,
-      stripe: data.stripe,
-      flags: data.flags,
-    }),
-    [data],
-  )
 
   return (
     <div className="space-y-10 pt-1">
@@ -605,7 +615,7 @@ export function UsageCreditsPanel() {
         </CardContent>
       </Card>
 
-      <CreditAutoTopupSettings initialDashboard={autoTopupSnapshot} onSaved={() => void load()} />
+      <CreditAutoTopupSettings initialDashboard={autoTopupSnapshot} onSaved={() => void onDashboardSaved()} />
     </div>
   )
 }

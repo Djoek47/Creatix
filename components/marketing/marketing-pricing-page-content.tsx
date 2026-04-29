@@ -14,9 +14,9 @@ function PricingFaqs() {
   const { mode } = useMarketingMode()
   const items = [
     {
-      question: 'Focus vs Bundled?',
+      question: 'Single platform vs Bundled?',
       answer:
-        'Focus = one platform or a two-platform pair with band-specific list prices. Bundled = OnlyFans + Fansly together. Non-API coverage (ManyVids, Clips4Sale, etc.) uses the separate $25/mo Protection plan.',
+        'Single platform = one platform or a two-platform pair with band-specific list prices. Bundled = OnlyFans + Fansly together. Non-API coverage (ManyVids, Clips4Sale, etc.) uses the separate $25/mo Protection plan.',
     },
     {
       question: 'How do AI credits work?',
@@ -31,7 +31,7 @@ function PricingFaqs() {
       ? [
           {
             question: 'Change plans later?',
-            answer: 'Yes. Swap platforms, Focus, Bundled, Protection, or band in Settings → Billing.',
+            answer: 'Yes. Swap platforms, single-platform vs Bundled, Protection, or band in Settings → Billing.',
           },
         ]
       : []),

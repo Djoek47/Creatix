@@ -26,9 +26,9 @@ function ToolRunnerInner() {
       router.replace('/dashboard/ai-studio/chatter?profile=whale_whisper')
     }
     if (toolId === 'retention-tease') {
-      router.replace('/dashboard/retention/churn#future-tease')
+      router.replace('/dashboard/retention/tease')
     }
-    if (toolId === 'voice-cloning' || toolId === 'venus-attraction') {
+    if (toolId === 'voice-cloning' || toolId === 'venus-attraction' || toolId === 'brand-uniformity') {
       router.replace('/dashboard/ai-studio/tools')
     }
     if (toolId === 'price-optimizer' || toolId === 'viral-predictor' || toolId === 'dm-bundle-pricing') {
@@ -42,9 +42,6 @@ function ToolRunnerInner() {
     }
     if (toolId === 'frame-studio' || toolId === 'frame-ai-assist') {
       router.replace('/dashboard/ai-studio?tab=library')
-    }
-    if (toolId === 'brand-uniformity') {
-      router.replace('/dashboard/brand-uniformity')
     }
     if (toolId === 'credits-planner') {
       router.replace('/dashboard/credits-planner')
@@ -63,6 +60,7 @@ function ToolRunnerInner() {
     toolId === 'retention-tease' ||
     toolId === 'voice-cloning' ||
     toolId === 'venus-attraction' ||
+    toolId === 'brand-uniformity' ||
     toolId === 'price-optimizer' ||
     toolId === 'viral-predictor' ||
     toolId === 'dm-bundle-pricing' ||
@@ -72,7 +70,6 @@ function ToolRunnerInner() {
     toolId === 'ariadne-trace' ||
     toolId === 'frame-studio' ||
     toolId === 'frame-ai-assist' ||
-    toolId === 'brand-uniformity' ||
     toolId === 'credits-planner'
   ) {
     return null

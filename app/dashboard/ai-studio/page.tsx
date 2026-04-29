@@ -64,7 +64,7 @@ export default function AIStudioPage() {
         </TabsContent>
 
         <TabsContent value="tools" className="mt-0 focus-visible:outline-none">
-          <AIToolsLibrary />
+          <AIToolsLibrary showBackButton />
         </TabsContent>
       </Tabs>
     </div>

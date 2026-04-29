@@ -59,6 +59,14 @@ const MULTIPLATFORM_LOGOS = CLIP_FOCUS_ADDON_CAROUSEL.map((e) => e.logoSrc).filt
   (src): src is string => src != null,
 )
 
+/** Popover “Available tools” — short labels only (Protection hub). */
+const PROTECTION_POPOVER_TOOLS = [
+  'DMCA scanner',
+  'Leak detection',
+  'Reputation tool',
+  'Model reputation',
+] as const
+
 /** Amber rim when off; violet + gold gradient when checked — stays legible on dark billing surfaces. */
 const PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS = cn(
   'relative size-[1.125rem] shrink-0 rounded-[6px] border-2',
@@ -115,6 +123,11 @@ export type PricingPageCalculatorProps = {
   requiredMinTierFromObservation?: number | null
   /** Latest scoped observation timestamp from `/api/billing/revenue-band-status` (settings copy). */
   observationCapturedAtIso?: string | null
+  /**
+   * Settings: OnlyFans and/or Fansly linked — revenue band matches subscription/checkout preview and is not
+   * editable here (disconnect platforms to change the estimate band).
+   */
+  lockRevenueBand?: boolean
   /** Billing settings: rendered under the OnlyFans / Fansly row when the platform picker is visible; otherwise after controls in the estimate column. */
   belowFocusPlatformsSlot?: ReactNode
 }
@@ -126,10 +139,12 @@ export function PricingPageCalculator({
   onCheckoutComplete,
   requiredMinTierFromObservation = null,
   observationCapturedAtIso = null,
+  lockRevenueBand = false,
   belowFocusPlatformsSlot,
 }: PricingPageCalculatorProps = {}) {
   const isControlled = controlled != null
   const reduceMotion = useReducedMotion()
+  const revenueBandLocked = surface === 'settings' && lockRevenueBand
 
   const [revenueInput, setRevenueInput] = useState('5000')
   const [useRevenueForBand, setUseRevenueForBand] = useState(false)
@@ -174,7 +189,7 @@ export function PricingPageCalculator({
     })
   }
 
-  /** Selecting both API platforms in Focus → same workspace as Bundled (checkout + UX). */
+  /** Selecting both API platforms in single-platform mode → same workspace as Bundled (checkout + UX). */
   useEffect(() => {
     if (protectionOnly) return
     if (variant !== 'single') return
@@ -242,6 +257,11 @@ export function PricingPageCalculator({
   useEffect(() => {
     if (reduceMotion) setMultiLogoIndex(0)
   }, [reduceMotion])
+
+  useEffect(() => {
+    if (!revenueBandLocked) return
+    setUseRevenueForBand(false)
+  }, [revenueBandLocked])
 
   const derivedTier = useMemo(() => {
     const n = Number.parseFloat(revenueInput.replace(/,/g, ''))
@@ -313,7 +333,7 @@ export function PricingPageCalculator({
       if (sortedPlatforms.includes('manyvids')) {
         const full = getMonthlyPriceUsd('multi', effectiveTier, ['onlyfans', 'fansly', 'manyvids'])
         lines.push({
-          label: 'ManyVids anti-piracy (with Bundled Focus only)',
+          label: 'ManyVids anti-piracy (Bundled plan only)',
           usd: full - tierRow.multiPriceUsd,
         })
       }
@@ -321,7 +341,7 @@ export function PricingPageCalculator({
         lines,
         note:
           surface === 'settings'
-            ? 'One bill for Bundled Focus (OnlyFans + Fansly). ManyVids above is part of that subscription, not standalone. Broader storefront coverage is the separate Protection add-on card below.'
+            ? 'One bill for the Bundled plan. ManyVids anti-piracy above is part of that subscription, not standalone. Fanvue, MYM, Clips4Sale, Loyalfans, and more appear on the multi-platform row on pricing; the separate Protection add-on card below is the broader storefront option.'
             : 'One monthly price for OnlyFans and Fansly. Optional ManyVids add-on. For more storefronts, add Protection on the full pricing page.',
       }
     }
@@ -334,7 +354,7 @@ export function PricingPageCalculator({
             usd: getMonthlyPriceUsd('single', effectiveTier, [p]),
           },
         ],
-        note: 'Single-platform Focus',
+        note: 'Single platform',
       }
     }
     if (sortedPlatforms.length === 2) {
@@ -343,7 +363,7 @@ export function PricingPageCalculator({
       return {
         lines: [
           {
-            label: `Focus (${focusPlatformsShortLabel([a, b])})`,
+            label: `Single platform (${focusPlatformsShortLabel([a, b])})`,
             usd: bundleUsd,
           },
         ],
@@ -447,6 +467,7 @@ export function PricingPageCalculator({
                 Revenue band
               </Label>
               <Select
+                disabled={revenueBandLocked}
                 value={String(tierIndex)}
                 onOpenChange={(open) => {
                   if (open) setBandCyclePaused(true)
@@ -463,6 +484,7 @@ export function PricingPageCalculator({
                     'motion-safe:animate-[marketing-float-soft_5s_ease-in-out_infinite] motion-reduce:animate-none',
                     bandDemoActive &&
                       'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)]',
+                    revenueBandLocked && 'cursor-not-allowed opacity-[0.92]',
                   )}
                 >
                   <SelectValue />
@@ -493,7 +515,13 @@ export function PricingPageCalculator({
                         )
                       </>
                     ) : null}
-                    , checkout cannot go below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}.
+                    , checkout cannot go below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}. This band is
+                    fixed while a platform stays linked.
+                  </>
+                ) : isSettings && revenueBandLocked ? (
+                  <>
+                    Band is fixed while OnlyFans or Fansly is connected—same value your plan and checkout use. Disconnect
+                    both in Integrations to preview a different band here.
                   </>
                 ) : isSettings ? (
                   'Tier mirrors gross monthly billings at checkout.'
@@ -513,6 +541,7 @@ export function PricingPageCalculator({
             <Checkbox
               id="pricing-revenue-override"
               checked={useRevenueForBand}
+              disabled={revenueBandLocked}
               className={PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS}
               onCheckedChange={(v) => {
                 const on = v === true
@@ -523,7 +552,13 @@ export function PricingPageCalculator({
                 }
               }}
             />
-            <Label htmlFor="pricing-revenue-override" className="cursor-pointer text-sm font-normal text-foreground/90">
+            <Label
+              htmlFor="pricing-revenue-override"
+              className={cn(
+                'text-sm font-normal text-foreground/90',
+                revenueBandLocked ? 'cursor-default opacity-60' : 'cursor-pointer',
+              )}
+            >
               Estimate band from monthly revenue
             </Label>
           </div>
@@ -577,7 +612,7 @@ export function PricingPageCalculator({
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                Focus
+                Single platform
               </button>
               <button
                 type="button"
@@ -907,7 +942,7 @@ export function PricingPageCalculator({
                     <button
                       type="button"
                       className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="What multiplatform protection includes on your dashboard"
+                      aria-label="What multiplatform protection includes — storefronts beyond OnlyFans and Fansly (see logos)"
                     >
                       <Info className="h-4 w-4" />
                     </button>
@@ -915,83 +950,61 @@ export function PricingPageCalculator({
                   <PopoverContent
                     align="start"
                     side="top"
-                    sideOffset={6}
-                    className="w-[min(22.5rem,calc(100vw-2rem))] rounded-xl border-border/70 p-4 text-[13px] leading-relaxed shadow-lg sm:p-5"
+                    sideOffset={8}
+                    className="w-[min(22.5rem,calc(100vw-2rem))] rounded-2xl border border-border/35 bg-popover/95 p-6 text-[13px] leading-[1.45] text-muted-foreground shadow-[0_24px_64px_-16px_rgba(0,0,0,0.55)] backdrop-blur-sm antialiased sm:p-7"
                   >
-                    <div className="space-y-4">
-                      <header className="space-y-1.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <div className="flex flex-col gap-8">
+                      <header>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/65">
                           Multiplatform protection
                         </p>
-                        <p className="text-sm font-semibold text-foreground sm:text-[15px]">What you get</p>
-                        <p className="text-[13px] text-muted-foreground">
-                          Extend Circe beyond your linked platforms so more of your presence stays covered in one subscription.
-                        </p>
                       </header>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">Available tools</p>
-                        <ul className="mt-2 space-y-2.5 text-muted-foreground">
-                          <li className="flex gap-2">
-                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-                              ·
-                            </span>
-                            <span>
-                              <span className="font-medium text-foreground">Extra site coverage — </span>
-                              add fan-market and clip-market accounts so your protection isn’t limited to direct API-connected
-                              apps alone.
-                            </span>
-                          </li>
-                          <li className="flex gap-2">
-                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-                              ·
-                            </span>
-                            <span>
-                              <span className="font-medium text-foreground">Your Protection workspace — </span>
-                              a dedicated area in{' '}
-                              <Link
-                                href="/dashboard/protection"
-                                className="font-medium text-foreground underline underline-offset-2 hover:text-foreground/90"
-                              >
-                                the dashboard
-                              </Link>{' '}
-                              to review activity, see what&apos;s resolved, and keep everything in context.
-                            </span>
-                          </li>
-                          <li className="flex gap-2">
-                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-                              ·
-                            </span>
-                            <span>
-                              <span className="font-medium text-foreground">Clear timelines — </span>
-                              transparency into findings and outcomes so you always know where things stand—while this add-on is
-                              active on your account.
-                            </span>
-                          </li>
-                          <li className="flex gap-2">
-                            <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
-                              ·
-                            </span>
-                            <span>
-                              <span className="font-medium text-foreground">Fits how you subscribe — </span>
-                              roll it into{' '}
-                              <span className="text-foreground">your main Circe plan</span>, or choose{' '}
-                              <span className="text-foreground">protection-only billing</span> at{' '}
-                              <span className="tabular-nums">${OTHER_PLATFORM_BUNDLE_ADDON_USD}/month</span> when that&apos;s
-                              all you need.
-                            </span>
-                          </li>
+
+                      <section className="space-y-3" aria-labelledby="protection-popover-storefronts">
+                        <p
+                          id="protection-popover-storefronts"
+                          className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
+                        >
+                          Storefronts
+                        </p>
+                        <ul className="flex flex-col gap-2.5">
+                          {CLIP_FOCUS_ADDON_CAROUSEL.map((e) => (
+                            <li
+                              key={e.id}
+                              className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
+                            >
+                              {e.label}
+                            </li>
+                          ))}
                         </ul>
-                      </div>
-                      <p className="border-t border-border/45 pt-3 text-[11px] leading-snug text-muted-foreground">
-                        Exact feature mix can vary by site and plan; availability is shown in-app when you&apos;re signed in.
-                      </p>
+                      </section>
+
+                      <div className="h-px w-full bg-gradient-to-r from-transparent via-border/50 to-transparent" aria-hidden />
+
+                      <section className="space-y-3" aria-labelledby="protection-popover-tools">
+                        <p
+                          id="protection-popover-tools"
+                          className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
+                        >
+                          Tools
+                        </p>
+                        <ul className="flex flex-col gap-2.5">
+                          {PROTECTION_POPOVER_TOOLS.map((label) => (
+                            <li
+                              key={label}
+                              className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
+                            >
+                              {label}
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
                     </div>
                   </PopoverContent>
                 </Popover>
               </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Extra storefront coverage at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo. Add to your estimate or subscribe on
-                its own.
+                Extra storefront coverage (beyond OnlyFans &amp; Fansly) at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo as a separate Protection subscription—include it in your estimate here or subscribe on its own.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

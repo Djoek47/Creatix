@@ -27,9 +27,9 @@ export function PricingModelMarketingSection({ layout = 'default' }: { layout?: 
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <Layers className="h-5 w-5" aria-hidden />
               </div>
-              <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">Focus (1–2 platforms)</h3>
+              <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">Single platform (1–2 platforms)</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Choose the platforms you use (one or two for Focus), or pick Bundled for OnlyFans + Fansly in one bill.
+                Choose the platforms you use (one or two on single-platform pricing), or pick Bundled for OnlyFans + Fansly in one bill.
               </p>
             </div>
             <div className="rounded-2xl border border-circe/25 bg-gradient-to-br from-circe/5 to-card p-6 text-left shadow-sm">

@@ -3,13 +3,7 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
 
 export type ContentIdeasRunnerInputsProps = {
   easy: boolean
@@ -43,16 +37,7 @@ export function ContentIdeasRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>Platform</Label>
-          <Select value={platform} onValueChange={setPlatform}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="onlyfans">OnlyFans</SelectItem>
-              <SelectItem value="fansly">Fansly</SelectItem>
-              <SelectItem value="mym">MYM</SelectItem>
-            </SelectContent>
-          </Select>
+          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
         <div className="space-y-2">
           <Label>Anything trending on your mind? (optional)</Label>
@@ -76,16 +61,7 @@ export function ContentIdeasRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>Platform</Label>
-          <Select value={platform} onValueChange={setPlatform}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="onlyfans">OnlyFans</SelectItem>
-              <SelectItem value="fansly">Fansly</SelectItem>
-              <SelectItem value="mym">MYM</SelectItem>
-            </SelectContent>
-          </Select>
+          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">

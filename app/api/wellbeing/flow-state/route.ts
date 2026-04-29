@@ -3,6 +3,10 @@ import { generateObject } from 'ai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { gatherFlowActivitySignals } from '@/lib/wellbeing/flow-activity-signals'
 import {
+  gatherFlowPresenceSignals,
+  type FlowPresenceSignals,
+} from '@/lib/wellbeing/flow-presence-signals'
+import {
   flowStateResponseSchema,
   heuristicFlowState,
   type FlowStatePayload,
@@ -18,11 +22,24 @@ function compositePressureFromSignals(signals: Awaited<ReturnType<typeof gatherF
   return Math.min(100, signals.messagePressure * 0.62 + workDebt * 0.38)
 }
 
+function presenceFactsBlock(presence: FlowPresenceSignals | null): string {
+  if (process.env.FLOW_V2_LLM !== '1' || !presence) return ''
+  return `
+Engagement / presence (dashboard telemetry; UTC day bucket for actions):
+- Hours since last meaningful dashboard action: ${presence.hoursSinceLastMeaningfulAction == null ? 'unknown' : `${Math.round(presence.hoursSinceLastMeaningfulAction * 10) / 10}h`}
+- Foreground heartbeat fresh (~5m window): ${presence.heartbeatFresh ? 'yes' : 'no'}
+- Approx idle streak while heartbeat fresh: ${Math.round(presence.idleStreakApproxMinutes)}m
+- Meaningful UI actions today (UTC): ${presence.meaningfulActionsToday}; quiet-day pattern: ${presence.quietDay ? 'yes' : 'no'}
+- Platform staleness (worst connected sync age, hours): ${presence.platformStaleHoursMin == null ? 'unknown' : `${Math.round(presence.platformStaleHoursMin * 10) / 10}h`}
+`
+}
+
 function buildPrompt(
   signals: Awaited<ReturnType<typeof gatherFlowActivitySignals>>,
   glowScore: number,
   minutesUntilGolden: number | null,
   compositePressure: number,
+  presence: FlowPresenceSignals | null,
 ) {
   return `You estimate a creator's current mental load for a private wellbeing panel. Use ONLY the facts below; do not invent data.
 
@@ -41,7 +58,7 @@ Environmental:
 - Minutes until next golden hour (or unknown): ${minutesUntilGolden == null ? 'unknown' : minutesUntilGolden}
 
 Interpret strain **relative to goals**: ambitious goals + large queues ⇒ higher stress even when the creator is productive. Low backlog + strong glow ⇒ calmer readout.
-
+${presenceFactsBlock(presence)}
 Return mood, energy, stress, focus, rationale, goalAlignment. stress=100 means highly strained.`
 }
 
@@ -62,6 +79,7 @@ export async function POST(request: NextRequest) {
 
     const signals = await gatherFlowActivitySignals(supabase, user.id)
     const compositePressure = compositePressureFromSignals(signals)
+    const presence = await gatherFlowPresenceSignals(supabase, user.id)
 
     const fallback = (): FlowStatePayload =>
       heuristicFlowState({
@@ -69,6 +87,7 @@ export async function POST(request: NextRequest) {
         glowScore,
         minutesUntilGolden,
         compositePressure,
+        presence,
       })
 
     if (!process.env.OPENAI_API_KEY) {
@@ -81,7 +100,7 @@ export async function POST(request: NextRequest) {
         schema: flowStateResponseSchema,
         system:
           'You are a calm occupational wellbeing model for independent creators. Output only structured fields. No medical or diagnostic claims. No therapy role. Be concise.',
-        prompt: buildPrompt(signals, glowScore, minutesUntilGolden, compositePressure),
+        prompt: buildPrompt(signals, glowScore, minutesUntilGolden, compositePressure, presence),
       })
 
       const payload: FlowStatePayload = {

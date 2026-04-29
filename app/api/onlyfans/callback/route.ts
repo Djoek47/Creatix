@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
+import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/observed-monthly-revenue'
 import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
@@ -39,6 +42,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Session mismatch. Please refresh and try again.' },
         { status: 403 }
+      )
+    }
+
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!canConnectAdultPartnerPlatform(subscription)) {
+      logPartnerConnectEntitlementDenied('POST /api/onlyfans/callback', userId)
+      const denial = denialForAdultPlatformConnectEntitlement(subscription)
+      return NextResponse.json(
+        {
+          error: denial?.message ?? 'Subscription or Divine trial required before connecting platforms.',
+          code: 'CONNECT_ENTITLEMENT_REQUIRED',
+          reason: 'CONNECT_ENTITLEMENT_REQUIRED',
+        },
+        { status: 403 },
       )
     }
 

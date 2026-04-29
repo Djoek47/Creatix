@@ -34,7 +34,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-04',
       title: 'Divine Manager',
       description:
-        'The crown in the sidebar: voice and text control of your AI assistant—tasks, Mimic style, notifications, and running tools without leaving the page.',
+        'The crown in the sidebar: voice and text control of your AI assistant—today’s plan, protocol tasks, Mimic, notifications, and tools without leaving the page. First visit runs a short setup wizard; Guide links and `?section=protocol`, `tasks`, or `chat` deep-link straight in.',
       path: '/dashboard/divine-manager',
       targetSelector: '[data-tour="/dashboard/divine-manager"]',
     },
@@ -127,7 +127,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-17',
       title: 'Retention and churn hub',
       description:
-        'Scheduled churn digests, at-risk fans from your rules, protocols and tasks—aligns with background jobs and notifications when enabled.',
+        'Scheduled churn scans, at-risk fans from your rules, protocols and tasks—aligns with background jobs and notifications when enabled.',
       path: '/dashboard/retention/churn',
       targetSelector: '[data-tour="/dashboard/retention/churn"]',
     },
@@ -135,7 +135,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-18',
       title: 'Churn Predictor tool',
       description:
-        'In AI Studio: per-fan churn reads with fan records and thread context—different from the batch Retention digest; use both for strategy.',
+        'In AI Studio: per-fan churn reads with fan records and thread context—different from the batch Retention report; use both for strategy.',
       path: '/dashboard/ai-studio?tab=tools',
       targetSelector: '[data-tour="ai-studio-tools-tab"]',
     },

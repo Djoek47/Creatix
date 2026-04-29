@@ -26,6 +26,7 @@ import {
   parseDivineVoiceFromStripeMetadata,
   subscriptionStripeHasDivineVoicePrice,
 } from '@/lib/billing/premium-divine'
+import { stripeProductForInlinePriceData } from '@/lib/billing/stripe-dahlia-product'
 
 /** Only touch DB column when checkout metadata explicitly includes divineVoicePremium (avoids wiping on unrelated checkouts). */
 function divineVoicePatchFromCheckoutMeta(meta: Record<string, string> | undefined) {
@@ -34,6 +35,9 @@ function divineVoicePatchFromCheckoutMeta(meta: Record<string, string> | undefin
   }
   return { divine_voice_premium: parseDivineVoiceFromStripeMetadata(meta) }
 }
+
+/** Node runtime keeps raw webhook bodies predictable (Stripe HMAC matches exact payload bytes). */
+export const runtime = 'nodejs'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -290,7 +294,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing stripe-signature' }, { status: 400 })
   }
 
-  const rawBody = await req.text()
+  // Buffer preserves the exact POST bytes Stripe signed; avoid any UTF-8 re-encoding edge cases vs .text().
+  const rawBody = Buffer.from(await req.arrayBuffer())
   let event: Stripe.Event
 
   try {
@@ -368,22 +373,27 @@ export async function POST(req: NextRequest) {
             trialSource: meta?.trialSource || 'card_required',
           }
 
-          /** Stripe SDK `PriceData` typing omits inline `product_data` for subscription items; runtime API accepts it. */
-          const trialItem = {
+          const productTitle = checkoutProductName(
+            conversionVariant,
+            conversionTier,
+            conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+          )
+          const productDescription = checkoutProductDescription(
+            conversionVariant,
+            conversionTier,
+            conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+          )
+          const stripeProduct = await stripeProductForInlinePriceData({
+            name: productTitle,
+            description: productDescription,
+            metadata: { creatixTrialSetup: session.id.slice(0, 40) },
+            idempotencyKey: `trial_prod:${session.id}`,
+          })
+
+          const trialItem: Stripe.SubscriptionCreateParams.Item = {
             price_data: {
               currency: 'usd',
-              product_data: {
-                name: checkoutProductName(
-                  conversionVariant,
-                  conversionTier,
-                  conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
-                ),
-                description: checkoutProductDescription(
-                  conversionVariant,
-                  conversionTier,
-                  conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
-                ),
-              },
+              product: stripeProduct.id,
               unit_amount: getMonthlyPriceCents(
                 conversionVariant,
                 conversionTier,
@@ -392,7 +402,7 @@ export async function POST(req: NextRequest) {
               recurring: { interval: 'month' },
             },
             quantity: conversionSeats,
-          } as unknown as Stripe.SubscriptionCreateParams.Item
+          }
 
           const createdSub = await getStripe().subscriptions.create(
             {
@@ -757,6 +767,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Webhook handler error'
-    return NextResponse.json({ received: true, error: message }, { status: 200 })
+    /** 5xx so Stripe retries; 200 + error in body looks "success" in the Dashboard but never applies business logic. */
+    console.error('[stripe webhook]', message, err)
+    return NextResponse.json({ received: false, error: message }, { status: 500 })
   }
 }

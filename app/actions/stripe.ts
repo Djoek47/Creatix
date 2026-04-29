@@ -41,6 +41,7 @@ import {
   updateStripePaidSubscriptionItemToTier,
 } from '@/lib/billing/stripe-paid-tier-subscription-update'
 import { getAppUrl } from '@/lib/site-url'
+import { stripeProductForInlinePriceData } from '@/lib/billing/stripe-dahlia-product'
 
 /** Must match `app/api/stripe/webhook/route.ts` trial subscription length. */
 const TRIAL_DURATION_DAYS = 2
@@ -201,6 +202,13 @@ export async function startCheckoutSession(productId: string): Promise<CheckoutC
       return { ok: true, clientSecret: session.client_secret }
     }
 
+    const stripeProduct = await stripeProductForInlinePriceData({
+      name: product.name,
+      description: product.description,
+      metadata: { creatixProductId: product.id },
+      idempotencyKey: `creatix_li:${product.id}`,
+    })
+
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
       redirect_on_completion: 'never',
@@ -209,10 +217,7 @@ export async function startCheckoutSession(productId: string): Promise<CheckoutC
         {
           price_data: {
             currency: 'usd',
-            product_data: {
-              name: product.name,
-              description: product.description,
-            },
+            product: stripeProduct.id,
             unit_amount: product.priceInCents,
             ...(product.mode === 'subscription' ? { recurring: { interval: 'month' } } : {}),
           },
@@ -284,6 +289,12 @@ export async function startCustomCreditTopupCheckout(amountUsd: number) {
 
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const stripe = getStripe()
+  const customProduct = await stripeProductForInlinePriceData({
+    name: `Custom Credit Top-Up · ${credits.toLocaleString()} credits`,
+    description: 'One-time custom top-up for high-usage months',
+    metadata: { creatix: 'credit_topup_custom', userId: user.id },
+    idempotencyKey: `creatix_li:custom:${user.id}:${roundedUsd}`,
+  })
   const session = await stripe.checkout.sessions.create({
     ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
     redirect_on_completion: 'never',
@@ -293,10 +304,7 @@ export async function startCustomCreditTopupCheckout(amountUsd: number) {
       {
         price_data: {
           currency: 'usd',
-          product_data: {
-            name: `Custom Credit Top-Up · ${credits.toLocaleString()} credits`,
-            description: 'One-time custom top-up for high-usage months',
-          },
+          product: customProduct.id,
           unit_amount: amountCents,
         },
         quantity: 1,
@@ -397,8 +405,27 @@ export async function startPaidSubscriptionCheckout(params: {
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
   const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms, seats)
   const unitAmount = getMonthlyPriceCents(variant, tierIndex, focusPlatforms ?? undefined)
+  const productTitle = checkoutProductName(variant, tierIndex, focusPlatforms ?? undefined)
+  const productDescription = checkoutProductDescription(variant, tierIndex, focusPlatforms ?? undefined)
+  const focusKey =
+    variant === 'single' && focusPlatforms?.length
+      ? sortFocusPlatforms(focusPlatforms).join(',')
+      : 'multi'
 
   const stripe = getStripe()
+  const paidProduct = await stripeProductForInlinePriceData({
+    name: productTitle,
+    description: productDescription,
+    metadata: {
+      creatix: 'paid_subscription_checkout',
+      variant,
+      tier: String(tierIndex),
+      focus: focusKey,
+      seats: String(seats),
+    },
+    idempotencyKey: `creatix_li:paid:${variant}:${tierIndex}:${focusKey.replace(/[^a-zA-Z0-9_-]/g, '_')}:${seats}`,
+  })
+
   const session = await stripe.checkout.sessions.create({
     ui_mode: CHECKOUT_EMBEDDED_UI_MODE,
     redirect_on_completion: 'never',
@@ -408,10 +435,7 @@ export async function startPaidSubscriptionCheckout(params: {
       {
         price_data: {
           currency: 'usd',
-          product_data: {
-            name: checkoutProductName(variant, tierIndex, focusPlatforms ?? undefined),
-            description: checkoutProductDescription(variant, tierIndex, focusPlatforms ?? undefined),
-          },
+          product: paidProduct.id,
           unit_amount: unitAmount,
           recurring: { interval: 'month' },
         },

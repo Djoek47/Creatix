@@ -13,6 +13,7 @@ export function getStripe(): Stripe {
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(key, {
       // Dahlia ships before `stripe` package types list it; runtime accepts this string.
+      // Dynamic `price_data` must use `product: prod_…` (see `stripe-dahlia-product.ts`), not nested `product_data`.
       apiVersion: '2026-03-25.dahlia' as Stripe.StripeConfig['apiVersion'],
     })
   }

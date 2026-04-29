@@ -36,14 +36,14 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/75 backdrop-blur-xl">
         <nav className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:h-16 sm:px-6">
           <Link
             href="/"
             className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60 sm:gap-3"
           >
             <MarketingBrandLogo width={36} height={36} className="shrink-0 sm:h-10 sm:w-10" variant="header" priority />
-            <span className="hidden truncate font-serif text-[0.9375rem] font-semibold leading-none tracking-[0.12em] text-foreground sm:inline sm:text-base">
+            <span className="hidden truncate font-serif text-[0.9375rem] font-semibold leading-none tracking-[0.12em] text-primary sm:inline sm:text-base sm:tracking-[0.1em]">
               CIRCE ET VENUS
             </span>
           </Link>
@@ -54,13 +54,17 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                 <Link key={item.href} href={item.href}>
                   <span
                     className={cn(
-                      'block rounded-lg px-3 py-2 text-[13px] tracking-[-0.01em] transition-colors',
-                      active
-                        ? 'font-semibold text-foreground'
-                        : 'font-medium text-muted-foreground hover:text-foreground/88',
+                      'relative block rounded-lg px-3 py-2 text-[13px] font-medium tracking-[-0.01em] transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    {item.label}
+                    {active ? (
+                      <span
+                        className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-circe via-primary to-fuchsia-400 opacity-90"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span className="relative">{item.label}</span>
                   </span>
                 </Link>
               )
@@ -95,7 +99,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                         className={cn(
                           'rounded-lg px-4 py-3.5 text-[15px] font-medium tracking-[-0.015em] transition-colors',
                           active
-                            ? 'bg-muted/70 text-foreground'
+                            ? 'bg-primary/[0.12] text-primary'
                             : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
                         )}
                       >
@@ -111,7 +115,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                     </Link>
                   </Button>
                   <Button
-                    className="h-11 w-full gap-2 rounded-xl bg-foreground text-background shadow-none hover:bg-foreground/90"
+                    className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-primary via-primary to-circe/90 text-primary-foreground shadow-lg shadow-primary/25 hover:opacity-[0.97]"
                     asChild
                   >
                     <Link href="/auth/sign-up" onClick={() => setMobileNavOpen(false)}>
@@ -123,14 +127,14 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
             </Sheet>
 
             <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:bg-transparent hover:text-foreground">
+              <Button variant="ghost" size="sm" className="text-foreground/85 hover:bg-transparent hover:text-foreground">
                 Sign in
               </Button>
             </Link>
             <Link href="/auth/sign-up">
               <Button
                 size="sm"
-                className="h-9 gap-1.5 rounded-lg bg-foreground px-3.5 text-[13px] font-medium tracking-[-0.01em] text-background shadow-none hover:bg-foreground/90 sm:px-4"
+                className="h-9 gap-1.5 rounded-lg bg-gradient-to-r from-primary via-primary to-circe/90 px-3.5 text-[13px] font-medium tracking-[-0.01em] text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] sm:px-4"
               >
                 <span className="hidden sm:inline">Get started</span>
                 <span className="sm:hidden">Start</span>
@@ -149,7 +153,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
             <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
               <div className="flex items-center gap-2.5">
                 <MarketingBrandLogo width={36} height={36} className="shrink-0" variant="header" />
-                <span className="font-serif text-[1.0625rem] font-semibold leading-none tracking-[0.12em] text-foreground sm:text-lg">
+                <span className="font-serif text-[1.0625rem] font-semibold leading-none tracking-[0.12em] text-primary sm:text-lg dark:text-circe-light">
                   CIRCE ET VENUS
                 </span>
               </div>

@@ -32,6 +32,11 @@ import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
+import {
+  bottomTwinInnerMobile,
+  bottomTwinRimGold,
+  bottomTwinRimPurple,
+} from '@/components/dashboard/sidebar-bottom-nav-tokens'
 
 interface MobileSidebarProps {
   user: User
@@ -86,7 +91,7 @@ const aiStudioNavigation: NavItem[] = [
 
 const bottomNavigation: NavItem[] = [
   {
-    name: 'Guide & suggestions',
+    name: 'Guide',
     href: '/dashboard/guide',
     icon: BookOpen,
     activeMatch: ['/dashboard/guide', '/dashboard/community'],
@@ -117,6 +122,11 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
 
   const navTextClass = compactMobile ? 'text-[0.86rem] leading-snug' : mobileNavText
   const navIconClass = compactMobile ? 'h-4 w-4' : mobileNavIcon
+
+  const footerGuideNav = bottomNavigation[0]
+  const footerSettingsNav = bottomNavigation[1]
+  const footerGuideActive = navItemIsActive(pathname, footerGuideNav)
+  const footerSettingsActive = navItemIsActive(pathname, footerSettingsNav)
 
   const NavLink = ({
     item,
@@ -307,10 +317,51 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
           compactMobile ? 'px-3 pb-3 pt-4' : 'px-4 pb-4 pt-5',
         )}
       >
-        <div className="space-y-1.5">
-          {bottomNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="default" />
-          ))}
+        <div className="flex gap-2">
+          <div className={cn('min-w-0 flex-1', bottomTwinRimPurple)}>
+            <SheetClose asChild>
+              <Link
+                href={footerGuideNav.href}
+                data-tour={footerGuideNav.href}
+                className={cn(
+                  bottomTwinInnerMobile,
+                  'justify-start gap-2 px-3 text-[0.9375rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  footerGuideActive
+                    ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                    : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
+                )}
+                aria-current={footerGuideActive ? 'page' : undefined}
+              >
+                <BookOpen
+                  className={cn(navIconClass, footerGuideActive ? 'text-foreground' : 'text-foreground/55')}
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate">{footerGuideNav.name}</span>
+              </Link>
+            </SheetClose>
+          </div>
+          <div className={cn('min-w-0 flex-1', bottomTwinRimGold)}>
+            <SheetClose asChild>
+              <Link
+                href={footerSettingsNav.href}
+                data-tour={footerSettingsNav.href}
+                className={cn(
+                  bottomTwinInnerMobile,
+                  'justify-start gap-2 px-3 text-[0.9375rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  footerSettingsActive
+                    ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                    : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
+                )}
+                aria-current={footerSettingsActive ? 'page' : undefined}
+              >
+                <Settings
+                  className={cn(navIconClass, footerSettingsActive ? 'text-foreground' : 'text-foreground/55')}
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate">{footerSettingsNav.name}</span>
+              </Link>
+            </SheetClose>
+          </div>
         </div>
 
         {profile && !compactMobile && (

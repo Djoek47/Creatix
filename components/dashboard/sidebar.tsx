@@ -37,6 +37,11 @@ import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
+import {
+  bottomTwinInner,
+  bottomTwinRimGold,
+  bottomTwinRimPurple,
+} from '@/components/dashboard/sidebar-bottom-nav-tokens'
 
 interface SidebarProps {
   user: User
@@ -105,7 +110,8 @@ const aiStudioNavigation: NavItem[] = [
 
 const bottomNavigation: NavItem[] = [
   {
-    name: 'Guide & suggestions',
+    /** Short slug for footer twin chips; routing unchanged */
+    name: 'Guide',
     href: '/dashboard/guide',
     icon: BookOpen,
     activeMatch: ['/dashboard/guide', '/dashboard/community'],
@@ -113,7 +119,7 @@ const bottomNavigation: NavItem[] = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-/** Shared motion: short, precise — no decorative easing. */
+/** Motion: short, precise; no decorative easing. */
 const navEase = 'duration-150 ease-out'
 
 /** One surface language: neutral pills; section identity reads through icon tint only. */
@@ -149,6 +155,132 @@ type NavVariant = keyof typeof variantStyles
 
 /** Vertical rhythm: short viewports tighten gaps/padding so the rail rarely scrolls. */
 type SidebarVerticalDensity = 'normal' | 'tight' | 'cramped'
+
+/** Guide (violet rim) · Settings (amber rim) — one accent per pill. */
+function SidebarBottomTwinNav({
+  pathname,
+  collapsed,
+  compactDensity,
+  verticalDensity,
+}: {
+  pathname: string
+  collapsed: boolean
+  compactDensity: boolean
+  verticalDensity: SidebarVerticalDensity
+}) {
+  const guide = bottomNavigation[0]
+  const settings = bottomNavigation[1]
+  const guideActive = navItemIsActive(pathname, guide)
+  const settingsActive = navItemIsActive(pathname, settings)
+
+  const gapClass = collapsed
+    ? verticalDensity === 'cramped'
+      ? 'gap-0.5'
+      : 'gap-1'
+    : verticalDensity === 'cramped'
+      ? 'gap-1.5'
+      : 'gap-2'
+
+  const linkText = cn(
+    'font-semibold tracking-tight',
+    compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
+  )
+  const iconSz = compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox
+
+  const TwinChip = ({
+    item,
+    active,
+    rimClass,
+    label,
+    iconHoverTint,
+  }: {
+    item: NavItem
+    active: boolean
+    rimClass: string
+    label: string
+    iconHoverTint: string
+  }) => {
+    const Icon = item.icon
+
+    const linkBody = (
+      <Link
+        href={item.href}
+        data-tour={item.href}
+        className={cn(
+          bottomTwinInner,
+          'group relative flex outline-none ring-sidebar-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
+          collapsed ? 'min-h-[2.375rem] flex-1 justify-center px-0 py-1.5' : 'min-w-0 w-full flex-1 justify-start gap-1 px-2 py-2',
+          active
+            ? 'bg-sidebar-accent/55 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
+            : [
+                'text-sidebar-foreground/76',
+                'hover:bg-sidebar-accent/38 hover:text-sidebar-foreground',
+                'active:bg-sidebar-accent/44',
+              ],
+        )}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon
+          className={cn(
+            'relative z-[1] shrink-0 transition-colors',
+            navEase,
+            iconSz,
+            active ? 'text-sidebar-foreground' : cn('text-sidebar-foreground/52', iconHoverTint),
+          )}
+          aria-hidden
+        />
+        {!collapsed && (
+          <span className={cn('min-w-0 truncate', linkText, active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/82')}>
+            {label}
+          </span>
+        )}
+      </Link>
+    )
+
+    const wrapped = <div className={cn('flex min-w-0 flex-1', rimClass)}>{linkBody}</div>
+
+    if (collapsed) {
+      return (
+        <TooltipPrimitive.Root delayDuration={0}>
+          <TooltipPrimitive.Trigger asChild>{wrapped}</TooltipPrimitive.Trigger>
+          <TooltipPrimitive.Portal>
+            <TooltipPrimitive.Content
+              side="right"
+              sideOffset={8}
+              className={cn(
+                'z-50 max-w-[16rem] origin-(--radix-tooltip-content-transform-origin) rounded-lg border border-border/50 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md',
+                'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=right]:slide-in-from-left-2',
+              )}
+            >
+              <span className="font-medium">{label}</span>
+            </TooltipPrimitive.Content>
+          </TooltipPrimitive.Portal>
+        </TooltipPrimitive.Root>
+      )
+    }
+
+    return wrapped
+  }
+
+  return (
+    <div className={cn(collapsed ? 'flex flex-col' : 'flex w-full', gapClass)}>
+      <TwinChip
+        item={guide}
+        active={guideActive}
+        rimClass={bottomTwinRimPurple}
+        label="Guide"
+        iconHoverTint="group-hover:text-circe-light/82"
+      />
+      <TwinChip
+        item={settings}
+        active={settingsActive}
+        rimClass={bottomTwinRimGold}
+        label="Settings"
+        iconHoverTint="group-hover:text-amber-200/85"
+      />
+    </div>
+  )
+}
 
 function NavLink({
   item,
@@ -381,8 +513,6 @@ export function DashboardSidebar({ profile }: SidebarProps) {
     verticalDensity === 'tight' && 'pb-3 pt-3.5',
     verticalDensity === 'normal' && 'pb-4 pt-5',
   )
-  const bottomLinkStack =
-    verticalDensity === 'cramped' ? 'space-y-0.5' : verticalDensity === 'tight' ? 'space-y-1' : 'space-y-1.5'
 
   return (
     <aside
@@ -513,19 +643,12 @@ export function DashboardSidebar({ profile }: SidebarProps) {
 
         {/* Bottom rail — secondary destinations; calmer than main nav */}
         <div className={bottomRailClass}>
-        <div className={bottomLinkStack}>
-          {bottomNavigation.map((item) => (
-            <NavLink
-              key={item.name}
-              item={item}
-              variant="default"
-              pathname={pathname}
-              collapsed={collapsed}
-              compactDensity={compactDensity}
-              verticalDensity={verticalDensity}
-            />
-          ))}
-        </div>
+        <SidebarBottomTwinNav
+          pathname={pathname}
+          collapsed={collapsed}
+          compactDensity={compactDensity}
+          verticalDensity={verticalDensity}
+        />
 
         {!collapsed && profile && !compactDensity && (
           <div

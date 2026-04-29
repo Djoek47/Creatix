@@ -160,8 +160,9 @@ const ENTRIES: Entry[] = [
     meta: {
       eyebrow: 'Account',
       title: 'Settings',
-      subtitle: 'Your profile, plan, connections, and privacy — in one quiet place.',
-      heroVariant: 'system',
+      subtitle: 'Profile, plan, integrations, billing, and privacy—in one calm place.',
+      /** Serif title scales with `/dashboard/protection` (minimal), not the detached sans “system” strip */
+      heroVariant: 'minimal',
     },
   },
   {

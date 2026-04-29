@@ -29,6 +29,8 @@ import {
   focusPlatformDisplayName,
   focusPlatformsShortLabel,
   pairBundleDescription,
+  BUNDLE_ANTIPIRACY_ADDON_USD,
+  BUNDLE_ANTIPIRACY_SCAN_CREDITS,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
@@ -67,18 +69,13 @@ const PROTECTION_POPOVER_TOOLS = [
   'Model reputation',
 ] as const
 
-/** Amber rim when off; violet + gold gradient when checked — stays legible on dark billing surfaces. */
+/** Calm override control for billing—no gradient/glow; fits settings glass. */
 const PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS = cn(
-  'relative size-[1.125rem] shrink-0 rounded-[6px] border-2',
-  'border-amber-400/85 bg-black/[0.18] shadow-[inset_0_1px_0_0_rgba(253,230,138,0.32),0_0_14px_-1px_rgba(251,191,36,0.32)]',
-  'dark:border-amber-400/90 dark:bg-zinc-950/95 dark:shadow-[inset_0_1px_0_0_rgba(251,191,36,0.14),0_0_22px_-2px_rgba(251,191,36,0.3)]',
-  'transition-[box-shadow,color,background]',
-  'data-[state=checked]:border-transparent',
-  'data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-amber-400 data-[state=checked]:to-violet-600',
-  'data-[state=checked]:text-white',
-  'data-[state=checked]:shadow-[0_0_26px_-2px_rgba(168,85,247,0.5)]',
-  'dark:data-[state=checked]:from-amber-500 dark:data-[state=checked]:to-violet-500 dark:data-[state=checked]:shadow-[0_0_26px_-2px_rgba(147,51,234,0.45)]',
-  'focus-visible:ring-[3px] focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+  'size-[1.0625rem] rounded-[4px] border border-border/65 bg-background/50 shadow-none',
+  'dark:border-border/55 dark:bg-background/30 dark:shadow-none dark:data-[state=unchecked]:shadow-none',
+  'data-[state=unchecked]:shadow-none',
+  'data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background',
+  'focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 )
 
 /** Summary column — shared inset surface + layout (settings + landing). */
@@ -97,6 +94,8 @@ const PRICING_SUMMARY_ASIDE_FOCUS = cn(
   'border-violet-300/40 dark:border-violet-400/16',
   'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_0_48px_-24px_rgba(139,92,246,0.16),0_28px_56px_-36px_rgba(0,0,0,0.55)]',
 )
+
+type BreakdownLines = readonly { label: string; usd: number | null }[]
 
 export type PricingCalculatorControlledProps = {
   tierIndex: number
@@ -119,13 +118,18 @@ export type PricingPageCalculatorProps = {
   controlled?: PricingCalculatorControlledProps
   /** Billing settings: invoked after embedded Stripe checkout completes (sync subscription + credits). */
   onCheckoutComplete?: () => void | Promise<void>
-  /** Lowest selectable tier index when linked OF/Fansly scoped revenue implies a floor (billing settings). */
+  /**
+   * Lowest tier index required from linked OnlyFans/Fansly scoped revenue (settings). When set, manual
+   * “type your revenue” override is hidden—the band list is limited to this tier and above.
+   */
   requiredMinTierFromObservation?: number | null
+  /** Active subscription `revenue_tier` — used for quiet copy when linked data implies a higher band than subscribed. */
+  subscribedRevenueTier?: number | null
   /** Latest scoped observation timestamp from `/api/billing/revenue-band-status` (settings copy). */
   observationCapturedAtIso?: string | null
   /**
-   * Settings: OnlyFans and/or Fansly linked — revenue band matches subscription/checkout preview and is not
-   * editable here (disconnect platforms to change the estimate band).
+   * Settings: OnlyFans and Fansly both linked — revenue band is read-only here (disconnect a platform to
+   * change the estimate band). `requiredMinTierFromObservation` may still apply from either platform when only one is linked.
    */
   lockRevenueBand?: boolean
   /** Billing settings: rendered under the OnlyFans / Fansly row when the platform picker is visible; otherwise after controls in the estimate column. */
@@ -139,6 +143,7 @@ export function PricingPageCalculator({
   onCheckoutComplete,
   requiredMinTierFromObservation = null,
   observationCapturedAtIso = null,
+  subscribedRevenueTier = null,
   lockRevenueBand = false,
   belowFocusPlatformsSlot,
 }: PricingPageCalculatorProps = {}) {
@@ -263,11 +268,24 @@ export function PricingPageCalculator({
     setUseRevenueForBand(false)
   }, [revenueBandLocked])
 
+  useEffect(() => {
+    if (surface !== 'settings') return
+    if (tierFloor == null) return
+    setUseRevenueForBand(false)
+  }, [surface, tierFloor])
+
   const derivedTier = useMemo(() => {
     const n = Number.parseFloat(revenueInput.replace(/,/g, ''))
     const revenue = Number.isFinite(n) && n >= 0 ? n : 0
     return tierIndexFromMonthlyRevenue(revenue)
   }, [revenueInput])
+
+  /** Below this index never appear as choices (when linked observations imply a floor). */
+  const tierChoices = useMemo(
+    () =>
+      tierFloor != null ? REVENUE_TIERS.filter((t) => t.tierIndex >= tierFloor) : [...REVENUE_TIERS],
+    [tierFloor],
+  )
 
   const suggestedRow = useMemo(() => getTierByIndex(derivedTier), [derivedTier])
   const baseTier = useRevenueForBand ? derivedTier : tierIndex
@@ -321,28 +339,28 @@ export function PricingPageCalculator({
   const breakdown = useMemo(() => {
     if (protectionOnly) {
       return {
-        lines: [{ label: 'Multiplatform protection', usd: OTHER_PLATFORM_BUNDLE_ADDON_USD }],
+        lines: [{ label: 'Multiplatform protection', usd: OTHER_PLATFORM_BUNDLE_ADDON_USD }] satisfies BreakdownLines,
         note: 'Standalone plan for leak alerts and DMCA-style coverage on extra fan and clip storefronts.',
       }
     }
     if (!tierRow) return null
     if (variant === 'multi') {
-      const lines: { label: string; usd: number }[] = [
+      const lines: { label: string; usd: number | null }[] = [
         { label: 'Bundled (OnlyFans + Fansly)', usd: tierRow.multiPriceUsd },
       ]
       if (sortedPlatforms.includes('manyvids')) {
-        const full = getMonthlyPriceUsd('multi', effectiveTier, ['onlyfans', 'fansly', 'manyvids'])
         lines.push({
-          label: 'ManyVids add-on',
-          usd: full - tierRow.multiPriceUsd,
+          label: `${BUNDLE_ANTIPIRACY_SCAN_CREDITS.toLocaleString()} credits · Anti‑Piracy storefront`,
+          usd: null,
         })
+        lines.push({ label: 'Anti‑Piracy', usd: BUNDLE_ANTIPIRACY_ADDON_USD })
       }
       return {
         lines,
         note:
           surface === 'settings'
-            ? 'One bill when Bundled. ManyVids add-on is included in that total. Broader storefront coverage: Protection add-on below (separate bill).'
-            : 'One monthly price for OnlyFans and Fansly. Optional ManyVids add-on. For more storefronts, add Protection on the full pricing page.',
+            ? 'One Bundled bill. Anti‑Piracy is the ManyVids storefront connector (800 credits allocated per cycle above). Multiplatform Protection is billed separately.'
+            : 'Bundled workspace for OnlyFans and Fansly. Anti‑Piracy adds ManyVids and the connector line item; Protection for extra storefronts is on the pricing page.',
       }
     }
     if (sortedPlatforms.length === 1) {
@@ -413,6 +431,17 @@ export function PricingPageCalculator({
   const isSettings = surface === 'settings'
   const platformsPickerVisible = !protectionOnly && (variant === 'single' || variant === 'multi')
 
+  /** Linked observations set a floor: manual USD override only before that signal exists (or on marketing pages). */
+  const showManualRevenueOverride = !revenueBandLocked && !(isSettings && tierFloor != null)
+  const subscribedBelowLinkedFloor =
+    isSettings &&
+    typeof subscribedRevenueTier === 'number' &&
+    subscribedRevenueTier >= 0 &&
+    tierFloor != null &&
+    subscribedRevenueTier < tierFloor
+  const tierSelectControlledValue =
+    tierFloor != null ? String(Math.max(tierIndex, tierFloor)) : String(tierIndex)
+
   return (
     <Root
       className={rootClass}
@@ -463,65 +492,90 @@ export function PricingPageCalculator({
         <div className={cn('min-w-0', isSettings ? 'space-y-5' : 'space-y-8')}>
           {!useRevenueForBand && (
             <div className="space-y-2">
-              <Label htmlFor="pricing-tier-select" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor={revenueBandLocked ? 'pricing-tier-readonly' : 'pricing-tier-select'}
+                className="text-xs text-muted-foreground"
+              >
                 Revenue band
               </Label>
-              <Select
-                disabled={revenueBandLocked}
-                value={String(tierIndex)}
-                onOpenChange={(open) => {
-                  if (open) setBandCyclePaused(true)
-                }}
-                onValueChange={(v) => {
-                  setBandCyclePaused(true)
-                  setTierIndex(Number.parseInt(v, 10))
-                }}
-              >
-                <SelectTrigger
-                  id="pricing-tier-select"
-                  className={cn(
-                    'h-11 rounded-xl border-border/60 bg-background/50 transition-[box-shadow] duration-500',
-                    'motion-safe:animate-[marketing-float-soft_5s_ease-in-out_infinite] motion-reduce:animate-none',
-                    bandDemoActive &&
-                      'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)]',
-                    revenueBandLocked && 'cursor-not-allowed opacity-[0.92]',
-                  )}
+              {revenueBandLocked ? (
+                <div
+                  id="pricing-tier-readonly"
+                  role="status"
+                  aria-live="polite"
+                  className="flex min-h-[2.75rem] items-center rounded-xl border border-border/50 bg-background/35 px-3.5 text-[14px] font-medium tracking-tight text-foreground"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REVENUE_TIERS.map((t) => (
-                    <SelectItem
-                      key={t.tierIndex}
-                      value={String(t.tierIndex)}
-                      disabled={tierFloor != null && t.tierIndex < tierFloor}
-                    >
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  {getTierByIndex(effectiveTier)?.label ?? '—'}
+                </div>
+              ) : (
+                <Select
+                  value={tierSelectControlledValue}
+                  onOpenChange={(open) => {
+                    if (open) setBandCyclePaused(true)
+                  }}
+                  onValueChange={(v) => {
+                    setBandCyclePaused(true)
+                    setTierIndex(Number.parseInt(v, 10))
+                  }}
+                >
+                  <SelectTrigger
+                    id="pricing-tier-select"
+                    className={cn(
+                      'h-11 rounded-xl border-border/60 bg-background/50 transition-[box-shadow] duration-500',
+                      'motion-safe:animate-[marketing-float-soft_5s_ease-in-out_infinite] motion-reduce:animate-none',
+                      bandDemoActive &&
+                        'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)]',
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tierChoices.map((t) => (
+                      <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <p className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed')}>
-                {isSettings && tierFloor != null ? (
+                {isSettings && revenueBandLocked ? (
                   <>
-                    Based on linked account activity
+                    Synced from connected OnlyFans / Fansly—the same ladder as checkout after your subscribed band is
+                    updated.
+                    {tierFloor != null ? (
+                      <> Bands below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} are not offered.</>
+                    ) : null}
                     {observationCapturedAtIso ? (
                       <>
                         {' '}
-                        (updated{' '}
+                        Updated{' '}
+                        {Number.isFinite(Date.parse(observationCapturedAtIso))
+                          ? new Date(observationCapturedAtIso).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : observationCapturedAtIso}
+                        .
+                      </>
+                    ) : null}{' '}
+                    Disconnect integrations to pick a revenue band manually.
+                  </>
+                ) : isSettings && tierFloor != null ? (
+                  <>
+                    Band is estimated from linked OnlyFans / Fansly earnings. Only{' '}
+                    {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}{' '}
+                    and higher appear here—the same ladder as checkout.
+                    {observationCapturedAtIso ? (
+                      <>
+                        {' '}
+                        Updated{' '}
                         {Number.isFinite(Date.parse(observationCapturedAtIso))
                           ? new Date(observationCapturedAtIso).toLocaleString()
                           : observationCapturedAtIso}
-                        )
+                        .
                       </>
                     ) : null}
-                    , checkout cannot go below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}. This band is
-                    fixed while a platform stays linked.
-                  </>
-                ) : isSettings && revenueBandLocked ? (
-                  <>
-                    Band is fixed while OnlyFans or Fansly is connected—same value your plan and checkout use. Disconnect
-                    both in Integrations to preview a different band here.
                   </>
                 ) : isSettings ? (
                   'Tier mirrors gross monthly billings at checkout.'
@@ -529,6 +583,12 @@ export function PricingPageCalculator({
                   'Same tiers as checkout. Pick the interval that matches your gross monthly billings.'
                 )}
               </p>
+              {subscribedBelowLinkedFloor ? (
+                <p className="mt-2 max-w-[52ch] text-[11px] leading-snug text-muted-foreground">
+                  Your subscribed band sits below earnings implied by linked accounts. Finish checkout for the band you
+                  select above—the next Stripe invoice reflects the upgrade.
+                </p>
+              ) : null}
               {bandDemoActive ? (
                 <p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/90">
                   Cycling bands as a preview—open the menu or switch to revenue estimate to hold still.
@@ -537,31 +597,32 @@ export function PricingPageCalculator({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Checkbox
-              id="pricing-revenue-override"
-              checked={useRevenueForBand}
-              disabled={revenueBandLocked}
-              className={PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS}
-              onCheckedChange={(v) => {
-                const on = v === true
-                setUseRevenueForBand(on)
-                if (!on) {
-                  const next = tierFloor != null ? Math.max(derivedTier, tierFloor) : derivedTier
-                  setTierIndex(next)
-                }
-              }}
-            />
-            <Label
-              htmlFor="pricing-revenue-override"
-              className={cn(
-                'text-sm font-normal text-foreground/90',
-                revenueBandLocked ? 'cursor-default opacity-60' : 'cursor-pointer',
-              )}
-            >
-              Estimate band from monthly revenue
-            </Label>
-          </div>
+          {showManualRevenueOverride ? (
+            <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+              <Checkbox
+                id="pricing-revenue-override"
+                checked={useRevenueForBand}
+                className={PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS}
+                onCheckedChange={(v) => {
+                  const on = v === true
+                  setUseRevenueForBand(on)
+                  if (!on) {
+                    const next = tierFloor != null ? Math.max(derivedTier, tierFloor) : derivedTier
+                    setTierIndex(next)
+                  }
+                }}
+              />
+              <Label
+                htmlFor="pricing-revenue-override"
+                className="cursor-pointer text-[13px] font-normal leading-snug tracking-[-0.01em] text-foreground/90"
+              >
+                Enter monthly revenue instead
+                <span className="mt-1 block text-[11px] font-normal tracking-normal text-muted-foreground">
+                  Use when integrations aren&apos;t linked yet—still matches tier ladders at checkout.
+                </span>
+              </Label>
+            </div>
+          ) : null}
 
           {useRevenueForBand && (
             <div className="space-y-2">
@@ -821,10 +882,20 @@ export function PricingPageCalculator({
                   Composition
                 </p>
                 <ul className={cn('leading-snug', isSettings ? 'mt-3 space-y-3 text-[12px]' : 'mt-5 space-y-4 text-[13px]')}>
-                  {breakdown.lines.map((row) => (
-                    <li key={row.label} className="flex items-baseline justify-between gap-4 tabular-nums sm:gap-6">
+                  {breakdown.lines.map((row, idx) => (
+                    <li
+                      key={`${row.label}-${idx}`}
+                      className="flex items-baseline justify-between gap-4 tabular-nums sm:gap-6"
+                    >
                       <span className="min-w-0 text-muted-foreground">{row.label}</span>
-                      <span className="shrink-0 font-medium text-foreground">${row.usd}</span>
+                      <span
+                        className={cn(
+                          'shrink-0 font-medium',
+                          row.usd == null ? 'text-muted-foreground/85' : 'text-foreground',
+                        )}
+                      >
+                        {row.usd == null ? '—' : `$${row.usd}`}
+                      </span>
                     </li>
                   ))}
                   {otherPlatformBundleEnabled && !protectionOnly ? (

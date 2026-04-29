@@ -8,8 +8,8 @@
  * - **OnlyFans, Fansly, Bundled (OF+FL):** list prices are defined per revenue band in `RAW_TIERS` (amended 2026 model).
  * - **Bundled** = one monthly price for OnlyFans + Fansly together (`of_fl`); this is also what `multi` / legacy `unified` bills.
  * - **Fansly** uses `flOverride` per band (not a single % of OF).
- * - **ManyVids Focus solo line:** `mv` is flat (`MV_FLAT`, currently $25/mo). `of_mv` / `fl_mv` bundle list prices use add-ons
- *   when not overridden. Separate **Protection** subscriptions ($25/mo) are distinct — see `cev-protection`.
+ * - **Anti‑piracy storefront connector** on Bundled OF+FL: `ADDON_UNIFIED` (flat; currently $24.99/mo). `of_mv` / `fl_mv` bundle list prices use separate add-ons
+ *   when not overridden. **`mv` (ManyVids solo Focus)** is `MV_FLAT` (currently $25/mo). Separate **Protection** subscriptions ($25/mo) are distinct — see `cev-protection`.
  */
 
 export type PlatformCombo =
@@ -39,7 +39,8 @@ const FL_DISCOUNT = 0.9
 const ADDON_FL = 20
 const ADDON_MV_ON_OF = 15
 const ADDON_MV_ON_FL = 8
-const ADDON_UNIFIED = 25
+/** ManyVids storefront connector on bundled OF+FL workspace (Anti‑piracy tier). */
+const ADDON_UNIFIED = 24.99
 
 function flPrice(of: number, override?: number): number {
   if (override !== undefined) return override

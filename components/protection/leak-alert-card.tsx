@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import {
-  ExternalLink,
+  ArrowUpRight,
   Loader2,
   ScanSearch,
   ChevronDown,
@@ -98,58 +98,46 @@ function toDatetimeLocalValue(iso: string | null | undefined): string {
 
 const SWIPE_PX = 88
 
-function openLinkGravityForSeverity(severity: LeakSeverity | undefined): { dur: number; nudge: string } {
+/** Quiet severity tone for inline labels (no background pill). */
+function severityLabelTone(severity: LeakSeverity | undefined): string {
   switch (severity ?? 'medium') {
     case 'critical':
-      return { dur: 2.05, nudge: '1.65px' }
+      return 'text-red-500/90 dark:text-red-400/85'
     case 'high':
-      return { dur: 2.5, nudge: '1.35px' }
+      return 'text-orange-500/85 dark:text-orange-400/80'
     case 'medium':
-      return { dur: 3.05, nudge: '1.1px' }
+      return 'text-amber-600/88 dark:text-amber-400/75'
     case 'low':
     default:
-      return { dur: 3.85, nudge: '0.85px' }
+      return 'text-sky-600/85 dark:text-sky-400/75'
   }
 }
 
-/** Prominent leak URL CTA — matches severity urgency (parity with triage swipe + Re-verify styling). */
-function openLinkHeroCtaClasses(severity: LeakSeverity | undefined, visited: boolean): string {
+/** Matte surface + hairline border; severity only as a 3px left stripe (calm, not a banner). */
+function compactLeakOpenClasses(severity: LeakSeverity | undefined, visited: boolean): string {
   if (visited) {
     return cn(
-      'border border-border/50 bg-muted/[0.32] text-foreground/88 shadow-sm backdrop-blur-sm',
-      'hover:bg-muted/[0.45] hover:border-border/60 hover:text-foreground',
+      'border border-border/45 bg-muted/20 text-foreground',
+      'border-l-[3px] border-l-border/55',
+      'hover:bg-muted/[0.32] hover:border-border/55',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
     )
   }
-  switch (severity ?? 'medium') {
-    case 'critical':
-      return cn(
-        'border border-red-500/55 bg-gradient-to-b from-red-500/[0.22] via-red-600/[0.13] to-red-950/50 text-white shadow-[0_8px_36px_-10px_rgba(239,68,68,0.55)]',
-        'hover:from-red-500/[0.3] hover:via-red-600/[0.18] hover:to-red-950/55 hover:border-red-400/65',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      )
-    case 'high':
-      return cn(
-        'border border-orange-500/50 bg-gradient-to-b from-orange-500/[0.22] via-orange-600/[0.12] to-orange-950/45 text-orange-50',
-        'shadow-[0_8px_32px_-10px_rgba(249,115,22,0.48)]',
-        'hover:from-orange-500/[0.29] hover:via-orange-600/[0.18] hover:border-orange-400/62',
-        'focus-visible:ring-2 focus-visible:ring-orange-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      )
-    case 'medium':
-      return cn(
-        'border border-amber-500/45 bg-gradient-to-b from-amber-500/[0.16] via-amber-600/[0.08] to-amber-950/40 text-amber-50',
-        'shadow-[0_6px_28px_-10px_rgba(234,179,8,0.35)]',
-        'hover:from-amber-500/[0.24] hover:border-amber-400/55',
-        'focus-visible:ring-2 focus-visible:ring-amber-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      )
-    case 'low':
-    default:
-      return cn(
-        'border border-sky-500/45 bg-gradient-to-b from-sky-500/[0.15] via-sky-600/[0.08] to-sky-950/35 text-sky-50',
-        'shadow-[0_6px_28px_-10px_rgba(14,165,233,0.32)]',
-        'hover:from-sky-500/[0.22] hover:border-sky-400/55',
-        'focus-visible:ring-2 focus-visible:ring-sky-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-      )
-  }
+  const accent =
+    severity === 'critical'
+      ? 'border-l-[3px] border-l-red-500/72'
+      : severity === 'high'
+        ? 'border-l-[3px] border-l-orange-500/65'
+        : severity === 'medium'
+          ? 'border-l-[3px] border-l-amber-500/62'
+          : 'border-l-[3px] border-l-sky-500/62'
+  return cn(
+    accent,
+    'border-y border-r border-white/[0.07] bg-gradient-to-br from-background/90 to-muted/[0.1]',
+    'shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] dark:border-white/[0.06] dark:from-background/55 dark:to-muted/[0.06]',
+    'hover:to-muted/[0.15] hover:border-white/[0.1]',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/28 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+  )
 }
 
 export function LeakAlertCard(props: {
@@ -272,20 +260,10 @@ export function LeakAlertCard(props: {
     }
   }, [alert.source_url])
 
-  const openLinkGravity = useMemo(() => openLinkGravityForSeverity(alert.severity), [alert.severity])
-
-  const openLinkMotionStyle =
-    linkVisited || reduceMotion
-      ? undefined
-      : ({
-          ['--leak-nudge' as string]: openLinkGravity.nudge,
-          animation: `leak-open-link-gravity ${openLinkGravity.dur}s ease-in-out infinite`,
-        } as CSSProperties)
-
   return (
     <div
       className={cn(
-        'backdrop-blur-[1px]',
+        'group/leak-card backdrop-blur-[1px]',
         pinned
           ? cn(
               'leak-confirmed-pin-shell rounded-[1.0625rem] border border-white/[0.14]',
@@ -298,6 +276,84 @@ export function LeakAlertCard(props: {
             ),
       )}
     >
+      <div className={cn(pinned ? 'mb-5 space-y-3' : 'mb-6 space-y-4')}>
+        <div
+          className={cn(
+            'grid transition-[grid-template-rows] duration-500',
+            'motion-safe:ease-[cubic-bezier(0.33,0.86,0.2,1)] motion-reduce:duration-0',
+            'grid-rows-[1fr]',
+            '[@media(hover:hover)]:grid-rows-[0fr]',
+            '[@media(hover:hover)]:group-hover/leak-card:grid-rows-[1fr]',
+            '[@media(hover:hover)]:group-focus-within/leak-card:grid-rows-[1fr]',
+            'motion-reduce:grid-rows-[1fr]',
+          )}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div
+              className={cn(
+                'pb-1',
+                'translate-y-0 opacity-100',
+                '[@media(hover:hover)]:translate-y-1.5 [@media(hover:hover)]:opacity-0',
+                'motion-safe:transition-[opacity,transform] motion-safe:duration-500 motion-safe:ease-out',
+                'group-hover/leak-card:translate-y-0 group-hover/leak-card:opacity-100',
+                'group-focus-within/leak-card:translate-y-0 group-focus-within/leak-card:opacity-100',
+                'motion-reduce:translate-y-0 motion-reduce:opacity-100',
+              )}
+            >
+              <LeakAlertFlowStrip alert={alert} linkOpened={linkVisited} />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-3 gap-y-3">
+          <a
+            href={alert.source_url}
+            target="_blank"
+            rel="noreferrer"
+            onMouseDown={onLeakLinkAuxNavigate}
+            onClick={onLeakLinkActivated}
+            aria-label={
+              linkVisited
+                ? `${leakPageHost} — reopen in new tab`
+                : `Open leaked page on ${leakPageHost} in new tab (${String(alert.severity ?? 'medium')})`
+            }
+            className={cn(
+              'group inline-flex max-w-full items-center gap-3 rounded-[0.75rem] pl-3.5 pr-2 py-2.5',
+              'max-w-[min(100%,20.5rem)] sm:max-w-[22rem]',
+              'motion-safe:transition-[background-color,border-color,transform] motion-safe:duration-200 motion-safe:active:scale-[0.993]',
+              compactLeakOpenClasses(alert.severity, linkVisited),
+            )}
+          >
+            <span className="flex min-w-0 flex-1 flex-col gap-0 text-left leading-tight">
+              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-[13px] font-semibold tracking-[-0.02em] text-foreground">
+                  {linkVisited ? 'Opened — view again' : 'Open leaked page'}
+                </span>
+                {!linkVisited ? (
+                  <span className={cn('text-[10px] font-semibold uppercase tracking-[0.13em]', severityLabelTone(alert.severity))}>
+                    {alert.severity ?? 'medium'}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/75">Visited</span>
+                )}
+              </span>
+              <span className="mt-1 truncate text-[11.5px] text-muted-foreground/88">{leakPageHost}</span>
+            </span>
+            <span
+              className={cn(
+                'flex h-[2rem] w-[2rem] shrink-0 items-center justify-center rounded-md',
+                linkVisited ? 'bg-muted/50 text-muted-foreground' : 'bg-muted/40 text-muted-foreground/82 group-hover:bg-muted/52 group-hover:text-foreground/82',
+              )}
+              aria-hidden
+            >
+              {linkVisited ? <Check className="h-3.5 w-3.5" strokeWidth={2.75} /> : <ArrowUpRight className="h-[13px] w-[13px]" strokeWidth={2.25} />}
+            </span>
+          </a>
+          <p className="hidden max-w-[14rem] leading-snug tracking-wide text-muted-foreground/52 md:block md:text-[11px]">
+            New tab · external
+          </p>
+        </div>
+      </div>
+
       <div
         ref={swipeSurfaceRef}
         role="group"
@@ -575,61 +631,6 @@ export function LeakAlertCard(props: {
       )}
 
       <div className={cn('space-y-5 border-t border-border/25', pinned ? 'mt-4 pt-4' : 'mt-6 pt-5')}>
-        <LeakAlertFlowStrip alert={alert} linkOpened={linkVisited} />
-
-        <a
-          href={alert.source_url}
-          target="_blank"
-          rel="noreferrer"
-          onMouseDown={onLeakLinkAuxNavigate}
-          onClick={onLeakLinkActivated}
-          aria-label={
-            linkVisited
-              ? `Open ${leakPageHost} again in a new tab — already marked as opened in leak flow`
-              : `Open leaked page on ${leakPageHost} in a new tab — ${String(alert.severity ?? 'medium')} severity`
-          }
-          className={cn(
-            'group relative flex w-full min-w-0 items-center gap-3.5 rounded-2xl border px-4 py-4 text-left sm:gap-5 sm:px-6 sm:py-4',
-            'backdrop-blur-[1px] transition-[transform,background-color,border-color,box-shadow] duration-200',
-            'motion-safe:active:scale-[0.992]',
-            openLinkHeroCtaClasses(alert.severity, linkVisited),
-          )}
-        >
-          <span
-            className={cn(
-              'flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.8125rem] border shadow-inner backdrop-blur-sm',
-              linkVisited
-                ? 'border-border/55 bg-muted/45 text-muted-foreground'
-                : alert.severity === 'critical'
-                  ? 'border-white/[0.2] bg-black/25 text-white'
-                  : alert.severity === 'high'
-                    ? 'border-orange-400/25 bg-black/[0.22] text-orange-50'
-                    : alert.severity === 'medium'
-                      ? 'border-amber-300/[0.22] bg-black/[0.18] text-amber-50'
-                      : 'border-sky-300/[0.22] bg-black/[0.18] text-sky-50',
-            )}
-            aria-hidden
-          >
-            {linkVisited ? <Check className="h-6 w-6" strokeWidth={2.25} aria-hidden /> : <ExternalLink className="h-6 w-6 shrink-0" aria-hidden />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold leading-tight tracking-tight sm:text-[14px]">
-              {linkVisited ? 'Leak page opened' : 'Open leaked page'}
-            </span>
-            <span className="mt-1 block truncate text-[12px] font-medium opacity-90">{leakPageHost}</span>
-            {!linkVisited ? (
-              <span className="mt-2 inline-flex text-[11px] font-semibold uppercase tracking-[0.12em] opacity-85 sm:hidden">
-                Opens new tab · external
-              </span>
-            ) : null}
-          </span>
-          {!linkVisited ? (
-            <span className="hidden shrink-0 sm:inline-flex rounded-full border border-white/[0.12] bg-black/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-current opacity-[0.9]">
-              External · new tab
-            </span>
-          ) : null}
-        </a>
-
         <div className="flex flex-wrap gap-2">
           <HostReportDestinationUI sourceUrl={alert.source_url} notes={alert.notes ?? null} variant="inline" />
         {isPro && alert.severity === 'critical' ? (

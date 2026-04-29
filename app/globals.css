@@ -3221,17 +3221,6 @@ body {
   animation: onboarding-credits-rainbow 2.4s linear infinite;
 }
 
-/* Protection leak cards — weighted “pull” cue on external link until first visit */
-@keyframes leak-open-link-gravity {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, var(--leak-nudge, 1px), 0);
-  }
-}
-
 /* Protection — confirmed leak pins: gold ↔ violet edge (calm urgency) */
 @keyframes leak-confirmed-pin-breathe {
   0%,

@@ -4,6 +4,7 @@ import { fetchOpenMeteoAqi, fetchOpenMeteoForecast } from '@/lib/wellbeing/open-
 import { computeGlowScore, scoreReason, skyGradientFromScore } from '@/lib/wellbeing/glow-score'
 import { azimuthToCompass, buildGoldenHourWindow, minutesUntil, sunsetAzimuth } from '@/lib/wellbeing/golden-hour'
 import type { GlowInsightsPayload, PerfectShotDay } from '@/lib/wellbeing/types'
+import { insightTimeEn, insightWeekdayShort, parseLocalDateYmd } from '@/lib/wellbeing/insight-locale'
 
 export type GlowInsightsResult =
   | { ok: true; data: GlowInsightsPayload }
@@ -24,7 +25,7 @@ function pickHourlyByDate<T>(hourlyTimes: string[], values: T[], targetIso: stri
 }
 
 function humanTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return insightTimeEn(iso)
 }
 
 function nearestAqiValue(byIsoTime: Map<string, number>, targetIso: string): number | null {
@@ -79,10 +80,10 @@ function buildFallbackPayload(hasBirthday: boolean): GlowInsightsPayload {
     const end = new Date(start.getTime() + 45 * 60 * 1000)
     return {
       date: dayDate.toISOString().split('T')[0],
-      dayLabel: dayDate.toLocaleDateString([], { weekday: 'short' }),
+      dayLabel: insightWeekdayShort(dayDate),
       score,
-      bestWindowStart: start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-      bestWindowEnd: end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      bestWindowStart: insightTimeEn(start),
+      bestWindowEnd: insightTimeEn(end),
       reason: hasBirthday
         ? 'Moon-phase rhythm aligned with your birthday profile.'
         : 'Balanced evening light and moon rhythm.',
@@ -98,8 +99,8 @@ function buildFallbackPayload(hasBirthday: boolean): GlowInsightsPayload {
     locationHint: hasBirthday ? 'Birthday-calibrated mode' : 'Calm baseline mode',
     glowScore: baseScore,
     nextGoldenHour: {
-      start: baseWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
-      end: baseWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      start: insightTimeEn(baseWindowStart),
+      end: insightTimeEn(baseWindowEnd),
       minutesUntil: Math.max(0, Math.round((baseWindowStart.getTime() - now.getTime()) / 60000)),
     },
     timeline: [
@@ -112,7 +113,7 @@ function buildFallbackPayload(hasBirthday: boolean): GlowInsightsPayload {
       {
         key: 'golden_start',
         label: 'Creative rise',
-        time: baseWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        time: insightTimeEn(baseWindowStart),
         type: 'golden_start',
       },
       {
@@ -124,7 +125,7 @@ function buildFallbackPayload(hasBirthday: boolean): GlowInsightsPayload {
       {
         key: 'golden_end',
         label: 'Soft close',
-        time: baseWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        time: insightTimeEn(baseWindowEnd),
         type: 'golden_end',
       },
     ],
@@ -230,7 +231,7 @@ export async function computeGlowInsightsForUser(
       })
       return {
         date,
-        dayLabel: new Date(date).toLocaleDateString([], { weekday: 'short' }),
+        dayLabel: insightWeekdayShort(parseLocalDateYmd(date)),
         score,
         bestWindowStart: humanTime(window.startIso),
         bestWindowEnd: humanTime(window.endIso),

@@ -46,12 +46,16 @@ export function DashboardRouteHero() {
   if (meta.heroVariant === 'minimal') {
     return (
       <header className="mb-8 sm:mb-10">
-        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{meta.eyebrow}</p>
-        <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85 dark:text-muted-foreground/78">
+          {meta.eyebrow}
+        </p>
+        <h1 className="mt-2.5 max-w-[22ch] text-balance font-serif text-2xl font-semibold tracking-[-0.02em] text-foreground sm:mt-3 sm:text-3xl md:text-4xl md:leading-[1.1] md:tracking-[-0.03em]">
           {meta.title}
         </h1>
         {meta.subtitle ? (
-          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{meta.subtitle}</p>
+          <p className="mt-3 max-w-xl text-[15px] leading-[1.55] tracking-[-0.01em] text-muted-foreground sm:mt-[0.875rem] sm:text-[0.94875rem]">
+            {meta.subtitle}
+          </p>
         ) : null}
       </header>
     )

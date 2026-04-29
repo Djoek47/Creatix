@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   const { data: row, error } = await supabase
     .from('profiles')
-    .select('reputation_manual_handles, reputation_display_name, reputation_platform_handles')
+    .select('reputation_manual_handles, reputation_display_name, reputation_platform_handles, former_usernames')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     reputation_display_name: (row as { reputation_display_name?: string | null })?.reputation_display_name ?? null,
     reputation_platform_handles:
       (row as { reputation_platform_handles?: Record<string, string> | null })?.reputation_platform_handles ?? null,
+    former_usernames: (row as { former_usernames?: string[] | null })?.former_usernames ?? [],
   })
 }
 
@@ -76,6 +77,9 @@ export async function PATCH(req: NextRequest) {
   }
   if ('reputation_platform_handles' in body) {
     patch.reputation_platform_handles = normalizePlatformHandles(body.reputation_platform_handles)
+  }
+  if ('former_usernames' in body) {
+    patch.former_usernames = normalizeManualHandles(body.former_usernames)
   }
 
   if (Object.keys(patch).length === 0) {

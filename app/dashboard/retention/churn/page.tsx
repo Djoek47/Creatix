@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
-import { Loader2, RadioTower, BarChart3, Bell, ListTodo, ScanLine, Coins, CalendarDays } from 'lucide-react'
+import { Loader2, RadioTower, BarChart3, Bell, ListTodo, ScanLine, Coins, CalendarDays, AlertCircle } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
 import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 
@@ -282,9 +282,23 @@ export default function ChurnPredictorHubPage() {
       {error ? (
         <div
           role="alert"
-          className="rounded-xl border border-destructive/25 bg-destructive/[0.06] px-4 py-3 text-[14px] leading-snug text-destructive"
+          className={cn(
+            'flex gap-4 rounded-2xl border border-border/40 bg-muted/[0.15] px-5 py-4 backdrop-blur-[2px]',
+            'dark:border-white/[0.08] dark:bg-white/[0.04]',
+          )}
         >
-          {error}
+          <span
+            className="mt-0.5 flex h-[2.875rem] w-[3px] shrink-0 rounded-full bg-gradient-to-b from-amber-500/90 to-amber-600/70 dark:from-amber-400/75 dark:to-amber-500/55"
+            aria-hidden
+          />
+          <div className="flex min-w-0 flex-1 gap-3">
+            <AlertCircle
+              className="mt-[1px] h-[17px] w-[17px] shrink-0 text-amber-600/85 dark:text-amber-400/70"
+              strokeWidth={1.85}
+              aria-hidden
+            />
+            <p className="min-w-0 text-[14px] leading-[1.55] tracking-[-0.015em] text-foreground/[0.92]">{error}</p>
+          </div>
         </div>
       ) : null}
 
@@ -308,60 +322,115 @@ export default function ChurnPredictorHubPage() {
       </Card>
 
       <Card className={cn(surfaceCard, 'overflow-hidden')}>
-        <CardHeader className="flex flex-row items-start gap-4 space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
-          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
-            <RadioTower className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1">
-            <CardTitle className="font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              Automatic scans
-            </CardTitle>
-            <CardDescription className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-              Runs on the schedule below (daily, weekly, or off).               When at-risk fans match your rules, up to{' '}
-              <span className="font-medium tabular-nums text-foreground/90">
-                {creditsPerRun} credit{creditsPerRun === 1 ? '' : 's'}
-              </span>{' '}
-              are charged for that run (same credit setting as Scan now). Scheduled runs cap batch size with Fans per
-              run; manual Scan now looks at all synced fans from both platforms, up to 25 qualifiers. The server blocks
-              scheduled runs if you don&apos;t have enough credits reserved.
-            </CardDescription>
-            {!creditsLoading && !canAffordScan ? (
-              <p className="text-[13px] leading-relaxed text-amber-700 dark:text-amber-200/90">
-                You have{' '}
-                <span className="tabular-nums font-medium text-foreground">{creditsRemaining}</span> credit
-                {creditsRemaining === 1 ? '' : 's'}, but need at least{' '}
-                <span className="tabular-nums font-medium text-foreground">{scanCreditCost}</span> to run a churn scan.{' '}
-                <Link
-                  href="/dashboard/settings?tab=billing"
-                  className="font-medium text-primary underline-offset-2 hover:underline"
+        <CardHeader className="space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+          <div className="flex flex-row items-start gap-4">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+              <RadioTower className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                  Automatic scans
+                </CardTitle>
+                <Switch
+                  checked={enabled}
+                  disabled={creditsLoading}
+                  onCheckedChange={(v) => {
+                    if (v && !canAffordScan) {
+                      setError(
+                        `Add at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} before enabling automatic scans (you have ${creditsRemaining}). Open Billing to top up.`,
+                      )
+                      return
+                    }
+                    setEnabled(v)
+                  }}
+                  aria-label="Automatic churn scans enabled"
+                  className="mt-0.5 shrink-0 data-[state=checked]:shadow-sm"
+                />
+              </div>
+              <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-[14px]">
+                Matches your churn rules against OnlyFans &amp; Fansly CRM fans. Charges{' '}
+                <span className="font-medium tabular-nums text-foreground/90">up to {creditsPerRun}</span>{' '}
+                credit{creditsPerRun === 1 ? '' : 's'} only when the batch finds qualifiers—same cap as Scan now.
+                Scheduled runs respect <span className="text-foreground/85">Fans per run</span> below; Scan now can review
+                broader lists.
+              </p>
+              {!creditsLoading && !canAffordScan ? (
+                <div
+                  className={cn(
+                    'rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-4 py-3 text-[13px] leading-snug text-amber-950 dark:border-amber-400/25 dark:bg-amber-500/[0.07] dark:text-amber-100/95',
+                  )}
+                  role="status"
                 >
-                  Add credits in Billing
-                </Link>{' '}
-                before turning automatic scans on, or lower &quot;Credits per match&quot; below.
-              </p>
-            ) : !creditsLoading ? (
-              <p className="text-[12px] tabular-nums leading-relaxed text-muted-foreground/85">
-                Balance:{' '}
-                <span className="font-medium text-foreground/90">{creditsRemaining}</span> AI credits
-              </p>
-            ) : null}
+                  <span className="tabular-nums font-medium">{creditsRemaining}</span> credits available — need{' '}
+                  <span className="tabular-nums font-semibold">{scanCreditCost}</span> per run.{' '}
+                  <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                    Billing
+                  </Link>
+                  {' · '}
+                  or lower Credits per match in Configuration.
+                </div>
+              ) : !creditsLoading ? (
+                <p className="text-[12px] tabular-nums text-muted-foreground/85">
+                  Balance{' '}
+                  <span className="font-medium text-foreground/90">{creditsRemaining}</span>
+                </p>
+              ) : null}
+            </div>
           </div>
-          <Switch
-            checked={enabled}
-            disabled={creditsLoading}
-            onCheckedChange={(v) => {
-              if (v && !canAffordScan) {
-                setError(
-                  `Add at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} before enabling automatic scans (you have ${creditsRemaining}). Open Billing to top up.`,
-                )
-                return
-              }
-              setEnabled(v)
-            }}
-            aria-label="Automatic churn scans enabled"
-            className="mt-1 shrink-0"
-          />
         </CardHeader>
+        <CardContent className="space-y-5 px-6 pb-7 pt-6 sm:px-8">
+          <div className={insetFieldGroup}>
+            <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75">Recurrence</p>
+                <p className="mt-1 text-[12px] text-muted-foreground/88">Off defers to manual Scan only.</p>
+              </div>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+              <div className="space-y-2">
+                <Label htmlFor="churn-cadence-auto" className={labelClass}>
+                  Frequency
+                </Label>
+                <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
+                  <SelectTrigger id="churn-cadence-auto" className="h-11 rounded-xl border-border/40 bg-background/60 text-[14px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">Off — manual only</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="churn-hour-auto" className={labelClass}>
+                  Hour (UTC)
+                </Label>
+                <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
+                  <SelectTrigger
+                    id="churn-hour-auto"
+                    className="h-11 rounded-xl border-border/40 bg-background/60 text-[14px] tabular-nums"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {hourOptions.map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {h.toString().padStart(2, '0')}:00 UTC
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <p className="text-[12px] leading-relaxed text-muted-foreground/80">
+            <span className="font-medium text-foreground/82">Weekly</span> waits at least seven days since the previous
+            run before the next window. Persist options with{' '}
+            <span className="font-medium text-foreground/85">Save</span> under Configuration.
+          </p>
+        </CardContent>
       </Card>
 
       <Card className={cn(surfaceCard, 'overflow-hidden')}>
@@ -369,63 +438,13 @@ export default function ChurnPredictorHubPage() {
           <p className={sectionKicker}>Configuration</p>
           <CardTitle className={`${sectionHeading} font-sans`}>Schedule &amp; rules</CardTitle>
           <CardDescription className={`${sectionSub} !mt-3 max-w-none`}>
-            Set cadence, who qualifies, notifications, and follow-ups. Manual scans ignore the schedule.
+            Qualification, notifications, and follow-ups. Cadence is set in Automatic scans above; manual Scan now ignores
+            it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-0 px-6 pb-8 pt-8 sm:px-8 sm:pb-10 sm:pt-10">
-          {/* When it runs */}
-          <section className="space-y-6 pb-12 sm:pb-14" aria-labelledby="churn-schedule-heading">
-            <div>
-              <h2 id="churn-schedule-heading" className={blockHeading}>
-                When it runs
-              </h2>
-              <p className={blockSub}>Uses the automatic scan switch above. Off means manual only.</p>
-            </div>
-            <div className={insetFieldGroup}>
-              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
-                <div className="space-y-2">
-                  <Label htmlFor="churn-cadence" className={labelClass}>
-                    Frequency
-                  </Label>
-                  <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
-                    <SelectTrigger id="churn-cadence" className="h-11 rounded-xl border-border/40 text-[14px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">Off — manual only</SelectItem>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="churn-hour" className={labelClass}>
-                    Time (UTC)
-                  </Label>
-                  <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
-                    <SelectTrigger id="churn-hour" className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {hourOptions.map((h) => (
-                        <SelectItem key={h} value={String(h)}>
-                          {h.toString().padStart(2, '0')}:00
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                    Universal Time. Applies when frequency is daily or weekly.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="h-px bg-border/30" aria-hidden />
-
           {/* Who qualifies */}
-          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-who-heading">
+          <section className="space-y-6 pb-12 sm:pb-14" aria-labelledby="churn-who-heading">
             <div>
               <h2 id="churn-who-heading" className={blockHeading}>
                 Who qualifies

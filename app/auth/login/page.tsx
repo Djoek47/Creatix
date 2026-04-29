@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AuthPasswordField } from '@/components/auth/auth-password-field'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
@@ -135,15 +136,13 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <Input
+              <AuthPasswordField
                 id="password"
-                type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
               />
             </div>
 

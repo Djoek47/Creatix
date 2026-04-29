@@ -20,6 +20,14 @@ const nav = [
   { href: '/pricing', label: 'Pricing' },
 ] as const
 
+const footerNavExtras = [
+  { href: '/about', label: 'About' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
+] as const
+
+const footerLinks = [...nav, ...footerNavExtras]
+
 export function MarketingSiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '/'
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -28,37 +36,37 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
     <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/75 backdrop-blur-xl">
-        <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4 sm:h-16 sm:px-6">
-          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
+        <nav className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:h-16 sm:px-6">
+          <Link
+            href="/"
+            className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60 sm:gap-3"
+          >
             <MarketingBrandLogo width={36} height={36} className="shrink-0 sm:h-10 sm:w-10" variant="header" priority />
-            <span className="hidden truncate font-serif text-base font-semibold tracking-wider text-primary sm:inline sm:text-lg">
+            <span className="hidden truncate font-serif text-[0.9375rem] font-semibold leading-none tracking-[0.12em] text-foreground sm:inline sm:text-base">
               CIRCE ET VENUS
             </span>
           </Link>
-          <div className="hidden items-center gap-1 md:flex">
+          <div className="hidden flex-1 items-center justify-center gap-0.5 md:flex">
             {nav.map((item) => {
               const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
               return (
                 <Link key={item.href} href={item.href}>
                   <span
                     className={cn(
-                      'relative rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      'block rounded-lg px-3 py-2 text-[13px] tracking-[-0.01em] transition-colors',
                       active
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground',
+                        ? 'font-semibold text-foreground'
+                        : 'font-medium text-muted-foreground hover:text-foreground/88',
                     )}
                   >
-                    {active ? (
-                      <span className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-circe via-primary to-fuchsia-400 opacity-90" />
-                    ) : null}
-                    <span className="relative">{item.label}</span>
+                    {item.label}
                   </span>
                 </Link>
               )
             })}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -85,10 +93,10 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                         href={item.href}
                         onClick={() => setMobileNavOpen(false)}
                         className={cn(
-                          'rounded-lg px-4 py-3.5 text-base font-medium transition-colors',
+                          'rounded-lg px-4 py-3.5 text-[15px] font-medium tracking-[-0.015em] transition-colors',
                           active
-                            ? 'bg-primary/10 text-primary'
-                            : 'text-foreground/90 hover:bg-muted/60',
+                            ? 'bg-muted/70 text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
                         )}
                       >
                         {item.label}
@@ -103,11 +111,11 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                     </Link>
                   </Button>
                   <Button
-                    className="h-11 w-full gap-2 bg-gradient-to-r from-primary via-primary to-circe/90 text-primary-foreground"
+                    className="h-11 w-full gap-2 rounded-xl bg-foreground text-background shadow-none hover:bg-foreground/90"
                     asChild
                   >
                     <Link href="/auth/sign-up" onClick={() => setMobileNavOpen(false)}>
-                      Begin <ArrowRight className="h-4 w-4" />
+                      Get started <ArrowRight className="h-4 w-4 opacity-90" aria-hidden />
                     </Link>
                   </Button>
                 </div>
@@ -115,27 +123,18 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
             </Sheet>
 
             <Link href="/auth/login" className="hidden sm:block">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'relative overflow-visible rounded-md text-foreground/85 !transition-colors duration-200',
-                  'hover:!bg-background/55 hover:text-foreground',
-                  'motion-safe:hover:animate-[divine-briefing-gold-purple-glow_2.6s_ease-in-out_infinite]',
-                  'motion-reduce:hover:animate-none motion-reduce:hover:shadow-[0_0_0_1px_rgba(251,191,36,0.45),0_0_18px_rgba(139,92,246,0.35)]',
-                )}
-              >
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:bg-transparent hover:text-foreground">
                 Sign in
               </Button>
             </Link>
             <Link href="/auth/sign-up">
               <Button
                 size="sm"
-                className="gap-1.5 bg-gradient-to-r from-primary via-primary to-circe/90 px-3 text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] sm:px-4"
+                className="h-9 gap-1.5 rounded-lg bg-foreground px-3.5 text-[13px] font-medium tracking-[-0.01em] text-background shadow-none hover:bg-foreground/90 sm:px-4"
               >
-                <span className="hidden sm:inline">Begin</span>
+                <span className="hidden sm:inline">Get started</span>
                 <span className="sm:hidden">Start</span>
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-3.5 w-3.5 opacity-90" aria-hidden />
               </Button>
             </Link>
           </div>
@@ -144,50 +143,43 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
 
       {children}
 
-      <footer className="relative z-10 border-t border-border/40 bg-card/25 px-4 py-10 backdrop-blur-sm sm:px-6 sm:py-14">
+      <footer className="relative z-10 border-t border-border/35 bg-background/30 px-4 py-12 backdrop-blur-[2px] sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col items-center justify-between gap-8 sm:flex-row sm:items-start">
-            <div className="flex flex-col items-center gap-3 sm:items-start">
-              <div className="flex items-center gap-3">
-                <MarketingBrandLogo width={36} height={36} className="marketing-float" variant="header" />
-                <span className="font-serif text-lg font-semibold tracking-wider text-primary dark:text-circe-light">
+          <div className="grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start lg:gap-16">
+            <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
+              <div className="flex items-center gap-2.5">
+                <MarketingBrandLogo width={36} height={36} className="shrink-0" variant="header" />
+                <span className="font-serif text-[1.0625rem] font-semibold leading-none tracking-[0.12em] text-foreground sm:text-lg">
                   CIRCE ET VENUS
                 </span>
               </div>
-              <p className="max-w-xs text-center text-sm text-muted-foreground sm:text-left">
-                One workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection — with voice-first Divine Manager.
+              <p className="max-w-[30ch] text-[13px] leading-relaxed text-muted-foreground sm:max-w-[34ch]">
+                One workspace for OnlyFans and Fansly—messages, fans, AI tools, and protection, with voice-first Divine
+                Manager.
               </p>
             </div>
-            <div className="flex w-full flex-col items-center gap-4 sm:w-auto sm:items-end">
-              <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm sm:justify-end">
-                {nav.map((item) => (
+            <div className="flex flex-col items-center gap-5 sm:items-end">
+              <nav
+                className="flex max-w-full flex-wrap justify-center gap-x-7 gap-y-2.5 sm:justify-end"
+                aria-label="Footer"
+              >
+                {footerLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="text-muted-foreground transition-colors hover:text-primary"
+                    className="text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
                   >
                     {item.label}
                   </Link>
                 ))}
-                <Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">
-                  About
-                </Link>
-                <Link href="/privacy" className="text-muted-foreground transition-colors hover:text-primary">
-                  Privacy
-                </Link>
-                <Link href="/terms" className="text-muted-foreground transition-colors hover:text-primary">
-                  Terms
-                </Link>
               </nav>
               <MarketingFooterThemeIcon />
             </div>
           </div>
-          <FooterSupportSocial className="mt-8" />
-          <div className="mt-8 border-t border-border/30 pt-8 text-center">
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Circe et Venus Inc. Guided by the stars. Built for creators.
-            </p>
-          </div>
+          <FooterSupportSocial className="mt-10 border-t border-border/25 pt-10 sm:mt-12 sm:pt-12" />
+          <p className="mt-8 text-center text-[11px] leading-relaxed tracking-[0.02em] text-muted-foreground/90 sm:mt-10">
+            © {new Date().getFullYear()} Circe et Venus Inc.
+          </p>
         </div>
       </footer>
     </div>

@@ -38,6 +38,11 @@ export const TIER_COUNT = CV_TIER_COUNT
 
 export const MANYVIDS_FOCUS_SINGLE_FLAT_USD = BUNDLE_ADDONS.MV_FLAT
 
+/** Anti‑piracy (ManyVids storefront connector) layered on bundled OF+FL — same addon at every revenue band (`ADDON_UNIFIED`). */
+export const BUNDLE_ANTIPIRACY_ADDON_USD = BUNDLE_ADDONS.UNIFIED_ON_OF
+/** Credits included with Anti‑piracy tier in estimator composition breakdown. */
+export const BUNDLE_ANTIPIRACY_SCAN_CREDITS = 800
+
 export const FANSLY_FOCUS_MAX_USD = BUNDLE_ADDONS.FL_CAP
 
 export function getTierByIndex(index: number): RevenueTierRow | undefined {
@@ -124,6 +129,18 @@ function normalizeFocusPlatformsInput(
   return sorted
 }
 
+/** Bundled (OF+FL) plus Anti‑piracy storefront tier when workspace includes ManyVids. */
+export function bundledMultiUsdWithPlatforms(
+  tierIndex: number,
+  focusPlatforms?: AdultBillingPlatform[] | ReadonlyArray<AdultBillingPlatform> | null,
+): number {
+  const core = pricingTierAtIndex(tierIndex)
+  if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
+  let base = core.prices.unified
+  if (focusPlatforms == null || !focusPlatforms.some((p) => p === 'manyvids')) return base
+  return base + BUNDLE_ADDONS.UNIFIED_ON_OF
+}
+
 export function getMonthlyPriceUsd(
   variant: BillingVariant,
   tierIndex: number,
@@ -131,7 +148,7 @@ export function getMonthlyPriceUsd(
 ): number {
   const core = pricingTierAtIndex(tierIndex)
   if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
-  if (variant === 'multi') return core.prices.unified
+  if (variant === 'multi') return bundledMultiUsdWithPlatforms(tierIndex, focusPlatforms ?? null)
   const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
   if (fps.length === 1) {
     if (fps[0] === 'manyvids') return core.prices.mv

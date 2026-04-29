@@ -26,7 +26,7 @@ export default async function MentionsPage() {
     supabase
       .from('profiles')
       .select(
-        'reputation_briefing, reputation_briefing_at, reputation_manual_handles, reputation_display_name, reputation_platform_handles',
+        'reputation_briefing, reputation_briefing_at, reputation_manual_handles, reputation_display_name, reputation_platform_handles, former_usernames',
       )
       .eq('id', user.id)
       .maybeSingle(),
@@ -43,10 +43,13 @@ export default async function MentionsPage() {
   const plat = (profileRow as { reputation_platform_handles?: Record<string, string> | null } | null)
     ?.reputation_platform_handles
   const initialOnlyfans = plat?.onlyfans ?? ''
+  const initialFansly = plat?.fansly ?? ''
   const initialManualHandles =
     (profileRow as { reputation_manual_handles?: string[] | null } | null)?.reputation_manual_handles ?? []
   const initialDisplayName =
     (profileRow as { reputation_display_name?: string | null } | null)?.reputation_display_name ?? null
+  const initialFormerUsernames =
+    (profileRow as { former_usernames?: string[] | null } | null)?.former_usernames?.filter(Boolean) ?? []
 
   const allMentions = (mentions || []) as ReputationMention[]
   const unreviewed = allMentions.filter((m) => !m.is_reviewed)
@@ -75,6 +78,8 @@ export default async function MentionsPage() {
         initialManualHandles={initialManualHandles}
         initialDisplayName={initialDisplayName}
         initialOnlyfans={initialOnlyfans}
+        initialFansly={initialFansly}
+        initialFormerUsernames={initialFormerUsernames}
       />
 
       <section aria-label="Mention counts">

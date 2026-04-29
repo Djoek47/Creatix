@@ -108,7 +108,8 @@ export function HostReportDestinationUI({
           )}
           <DropdownMenuSeparator />
           <p className="px-2 pb-2 pt-1 text-[10px] leading-relaxed text-muted-foreground">
-            Web search and optional third-party helpers—verify contacts yourself; not affiliated with Creatix.
+            Assisted filing via third-party portals — <span className="font-medium text-foreground/75">Coming soon.</span>{' '}
+            Until then, use shortcuts as references only.
           </p>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -136,20 +137,20 @@ export function HostReportDestinationUI({
 
   if (variant === 'panel') {
     return (
-      <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
-        <div>
-          <p className="text-xs font-medium text-foreground">Where to send your notice</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+      <div className="space-y-4 rounded-xl border border-border/35 bg-muted/[0.09] p-5 dark:bg-muted/10">
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Where to send</p>
+          <p className="max-w-[52ch] text-[13px] leading-[1.55] tracking-[-0.01em] text-muted-foreground">
             {hasOnlySupportingGuidance ? (
               <>
-                No verified host abuse link from this scan. Use the AI guide or <span className="font-medium text-foreground/85">Reporting shortcuts</span>{' '}
-                below if you need to search for a contact. Creatix does not file with third parties (
-                <span className="italic">not legal advice</span>).
+                No verified host abuse link from this scan. Use the AI guide or{' '}
+                <span className="font-medium text-foreground/88">Reporting shortcuts</span> to find a contact. Creatix
+                does not file through third parties (<span className="italic opacity-90">not legal advice</span>).
               </>
             ) : (
               <>
-                Open a known public copyright or abuse page when we have one. You submit yourself—Creatix does not file
-                with third parties (not legal advice).
+                Prefer the host’s official copyright or abuse surface when listed. You submit yourself—Creatix does not
+                submit for you (<span className="italic opacity-90">not legal advice</span>).
               </>
             )}
           </p>

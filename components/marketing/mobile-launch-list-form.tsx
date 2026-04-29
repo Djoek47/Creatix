@@ -1,17 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, Loader2, Sparkles } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
+
+const fieldLabelClass =
+  'text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground'
+
+const fieldControlClass = cn(
+  'h-11 rounded-xl border-border/50 bg-background/60 text-[15px] shadow-none transition-colors',
+  'placeholder:text-muted-foreground/45',
+  'focus-visible:border-border focus-visible:ring-[3px] focus-visible:ring-foreground/[0.08]',
+)
+
+const textareaClass = cn(
+  fieldControlClass,
+  'min-h-[112px] h-auto resize-y py-3 leading-relaxed',
+)
 
 export function MobileLaunchListForm() {
-  /** Treat `null` as motion OK (SSR / first paint). */
-  const reduceMotion = useReducedMotion() === true
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,105 +75,99 @@ export function MobileLaunchListForm() {
 
   if (sent) {
     return (
-      <div className="rounded-2xl border border-primary/30 bg-primary/10 p-6 text-center sm:p-8">
-        <CheckCircle2 className="mx-auto h-8 w-8 text-primary" aria-hidden />
-        <h3 className="mt-3 font-serif text-2xl font-semibold">You are on the list.</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We will email you first when mobile access opens.
+      <div className="py-1 text-center">
+        <div
+          className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/40"
+          aria-hidden
+        >
+          <CheckCircle2 className="h-5 w-5 text-foreground/70" strokeWidth={1.75} />
+        </div>
+        <h3 className="mt-5 font-serif text-[1.375rem] font-semibold leading-tight tracking-[-0.03em] text-foreground sm:text-[1.5rem]">
+          You are on the list
+        </h3>
+        <p className="mx-auto mt-2 max-w-[28ch] text-[14px] leading-relaxed text-muted-foreground">
+          We will email you when mobile access opens.
         </p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="launch-name">Name</Label>
+    <form onSubmit={submit} className="space-y-6">
+      {error ? (
+        <p className="rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-[13px] leading-snug text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+        <div className="space-y-1.5">
+          <Label htmlFor="launch-name" className={fieldLabelClass}>
+            Name
+          </Label>
           <Input
             id="launch-name"
             required
             placeholder="Your name"
             value={form.name}
+            className={fieldControlClass}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="launch-email">Email</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="launch-email" className={fieldLabelClass}>
+            Email
+          </Label>
           <Input
             id="launch-email"
             type="email"
             required
             placeholder="you@example.com"
             value={form.email}
+            className={fieldControlClass}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="launch-handle">Creator handle (optional)</Label>
+      <div className="space-y-1.5">
+        <Label htmlFor="launch-handle" className={fieldLabelClass}>
+          Creator handle{' '}
+          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">(optional)</span>
+        </Label>
         <Input
           id="launch-handle"
           placeholder="@yourhandle"
           value={form.handle}
+          className={fieldControlClass}
           onChange={(e) => setForm((prev) => ({ ...prev, handle: e.target.value }))}
         />
       </div>
-      <div className="space-y-2">
-        <Label
-          htmlFor="launch-message"
-          className="flex cursor-default flex-wrap items-center gap-x-2 gap-y-1 text-left leading-snug"
-        >
-          {reduceMotion ? (
-            <Sparkles className="h-4 w-4 shrink-0 text-amber-200/90" aria-hidden />
-          ) : (
-            <motion.span
-              aria-hidden
-              className="inline-flex shrink-0"
-              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.08, 1] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <Sparkles className="h-4 w-4 text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.55)]" />
-            </motion.span>
-          )}
-          {reduceMotion ? (
-            <span className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-clip-text text-base font-semibold text-transparent">
-              Any request
-            </span>
-          ) : (
-            <motion.span
-              className="bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-[length:220%_auto] bg-clip-text text-base font-semibold tracking-tight text-transparent motion-safe:animate-gradient-x"
-              animate={{ y: [0, -2.5, 0] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              Any request
-            </motion.span>
-          )}
-          <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+      <div className="space-y-1.5">
+        <Label htmlFor="launch-message" className={fieldLabelClass}>
+          Notes{' '}
+          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">(optional)</span>
         </Label>
         <Textarea
           id="launch-message"
           rows={4}
-          placeholder="Messages, AI Studio, protection workflows, analytics, or something else."
+          placeholder="Requests, priorities, or context for the team."
           value={form.message}
+          className={textareaClass}
           onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
         />
       </div>
       <Button
         type="submit"
-        variant="ghost"
         disabled={sending}
         className={cn(
-          'relative h-11 w-full gap-2 overflow-hidden rounded-full border border-transparent font-semibold uppercase tracking-[0.14em] text-white shadow-lg',
-          '!bg-gradient-to-r !from-violet-600 !via-fuchsia-600 !to-amber-400 !bg-[length:200%_auto] !text-white motion-safe:animate-gradient-x',
-          'shadow-violet-900/35 hover:!opacity-[0.96] hover:shadow-[0_0_28px_-6px_rgba(139,92,246,0.45),0_0_22px_-8px_rgba(251,191,36,0.28)]',
-          'hover:!bg-gradient-to-r hover:!from-violet-600 hover:!via-fuchsia-600 hover:!to-amber-400 hover:!text-white focus-visible:!text-white',
-          'disabled:!opacity-50',
+          'h-12 w-full rounded-xl bg-foreground text-background',
+          'text-[14px] font-medium tracking-[-0.01em]',
+          'shadow-sm hover:bg-foreground/92',
+          'focus-visible:ring-[3px] focus-visible:ring-foreground/[0.12]',
+          'disabled:pointer-events-none disabled:opacity-45',
         )}
       >
-        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {sending ? 'Joining…' : 'Join launch'}
+        {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+        {sending ? 'Joining…' : 'Join launch list'}
       </Button>
     </form>
   )

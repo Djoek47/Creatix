@@ -25,13 +25,13 @@ import {
   Database,
   Mail,
   Loader2,
-  Sparkles,
   Calendar,
   AlertTriangle,
   ArrowUpRight,
   ChevronDown,
   RefreshCw,
   Info,
+  Receipt,
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -50,6 +50,7 @@ import {
   twoPlatformFocusUsd,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 import {
   resolveAllowedFocusPlatforms,
   sortFocusPlatforms,
@@ -77,10 +78,7 @@ import { APP_USER_STORAGE_LIMIT_MB } from '@/lib/billing/app-storage-cap'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 import { BILLING_INSET_PANEL_CLASS, BILLING_PRIMARY_CHECKOUT_CTA_CLASS } from '@/lib/billing/billing-plan-visual'
-import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
-
-type LinkedFocusSlide = 'onlyfans' | 'fansly' | 'pair'
-
+import { AntiPiracyStorefrontLogoCycle } from '@/components/settings/anti-piracy-storefront-logo-cycle'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
 const BILLING_GLASS =
@@ -186,8 +184,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const prevTotalRef = useRef<number | null>(null)
   const [linkedOnlyfans, setLinkedOnlyfans] = useState(false)
   const [linkedFansly, setLinkedFansly] = useState(false)
-  const [linkedSlideIdx, setLinkedSlideIdx] = useState(0)
-  const supabase = createClient()
   const loadSubscriptionData = useCallback(async (): Promise<WalletSnapshot | null> => {
     if (!userId) return null
 
@@ -413,31 +409,6 @@ export function BillingSection({ userId }: BillingSectionProps) {
       return next
     })
   }, [checkoutQuoteVariant])
-
-  const linkedFocusSlides = useMemo<LinkedFocusSlide[]>(() => {
-    if (linkedOnlyfans && linkedFansly) return ['onlyfans', 'fansly', 'pair']
-    if (linkedOnlyfans) return ['onlyfans']
-    if (linkedFansly) return ['fansly']
-    return ['onlyfans']
-  }, [linkedOnlyfans, linkedFansly])
-
-  useEffect(() => {
-    setLinkedSlideIdx(0)
-  }, [linkedOnlyfans, linkedFansly])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (linkedFocusSlides.length <= 1) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const n = linkedFocusSlides.length
-    const id = window.setInterval(() => {
-      setLinkedSlideIdx((i) => (i + 1) % n)
-    }, 2600)
-    return () => window.clearInterval(id)
-  }, [linkedFocusSlides])
-
-  const linkedSlide: LinkedFocusSlide =
-    linkedFocusSlides[linkedSlideIdx % linkedFocusSlides.length] ?? 'onlyfans'
 
   const handleManageBilling = async () => {
     setLoadingPortal(true)
@@ -1037,7 +1008,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
             onCheckoutComplete={handleCheckoutComplete}
             requiredMinTierFromObservation={revenueBandHints?.requiredMinTier ?? null}
             observationCapturedAtIso={revenueBandHints?.observationCapturedAtMax ?? null}
-            lockRevenueBand={linkedOnlyfans || linkedFansly}
+            subscribedRevenueTier={typeof subData?.revenue_tier === 'number' ? subData.revenue_tier : null}
+            /** Readonly band + hide revenue estimate when both API platforms are linked; tier floor from observations still applies if only one is linked. */
+            lockRevenueBand={linkedOnlyfans && linkedFansly}
             controlled={{
               tierIndex: checkoutTierIndex,
               onTierIndexChange: setCheckoutTierIndex,
@@ -1094,40 +1067,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                           {focusPlatformDisplayName('manyvids')}
                         </h3>
-                        <div
-                          className={cn(
-                            'flex h-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/40 bg-card/70 px-1',
-                            linkedSlide === 'pair' ? 'w-[5.5rem] gap-0.5' : 'w-14',
-                          )}
-                          aria-hidden
-                        >
-                          {linkedSlide === 'pair' ? (
-                            <>
-                              <Image
-                                src={ONLYFANS_LOGO_SRC}
-                                alt=""
-                                width={64}
-                                height={20}
-                                className="h-4 w-auto max-w-[48%] object-contain"
-                              />
-                              <Image
-                                src={FANSLY_LOGO_SRC}
-                                alt=""
-                                width={64}
-                                height={20}
-                                className="h-4 w-auto max-w-[48%] object-contain"
-                              />
-                            </>
-                          ) : (
-                            <Image
-                              src={linkedSlide === 'fansly' ? FANSLY_LOGO_SRC : ONLYFANS_LOGO_SRC}
-                              alt=""
-                              width={72}
-                              height={22}
-                              className="h-5 w-auto max-w-full object-contain"
-                            />
-                          )}
-                        </div>
+                        <AntiPiracyStorefrontLogoCycle />
                       </div>
                       <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
                         ManyVids · Bundled workspace ·{' '}
@@ -1174,13 +1114,22 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   </div>
                   <div className="shrink-0 border-t border-border/20 pt-4 sm:border-t-0 sm:pt-0 sm:text-right">
                     <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                      {platformSelection.has('manyvids') ? 'Bundled total' : 'Add-on estimate'}
+                      {platformSelection.has('manyvids')
+                        ? checkoutQuoteVariant === 'multi'
+                          ? 'Anti-piracy add-on'
+                          : 'Focus total'
+                        : 'Add-on estimate'}
                     </p>
                     <p className="mt-2 font-sans text-[1.5rem] font-semibold tabular-nums tracking-tight text-foreground sm:text-[1.625rem]">
                       <span className="text-muted-foreground">$</span>
-                      {manyvidsFocusSelectedTotalUsd != null
-                        ? String(manyvidsFocusSelectedTotalUsd)
-                        : manyvidsPairUsdRangeLabel}
+                      {platformSelection.has('manyvids') && checkoutQuoteVariant === 'multi'
+                        ? BUNDLE_ADDONS.UNIFIED_ON_OF.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : manyvidsFocusSelectedTotalUsd != null
+                          ? String(manyvidsFocusSelectedTotalUsd)
+                          : manyvidsPairUsdRangeLabel}
                       <span className="ml-1 text-sm font-normal text-muted-foreground">/mo</span>
                     </p>
                   </div>
@@ -1284,65 +1233,118 @@ export function BillingSection({ userId }: BillingSectionProps) {
       </Card>
 
       {showTrialStartCard ? (
-        <Card className={cn(BILLING_GLASS, 'mx-auto w-full max-w-md')}>
-          <CardHeader className="gap-1.5 px-5 pb-3 pt-9 sm:px-6 sm:pt-10">
-            <CardTitle className="text-base font-semibold sm:text-lg">Trial</CardTitle>
-            <CardDescription className="text-xs leading-relaxed sm:text-sm">
-              Card-required trial: add your payment method first, then your trial credits become active.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 px-5 pb-5 sm:px-6">
-            <div className="flex flex-col gap-3 rounded-xl border border-border/35 bg-background/25 p-3 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-              <Sparkles className="mx-auto h-7 w-7 shrink-0 text-muted-foreground sm:mx-0 sm:h-8 sm:w-8" />
-              <div className="min-w-0 flex-1 text-center sm:text-left">
-                <h4 className="font-semibold leading-snug">{PRODUCTS[0]?.name}</h4>
-                <p className="text-xs text-muted-foreground sm:text-sm">{PRODUCTS[0]?.description}</p>
+        <section
+          aria-labelledby="billing-trial-heading"
+          className={cn('mx-auto w-full max-w-[28rem] text-card-foreground', BILLING_INSET_PANEL_CLASS)}
+        >
+          <div className="px-7 pb-9 pt-10 sm:px-9 sm:pb-10 sm:pt-11">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85">
+              Trial
+            </p>
+            <h2
+              id="billing-trial-heading"
+              className="mt-3 text-[1.375rem] font-semibold leading-[1.2] tracking-[-0.035em] text-foreground sm:text-[1.5625rem]"
+            >
+              Unlock trial access
+            </h2>
+            <p className="mt-3 max-w-[38ch] text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground">
+              Add a card on file—no charge until the trial ends. Trial credits activate once Stripe confirms your payment
+              method.
+            </p>
+
+            <div className="mt-8 rounded-2xl border border-border/[0.14] bg-gradient-to-b from-muted/[0.38] to-transparent px-5 py-[1.125rem] dark:border-white/[0.07] dark:from-white/[0.05] dark:to-transparent sm:px-6 sm:py-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-[13px] font-semibold tracking-tight text-foreground">
+                    {getProduct(TRIAL_PLAN_ID)?.name ?? 'Divine Trial'}
+                  </p>
+                  <p className="text-[12.5px] leading-relaxed text-muted-foreground sm:text-[13px]">
+                    {getProduct(TRIAL_PLAN_ID)?.description}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end sm:text-right">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/78">
+                    Due today
+                  </span>
+                  <span className="text-[22px] font-semibold tabular-nums tracking-tight text-foreground">$0</span>
+                </div>
               </div>
-              <Badge variant="outline" className="mx-auto w-fit shrink-0 sm:mx-0">
-                $0
-              </Badge>
+              <div className="mt-4 border-t border-border/[0.11] pt-4 dark:border-white/[0.06]">
+                <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+                  <span className="font-medium text-foreground/92">
+                    {TRIAL_AI_CREDITS_LIMIT.toLocaleString()} AI credits
+                  </span>{' '}
+                  in the trial pool while your trial is active.
+                </p>
+              </div>
             </div>
-            <div>
-              <Checkout
-                productId={TRIAL_PLAN_ID}
-                onComplete={handleCheckoutComplete}
-                buttonText="Start free trial (card required)"
-                buttonClassName="w-full"
-              />
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                Trial starts after card setup in Stripe. By starting, you authorize automatic billing after the trial
-                period unless canceled before renewal.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+
+            <Checkout
+              productId={TRIAL_PLAN_ID}
+              onComplete={handleCheckoutComplete}
+              buttonText="Add card · start trial"
+              buttonClassName={cn(BILLING_PRIMARY_CHECKOUT_CTA_CLASS, 'mt-8 w-full')}
+            />
+            <p className="mx-auto mt-5 max-w-[41ch] text-[11px] leading-relaxed text-muted-foreground/85">
+              Billing begins when the trial window ends unless you cancel beforehand. You authorize future charges by
+              completing Stripe Checkout.
+            </p>
+          </div>
+        </section>
       ) : null}
 
-      <Card className={cn(BILLING_GLASS, 'mx-auto w-full max-w-md')}>
-        <CardHeader className="gap-1.5 px-5 pb-2 pt-9 sm:px-6 sm:pt-10">
-          <CardTitle className="text-base font-semibold sm:text-lg">Invoices</CardTitle>
-          <CardDescription className="text-xs leading-relaxed sm:text-sm">
-            Open invoice history in Stripe.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5 pb-5 pt-0 sm:px-6">
-          {paidActive ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full rounded-xl border-border/40 sm:w-auto"
-              onClick={handleManageBilling}
-              disabled={loadingPortal}
+      <Card className={cn(BILLING_GLASS, 'mx-auto w-full max-w-md overflow-hidden')}>
+        <div className="px-6 pb-8 pt-9 sm:px-8 sm:pb-10 sm:pt-11">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85 dark:text-muted-foreground/72">
+            Documents
+          </p>
+
+          <div className="mt-5 flex justify-start">
+            <div
+              className="flex h-[3.875rem] w-[3.875rem] items-center justify-center rounded-[1rem] border border-white/[0.08] bg-gradient-to-b from-muted/[0.35] to-transparent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] dark:border-white/[0.07] dark:from-white/[0.06] dark:to-transparent"
+              aria-hidden
             >
-              {loadingPortal ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-              Open invoices
-            </Button>
-          ) : (
-            <p className="rounded-xl border border-border/25 bg-background/20 px-3 py-3 text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
-              No invoices yet — they appear here once you have an active paid subscription.
-            </p>
-          )}
-        </CardContent>
+              <Receipt className="h-[2.0625rem] w-[2.0625rem] text-muted-foreground/88" strokeWidth={1.35} />
+            </div>
+          </div>
+
+          <h3 className="mt-7 font-serif text-[1.625rem] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground sm:text-[1.75rem]">
+            Invoices
+          </h3>
+          <p className="mt-2 max-w-[40ch] text-[13px] leading-[1.5] tracking-[-0.015em] text-muted-foreground sm:text-[14px] sm:leading-[1.5]">
+            Hosted by Stripe—the same ledger and receipts as Checkout and your billing portal.
+          </p>
+
+          <div className="mt-8 border-t border-border/12 pt-8 dark:border-white/[0.06]">
+            {paidActive ? (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleManageBilling()}
+                  disabled={loadingPortal}
+                  aria-busy={loadingPortal}
+                  className="group h-11 w-full justify-center gap-2 rounded-xl border-border/35 bg-background/35 px-4 text-[13px] font-medium shadow-none transition-colors hover:bg-background/60 dark:border-white/[0.09] dark:hover:bg-white/[0.06] sm:h-12"
+                >
+                  {loadingPortal ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+                  ) : (
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" aria-hidden />
+                  )}
+                  View invoices
+                </Button>
+                <p className="text-[11px] leading-snug text-muted-foreground/88">Opens Stripe Customer Portal</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="font-serif text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground/95">Nothing yet</p>
+                <p className="max-w-[38ch] text-[13px] leading-relaxed text-muted-foreground">
+                  Subscribe and your invoice PDFs will show up here—delivered through Stripe automatically.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </Card>
     </>
   )

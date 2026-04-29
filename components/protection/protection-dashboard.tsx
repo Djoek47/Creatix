@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { LeakAlert, LeakMediaType, LeakSeverity } from '@/lib/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1117,102 +1118,148 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         helps draft and track.
       </p>
 
-      {/* DMCA modal */}
+      {/* DMCA modal — calm document shell; third-party assisted filing is roadmap-only */}
       <Dialog open={dmcaOpen} onOpenChange={setDmcaOpen}>
         <DialogTrigger asChild>
           <span />
         </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>DMCA Takedown Notice</DialogTitle>
-            <DialogDescription>
-              Review your DMCA draft for this leak. Attach proof files, then download the notice to send it to the host
-              yourself—Creatix does not submit notices automatically.
-            </DialogDescription>
-            {selectedAlert && attributionByAlertId[selectedAlert.id] ? (
-              <p className="text-xs text-muted-foreground pt-1">
-                The description field in the notice below includes your last “Trace to original recipient” summary for this
-                leak row.
-              </p>
-            ) : null}
-          </DialogHeader>
+        <DialogContent
+          overlayClassName="bg-black/50 backdrop-blur-[3px]"
+          className={cn(
+            'gap-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-background p-0 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_32px_120px_-24px_rgba(0,0,0,0.55)]',
+            'flex max-h-[min(92dvh,880px)] w-[min(100vw-1.5rem,40rem)] max-w-none flex-col sm:max-w-none',
+            '[&>[data-slot=dialog-close]]:top-5 [&>[data-slot=dialog-close]]:right-5 [&>[data-slot=dialog-close]]:rounded-full [&>[data-slot=dialog-close]]:size-9 [&>[data-slot=dialog-close]]:opacity-50 hover:[&>[data-slot=dialog-close]]:opacity-100',
+          )}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <DialogHeader className="space-y-0 px-8 pb-0 pt-9 pr-16 text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/90">Notice</p>
+              <DialogTitle className="mt-2 text-[1.375rem] font-semibold leading-tight tracking-[-0.035em] text-foreground sm:text-[1.5rem]">
+                DMCA takedown
+              </DialogTitle>
+              <DialogDescription className="mt-3 max-w-[38ch] text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground">
+                Review the draft. Add proof, then download and send it to the host yourself—Creatix does not submit notices
+                for you.
+              </DialogDescription>
+              {selectedAlert && attributionByAlertId[selectedAlert.id] ? (
+                <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground/90">
+                  The description field includes your latest “Trace to original recipient” summary for this row.
+                </p>
+              ) : null}
 
-          {selectedAlert ? (
-            <HostReportDestinationUI
-              variant="panel"
-              sourceUrl={selectedAlert.source_url}
-              notes={selectedAlert.notes ?? null}
-            />
-          ) : null}
-
-          {dmcaLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : !claimId ? (
-            <div className="text-sm text-muted-foreground">Unable to generate claim.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs whitespace-pre-wrap">
-                {noticeText || 'Notice generated.'}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm">Proof of ownership (required)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) uploadProof(f)
-                      e.currentTarget.value = ''
-                    }}
-                    disabled={proofUploading}
-                  />
-                  <Button variant="outline" disabled>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload
-                  </Button>
+              <div
+                className="mt-6 flex flex-col gap-3 rounded-xl border border-border/40 bg-muted/[0.14] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 dark:bg-muted/10"
+                role="status"
+                aria-label="Third-party assisted filing is not available yet"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85">
+                    Third-party filing
+                  </p>
+                  <p className="text-[12.5px] leading-snug text-muted-foreground">
+                    Submission via portals like DMCA.com (not affiliated). Not automated today.
+                  </p>
                 </div>
-                {proofPaths.length > 0 ? (
-                  <div className="text-xs text-muted-foreground">
-                    {proofPaths.length} proof file(s) attached.
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">
-                    Upload at least 1 proof file before downloading.
-                  </div>
-                )}
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 rounded-md border border-border/50 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+                >
+                  Coming soon
+                </Badge>
               </div>
+            </DialogHeader>
 
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                  {dmcaEmailCompose ? (
-                    <Button asChild variant="default" className="w-full sm:w-auto">
-                      <a
-                        href={dmcaEmailCompose.href}
-                        rel="nofollow"
-                        aria-label="Open your email app with this DMCA draft"
-                      >
-                        <Mail className="mr-2 h-4 w-4" />
-                        Send via email
+            <div className="mt-8 border-t border-border/35 px-8 pb-2 pt-8">
+              {selectedAlert ? (
+                <HostReportDestinationUI
+                  variant="panel"
+                  sourceUrl={selectedAlert.source_url}
+                  notes={selectedAlert.notes ?? null}
+                />
+              ) : null}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-2 pt-6">
+              {dmcaLoading ? (
+                <div className="flex min-h-[12rem] items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/70" aria-hidden />
+                </div>
+              ) : !claimId ? (
+                <p className="text-[13px] text-muted-foreground">Unable to generate claim.</p>
+              ) : (
+                <div className="space-y-8 pb-8">
+                  <div className="space-y-2.5">
+                    <Label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Draft
+                    </Label>
+                    <div
+                      className={cn(
+                        'max-h-[min(42vh,300px)] overflow-y-auto overscroll-contain rounded-xl border border-border/35',
+                        'bg-muted/[0.18] px-4 py-3.5 font-mono text-[11.5px] leading-[1.65] tracking-[0.02em]',
+                        'text-foreground/90 subpixel-antialiased dark:bg-muted/15',
+                      )}
+                    >
+                      <pre className="whitespace-pre-wrap break-words font-mono text-[inherit]">{noticeText || 'Notice generated.'}</pre>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Proof of ownership
+                    </Label>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <Input
+                        type="file"
+                        className="h-11 cursor-pointer rounded-xl border-border/40 bg-background/50 text-[13px] file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-[12px] file:font-medium"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) uploadProof(f)
+                          e.currentTarget.value = ''
+                        }}
+                        disabled={proofUploading}
+                      />
+                      <Button variant="outline" size="sm" className="h-11 shrink-0 rounded-xl" disabled>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload
+                      </Button>
+                    </div>
+                    {proofPaths.length > 0 ? (
+                      <p className="text-[12px] text-muted-foreground">{proofPaths.length} file(s) attached.</p>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">Attach at least one file before download.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {!dmcaLoading && claimId ? (
+              <div className="shrink-0 border-t border-border/35 bg-muted/[0.06] px-8 py-5 dark:bg-muted/5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {dmcaEmailCompose ? (
+                      <Button asChild className="h-11 w-full rounded-xl sm:w-auto">
+                        <a href={dmcaEmailCompose.href} rel="nofollow" aria-label="Open your email app with this DMCA draft">
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send via email
+                        </a>
+                      </Button>
+                    ) : null}
+                    <Button
+                      asChild
+                      variant="outline"
+                      disabled={proofPaths.length === 0}
+                      className="h-11 w-full rounded-xl border-border/45 sm:w-auto"
+                    >
+                      <a href={`/api/dmca/claim/${claimId}/download`}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Download notice
                       </a>
                     </Button>
-                  ) : null}
+                  </div>
                   <Button
-                    asChild
-                    variant="outline"
-                    disabled={proofPaths.length === 0}
-                    className="w-full sm:w-auto"
-                  >
-                    <a href={`/api/dmca/claim/${claimId}/download`}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Download DMCA Notice
-                    </a>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto sm:min-w-[6.5rem]"
+                    variant="ghost"
+                    className="h-11 rounded-xl text-muted-foreground hover:text-foreground"
                     onClick={() => {
                       setDmcaOpen(false)
                       setSelectedAlert(null)
@@ -1222,14 +1269,14 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
                   </Button>
                 </div>
                 {dmcaEmailCompose && !dmcaEmailCompose.hasResolvedTo ? (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    Add the site’s abuse contact in <span className="font-medium text-foreground">To:</span>
+                  <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+                    Add the site’s abuse contact in <span className="font-medium text-foreground/90">To:</span>
                     {' — we couldn’t derive it from this scan.'}
                   </p>
                 ) : null}
               </div>
-            </div>
-          )}
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

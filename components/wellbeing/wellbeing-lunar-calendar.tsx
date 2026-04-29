@@ -170,10 +170,10 @@ export function WellbeingLunarCalendar() {
                   </TooltipTrigger>
                   {day ? (
                     <TooltipContent side="top" className="max-w-xs border-border/50 text-xs">
-                      <p className="font-medium text-foreground">
+                      <p className="font-medium text-background">
                         {cursor.toLocaleDateString(undefined, { month: 'long' })} {day.day}
                       </p>
-                      <p className="mt-1 text-muted-foreground">
+                      <p className="mt-1 text-background/80">
                         {day.moonPhase.icon} {day.moonPhase.name}
                       </p>
                     </TooltipContent>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -196,19 +197,43 @@ export default function ProtectionScreen() {
                 </Pressable>
               ) : null}
               {item.source_url ? (() => {
-                const { links } = getHostReportDestinations(item.source_url, item.notes ?? null)
+                const { links, supportingLinks } = getHostReportDestinations(item.source_url, item.notes ?? null)
                 const first = links[0]
-                if (!first) return null
-                return (
-                  <Pressable
-                    style={({ pressed }) => [styles.smallBtn, pressed && styles.pressed]}
-                    onPress={() => void openUrlSafe(first.href)}
-                  >
-                    <Text style={styles.smallBtnText}>
-                      {first.kind === 'url' ? 'Report to host' : 'Email host'}
-                    </Text>
-                  </Pressable>
-                )
+                if (first) {
+                  return (
+                    <Pressable
+                      style={({ pressed }) => [styles.smallBtn, pressed && styles.pressed]}
+                      onPress={() => void openUrlSafe(first.href)}
+                    >
+                      <Text style={styles.smallBtnText}>
+                        {first.kind === 'url' ? 'Report to host' : 'Email host'}
+                      </Text>
+                    </Pressable>
+                  )
+                }
+                if (supportingLinks.length > 0) {
+                  return (
+                    <Pressable
+                      style={({ pressed }) => [styles.smallBtn, pressed && styles.pressed]}
+                      onPress={() => {
+                        Alert.alert(
+                          'Reporting shortcuts',
+                          'Web search and optional third-party helpers—verify contacts yourself.',
+                          [
+                            ...supportingLinks.map((l) => ({
+                              text: l.label.length > 48 ? `${l.label.slice(0, 46)}…` : l.label,
+                              onPress: () => void openUrlSafe(l.href),
+                            })),
+                            { text: 'Cancel', style: 'cancel' },
+                          ],
+                        )
+                      }}
+                    >
+                      <Text style={styles.smallBtnText}>Shortcuts…</Text>
+                    </Pressable>
+                  )
+                }
+                return null
               })() : null}
               <Pressable
                 style={({ pressed }) => [styles.dmcaBtn, pressed && styles.pressed]}

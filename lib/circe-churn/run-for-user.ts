@@ -206,7 +206,7 @@ export type RunCirceChurnForUserResult = {
 export async function runCirceChurnForUser(
   supabase: SupabaseClient,
   settings: CirceChurnSettingsRow,
-  options?: { dryRun?: boolean; now?: Date; force?: boolean },
+  options?: { dryRun?: boolean; now?: Date; force?: boolean; overrideMaxFans?: number },
 ): Promise<RunCirceChurnForUserResult> {
   const now = options?.now ?? new Date()
   const dryRun = options?.dryRun === true || process.env.CHURN_DRY_RUN === 'true'
@@ -241,14 +241,26 @@ export async function runCirceChurnForUser(
     return { ran: false, skippedReason: 'no_credits' }
   }
 
-  const { data: fanRows, error: fanErr } = await supabase
-    .from('fans')
-    .select(
-      'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing',
-    )
-    .eq('user_id', userId)
-    .in('platform', ['onlyfans', 'fansly'])
-    .limit(400)
+  const maxFansEffective = Math.min(
+    25,
+    Math.max(
+      1,
+      typeof options?.overrideMaxFans === 'number'
+        ? Math.round(options.overrideMaxFans)
+        : Math.round(Number(settings.max_fans_per_run) || 6),
+    ),
+  )
+
+  const fanSelect =
+    'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing'
+
+  const [onlyfansRes, fanslyRes] = await Promise.all([
+    supabase.from('fans').select(fanSelect).eq('user_id', userId).eq('platform', 'onlyfans').limit(2500),
+    supabase.from('fans').select(fanSelect).eq('user_id', userId).eq('platform', 'fansly').limit(2500),
+  ])
+
+  const fanErr = onlyfansRes.error ?? fanslyRes.error
+  const fanRows = [...(onlyfansRes.data || []), ...(fanslyRes.data || [])]
 
   if (fanErr) {
     return { ran: false, skippedReason: 'fan_query', error: fanErr.message }
@@ -258,7 +270,7 @@ export async function runCirceChurnForUser(
     expiringWithinDays: settings.expiring_within_days,
     staleInteractionDays: settings.stale_interaction_days,
     includeStaleActive: settings.include_stale_active,
-    maxFans: settings.max_fans_per_run,
+    maxFans: maxFansEffective,
   })
 
   const ts = now.toISOString()

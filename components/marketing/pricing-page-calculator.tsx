@@ -333,7 +333,7 @@ export function PricingPageCalculator({
       if (sortedPlatforms.includes('manyvids')) {
         const full = getMonthlyPriceUsd('multi', effectiveTier, ['onlyfans', 'fansly', 'manyvids'])
         lines.push({
-          label: 'ManyVids anti-piracy (Bundled plan only)',
+          label: 'ManyVids add-on',
           usd: full - tierRow.multiPriceUsd,
         })
       }
@@ -341,7 +341,7 @@ export function PricingPageCalculator({
         lines,
         note:
           surface === 'settings'
-            ? 'One bill for the Bundled plan. ManyVids anti-piracy above is part of that subscription, not standalone. Fanvue, MYM, Clips4Sale, Loyalfans, and more appear on the multi-platform row on pricing; the separate Protection add-on card below is the broader storefront option.'
+            ? 'One bill when Bundled. ManyVids add-on is included in that total. Broader storefront coverage: Protection add-on below (separate bill).'
             : 'One monthly price for OnlyFans and Fansly. Optional ManyVids add-on. For more storefronts, add Protection on the full pricing page.',
       }
     }

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 const SIZE = {
+  /** Chips beside toggles — minimal footprint */
+  xs: 'h-3 max-h-3 w-auto max-w-[2.375rem]',
   /** Tab chips, dense tables */
   sm: 'h-5 max-h-5 w-auto max-w-[4rem]',
   /** Dropdown rows inside menus */

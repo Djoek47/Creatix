@@ -14,12 +14,14 @@ function run() {
   const reddit = getHostReportDestinations('https://www.reddit.com/r/foo/comments/abc', null)
   assert.ok(reddit.links.some((l) => l.kind === 'url' && l.source === 'curated'))
   assert.ok(reddit.links.some((l) => l.href.includes('reddithelp')))
+  assert.equal(reddit.supportingLinks.length, 0)
 
   const unknown = getHostReportDestinations('https://unknown-example-xyz.test/page', null)
-  assert.ok(unknown.links.length >= 2)
-  assert.ok(unknown.links.every((l) => l.source === 'guidance'))
-  assert.ok(unknown.links.some((l) => l.href.includes('google.com/search')))
-  assert.ok(unknown.links.some((l) => l.href.includes('dmca.com')))
+  assert.equal(unknown.links.length, 0)
+  assert.ok(unknown.supportingLinks.length >= 2)
+  assert.ok(unknown.supportingLinks.every((l) => l.source === 'guidance'))
+  assert.ok(unknown.supportingLinks.some((l) => l.href.includes('google.com/search')))
+  assert.ok(unknown.supportingLinks.some((l) => l.href.includes('dmca.com')))
   assert.equal(unknown.hintText, null)
 
   const coomerBad = getHostReportDestinations(
@@ -27,7 +29,9 @@ function run() {
     JSON.stringify({ grok: { contactHint: 'coomer abuse' } }),
   )
   assert.equal(coomerBad.hintText, null)
-  assert.ok(coomerBad.links.every((l) => l.source === 'guidance'))
+  assert.equal(coomerBad.links.length, 0)
+  assert.ok(coomerBad.supportingLinks.length >= 1)
+  assert.ok(coomerBad.supportingLinks.every((l) => l.source === 'guidance'))
 
   const notesUrl = JSON.stringify({
     grok: {

@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { mapContentFromDbRows } from '@/lib/content/map-content-from-db'
+import { resolveContentOrbitBirthdayMd } from '@/lib/content/orbit-birthday'
 import { ContentWorkspace } from '@/components/content/content-workspace'
 
 function ContentWorkspaceFallback() {
@@ -28,9 +29,15 @@ export default async function ContentPage() {
 
   const content = mapContentFromDbRows(contentRows ?? [])
 
+  const rawOrbitBirthday = process.env.NEXT_PUBLIC_CONTENT_ORBIT_BIRTHDAY_MD
+  const orbitBirthdayAnnual =
+    rawOrbitBirthday?.trim().toLowerCase() === 'none'
+      ? null
+      : resolveContentOrbitBirthdayMd(rawOrbitBirthday) ?? { monthIndex: 5, day: 15 }
+
   return (
     <Suspense fallback={<ContentWorkspaceFallback />}>
-      <ContentWorkspace content={content} />
+      <ContentWorkspace content={content} orbitBirthdayAnnual={orbitBirthdayAnnual} />
     </Suspense>
   )
 }

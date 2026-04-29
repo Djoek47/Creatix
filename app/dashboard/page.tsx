@@ -34,7 +34,9 @@ export default async function DashboardPage() {
     supabase.from('platform_connections').select('*').eq('user_id', user.id).eq('is_connected', true),
     supabase
       .from('subscriptions')
-      .select('plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms, revenue_tier')
+      .select(
+        'plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms, revenue_tier, stripe_subscription_id, trial_ends_at',
+      )
       .eq('user_id', user.id)
       .maybeSingle(),
     supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', user.id).maybeSingle(),

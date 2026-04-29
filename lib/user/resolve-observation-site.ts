@@ -16,29 +16,35 @@ export async function resolveDecryptedObservationSite(
   supabase: SupabaseClient,
   user: User,
 ): Promise<{ latitude: number; longitude: number; labelHint: string | null } | null> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('encrypted_location, location_hint')
-    .eq('id', user.id)
-    .maybeSingle()
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('encrypted_location, location_hint')
+      .eq('id', user.id)
+      .maybeSingle()
 
-  const fallbackVault = parseLocationFallback(
-    ((user.user_metadata ?? {}) as Record<string, unknown>).location_vault,
-  )
-  const encryptedLocation = profile?.encrypted_location ?? fallbackVault?.encrypted ?? null
-  const hint = profile?.location_hint ?? fallbackVault?.hint ?? null
+    const fallbackVault = parseLocationFallback(
+      ((user.user_metadata ?? {}) as Record<string, unknown>).location_vault,
+    )
+    const encryptedLocation = profile?.encrypted_location ?? fallbackVault?.encrypted ?? null
+    const hint = profile?.location_hint ?? fallbackVault?.hint ?? null
 
-  if (!encryptedLocation) return null
+    if (!encryptedLocation) return null
 
-  const location = tryDecryptLocationPayload(user.id, String(encryptedLocation))
-  if (!location) return null
+    const location = tryDecryptLocationPayload(user.id, String(encryptedLocation))
+    if (!location) return null
 
-  const labelHint =
-    typeof hint === 'string' && hint.length ? hint : typeof location.label === 'string' ? location.label : null
+    const labelHint =
+      typeof hint === 'string' && hint.length ? hint : typeof location.label === 'string' ? location.label : null
 
-  return {
-    latitude: location.latitude,
-    longitude: location.longitude,
-    labelHint,
+    return {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      labelHint,
+    }
+  } catch (e) {
+    /* DB/network or unexpected crypto path — treat as “no saved site” so callers can fall back (e.g. sky API). */
+    console.warn('[resolveDecryptedObservationSite]', e)
+    return null
   }
 }

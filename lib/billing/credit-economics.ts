@@ -79,6 +79,12 @@ export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTI
 export const CREDITS_REPUTATION_WEB_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperReputationRun)
 export const CREDITS_ONLYFANS_BIO_FALLBACK = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
 
+/** Expanded AI playbook for locating DMCA / abuse intake on unknown hosts (same unit weight as short gen). */
+export const CREDITS_AI_TAKEDOWN_GUIDE = CREDITS_MESSAGE_GENERATION_LIGHT
+
+/** One focused Grok page verification pass (~light tool workload). `/api/leaks/alerts/[id]/verify` does not debit credits today—used only for surfaced cost parity. */
+export const CREDITS_LEAK_PAGE_VERIFY_ESTIMATE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
+
 const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'leak-scanner': CREDITS_LEAK_SCAN,
   'divine-chat': CREDITS_DIVINE_CHAT_MESSAGE,

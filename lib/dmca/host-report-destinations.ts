@@ -84,7 +84,13 @@ export type HostReportLink = {
 }
 
 export type HostReportResolution = {
+  /** Verified or scan-derived shortcuts (shown as primary buttons) */
   links: HostReportLink[]
+  /**
+   * Generic helpers (Google search, third-party portals) — keep out of primary row;
+   * surface as grouped “shortcuts”, not substitutes for verified host paths.
+   */
+  supportingLinks: HostReportLink[]
   /** Plain-text hint when no URL/email, or extra context from the scan */
   hintText: string | null
 }
@@ -150,7 +156,7 @@ function guidanceLinksForHostname(hostname: string): HostReportLink[] {
     {
       kind: 'url',
       href: 'https://www.dmca.com/',
-      label: 'DMCA.com (third-party takedown help — not affiliated)',
+      label: 'DMCA.com (third party)',
       source: 'guidance',
     },
   ]
@@ -220,6 +226,7 @@ export function getHostReportDestinations(
   const { contactHint, contactUrl: grokUrl, contactEmail: grokEmail } = parseNotes(notes ?? null)
 
   const links: HostReportLink[] = []
+  const supportingLinks: HostReportLink[] = []
   const seen = new Set<string>()
 
   const gu = grokUrl?.trim() ? safeUrl(grokUrl.trim()) : null
@@ -317,9 +324,31 @@ export function getHostReportDestinations(
   if (links.length === 0) {
     const labelHost = pageHost ? normalizeHost(pageHost) : 'this site'
     for (const g of guidanceLinksForHostname(labelHost)) {
-      pushUnique(links, g, seen)
+      pushUnique(supportingLinks, g, seen)
     }
   }
 
-  return { links, hintText }
+  return { links, supportingLinks, hintText }
+}
+
+/**
+ * Host abuse email inferred from structured scan notes / hints, when we surface a mailto shortcut.
+ * Used only to pre-fill “To”; if none exists, callers should still open `mailto:` with subject + body only.
+ */
+export function getPrimaryMailtoRecipientForDestinations(
+  sourceUrl: string,
+  notes: string | null | undefined,
+): string | undefined {
+  const { links } = getHostReportDestinations(sourceUrl, notes) // excludes generic supportingLinks
+  for (const link of links) {
+    if (link.kind !== 'mailto') continue
+    const m = /^mailto:([^?#]+)/i.exec(link.href)
+    if (!m?.[1]) continue
+    try {
+      return decodeURIComponent(m[1])
+    } catch {
+      return m[1]
+    }
+  }
+  return undefined
 }

@@ -36,6 +36,7 @@ import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capab
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 
 interface SidebarProps {
   user: User
@@ -137,8 +138,9 @@ const variantStyles = {
   },
   'ai-studio': {
     active: 'bg-sidebar-accent/55 text-sidebar-foreground',
+    /* Row stays flat on hover — accent only on the star slot (see globals `.ai-studio-nav-*`). */
     inactive:
-      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
+      'text-sidebar-foreground/68 hover:bg-transparent active:bg-transparent hover:text-sidebar-foreground',
     icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
   },
 } as const
@@ -190,7 +192,6 @@ function NavLink({
               : 'min-h-10 py-2.5',
         ),
     isActive ? styles.active : styles.inactive,
-    isAiStudio && 'w-full min-w-0 bg-sidebar rounded-[calc(0.75rem-2px)]',
   )
 
   const wellbeingPulseClass =
@@ -216,24 +217,23 @@ function NavLink({
         />
       )}
       {isAiStudio ? (
-        <Star
-          aria-hidden
-          className={cn(
-            'relative z-[1] flex-shrink-0',
-            navEase,
-            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-            'ai-studio-sidebar-star',
-          )}
-        />
+        <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
+          <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
+            <Star
+              aria-hidden
+              className={cn(
+                'relative z-[1] flex-shrink-0',
+                navEase,
+                compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+                'ai-studio-sidebar-star',
+              )}
+            />
+          </span>
+        </span>
       ) : isDivineManager ? (
-        <Crown
-          aria-hidden
-          className={cn(
-            'relative z-[1] flex-shrink-0',
-            navEase,
-            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-            'sidebar-divine-manager-crown',
-          )}
+        <SidebarDivineManagerCrown
+          navEase={navEase}
+          iconBoxClass={compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox}
         />
       ) : (
         <Icon
@@ -267,7 +267,12 @@ function NavLink({
   )
 
   const linkEl = (
-    <Link href={item.href} data-tour={item.href} className={linkClassName}>
+    <Link
+      href={item.href}
+      data-tour={item.href}
+      className={linkClassName}
+      aria-current={isActive ? 'page' : undefined}
+    >
       {linkInner}
     </Link>
   )
@@ -275,13 +280,7 @@ function NavLink({
   if (collapsed) {
     return (
       <TooltipPrimitive.Root delayDuration={0}>
-        <TooltipPrimitive.Trigger asChild>
-          {isAiStudio ? (
-            <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">{linkEl}</span>
-          ) : (
-            linkEl
-          )}
-        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Trigger asChild>{linkEl}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
             side="right"
@@ -307,11 +306,7 @@ function NavLink({
     )
   }
 
-  return isAiStudio ? (
-    <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">{linkEl}</span>
-  ) : (
-    linkEl
-  )
+  return linkEl
 }
 
 export function DashboardSidebar({ profile }: SidebarProps) {

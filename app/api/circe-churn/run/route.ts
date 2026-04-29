@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     ? { ...(churnRow as CirceChurnSettingsRow), user_id: user.id }
     : defaultCirceChurnSettings(user.id)
 
-  const out = await runCirceChurnForUser(supabase, settings, { force: true })
+  // Manual "Scan now": pull OnlyFans + Fansly CRM in one run and use the full batch cap (25) so all connected accounts are considered.
+  const out = await runCirceChurnForUser(supabase, settings, { force: true, overrideMaxFans: 25 })
 
   if (out.skippedReason === 'no_credits') {
     return NextResponse.json({ error: 'Insufficient AI credits', result: out }, { status: 402 })

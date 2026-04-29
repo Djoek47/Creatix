@@ -44,16 +44,21 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
       ) : null}
       <main
         className={cn(
-          /* Avoid `overflow-x: hidden` on this scrollport — it breaks `position: sticky` for route heroes
-             (Chrome/WebKit). Rely on `min-w-0` + page layout to contain width. */
+          /* Vertical scroll only on this node. Horizontal padding lives on an inner wrapper so route
+             heroes never need negative margins: with `overflow-y: auto`, `overflow-x` computes to
+             `auto`, and bleed-out margins break `position: sticky` in Chrome/WebKit. */
           'min-h-0 flex-1 bg-transparent',
-          !isMessagesInbox && 'w-full min-w-0 overflow-y-auto p-4 sm:p-6',
+          !isMessagesInbox && 'w-full min-w-0 overflow-y-auto py-4 sm:py-6',
           /* Inbox (normal or focus): column flex + min-h-0 so chat composer + Divine strip stay in view */
           isMessagesInbox &&
             'flex min-h-0 flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom,0px)]',
         )}
       >
-        {children}
+        {!isMessagesInbox ? (
+          <div className="min-w-0 w-full px-4 sm:px-6">{children}</div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   )

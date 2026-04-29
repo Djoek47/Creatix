@@ -39,7 +39,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     /** Fused into Content and Caption (Content Studio) — open Ideas + Captions from one card. */
     hiddenFromLibrary: true,
   },
-  { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', badge: 'Popular', credits: 2, hasRunner: true },
+  { id: 'fantasy-writer', name: 'Fantasy Writer', description: 'Roleplay tied to calendar & fans', longDescription: 'Generate DMs-ready fantasy from your cosmic calendar events, a scheduled content item, and/or a specific fan profile — plus optional scenario text or voice.', category: 'content', credits: 2, hasRunner: true },
   {
     id: 'content-ideas',
     name: 'Content and Caption',

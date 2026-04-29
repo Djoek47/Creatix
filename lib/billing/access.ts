@@ -59,6 +59,74 @@ export function hasActiveDivineTrial(row: SubscriptionLike | null | undefined): 
   return isTrialPlanId(row.plan_id)
 }
 
+/** Stripe customer row fields used only for trial-offer UI (billing settings). */
+export type TrialOfferFields = SubscriptionLike & {
+  stripe_subscription_id?: string | null
+  trial_ends_at?: string | null
+}
+
+/**
+ * True once the user has attached a payment method and has a Divine trial Stripe subscription row,
+ * including brief windows where DB `status` still reads `trial` while Stripe is already `trialing`.
+ */
+export function isDivineTrialSeatHeld(row: TrialOfferFields | null | undefined): boolean {
+  if (!row?.plan_id) return false
+  if (!isTrialPlanId(row.plan_id)) return false
+  if (hasActiveDivineTrial(row)) return true
+  return Boolean(row.stripe_subscription_id?.trim())
+}
+
+/**
+ * Whether to show the “Start free trial (card required)” card on Billing.
+ * Hide when paid, already entitled to Divine trial, checkout has created a Stripe subscription,
+ * or the account has moved past a first trial (free plan, canceled / unpaid, or trial end date passed).
+ */
+export function shouldShowDivineTrialStartCard(row: TrialOfferFields | null | undefined): boolean {
+  if (!row?.plan_id && !row?.status) return true
+
+  if (isPaidSubscription(row)) return false
+  if (hasActiveDivineTrial(row)) return false
+  if (isDivineTrialSeatHeld(row)) return false
+
+  const st = (row.status || '').toLowerCase()
+
+  if (row.plan_id && isFreePlanId(row.plan_id)) return false
+
+  if (['canceled', 'unpaid', 'incomplete_expired'].includes(st)) return false
+
+  if (row.trial_ends_at) {
+    const endMs = Date.parse(String(row.trial_ends_at))
+    if (!Number.isNaN(endMs) && endMs < Date.now() && st !== 'trialing') return false
+  }
+
+  return true
+}
+
+/** Short label for Plan & billing subtitle + dashboard chip (“Trial redeemed” / “Trial expired”). */
+export type DivineTrialSubtitleBadge = 'expired' | 'redeemed' | null
+
+export function divineTrialSubtitleBadge(row: TrialOfferFields | null | undefined): DivineTrialSubtitleBadge {
+  if (!row?.plan_id && !row?.status) return null
+  if (isPaidSubscription(row)) return null
+
+  const st = (row.status || '').toLowerCase()
+
+  const lapsedToFree =
+    row.plan_id != null &&
+    isFreePlanId(row.plan_id) &&
+    ['canceled', 'unpaid'].includes(st)
+
+  const trialEndMs = row.trial_ends_at ? Date.parse(String(row.trial_ends_at)) : NaN
+  const trialEndedByClock =
+    Number.isFinite(trialEndMs) && trialEndMs < Date.now() && !hasActiveDivineTrial(row)
+
+  if (lapsedToFree || trialEndedByClock) return 'expired'
+
+  if (hasActiveDivineTrial(row) || isDivineTrialSeatHeld(row)) return 'redeemed'
+
+  return null
+}
+
 export function isProtectionPlanId(planId: string | null | undefined): boolean {
   if (!planId) return false
   return planId.toLowerCase() === PROTECTION_PLAN_ID

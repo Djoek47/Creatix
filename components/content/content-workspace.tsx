@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, LayoutList, Library } from 'lucide-react'
 import type { Content } from '@/lib/types'
+import type { OrbitAnnualDate } from '@/lib/content/orbit-birthday'
 import { cn } from '@/lib/utils'
 import { ContentHeader } from '@/components/content/content-header'
 import { ContentCalendar } from '@/components/content/content-calendar'
@@ -33,7 +34,14 @@ const SEGMENTS: {
 /**
  * Unified Content hub: calendar, media vault, and post list — URL-synced via `?view=`.
  */
-export function ContentWorkspace({ content }: { content: Content[] }) {
+export function ContentWorkspace({
+  content,
+  orbitBirthdayAnnual,
+}: {
+  content: Content[]
+  /** Optional M/D anchor for the Birthday chip on the orbit calendar (see `resolveContentOrbitBirthdayMd`). */
+  orbitBirthdayAnnual?: OrbitAnnualDate | null
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const view = parseView(searchParams.get('view'))
@@ -113,7 +121,9 @@ export function ContentWorkspace({ content }: { content: Content[] }) {
         aria-labelledby={`content-tab-${view}`}
         className="animate-in fade-in-0 duration-300 motion-reduce:animate-none"
       >
-        {view === 'schedule' ? <ContentCalendar content={content} /> : null}
+        {view === 'schedule' ? (
+          <ContentCalendar content={content} birthdayAnnual={orbitBirthdayAnnual ?? null} />
+        ) : null}
         {view === 'vault' ? (
           <div className="mx-auto w-full max-w-5xl">
             <MediaVaultHub />

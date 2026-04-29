@@ -212,6 +212,10 @@ export interface LeakAlert {
   ai_nuance_summary?: string | null
   /** video | photo | unknown */
   media_type?: LeakMediaType
+  /** Serper / discovery query term that produced this hit (nullable for manual URLs) */
+  query?: string | null
+  /** `search_api` | `user_report` — how the row entered the inbox */
+  detected_by?: string | null
   /** Same canonical URL seen again after resolve */
   reappearance_count?: number
   last_seen_at?: string | null

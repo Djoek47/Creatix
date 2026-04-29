@@ -21,10 +21,10 @@ export function DashboardRouteHero() {
   if (meta.heroVariant === 'system') {
     return (
       <header className="mb-10 sm:mb-14">
-        {/* Sticks within dashboard `main` scroll: eyebrow, title, and subtitle stay under the header bar */}
+        {/* Sticks within dashboard `main` scroll; no horizontal negative margin (see main padding wrapper). */}
         <div
           className={cn(
-            'sticky top-0 z-20 -mx-4 border-b border-border/30 px-4 pb-4 sm:-mx-6 sm:px-6 sm:pb-5',
+            'sticky top-0 z-20 border-b border-border/30 pb-4 sm:pb-5',
             'bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75',
             'dark:border-border/25 dark:bg-background/85',
           )}

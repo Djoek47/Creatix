@@ -13,6 +13,7 @@ import {
   inferMediaTypeFromUrl,
   shouldSkipDuplicateScan,
 } from '@/lib/leaks/canonical-dedupe'
+import { normalizeDiscoveryHostNeedles, matchesDiscoveryFocus } from '@/lib/leaks/discovery-focus'
 import type { LeakMediaType } from '@/lib/types'
 
 export type RunLeakScanParams = {
@@ -33,6 +34,10 @@ export type RunLeakScanParams = {
   content_ids?: string[]
   /** Filter merged title list to those matching these phrases (substring). */
   focus_title_hints?: string[]
+  /** Keep only search hits whose hostname contains one of these needles (e.g. erome, simpcity). Manual URLs are never filtered. */
+  focus_hosts?: string[]
+  /** Keep only hits whose URL suggests this media type (path/extension heuristic). Manual URLs are never filtered. */
+  focus_media?: 'video' | 'photo'
 }
 
 export type RunLeakScanResult = {
@@ -42,6 +47,8 @@ export type RunLeakScanResult = {
   /** Same canonical URL reopened after prior resolve */
   reopened?: number
   filteredStrict: number
+  /** Dropped before strict/manual merge because of focus_hosts / focus_media */
+  filteredFocus?: number
   message?: string
   /** When set, API route should use this status (e.g. 400 for validation). */
   statusCode?: number
@@ -381,6 +388,20 @@ export async function runLeakScan(
     discovered.push(...out)
   }
 
+  const discoveryCountBeforeRouting = discovered.length
+  const focusHostsNorm = normalizeDiscoveryHostNeedles(params.focus_hosts)
+  const focusMedia =
+    params.focus_media === 'video' || params.focus_media === 'photo' ? params.focus_media : undefined
+  let filteredFocus = 0
+
+  if ((focusHostsNorm.length > 0 || focusMedia) && discovered.length > 0) {
+    const before = discovered.length
+    const routed = discovered.filter((d) => matchesDiscoveryFocus(d.url, focusHostsNorm, focusMedia))
+    filteredFocus += before - routed.length
+    discovered.length = 0
+    discovered.push(...routed)
+  }
+
   const merged = new Map<string, { url: string; query?: string; title?: string; snippet?: string }>()
   for (const u of userUrls) merged.set(u, { url: u })
   for (const d of discovered) if (!merged.has(d.url)) merged.set(d.url, d)
@@ -398,6 +419,14 @@ export async function runLeakScan(
     } else if (usernames.length === 0 && mergedTitles.length === 0 && !hasManual) {
       message =
         'Nothing to search: connect OnlyFans/Fansly, add aliases or former usernames, add content title hints, or paste a URL under “Bring your own link”.'
+    } else if (
+      discoveryCountBeforeRouting > 0 &&
+      discovered.length === 0 &&
+      !hasManual &&
+      (focusHostsNorm.length > 0 || focusMedia)
+    ) {
+      message =
+        'No indexed URLs survived your Precision routing (host or media filters). Relax those constraints or widen host keywords.'
     } else {
       message = 'No results found for the current queries.'
     }
@@ -406,6 +435,7 @@ export async function runLeakScan(
       inserted: 0,
       skipped: 0,
       filteredStrict: 0,
+      filteredFocus: filteredFocus > 0 ? filteredFocus : undefined,
       message,
       providerConfigured: Boolean(provider),
       grokEnrichment: isPro && Boolean(process.env.XAI_API_KEY),
@@ -722,6 +752,7 @@ export async function runLeakScan(
     skipped: skippedDup + skippedNormalize,
     reopened: reopenedCount > 0 ? reopenedCount : undefined,
     filteredStrict,
+    filteredFocus: filteredFocus > 0 ? filteredFocus : undefined,
     providerConfigured: Boolean(provider),
     grokEnrichment: isPro && Boolean(process.env.XAI_API_KEY),
     fetchVerified: fetchVerifyTopN > 0 ? fetchVerified : undefined,

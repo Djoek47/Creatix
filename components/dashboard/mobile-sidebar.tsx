@@ -28,6 +28,7 @@ import {
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
+import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
@@ -160,7 +161,7 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
       },
       'ai-studio': {
         active: 'bg-muted/55 text-foreground',
-        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        inactive: 'text-foreground/68 hover:bg-transparent active:bg-transparent hover:text-foreground',
         icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
       },
     }
@@ -168,26 +169,32 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
     const styles = variantStyles[variant]
     
     const linkClassName = cn(
+      'group',
       compactMobile
         ? 'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors duration-150 ease-out'
         : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
       navTextClass,
       isActive ? styles.active : styles.inactive,
-      isAiStudio && 'w-full min-w-0 bg-card rounded-[calc(0.75rem-2px)]',
     )
 
     const linkEl = (
-      <Link href={item.href} data-tour={item.href} className={linkClassName}>
+      <Link
+        href={item.href}
+        data-tour={item.href}
+        className={linkClassName}
+        aria-current={isActive ? 'page' : undefined}
+      >
         {isAiStudio ? (
-          <Star
-            aria-hidden
-            className={cn(navIconClass, 'flex-shrink-0 ai-studio-sidebar-star')}
-          />
+          <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
+            <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
+              <Star
+                aria-hidden
+                className={cn(navIconClass, 'flex-shrink-0 ai-studio-sidebar-star')}
+              />
+            </span>
+          </span>
         ) : isDivineManager ? (
-          <Crown
-            aria-hidden
-            className={cn(navIconClass, 'flex-shrink-0 sidebar-divine-manager-crown')}
-          />
+          <SidebarDivineManagerCrown iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
         ) : (
           <item.icon
             className={cn(
@@ -216,17 +223,11 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
       </Link>
     )
 
-    return isAiStudio ? (
-      <span className="sidebar-ai-studio-glow-wrap block w-full min-w-0">
-        <SheetClose asChild>{linkEl}</SheetClose>
-      </span>
-    ) : (
-      <SheetClose asChild>{linkEl}</SheetClose>
-    )
+    return <SheetClose asChild>{linkEl}</SheetClose>
   }
 
   return (
-    <div className="flex h-full flex-col bg-card">
+    <div className="mobile-dashboard-nav flex h-full flex-col bg-card">
       <SidebarBrandLockup onRealmClick={handleRealmReload} variant="mobile" />
 
       {/* Navigation */}

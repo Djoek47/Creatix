@@ -173,15 +173,15 @@ export function ConnectedPlatforms() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                <p className="font-semibold">{label}</p>
+                <p className="font-semibold text-background">{label}</p>
                 {conn.platform_username && (
-                  <p className="text-muted-foreground">@{conn.platform_username}</p>
+                  <p className="text-background/75">@{conn.platform_username}</p>
                 )}
-                <p className="mt-1 text-muted-foreground">
+                <p className="mt-1 text-background/75">
                   Last synced: {formatLastSync(conn.last_sync_at)}
                 </p>
                 {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail) ? (
-                  <p className="mt-0.5 text-muted-foreground">
+                  <p className="mt-0.5 text-background/75">
                     Status: {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail)}
                   </p>
                 ) : null}

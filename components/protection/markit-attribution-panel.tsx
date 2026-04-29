@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ExternalLink, Fingerprint, Loader2, Lock, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
+import { INTEGRATION_COUNTDOWN_END_MS, formatCountdownParts, useCountdownMs } from '@/hooks/use-integration-countdown'
 
 type AnalyzeResponse = MarkitAttributionResult & { creditsCharged?: number; error?: string }
 
@@ -23,34 +24,6 @@ const MARKIT_EXTERNAL_TRACE_URL = 'https://markit-fawn.vercel.app/trace'
 const MARKIT_IN_APP_TEASER = true
 
 /**
- * Countdown shown for “full in-app integration” (cosmetic urgency). Update when you target a release window.
- * Default: ~48h after Apr 27, 2026 (handoff context).
- */
-const MARKIT_COUNTDOWN_END_MS = new Date('2026-04-29T12:00:00.000Z').getTime()
-
-function useCountdownMs(targetMs: number) {
-  const [remaining, setRemaining] = useState(() => Math.max(0, targetMs - Date.now()))
-
-  useEffect(() => {
-    const tick = () => setRemaining(Math.max(0, targetMs - Date.now()))
-    tick()
-    const id = window.setInterval(tick, 1000)
-    return () => window.clearInterval(id)
-  }, [targetMs])
-
-  return remaining
-}
-
-function formatCountdownParts(totalMs: number) {
-  const s = Math.floor(totalMs / 1000)
-  const d = Math.floor(s / 86400)
-  const h = Math.floor((s % 86400) / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  return { d, h, m, s: sec }
-}
-
-/**
  * DMCA / Protection: upload a suspect image or video and run dual-layer MarkIt attribution
  * (in-band append-v1 + microdot heuristics from detect-v2).
  */
@@ -60,7 +33,7 @@ export function MarkitAttributionPanel({ className }: Props) {
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<AnalyzeResponse | null>(null)
 
-  const countdownLeft = useCountdownMs(MARKIT_COUNTDOWN_END_MS)
+  const countdownLeft = useCountdownMs(INTEGRATION_COUNTDOWN_END_MS)
   const parts = formatCountdownParts(countdownLeft)
   const blocked = MARKIT_IN_APP_TEASER
 

@@ -1,4 +1,4 @@
-import { FREE_PLAN_ID, isPaidPlanId, TRIAL_PLAN_ID } from '@/lib/billing/access'
+import { FREE_PLAN_ID, isPaidPlanId, TRIAL_PLAN_ID, divineTrialSubtitleBadge } from '@/lib/billing/access'
 import { focusPlatformsShortLabel } from '@/lib/pricing-matrix'
 import { resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 
@@ -9,6 +9,8 @@ export type SubscriptionRowForPlan = {
   billing_variant?: string | null
   billing_focus_platform?: string | null
   billing_focus_platforms?: string[] | null
+  stripe_subscription_id?: string | null
+  trial_ends_at?: string | null
 }
 
 /** Short label for dashboard hero chip (no PII). */
@@ -16,6 +18,15 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
   if (!row?.plan_id) return 'Trial'
   const pid = row.plan_id.toLowerCase()
   const st = (row.status || '').toLowerCase()
+
+  const trialBadge = divineTrialSubtitleBadge({
+    plan_id: row.plan_id,
+    status: row.status,
+    stripe_subscription_id: row.stripe_subscription_id,
+    trial_ends_at: row.trial_ends_at,
+  })
+  if (trialBadge === 'expired') return 'Trial expired'
+  if (trialBadge === 'redeemed') return 'Trial redeemed'
 
   const paidish = st === 'active' || st === 'trialing'
   if (paidish && isPaidPlanId(pid)) {

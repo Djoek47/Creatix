@@ -4,12 +4,15 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Image, Video, FileText, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Image, Video, FileText, Sparkles, Cake } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Content } from '@/lib/types'
+import type { OrbitAnnualDate } from '@/lib/content/orbit-birthday'
 
 interface ContentCalendarProps {
   content: Content[]
+  /** Annual personal day (e.g. birthday). When null, no chip is shown. */
+  birthdayAnnual?: OrbitAnnualDate | null
 }
 
 const statusLegendDot = {
@@ -19,7 +22,10 @@ const statusLegendDot = {
   archived: 'bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.45)]',
 }
 
-export function ContentCalendar({ content }: ContentCalendarProps) {
+const birthdayLegendDot =
+  'bg-rose-300/95 shadow-[0_0_0_1px_rgba(251,113,133,0.35),0_0_10px_rgba(251,113,133,0.45)] dark:bg-rose-300/85 dark:shadow-[0_0_0_1px_rgba(253,164,175,0.25),0_0_12px_rgba(244,63,94,0.35)]'
+
+export function ContentCalendar({ content, birthdayAnnual = null }: ContentCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const year = currentDate.getFullYear()
@@ -162,6 +168,11 @@ export function ContentCalendar({ content }: ContentCalendarProps) {
               day === new Date().getDate() &&
               month === new Date().getMonth() &&
               year === new Date().getFullYear()
+            const isBirthday =
+              day != null &&
+              birthdayAnnual != null &&
+              month === birthdayAnnual.monthIndex &&
+              day === birthdayAnnual.day
 
             return (
               <div
@@ -173,11 +184,13 @@ export function ContentCalendar({ content }: ContentCalendarProps) {
                     'border-border/55 bg-muted/25 hover:border-amber-400/45 hover:bg-amber-50/60 hover:shadow-sm dark:border-white/[0.06] dark:bg-gradient-to-b dark:from-white/[0.04] dark:to-transparent dark:hover:border-amber-400/25 dark:hover:from-amber-500/[0.06] dark:hover:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.08),0_0_24px_-12px_rgba(139,92,246,0.2)]',
                   isToday &&
                     'border-amber-500/50 bg-amber-100/65 shadow-[0_0_0_1px_rgba(245,158,11,0.28)] dark:border-amber-400/50 dark:bg-gradient-to-br dark:from-amber-500/15 dark:via-violet-600/10 dark:to-transparent dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_32px_-8px_rgba(168,85,247,0.35),0_0_40px_-12px_rgba(251,191,36,0.15)]',
+                  isBirthday &&
+                    'ring-1 ring-rose-300/40 dark:ring-rose-400/25',
                 )}
               >
                 {day && (
-                  <>
-                    <div className="flex items-start justify-between gap-0.5">
+                  <div className="flex h-full min-h-0 flex-col">
+                    <div className="flex shrink-0 items-start justify-between gap-0.5">
                       <span
                         className={cn(
                           'text-xs font-medium tabular-nums sm:text-sm',
@@ -194,34 +207,53 @@ export function ContentCalendar({ content }: ContentCalendarProps) {
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-1 space-y-1">
-                      {dayContent.slice(0, 2).map((c) => (
-                        <div
-                          key={c.id}
-                          className="group/item flex cursor-pointer items-center gap-1 rounded-md border border-white/5 bg-black/30 p-1 transition-all hover:border-violet-400/20 hover:bg-violet-500/10"
-                        >
-                          {c.media_urls.length > 0 ? (
-                            c.media_urls[0].includes('video') ? (
-                              <Video className="h-3 w-3 shrink-0 text-amber-200/60" />
+                    <div className="mt-1 flex min-h-0 flex-1 flex-col gap-1">
+                      <div className="min-h-0 flex-1 space-y-1">
+                        {dayContent.slice(0, 2).map((c) => (
+                          <div
+                            key={c.id}
+                            className="group/item flex cursor-pointer items-center gap-1 rounded-md border border-white/5 bg-black/30 p-1 transition-all hover:border-violet-400/20 hover:bg-violet-500/10"
+                          >
+                            {c.media_urls.length > 0 ? (
+                              c.media_urls[0].includes('video') ? (
+                                <Video className="h-3 w-3 shrink-0 text-amber-200/60" />
+                              ) : (
+                                <Image className="h-3 w-3 shrink-0 text-violet-300/60" />
+                              )
                             ) : (
-                              <Image className="h-3 w-3 shrink-0 text-violet-300/60" />
-                            )
-                          ) : (
-                            <FileText className="h-3 w-3 shrink-0 text-violet-300/50" />
+                              <FileText className="h-3 w-3 shrink-0 text-violet-300/50" />
+                            )}
+                            <span className="line-clamp-1 text-[10px] text-violet-100/80 sm:text-xs">{c.title}</span>
+                          </div>
+                        ))}
+                        {dayContent.length > 2 && (
+                          <Badge
+                            variant="secondary"
+                            className="border border-amber-300/55 bg-amber-100/90 text-[10px] font-normal text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200/90"
+                          >
+                            +{dayContent.length - 2} more
+                          </Badge>
+                        )}
+                      </div>
+                      {isBirthday ? (
+                        <div
+                          className={cn(
+                            'mt-auto flex items-center gap-1 rounded-md border px-1 py-0.5',
+                            'border-rose-300/35 bg-rose-500/[0.08] dark:border-rose-400/20 dark:bg-rose-500/[0.1]',
                           )}
-                          <span className="line-clamp-1 text-[10px] text-violet-100/80 sm:text-xs">{c.title}</span>
-                        </div>
-                      ))}
-                      {dayContent.length > 2 && (
-                        <Badge
-                          variant="secondary"
-                          className="border border-amber-300/55 bg-amber-100/90 text-[10px] font-normal text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200/90"
+                          title="Birthday"
                         >
-                          +{dayContent.length - 2} more
-                        </Badge>
-                      )}
+                          <Cake
+                            className="h-2.5 w-2.5 shrink-0 text-rose-300/95 dark:text-rose-200/90"
+                            aria-hidden
+                          />
+                          <span className="truncate text-[8px] font-medium uppercase tracking-[0.14em] text-rose-200/95 sm:text-[9px] dark:text-rose-100/90">
+                            Birthday
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             )
@@ -239,6 +271,19 @@ export function ContentCalendar({ content }: ContentCalendarProps) {
               </span>
             </div>
           ))}
+          {birthdayAnnual ? (
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  'h-2.5 w-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/10',
+                  birthdayLegendDot,
+                )}
+              />
+              <span className="text-[11px] capitalize tracking-wide text-muted-foreground dark:text-violet-200/50">
+                Birthday
+              </span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

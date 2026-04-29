@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   EmbeddedCheckout,
   EmbeddedCheckoutProvider,
@@ -51,6 +51,8 @@ interface CheckoutProps {
   buttonText?: ReactNode
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
   buttonClassName?: string
+  /** Merged onto the trigger `Button` (e.g. CSS variables for amount-scaled visuals). */
+  buttonStyle?: CSSProperties
   customTopupUsdAmount?: number
   onComplete?: () => void | Promise<void>
   children?: React.ReactNode
@@ -66,6 +68,7 @@ export function Checkout({
   buttonText = 'Subscribe',
   buttonVariant = 'default',
   buttonClassName,
+  buttonStyle,
   customTopupUsdAmount,
   onComplete,
   children,
@@ -142,7 +145,12 @@ export function Checkout({
     >
       <DialogTrigger asChild>
         {children || (
-          <Button variant={buttonVariant} className={buttonClassName} disabled={disabled || !stripeReady}>
+          <Button
+            variant={buttonVariant}
+            className={buttonClassName}
+            style={buttonStyle}
+            disabled={disabled || !stripeReady}
+          >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {buttonText}
           </Button>

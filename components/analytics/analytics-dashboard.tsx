@@ -11,7 +11,7 @@ import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
 import Link from 'next/link'
 import { Link2, MessageCircle, TrendingUp } from 'lucide-react'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 type Connection = {
   platform: string
@@ -21,6 +21,7 @@ type Connection = {
 const PLATFORM_META: Record<string, { label: string; logoSrc: string }> = {
   onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC },
   fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC },
+  manyvids: { label: 'ManyVids', logoSrc: MANYVIDS_LOGO_SRC },
   mym: { label: 'MYM', logoSrc: '/mym-logo.png' },
 }
 

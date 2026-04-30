@@ -1,66 +1,62 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-
-/**
- * Cycles Fanvue → MYM → Loyalfans → Clips4Sale on the Anti‑piracy billing row.
- * Logos live in `/public`; glow is brand-tinted (no dark chip behind the mark).
- */
-const SLIDES = [
-  {
-    id: 'fanvue',
-    label: 'Fanvue',
-    src: '/fanvue-logo.png',
-    width: 112,
-    height: 34,
-    isSvg: false,
-    glowStyle: 'drop-shadow(0 0 14px rgba(0, 212, 169, 0.5)) drop-shadow(0 0 28px rgba(0, 212, 169, 0.22))',
-  },
-  {
-    id: 'mym',
-    label: 'MYM',
-    src: '/mym-logo.png',
-    width: 96,
-    height: 36,
-    isSvg: false,
-    glowStyle: 'drop-shadow(0 0 14px rgba(236, 72, 153, 0.42)) drop-shadow(0 0 26px rgba(168, 85, 247, 0.28))',
-  },
-  {
-    id: 'loyalfans',
-    label: 'Loyalfans',
-    src: '/loyalfans-logo.svg',
-    width: 132,
-    height: 34,
-    isSvg: true,
-    glowStyle: 'drop-shadow(0 0 14px rgba(229, 57, 53, 0.45)) drop-shadow(0 0 26px rgba(255, 112, 67, 0.25))',
-  },
-  {
-    id: 'clips4sale',
-    label: 'Clips4Sale',
-    src: '/clips4sale-logo.png',
-    width: 120,
-    height: 34,
-    isSvg: false,
-    glowStyle: 'drop-shadow(0 0 14px rgba(37, 99, 235, 0.48)) drop-shadow(0 0 28px rgba(59, 130, 246, 0.24))',
-  },
-] as const
+import { BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE } from '@/lib/billing/clip-focus-addon-carousel'
+import { BundledAntipiracyStorefrontLogoMark } from '@/components/billing/bundled-antipiracy-storefront-mark'
 
 const ROTATE_MS = 2600
 
-export function AntiPiracyStorefrontLogoCycle({ className }: { className?: string }) {
+type CycleCtx = {
+  activeIndex: number
+}
+
+const AntiPiracyStorefrontCycleContext = createContext<CycleCtx | null>(null)
+
+export function AntiPiracyStorefrontCycleProvider({ children }: { children: ReactNode }) {
   const reduceMotion = useReducedMotion()
-  const [idx, setIdx] = useState(0)
-  const active = SLIDES[idx % SLIDES.length]
+  const len = BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length
+  const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
+    if (reduceMotion) return
     const id = window.setInterval(() => {
-      setIdx((i) => (i + 1) % SLIDES.length)
+      setActiveIndex((i) => (i + 1) % len)
     }, ROTATE_MS)
     return () => window.clearInterval(id)
-  }, [])
+  }, [len, reduceMotion])
+
+  const value = useMemo(() => ({ activeIndex }), [activeIndex])
+
+  return (
+    <AntiPiracyStorefrontCycleContext.Provider value={value}>{children}</AntiPiracyStorefrontCycleContext.Provider>
+  )
+}
+
+function useAntiPiracyStorefrontCycle(): CycleCtx {
+  const ctx = useContext(AntiPiracyStorefrontCycleContext)
+  if (!ctx) {
+    throw new Error(
+      'Anti-piracy storefront cycle components must be used inside AntiPiracyStorefrontCycleProvider',
+    )
+  }
+  return ctx
+}
+
+/** Cycling storefront logos on the Anti‑piracy billing row (one brand at a time). */
+export function AntiPiracyStorefrontLogoCycle({ className }: { className?: string }) {
+  const reduceMotion = useReducedMotion()
+  const { activeIndex } = useAntiPiracyStorefrontCycle()
+  const active = BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE[activeIndex % BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length]
 
   return (
     <div className={cn('relative flex h-12 min-h-12 min-w-[8.5rem] shrink-0 items-center justify-start', className)}>
@@ -70,30 +66,33 @@ export function AntiPiracyStorefrontLogoCycle({ className }: { className?: strin
         initial={{ opacity: reduceMotion ? 1 : 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-        style={{ filter: active.glowStyle }}
       >
-        {active.isSvg ? (
-          // eslint-disable-next-line @next/next/no-img-element -- SVG brand mark; avoids Next Image edge cases
-          <img
-            src={active.src}
-            alt=""
-            width={active.width}
-            height={active.height}
-            className="h-10 w-auto max-w-full object-contain object-left"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <Image
-            src={active.src}
-            alt=""
-            width={active.width}
-            height={active.height}
-            className="h-10 w-auto max-w-full object-contain object-left"
-            priority={false}
-          />
-        )}
+        <BundledAntipiracyStorefrontLogoMark slide={active} frame="billingStrip" />
       </motion.div>
     </div>
+  )
+}
+
+/** Paragraph synced to `AntiPiracyStorefrontLogoCycle` — same interval / label as the logo. */
+export function AntiPiracyBundledWorkspaceCaption({
+  creditsPerCycle,
+  className,
+}: {
+  creditsPerCycle: number
+  className?: string
+}) {
+  const { activeIndex } = useAntiPiracyStorefrontCycle()
+  const slide =
+    BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE[activeIndex % BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length]
+  const label = slide.displayLabel
+
+  return (
+    <p
+      className={cn('max-w-md text-[13px] leading-relaxed text-muted-foreground', className)}
+      aria-live="polite"
+    >
+      {label} · Bundled workspace ·{' '}
+      <span className="tabular-nums text-foreground/90">{creditsPerCycle.toLocaleString()}</span> credits per cycle.
+    </p>
   )
 }

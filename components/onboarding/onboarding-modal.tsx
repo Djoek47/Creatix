@@ -290,20 +290,6 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
                 Connect
               </Button>
             </div>
-            <div className="flex items-center justify-between gap-3 rounded-[1.125rem] border border-border/45 bg-muted/10 px-3.5 py-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.65rem] bg-zinc-950 ring-1 ring-border/40">
-                  <Image src="/mym-logo.png" alt="MYM" width={40} height={40} className="size-8 object-contain" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium tracking-tight text-foreground">MYM</p>
-                  <p className="text-[12px] text-muted-foreground">Optional</p>
-                </div>
-              </div>
-              <Button size="sm" variant="outline" className="h-9 shrink-0 rounded-full border-border/55 px-4 text-[12px] font-medium">
-                Connect
-              </Button>
-            </div>
           </div>
           <div className="rounded-[1.125rem] border border-border/40 bg-muted/15 px-4 py-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">OnlyFans</p>

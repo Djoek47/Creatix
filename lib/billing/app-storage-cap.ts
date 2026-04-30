@@ -2,7 +2,7 @@
  * Per-user budget for app-managed Supabase Storage (`vault-media`), in megabytes.
  * Product default when `VAULT_USER_QUOTA_MB` is unset (must match operational default in `lib/frame-vault-media.ts`).
  */
-export const APP_USER_STORAGE_LIMIT_MB = 256
+export const APP_USER_STORAGE_LIMIT_MB = 3072
 
 /**
  * Resolved quota in MB: `VAULT_USER_QUOTA_MB` when set on the server, otherwise {@link APP_USER_STORAGE_LIMIT_MB}.

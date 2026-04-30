@@ -56,15 +56,14 @@ import {
   BILLING_PRIMARY_TRIAL_CTA_CLASS,
   BILLING_TRIPLE_STACK_CHECKOUT_CTA_CLASS,
 } from '@/lib/billing/billing-plan-visual'
-import { CLIP_FOCUS_ADDON_CAROUSEL } from '@/lib/billing/clip-focus-addon-carousel'
+import { CLIP_FOCUS_ADDON_CAROUSEL, BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE } from '@/lib/billing/clip-focus-addon-carousel'
+import { BundledAntipiracyStorefrontLogoMark } from '@/components/billing/bundled-antipiracy-storefront-mark'
 
 const FOCUS_PLATFORMS: AdultBillingPlatform[] = ['onlyfans', 'fansly']
 
 const OTHER_PLATFORM_BUNDLE_ADDON_USD = 25
 /** Protection marketing strip — same storefronts as billing ManyVids row (logos only). */
-const MULTIPLATFORM_LOGOS = CLIP_FOCUS_ADDON_CAROUSEL.map((e) => e.logoSrc).filter(
-  (src): src is string => src != null,
-)
+const BUNDLED_STORE_SLIDE_COUNT = BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length
 
 /** Popover “Available tools” — short labels only (Protection hub). */
 const PROTECTION_POPOVER_TOOLS = [
@@ -261,12 +260,13 @@ export function PricingPageCalculator({
   }, [platformMotionKey])
 
   useEffect(() => {
-    if (surface === 'settings' || reduceMotion) return
+    const protectionFooterVisible = MULTIPLATFORM_PROTECTION_COMING_SOON ? true : surface !== 'settings'
+    if (reduceMotion || !protectionFooterVisible) return
     const id = setInterval(() => {
-      setMultiLogoIndex((i) => (i + 1) % MULTIPLATFORM_LOGOS.length)
+      setMultiLogoIndex((i) => (i + 1) % BUNDLED_STORE_SLIDE_COUNT)
     }, 2600)
     return () => clearInterval(id)
-  }, [surface, reduceMotion])
+  }, [reduceMotion, surface])
 
   useEffect(() => {
     if (reduceMotion) setMultiLogoIndex(0)
@@ -442,6 +442,29 @@ export function PricingPageCalculator({
     variant === 'single' && focusBothApiPlatforms && !protectionOnly
   const isSettings = surface === 'settings'
   const platformsPickerVisible = !protectionOnly && (variant === 'single' || variant === 'multi')
+
+  const bundledProtectionAsideLogoMark = (
+    <div
+      className={cn(
+        'relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5',
+        MULTIPLATFORM_PROTECTION_COMING_SOON && 'opacity-90',
+      )}
+      aria-hidden
+    >
+      <motion.span
+        key={multiLogoIndex}
+        className="flex h-full w-full items-center justify-center rounded-md bg-card/85"
+        initial={reduceMotion ? false : { opacity: 0.35 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        <BundledAntipiracyStorefrontLogoMark
+          slide={BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE[multiLogoIndex % BUNDLED_STORE_SLIDE_COUNT]}
+          frame="pricingAside"
+        />
+      </motion.span>
+    </div>
+  )
 
   /** Linked observations set a floor: manual USD override only before that signal exists (or on marketing pages). */
   const showManualRevenueOverride = !revenueBandLocked && !(isSettings && tierFloor != null)
@@ -997,21 +1020,7 @@ export function PricingPageCalculator({
         <div className="mt-10 border-t border-border/25 pt-10">
           {MULTIPLATFORM_PROTECTION_COMING_SOON ? (
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <div
-                className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 opacity-90 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
-                aria-hidden
-              >
-                <span className="flex h-full w-full items-center justify-center rounded-md bg-card/85">
-                  <Image
-                    src={MULTIPLATFORM_LOGOS[0] ?? '/clips4sale-logo.png'}
-                    alt=""
-                    width={112}
-                    height={112}
-                    sizes="80px"
-                    className="h-full w-full object-contain p-0.5"
-                  />
-                </span>
-              </div>
+              {bundledProtectionAsideLogoMark}
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-medium text-foreground">Multiplatform protection</h3>
@@ -1027,27 +1036,7 @@ export function PricingPageCalculator({
             </div>
           ) : (
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <div
-                className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-purple-500/10 p-2 shadow-[0_0_20px_rgba(245,158,11,0.15)] sm:h-20 sm:w-20 sm:p-2.5"
-                aria-hidden
-              >
-                <motion.span
-                  key={multiLogoIndex}
-                  className="flex h-full w-full items-center justify-center rounded-md bg-card/85"
-                  initial={reduceMotion ? false : { opacity: 0.35 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.45, ease: 'easeOut' }}
-                >
-                  <Image
-                    src={MULTIPLATFORM_LOGOS[multiLogoIndex]}
-                    alt=""
-                    width={112}
-                    height={112}
-                    sizes="80px"
-                    className="h-full w-full object-contain p-0.5"
-                  />
-                </motion.span>
-              </div>
+              {bundledProtectionAsideLogoMark}
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h3 className="font-medium text-foreground">Multiplatform protection</h3>

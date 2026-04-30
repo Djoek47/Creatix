@@ -12,7 +12,7 @@ import { buildHomePricingTeaserLine } from '@/lib/seo/pricing-seo'
 import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. ${PRICING_MODEL_TRIAL_LINE} ${buildHomePricingTeaserLine()}`
 
@@ -89,6 +89,13 @@ export default function LandingPage() {
                   logoSrc: FANSLY_LOGO_SRC,
                   delay: '0.9s',
                   logoWidthPx: 180,
+                  logoHeightPx: 52,
+                },
+                {
+                  name: 'ManyVids',
+                  logoSrc: MANYVIDS_LOGO_SRC,
+                  delay: '1.8s',
+                  logoWidthPx: 52,
                   logoHeightPx: 52,
                 },
               ].map((platform) => {

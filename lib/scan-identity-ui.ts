@@ -1,5 +1,5 @@
 import { scanSourcePlatformKey } from '@/lib/scan-identity'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 export type ScanIdentityBrandMark =
   | { kind: 'image'; src: string; alt: string }
@@ -25,7 +25,7 @@ export function scanIdentityBrandMarkForSource(source: string): ScanIdentityBran
     case 'tiktok':
       return { kind: 'initials', text: 'TT' }
     case 'manyvids':
-      return { kind: 'initials', text: 'MV' }
+      return { kind: 'image', src: MANYVIDS_LOGO_SRC, alt: 'ManyVids' }
     case 'former':
       return { kind: 'special', type: 'former' }
     case 'manual':

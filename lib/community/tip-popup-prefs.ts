@@ -21,6 +21,12 @@ export const TIP_POPUP_ROLL_CHANCE = 0.52
 /** While on dashboard, retry scheduling automatic tips at this interval (not every navigation). */
 export const TIP_POPUP_SITE_WIDE_RETRY_MS = 10 * 60 * 1000
 
+/**
+ * QA: pin how long the random tip popup stays open (ms). Set to `0` to restore the
+ * reading-time heuristic in `CirceTipPopupHost` (~14–32s).
+ */
+export const TIP_POPUP_QA_FIXED_VISIBLE_MS = 120_000
+
 export const TIP_POPUP_PREFS_EVENT = 'creatix-tip-prefs-changed'
 export const TIP_POPUP_FORCE_EVENT = 'creatix-tip-popup-force'
 

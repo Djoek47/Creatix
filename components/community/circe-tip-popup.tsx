@@ -13,6 +13,7 @@ import {
   TIP_POPUP_DELAY_MAX_MS,
   TIP_POPUP_DELAY_MIN_MS,
   TIP_POPUP_SITE_WIDE_RETRY_MS,
+  TIP_POPUP_QA_FIXED_VISIBLE_MS,
   accountAgeDaysFromCreatedAt,
   canShowAutomaticPopup,
   effectiveRollChance,
@@ -29,6 +30,26 @@ function readingDurationMs(body: string): number {
   const base = 12_000
   const perWord = 240
   return Math.min(32_000, Math.max(14_000, base + words * perWord))
+}
+
+function popupVisibleMs(body: string): number {
+  const fromEnv = Number.parseInt(process.env.NEXT_PUBLIC_CIRCE_TIP_POPUP_VISIBLE_MS ?? '', 10)
+  if (Number.isFinite(fromEnv) && fromEnv >= 5_000) {
+    return Math.min(fromEnv, 30 * 60_000)
+  }
+  if (TIP_POPUP_QA_FIXED_VISIBLE_MS > 0) {
+    return TIP_POPUP_QA_FIXED_VISIBLE_MS
+  }
+  return readingDurationMs(body)
+}
+
+function formatTipCountdown(secondsLeft: number): string {
+  if (secondsLeft >= 60) {
+    const m = Math.floor(secondsLeft / 60)
+    const s = secondsLeft % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+  return `${secondsLeft}s`
 }
 
 const EXCLUDED_PATH_PREFIXES = ['/dashboard/settings', '/dashboard/community/circe-daily']
@@ -111,7 +132,7 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
       setIsClosing(false)
       setTip(next)
       setVisible(true)
-      const totalMs = readingDurationMs(next.body)
+      const totalMs = popupVisibleMs(next.body)
       const sec = Math.ceil(totalMs / 1000)
       setSecondsLeft(sec)
 
@@ -239,7 +260,7 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
               </span>
               <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground/80" title="Auto-dismiss timer">
                 <Clock className="h-3 w-3 opacity-70" aria-hidden />
-                {secondsLeft}s
+                {formatTipCountdown(secondsLeft)}
               </span>
             </div>
             <div className="space-y-1">

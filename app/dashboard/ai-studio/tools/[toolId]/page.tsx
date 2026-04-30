@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AIToolsSelector } from '@/components/ai/ai-tools-selector'
+import { getToolMeta } from '@/lib/ai-tools-data'
 
 function ToolRunnerInner() {
   const params = useParams()
@@ -38,7 +39,11 @@ function ToolRunnerInner() {
       router.replace('/dashboard/protection/aegis')
     }
     if (toolId === 'ariadne-trace') {
-      router.replace('/dashboard/ai-studio/ariadne')
+      if (getToolMeta('ariadne-trace')?.comingSoon) {
+        router.replace('/dashboard/ai-studio/tools')
+      } else {
+        router.replace('/dashboard/ai-studio/ariadne')
+      }
     }
     if (toolId === 'frame-studio' || toolId === 'frame-ai-assist') {
       router.replace('/dashboard/ai-studio?tab=library')

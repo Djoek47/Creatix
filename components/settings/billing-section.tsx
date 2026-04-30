@@ -79,7 +79,11 @@ import { APP_USER_STORAGE_LIMIT_MB } from '@/lib/billing/app-storage-cap'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
 import { BILLING_INSET_PANEL_CLASS, BILLING_PRIMARY_CHECKOUT_CTA_CLASS } from '@/lib/billing/billing-plan-visual'
-import { AntiPiracyStorefrontLogoCycle } from '@/components/settings/anti-piracy-storefront-logo-cycle'
+import {
+  AntiPiracyBundledWorkspaceCaption,
+  AntiPiracyStorefrontCycleProvider,
+  AntiPiracyStorefrontLogoCycle,
+} from '@/components/settings/anti-piracy-storefront-logo-cycle'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
 
 const BILLING_GLASS =
@@ -1062,13 +1066,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
                           })
                         }
                       }}
-                      aria-label={`Include ManyVids anti-piracy with Bundled plan. ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle.`}
+                      aria-label={`Include anti-piracy coverage for other storefronts with Bundled plan. ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle.`}
                     />
-                    <div className="min-w-0 flex-1 space-y-3">
+                    <AntiPiracyStorefrontCycleProvider>
+                      <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                          <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
-                            {focusPlatformDisplayName('manyvids')}
+                          <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-foreground">
+                            Anti-piracy coverage for other platforms
                           </h3>
                           <Badge variant="secondary" className="h-6 shrink-0 px-2 text-[10px] font-semibold uppercase tracking-wide">
                             Beta
@@ -1076,13 +1081,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         </div>
                         <AntiPiracyStorefrontLogoCycle />
                       </div>
-                      <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                        ManyVids · Bundled workspace ·{' '}
-                        <span className="tabular-nums text-foreground/90">
-                          {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()}
-                        </span>{' '}
-                        credits per cycle.
-                      </p>
+                      <AntiPiracyBundledWorkspaceCaption creditsPerCycle={PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS} />
                       <div className="flex items-center gap-2">
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1123,14 +1122,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         </Popover>
                       </div>
                       <p className="sr-only">
-                        ManyVids anti-piracy with Bundled plan only.{' '}
+                        Anti-piracy coverage for additional storefronts with Bundled plan only.{' '}
                         {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle. Price
                         follows your revenue band.{' '}
                         {MULTIPLATFORM_PROTECTION_COMING_SOON
                           ? 'Standalone Multiplatform Protection below is coming soon for new subscriptions.'
                           : 'Protection add-on below is billed separately.'}
                       </p>
-                    </div>
+                      </div>
+                    </AntiPiracyStorefrontCycleProvider>
                   </div>
                   <div className="shrink-0 border-t border-border/20 pt-4 sm:border-t-0 sm:pt-0 sm:text-right">
                     <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">

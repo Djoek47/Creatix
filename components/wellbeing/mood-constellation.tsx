@@ -2,8 +2,11 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
+import { CircleHelp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { sereneEase } from '@/lib/wellbeing/motion'
 import { cn } from '@/lib/utils'
 import type { FlowStatePayload } from '@/lib/wellbeing/flow-state-ai'
@@ -40,9 +43,7 @@ function FlowMeters({
   if (!flowState) {
     return (
       <p className="text-sm text-muted-foreground">
-        {flowUnavailable
-          ? 'Could not compute flow yet. Try again in a moment.'
-          : 'Loading your activity readout…'}
+        {flowUnavailable ? 'Unavailable' : 'Reading…'}
       </p>
     )
   }
@@ -70,11 +71,13 @@ function FlowMeters({
         <ReadoutMeter embedded={embedded} label="Focus" value={flowState.focus} accent="bg-violet-500/60" />
       </div>
 
-      <div className="space-y-2.5 text-xs leading-relaxed text-muted-foreground">
-        <p className="text-[13px] leading-relaxed">{flowState.rationale}</p>
-        <p className="text-foreground/85">{flowState.goalAlignment}</p>
-        {summary ? <p className="text-[11px] tabular-nums text-muted-foreground/80">{summary}</p> : null}
-      </div>
+      {!embedded ? (
+        <div className="space-y-2.5 text-xs leading-relaxed text-muted-foreground">
+          <p className="text-[13px] leading-relaxed">{flowState.rationale}</p>
+          <p className="text-foreground/85">{flowState.goalAlignment}</p>
+          {summary ? <p className="text-[11px] tabular-nums text-muted-foreground/80">{summary}</p> : null}
+        </div>
+      ) : null}
     </>
   )
 }
@@ -129,13 +132,27 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
   if (embedded) {
     return (
       <div className="rounded-2xl border border-border/30 bg-background/40 px-4 py-5 sm:px-5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
             <h3 className="text-sm font-semibold tracking-tight text-foreground">Flow</h3>
-            <p className="mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground">
-              Inferred from inbox, protocols, manager queue, goals, glow, and light dashboard engagement signals (UTC).
-              No manual input.
-            </p>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground [&_svg]:text-current"
+                  aria-label="How Flow is inferred"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="max-w-[19rem] text-sm leading-relaxed" align="start" sideOffset={6}>
+                <p className="text-muted-foreground leading-relaxed">
+                  Inbox, protocols, queue, goals, glow, dashboard activity · UTC · review-only—you don&apos;t type these scores.
+                </p>
+              </PopoverContent>
+            </Popover>
           </div>
           {flowState ? (
             <Badge variant="secondary" className="shrink-0 rounded-full text-[10px] font-medium uppercase tracking-wide">
@@ -163,8 +180,7 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
           <div>
             <CardTitle className="text-base font-semibold tracking-tight">Flow state</CardTitle>
             <CardDescription className="text-sm">
-              Inferred from inbox sync, protocol backlog, Divine Manager queue, saved goals, environmental glow, and light
-              dashboard engagement telemetry (UTC-day actions). No manual input—review only.
+              Inbox, queues, goals, glow, light engagement · UTC · review-only
             </CardDescription>
           </div>
           {flowState ? (

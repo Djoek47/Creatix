@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,11 +26,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Archive, Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Wand2 } from 'lucide-react'
+import { Archive, Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
+import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
+
+/** Billing id matches `POST /api/ai/photo-edit-intent` (`requireAiToolSessionAndCredits`). */
+const VAULT_PHOTO_AI_TOOL_ID = 'photo-enhancer' as const
 
 export type VaultContentRow = {
   id: string
@@ -66,10 +74,6 @@ type VaultQuota = {
   recommendedPerUserMb: number
 }
 
-function mb(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader()
@@ -77,6 +81,77 @@ function fileToDataUrl(file: File): Promise<string> {
     r.onerror = () => reject(new Error('read failed'))
     r.readAsDataURL(file)
   })
+}
+
+function httpVaultUrl(u: string | null | undefined): string | null {
+  const t = typeof u === 'string' ? u.trim() : ''
+  return t.length > 0 && /^https?:\/\//i.test(t) ? t : null
+}
+
+function vaultUrlLooksLikeVideo(url: string): boolean {
+  return /\.(mp4|mov|webm|m4v|ogg)(\?|#|$)/i.test(url)
+}
+
+function resolveVaultPreviewMedia(
+  r: VaultContentRow,
+): { kind: 'image'; src: string } | { kind: 'video'; src: string } | { kind: 'none' } {
+  const thumb = httpVaultUrl(r.thumbnail_url)
+  if (thumb) return { kind: 'image', src: thumb }
+
+  const file = httpVaultUrl(r.file_url)
+  const external = httpVaultUrl(r.external_preview_url)
+  const ct = (r.content_type || '').toLowerCase()
+  const typedVideo = ct === 'video' || ct.includes('video')
+
+  let videoSrc: string | null = null
+  if (typedVideo) {
+    if (file) videoSrc = file
+    else if (external && vaultUrlLooksLikeVideo(external)) videoSrc = external
+  } else {
+    if (file && vaultUrlLooksLikeVideo(file)) videoSrc = file
+    else if (external && vaultUrlLooksLikeVideo(external)) videoSrc = external
+  }
+
+  if (videoSrc) return { kind: 'video', src: videoSrc }
+
+  const imageSrc = file || external
+  if (imageSrc) return { kind: 'image', src: imageSrc }
+
+  return { kind: 'none' }
+}
+
+function VaultPreviewSurface({
+  row,
+  placeholderIconClass,
+}: {
+  row: VaultContentRow
+  placeholderIconClass?: string
+}) {
+  const media = resolveVaultPreviewMedia(row)
+  const placeholderCls = placeholderIconClass ?? 'h-10 w-10 text-muted-foreground'
+
+  if (media.kind === 'video') {
+    return (
+      <video
+        src={media.src}
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={row.title.trim() || 'Vault video preview'}
+      />
+    )
+  }
+
+  if (media.kind === 'image') {
+    return <Image src={media.src} alt="" fill className="object-cover" unoptimized />
+  }
+
+  return (
+    <div className="flex h-full items-center justify-center">
+      <ImageIcon className={placeholderCls} aria-hidden />
+    </div>
+  )
 }
 
 export function MediaVaultHub() {
@@ -106,11 +181,21 @@ export function MediaVaultHub() {
   const [touchAiInstruction, setTouchAiInstruction] = useState('')
   const [touchAiBusy, setTouchAiBusy] = useState(false)
 
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
+  const { wallet: creditWallet, loading: creditWalletLoading, refresh: refreshCreditWallet } =
+    useCreditSnapshot()
+  const vaultPhotoAiCost = getCreditsForToolId(VAULT_PHOTO_AI_TOOL_ID)
+  const vaultPhotoAiCreditsInsufficient =
+    creditWallet != null &&
+    vaultPhotoAiCost > 0 &&
+    creditWallet.totalRemaining < vaultPhotoAiCost
+
   const [frameBusy, setFrameBusy] = useState(false)
   const [frameMsg, setFrameMsg] = useState<string | null>(null)
   const [replaceBusy, setReplaceBusy] = useState(false)
   const [vaultQuota, setVaultQuota] = useState<VaultQuota | null>(null)
   const [vaultCategory, setVaultCategory] = useState<'all' | 'app' | 'of'>('all')
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
 
   const loadVault = useCallback(async () => {
     setLoading(true)
@@ -215,6 +300,35 @@ export function MediaVaultHub() {
     setTouchPreview(null)
     setTouchFile(null)
     setTouchAiInstruction('')
+  }
+
+  const deleteVaultRow = async (r: VaultContentRow) => {
+    if (
+      !window.confirm(
+        `Delete "${r.title.trim() || 'Untitled'}"? Stored vault media (if any) will be removed. This cannot be undone.`,
+      )
+    ) {
+      return
+    }
+    setDeleteBusyId(r.id)
+    try {
+      const res = await fetch(`/api/content/vault/${r.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const j = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        console.warn(j.error || 'Delete failed')
+        return
+      }
+      if (selected?.id === r.id) {
+        setSelected(null)
+      }
+      await loadVault()
+      void loadQuota()
+    } finally {
+      setDeleteBusyId(null)
+    }
   }
 
   const saveRow = async () => {
@@ -358,23 +472,38 @@ export function MediaVaultHub() {
       const res = await fetch('/api/ai/photo-edit-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ imageBase64, instruction }),
       })
-      const json = await res.json()
+      const json = (await res.json()) as {
+        error?: string
+        imageBase64?: string
+        code?: string
+        used?: number
+        limit?: number
+      }
       if (!res.ok) {
+        if (res.status === 402) {
+          openCreditInsufficientModal({
+            requiredCredits: vaultPhotoAiCost,
+            used: typeof json.used === 'number' ? json.used : undefined,
+            limit: typeof json.limit === 'number' ? json.limit : undefined,
+            contextLabel: 'Vault · Photo AI touch-up',
+          })
+          void refreshCreditWallet()
+          return
+        }
         console.warn(json.error || 'AI touch-up failed')
         return
       }
       setTouchPreview(typeof json.imageBase64 === 'string' ? json.imageBase64 : null)
+      void refreshCreditWallet()
     } catch (e) {
       console.warn(e)
     } finally {
       setTouchAiBusy(false)
     }
   }
-
-  const thumbFor = (r: VaultContentRow) =>
-    r.thumbnail_url || r.file_url || r.external_preview_url || null
 
   const filteredRows = rows.filter((r) => {
     if (vaultCategory === 'of') return r.source_platform === 'onlyfans'
@@ -463,13 +592,6 @@ export function MediaVaultHub() {
 
   return (
     <div className="space-y-10">
-      {vaultQuota ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Storage {mb(vaultQuota.usageBytes)} of {mb(vaultQuota.quotaBytes)} · {mb(vaultQuota.remainingBytes)} left · Free
-          tier guide ~{vaultQuota.recommendedPerUserMb} MB per user
-        </p>
-      ) : null}
-
       <Tabs defaultValue="creatix" className="w-full">
         <TabsList className="inline-flex h-auto min-h-11 w-full max-w-lg items-stretch rounded-full bg-muted/40 p-1 sm:w-auto">
           <TabsTrigger
@@ -535,10 +657,16 @@ export function MediaVaultHub() {
             <div className="mb-5 space-y-1">
               <h2 className="text-base font-semibold tracking-tight text-foreground">New item</h2>
               <p className="text-sm text-muted-foreground">
-                Draft a photo or video. Attach video now or from the item detail sheet later.
+                Title, type, optional media—as much or as little as you want before opening the sheet.
               </p>
             </div>
-            <VaultQuickAdd onSuccess={() => void loadVault()} />
+            <VaultQuickAdd
+              onSuccess={() => {
+                void loadVault()
+                void loadQuota()
+              }}
+              vaultQuota={vaultQuota}
+            />
           </section>
 
           {loading ? (
@@ -563,46 +691,57 @@ export function MediaVaultHub() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {filteredRows.map((r) => (
-                <button
+                <div
                   key={r.id}
-                  type="button"
-                  onClick={() => openRow(r)}
                   className={cn(
-                    'group flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card text-left transition-colors hover:border-foreground/15',
+                    'group relative flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card transition-colors hover:border-foreground/15',
                   )}
                 >
-                  <div className="relative aspect-video bg-muted">
-                    {thumbFor(r) ? (
-                      <Image
-                        src={thumbFor(r)!}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                      </div>
+                  <button
+                    type="button"
+                    onClick={() => openRow(r)}
+                    className="flex flex-col text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <div className="relative aspect-video bg-muted">
+                      <VaultPreviewSurface row={r} />
+                      <span
+                        className={cn(
+                          'absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+                          r.source_platform === 'onlyfans'
+                            ? 'bg-background/85 text-foreground shadow-sm'
+                            : 'bg-background/85 text-muted-foreground shadow-sm',
+                        )}
+                      >
+                        {r.source_platform === 'onlyfans' ? 'OF' : 'App'}
+                      </span>
+                    </div>
+                    <div className="space-y-1 p-3.5">
+                      <p className="line-clamp-2 text-sm font-medium leading-snug">{r.title}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {r.content_type} · {r.status}
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteBusyId !== null}
+                    className={cn(
+                      'absolute left-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-destructive/45 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
                     )}
-                    <span
-                      className={cn(
-                        'absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-                        r.source_platform === 'onlyfans'
-                          ? 'bg-background/85 text-foreground shadow-sm'
-                          : 'bg-background/85 text-muted-foreground shadow-sm',
-                      )}
-                    >
-                      {r.source_platform === 'onlyfans' ? 'OF' : 'App'}
-                    </span>
-                  </div>
-                  <div className="space-y-1 p-3.5">
-                    <p className="line-clamp-2 text-sm font-medium leading-snug">{r.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {r.content_type} · {r.status}
-                    </p>
-                  </div>
-                </button>
+                    aria-label={`Delete ${r.title.trim() || 'vault item'}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      void deleteVaultRow(r)
+                    }}
+                  >
+                    {deleteBusyId === r.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                    ) : (
+                      <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                    )}
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -676,227 +815,340 @@ export function MediaVaultHub() {
       </Tabs>
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="flex w-full flex-col overflow-y-auto border-l border-border/80 sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="font-serif text-xl font-semibold tracking-tight">Item details</SheetTitle>
-            <SheetDescription>
-              Titles, sales notes, and tags for recommendations—private to you.
+        <SheetContent className="flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-l border-border/30 bg-background p-0 sm:max-w-md">
+          <SheetHeader className="shrink-0 space-y-1 border-b border-border/25 px-6 pb-4 pt-14 text-left">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vault</p>
+            <SheetTitle className="font-sans text-[1.3125rem] font-semibold leading-snug tracking-[-0.02em] text-foreground">
+              Details
+            </SheetTitle>
+            <SheetDescription className="text-[13px] leading-relaxed text-muted-foreground">
+              Private to you. Feeds Circe, Venus, and Divine context.
             </SheetDescription>
           </SheetHeader>
           {selected && (
-            <div className="mt-4 flex flex-1 flex-col gap-4">
-              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-                {thumbFor(selected) ? (
-                  <Image src={thumbFor(selected)!} alt="" fill className="object-cover" unoptimized />
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={draftDescription} onChange={(e) => setDraftDescription(e.target.value)} rows={3} />
-              </div>
-              <div className="space-y-2">
-                <Label>Sales notes (for Divine)</Label>
-                <Textarea
-                  value={draftSales}
-                  onChange={(e) => setDraftSales(e.target.value)}
-                  placeholder="Hook, buyer, angle, boundaries…"
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Teaser tags (comma-separated)</Label>
-                <Input value={draftTags} onChange={(e) => setDraftTags(e.target.value)} placeholder="lingerie, gym, cosplay" />
-              </div>
-              <div className="space-y-2">
-                <Label>Spoiler level</Label>
-                <Select value={draftSpoiler} onValueChange={setDraftSpoiler}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">none</SelectItem>
-                    <SelectItem value="mild">mild</SelectItem>
-                    <SelectItem value="explicit">explicit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => void saveRow()} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save metadata
-              </Button>
-
-              {selected && isVideoRow(selected) && (
-                <div className="space-y-3 border-t border-border pt-4">
-                  <div className="flex items-center gap-2">
-                    <Clapperboard className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-medium">Video (Frame bridge)</span>
+            <>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
+                <div className="px-6 pt-5">
+                  <div className="relative aspect-video w-full min-h-[8rem] overflow-hidden rounded-2xl bg-muted/50 ring-1 ring-border/20">
+                    <VaultPreviewSurface row={selected} placeholderIconClass="h-9 w-9 text-muted-foreground/30" />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Edit cuts in the open-source{' '}
-                    <a
-                      href="https://github.com/aregrid/frame"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline"
-                    >
-                      Frame
-                    </a>{' '}
-                    app (MIT), or upload an export here. Hosting is short-term — download important files.
+                  <p className="mt-2.5 text-center text-[11px] tabular-nums text-muted-foreground capitalize">
+                    {selected.content_type} · {selected.status}
                   </p>
-                  {frameMsg && (
-                    <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
-                      {frameMsg}
+                </div>
+
+                <div className="space-y-5 px-6 py-6">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vault-sheet-title" className="text-[12px] font-medium text-foreground/90">
+                      Title
+                    </Label>
+                    <Input
+                      id="vault-sheet-title"
+                      value={draftTitle}
+                      onChange={(e) => setDraftTitle(e.target.value)}
+                      className="h-11 rounded-xl border-border/45 bg-muted/10 px-3.5 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vault-sheet-desc" className="text-[12px] font-medium text-foreground/90">
+                      Description
+                    </Label>
+                    <Textarea
+                      id="vault-sheet-desc"
+                      value={draftDescription}
+                      onChange={(e) => setDraftDescription(e.target.value)}
+                      rows={4}
+                      className="resize-none rounded-xl border-border/45 bg-muted/10 px-3.5 py-3 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vault-sheet-sales" className="text-[12px] font-medium text-foreground/90">
+                      Sales notes
+                    </Label>
+                    <Textarea
+                      id="vault-sheet-sales"
+                      value={draftSales}
+                      onChange={(e) => setDraftSales(e.target.value)}
+                      placeholder="Hook, buyer, tone, boundaries…"
+                      rows={3}
+                      className="resize-none rounded-xl border-border/45 bg-muted/10 px-3.5 py-3 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vault-sheet-tags" className="text-[12px] font-medium text-foreground/90">
+                      Tags
+                    </Label>
+                    <Input
+                      id="vault-sheet-tags"
+                      value={draftTags}
+                      onChange={(e) => setDraftTags(e.target.value)}
+                      placeholder="Comma-separated"
+                      className="h-11 rounded-xl border-border/45 bg-muted/10 px-3.5 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vault-sheet-spoiler" className="text-[12px] font-medium text-foreground/90">
+                      Spoiler
+                    </Label>
+                    <Select value={draftSpoiler} onValueChange={setDraftSpoiler}>
+                      <SelectTrigger
+                        id="vault-sheet-spoiler"
+                        className="h-11 rounded-xl border-border/45 bg-muted/10 shadow-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="mild">Mild</SelectItem>
+                        <SelectItem value="explicit">Explicit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {isVideoRow(selected) && (
+                  <div className="space-y-4 border-t border-border/25 px-6 pb-8 pt-5">
+                    <div className="flex items-center gap-2">
+                      <Clapperboard className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      <p className="text-[13px] font-semibold tracking-tight text-foreground">Video</p>
+                    </div>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
+                      Open in{' '}
+                      <a
+                        href="https://github.com/aregrid/frame"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-foreground underline decoration-border underline-offset-[3px] transition-colors hover:decoration-foreground"
+                      >
+                        Frame
+                      </a>{' '}
+                      or replace the file below. Keep local copies—hosted files may rotate.
                     </p>
-                  )}
-                  {hasVaultVideoFile(selected) ? (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {frameMsg ? (
+                      <p className="rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2.5 text-[12px] leading-snug text-amber-950 dark:text-amber-100/95">
+                        {frameMsg}
+                      </p>
+                    ) : null}
+                    {hasVaultVideoFile(selected) ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-10 cursor-not-allowed gap-1.5 rounded-xl opacity-80"
+                          disabled
+                          aria-label="Edit in Frame — coming soon"
+                          title="Coming soon"
+                        >
+                          <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
+                          <span>Edit in Frame</span>
+                          <Badge
+                            variant="secondary"
+                            className="border-border/50 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
+                            Coming soon
+                          </Badge>
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 rounded-xl" asChild>
+                          <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4" />
+                            Download
+                          </a>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-10 cursor-not-allowed gap-1.5 rounded-xl opacity-80"
+                          disabled
+                          aria-label="Ariadne Trace — coming soon"
+                          title="Coming soon"
+                        >
+                          <Shield className="h-4 w-4 shrink-0" aria-hidden />
+                          <span>Ariadne Trace</span>
+                          <Badge
+                            variant="secondary"
+                            className="border-border/50 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
+                            Coming soon
+                          </Badge>
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">
+                        Upload an MP4 here to unlock Frame—a preview‑only linked post isn’t enough.
+                      </p>
+                    )}
+                    <div className="space-y-1.5">
+                      <Label className="text-[12px] font-medium text-foreground/90">Replace file</Label>
+                      <Input
+                        type="file"
+                        accept="video/*,.mp4,.mov,.webm"
+                        disabled={replaceBusy}
+                        className="h-11 cursor-pointer rounded-xl border-border/45 bg-muted/10 px-3 text-[13px]"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          e.target.value = ''
+                          if (f) void uploadVideoReplace(f)
+                        }}
+                      />
+                      {replaceBusy ? (
+                        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden /> Uploading…
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+
+                {isPhoto(selected) && (
+                  <div className="space-y-4 border-t border-border/25 px-6 pb-10 pt-5">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      <p className="text-[13px] font-semibold tracking-tight text-foreground">Photo touch-up</p>
+                    </div>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
+                      Safe adjustments only—blur, exposure, emoji. Add a JPEG/PNG below if CDN blocks preview.
+                    </p>
+                    <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/[0.2] p-4">
+                      <div className="flex items-center gap-2">
+                        <Mic className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                        <p className="text-[12px] font-medium text-foreground/90">AI instruction</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Textarea
+                          placeholder="e.g. more blur along the doorway"
+                          value={touchAiInstruction}
+                          onChange={(e) => setTouchAiInstruction(e.target.value)}
+                          rows={2}
+                          className="min-h-[4.75rem] flex-1 resize-none rounded-xl border-border/45 bg-background/55 text-[13px] shadow-inner"
+                        />
+                        <VoiceInputButton
+                          onTranscript={(text) =>
+                            setTouchAiInstruction((prev) => prev + (prev ? ' ' : '') + text)
+                          }
+                          size="sm"
+                          variant="ghost"
+                          showTooltip
+                        />
+                      </div>
+                      {vaultPhotoAiCreditsInsufficient ? (
+                        <InsufficientCreditsCallout
+                          requiredCredits={vaultPhotoAiCost}
+                          actionContext="vault photo AI touch-up"
+                          className="py-2"
+                        />
+                      ) : (
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          {creditWalletLoading ? (
+                            'Checking credits…'
+                          ) : (
+                            <>
+                              <span className="font-medium text-foreground/85">
+                                {formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID)}
+                              </span>{' '}
+                              per successful run — charged only after the edit completes.
+                            </>
+                          )}
+                        </p>
+                      )}
                       <Button
                         type="button"
                         variant="secondary"
-                        className="gap-2"
-                        disabled={frameBusy}
-                        onClick={() => void openFrameEditor()}
+                        className="h-10 w-full gap-2 rounded-xl"
+                        disabled={
+                          touchAiBusy ||
+                          !touchAiInstruction.trim() ||
+                          vaultPhotoAiCreditsInsufficient
+                        }
+                        onClick={() => void runTouchAi()}
                       >
-                        {frameBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
-                        Edit in Frame
-                      </Button>
-                      <Button type="button" variant="outline" className="gap-2" asChild>
-                        <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4" />
-                          Download
-                        </a>
-                      </Button>
-                      <Button type="button" variant="outline" className="gap-2" asChild>
-                        <Link href="/dashboard/ai-studio/ariadne">
-                          <Shield className="h-4 w-4" />
-                          Ariadne Trace
-                        </Link>
+                        {touchAiBusy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Apply with AI ({formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID)})
                       </Button>
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      No direct video file on this item yet (preview-only OnlyFans posts). Use Replace video to upload an MP4,
-                      then you can open Frame.
-                    </p>
-                  )}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Replace video (export from Frame or any editor)</Label>
+                    <Select value={touchOp} onValueChange={(v) => setTouchOp(v as typeof touchOp)}>
+                      <SelectTrigger className="h-11 rounded-xl border-border/45 bg-muted/10 shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="blur">Blur</SelectItem>
+                        <SelectItem value="lighting">Lighting</SelectItem>
+                        <SelectItem value="emoji">Emoji overlay</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {touchOp === 'blur' && (
+                      <Input
+                        type="number"
+                        min={0.5}
+                        max={35}
+                        step={0.5}
+                        value={touchBlur}
+                        onChange={(e) => setTouchBlur(e.target.value)}
+                        className="h-10 rounded-xl border-border/45 bg-muted/10"
+                      />
+                    )}
+                    {touchOp === 'lighting' && (
+                      <Input
+                        type="number"
+                        min={0.65}
+                        max={1.35}
+                        step={0.02}
+                        value={touchBright}
+                        onChange={(e) => setTouchBright(e.target.value)}
+                        className="h-10 rounded-xl border-border/45 bg-muted/10"
+                      />
+                    )}
+                    {touchOp === 'emoji' && (
+                      <Input
+                        value={touchEmoji}
+                        onChange={(e) => setTouchEmoji(e.target.value)}
+                        maxLength={8}
+                        className="h-10 rounded-xl border-border/45 bg-muted/10"
+                      />
+                    )}
                     <Input
                       type="file"
-                      accept="video/*,.mp4,.mov,.webm"
-                      disabled={replaceBusy}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        e.target.value = ''
-                        if (f) void uploadVideoReplace(f)
-                      }}
+                      accept="image/png,image/jpeg"
+                      onChange={(e) => setTouchFile(e.target.files?.[0] || null)}
+                      className="h-11 cursor-pointer rounded-xl border-border/45 bg-muted/10 px-3 text-[13px]"
                     />
-                    {replaceBusy && (
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {isPhoto(selected) && (
-                <div className="space-y-3 border-t border-border pt-4">
-                  <div className="flex items-center gap-2">
-                    <Wand2 className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Safe photo touch-up</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Photos only: blur, lighting, or emoji overlay. Upload a file if the preview cannot load (CDN
-                    blocking).
-                  </p>
-                  <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                    <div className="flex items-center gap-2 text-xs font-medium text-primary">
-                      <Mic className="h-3.5 w-3.5" />
-                      AI touch-up (text or voice)
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Describe the change — e.g. &quot;blur more for privacy&quot; or &quot;brighter&quot;. Same safe pipeline as AI Studio; no beautify or inpaint.
-                    </p>
-                    <div className="flex items-start justify-between gap-2">
-                      <Textarea
-                        placeholder="What should we change?"
-                        value={touchAiInstruction}
-                        onChange={(e) => setTouchAiInstruction(e.target.value)}
-                        rows={2}
-                        className="min-h-[60px] text-sm"
-                      />
-                      <VoiceInputButton
-                        onTranscript={(text) =>
-                          setTouchAiInstruction((prev) => prev + (prev ? ' ' : '') + text)
-                        }
-                        size="sm"
-                        variant="ghost"
-                        showTooltip
-                      />
-                    </div>
                     <Button
                       type="button"
-                      size="sm"
                       variant="secondary"
-                      className="w-full gap-2"
-                      disabled={touchAiBusy || !touchAiInstruction.trim()}
-                      onClick={() => void runTouchAi()}
+                      className="h-10 w-full rounded-xl"
+                      disabled={touchBusy}
+                      onClick={() => void runTouchUp()}
                     >
-                      {touchAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Apply with AI
+                      {touchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Run touch-up
                     </Button>
+                    {touchPreview ? (
+                      <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-2xl border border-border/30 bg-muted/20">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={touchPreview} alt="Preview" className="h-full w-full object-contain" />
+                      </div>
+                    ) : null}
                   </div>
-                  <Select value={touchOp} onValueChange={(v) => setTouchOp(v as typeof touchOp)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="blur">Blur</SelectItem>
-                      <SelectItem value="lighting">Lighting</SelectItem>
-                      <SelectItem value="emoji">Emoji overlay</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {touchOp === 'blur' && (
-                    <Input
-                      type="number"
-                      min={0.5}
-                      max={35}
-                      step={0.5}
-                      value={touchBlur}
-                      onChange={(e) => setTouchBlur(e.target.value)}
-                    />
-                  )}
-                  {touchOp === 'lighting' && (
-                    <Input
-                      type="number"
-                      min={0.65}
-                      max={1.35}
-                      step={0.02}
-                      value={touchBright}
-                      onChange={(e) => setTouchBright(e.target.value)}
-                    />
-                  )}
-                  {touchOp === 'emoji' && (
-                    <Input value={touchEmoji} onChange={(e) => setTouchEmoji(e.target.value)} maxLength={8} />
-                  )}
-                  <Input type="file" accept="image/png,image/jpeg" onChange={(e) => setTouchFile(e.target.files?.[0] || null)} />
-                  <Button type="button" variant="secondary" disabled={touchBusy} onClick={() => void runTouchUp()}>
-                    {touchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Run touch-up'}
-                  </Button>
-                  {touchPreview && (
-                    <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={touchPreview} alt="Result" className="h-full w-full object-contain" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+
+              <div className="shrink-0 border-t border-border/30 bg-background/90 px-6 py-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+                <Button
+                  type="button"
+                  onClick={() => void saveRow()}
+                  disabled={saving}
+                  className="h-11 w-full gap-2 rounded-xl bg-foreground text-[15px] font-medium text-background shadow-sm hover:bg-foreground/90 dark:hover:bg-foreground/92"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+                  Save changes
+                </Button>
+              </div>
+            </>
           )}
         </SheetContent>
       </Sheet>

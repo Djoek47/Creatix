@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 const SIZE = {
   /** Chips beside toggles — minimal footprint */
@@ -17,7 +17,7 @@ const SIZE = {
 
 export type PlatformWordmarkSize = keyof typeof SIZE
 
-type Platform = 'onlyfans' | 'fansly'
+type Platform = 'onlyfans' | 'fansly' | 'manyvids'
 
 const dims: Record<
   Platform,
@@ -25,11 +25,11 @@ const dims: Record<
 > = {
   onlyfans: { w: 152, h: 48, sizes: '(max-width: 640px) 120px, 152px' },
   fansly: { w: 128, h: 40, sizes: '(max-width: 640px) 100px, 128px' },
+  manyvids: { w: 48, h: 48, sizes: '48px' },
 }
 
 /**
- * Official OnlyFans / Fansly wordmarks from `/public`.
- * Single mark per surface — pair with typography; do not stack duplicate logos beside text.
+ * Official platform marks from `/public`.
  */
 export function PlatformWordmark({
   platform,
@@ -40,7 +40,12 @@ export function PlatformWordmark({
   size?: PlatformWordmarkSize
   className?: string
 }) {
-  const src = platform === 'onlyfans' ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC
+  const src =
+    platform === 'onlyfans'
+      ? ONLYFANS_LOGO_SRC
+      : platform === 'fansly'
+        ? FANSLY_LOGO_SRC
+        : MANYVIDS_LOGO_SRC
   const d = dims[platform]
 
   return (

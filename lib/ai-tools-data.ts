@@ -195,7 +195,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   },
   {
     id: 'retention-tease',
-    name: 'Retention content tease',
+    name: 'Subscriber retention tease',
     description: 'On-brand teasers for fans who are starting to slip—timed to your calendar.',
     longDescription:
       'Jot what’s next on User retention by tease (Retention → calendar), run a single batch from the Churn hub, and get ready-to-use lines for feed, stories, and DMs. Credits match one churn-predictor background pass.',
@@ -314,6 +314,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
     badge: 'Pro',
     credits: 8,
     hasRunner: true,
+    comingSoon: true,
   },
   {
     id: 'ariadne-detect',

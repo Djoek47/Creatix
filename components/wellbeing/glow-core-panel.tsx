@@ -17,7 +17,7 @@ export function GlowCorePanel({ insight, embedded = false }: Props) {
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Glow</p>
+            <p className="text-[10px] font-medium tracking-[0.16em] text-muted-foreground normal-case">Sun glow</p>
             <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-foreground">
               {insight.glowScore}
             </p>
@@ -46,7 +46,7 @@ export function GlowCorePanel({ insight, embedded = false }: Props) {
       )}
     >
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold tracking-tight">Glow</CardTitle>
+        <CardTitle className="text-base font-semibold tracking-tight">Sun glow</CardTitle>
         <CardDescription className="text-sm leading-relaxed">
           Golden hour and light quality for your next shoot.
         </CardDescription>

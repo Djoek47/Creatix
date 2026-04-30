@@ -16,7 +16,7 @@ import {
   normalizeCreatorStatusPreset,
   type CreatorStatusPreset,
 } from '@/lib/creator-platform-status'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 type Row = {
   platform: string
@@ -29,6 +29,7 @@ type Draft = { preset: CreatorStatusPreset; detail: string }
 const PLATFORM_UI: Record<string, { label: string; logoSrc?: string }> = {
   onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC },
   fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC },
+  manyvids: { label: 'ManyVids', logoSrc: MANYVIDS_LOGO_SRC },
 }
 
 function draftFromRow(row: Row): Draft {
@@ -81,6 +82,7 @@ export function HeaderPlatformStatusMenuSection() {
       if (prev && list.some((row) => row.platform === prev)) return prev
       if (list.some((row) => row.platform === 'onlyfans')) return 'onlyfans'
       if (list.some((row) => row.platform === 'fansly')) return 'fansly'
+      if (list.some((row) => row.platform === 'manyvids')) return 'manyvids'
       return list[0]?.platform ?? null
     })
   }, [])

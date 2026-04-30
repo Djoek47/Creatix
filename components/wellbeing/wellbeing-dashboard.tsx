@@ -97,9 +97,9 @@ export function WellbeingDashboard() {
   const baselineNote = useMemo(() => {
     if (!insight?.insightSource || insight.insightSource === 'location') return null
     if (insight.insightSource === 'birthday') {
-      return 'Birthday-calibrated. Add location in Settings for weather-aware detail.'
+      return 'Birthday-based lighting. Add location in Settings for weather-aware golden hour.'
     }
-    return 'Baseline mode without location. Add birthday or location in Settings to personalize.'
+    return 'Rough lighting until you add birthday or location in Settings.'
   }, [insight])
 
   const flowUnavailable = !pulseLoading && !pulseFlow
@@ -113,7 +113,7 @@ export function WellbeingDashboard() {
           role="status"
           aria-label="Loading"
         />
-        <p className="text-sm text-muted-foreground">Preparing your space…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     )
   }
@@ -123,13 +123,9 @@ export function WellbeingDashboard() {
   return (
     <div className="relative mx-auto max-w-4xl overflow-hidden rounded-[28px] border border-border/15 bg-card/[0.15] p-5 sm:p-7 md:p-8">
       <AmbientLayer glowScore={glowScoreForAmbient} />
-      <div className="relative z-10 space-y-8 sm:space-y-9">
+      <div className="relative z-10 space-y-7 sm:space-y-8">
         <header className="text-center sm:text-left">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Equilibrium</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Well-being</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-pretty text-[15px] leading-relaxed text-muted-foreground sm:mx-0">
-            Light, load, and boundaries—stay consistent without burning out.
-          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem]">Well-being</h1>
         </header>
 
         <WellbeingStateStrip
@@ -146,9 +142,8 @@ export function WellbeingDashboard() {
         </motion.section>
 
         {pulse ? (
-          <motion.section {...fadeInUp} className="space-y-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Today</p>
+          <motion.section {...fadeInUp} className="space-y-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
               <Badge
                 variant="outline"
                 className={cn('rounded-full text-[10px] font-semibold uppercase tracking-wide', severityBadgeClass(pulse.severity))}
@@ -156,10 +151,10 @@ export function WellbeingDashboard() {
                 {severityLabel(pulse.severity)}
               </Badge>
               {pulse.narrativeSource === 'ai' ? (
-                <span className="text-[10px] text-muted-foreground/80">Refined by model</span>
+                <span className="text-[10px] text-muted-foreground/75">AI-refined</span>
               ) : null}
             </div>
-            <h2 className="text-balance text-2xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-3xl">
+            <h2 className="text-balance text-2xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-[1.625rem]">
               {pulse.headline}
             </h2>
             <p className="max-w-prose text-[15px] leading-relaxed text-muted-foreground">{pulse.narrative}</p>
@@ -182,7 +177,7 @@ export function WellbeingDashboard() {
 
             <Collapsible className="rounded-2xl border border-border/30 bg-background/35">
               <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-                <span>Sources</span>
+                <span>Signals</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
               </CollapsibleTrigger>
               <CollapsibleContent className="border-t border-border/20 px-4 pb-4 pt-2">
@@ -198,19 +193,27 @@ export function WellbeingDashboard() {
             </Collapsible>
           </motion.section>
         ) : (
-          <motion.section {...fadeInUp}>
-            <QuietBanner tone="warn">
-              <p className="font-medium text-foreground">Pulse paused</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">Refresh the page or try again shortly.</p>
-            </QuietBanner>
+          <motion.section {...fadeInUp} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm leading-snug text-muted-foreground">Pulse couldn&apos;t load.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 self-start rounded-full sm:self-auto"
+              onClick={() => void refresh(true)}
+            >
+              Retry
+            </Button>
           </motion.section>
         )}
 
         {(baselineNote || insight?.setupHint) && (
           <motion.section {...fadeInUp}>
             <QuietBanner>
-              {baselineNote ? <p className="text-xs leading-relaxed">{baselineNote}</p> : null}
-              {insight?.setupHint ? <p className="mt-1 text-xs leading-relaxed">{insight.setupHint}</p> : null}
+              <div className="space-y-1.5 text-xs leading-snug">
+                {baselineNote ? <p>{baselineNote}</p> : null}
+                {insight?.setupHint ? <p className="text-muted-foreground">{insight.setupHint}</p> : null}
+              </div>
             </QuietBanner>
           </motion.section>
         )}
@@ -225,12 +228,7 @@ export function WellbeingDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/30 bg-background/50">
                 <Gift className="h-4 w-4 text-muted-foreground" aria-hidden />
               </div>
-              <div className="min-w-0">
-                <h2 className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">Gift wishlist</h2>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Saved links fans and AI can use when gifting comes up.
-                </p>
-              </div>
+              <span className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">Gift wishlist</span>
             </Link>
             <Popover>
               <PopoverTrigger asChild>
@@ -239,17 +237,16 @@ export function WellbeingDashboard() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 shrink-0 rounded-full text-muted-foreground"
-                  aria-label="How Gift wishlist works"
+                  aria-label="About Gift wishlist"
                 >
                   <Info className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] text-sm" align="end" sideOffset={6}>
-                <p className="font-medium text-foreground">How it works</p>
+              <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] text-sm leading-relaxed" align="end" sideOffset={6}>
+                <p className="font-medium text-foreground">Wishlist</p>
                 <p className="mt-2 text-muted-foreground">
-                  Add product links you like. We load title and price when the store allows—you can edit anytime. Chatter,
-                  Divine Manager, and Gift Suggester can use this context. Managing the list is free; Gift Suggester uses
-                  credits when you run it.
+                  Save links you like—we pull title and price when possible. Agents can use them for gifting context.
+                  Editing the list is free; running Gift Suggester uses credits.
                 </p>
               </PopoverContent>
             </Popover>
@@ -259,10 +256,7 @@ export function WellbeingDashboard() {
         <motion.section {...fadeInUp}>
           <Collapsible defaultOpen className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]">
             <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-              <div>
-                <span>Flow detail</span>
-                <p className="mt-0.5 text-xs font-normal text-muted-foreground">Energy, stress, and focus from your work signals</p>
-              </div>
+              <span>Flow</span>
               <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -280,8 +274,8 @@ export function WellbeingDashboard() {
         {!insight && !glowLoading ? (
           <motion.div {...fadeInUp}>
             <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-background/30 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                {error || 'Environment detail could not load. Check profile location when you are ready.'}
+              <p className="text-sm leading-snug text-muted-foreground">
+                {error || 'Environment details missing.'}
               </p>
               <Button asChild variant="secondary" className="h-9 shrink-0 rounded-full self-start sm:self-auto">
                 <Link href="/dashboard/settings?tab=profile">
@@ -300,18 +294,15 @@ export function WellbeingDashboard() {
               className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]"
             >
               <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-                <div>
-                  <span>Light &amp; golden hour</span>
-                  <p className="mt-0.5 text-xs font-normal text-muted-foreground">Glow score and golden-hour timing</p>
-                </div>
+                <span>Light</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
               </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-8 border-t border-border/20 p-4 sm:p-5 sm:space-y-9">
+              <CollapsibleContent className="space-y-6 border-t border-border/20 p-4 sm:p-5 sm:space-y-7">
                 <GlowCorePanel insight={insight} embedded />
                 <GoldenHourTimeline timeline={insight.timeline} />
                 <PerfectShotCarousel days={insight.perfectShotDays} />
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold tracking-tight text-foreground">Suggestions</h3>
+                <div className="space-y-3 pt-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Suggestions</h3>
                   <FloatingActionCapsules actions={insight.actionCapsules} />
                 </div>
               </CollapsibleContent>

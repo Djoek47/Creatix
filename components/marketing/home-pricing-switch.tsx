@@ -9,7 +9,7 @@ import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { ArrowRight } from 'lucide-react'
 import { useMarketingMode } from '@/components/marketing/marketing-mode-context'
 import { cn } from '@/lib/utils'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
 
 const ROTATE_MS = 10_000
 
@@ -34,6 +34,7 @@ export function HomePricingSwitch() {
   const tier0 = PRICING_TIERS[0]!
   const antiPiracyPlatforms = useMemo<RotatingPlatformMark[]>(
     () => [
+      { name: 'ManyVids', logoSrc: MANYVIDS_LOGO_SRC },
       { name: 'MYM', logoSrc: '/mym-logo.png' },
       { name: 'Clips4Sale', logoSrc: '/clips4sale-logo.png' },
       { name: 'LoyalFans', logoSrc: '/loyalfans-logo.svg' },

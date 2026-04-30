@@ -11,7 +11,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import {
   Search,
   Zap,
-  Lock,
   Crown,
   Wand2,
   PenTool,
@@ -320,14 +319,23 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                     <div className="absolute left-2 top-2 z-10">
                       <Badge
                         variant="outline"
-                        className="border-border/45 px-1.5 text-[9px] font-medium text-muted-foreground"
+                        className="border-border/45 px-2 py-0 text-[10px] font-medium leading-tight tracking-tight text-muted-foreground"
                       >
-                        Soon
+                        Coming soon
                       </Badge>
                     </div>
                   ) : tool.isPro && !isPro ? (
-                    <div className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/40 bg-background/80 backdrop-blur-sm">
-                      <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />
+                    <div className="absolute left-2 top-2 z-10 flex max-w-[11rem] flex-col gap-1">
+                      <span
+                        className="inline-flex h-7 w-fit items-center gap-1 rounded-full bg-foreground px-2.5 text-[11px] font-semibold tracking-tight text-background shadow-sm"
+                        aria-hidden
+                      >
+                        <Crown className="h-3 w-3 shrink-0" />
+                        Upgrade
+                      </span>
+                      <span className="block text-[9px] font-medium leading-tight tracking-tight text-muted-foreground">
+                        Unavailable on free trial
+                      </span>
                     </div>
                   ) : null}
                 </CardContent>

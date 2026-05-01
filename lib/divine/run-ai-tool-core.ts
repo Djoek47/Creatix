@@ -3,6 +3,12 @@
  * Used by divine-manager-chat and the run-ai-tool route.
  */
 
+import { randomUUID } from 'node:crypto'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { divineManagerDebitMetadataForToolId } from '@/lib/billing/divine-manager-ledger'
+
 const VISION_MODEL = 'gpt-4o-mini'
 
 type AttractionResult = {
@@ -141,6 +147,48 @@ export function isDivineAiToolId(id: string): id is DivineAiToolId {
 
 export type RunDivineAiToolResult = { success: true; result: unknown } | { success: false; error: string }
 
+export type DivineAiToolBillingCtx = { supabase: SupabaseClient; userId: string }
+
+async function assertDivineInProcessCredits(
+  billing: DivineAiToolBillingCtx | undefined,
+  toolId: DivineAiToolId,
+): Promise<RunDivineAiToolResult | null> {
+  if (!billing) return null
+  const cost = getCreditsForToolId(toolId)
+  if (cost <= 0) return null
+  const gate = await hasEnoughAiCredits(billing.supabase, billing.userId, cost)
+  if (!gate.ok) {
+    return {
+      success: false,
+      error: `Insufficient AI credits (${gate.used}/${gate.limit} used this cycle).`,
+    }
+  }
+  return null
+}
+
+async function commitDivineInProcessCredits(
+  billing: DivineAiToolBillingCtx | undefined,
+  toolId: DivineAiToolId,
+): Promise<RunDivineAiToolResult | null> {
+  if (!billing) return null
+  const cost = getCreditsForToolId(toolId)
+  if (cost <= 0) return null
+  const idem = randomUUID()
+  const debit = await consumeAiCredits(billing.supabase, billing.userId, cost, {
+    reasonCode: `tool_${toolId.replace(/-/g, '_')}`,
+    reasonRef: `divine_manager_in_process:${toolId}:${billing.userId}:${idem}`,
+    idempotencyKey: `divine_manager_in_process:${toolId}:${billing.userId}:${idem}`,
+    metadata: divineManagerDebitMetadataForToolId(toolId),
+  })
+  if (!debit.ok) {
+    return {
+      success: false,
+      error: `Credits could not be recorded (${debit.used}/${debit.limit}). Contact support if this persists.`,
+    }
+  }
+  return null
+}
+
 function apiBase(): string {
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -155,6 +203,7 @@ export async function runDivineAiToolServer(
   toolId: DivineAiToolId,
   params: Record<string, unknown>,
   cookie: string,
+  billing?: DivineAiToolBillingCtx,
 ): Promise<RunDivineAiToolResult> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -172,16 +221,32 @@ export async function runDivineAiToolServer(
         const apiKey = process.env.OPENAI_API_KEY
         if (imageUrl && imageUrl.startsWith('data:image/')) {
           if (!apiKey) return { success: false, error: 'OPENAI_API_KEY not set' }
+          {
+            const pre = await assertDivineInProcessCredits(billing, 'standard-of-attraction')
+            if (pre) return pre
+          }
           try {
             const normalized = await runOpenAIVisionAttraction(apiKey, imageUrl, description, niche, platform)
+            {
+              const post = await commitDivineInProcessCredits(billing, 'standard-of-attraction')
+              if (post) return post
+            }
             return { success: true, result: normalized }
           } catch (err) {
             return { success: false, error: err instanceof Error ? err.message : 'Vision analysis failed' }
           }
         }
         if (description && apiKey) {
+          {
+            const pre = await assertDivineInProcessCredits(billing, 'standard-of-attraction')
+            if (pre) return pre
+          }
           try {
             const normalized = await runOpenAITextAttraction(apiKey, description, niche, platform)
+            {
+              const post = await commitDivineInProcessCredits(billing, 'standard-of-attraction')
+              if (post) return post
+            }
             return { success: true, result: normalized }
           } catch (err) {
             return { success: false, error: err instanceof Error ? err.message : 'Text rating failed' }

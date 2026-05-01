@@ -24,6 +24,7 @@ import {
   CREDITS_MESSAGE_GENERATION_LIGHT,
   DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD,
 } from '@/lib/billing/credit-economics'
+import { divineManagerDebitMetadata } from '@/lib/billing/divine-manager-ledger'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -52,6 +53,7 @@ function logDivineManagerChatUsage(
       totalTokens: u.total_tokens,
     },
     requestId: typeof raw.id === 'string' ? raw.id : null,
+    metadata: { divine_usage_parent: 'divine_manager', surface: 'divine_manager_text' },
   })
 }
 
@@ -1265,7 +1267,10 @@ export async function POST(req: NextRequest) {
         reasonCode: 'message_generation_light',
         reasonRef: `divine_manager_chat:${(lastUserMessage?.content ?? '').slice(0, 64)}:${requestNonce}`,
         idempotencyKey: `divine_manager_chat:${user.id}:${requestNonce}`,
-        metadata: { endpoint: '/api/ai/divine-manager-chat' },
+        metadata: {
+          endpoint: '/api/ai/divine-manager-chat',
+          ...divineManagerDebitMetadata('Chat turn', null),
+        },
       })
       if (!lightDebit.ok) return insufficientAiCreditsResponse(lightDebit.used, lightDebit.limit)
     }

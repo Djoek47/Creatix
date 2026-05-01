@@ -1011,6 +1011,10 @@ export function VoiceSessionProvider({
       if (idle + working + speaking < 1) return
       telemetryPendingRef.current = { idle: 0, working: 0, speaking: 0 }
       try {
+        const telemetry_flush_id =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`
         await fetch('/api/divine/voice-telemetry', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1019,6 +1023,7 @@ export function VoiceSessionProvider({
             idle_ms: Math.round(idle),
             working_ms: Math.round(working),
             speaking_ms: Math.round(speaking),
+            telemetry_flush_id,
           }),
         })
       } catch {

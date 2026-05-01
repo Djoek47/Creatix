@@ -1299,6 +1299,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       metadata: {
         kind: 'webrtc_sdp_exchange',
         surface: voiceSurface,
+        divine_usage_parent: 'divine_manager',
         note: 'Token/cost for Realtime is session-based; see OpenAI usage dashboard. Client also reports voice state time to admin.',
       },
     })

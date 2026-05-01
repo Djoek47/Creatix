@@ -23,6 +23,7 @@ const LEDGER_REASON_LABELS: Record<string, string> = {
 
   // Messaging & Divine Manager
   'message generation light': 'Message suggestions',
+  'divine manager live voice': 'Divine Manager · Live voice (Realtime)',
   'message generation medium': 'Message generation · standard',
   'message generation heavy': 'Message generation · rich',
   'message generation bundle': 'Multi-source message pack',
@@ -146,12 +147,16 @@ export function creditLedgerLineLabel(
   metadata?: Record<string, unknown> | null,
 ): string {
   const meta = metadata ?? undefined
+  const fromMeta = readMetadataDisplay(meta)
+  /** Divine Manager debits set the full line in `service_display_name` — show it verbatim. */
+  if (fromMeta && fromMeta.startsWith('Divine Manager')) {
+    return fromMeta
+  }
+
   const toolId = readBillingToolId(meta)
   const fromToolId = toolId ? serviceDisplayForBillingTool(toolId) : null
   const fromReasonTool = inferToolServiceName(reasonCode)
   const toolTitle = fromToolId ?? fromReasonTool
-
-  const fromMeta = readMetadataDisplay(meta)
 
   if (toolTitle) {
     const umbrella = fromMeta === 'Creator AI usage' || fromMeta === LEDGER_REASON_LABELS['ai usage']

@@ -1,6 +1,7 @@
 /**
  * Shared Divine Manager tool execution for chat and voice (single source of truth).
  */
+import { randomUUID } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { executeDivineIntentPost, type IntentBody } from '@/lib/divine/divine-intent-execute'
 import { runLeakScan } from '@/lib/leaks/run-scan'
@@ -40,8 +41,15 @@ import { getStats } from '@/lib/divine-intent-actions'
 import { getVoiceMemoryPayload } from '@/lib/divine/voice-memory-server'
 import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/divine/thread-scan-async'
 import { getSettings } from '@/lib/divine-manager'
-import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
-import { CREDITS_MESSAGE_GENERATION_BUNDLE } from '@/lib/billing/credit-economics'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  CREDITS_LEAK_SCAN,
+  CREDITS_MESSAGE_GENERATION_BUNDLE,
+} from '@/lib/billing/credit-economics'
+import {
+  divineManagerDebitMetadata,
+  divineManagerSubserviceDisplayName,
+} from '@/lib/billing/divine-manager-ledger'
 import {
   dashboardPatchFromToolArgs,
   mergeDashboardPresetIntoRules,
@@ -189,20 +197,21 @@ function parseTitleHintsArg(raw: unknown): string[] {
   return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((s) => s.trim())
 }
 
+export type DivineContext = {
+  supabase: SupabaseClient
+  userId: string
+}
+
 export async function runAITool(
   toolName: string,
   args: Record<string, unknown>,
   cookie: string,
+  billing?: DivineContext,
 ): Promise<{ success: boolean; result?: unknown; error?: string }> {
   const toolId = AI_TOOL_NAME_TO_ID[toolName]
   if (!toolId) return { success: false, error: 'Unknown AI tool' }
   if (!isDivineAiToolId(toolId)) return { success: false, error: 'Unknown AI tool' }
-  return runDivineAiToolServer(toolId, args, cookie)
-}
-
-export type DivineContext = {
-  supabase: SupabaseClient
-  userId: string
+  return runDivineAiToolServer(toolId, args, cookie, billing)
 }
 
 export function parseOpenPanelArg(raw: unknown): 'scan' | 'circe' | 'venus' | 'flirt' | 'all' | undefined {
@@ -229,7 +238,9 @@ async function billDmSuggestionBundle(
     reasonCode: 'message_generation_bundle',
     reasonRef: `dm_reply_package:${fanId}:${reasonSuffix}`,
     idempotencyKey: `dm_reply_package:${userId}:${fanId}:${reasonSuffix}`,
-    metadata: { tool: 'divine_manager_chat' },
+    metadata: {
+      ...divineManagerDebitMetadata('DM reply pack (Circe · Venus · Flirt · Scan)', null),
+    },
   })
   if (!debit.ok) {
     return {
@@ -638,8 +649,30 @@ export async function runContextTool(
       const strict = args.strict !== false
       const include_content_titles = args.include_content_titles !== false
       const payload = { aliases, former_usernames, title_hints, include_content_titles, urls, strict }
+
+      const gate = await hasEnoughAiCredits(ctx.supabase, ctx.userId, CREDITS_LEAK_SCAN)
+      if (!gate.ok) {
+        return `Insufficient AI credits for a Protection leak scan (${gate.used}/${gate.limit} used this cycle). Open Protection to run a scan when you have credits, or add credits under Billing.`
+      }
+
+      const debitLeakScan = async (): Promise<string | null> => {
+        const idem = randomUUID()
+        const debit = await consumeAiCredits(ctx.supabase, ctx.userId, CREDITS_LEAK_SCAN, {
+          reasonCode: 'leak_scan',
+          reasonRef: `divine_manager_run_leak_scan:${ctx.userId}:${idem}`,
+          idempotencyKey: `divine_manager_run_leak_scan:${ctx.userId}:${idem}`,
+          metadata: divineManagerDebitMetadata('Leak Scanner', 'leak-scanner'),
+        })
+        if (!debit.ok) {
+          return `Insufficient AI credits for a Protection leak scan (${debit.used}/${debit.limit} used this cycle).`
+        }
+        return null
+      }
+
       const { ok: divineFull } = await isDivineFullAccess(ctx.supabase, ctx.userId)
       if (divineFull) {
+        const payErr = await debitLeakScan()
+        if (payErr) return payErr
         void runLeakScan(ctx.supabase, {
           userId: ctx.userId,
           ...payload,
@@ -653,6 +686,8 @@ export async function runContextTool(
       if (!result.success) {
         return `Leak scan failed: ${result.message ?? 'unknown error'}`
       }
+      const payErr = await debitLeakScan()
+      if (payErr) return `${payErr} (Scan results are available in Protection; contact support if credits did not apply.)`
       return [
         `Leak scan finished.`,
         `New alerts inserted: ${result.inserted}.`,
@@ -864,11 +899,16 @@ export async function runContextTool(
       const handles = parseHandlesArg(args.handles)
       const limitPerQuery =
         typeof args.limitPerQuery === 'number' ? Math.min(Math.max(args.limitPerQuery, 1), 50) : undefined
-      const res = await runReputationScanCore(ctx.supabase, ctx.userId, {
-        mode,
-        handles: handles.length ? handles : undefined,
-        limitPerQuery,
-      })
+      const res = await runReputationScanCore(
+        ctx.supabase,
+        ctx.userId,
+        {
+          mode,
+          handles: handles.length ? handles : undefined,
+          limitPerQuery,
+        },
+        { serviceDisplayName: divineManagerSubserviceDisplayName('Mentions web scan') },
+      )
       if (!res.ok) return res.error
       return [
         `Reputation scan complete (mode ${res.mode}).`,
@@ -2148,7 +2188,7 @@ export async function runToolCall(
   const isContextTool = CONTEXT_TOOL_NAMES.has(name)
 
   if (isAITool) {
-    const out = await runAITool(name, args, cookie)
+    const out = await runAITool(name, args, cookie, { supabase, userId })
     const summary = out.success
       ? typeof out.result === 'object' && out.result !== null && 'content' in out.result
         ? String((out.result as { content: string }).content).slice(0, 500)

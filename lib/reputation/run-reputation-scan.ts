@@ -16,6 +16,7 @@ import { filterHandlesToAllowed, loadMergedHandlesForUser, normalizeScanHandle }
 import { isPaidPlanId } from '@/lib/billing/access'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
+import { divineManagerDebitMetadataFixedLine } from '@/lib/billing/divine-manager-ledger'
 
 export type ScanMode = 'wide' | 'social' | 'both'
 
@@ -76,10 +77,16 @@ export type ReputationScanResult =
     }
   | { ok: false; error: string; status: number }
 
+export type ReputationScanLedgerOpts = {
+  /** Overrides ledger display (e.g. Divine Manager · Mentions web scan). */
+  serviceDisplayName: string
+}
+
 export async function runReputationScanCore(
   supabase: SupabaseClient,
   userId: string,
   body: ReputationScanBody,
+  ledger?: ReputationScanLedgerOpts | null,
 ): Promise<ReputationScanResult> {
   const limitPerQuery = Math.min(Math.max(body.limitPerQuery ?? 5, 1), 15)
   const mode: ScanMode = body.mode === 'wide' || body.mode === 'social' ? body.mode : 'both'
@@ -175,6 +182,9 @@ export async function runReputationScanCore(
       reasonCode: 'reputation_web_scan',
       reasonRef: scanReasonRef,
       idempotencyKey: `reputation_web_scan:${scanReasonRef}`,
+      metadata: ledger?.serviceDisplayName
+        ? divineManagerDebitMetadataFixedLine(ledger.serviceDisplayName)
+        : undefined,
     })
     if (!debit.ok) {
       return {

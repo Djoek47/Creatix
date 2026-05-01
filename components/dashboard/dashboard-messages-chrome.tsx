@@ -28,7 +28,7 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
   return (
     <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
       {!zenMessages ? (
-        <>
+        <div className="relative z-20 shrink-0">
           <DashboardHeader user={user} profile={profile} />
           <div
             className={cn(
@@ -40,14 +40,15 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
             )}
             aria-hidden
           />
-        </>
+        </div>
       ) : null}
       <main
         className={cn(
           /* Vertical scroll only on this node. Horizontal padding lives on an inner wrapper so route
              heroes never need negative margins: with `overflow-y: auto`, `overflow-x` computes to
              `auto`, and bleed-out margins break `position: sticky` in Chrome/WebKit. */
-          'min-h-0 flex-1 bg-transparent',
+          /* z-0: header strip is z-20 so avatar credit chip (extends below header) stays above scrolling content. */
+          'relative z-0 min-h-0 flex-1 bg-transparent',
           !isMessagesInbox && 'w-full min-w-0 overflow-y-auto py-4 sm:py-6',
           /* Inbox (normal or focus): column flex + min-h-0 so chat composer + Divine strip stay in view */
           isMessagesInbox &&

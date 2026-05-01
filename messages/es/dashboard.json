@@ -1,0 +1,121 @@
+{
+  "pageTitle": "Dashboard",
+  "welcome": "Welcome back",
+  "header": {
+    "aiStudioToolsTitle": "AI Studio — tools library",
+    "aiStudioToolsAria": "Open AI Studio tools",
+    "toolsBadge": "Tools",
+    "searchPlaceholder": "Search fans, content…",
+    "openMenu": "Open menu",
+    "wellbeingAria": "Well-being",
+    "creditChipLoading": "…",
+    "credits": "credits",
+    "userAvatarAlt": "User",
+    "creatorFallback": "Creator",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
+  "heroes": {
+    "messages_mass": {
+      "eyebrow": "Broadcast",
+      "title": "Mass messages",
+      "subtitle": "Reach your lists with intention — segments, timing, and tone in one flow."
+    },
+    "community_circe_daily": {
+      "eyebrow": "Daily ritual",
+      "title": "Circe's counsel",
+      "subtitle": "Bite-sized strategy from Circe — one luminous insight per day."
+    },
+    "community": {
+      "eyebrow": "Collective · Beta",
+      "title": "Suggestions",
+      "subtitle": "Curated tips and plays—reviewed before they land here."
+    },
+    "messages": {
+      "eyebrow": "Correspondence",
+      "title": "Sacred inbox",
+      "subtitle": "Where desire gets answered — DMs, insights, and mass reach across OnlyFans & Fansly in one velvet command centre."
+    },
+    "ai_studio_chatter": {
+      "eyebrow": "Presence",
+      "title": "AI Chatter",
+      "subtitle": "Train the voice that never sleeps — replies that still sound unmistakably you."
+    },
+    "ai_studio_tools": {
+      "eyebrow": "Toolkit",
+      "title": "AI tools",
+      "subtitle": "Browse, learn what each tool does, then open the one you need. Credits apply where noted."
+    },
+    "ai_studio": {
+      "eyebrow": "Creation",
+      "title": "AI Studio",
+      "subtitle": "Media vault and the full tool library."
+    },
+    "content_new": {
+      "eyebrow": "Compose",
+      "title": "New drop",
+      "subtitle": "Shape the next piece your audience will crave."
+    },
+    "content": {
+      "eyebrow": "Content",
+      "title": "Content",
+      "subtitle": "Plan the week, hold the vault, and scan every post — three calm lenses, one workspace."
+    },
+    "fans": {
+      "eyebrow": "Audience",
+      "title": "Fans",
+      "subtitle": "Synced subscribers from your CRM, search and segments, optional live previews when platforms are connected."
+    },
+    "well_being": {
+      "eyebrow": "Equilibrium",
+      "title": "Well-being",
+      "subtitle": "Light, load, and boundaries—stay consistent without burning out."
+    },
+    "social": {
+      "eyebrow": "Growth",
+      "title": "Social hub",
+      "subtitle": "Draft posts for off-platform reach, manage link-in-bio, and run reputation scans — one quiet workspace."
+    },
+    "analytics": {
+      "eyebrow": "Insight",
+      "title": "Analytics",
+      "subtitle": "Synced snapshots and live partner metrics when connected — revenue, audience, and message activity in one view."
+    },
+    "protection_aegis": {
+      "eyebrow": "Aegis",
+      "title": "Automation",
+      "subtitle": "Circe runs leak scans on your schedule. Venus keeps reputation on Mentions — Aegis never posts for you; drafts only."
+    },
+    "protection": {
+      "eyebrow": "Aegis",
+      "title": "Circe's protection",
+      "subtitle": "Circe for leaks & takedowns. Venus for reputation. One shield — you approve every move."
+    },
+    "mentions": {
+      "eyebrow": "Mentions",
+      "title": "Venus' watch",
+      "subtitle": "Indexed web mentions, sentiment, and a calm review queue."
+    },
+    "settings": {
+      "eyebrow": "Account",
+      "title": "Settings",
+      "subtitle": "Profile, plan, integrations, billing, and privacy—in one calm place."
+    },
+    "divine_manager": {
+      "eyebrow": "Orchestra",
+      "title": "Divine Manager",
+      "subtitle": ""
+    },
+    "guide": {
+      "eyebrow": "Path",
+      "title": "Guide",
+      "subtitle": ""
+    },
+    "workspace_default": {
+      "eyebrow": "Sanctuary",
+      "title": "Workspace",
+      "subtitle": "Your creator cockpit — choose a star from the sidebar."
+    }
+  }
+}

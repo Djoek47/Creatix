@@ -70,6 +70,27 @@ export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
 
 /** Divine Manager text chat: included turns per billing period before wallet debits (same pool as `claim_divine_manager_text_bundle`). Not shown in product copy. */
 export const DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD = 100
+
+/**
+ * Premium Divine realtime voice: credits debited per **wall-clock second** while the WebRTC session is live.
+ * Used in launcher UI; keep aligned with product billing if server-side debits change.
+ */
+export const DIVINE_VOICE_CREDITS_PER_SECOND = 2
+
+export function divineVoiceCreditsPerMinute(): number {
+  return DIVINE_VOICE_CREDITS_PER_SECOND * 60
+}
+
+/** Wallet-equivalent USD per minute at {@link CREDIT_USD_VALUE} (informational). */
+export function divineVoiceWalletUsdPerMinute(): number {
+  return divineVoiceCreditsPerMinute() * CREDIT_USD_VALUE
+}
+
+export function formatUsdWalletApprox(usd: number): string {
+  if (!Number.isFinite(usd)) return '—'
+  return `~$${usd.toFixed(2)}`
+}
+
 /** Scan + Circe + Venus + Flirt in one sync package. */
 export const CREDITS_MESSAGE_GENERATION_BUNDLE = CREDITS_MESSAGE_GENERATION_LIGHT * 4
 export const CREDITS_MESSAGE_SEND_PLATFORM = 1

@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import { Sparkles } from 'lucide-react'
 import { ConnectedPlatforms } from '@/components/dashboard/connected-platforms'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
 import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
@@ -10,8 +12,8 @@ interface DashboardHeroProps {
   mood?: DivineDashboardPreset['mood']
   accent?: DivineDashboardPreset['accent']
   tierIndex?: number | null
-  /** Protection-only tier: no creator API — curated copy and hide live platform chips. */
-  nonApiProtectionTier?: boolean
+  /** Divine trial not started — card on file still required (same bar as Billing “Start trial”). */
+  showStartTrialBillingCta?: boolean
 }
 
 function heroGradient(accent: DivineDashboardPreset['accent'] | undefined): string {
@@ -41,6 +43,7 @@ export function DashboardHero({
   accent,
   tierIndex,
   nonApiProtectionTier = false,
+  showStartTrialBillingCta = false,
 }: DashboardHeroProps) {
   const bg = heroGradient(accent)
   const title = titleGradient(accent)
@@ -107,7 +110,31 @@ export function DashboardHero({
             )}
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-end sm:gap-5">
-            {planLabel ? (
+            {showStartTrialBillingCta ? (
+              <span className="header-tools-rainbow-wrap inline-flex rounded-full shadow-sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 shrink-0 gap-2 rounded-full border-0 bg-background/92 p-0 text-[13px] font-medium shadow-none ring-0 transition-colors duration-300 hover:bg-background dark:bg-card/88 dark:hover:bg-card/95 sm:h-9 sm:w-auto sm:min-w-[8.25rem] sm:px-3.5"
+                  asChild
+                  title="Add a payment method to start your free trial"
+                >
+                  <Link
+                    href="/dashboard/settings?tab=billing"
+                    className="flex items-center justify-center gap-2"
+                    aria-label="Add a payment method to start your free trial"
+                  >
+                    <Sparkles
+                      className="h-4 w-4 shrink-0 text-amber-600 motion-safe:animate-pulse drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:text-amber-300"
+                      aria-hidden
+                    />
+                    <span className="hidden bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[13px] font-semibold text-transparent sm:inline dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300">
+                      Start trial
+                    </span>
+                  </Link>
+                </Button>
+              </span>
+            ) : planLabel ? (
               <span className="inline-flex items-center justify-center rounded-full border border-black/[0.06] bg-white/[0.35] px-3.5 py-1.5 text-[11px] font-medium text-muted-foreground backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] sm:justify-start">
                 Plan:
                 <span className="ml-1.5 tabular-nums text-foreground">{planLabel}</span>

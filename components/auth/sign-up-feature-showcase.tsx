@@ -1,34 +1,39 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import { MessageSquare, Mic, Moon, Shield, Sparkles, Sun, type LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
 const FEATURE_ROTATE_MS = 5000
 
-const FEATURES: { icon: LucideIcon; text: string; color: string }[] = [
-  { icon: Moon, text: 'Circe — retention, protection & analytics', color: 'text-circe' },
-  { icon: Sun, text: 'Venus — fans, mentions & Fan Atlas', color: 'text-venus' },
-  { icon: Mic, text: 'Divine Manager — voice & chat', color: 'text-primary' },
-  { icon: MessageSquare, text: 'Unified inbox — OnlyFans & Fansly', color: 'text-venus' },
-  { icon: Shield, text: 'Leak alerts & DMCA drafts (you approve)', color: 'text-circe' },
-  { icon: Sparkles, text: 'AI Studio — tools library & credits', color: 'text-primary' },
-]
-
 export function SignUpFeatureShowcase() {
+  const t = useTranslations('auth')
   const [index, setIndex] = useState(0)
   const reduceMotion = useReducedMotion()
+
+  const FEATURES: { icon: LucideIcon; text: string; color: string }[] = useMemo(
+    () => [
+      { icon: Moon, text: t('signUpFeatureCirce'), color: 'text-circe' },
+      { icon: Sun, text: t('signUpFeatureVenus'), color: 'text-venus' },
+      { icon: Mic, text: t('signUpFeatureDivineManager'), color: 'text-primary' },
+      { icon: MessageSquare, text: t('signUpFeatureInbox'), color: 'text-venus' },
+      { icon: Shield, text: t('signUpFeatureProtection'), color: 'text-circe' },
+      { icon: Sparkles, text: t('signUpFeatureAiStudio'), color: 'text-primary' },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     const id = window.setTimeout(() => {
       setIndex((i) => (i + 1) % FEATURES.length)
     }, FEATURE_ROTATE_MS)
     return () => window.clearTimeout(id)
-  }, [index])
+  }, [index, FEATURES.length])
 
-  const current = FEATURES[index]
+  const current = FEATURES[index] ?? FEATURES[0]
   const Icon = current.icon
   const transition = reduceMotion
     ? { duration: 0.15 }
@@ -36,10 +41,8 @@ export function SignUpFeatureShowcase() {
 
   return (
     <div className="relative z-10 hidden min-h-0 flex-1 flex-col justify-center overflow-hidden border-l border-white/10 px-6 py-14 sm:px-10 lg:flex">
-      {/* Dark tint + frosted glass over shared scenic; constellations sit above in next block */}
       <div
         className={cn(
-          /* Clear “lens”: light tint, almost no blur so constellations stay sharp */
           'absolute inset-0 z-[1] bg-background/10 backdrop-blur-[2px] dark:bg-black/25 dark:backdrop-blur-[3px]',
           'motion-reduce:backdrop-blur-none',
         )}
@@ -98,13 +101,10 @@ export function SignUpFeatureShowcase() {
 
       <div className="relative z-[3] mx-auto w-full max-w-md">
         <h2 className="font-serif text-3xl font-bold tracking-tight text-foreground">
-          Retention and reach, <br />
-          <span className="text-primary">one integrated stack</span>
+          {t('signUpShowcaseHeadlineLine1')} <br />
+          <span className="text-primary">{t('signUpShowcaseHeadlineAccent')}</span>
         </h2>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Circe handles retention, protection, and analytics. Venus helps you grow audience and stay on top of fan
-          conversations—side by side in one workspace.
-        </p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">{t('signUpShowcaseBody')}</p>
 
         <div className="relative mt-10">
           <div
@@ -118,7 +118,7 @@ export function SignUpFeatureShowcase() {
           <div className="relative z-10 overflow-hidden rounded-2xl border border-white/15 bg-card/50 shadow-lg backdrop-blur-sm">
             <AnimatePresence initial={false} mode="wait">
               <motion.div
-                key={current.text}
+                key={`${index}-${current.text}`}
                 role="status"
                 aria-live="polite"
                 initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, filter: 'blur(6px)' }}
@@ -130,31 +130,29 @@ export function SignUpFeatureShowcase() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-primary/10 shadow-[0_0_24px_rgba(168,85,247,0.35),0_0_18px_rgba(251,191,36,0.25)]">
                   <Icon className={cn('h-8 w-8', current.color)} aria-hidden />
                 </div>
-                <p className="text-balance text-base font-medium leading-snug text-foreground sm:text-lg">
-                  {current.text}
-                </p>
+                <p className="text-balance text-base font-medium leading-snug text-foreground sm:text-lg">{current.text}</p>
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2" aria-label="Feature progress">
-          {FEATURES.map((f, j) => (
+        <div className="mt-6 flex items-center justify-center gap-2" aria-label={t('signUpShowcaseProgressAria')}>
+          {FEATURES.map((_, j) => (
             <button
-              key={f.text}
+              key={j}
               type="button"
               onClick={() => setIndex(j)}
               className={cn(
                 'h-1.5 rounded-full transition-all duration-300',
                 j === index ? 'w-8 bg-primary' : 'w-1.5 bg-muted-foreground/35 hover:bg-muted-foreground/55',
               )}
-              aria-label={`Show feature ${j + 1}`}
+              aria-label={t('signUpShowcaseDotAria', { number: j + 1 })}
               aria-pressed={j === index}
             />
           ))}
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Features rotate about every {Math.round(FEATURE_ROTATE_MS / 1000)}s — tap a dot to jump.
+          {t('signUpShowcaseRotateHint', { seconds: Math.round(FEATURE_ROTATE_MS / 1000) })}
         </p>
       </div>
     </div>

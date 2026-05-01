@@ -378,7 +378,10 @@ ${blocks.join('\n\n---\n\n')}${calendarBlock}`,
 
   const excerpt = digest.slice(0, 500)
 
-  const consumed = await consumeAiCredits(supabase, userId, creditsNeeded)
+  const consumed = await consumeAiCredits(supabase, userId, creditsNeeded, {
+    reasonCode: 'retention_churn_digest',
+    metadata: { service_display_name: 'Retention digest (Churn)' },
+  })
   if (!consumed.ok) {
     const tsErr = now.toISOString()
     await supabase

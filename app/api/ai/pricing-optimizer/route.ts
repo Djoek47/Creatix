@@ -15,7 +15,7 @@ import {
 export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'pricing-optimizer')
   if (!access.ok) return access.response
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const { data: subscription } = await supabase
     .from('subscriptions')
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           },
         })
         if (cost <= 0 || !shouldBillAiStreamFinish(finishReason)) return
-        const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+        const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
         if (!charged.ok) {
           console.error('[pricing-optimizer] Credit charge failed after stream', finishReason)
         }

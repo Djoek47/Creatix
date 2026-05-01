@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -26,7 +27,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
 import { HeaderPlatformStatusMenuSection } from '@/components/dashboard/header-platform-status-menu'
-import { getDashboardPageAriaLabel } from '@/lib/dashboard-page-meta'
+import { dashboardHeroTitleKeyFromPath } from '@/lib/dashboard-page-meta'
 import { isDashboardCreditSummaryVisible } from '@/lib/dashboard-credit-summary-marker'
 import type { CreditWalletSnapshot } from '@/hooks/use-credit-snapshot'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ interface HeaderProps {
 
 export function DashboardHeader({ user, profile }: HeaderProps) {
   const pathname = usePathname()
+  const tDash = useTranslations('dashboard')
   const pulseOptional = useDashboardPulseOptional()
   const pulseSeverity = pulseOptional?.pulse?.severity
   const router = useRouter()
@@ -154,65 +156,40 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
     (avatarChipLoading || avatarChipWallet !== null)
 
   return (
-    <header className="dashboard-header-chrome flex h-14 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6">
-      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-        {/* Mobile menu button */}
-        {mounted ? (
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full transition-colors duration-300 hover:bg-primary/[0.1] dark:hover:bg-venus/[0.1] md:hidden"
-                data-tour="header-start-tour-mobile"
-              >
-                <Menu className="h-5 w-5 text-muted-foreground" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <MobileSidebar user={user} profile={profile} />
-            </SheetContent>
-          </Sheet>
-        ) : (
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        )}
-
-        <span className="sr-only">{getDashboardPageAriaLabel(pathname)}</span>
+    <header className="dashboard-header-chrome flex h-14 w-full min-w-0 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6">
+      {/* AI Studio Tools — solitary lead control (start) */}
+      <div className="flex shrink-0 items-center justify-start">
         <span className="header-tools-rainbow-wrap inline-flex rounded-full">
           <Button
             variant="outline"
             size="sm"
             className="h-9 w-9 shrink-0 gap-2 rounded-full border-0 bg-background/92 p-0 text-[13px] font-medium shadow-none ring-0 transition-colors duration-300 hover:bg-background dark:bg-card/88 dark:hover:bg-card/95 sm:h-9 sm:w-auto sm:px-3.5"
             asChild
-            title="AI Studio — tools library"
+            title={tDash('header.aiStudioToolsTitle')}
           >
             <Link
               href="/dashboard/ai-studio/tools"
               className="flex items-center justify-center gap-2"
-              aria-label="Open AI Studio tools"
+              aria-label={tDash('header.aiStudioToolsAria')}
             >
               <Sparkles
                 className="h-4 w-4 shrink-0 text-amber-600 motion-safe:animate-pulse drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:text-amber-300"
                 aria-hidden
               />
               <span className="hidden bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[13px] font-semibold text-transparent sm:inline dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300">
-                Tools
+                {tDash('header.toolsBadge')}
               </span>
             </Link>
           </Button>
         </span>
       </div>
 
-      {/* Search — centered on large screens */}
-      <div className="mx-2 hidden min-w-0 flex-1 justify-center lg:flex">
+      {/* Search — centered between Tools and utilities (lg+) */}
+      <div className="mx-2 hidden min-w-0 flex-1 justify-center px-2 lg:flex">
         <div className="relative w-full max-w-md xl:max-w-lg">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/55 dark:text-venus/55" />
           <Input
-            placeholder="Search fans, content…"
+            placeholder={tDash('header.searchPlaceholder')}
             className="h-10 w-full rounded-full border-border/45 bg-muted/25 pl-10 pr-4 text-[13px] shadow-none transition-all duration-300 placeholder:text-muted-foreground/55 focus-visible:border-primary/45 focus-visible:ring-2 focus-visible:ring-primary/20 dark:focus-visible:border-venus/40 dark:focus-visible:ring-venus/15"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -227,7 +204,33 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+        {mounted ? (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full transition-colors duration-300 hover:bg-primary/[0.1] dark:hover:bg-venus/[0.1] md:hidden"
+                data-tour="header-start-tour-mobile"
+              >
+                <Menu className="h-5 w-5 text-muted-foreground" />
+                <span className="sr-only">{tDash('header.openMenu')}</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0">
+              <MobileSidebar user={user} profile={profile} />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <Button variant="ghost" size="icon" className="md:hidden">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">{tDash('header.openMenu')}</span>
+          </Button>
+        )}
+
+        <span className="sr-only">{tDash(dashboardHeroTitleKeyFromPath(pathname))}</span>
+
         <StartTourButton className="hidden sm:inline-flex" />
 
         <ThemeToggle />
@@ -242,8 +245,8 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         >
           <Link
             href="/dashboard/well-being"
-            title="Well-being"
-            aria-label="Well-being"
+            title={tDash('header.wellbeingAria')}
+            aria-label={tDash('header.wellbeingAria')}
             className={cn(
               'grid size-full place-items-center rounded-full border border-amber-500/35 bg-amber-500/[0.08] p-0 leading-none transition-all duration-300 hover:border-amber-500/55 hover:bg-amber-500/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/35 dark:border-amber-400/30 dark:bg-amber-400/[0.1] dark:hover:border-amber-400/50 dark:hover:bg-amber-400/[0.16] dark:focus-visible:ring-amber-400/35',
               onWellBeingPage &&
@@ -269,7 +272,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
           aria-hidden
         />
 
-        {/* User menu (far right) */}
+        {/* User menu */}
         {mounted ? (
           <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
             <DropdownMenuTrigger asChild>
@@ -294,11 +297,11 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                 >
                   <Zap className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-300" />
                   {avatarChipLoading ? (
-                    <span className="text-muted-foreground">…</span>
+                    <span className="text-muted-foreground">{tDash('header.creditChipLoading')}</span>
                   ) : avatarChipWallet ? (
                     <span>
                       {avatarChipWallet.totalRemaining.toLocaleString()}{' '}
-                      <span className="font-medium text-muted-foreground/90">credits</span>
+                      <span className="font-medium text-muted-foreground/90">{tDash('header.credits')}</span>
                     </span>
                   ) : null}
                 </span>
@@ -313,7 +316,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                         ),
                   )}
                 >
-                  <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || tDash('header.userAvatarAlt')} />
                   <AvatarFallback
                     className={cn(
                       'text-[13px] font-semibold sm:text-sm',
@@ -340,7 +343,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
               <DropdownMenuLabel className="px-3.5 pb-2 pt-2.5 font-normal">
                 <div className="flex flex-col gap-1">
                   <p className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">
-                    {profile?.full_name || 'Creator'}
+                    {profile?.full_name || tDash('header.creatorFallback')}
                   </p>
                   <p className="truncate text-[12px] leading-snug text-muted-foreground/85">{user.email}</p>
                 </div>
@@ -357,7 +360,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                   <span className={userMenuIconWell}>
                     <User className="size-4" strokeWidth={1.75} aria-hidden />
                   </span>
-                  Profile
+                  {tDash('header.profile')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className={userMenuItemClass}>
@@ -365,7 +368,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                   <span className={userMenuIconWell}>
                     <Settings className="size-4" strokeWidth={1.75} aria-hidden />
                   </span>
-                  Settings
+                  {tDash('header.settings')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className={userMenuSeparatorClass} />
@@ -380,7 +383,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 dark:bg-destructive/15 [&_svg]:text-destructive">
                   <LogOut className="size-4" strokeWidth={1.75} aria-hidden />
                 </span>
-                Sign out
+                {tDash('header.signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -400,7 +403,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
                     ),
               )}
             >
-              <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || 'User'} />
+              <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || tDash('header.userAvatarAlt')} />
               <AvatarFallback
                 className={cn(
                   'text-[13px] font-semibold sm:text-sm',

@@ -221,9 +221,9 @@ export function AriadneTracePanel() {
           Ariadne Trace
         </h1>
         <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-          Per-recipient forensic marker with full trace library. Create, review, preview, and download exact files per
-          recipient. Charges {formatToolCreditCost('ariadne-trace')} per embed; {formatToolCreditCost('ariadne-detect')} per
-          detection.
+          Give each fan their own subtly marked export so you can tell which copy leaked if it resurfaces online. Build
+          traces in your library, preview, and download per-recipient files. Charges {formatToolCreditCost('ariadne-trace')}{' '}
+          per embed; {formatToolCreditCost('ariadne-detect')} per detection.
         </p>
       </div>
 

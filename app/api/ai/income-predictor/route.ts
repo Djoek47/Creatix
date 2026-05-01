@@ -32,7 +32,7 @@ export type IncomePredictorCalendarMode = 'week' | 'month'
 export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'income-predictor')
   if (!access.ok) return access.response
-  const { supabase, userId, cost: incomeCost } = access.data
+  const { supabase, userId, cost: incomeCost, billingToolId } = access.data
 
   const body = (await req.json().catch(() => ({}))) as {
     calendarMode?: IncomePredictorCalendarMode
@@ -193,7 +193,7 @@ Produce structured output.`
     messages: [{ role: 'user', content: userContent }],
   })
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, uid, incomeCost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, uid, incomeCost, billingToolId)
   if (!charged.ok) return charged.response
 
   return NextResponse.json({

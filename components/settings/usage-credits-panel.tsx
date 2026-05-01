@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { ArrowUpRight, ChevronDown, Trophy } from 'lucide-react'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
-import { labelForCreditReason } from '@/lib/billing/credit-reason-label'
+import { creditLedgerLineLabel, labelForCreditReason } from '@/lib/billing/credit-reason-label'
 import { CreditAllocationPlanner } from '@/components/billing/credit-allocation-planner'
 import { CreditAutoTopupSettings } from '@/components/billing/credit-auto-topup-settings'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -19,6 +19,7 @@ type CreditTimelineRow = {
   amount: number
   reason_code: string
   created_at: string
+  metadata?: Record<string, unknown> | null
 }
 
 type Wallet = {
@@ -581,7 +582,7 @@ function UsageCreditsPanelBody({
                                     {formatLedgerKind(row.kind)}
                                     <span className="font-normal text-muted-foreground"> · </span>
                                     <span className="font-normal text-muted-foreground">
-                                      {labelForCreditReason(row.reason_code)}
+                                      {creditLedgerLineLabel(row.reason_code, row.metadata)}
                                     </span>
                                   </p>
                                 </div>

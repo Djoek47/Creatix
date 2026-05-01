@@ -66,7 +66,7 @@ function safeJsonParseArray(raw: string): SuggestionRow[] {
 export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'mass-dm-audience-suggester')
   if (!access.ok) return access.response
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const body = (await req.json().catch(() => ({}))) as SuggestAudienceBody
   const goal = typeof body.goal === 'string' ? body.goal.trim().slice(0, 800) : ''
@@ -203,7 +203,7 @@ ${JSON.stringify(candidateSample)}`
     })
     .slice(0, maxFans)
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
 
   return NextResponse.json({

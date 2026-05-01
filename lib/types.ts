@@ -45,6 +45,16 @@ export type LeakDistributionIntent =
   | 'cross_post_consented'
 export type MentionSentiment = 'positive' | 'neutral' | 'negative'
 
+/** Persisted dashboard / app chrome preferences (Phase 1 i18n). */
+export type UiPreferences = {
+  locale?: string
+  dateFormat?: string
+  currency?: string
+  autoSave?: boolean
+  soundEffects?: boolean
+  cosmicGuidance?: boolean
+}
+
 export interface Profile {
   id: string
   email: string
@@ -69,6 +79,8 @@ export interface Profile {
   reputation_display_name?: string | null
   /** Optional platform usernames e.g. { "onlyfans": "x", "mym": "y" } */
   reputation_platform_handles?: Record<string, string> | null
+  onboarding_completed?: boolean
+  ui_preferences?: UiPreferences | null
   created_at: string
   updated_at: string
 }

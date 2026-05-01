@@ -6,6 +6,7 @@ import { DashboardCommandCenter } from '@/components/dashboard/dashboard-command
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
 import { extractDashboardPreset } from '@/lib/dashboard/dashboard-preset'
 import { resolveWorkspaceCapabilities } from '@/lib/plan-capabilities'
+import { shouldShowDivineTrialStartCard } from '@/lib/billing/access'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -53,6 +54,8 @@ export default async function DashboardPage() {
   const revenueTier =
     subscription && typeof subscription.revenue_tier === 'number' ? subscription.revenue_tier : null
   const workspaceCaps = resolveWorkspaceCapabilities(subscription ?? null)
+  const showStartTrialBillingCta =
+    !workspaceCaps.isNonApiProtectionTier && shouldShowDivineTrialStartCard(subscription ?? null)
 
   // Calculate stats from analytics data - aggregate from both platforms
   const totalRevenue = analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0
@@ -114,6 +117,7 @@ export default async function DashboardPage() {
           accent={dashboardPreset?.accent}
           tierIndex={revenueTier}
           nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
+          showStartTrialBillingCta={showStartTrialBillingCta}
         />
       }
       commandStrip={

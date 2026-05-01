@@ -1,0 +1,40 @@
+{
+  "sidebar": {
+    "analytics": "Analytics",
+    "protection": "Protection",
+    "retention": "Retention",
+    "fans": "Fans",
+    "mentions": "Mentions",
+    "fanAtlas": "Fan Atlas",
+    "dashboard": "Dashboard",
+    "divineManager": "Divine Manager",
+    "content": "Content",
+    "wellbeing": "Well-being",
+    "messages": "Messages",
+    "social": "Social",
+    "aiStudio": "AI Studio",
+    "guide": "Guide",
+    "settings": "Settings",
+    "circeSection": "Circe",
+    "venusSection": "Venus",
+    "systemStripTitle": "Estado e avisos",
+    "systemStripStatus": "Serviços operacionais",
+    "systemStripHint": "Novidades: Guia · Configurações."
+  },
+  "marketingNav": {
+    "home": "Home",
+    "features": "Features",
+    "demo": "Demo",
+    "mobileApp": "Mobile App",
+    "pricing": "Pricing"
+  },
+  "footerNav": {
+    "about": "About",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "localeSwitcher": {
+    "label": "Language"
+  },
+  "wellbeingUnread": "{count} unread"
+}

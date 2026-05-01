@@ -90,7 +90,8 @@ export function observedScopedRevenueForBilling(args: {
   }
 }
 
-function requiredTierFromScopedObservation(obs: ScopedPlatformObservation | null): number | null {
+/** Valid scoped month-to-date USD for one linked account, or null if snapshot missing / not scoped. */
+function scopedMonthlyUsd(obs: ScopedPlatformObservation | null): number | null {
   if (!obs) return null
   const scoped = observedScopedRevenueForBilling({
     currentPartnerAccountId: obs.partnerAccountId,
@@ -100,19 +101,43 @@ function requiredTierFromScopedObservation(obs: ScopedPlatformObservation | null
   })
   if (scoped.capturedAt == null || String(scoped.capturedAt).trim() === '') return null
   if (scoped.usd == null || !Number.isFinite(Number(scoped.usd))) return null
-  return tierIndexFromMonthlyRevenue(Math.max(0, Number(scoped.usd)))
+  return Math.max(0, Number(scoped.usd))
 }
 
-/** Max revenue band implied by connected OF/Fansly observations (null if neither has scoped revenue). */
+/**
+ * Per-platform scoped USD plus sum used for tiering when both OnlyFans and Fansly are linked.
+ * Platforms without a scoped snapshot contribute $0 to `combinedUsd` once any snapshot exists.
+ */
+export function combinedScopedMonthlyRevenueUsdForBilling(args: {
+  onlyfans: ScopedPlatformObservation | null
+  fansly: ScopedPlatformObservation | null
+}): {
+  onlyfansUsd: number | null
+  fanslyUsd: number | null
+  combinedUsd: number | null
+} {
+  const onlyfansUsd = scopedMonthlyUsd(args.onlyfans)
+  const fanslyUsd = scopedMonthlyUsd(args.fansly)
+  if (onlyfansUsd == null && fanslyUsd == null) {
+    return { onlyfansUsd: null, fanslyUsd: null, combinedUsd: null }
+  }
+  return {
+    onlyfansUsd,
+    fanslyUsd,
+    combinedUsd: (onlyfansUsd ?? 0) + (fanslyUsd ?? 0),
+  }
+}
+
+/**
+ * Revenue band implied by combined scoped MTD earnings across OnlyFans + Fansly (null if neither has data).
+ */
 export function computeRequiredRevenueTierFromScopedObservations(args: {
   onlyfans: ScopedPlatformObservation | null
   fansly: ScopedPlatformObservation | null
 }): number | null {
-  const ofT = requiredTierFromScopedObservation(args.onlyfans)
-  const fsT = requiredTierFromScopedObservation(args.fansly)
-  const tiers = [ofT, fsT].filter((t): t is number => t != null)
-  if (tiers.length === 0) return null
-  return Math.max(...tiers)
+  const { combinedUsd } = combinedScopedMonthlyRevenueUsdForBilling(args)
+  if (combinedUsd == null) return null
+  return tierIndexFromMonthlyRevenue(combinedUsd)
 }
 
 function latestScopedObservationCaptureMs(
@@ -137,7 +162,7 @@ function latestScopedObservationCaptureMs(
 }
 
 /**
- * Subscribed revenue band must cover the highest implied tier across OnlyFans and Fansly (each scoped to its connected account id).
+ * Subscribed revenue band must cover the tier implied by combined scoped earnings across linked OnlyFans/Fansly.
  */
 export function denialForRevenueTierUndershootMulti(args: {
   subscription: SubscriptionLike | null | undefined
@@ -145,11 +170,11 @@ export function denialForRevenueTierUndershootMulti(args: {
   fansly: ScopedPlatformObservation | null
 }): OnlyFansBillingDenial | null {
   if (!isPaidSubscription(args.subscription)) return null
-  const ofT = requiredTierFromScopedObservation(args.onlyfans)
-  const fsT = requiredTierFromScopedObservation(args.fansly)
-  const tiers = [ofT, fsT].filter((t): t is number => t != null)
-  if (tiers.length === 0) return null
-  const requiredTier = Math.max(...tiers)
+  const requiredTier = computeRequiredRevenueTierFromScopedObservations({
+    onlyfans: args.onlyfans,
+    fansly: args.fansly,
+  })
+  if (requiredTier == null) return null
   const subscribedTier = subscribedRevenueTierIndex(args.subscription)
   if (subscribedTier >= requiredTier) return null
 
@@ -164,7 +189,7 @@ export function denialForRevenueTierUndershootMulti(args: {
   return {
     code: 'REVENUE_TIER_MISMATCH',
     message:
-      'Your plan’s revenue band is below what your connected OnlyFans and/or Fansly account(s) are earning. Upgrade your subscription to the matching band, or disconnect those platforms.',
+      'Your plan’s revenue band is below combined earnings from your connected OnlyFans and/or Fansly account(s). Upgrade to the matching band, or disconnect those platforms.',
     subscribedTier,
     requiredTier,
   }

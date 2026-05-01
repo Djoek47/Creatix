@@ -81,17 +81,28 @@ export function AntiPiracyBundledWorkspaceCaption({
   creditsPerCycle: number
   className?: string
 }) {
+  const reduceMotion = useReducedMotion()
   const { activeIndex } = useAntiPiracyStorefrontCycle()
   const slide =
     BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE[activeIndex % BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length]
-  const label = slide.displayLabel
 
   return (
     <p
       className={cn('max-w-md text-[13px] leading-relaxed text-muted-foreground', className)}
       aria-live="polite"
     >
-      {label} · Bundled workspace ·{' '}
+      <motion.span
+        key={slide.id}
+        className="inline"
+        initial={reduceMotion ? false : { opacity: 0.5 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <span className={cn('font-semibold tracking-tight', slide.captionAccentClass)}>
+          {slide.displayLabel}
+        </span>
+      </motion.span>{' '}
+      · Bundled workspace ·{' '}
       <span className="tabular-nums text-foreground/90">{creditsPerCycle.toLocaleString()}</span> credits per cycle.
     </p>
   )

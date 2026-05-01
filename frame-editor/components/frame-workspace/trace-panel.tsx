@@ -291,7 +291,8 @@ export function TracePanel({
         ) : null}
       </div>
       <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
-        Per-recipient forensic identifiers for export attribution and leak verification.
+        Each export can carry a discreet per-fan mark so you can tell which copy surfaced if a clip leaks—then verify it
+        here.
       </p>
       {tracedExportEnabled && !traceOperationsEnabled ? (
         <p className="text-muted-foreground mb-3 rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>

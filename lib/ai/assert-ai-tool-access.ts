@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import {
   consumeAiCredits,
   hasEnoughAiCredits,
@@ -66,9 +67,18 @@ export async function chargeAiToolCreditsAfterSuccess(
   supabase: SupabaseClient,
   userId: string,
   cost: number,
+  billingToolId?: string,
 ): Promise<{ ok: true; usedAfter?: number } | { ok: false; response: NextResponse }> {
   if (cost <= 0) return { ok: true }
-  const r = await consumeAiCredits(supabase, userId, cost)
+  const trimmed = billingToolId?.trim()
+  const debitOpts =
+    trimmed && trimmed.length > 0
+      ? ledgerDebitOptsForBillingTool(trimmed)
+      : {
+          reasonCode: 'ai_usage',
+          metadata: { service_display_name: 'Creator AI usage' },
+        }
+  const r = await consumeAiCredits(supabase, userId, cost, debitOpts)
   if (!r.ok) {
     console.error('[ai-credits] consume failed after successful model run', { userId, cost })
     return {

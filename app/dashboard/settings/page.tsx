@@ -18,30 +18,34 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { 
-  User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
-  Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, ExternalLink, Zap, RefreshCw, Eye, EyeOff, BookOpen, Gauge, ChevronDown
+import {
+  User,
+  Bell,
+  Shield,
+  CreditCard,
+  Upload,
+  Loader2,
+  Check,
+  Moon,
+  Sun,
+  Link2,
+  Database,
+  Settings2,
+  Globe,
+  Download,
+  Trash2,
+  Key,
+  Smartphone,
+  Mail,
+  ExternalLink,
+  Zap,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  BookOpen,
+  Gauge,
+  ChevronDown,
 } from 'lucide-react'
-
-// Social Media Logos
-const TwitterXLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-)
-
-const InstagramLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M12 2c2.717 0 3.056.01 4.122.06 1.065.05 1.79.217 2.428.465.66.254 1.216.598 1.772 1.153a4.908 4.908 0 0 1 1.153 1.772c.247.637.415 1.363.465 2.428.047 1.066.06 1.405.06 4.122 0 2.717-.01 3.056-.06 4.122-.05 1.065-.218 1.79-.465 2.428a4.883 4.883 0 0 1-1.153 1.772 4.915 4.915 0 0 1-1.772 1.153c-.637.247-1.363.415-2.428.465-1.066.047-1.405.06-4.122.06-2.717 0-3.056-.01-4.122-.06-1.065-.05-1.79-.218-2.428-.465a4.89 4.89 0 0 1-1.772-1.153 4.904 4.904 0 0 1-1.153-1.772c-.248-.637-.415-1.363-.465-2.428C2.013 15.056 2 14.717 2 12c0-2.717.01-3.056.06-4.122.05-1.066.217-1.79.465-2.428a4.88 4.88 0 0 1 1.153-1.772A4.897 4.897 0 0 1 5.45 2.525c.638-.248 1.362-.415 2.428-.465C8.944 2.013 9.283 2 12 2zm0 1.802c-2.67 0-2.986.01-4.04.058-.976.045-1.505.207-1.858.344-.466.182-.8.398-1.15.748-.35.35-.566.684-.748 1.15-.137.353-.3.882-.344 1.857-.048 1.055-.058 1.37-.058 4.041 0 2.67.01 2.986.058 4.04.045.976.207 1.505.344 1.858.182.466.399.8.748 1.15.35.35.684.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058 2.67 0 2.987-.01 4.04-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.684.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041 0-2.67-.01-2.986-.058-4.04-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 0 0-.748-1.15 3.098 3.098 0 0 0-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.055-.048-1.37-.058-4.041-.058zm0 3.063a5.135 5.135 0 1 1 0 10.27 5.135 5.135 0 0 1 0-10.27zm0 8.468a3.333 3.333 0 1 0 0-6.666 3.333 3.333 0 0 0 0 6.666zm6.538-8.671a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/>
-  </svg>
-)
-
-const TikTokLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-  </svg>
-)
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from 'next-themes'
 import { BirthdaySettings } from '@/components/settings/birthday-settings'
@@ -51,6 +55,7 @@ import { UsageCreditsPanel } from '@/components/settings/usage-credits-panel'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
 import { HousekeepingListsSettings } from '@/components/settings/housekeeping-lists-settings'
+import { SocialAccountsSettings } from '@/components/settings/social-accounts-settings'
 import { getCirceTipCount } from '@/lib/community/circe-daily-tips'
 import {
   readTipPopupsEnabled,
@@ -66,6 +71,8 @@ import {
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 import { cn } from '@/lib/utils'
+import { PHASE1_LOCALES } from '@/lib/i18n/routing'
+import type { UiPreferences } from '@/lib/types'
 
 /** Precise, quiet surfaces — no heavy glass or SaaS glow. */
 const SETTINGS_SURFACE = cn(
@@ -100,6 +107,10 @@ const SETTINGS_RESOURCE_LINK = cn(
 )
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'usage' | 'integrations' | 'data' | 'preferences'
+
+function normalizeDashboardLocale(locale: unknown): string {
+  return typeof locale === 'string' && (PHASE1_LOCALES as readonly string[]).includes(locale) ? locale : 'en'
+}
 
 export default function SettingsPage() {
   const workspaceCaps = useWorkspaceCapabilities()
@@ -167,6 +178,8 @@ export default function SettingsPage() {
   const [mimicProfile, setMimicProfile] = useState<MimicProfileV1>(DEFAULT_MIMIC_PROFILE)
   const [mimicSaving, setMimicSaving] = useState(false)
   const [mimicSaveMessage, setMimicSaveMessage] = useState<string | null>(null)
+  const [prefsSaving, setPrefsSaving] = useState(false)
+  const [prefsMessage, setPrefsMessage] = useState<{ variant: 'success' | 'error'; text: string } | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { theme, setTheme, resolvedTheme } = useTheme()
@@ -256,6 +269,21 @@ export default function SettingsPage() {
         setMimicProfile(parseMimicProfile(mimicData.mimic_profile) ?? DEFAULT_MIMIC_PROFILE)
       }
 
+      const uiPrefsRes = await fetch('/api/user/ui-preferences', { credentials: 'include' })
+      if (uiPrefsRes.ok) {
+        const payload = (await uiPrefsRes.json()) as { ui_preferences?: UiPreferences }
+        const u = payload.ui_preferences ?? {}
+        setPreferences((prev) => ({
+          ...prev,
+          language: normalizeDashboardLocale(u.locale ?? prev.language),
+          dateFormat: (u.dateFormat as typeof prev.dateFormat) ?? prev.dateFormat,
+          currency: (u.currency as typeof prev.currency) ?? prev.currency,
+          autoSave: u.autoSave ?? prev.autoSave,
+          soundEffects: u.soundEffects ?? prev.soundEffects,
+          cosmicGuidance: u.cosmicGuidance ?? prev.cosmicGuidance,
+        }))
+      }
+
       setLoading(false)
     }
     
@@ -336,6 +364,41 @@ export default function SettingsPage() {
     router.push('/')
   }
 
+  async function handleSaveUiPreferences() {
+    setPrefsMessage(null)
+    setPrefsSaving(true)
+    try {
+      const locale = normalizeDashboardLocale(preferences.language)
+      const res = await fetch('/api/user/ui-preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          locale,
+          dateFormat: preferences.dateFormat,
+          currency: preferences.currency,
+          autoSave: preferences.autoSave,
+          soundEffects: preferences.soundEffects,
+          cosmicGuidance: preferences.cosmicGuidance,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not save preferences')
+      }
+      setPreferences((p) => ({ ...p, language: locale }))
+      setPrefsMessage({ variant: 'success', text: 'Preferences saved.' })
+      router.refresh()
+    } catch (e) {
+      setPrefsMessage({
+        variant: 'error',
+        text: e instanceof Error ? e.message : 'Could not save preferences.',
+      })
+    } finally {
+      setPrefsSaving(false)
+    }
+  }
+
   async function handleMimicDraftToggle(nextChecked: boolean) {
     setMimicSaving(true)
     setMimicSaveMessage(null)
@@ -406,12 +469,6 @@ export default function SettingsPage() {
     { key: 'onlyfans', name: 'OnlyFans', color: 'bg-blue-500', connected: integrations.onlyfans },
     { key: 'fansly', name: 'Fansly', color: 'bg-cyan-500', connected: integrations.fansly },
     { key: 'mym', name: 'MYM', color: 'bg-pink-500', connected: integrations.mym },
-  ]
-
-  const socialIntegrations = [
-    { key: 'twitter', name: 'Twitter/X', color: 'bg-slate-900', connected: integrations.twitter, icon: TwitterXLogo },
-    { key: 'instagram', name: 'Instagram', color: 'bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400', connected: integrations.instagram, icon: InstagramLogo },
-    { key: 'tiktok', name: 'TikTok', color: 'bg-black', connected: integrations.tiktok, icon: TikTokLogo },
   ]
 
   return (
@@ -1048,55 +1105,16 @@ export default function SettingsPage() {
                     fanPlatformConnected={integrations.onlyfans || integrations.fansly}
                   />
 
-                  <Card className={SETTINGS_SURFACE}>
-                    <CardHeader className={SETTINGS_CARD_HEADER}>
-                      <CardTitle className={SETTINGS_CARD_TITLE}>Social</CardTitle>
-                      <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
-                        Link accounts for reputation monitoring.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-3')}>
-                      {socialIntegrations.map((social) => (
-                        <div
-                          key={social.key}
-                          className="flex items-center justify-between gap-4 rounded-2xl border border-border/30 bg-muted/[0.15] px-4 py-3.5 sm:px-5"
-                        >
-                          <div className="flex min-w-0 items-center gap-3.5">
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${social.color} text-white shadow-sm`}
-                            >
-                              <social.icon />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[0.9375rem] font-medium text-foreground">{social.name}</p>
-                              <p className="text-[0.8125rem] text-muted-foreground/78">
-                                {social.connected ? 'Connected' : 'Not connected'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant={social.connected ? 'outline' : 'default'}
-                            size="sm"
-                            className={cn(
-                              'h-9 shrink-0 rounded-full px-4 text-[0.8125rem] font-normal',
-                              !social.connected && 'shadow-none',
-                            )}
-                            onClick={() => {
-                              if (social.connected) {
-                                fetch(`/api/${social.key}/disconnect`, { method: 'POST' }).then(() => {
-                                  setIntegrations((prev) => ({ ...prev, [social.key]: false }))
-                                })
-                              } else {
-                                window.location.href = `/api/${social.key}/auth`
-                              }
-                            }}
-                          >
-                            {social.connected ? 'Disconnect' : 'Connect'}
-                          </Button>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
+                  <SocialAccountsSettings
+                    connected={{
+                      twitter: integrations.twitter,
+                      instagram: integrations.instagram,
+                      tiktok: integrations.tiktok,
+                    }}
+                    onConnectedChange={(key, value) =>
+                      setIntegrations((prev) => ({ ...prev, [key]: value }))
+                    }
+                  />
                 </>
               ) : (
                 <Card className={SETTINGS_SURFACE}>
@@ -1243,7 +1261,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label className={SETTINGS_FIELD_LABEL}>Language</Label>
                     <Select
-                      value={preferences.language}
+                      value={normalizeDashboardLocale(preferences.language)}
                       onValueChange={(v) => setPreferences({ ...preferences, language: v })}
                     >
                       <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
@@ -1252,9 +1270,8 @@ export default function SettingsPage() {
                       <SelectContent>
                         <SelectItem value="en">English</SelectItem>
                         <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="de">Deutsch</SelectItem>
                         <SelectItem value="pt">Português</SelectItem>
+                        <SelectItem value="fr">Français</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1373,6 +1390,38 @@ export default function SettingsPage() {
                       onCheckedChange={(checked) => setPreferences({ ...preferences, cosmicGuidance: checked })}
                     />
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    className="h-11 w-full rounded-full shadow-none sm:w-auto"
+                    onClick={() => void handleSaveUiPreferences()}
+                    disabled={prefsSaving}
+                  >
+                    {prefsSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" aria-hidden />
+                        Save preferences
+                      </>
+                    )}
+                  </Button>
+                  {prefsMessage ? (
+                    <p
+                      className={cn(
+                        'text-sm',
+                        prefsMessage.variant === 'success' ? 'text-muted-foreground' : 'text-destructive',
+                      )}
+                      role={prefsMessage.variant === 'error' ? 'alert' : undefined}
+                    >
+                      {prefsMessage.text}
+                    </p>
+                  ) : null}
                 </div>
 
                 <Separator className="my-2 bg-border/35" />

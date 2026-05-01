@@ -284,7 +284,8 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'frame-studio',
     name: 'Frame Studio',
-    description: 'Creatix-branded video editor (Frame fork)',
+    description:
+      'In-browser video editing for creators. Trim, swap clips, and refine pacing without desktop software.',
     longDescription:
       'Opens Media & Vault, where you can launch the Frame bridge, swap video, and use saved presets. If you self-host Frame, point the app at your deployment in environment settings so the button opens your editor. Divine can drop you straight on this hub when you ask.',
     category: 'content',
@@ -307,7 +308,7 @@ export const ALL_TOOLS_META: AIToolMeta[] = [
   {
     id: 'ariadne-trace',
     name: 'Ariadne Trace',
-    description: 'Per-recipient forensic marker on exported video',
+    description: "Uniquely mark each fan's export—trace leaks back to who received the file",
     longDescription:
       'Embeds a discreet marker in exported vault video so if a clip leaks you have a stronger clue which copy or recipient it came from. Use Media & Vault → Ariadne on files you already store; Frame export can use the same flow. Technical details live in the Ariadne spec in the repo docs if you need them.',
     category: 'protection',

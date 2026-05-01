@@ -114,20 +114,45 @@ function urgencyRank(u: string | undefined): number {
 
 const ALL_SEVERITIES: LeakSeverity[] = ['critical', 'high', 'medium', 'low']
 
-/** Pills in the filter queue when that severity is included */
+/**
+ * Severity toggles — light: soft semantic fill + dark label (WCAG-friendly); dark: deeper matte + light label.
+ * No outer glows; one hairline border + subtle inset highlight only (calm, legible).
+ */
 const SEVERITY_FILTER_ON: Record<LeakSeverity, string> = {
-  critical:
-    'border-red-500/60 bg-gradient-to-b from-red-950/50 to-red-950/20 text-red-100 shadow-[0_0_20px_-4px_rgba(239,68,68,0.55),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-red-400/30',
-  high:
-    'border-orange-500/55 bg-gradient-to-b from-orange-950/45 to-orange-950/15 text-orange-100 shadow-[0_0_18px_-4px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-orange-400/30',
-  medium:
-    'border-amber-500/50 bg-gradient-to-b from-amber-950/35 to-amber-950/10 text-amber-100 shadow-[0_0_16px_-4px_rgba(234,179,8,0.4),inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-amber-400/25',
-  low:
-    'border-sky-500/50 bg-gradient-to-b from-sky-950/40 to-sky-950/10 text-sky-100 shadow-[0_0_16px_-4px_rgba(14,165,233,0.45),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-sky-400/30',
+  critical: cn(
+    'border-red-600/35 bg-red-50 text-red-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-red-500/45 dark:bg-red-950/55 dark:text-red-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]',
+  ),
+  high: cn(
+    'border-orange-600/32 bg-orange-50 text-orange-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-orange-500/42 dark:bg-orange-950/50 dark:text-orange-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)]',
+  ),
+  medium: cn(
+    'border-amber-700/28 bg-amber-50 text-amber-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-amber-500/38 dark:bg-amber-950/45 dark:text-amber-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]',
+  ),
+  low: cn(
+    'border-sky-600/32 bg-sky-50 text-sky-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-sky-500/40 dark:bg-sky-950/50 dark:text-sky-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)]',
+  ),
 }
 
-const SEVERITY_FILTER_OFF =
-  'border-border/50 bg-background/20 text-muted-foreground hover:border-border hover:bg-muted/30 hover:text-foreground'
+const SEVERITY_FILTER_OFF = cn(
+  'border-border/65 bg-card/70 text-foreground/78',
+  'shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_0_rgba(255,255,255,0.55)]',
+  'hover:border-border hover:bg-muted/55 hover:text-foreground',
+  'dark:border-border/55 dark:bg-background/35 dark:text-muted-foreground',
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
+  'dark:hover:bg-muted/35 dark:hover:text-foreground',
+)
 
 function severityRank(s: string | undefined): number {
   if (s === 'critical') return 0
@@ -953,13 +978,13 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           aria-hidden
         />
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/10 text-violet-300">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/[0.12] text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
             <Filter className="h-4 w-4 shrink-0" aria-hidden />
           </div>
           <span className="text-xs font-medium tracking-tight text-foreground">Filter queue</span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/90">Severity</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Severity</span>
           {ALL_SEVERITIES.map((s) => {
             const on = severityFilters.has(s)
             return (
@@ -990,7 +1015,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs"
+            className="h-7 text-xs text-foreground/80 hover:bg-muted/50 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
             onClick={() => setSeverityFilters(new Set(ALL_SEVERITIES))}
           >
             All
@@ -999,7 +1024,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 gap-1 text-xs text-amber-200/80 hover:text-amber-100"
+            className="h-7 gap-1 text-xs text-amber-800 hover:bg-amber-500/12 hover:text-amber-950 dark:text-amber-200/90 dark:hover:bg-amber-500/10 dark:hover:text-amber-50"
             onClick={() => setSeverityFilters(new Set(['critical', 'high']))}
           >
             <RotateCcw className="h-3 w-3 motion-safe:transition-transform motion-safe:duration-500 hover:rotate-[-25deg]" />

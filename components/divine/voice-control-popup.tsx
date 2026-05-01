@@ -15,9 +15,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import {
+  CREDIT_USD_VALUE,
+  DIVINE_VOICE_CREDITS_PER_SECOND,
+  divineVoiceCreditsPerMinute,
+  divineVoiceWalletUsdPerMinute,
+  formatUsdWalletApprox,
+} from '@/lib/billing/credit-economics'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 import {
   Crown,
+  Coins,
   Layers2,
   Mic,
   PhoneOff,
@@ -26,12 +34,16 @@ import {
   LayoutDashboard,
   ListTodo,
   MoreHorizontal,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { DivineTranscriptStack } from '@/components/divine/divine-transcript-card'
+import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 import { DivineProtocolTaskRail } from '@/components/divine/divine-protocol-task-rail'
 import { useProtocolRailLayersAccent } from '@/components/divine/use-protocol-rail-layers-accent'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 
 /** Shared surface for Divine shortcut menus (skip-launcher, in-call overflow). */
 const divineSubmenuContentClass =
@@ -42,12 +54,133 @@ const divineSubmenuItemClass =
 
 const divineSubmenuSeparatorClass = 'my-1.5 bg-border/55 dark:bg-white/[0.06]'
 
-const DIVINE_MANAGER_VOICE_RATE_HINT =
-  'Included with your subscription · 2 credits/sec while live (~$1/min)'
-
-/** Launcher shortcuts: tinted icon tiles + label (high-visibility). */
+/** Launcher shortcuts — soft violet→amber wash on hover; icons carry brand tint. */
 const launcherRowClass =
-  'group/row flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-[background-color,color] duration-150 ease-out hover:bg-foreground/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/12 focus-visible:ring-offset-0 dark:hover:bg-white/[0.04]'
+  'group/row -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-[10px] px-2.5 py-2 text-left transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-gradient-to-r hover:from-violet-500/[0.09] hover:to-amber-400/[0.06] hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 focus-visible:ring-offset-0 motion-safe:hover:translate-x-px dark:hover:from-violet-400/[0.12] dark:hover:to-amber-400/[0.08]'
+
+const DIVINE_VOICE_SESSION_PRESETS_MIN = [5, 15, 30] as const
+
+/** One calm sentence under the title — never contradicts state (e.g. “call active” on error). */
+function voicePillStatusSubtitle(status: string): string {
+  switch (status) {
+    case 'error':
+      return 'Voice did not connect. You can keep using the rest of the app.'
+    case 'connecting':
+      return 'Setting up your microphone and session…'
+    case 'connected':
+      return 'Session is live — you can keep browsing here.'
+    default:
+      return 'Start a call when you are ready, or open the crown for shortcuts.'
+  }
+}
+
+/** Short primary line + optional technical line for setup / API errors. */
+function voicePillErrorPresentation(raw: string): { friendly: string; technical: string | null } {
+  const t = raw.trim()
+  if (!t) return { friendly: 'Something went wrong.', technical: null }
+  if (/OPENAI_API_KEY|Realtime requires|Vercel AI Gateway/i.test(t)) {
+    return {
+      friendly: 'Live voice is not available here until Realtime is configured.',
+      technical: t,
+    }
+  }
+  if (t.length <= 96) return { friendly: t, technical: null }
+  return { friendly: `${t.slice(0, 93)}…`, technical: t }
+}
+
+function DivineLauncherVoiceRateCard({ className }: { className?: string }) {
+  const [ratesExpanded, setRatesExpanded] = useState(false)
+  const perMinCredits = divineVoiceCreditsPerMinute()
+  const perMinUsd = divineVoiceWalletUsdPerMinute()
+  const perHourCredits = DIVINE_VOICE_CREDITS_PER_SECOND * 3600
+  const perHourUsd = perHourCredits * CREDIT_USD_VALUE
+
+  return (
+    <section
+      className={cn(
+        'relative overflow-hidden rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.1] via-muted/[0.28] to-amber-400/[0.12] px-3.5 py-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)] dark:border-violet-400/20 dark:from-violet-500/[0.18] dark:via-white/[0.04] dark:to-amber-400/[0.12] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
+        className,
+      )}
+      aria-label="Divine voice credit rate"
+    >
+      <div
+        className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-violet-500/20 blur-2xl motion-safe:animate-pulse dark:bg-violet-400/25"
+        style={{ animationDuration: '4.5s' }}
+        aria-hidden
+      />
+      <div className="relative flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-600/85 dark:text-violet-300/85">
+            Live rate
+          </p>
+          <p className="mt-1.5 whitespace-nowrap tabular-nums">
+            <span className="bg-gradient-to-br from-violet-700 to-violet-500 bg-clip-text text-[1.625rem] font-semibold tracking-[-0.03em] text-transparent dark:from-violet-200 dark:to-fuchsia-200">
+              {DIVINE_VOICE_CREDITS_PER_SECOND}
+            </span>
+            <span className="ml-2 text-[13px] font-medium text-muted-foreground">credits / sec</span>
+          </p>
+        </div>
+        <div className="text-right tabular-nums">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700/80 dark:text-amber-200/75">
+            One minute
+          </p>
+          <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">{perMinCredits} credits</p>
+          <p className="text-[12px] text-muted-foreground">{formatUsdWalletApprox(perMinUsd)} at wallet value</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="relative mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 dark:hover:bg-white/[0.06]"
+        aria-expanded={ratesExpanded}
+        onClick={() => setRatesExpanded((v) => !v)}
+      >
+        {ratesExpanded ? (
+          <>
+            Hide hourly and sessions
+            <ChevronUp className="h-3.5 w-3.5 opacity-70" aria-hidden />
+          </>
+        ) : (
+          <>
+            Hourly and session rates
+            <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden />
+          </>
+        )}
+      </button>
+
+      {ratesExpanded ? (
+        <div className="relative mt-2 space-y-3 border-t border-violet-500/15 pt-3 dark:border-white/[0.08]">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 tabular-nums">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700/80 dark:text-amber-200/75">
+                One hour
+              </p>
+              <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">{perHourCredits} credits</p>
+            </div>
+            <p className="text-right text-[12px] text-muted-foreground">{formatUsdWalletApprox(perHourUsd)} at wallet value</p>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            While you are connected, time ticks continuously. Tool calls may add separate debits.
+          </p>
+          <ul className="space-y-1.5" role="list">
+            {DIVINE_VOICE_SESSION_PRESETS_MIN.map((min) => {
+              const credits = DIVINE_VOICE_CREDITS_PER_SECOND * 60 * min
+              const usd = credits * CREDIT_USD_VALUE
+              return (
+                <li key={min} className="flex items-center justify-between gap-3 text-[13px] tabular-nums">
+                  <span className="text-muted-foreground">{min} min session</span>
+                  <span className="min-w-0 truncate text-right font-medium text-foreground/90">
+                    {credits} · {formatUsdWalletApprox(usd)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 
 const FAB_INSET_LS_KEY = 'divine_fab_inset_v1'
 /** When "1", tasks & protocols rail is tucked — crown launcher stays visible */
@@ -80,6 +213,7 @@ export function VoiceControlPopup() {
   const [expanded, setExpanded] = useState(false)
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [skipLauncher, setSkipLauncher] = useState(false)
+  const { wallet, loading: creditLoading, error: creditError, refresh: refreshCredits } = useCreditSnapshot()
   /** Expanded voice dock only once a session is live (never idle — idle uses crown + launcher only). */
   const voiceDeckOpen = Boolean(voice && expanded && voice.status !== 'idle')
   const crownStateClass = useDivineCrownStateClass(voiceDeckOpen)
@@ -114,6 +248,14 @@ export function VoiceControlPopup() {
       /* ignore */
     }
   }, [])
+
+  const refreshVoiceEntitlement = voice?.refreshDivineVoiceEntitlement
+
+  useEffect(() => {
+    if (!launcherOpen) return
+    void refreshCredits()
+    void refreshVoiceEntitlement?.()
+  }, [launcherOpen, refreshCredits, refreshVoiceEntitlement])
 
   const collapseProtocolRail = useCallback(() => {
     setProtocolRailCollapsed(true)
@@ -369,7 +511,10 @@ export function VoiceControlPopup() {
         ? 'Connecting…'
         : status === 'connected'
           ? 'Listening'
-          : 'Error'
+          : 'Needs attention'
+
+  const voiceErrorPresentation =
+    status === 'error' && error ? voicePillErrorPresentation(error) : null
 
   const startVoiceFromLauncher = async () => {
     setLauncherOpen(false)
@@ -410,131 +555,164 @@ export function VoiceControlPopup() {
               title="Tap to open. Hold the crown 2 seconds (ring appears), then drag to move."
               onClick={guardFabClick}
             >
-              <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
+              <SidebarDivineManagerCrown
+                gradientSlot="voice-fab"
+                iconBoxClass="pointer-events-none block h-6 w-6 shrink-0"
+                className="divine-fab-idle-crown"
+              />
             </button>
           </PopoverTrigger>
           <PopoverContent
             side="top"
             align="end"
             sideOffset={12}
-            className="group/aitools divine-launcher-panel z-[110] w-[min(calc(100vw-2rem),21rem)] overflow-hidden rounded-[22px] border border-zinc-200/14 bg-popover p-0 shadow-[0_28px_90px_-36px_rgba(0,0,0,0.5)] backdrop-blur-xl dark:border-white/[0.07] dark:bg-zinc-950/94"
+            className="divine-launcher-panel z-[110] w-[min(calc(100vw-2rem),20rem)] overflow-hidden rounded-2xl border-0 p-0"
           >
-            <div className="pointer-events-none absolute inset-0 opacity-[0.04] constellation-bg dark:opacity-[0.035]" />
-            <div className="relative px-6 pb-8 pt-7">
-              <header className="space-y-3">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h2 className="ai-tools-wordmark text-[1.3125rem] font-semibold leading-none tracking-[-0.04em] text-foreground">
-                    Divine
-                  </h2>
-                  <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
+            <div className="relative z-[1] px-5 pb-6 pt-[1.375rem]">
+              <header className="flex flex-col gap-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1.5">
+                    <h2 className="bg-gradient-to-r from-violet-700 via-fuchsia-600 to-amber-600 bg-clip-text text-[1.25rem] font-semibold leading-none tracking-[-0.035em] text-transparent dark:from-violet-200 dark:via-fuchsia-200 dark:to-amber-200">
+                      Divine
+                    </h2>
+                    <p className="max-w-[34ch] text-[13px] font-normal leading-relaxed tracking-[-0.008em] text-muted-foreground">
+                      Voice when you need it. Text and tools when you don&apos;t.
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-violet-400/35 bg-gradient-to-br from-violet-500/15 to-amber-400/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-900 shadow-sm dark:border-white/15 dark:from-violet-400/20 dark:to-amber-400/15 dark:text-amber-50">
                     Idle
                   </span>
                 </div>
-                <p className="max-w-[30ch] text-[13px] font-normal leading-[1.52] tracking-[-0.01em] text-muted-foreground">
-                  Voice when you want it. Text and tools when you don&apos;t.
-                </p>
+                <div
+                  className="flex items-center justify-between gap-2 rounded-lg border border-violet-500/15 bg-violet-500/[0.05] px-2.5 py-1.5 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                  role="status"
+                  aria-live="polite"
+                  title={creditError ?? undefined}
+                >
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-700/75 dark:text-violet-200/75">
+                    <Coins className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                    Credits remaining
+                  </span>
+                  <span className="tabular-nums text-[13px] font-semibold tracking-[-0.02em] text-foreground">
+                    {creditLoading ? '…' : creditError || wallet === null ? '—' : wallet.totalRemaining.toLocaleString()}
+                  </span>
+                </div>
               </header>
 
-              <div className="mt-9">
+              <DivineLauncherVoiceRateCard className="mt-5" />
+
+              <div className="mt-5">
                 {divineVoicePremium ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="default"
                     className={cn(
-                      'flex h-[3.125rem] w-full items-center justify-center gap-2.5 rounded-2xl text-[15px] font-semibold tracking-[-0.02em] text-white',
-                      'bg-gradient-to-r from-amber-600/95 to-purple-600/95 shadow-[0_10px_36px_-14px_rgba(124,58,237,0.55)] transition-[transform,box-shadow,filter] duration-200',
-                      'hover:from-amber-500 hover:to-purple-500 hover:shadow-[0_14px_40px_-14px_rgba(124,58,237,0.5)] motion-safe:active:scale-[0.99]',
+                      'h-11 w-full rounded-xl text-[15px] font-semibold tracking-[-0.02em] text-white shadow-md transition-[filter,transform,opacity] duration-200 motion-safe:active:scale-[0.99]',
+                      '!bg-gradient-to-r !from-violet-600 !via-fuchsia-600 !to-amber-500 hover:!brightness-110 hover:!from-violet-600 hover:!via-fuchsia-600 hover:!to-amber-500',
+                      'focus-visible:ring-2 focus-visible:ring-violet-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      'dark:!from-violet-500 dark:!via-fuchsia-500 dark:!to-amber-400 dark:hover:!from-violet-500 dark:hover:!via-fuchsia-500 dark:hover:!to-amber-400',
                     )}
                     onClick={() => {
                       void startVoiceFromLauncher()
                     }}
                   >
-                    <Mic className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-95" aria-hidden />
+                    <Mic className="mr-2 h-[1.0625rem] w-[1.0625rem] shrink-0 opacity-95" aria-hidden />
                     Start voice
-                  </button>
+                  </Button>
                 ) : (
-                  <div className="rounded-2xl border border-amber-500/15 bg-gradient-to-b from-amber-500/[0.09] via-transparent to-purple-500/[0.06] px-[1.0625rem] py-[1.0625rem] dark:border-white/[0.1]">
-                    <p className="text-[13px] leading-[1.58] tracking-[-0.01em] text-muted-foreground">
-                      Premium voice unlocks realtime audio, tools, Markit, and dashboard handoff.
+                  <div className="rounded-xl border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.08] via-muted/[0.2] to-amber-400/[0.1] px-3.5 py-3.5 dark:border-white/[0.1] dark:from-violet-400/15 dark:via-white/[0.04] dark:to-amber-400/10">
+                    <p className="text-[13px] leading-relaxed tracking-[-0.01em] text-muted-foreground">
+                      Premium voice adds realtime audio, tools, and dashboard handoff.
                     </p>
-                    <Link
-                      href="/dashboard/settings?tab=billing"
-                      onClick={() => setLauncherOpen(false)}
-                      className={cn(
-                        'mt-[1.0625rem] flex h-11 w-full items-center justify-center rounded-xl text-[13px] font-semibold tracking-tight text-white shadow-md transition-opacity hover:opacity-95',
-                        'bg-gradient-to-r from-amber-700/90 to-purple-700/90',
-                      )}
+                    <Button
+                      variant="secondary"
+                      className="mt-3 h-10 w-full rounded-xl border border-violet-500/25 bg-background/80 text-[13px] font-semibold shadow-sm backdrop-blur-sm transition-colors hover:bg-violet-500/[0.08] dark:border-white/15 dark:hover:bg-white/[0.06]"
+                      asChild
                     >
-                      View plans
-                    </Link>
+                      <Link href="/dashboard/settings?tab=billing" onClick={() => setLauncherOpen(false)}>
+                        View plans
+                      </Link>
+                    </Button>
                   </div>
                 )}
               </div>
 
               <nav
-                className="mt-10 flex flex-col gap-0.5 border-t border-border/40 pt-[1.375rem] dark:border-white/[0.06]"
+                className="mt-6 border-t border-violet-500/15 bg-gradient-to-r from-transparent via-violet-500/[0.08] to-transparent pt-5 dark:border-white/[0.08] dark:via-amber-400/[0.06]"
                 aria-label="Divine shortcuts"
               >
-                <Link
-                  href="/dashboard/divine-manager?section=text"
-                  className={launcherRowClass}
-                  onClick={() => setLauncherOpen(false)}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/12 text-purple-500 transition-colors duration-150 group-hover/row:bg-purple-500/16 dark:text-purple-400">
-                    <MessageSquare className="h-[1.05rem] w-[1.05rem]" aria-hidden />
-                  </span>
-                  <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
-                    Text Divine
-                  </span>
-                </Link>
-                <Link
-                  href="/dashboard/divine-manager"
-                  className={cn(launcherRowClass, 'items-start')}
-                  onClick={() => setLauncherOpen(false)}
-                >
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/12 text-amber-600 transition-colors duration-150 group-hover/row:bg-amber-500/16 dark:text-amber-400">
-                    <LayoutDashboard className="h-[1.05rem] w-[1.05rem]" aria-hidden />
-                  </span>
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span className="text-[15px] font-medium tracking-[-0.015em] text-foreground/95">Divine Manager</span>
-                    <span className="text-[11px] leading-[1.42] text-muted-foreground/90">
-                      {workspaceCaps.canUseDivineManagerNav
-                        ? DIVINE_MANAGER_VOICE_RATE_HINT
-                        : 'Included on the full creator plan.'}
+                <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-600/75 dark:text-violet-300/75">
+                  Go to
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  <Link
+                    href="/dashboard/divine-manager?section=text"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <MessageSquare
+                      className="h-[15px] w-[15px] shrink-0 text-violet-600 transition-colors duration-150 group-hover/row:text-violet-700 dark:text-violet-400 dark:group-hover/row:text-violet-300"
+                      aria-hidden
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 text-[14px] font-medium tracking-[-0.012em] text-foreground/95">Text Divine</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/divine-manager"
+                    className={cn(launcherRowClass, 'items-start')}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <LayoutDashboard
+                      className="mt-0.5 h-[15px] w-[15px] shrink-0 text-amber-600 transition-colors duration-150 group-hover/row:text-amber-700 dark:text-amber-400 dark:group-hover/row:text-amber-300"
+                      aria-hidden
+                      strokeWidth={1.75}
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="text-[14px] font-medium tracking-[-0.012em] text-foreground/95">Divine Manager</span>
+                      <span className="text-[11px] leading-snug text-muted-foreground">
+                        {workspaceCaps.canUseDivineManagerNav
+                          ? `Includes voice · ${DIVINE_VOICE_CREDITS_PER_SECOND} credits/sec while live`
+                          : 'Included on the full creator plan.'}
+                      </span>
                     </span>
-                  </span>
-                </Link>
-                <Link
-                  href="/dashboard/divine-manager?section=protocol"
-                  className={launcherRowClass}
-                  onClick={() => setLauncherOpen(false)}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/12 text-amber-500 transition-colors duration-150 group-hover/row:bg-amber-500/16 dark:text-amber-400">
-                    <ListTodo className="h-[1.05rem] w-[1.05rem]" aria-hidden />
-                  </span>
-                  <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
-                    Today&apos;s plan &amp; protocol
-                  </span>
-                </Link>
-                <Link
-                  href="/dashboard/divine-manager?section=tasks"
-                  className={launcherRowClass}
-                  onClick={() => setLauncherOpen(false)}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/12 text-violet-500 transition-colors duration-150 group-hover/row:bg-violet-500/16 dark:text-violet-400">
-                    <ListTodo className="h-[1.05rem] w-[1.05rem]" aria-hidden />
-                  </span>
-                  <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
-                    Manager tasks &amp; suggestions
-                  </span>
-                </Link>
-                <Link href="/dashboard/ai-studio?tab=tools" className={launcherRowClass} onClick={() => setLauncherOpen(false)}>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/12 text-purple-500 transition-colors duration-150 group-hover/row:bg-purple-500/16 dark:text-purple-400">
-                    <Sparkles className="h-[1.05rem] w-[1.05rem]" aria-hidden />
-                  </span>
-                  <span className="min-w-0 text-[15px] font-medium tracking-[-0.015em] text-foreground/95">
-                    AI Studio tools
-                  </span>
-                </Link>
+                  </Link>
+                  <Link
+                    href="/dashboard/divine-manager?section=protocol"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <ListTodo
+                      className="h-[15px] w-[15px] shrink-0 text-purple-600 transition-colors duration-150 group-hover/row:text-purple-700 dark:text-purple-400 dark:group-hover/row:text-purple-300"
+                      aria-hidden
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 text-[14px] font-medium tracking-[-0.012em] text-foreground/95">
+                      Today&apos;s plan &amp; protocol
+                    </span>
+                  </Link>
+                  <Link
+                    href="/dashboard/divine-manager?section=tasks"
+                    className={launcherRowClass}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <ListTodo
+                      className="h-[15px] w-[15px] shrink-0 text-violet-600 transition-colors duration-150 group-hover/row:text-violet-700 dark:text-violet-400 dark:group-hover/row:text-violet-300"
+                      aria-hidden
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 text-[14px] font-medium tracking-[-0.012em] text-foreground/95">
+                      Manager tasks &amp; suggestions
+                    </span>
+                  </Link>
+                  <Link href="/dashboard/ai-studio?tab=tools" className={launcherRowClass} onClick={() => setLauncherOpen(false)}>
+                    <Sparkles
+                      className="h-[15px] w-[15px] shrink-0 text-amber-500 transition-colors duration-150 group-hover/row:text-amber-600 dark:text-amber-400 dark:group-hover/row:text-amber-300"
+                      aria-hidden
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 text-[14px] font-medium tracking-[-0.012em] text-foreground/95">AI Studio tools</span>
+                  </Link>
+                </div>
               </nav>
             </div>
           </PopoverContent>
@@ -620,7 +798,7 @@ export function VoiceControlPopup() {
 
     const collapsedCallLabel =
       status === 'error'
-        ? 'Divine voice error — expand for details'
+        ? 'Divine voice issue — expand for details'
         : status === 'connecting'
           ? 'Divine voice connecting — expand for controls'
           : 'Divine voice active — expand for End and tools'
@@ -714,43 +892,58 @@ export function VoiceControlPopup() {
         )}
         <div
           className={cn(
-            'flex overflow-hidden rounded-full shadow-[0_16px_50px_-28px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] transition-all duration-300 motion-reduce:transition-none dark:ring-white/[0.055]',
+            'flex overflow-hidden transition-all duration-300 motion-reduce:transition-none',
             voiceDeckOpen
-              ? 'divine-voice-pill-expanded h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch rounded-[22px] bg-card/93 backdrop-blur-md dark:bg-zinc-950/90'
-              : 'h-[4.125rem] min-h-[66px] w-[4.125rem] min-w-[66px] items-center border-0 bg-transparent shadow-none ring-0',
+              ? 'divine-voice-pill-expanded h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch rounded-[22px] ring-0'
+              : 'h-[4.125rem] min-h-[66px] w-[4.125rem] min-w-[66px] items-center rounded-full border-0 bg-transparent shadow-[0_16px_50px_-28px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] dark:ring-white/[0.055]',
           )}
         >
           <div
             className={cn(
               'min-w-0 transition-all duration-300 motion-reduce:transition-none',
-              voiceDeckOpen ? 'flex-1 px-3 py-2.5 opacity-100' : 'w-0 px-0 py-0 opacity-0',
+              voiceDeckOpen ? 'flex-1 px-4 py-3 opacity-100' : 'w-0 px-0 py-0 opacity-0',
             )}
           >
             <div className="flex items-start gap-3">
               <div
                 className={cn(
-                  'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+                  'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
                   status === 'error'
-                    ? 'bg-red-500/10 text-red-500'
+                    ? 'bg-orange-500/[0.12] text-orange-600 dark:bg-orange-400/15 dark:text-orange-300'
                     : status === 'connecting'
-                      ? 'bg-amber-500/10 text-amber-500'
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                       : isActive
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : 'bg-muted text-muted-foreground',
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-muted/80 text-muted-foreground',
                 )}
+                aria-hidden
               >
-                <Mic className="h-6 w-6" />
+                <Mic className="h-[1.35rem] w-[1.35rem]" strokeWidth={1.75} />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold leading-snug tracking-[-0.015em] text-foreground/95">
-                  Divine voice · {primaryLabel}
-                </span>
-                <span className="mt-1 block text-[13px] leading-snug text-muted-foreground/88">
-                  You can keep browsing; call stays active.
-                </span>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="text-[1.0625rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+                    Divine voice
+                  </span>
+                  <span
+                    className={cn(
+                      'text-[13px] font-medium tabular-nums tracking-[-0.01em]',
+                      status === 'error'
+                        ? 'text-orange-600 dark:text-orange-300'
+                        : status === 'connecting'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : isActive
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-muted-foreground',
+                    )}
+                  >
+                    {primaryLabel}
+                  </span>
+                </div>
+                <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{voicePillStatusSubtitle(status)}</p>
                 <DivineWorkingLogo
                   variant={isActive ? voiceSurfaceState : 'idle'}
-                  className="mt-0.5"
+                  className="mt-1.5"
                   wordmarkClassName={!isActive ? 'ai-tools-wordmark text-[11px]' : undefined}
                 />
               </div>
@@ -758,15 +951,21 @@ export function VoiceControlPopup() {
                 ref={voiceVizRef}
                 width={94}
                 height={33}
-                className="hidden shrink-0 self-center rounded-md bg-muted sm:block"
+                className="hidden shrink-0 self-center rounded-md bg-muted/60 sm:block"
               />
               {!isActive ? (
                 divineVoicePremium ? (
-                  <Button size="sm" className="h-8 shrink-0 self-center text-xs" onClick={() => { void startVoiceCall() }}>
+                  <Button
+                    size="sm"
+                    className="h-9 shrink-0 self-center rounded-full px-4 text-[13px] font-medium shadow-sm"
+                    onClick={() => {
+                      void startVoiceCall()
+                    }}
+                  >
                     Start call
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-8 shrink-0 self-center text-xs" asChild>
+                  <Button size="sm" variant="outline" className="h-9 shrink-0 self-center rounded-full px-3 text-[13px]" asChild>
                     <Link href="/dashboard/settings?tab=billing">Premium</Link>
                   </Button>
                 )
@@ -835,9 +1034,16 @@ export function VoiceControlPopup() {
                 </div>
               )}
             </div>
-            {error && (
-              <span className="mt-1 block max-w-[min(92vw,320px)] truncate text-[11px] text-destructive">{error}</span>
-            )}
+            {voiceErrorPresentation ? (
+              <div className="mt-2.5 space-y-1 rounded-xl border border-border/50 bg-muted/25 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.04]">
+                <p className="text-[13px] leading-snug text-foreground/90">{voiceErrorPresentation.friendly}</p>
+                {voiceErrorPresentation.technical ? (
+                  <p className="font-mono text-[10px] leading-relaxed text-muted-foreground/85 [overflow-wrap:anywhere]">
+                    {voiceErrorPresentation.technical}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           {renderCrownButton()}
         </div>

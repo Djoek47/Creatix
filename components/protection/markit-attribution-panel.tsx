@@ -119,9 +119,24 @@ export function MarkitAttributionPanel({ className }: Props) {
                 className="flex flex-wrap gap-2 font-mono text-sm tabular-nums text-foreground"
                 aria-live="polite"
               >
-                <span className="rounded-md border border-border/60 bg-background/60 px-2 py-1">
-                  {parts.d}d
-                </span>
+                {(() => {
+                  const d = parts.d
+                  const weeks = Math.floor(d / 7)
+                  const daysRem = d % 7
+                  const chip = 'rounded-md border border-border/60 bg-background/60 px-2 py-1'
+                  if (d === 7) {
+                    return <span className={chip}>7d</span>
+                  }
+                  if (d > 7) {
+                    return (
+                      <>
+                        <span className={chip}>{weeks}w</span>
+                        {daysRem > 0 ? <span className={chip}>{daysRem}d</span> : null}
+                      </>
+                    )
+                  }
+                  return <span className={chip}>{d}d</span>
+                })()}
                 <span className="rounded-md border border-border/60 bg-background/60 px-2 py-1">
                   {String(parts.h).padStart(2, '0')}h
                 </span>

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
       const access = await requireAiToolSessionAndCredits(req, 'photo-enhancer')
       if (!access.ok) return access.response
-      const { cost } = access.data
+      const { cost, billingToolId } = access.data
 
       const result = await executePhotoEditIntent({
         imageBase64,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, cost)
+      const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, cost, billingToolId)
       if (!charged.ok) return charged.response
 
       const { imageBase64: outUrl, operation, explanation } = result.data

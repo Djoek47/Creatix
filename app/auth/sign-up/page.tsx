@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,8 @@ import { getEmailConfirmationRedirectUrlClient } from '@/lib/supabase/email-conf
 import { cn } from '@/lib/utils'
 
 export default function SignUpPage() {
+  const tAuth = useTranslations('auth')
+  const tCommon = useTranslations('common')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -54,19 +57,17 @@ export default function SignUpPage() {
 
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden bg-background">
-      {/* One continuous scenic + stars behind both columns */}
       <div className="pointer-events-none absolute inset-0 z-0">
         <AuthScenicBackdrop />
       </div>
 
-      {/* Left — form (matches login glass + typography) */}
       <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16 sm:px-6">
         <Link
           href="/"
           className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:left-8 sm:top-8"
         >
           <ArrowLeft className="h-4 w-4 opacity-70" />
-          Back
+          {tCommon('back')}
         </Link>
 
         <div className="relative z-10 mb-10 flex flex-col items-center gap-5 sm:mb-12">
@@ -77,9 +78,9 @@ export default function SignUpPage() {
           <ThemedLogo width={96} height={96} className="relative z-10 rounded-full" priority />
           <div className="relative z-10 text-center">
             <p className="font-serif text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-              Circe et Venus
+              {tCommon('brand.name')}
             </p>
-            <p className="mt-1.5 text-xs text-muted-foreground/90">Creator workspace</p>
+            <p className="mt-1.5 text-xs text-muted-foreground/90">{tCommon('brand.subtitle')}</p>
           </div>
         </div>
 
@@ -92,10 +93,10 @@ export default function SignUpPage() {
         >
           <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
             <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
-              Create your account
+              {tAuth('signUpTitle')}
             </CardTitle>
             <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
-              Start with a 2-day trial. A card on file is required to activate billing after the trial.
+              {tAuth('signUpCardSubtitle')}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-8 pb-10 pt-8">
@@ -108,7 +109,7 @@ export default function SignUpPage() {
                   <div className="flex gap-3">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
                     <div className="min-w-0 space-y-1">
-                      <p className="font-medium leading-snug text-destructive">Unable to create your account</p>
+                      <p className="font-medium leading-snug text-destructive">{tAuth('signUpErrorTitle')}</p>
                       <p className="text-xs leading-relaxed text-destructive/85">{error}</p>
                     </div>
                   </div>
@@ -117,12 +118,12 @@ export default function SignUpPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-[13px] font-medium text-foreground">
-                  Name
+                  {tAuth('signUpNameLabel')}
                 </Label>
                 <Input
                   id="fullName"
                   type="text"
-                  placeholder="Your name"
+                  placeholder={tAuth('signUpNamePlaceholder')}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
@@ -133,12 +134,12 @@ export default function SignUpPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-[13px] font-medium text-foreground">
-                  Email
+                  {tAuth('signUpEmailLabel')}
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={tAuth('emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -149,18 +150,18 @@ export default function SignUpPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-[13px] font-medium text-foreground">
-                  Password
+                  {tAuth('passwordLabel')}
                 </Label>
                 <AuthPasswordField
                   id="password"
-                  placeholder="••••••••"
+                  placeholder={tAuth('passwordMaskedPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
                   autoComplete="new-password"
                 />
-                <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+                <p className="text-xs text-muted-foreground">{tAuth('signUpPasswordHint')}</p>
               </div>
 
               <Button
@@ -177,21 +178,21 @@ export default function SignUpPage() {
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin opacity-80" />
-                    Creating account…
+                    {tAuth('signUpCreating')}
                   </span>
                 ) : (
-                  'Continue'
+                  tAuth('continue')
                 )}
               </Button>
             </form>
 
             <p className="mt-8 text-center text-[15px] text-muted-foreground">
-              Already have an account?{' '}
+              {tAuth('signUpHaveAccount')}{' '}
               <Link
                 href="/auth/login"
                 className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
               >
-                Sign in
+                {tAuth('signUpSignIn')}
               </Link>
             </p>
           </CardContent>

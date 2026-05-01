@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   try {
     const access = await requireAiToolSessionAndCredits(req, 'venus-cupid')
     if (!access.ok) return access.response
-    const { supabase, userId, cost } = access.data
+    const { supabase, userId, cost, billingToolId } = access.data
 
     const xai = process.env.XAI_API_KEY
     if (!xai) return NextResponse.json({ error: 'Grok not configured' }, { status: 503 })
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     const content = await callGrok({ apiKey: xai, systemPrompt: SYSTEM, userPrompt })
 
-    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
     if (!charged.ok) return charged.response
 
     return NextResponse.json({

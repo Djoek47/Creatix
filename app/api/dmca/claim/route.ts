@@ -99,7 +99,10 @@ export async function POST(request: NextRequest) {
       console.error('Failed to save DMCA claim:', saveError)
     }
 
-    const consumed = await consumeAiCredits(supabase, user.id, CREDITS_DMCA_CLAIM)
+    const consumed = await consumeAiCredits(supabase, user.id, CREDITS_DMCA_CLAIM, {
+      reasonCode: 'dmca_claim',
+      metadata: { service_display_name: 'DMCA claim draft' },
+    })
     if (!consumed.ok) {
       return insufficientAiCreditsResponse(consumed.used, consumed.limit)
     }

@@ -1,0 +1,5 @@
+{
+  "complete": "Complete setup",
+  "skip": "Skip for now",
+  "progress": "{current} / {total}"
+}

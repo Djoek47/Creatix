@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'content-ideas')
   if (!access.ok) return access.response
 
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const { niche, platform, currentTrends } = await req.json().catch(() => ({}))
   const brandContext = await getBrandContext(supabase, userId)
@@ -72,7 +72,7 @@ Include a mix of content types and engagement levels.`,
     return Response.json({ error: message }, { status: 500 })
   }
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
 
   const complianceText = [

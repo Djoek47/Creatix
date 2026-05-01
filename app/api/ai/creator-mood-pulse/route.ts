@@ -3,6 +3,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
@@ -76,7 +77,7 @@ Produce the structured well-being response.`,
     ],
   })
 
-  const consumed = await consumeAiCredits(supabase, user.id, moodCost)
+  const consumed = await consumeAiCredits(supabase, user.id, moodCost, ledgerDebitOptsForBillingTool('creator-mood-pulse'))
   if (!consumed.ok) {
     return Response.json(
       { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: consumed.used, limit: consumed.limit },

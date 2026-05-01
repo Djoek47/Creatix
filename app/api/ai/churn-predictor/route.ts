@@ -281,7 +281,7 @@ Respond with:
 7) A ready-to-send message draft the creator can edit (warm, not desperate)`,
   })
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, churnCost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, churnCost, access.data.billingToolId)
   if (!charged.ok) return charged.response
 
   return NextResponse.json({

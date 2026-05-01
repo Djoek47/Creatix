@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const access = await requireAiToolSessionAndCredits(req, canonical)
     if (!access.ok) return access.response
 
-    const { supabase, userId, cost } = access.data
+    const { supabase, userId, cost, billingToolId } = access.data
 
     if (canonical === 'commenter') {
       return NextResponse.json({
@@ -58,7 +58,7 @@ Respond with actionable, helpful output tailored to the creator's request. Be co
       prompt,
     })
 
-    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
     if (!charged.ok) return charged.response
 
     return NextResponse.json({ content: text })

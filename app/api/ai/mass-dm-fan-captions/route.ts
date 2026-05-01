@@ -60,7 +60,7 @@ function parseRows(raw: string): FanCaptionSuggestion[] {
 export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'mass-dm-fan-captions')
   if (!access.ok) return access.response
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const body = (await req.json().catch(() => ({}))) as Body
   const campaignBrief = typeof body.campaignBrief === 'string' ? body.campaignBrief.trim().slice(0, 2000) : ''
@@ -165,7 +165,7 @@ ${JSON.stringify(enrichedFans)}`
     }
   })
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
 
   return NextResponse.json({ suggestions, creditsCharged: cost })

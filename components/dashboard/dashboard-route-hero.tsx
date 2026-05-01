@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { resolveDashboardPageMeta, shouldShowDashboardRouteHero } from '@/lib/dashboard-page-meta'
 import { useMessagesFocusChromeOptional } from '@/components/messages/messages-focus-chrome-context'
 import { cn } from '@/lib/utils'
@@ -8,6 +9,7 @@ import { PenTool, Sparkles } from 'lucide-react'
 
 export function DashboardRouteHero() {
   const pathname = usePathname()
+  const tDash = useTranslations('dashboard')
   const focusChrome = useMessagesFocusChromeOptional()
   const zenMessages =
     focusChrome?.focusMode === true &&
@@ -16,12 +18,16 @@ export function DashboardRouteHero() {
   if (zenMessages) return null
   if (!shouldShowDashboardRouteHero(pathname)) return null
   const meta = resolveDashboardPageMeta(pathname)
-  if (!meta) return null
+  if (!meta?.heroKey) return null
+
+  const hk = meta.heroKey
+  const eyebrow = tDash(`heroes.${hk}.eyebrow`)
+  const title = tDash(`heroes.${hk}.title`)
+  const subtitle = tDash(`heroes.${hk}.subtitle`)
 
   if (meta.heroVariant === 'system') {
     return (
       <header className="mb-10 sm:mb-14">
-        {/* Sticks within dashboard `main` scroll; no horizontal negative margin (see main padding wrapper). */}
         <div
           className={cn(
             'sticky top-0 z-20 border-b border-border/30 pb-4 sm:pb-5',
@@ -29,13 +35,13 @@ export function DashboardRouteHero() {
             'dark:border-border/25 dark:bg-background/85',
           )}
         >
-          <p className="text-sm font-normal text-muted-foreground">{meta.eyebrow}</p>
+          <p className="text-sm font-normal text-muted-foreground">{eyebrow}</p>
           <h1 className="mt-3 font-sans text-[2.5rem] font-semibold tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.75rem] sm:leading-[1.06]">
-            {meta.title}
+            {title}
           </h1>
-          {meta.subtitle ? (
+          {subtitle.trim() !== '' ? (
             <p className="mt-4 max-w-lg text-base font-normal leading-[1.55] text-muted-foreground sm:text-[1.0625rem]">
-              {meta.subtitle}
+              {subtitle}
             </p>
           ) : null}
         </div>
@@ -47,14 +53,14 @@ export function DashboardRouteHero() {
     return (
       <header className="mb-8 sm:mb-10">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85 dark:text-muted-foreground/78">
-          {meta.eyebrow}
+          {eyebrow}
         </p>
         <h1 className="mt-2.5 max-w-[22ch] text-balance font-serif text-2xl font-semibold tracking-[-0.02em] text-foreground sm:mt-3 sm:text-3xl md:text-4xl md:leading-[1.1] md:tracking-[-0.03em]">
-          {meta.title}
+          {title}
         </h1>
-        {meta.subtitle ? (
+        {subtitle.trim() !== '' ? (
           <p className="mt-3 max-w-xl text-[15px] leading-[1.55] tracking-[-0.01em] text-muted-foreground sm:mt-[0.875rem] sm:text-[0.94875rem]">
-            {meta.subtitle}
+            {subtitle}
           </p>
         ) : null}
       </header>
@@ -76,15 +82,13 @@ export function DashboardRouteHero() {
                 <PenTool className="ai-tools-brand-icon h-3.5 w-3.5" aria-hidden />
                 <Sparkles className="ai-tools-brand-icon-secondary h-3 w-3" aria-hidden />
               </span>
-              {meta.eyebrow}
+              {eyebrow}
             </p>
             <h1 className="mt-3 font-serif text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-              <span className="ai-tools-wordmark">{meta.title}</span>
+              <span className="ai-tools-wordmark">{title}</span>
             </h1>
-            {meta.subtitle ? (
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {meta.subtitle}
-              </p>
+            {subtitle.trim() !== '' ? (
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
             ) : null}
           </div>
         </div>
@@ -100,17 +104,15 @@ export function DashboardRouteHero() {
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.32em] text-primary/90">
             <Sparkles className="h-3 w-3 shrink-0 text-amber-500" aria-hidden />
-            {meta.eyebrow}
+            {eyebrow}
           </p>
           <h1 className="mt-2 font-serif text-2xl font-semibold tracking-tight text-foreground sm:text-3xl md:text-4xl">
             <span className="bg-gradient-to-r from-foreground via-primary to-amber-700/90 bg-clip-text text-transparent dark:from-circe-light dark:via-primary dark:to-amber-200/85">
-              {meta.title}
+              {title}
             </span>
           </h1>
-          {meta.subtitle ? (
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {meta.subtitle}
-            </p>
+          {subtitle.trim() !== '' ? (
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">{subtitle}</p>
           ) : null}
         </div>
       </div>

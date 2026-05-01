@@ -7,6 +7,7 @@ type TimelineRow = {
   amount: number
   reason_code: string
   created_at: string
+  metadata?: Record<string, unknown> | null
 }
 
 export type CreditUsageInsightsPeriodMode = 'week' | 'month'
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     const [recentRes, debitRes] = await Promise.all([
       supabase
         .from('credit_transactions')
-        .select('id,kind,amount,reason_code,created_at')
+        .select('id,kind,amount,reason_code,created_at,metadata')
         .eq('user_id', user.id)
         .gte('created_at', startIso)
         .order('created_at', { ascending: false })
@@ -67,6 +68,10 @@ export async function GET(req: NextRequest) {
       amount: Number(r.amount),
       reason_code: String(r.reason_code),
       created_at: String(r.created_at),
+      metadata:
+        r.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata)
+          ? (r.metadata as Record<string, unknown>)
+          : null,
     }))
 
     const debits = debitRes.data ?? []

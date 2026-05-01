@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { isPaidPlanId } from '@/lib/billing/access'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const { sampleText, targetTone, context } = await req.json()
 
-  await consumeAiCredits(supabase, user.id, voiceCost)
+  await consumeAiCredits(supabase, user.id, voiceCost, ledgerDebitOptsForBillingTool('voice-cloning'))
 
   const result = streamText({
     model: 'anthropic/claude-sonnet-4',

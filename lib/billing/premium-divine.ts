@@ -1,11 +1,11 @@
 /**
  * Entitlement: Divine Voice Manager (OpenAI Realtime + TTS) and premium OpenAI chat models
- * for messaging. Gated to paid accounts with a Divine Voice add-on (Stripe) unless bypass env is set.
+ * for messaging. Gated to paid add-on, Divine trial SKU, paid plan in Stripe `trialing`, or bypass env.
  */
 
 import type Stripe from 'stripe'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isPaidPlanId, type SubscriptionLike } from '@/lib/billing/access'
+import { isDivineTrialPlanNotLapsed, isPaidPlanId, type SubscriptionLike } from '@/lib/billing/access'
 
 export type SubscriptionRowForPremiumDivine = SubscriptionLike & {
   divine_voice_premium?: boolean | null
@@ -56,14 +56,20 @@ function envGrantAllPaid(): boolean {
 }
 
 /**
- * Markit and Creatix: the user may use Realtime, TTS, and premium chat models.
+ * The user may use Realtime, TTS, and premium chat models (add-on, Divine trial SKU, or paid plan in Stripe `trialing`).
  */
 export function hasDivineVoicePremium(row: SubscriptionRowForPremiumDivine | null | undefined): boolean {
   if (!row) return false
   if (envGrantAllPaid() && isPaidPlanId(row.plan_id) && isActiveLike(row)) {
     return true
   }
+  // Match main-app trial nav: `trialing`/`active` plus transitional `trial` / checkout rows (not canceled…).
+  if (isDivineTrialPlanNotLapsed(row)) return true
+
   const st = (row.status || '').toLowerCase()
+  // Pro / legacy paid SKU in Stripe billing trial — same voice access as Divine trial during `trialing`.
+  if (st === 'trialing' && isPaidPlanId(row.plan_id)) return true
+
   if (st !== 'active' && st !== 'trialing') return false
   if (!isPaidPlanId(row.plan_id)) return false
   return row.divine_voice_premium === true

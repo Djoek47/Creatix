@@ -25,6 +25,15 @@ import { DashboardPulseProvider } from '@/components/dashboard/dashboard-pulse-p
 import { WellbeingActivityReporter } from '@/components/wellbeing/wellbeing-activity-reporter'
 import { WellbeingBreakNudgeScheduler } from '@/components/wellbeing/wellbeing-break-nudge-scheduler'
 import { resolveWorkspaceCapabilities, type SubscriptionCapsRow } from '@/lib/plan-capabilities'
+import { hasTrialBillingAttached } from '@/lib/billing/trial-checkout-attached'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages, setRequestLocale } from 'next-intl/server'
+import { cookies, headers } from 'next/headers'
+
+import { HtmlLangUpdater } from '@/components/i18n/html-lang-updater'
+import { LOCALE_COOKIE } from '@/lib/i18n/constants'
+import { resolveDashboardLocale } from '@/lib/i18n/resolve-locale'
+import type { UiPreferences } from '@/lib/types'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
 export const metadata: Metadata = {
@@ -72,20 +81,35 @@ export default async function DashboardLayout({
 
   const { data: subRow } = await supabase
     .from('subscriptions')
-    .select('plan_id,status,divine_voice_premium,protection_plan_active')
+    .select('plan_id,status,divine_voice_premium,protection_plan_active,stripe_subscription_id')
     .eq('user_id', user.id)
     .maybeSingle()
   const divineVoicePremium = hasDivineVoicePremium(subRow as SubscriptionRowForPremiumDivine | null)
   const workspaceCaps = resolveWorkspaceCapabilities(subRow as SubscriptionCapsRow)
+  const trialBillingAttached = hasTrialBillingAttached(subRow)
+
+  const cookieStore = await cookies()
+  const hdrs = await headers()
+  const uiPrefs = serializableProfile?.ui_preferences as UiPreferences | null
+  const locale = resolveDashboardLocale(
+    uiPrefs?.locale ?? null,
+    cookieStore.get(LOCALE_COOKIE)?.value ?? null,
+    hdrs.get('accept-language'),
+  )
+  setRequestLocale(locale)
+  const messages = await getMessages()
 
   return (
-    <WorkspaceCapabilitiesProvider value={workspaceCaps}>
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <HtmlLangUpdater />
+      <WorkspaceCapabilitiesProvider value={workspaceCaps}>
       <DashboardPulseProvider>
         <WellbeingActivityReporter />
         <OnboardingProvider
           userId={user.id}
           userName={serializableProfile?.full_name || undefined}
           onboardingCompleted={serializableProfile?.onboarding_completed || false}
+          trialBillingAttached={trialBillingAttached}
         >
           <TourProvider>
             {/* VoiceSessionProvider needs DivinePanelProvider for applyUiActionsFromTools (no slide-in panel UI). */}
@@ -119,5 +143,6 @@ export default async function DashboardLayout({
         </OnboardingProvider>
       </DashboardPulseProvider>
     </WorkspaceCapabilitiesProvider>
+    </NextIntlClientProvider>
   )
 }

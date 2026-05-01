@@ -177,6 +177,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const [revenueBandHints, setRevenueBandHints] = useState<{
     requiredMinTier: number | null
     observationCapturedAtMax: string | null
+    observedOnlyfansMonthlyUsd: number | null
+    observedFanslyMonthlyUsd: number | null
+    observedCombinedMonthlyUsd: number | null
   } | null>(null)
   const [checkoutQuoteVariant, setCheckoutQuoteVariant] = useState<BillingVariant>('single')
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null)
@@ -211,27 +214,42 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
     let minTierFromObservation: number | null = null
     let observationCapturedAtMax: string | null = null
+    let observedOnlyfansMonthlyUsd: number | null = null
+    let observedFanslyMonthlyUsd: number | null = null
+    let observedCombinedMonthlyUsd: number | null = null
     if (rbRes.ok) {
       try {
-        const j = (await rbRes.json()) as {
-          requiredMinTier?: unknown
-          observationCapturedAtMax?: string | null
-        }
+        const j = (await rbRes.json()) as Record<string, unknown>
         minTierFromObservation =
           typeof j.requiredMinTier === 'number' ? j.requiredMinTier : null
         observationCapturedAtMax =
           j.observationCapturedAtMax != null && String(j.observationCapturedAtMax).trim() !== ''
             ? String(j.observationCapturedAtMax)
             : null
+        observedOnlyfansMonthlyUsd =
+          typeof j.observedOnlyfansMonthlyUsd === 'number' ? j.observedOnlyfansMonthlyUsd : null
+        observedFanslyMonthlyUsd =
+          typeof j.observedFanslyMonthlyUsd === 'number' ? j.observedFanslyMonthlyUsd : null
+        observedCombinedMonthlyUsd =
+          typeof j.observedCombinedMonthlyUsd === 'number' ? j.observedCombinedMonthlyUsd : null
       } catch {
         minTierFromObservation = null
         observationCapturedAtMax = null
+        observedOnlyfansMonthlyUsd = null
+        observedFanslyMonthlyUsd = null
+        observedCombinedMonthlyUsd = null
       }
     }
 
     setRevenueBandHints(
-      rbRes.ok && (minTierFromObservation != null || observationCapturedAtMax != null)
-        ? { requiredMinTier: minTierFromObservation, observationCapturedAtMax }
+      rbRes.ok
+        ? {
+            requiredMinTier: minTierFromObservation,
+            observationCapturedAtMax,
+            observedOnlyfansMonthlyUsd,
+            observedFanslyMonthlyUsd,
+            observedCombinedMonthlyUsd,
+          }
         : null,
     )
 
@@ -1014,6 +1032,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
             onCheckoutComplete={handleCheckoutComplete}
             requiredMinTierFromObservation={revenueBandHints?.requiredMinTier ?? null}
             observationCapturedAtIso={revenueBandHints?.observationCapturedAtMax ?? null}
+            observedOnlyfansMonthlyUsd={revenueBandHints?.observedOnlyfansMonthlyUsd ?? null}
+            observedFanslyMonthlyUsd={revenueBandHints?.observedFanslyMonthlyUsd ?? null}
+            observedCombinedMonthlyUsd={revenueBandHints?.observedCombinedMonthlyUsd ?? null}
             subscribedRevenueTier={typeof subData?.revenue_tier === 'number' ? subData.revenue_tier : null}
             /** Readonly band + hide revenue estimate when both API platforms are linked; tier floor from observations still applies if only one is linked. */
             lockRevenueBand={linkedOnlyfans && linkedFansly}
@@ -1181,23 +1202,29 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {REVENUE_TIERS.map((row) => (
-                      <tr
-                        key={row.tierIndex}
-                        className={
-                          row.tierIndex === checkoutTierIndex
-                            ? 'bg-foreground/[0.04]'
-                            : 'border-b border-border/40'
-                        }
-                      >
-                        <td className="p-3">{row.label}</td>
-                        <td className="p-3 text-right tabular-nums">${row.focusBaseUsd}</td>
-                        <td className="p-3 text-right tabular-nums">${focusFanslyUsd(row)}</td>
-                        <td className="p-3 text-right tabular-nums">
-                          ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
-                        </td>
-                      </tr>
-                    ))}
+                    {REVENUE_TIERS.map((row) => {
+                      const linkedFloorTier = revenueBandHints?.requiredMinTier
+                      const isLinkedBandRow =
+                        linkedFloorTier != null && row.tierIndex === linkedFloorTier
+                      return (
+                        <tr
+                          key={row.tierIndex}
+                          className={cn(
+                            row.tierIndex === checkoutTierIndex && 'bg-foreground/[0.04]',
+                            !(row.tierIndex === checkoutTierIndex) && 'border-b border-border/40',
+                            isLinkedBandRow &&
+                              'bg-gradient-to-r from-amber-500/14 via-violet-500/10 to-transparent ring-1 ring-inset ring-amber-500/25 dark:from-amber-400/10 dark:via-violet-400/8 dark:ring-amber-400/20',
+                          )}
+                        >
+                          <td className="p-3">{row.label}</td>
+                          <td className="p-3 text-right tabular-nums">${row.focusBaseUsd}</td>
+                          <td className="p-3 text-right tabular-nums">${focusFanslyUsd(row)}</td>
+                          <td className="p-3 text-right tabular-nums">
+                            ${twoPlatformFocusUsd(row, 'onlyfans', 'fansly')}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

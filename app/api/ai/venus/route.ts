@@ -98,7 +98,15 @@ export async function POST(req: NextRequest) {
 
     if (user) {
       try {
-        await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+        await consumeAiCredits(
+          supabase,
+          user.id,
+          CREDITS_DIVINE_CHAT_MESSAGE,
+          {
+            reasonCode: 'divine_chat_venus',
+            metadata: { service_display_name: 'Venus' },
+          },
+        )
       } catch {
         // ignore credit errors
       }

@@ -61,7 +61,7 @@ function parseRows(raw: string): PriceRow[] {
 export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'mass-dm-ppv-pricing')
   if (!access.ok) return access.response
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const body = (await req.json().catch(() => ({}))) as Body
   const minPrice = Math.max(1, Number(body.minPrice ?? 5) || 5)
@@ -179,7 +179,7 @@ fans=${JSON.stringify(enrichedFans)}`
     }
   }
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
 
   return NextResponse.json({

@@ -5,7 +5,7 @@ import { VAULT_MEDIA_BUCKET } from '@/lib/frame-vault-media'
 
 const SPOILER_LEVELS = new Set(['none', 'mild', 'explicit'])
 
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   const supabase = await createRouteHandlerClient(req)
   const {

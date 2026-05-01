@@ -8,6 +8,8 @@ import {
 import { resolveAppVaultQuotaMb } from '@/lib/billing/app-storage-cap'
 import { sumVaultMediaUsageBytes } from '@/lib/vault-storage-usage'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
   const {
@@ -28,11 +30,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error || `Could not load storage usage (${VAULT_MEDIA_BUCKET})` }, { status: 500 })
   }
 
-  return NextResponse.json({
-    usageBytes,
-    quotaBytes,
-    remainingBytes: Math.max(0, quotaBytes - usageBytes),
-    usagePercent: quotaBytes > 0 ? Math.min(100, Math.round((usageBytes / quotaBytes) * 100)) : 0,
-    recommendedPerUserMb: resolveAppVaultQuotaMb(),
-  })
+  return NextResponse.json(
+    {
+      usageBytes,
+      quotaBytes,
+      remainingBytes: Math.max(0, quotaBytes - usageBytes),
+      usagePercent: quotaBytes > 0 ? Math.min(100, Math.round((usageBytes / quotaBytes) * 100)) : 0,
+      recommendedPerUserMb: resolveAppVaultQuotaMb(),
+    },
+    {
+      headers: {
+        'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+      },
+    },
+  )
 }

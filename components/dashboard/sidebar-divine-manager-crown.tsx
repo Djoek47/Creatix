@@ -1,8 +1,16 @@
 'use client'
 
-import { useId } from 'react'
 import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+/** Fixed DOM ids so stroke `url(#…)` matches SSR + client (avoid `useId` hydration drift). */
+export type DivineManagerCrownGradientSlot = 'sidebar-desktop' | 'sidebar-mobile' | 'voice-fab'
+
+const GRADIENT_ID: Record<DivineManagerCrownGradientSlot, string> = {
+  'sidebar-desktop': 'creatix-dm-crown-grad-sidebar-desktop',
+  'sidebar-mobile': 'creatix-dm-crown-grad-sidebar-mobile',
+  'voice-fab': 'creatix-dm-crown-grad-voice-fab',
+}
 
 type Props = {
   /** Sidebar row icon sizing (e.g. `h-4 w-4` / cozy box). */
@@ -10,14 +18,21 @@ type Props = {
   className?: string
   /** Optional motion class on the SVG (desktop passes `navEase`). */
   navEase?: string
+  /** Which surface mounts this SVG — must stay unique per simultaneous instance. */
+  gradientSlot?: DivineManagerCrownGradientSlot
 }
 
 /**
  * Crown for Divine Manager nav: same gold gradient language as `.sidebar-divine-manager-text`
  * (stroke = `url(#…)` over defs; hues from CSS vars on `.sidebar-divine-manager-crown`).
  */
-export function SidebarDivineManagerCrown({ iconBoxClass, className, navEase }: Props) {
-  const gradId = `dm-crown-grad-${useId().replace(/:/g, '')}`
+export function SidebarDivineManagerCrown({
+  iconBoxClass,
+  className,
+  navEase,
+  gradientSlot = 'sidebar-desktop',
+}: Props) {
+  const gradId = GRADIENT_ID[gradientSlot]
 
   return (
     <Crown

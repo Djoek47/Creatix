@@ -170,8 +170,20 @@ export function isMainApiPaid(row: SubscriptionLike | null | undefined): boolean
 }
 
 /**
+ * True for the Divine trial SKU while the subscription is not in a definitively ended state.
+ * Used so stacked Protection + trial (checkout, incomplete, `trial` status, etc.) still get full
+ * creator nav — including Divine Manager — not only when Stripe already reports `trialing`.
+ */
+export function isDivineTrialPlanNotLapsed(row: SubscriptionLike | null | undefined): boolean {
+  if (!row?.plan_id || row.plan_id.toLowerCase() !== TRIAL_PLAN_ID) return false
+  const st = (row.status || '').toLowerCase()
+  if (['canceled', 'unpaid', 'incomplete_expired'].includes(st)) return false
+  return true
+}
+
+/**
  * $25/mo Protection without Pro/trial — non-API capability tier (manual workflows + protection).
- * Excludes active `divine-trial` so trialists keep the full dashboard until they convert or lapse.
+ * Excludes Divine trial (all non-lapsed states) and trial seat held so trialists keep the full dashboard.
  */
 export function isProtectionOnlyTier(
   row: (SubscriptionLike & ProtectionEntitlementFields) | null | undefined,
@@ -179,5 +191,7 @@ export function isProtectionOnlyTier(
   if (!isProtectionEntitled(row)) return false
   if (isPaidSubscription(row)) return false
   if (hasActiveDivineTrial(row)) return false
+  if (isDivineTrialSeatHeld(row as TrialOfferFields)) return false
+  if (isDivineTrialPlanNotLapsed(row)) return false
   return true
 }

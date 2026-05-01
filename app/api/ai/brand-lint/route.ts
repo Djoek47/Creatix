@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'brand-lint')
   if (!access.ok) return access.response
 
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
   const body = (await req.json().catch(() => ({}))) as { draft?: string; channel?: string }
   const draft = typeof body.draft === 'string' ? body.draft.trim() : ''
   const channel = typeof body.channel === 'string' ? body.channel : 'general'
@@ -50,7 +50,7 @@ Score this copy for brand fit and provide a better rewrite when needed.`,
     ],
   })
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
   return Response.json(output)
 }

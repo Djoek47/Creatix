@@ -123,14 +123,18 @@ export type PricingPageCalculatorProps = {
   /** Billing settings: invoked after embedded Stripe checkout completes (sync subscription + credits). */
   onCheckoutComplete?: () => void | Promise<void>
   /**
-   * Lowest tier index required from linked OnlyFans/Fansly scoped revenue (settings). When set, manual
-   * “type your revenue” override is hidden—the band list is limited to this tier and above.
+   * Lowest tier index required from linked OnlyFans/Fansly scoped revenue combined for billing (settings). When set,
+   * manual “type your revenue” override is hidden—selection cannot stay below this tier while integrations stay linked.
    */
   requiredMinTierFromObservation?: number | null
   /** Active subscription `revenue_tier` — used for quiet copy when linked data implies a higher band than subscribed. */
   subscribedRevenueTier?: number | null
   /** Latest scoped observation timestamp from `/api/billing/revenue-band-status` (settings copy). */
   observationCapturedAtIso?: string | null
+  /** Scoped MTD USD from linked platforms (settings; mirrors gate math). */
+  observedOnlyfansMonthlyUsd?: number | null
+  observedFanslyMonthlyUsd?: number | null
+  observedCombinedMonthlyUsd?: number | null
   /**
    * Settings: OnlyFans and Fansly both linked — revenue band is read-only here (disconnect a platform to
    * change the estimate band). `requiredMinTierFromObservation` may still apply from either platform when only one is linked.
@@ -148,6 +152,9 @@ export function PricingPageCalculator({
   requiredMinTierFromObservation = null,
   observationCapturedAtIso = null,
   subscribedRevenueTier = null,
+  observedOnlyfansMonthlyUsd = null,
+  observedFanslyMonthlyUsd = null,
+  observedCombinedMonthlyUsd = null,
   lockRevenueBand = false,
   belowFocusPlatformsSlot,
 }: PricingPageCalculatorProps = {}) {
@@ -289,12 +296,7 @@ export function PricingPageCalculator({
     return tierIndexFromMonthlyRevenue(revenue)
   }, [revenueInput])
 
-  /** Below this index never appear as choices (when linked observations imply a floor). */
-  const tierChoices = useMemo(
-    () =>
-      tierFloor != null ? REVENUE_TIERS.filter((t) => t.tierIndex >= tierFloor) : [...REVENUE_TIERS],
-    [tierFloor],
-  )
+  const tierChoices = REVENUE_TIERS
 
   const suggestedRow = useMemo(() => getTierByIndex(derivedTier), [derivedTier])
   const baseTier = useRevenueForBand ? derivedTier : tierIndex
@@ -477,6 +479,12 @@ export function PricingPageCalculator({
   const tierSelectControlledValue =
     tierFloor != null ? String(Math.max(tierIndex, tierFloor)) : String(tierIndex)
 
+  const triggerShowsLinkedBand =
+    isSettings && tierFloor != null && tierSelectControlledValue === String(tierFloor)
+
+  const formatScopedUsd = (n: number) =>
+    n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })
+
   return (
     <Root
       className={rootClass}
@@ -538,7 +546,11 @@ export function PricingPageCalculator({
                   id="pricing-tier-readonly"
                   role="status"
                   aria-live="polite"
-                  className="flex min-h-[2.75rem] items-center rounded-xl border border-border/50 bg-background/35 px-3.5 text-[14px] font-medium tracking-tight text-foreground"
+                  className={cn(
+                    'flex min-h-[2.75rem] items-center rounded-xl border border-border/50 bg-background/35 px-3.5 text-[14px] font-medium tracking-tight text-foreground',
+                    tierFloor != null &&
+                      'border-amber-500/35 bg-gradient-to-r from-amber-500/[0.08] via-violet-500/[0.06] to-background/35 dark:border-amber-400/22',
+                  )}
                 >
                   {getTierByIndex(effectiveTier)?.label ?? '—'}
                 </div>
@@ -560,26 +572,52 @@ export function PricingPageCalculator({
                       'motion-safe:animate-[marketing-float-soft_5s_ease-in-out_infinite] motion-reduce:animate-none',
                       bandDemoActive &&
                         'shadow-[0_0_0_1px_rgba(251,191,36,0.4),0_0_28px_rgba(168,85,247,0.2)]',
+                      triggerShowsLinkedBand &&
+                        'border-amber-500/40 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.35),0_0_22px_rgba(167,139,250,0.14)] dark:border-amber-400/25 dark:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.22),0_0_26px_rgba(139,92,246,0.12)]',
                     )}
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {tierChoices.map((t) => (
-                      <SelectItem key={t.tierIndex} value={String(t.tierIndex)}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
+                    {tierChoices.map((t) => {
+                      const belowFloor = isSettings && tierFloor != null && t.tierIndex < tierFloor
+                      const linkedBand = isSettings && tierFloor != null && t.tierIndex === tierFloor
+                      return (
+                        <SelectItem
+                          key={t.tierIndex}
+                          value={String(t.tierIndex)}
+                          disabled={belowFloor}
+                          className={cn(
+                            linkedBand &&
+                              'my-0.5 bg-gradient-to-r from-amber-500/16 via-violet-500/12 to-amber-400/10 text-foreground shadow-[inset_0_0_0_1px_rgba(245,158,11,0.28),inset_0_0_26px_rgba(139,92,246,0.07)] dark:from-amber-400/12 dark:via-violet-500/10 dark:to-amber-300/8 dark:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.22),inset_0_0_26px_rgba(167,139,250,0.08)]',
+                          )}
+                        >
+                          <span className="flex w-full items-center justify-between gap-3 pr-1">
+                            <span>{t.label}</span>
+                            {linkedBand ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/35 bg-violet-500/[0.09] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 dark:border-amber-400/25 dark:bg-violet-400/[0.08] dark:text-amber-100/95">
+                                <Sparkles className="size-3 opacity-85" aria-hidden />
+                                Linked
+                              </span>
+                            ) : null}
+                          </span>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               )}
               <p className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed')}>
                 {isSettings && revenueBandLocked ? (
                   <>
-                    Synced from connected OnlyFans / Fansly—the same ladder as checkout after your subscribed band is
-                    updated.
+                    Synced from combined OnlyFans / Fansly month‑to‑date totals—the same ladder as checkout after your
+                    subscribed band is updated.
                     {tierFloor != null ? (
-                      <> Bands below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} are not offered.</>
+                      <>
+                        {' '}
+                        Bands below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} stay visible but can’t be
+                        selected while integrations stay linked.
+                      </>
                     ) : null}
                     {observationCapturedAtIso ? (
                       <>
@@ -598,9 +636,9 @@ export function PricingPageCalculator({
                   </>
                 ) : isSettings && tierFloor != null ? (
                   <>
-                    Band is estimated from linked OnlyFans / Fansly earnings. Only{' '}
-                    {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}{' '}
-                    and higher appear here—the same ladder as checkout.
+                    Band estimate uses combined linked earnings (OnlyFans + Fansly). Every tier stays visible; bands
+                    below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} are disabled until you disconnect an
+                    integration—the same ladder enforced at checkout.
                     {observationCapturedAtIso ? (
                       <>
                         {' '}
@@ -618,6 +656,30 @@ export function PricingPageCalculator({
                   'Same tiers as checkout. Pick the interval that matches your gross monthly billings.'
                 )}
               </p>
+              {isSettings && typeof observedCombinedMonthlyUsd === 'number' ? (
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  <span className="font-medium text-foreground/90">Linked MTD estimate (combined): </span>
+                  <span className="tabular-nums text-foreground/95">${formatScopedUsd(observedCombinedMonthlyUsd)}</span>
+                  {typeof observedOnlyfansMonthlyUsd === 'number' ||
+                  typeof observedFanslyMonthlyUsd === 'number' ? (
+                    <span className="text-muted-foreground">
+                      {' '}
+                      (
+                      {typeof observedOnlyfansMonthlyUsd === 'number' ? (
+                        <>OnlyFans ${formatScopedUsd(observedOnlyfansMonthlyUsd)}</>
+                      ) : null}
+                      {typeof observedOnlyfansMonthlyUsd === 'number' &&
+                      typeof observedFanslyMonthlyUsd === 'number'
+                        ? ' · '
+                        : null}
+                      {typeof observedFanslyMonthlyUsd === 'number' ? (
+                        <>Fansly ${formatScopedUsd(observedFanslyMonthlyUsd)}</>
+                      ) : null}
+                      )
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
               {subscribedBelowLinkedFloor ? (
                 <p className="mt-2 max-w-[52ch] text-[11px] leading-snug text-muted-foreground">
                   Your subscribed band sits below earnings implied by linked accounts. Finish checkout for the band you

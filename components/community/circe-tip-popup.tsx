@@ -32,6 +32,12 @@ function readingDurationMs(body: string): number {
   return Math.min(32_000, Math.max(14_000, base + words * perWord))
 }
 
+/** Opt-in via `NEXT_PUBLIC_CIRCE_TIP_POPUP_STICKY_NAV=true` — default off (popup clears on navigation). */
+function stickyTipNavAcrossRoutes(): boolean {
+  const raw = process.env.NEXT_PUBLIC_CIRCE_TIP_POPUP_STICKY_NAV ?? ''
+  return raw === '1' || raw.toLowerCase() === 'true'
+}
+
 function popupVisibleMs(body: string): number {
   const fromEnv = Number.parseInt(process.env.NEXT_PUBLIC_CIRCE_TIP_POPUP_VISIBLE_MS ?? '', 10)
   if (Number.isFinite(fromEnv) && fromEnv >= 5_000) {
@@ -70,6 +76,8 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
   const [isClosing, setIsClosing] = useState(false)
   const [tip, setTip] = useState<CirceDailyTip | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
+  /** Bumps on each open so entrance motion always runs (preview, random, or repeat id). */
+  const [tipSurfaceKey, setTipSurfaceKey] = useState(0)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const closeAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -121,7 +129,7 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
       setIsClosing(true)
       closeAnimTimerRef.current = setTimeout(() => {
         finalizeDismiss(recordShown)
-      }, 280)
+      }, 340)
     },
     [clearTimers, finalizeDismiss, visible],
   )
@@ -130,6 +138,7 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
     (next: CirceDailyTip, recordCooldownOnClose: boolean) => {
       clearTimers()
       setIsClosing(false)
+      setTipSurfaceKey((k) => k + 1)
       setTip(next)
       setVisible(true)
       const totalMs = popupVisibleMs(next.body)
@@ -203,18 +212,28 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
   }, [showWithTip])
 
   useEffect(() => {
-    clearTimers()
-    setVisible(false)
-    setTip(null)
+    scheduleGeneration.current += 1
+    if (scheduleRef.current) {
+      clearTimeout(scheduleRef.current)
+      scheduleRef.current = null
+    }
 
-    if (!pathAllowsPopup(pathname)) return
-    if (!readTipPopupsEnabled()) return
+    const keepOpen = stickyTipNavAcrossRoutes() && visibleRef.current
+    if (!keepOpen) {
+      clearTimers()
+      setVisible(false)
+      setTip(null)
+    }
 
-    queueDelayedAutomaticAttempt()
+    if (pathAllowsPopup(pathname) && readTipPopupsEnabled()) {
+      queueDelayedAutomaticAttempt()
+    }
 
     return () => {
       scheduleGeneration.current += 1
-      clearTimers()
+      if (!stickyTipNavAcrossRoutes() || !visibleRef.current) {
+        clearTimers()
+      }
     }
   }, [pathname, clearTimers, queueDelayedAutomaticAttempt])
 
@@ -236,69 +255,84 @@ export function CirceTipPopupHost({ accountCreatedAt = null }: CirceTipPopupHost
       role="status"
       aria-live="polite"
     >
-      <div className={`w-full max-w-md ${isClosing ? 'circe-tip-anim-out' : 'circe-tip-anim-in'}`}>
-        <Card
-          data-slot="card"
-          className="circe-tip-floating-card pointer-events-auto relative w-full overflow-hidden p-0 text-card-foreground"
-        >
+      <div
+        key={tipSurfaceKey}
+        className={`circe-tip-toast-motion-root relative w-full max-w-md transform-gpu will-change-transform md:mr-1 ${isClosing ? 'circe-tip-anim-out' : 'circe-tip-anim-in'}`}
+      >
+        {/* Edge: animated aurum + violet conductor; inner surface stays calm */}
+        <div className="circe-tip-toast-shell">
+          <Card
+            data-slot="card"
+            className="circe-tip-toast-surface pointer-events-auto relative z-[2] flex w-full flex-col gap-0 overflow-hidden rounded-[calc(var(--circe-tip-outer-radius)-1px)] border-0 p-0 shadow-none outline-none ring-0"
+          >
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute right-2 top-2 z-10 h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            className="absolute right-3 top-3 z-[3] h-9 w-9 rounded-full text-muted-foreground/80 backdrop-blur-sm transition-colors hover:bg-white/6 hover:text-foreground dark:hover:bg-white/8"
             onClick={() => dismiss(true)}
             aria-label="Close tip"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={1.75} />
           </Button>
 
-          <CardHeader className="relative z-[2] space-y-3 pr-11 pb-2 pt-5 sm:pt-6">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/75">
-              <span>Circe daily</span>
-              <span className="text-border/70" aria-hidden>
-                ·
+          <CardHeader className="relative z-[2] space-y-4 pr-14 pb-4 pt-[1.35rem] sm:pt-[1.5rem]">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className="circe-tip-eyebrow-label text-[11px] font-semibold uppercase tracking-[0.16em]">
+                Venus daily
               </span>
-              <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground/80" title="Auto-dismiss timer">
-                <Clock className="h-3 w-3 opacity-70" aria-hidden />
+              <span
+                className="circe-tip-eyebrow-sep inline-block h-1 w-1 rounded-full bg-gradient-to-br from-violet-500/55 to-amber-400/50 dark:from-violet-400/50 dark:to-amber-300/55"
+                aria-hidden
+              />
+              <span
+                className="circe-tip-eyebrow-timer inline-flex items-center gap-1.5 tabular-nums text-[11px] font-semibold uppercase tracking-[0.12em]"
+                title="Auto-dismiss timer"
+              >
+                <Clock className="size-3 shrink-0 text-current opacity-85" aria-hidden />
                 {formatTipCountdown(secondsLeft)}
               </span>
             </div>
-            <div className="space-y-1">
-              <h2 className="font-serif text-lg font-semibold tracking-tight text-foreground sm:text-xl">Random insight</h2>
-              <p className="text-[13px] leading-snug text-muted-foreground/85">
-                A different note from today’s calendar pick. Same archive—open when you want the full list.
-              </p>
-            </div>
+            <h2 className="font-serif text-[1.27rem] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground sm:text-[1.4rem]">
+              Insight
+            </h2>
           </CardHeader>
 
-          <CardContent className="relative z-[2] space-y-5 border-t border-border/35 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
-            <div className="space-y-2">
-              <p className="text-[15px] font-semibold leading-snug text-foreground">{tip.title}</p>
-              <p className="text-[14px] leading-relaxed text-muted-foreground/90">{tip.body}</p>
+          <CardContent className="relative z-[2] border-t border-border/25 px-6 pb-[1.15rem] pt-6 sm:px-[1.35rem] sm:pb-[1.35rem]">
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/25 to-transparent dark:via-amber-300/22"
+              aria-hidden
+            />
+            <div className="space-y-3 pb-6">
+              <p className="text-[15px] font-semibold leading-snug tracking-[-0.012em] text-foreground">{tip.title}</p>
+              <p className="text-[14px] leading-[1.57] text-muted-foreground/90">{tip.body}</p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex flex-col-reverse gap-2 pt-px sm:flex-row sm:items-center sm:justify-end sm:gap-2.5">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-10 rounded-full px-4 text-[13px] text-muted-foreground hover:text-foreground"
+                className="h-10 shrink-0 rounded-full px-4 text-[13px] font-medium text-muted-foreground/88 hover:bg-white/6 hover:text-foreground dark:hover:bg-white/8"
                 onClick={() => dismiss(true)}
               >
                 Dismiss
               </Button>
-              <Button
-                size="sm"
-                className="h-10 rounded-full bg-foreground px-5 text-[13px] font-medium text-background shadow-none hover:bg-foreground/88"
-                asChild
-              >
-                <Link href={href} onClick={() => dismiss(true)}>
-                  Open in archive
-                  <ChevronRight className="ml-1 h-4 w-4 opacity-80" />
+              <Button size="sm" className="circe-tip-toast-cta-trigger h-auto border-0 p-0 shadow-none" asChild>
+                <Link
+                  href={href}
+                  onClick={() => dismiss(true)}
+                  className="circe-tip-toast-cta-link relative inline-flex h-10 shrink-0 items-center justify-center overflow-hidden rounded-full px-7 text-[13px] font-semibold tracking-tight text-white outline-none ring-2 ring-transparent transition-[transform] hover:brightness-105 active:scale-[0.988] focus-visible:ring-foreground/35 dark:text-white dark:focus-visible:ring-violet-400/45"
+                >
+                  <span className="relative z-[1] inline-flex items-center">
+                    Open in archive
+                    <ChevronRight className="ml-1 size-4 opacity-90" strokeWidth={2} />
+                  </span>
                 </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   )

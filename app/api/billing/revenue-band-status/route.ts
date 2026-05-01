@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import {
   computeRequiredRevenueTierFromScopedObservations,
+  combinedScopedMonthlyRevenueUsdForBilling,
   evaluateAdultPlatformBillingDenial,
   scopedObservationFromFanslyRow,
   scopedObservationFromOnlyFansRow,
@@ -71,6 +72,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const revenueUsd = combinedScopedMonthlyRevenueUsdForBilling({
+      onlyfans: onlyfansObs,
+      fansly: fanslyObs,
+    })
+
     const pauseUntilRaw = sub?.revenue_tier_sync_paused_until ?? null
     const syncPausedUntil =
       pauseUntilRaw != null && String(pauseUntilRaw).trim() !== '' ? String(pauseUntilRaw) : null
@@ -86,6 +92,9 @@ export async function GET(request: NextRequest) {
       paidActive,
       hasObservation: requiredMinTier != null,
       observationCapturedAtMax,
+      observedOnlyfansMonthlyUsd: revenueUsd.onlyfansUsd,
+      observedFanslyMonthlyUsd: revenueUsd.fanslyUsd,
+      observedCombinedMonthlyUsd: revenueUsd.combinedUsd,
       bandViolation,
       revenueTierSyncPausedUntil: syncPausedUntil,
       revenueTierSyncPausedActive: syncPausedActive,

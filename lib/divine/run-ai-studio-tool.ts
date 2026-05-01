@@ -186,7 +186,7 @@ export async function runAiStudioToolServer(
         success: true,
         result: {
           content:
-            'Frame Studio: open **Dashboard → AI Studio** for Media & vault (video editor toolbar, Replace video, Frame bridge). Deploy the Frame fork separately; set `NEXT_PUBLIC_FRAME_URL` on Creatix. Path: /dashboard/ai-studio',
+            'Frame Studio: open **Dashboard → AI Studio** for Media & vault (trim, Replace video, editor toolbar). If you host the editor yourself, set `NEXT_PUBLIC_FRAME_URL` so the launch button opens your deployment. Path: /dashboard/ai-studio',
         },
       }
     case 'ariadne-trace':
@@ -194,7 +194,7 @@ export async function runAiStudioToolServer(
         success: true,
         result: {
           content:
-            'Ariadne Trace: open **Dashboard → AI Studio → Ariadne** to embed a per-recipient forensic marker on a vault video (`/dashboard/ai-studio/ariadne`). Uses the same API as Frame export when wired.',
+            'Ariadne Trace: **Dashboard → AI Studio → Ariadne** (`/dashboard/ai-studio/ariadne`) — embed a discreet per-fan marker on vault exports so leaked clips are easier to trace back to a recipient when you need to.',
         },
       }
     case 'frame-ai-assist':

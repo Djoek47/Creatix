@@ -4,10 +4,10 @@ import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 export const metadata: Metadata = {
   ...buildPublicMetadata({
     path: '/auth/sign-up-success',
-    title: 'Check your email | Circe et Venus',
+    title: 'Finish setup | Circe et Venus',
     description:
-      'Confirm your email to finish setting up your Circe et Venus (Creatix) account.',
-    keywords: ['Circe et Venus email confirmation'],
+      'Confirm your email and activate your trial wallet for Circe et Venus (Creatix).',
+    keywords: ['Circe et Venus signup', 'Creatix email confirmation', 'creator trial'],
   }),
   robots: { index: false, follow: true },
 }

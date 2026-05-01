@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckoutEmbed } from '@/components/stripe/checkout'
 import { TRIAL_PLAN_ID } from '@/lib/billing/access'
@@ -30,6 +30,7 @@ import {
   HeartPulse,
   Activity,
   X,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -55,94 +56,161 @@ interface OnboardingModalProps {
   open: boolean
   onComplete: () => void
   userName?: string
+  /** User completed trial card capture before reaching this modal (e.g. sign-up-success). */
+  trialBillingAttached?: boolean
 }
 
-function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
-  const router = useRouter()
-  const [trialCardComplete, setTrialCardComplete] = useState(false)
+function WalletCreditsPanel({
+  className,
+  entranceMotion,
+}: {
+  className?: string
+  /** Subtle emphasis when the panel appears after in-flow checkout completes. */
+  entranceMotion?: boolean
+}) {
+  const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
 
   return (
-    <div className="flex flex-col items-center px-1 pb-2 text-center">
-      <div className="mb-8 flex size-14 items-center justify-center rounded-full bg-muted/70 ring-1 ring-border/60">
-        <Check className="size-7 text-foreground/80" strokeWidth={2} aria-hidden />
+    <div
+      role="status"
+      className={cn(
+        'rounded-2xl border border-emerald-500/[0.22] bg-emerald-500/[0.06] px-5 py-6 dark:border-emerald-400/[0.18] dark:bg-emerald-400/[0.05]',
+        entranceMotion &&
+          'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-[0.98] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+        className,
+      )}
+    >
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="font-serif text-[2rem] font-semibold tabular-nums tracking-[-0.03em] text-foreground sm:text-[2.125rem]">
+          {creditsFormatted}
+        </p>
+        <p className="text-[13px] font-medium tracking-tight text-foreground">Credits added to your wallet</p>
+        <p className="mt-2 max-w-[19rem] text-[12px] leading-relaxed text-muted-foreground">
+          Included with your trial. Use them in AI Studio and Divine — debits follow each tool.
+        </p>
       </div>
-      <h3 className="font-serif text-xl font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-2xl">
+    </div>
+  )
+}
+
+/** Second trial prompt: Stripe embed until checkout, then animated wallet + hint to continue to Connect. */
+function OnboardingTrialWalletStep({
+  checkoutFinished,
+  onCheckoutSuccess,
+}: {
+  checkoutFinished: boolean
+  onCheckoutSuccess: () => void
+}) {
+  const router = useRouter()
+  const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
+
+  if (checkoutFinished) {
+    return (
+      <div className="space-y-7 text-center">
+        <WalletCreditsPanel entranceMotion />
+        <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
+          Next, link your platforms so Circe can work with your accounts — read-only, credentials stay with your providers.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className={cn(obBody, 'text-center')}>
+        Add a card once to unlock{' '}
+        <span className="font-medium tabular-nums text-foreground/90">{creditsFormatted} AI credits</span> and your full trial
+        workspace — same secure Stripe flow as billing.
+      </p>
+      <div className="min-h-[19rem] w-full overflow-hidden rounded-xl border border-border/40 bg-background/40 p-1 sm:min-h-[21rem] dark:bg-black/20">
+        <CheckoutEmbed
+          rootId="onboarding-trial-checkout"
+          productId={TRIAL_PLAN_ID}
+          className="min-h-[18rem] w-full"
+          onComplete={() => {
+            onCheckoutSuccess()
+            void router.refresh()
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** Final card: tour CTA. Early path repeats wallet summary; late path assumes wallet was shown on the trial step. */
+function OnboardingCelebrationStep({
+  variant,
+  onComplete,
+}: {
+  variant: 'early' | 'late'
+  onComplete: () => void
+}) {
+  const router = useRouter()
+  const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
+
+  return (
+    <div className="flex flex-col items-center px-1 pb-1 text-center">
+      <div
+        className="mb-7 flex size-12 items-center justify-center rounded-full bg-muted/70 ring-1 ring-border/55"
+        aria-hidden
+      >
+        <Check className="size-5 text-foreground/72" strokeWidth={2} />
+      </div>
+
+      <h3 className="font-serif text-[1.375rem] font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-[1.5rem]">
         You&apos;re ready
       </h3>
-      <p className="mx-auto mt-4 max-w-[22rem] text-[15px] leading-relaxed text-muted-foreground">
-        Take the full guided tour—sidebar, AI Studio, retention, protection—about thirty short stops. Replay anytime with{' '}
-        <span className="font-medium text-foreground/90">Start live tour</span> in the header.
+      <p className="mx-auto mt-3 max-w-[24rem] text-[14px] leading-relaxed text-muted-foreground">
+        Take the guided tour when you land — sidebar, AI Studio, retention, protection. Replay anytime from{' '}
+        <span className="font-medium text-foreground/88">Start live tour</span> in the header.
       </p>
 
-      <div className="mt-8 w-full max-w-md text-left">
-        <p className="text-center text-[13px] font-medium leading-snug text-foreground">
-          Activate trial credits
-        </p>
-        <p className="mx-auto mt-1.5 max-w-[22rem] text-center text-[12px] leading-relaxed text-muted-foreground">
-          Add a card with Stripe below—same flow as billing. Credits unlock as soon as setup completes; billing follows
-          your trial terms.
-        </p>
-        {trialCardComplete ? (
-          <p
-            className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center text-[13px] font-medium leading-snug text-emerald-800 dark:text-emerald-200"
-            role="status"
-          >
-            Card on file — trial credits are activating. You can continue in a few seconds.
-          </p>
-        ) : (
-          <div className="mt-4 min-h-[22rem] w-full overflow-hidden rounded-xl border border-border/50 bg-muted/10 p-1 sm:min-h-[24rem]">
-            <CheckoutEmbed
-              rootId="onboarding-trial-checkout"
-              productId={TRIAL_PLAN_ID}
-              className="min-h-[20rem] w-full"
-              onComplete={() => {
-                setTrialCardComplete(true)
-                void router.refresh()
-              }}
-            />
-          </div>
-        )}
-      </div>
+      {variant === 'early' ? (
+        <section className="mt-9 w-full max-w-[22rem]" aria-label="Trial wallet">
+          <WalletCreditsPanel
+            className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 motion-safe:ease-out"
+          />
+        </section>
+      ) : null}
 
       <Button
         type="button"
-        className="mt-9 h-11 w-full max-w-sm rounded-full font-medium tracking-tight shadow-sm"
+        className={cn(
+          'mt-9 h-11 w-full max-w-[22rem] rounded-full text-[15px] font-medium tracking-tight shadow-sm',
+          'transition-[transform,opacity] duration-200 motion-safe:active:scale-[0.99]',
+        )}
         onClick={() => {
           onComplete()
           router.push('/dashboard/welcome?openTour=1')
         }}
       >
-        <BookOpen className="size-[15px]" aria-hidden />
+        <BookOpen className="mr-2 size-[15px] opacity-90" aria-hidden />
         Take full tour
       </Button>
-      <p className="mt-7 max-w-[20rem] text-[12px] leading-relaxed text-muted-foreground">
-        Or finish with <span className="font-medium text-foreground">Get Started</span> below—then explore freely.
+
+      <p className="mt-6 max-w-[20rem] text-[12px] leading-relaxed text-muted-foreground">
+        Or tap <span className="font-medium text-foreground">Get Started</span> below — explore freely.
       </p>
-      <div className="mt-8 flex flex-wrap justify-center gap-2">
+
+      <div className="mt-7 flex flex-wrap justify-center gap-2">
         <Badge
           variant="outline"
-          className="onboarding-credits-bait-badge inline-flex items-center gap-1 border-border/55 bg-muted/25 px-2.5 py-1 font-normal text-[11px]"
+          className="border-border/50 bg-emerald-500/[0.07] px-2.5 py-1 font-normal text-[11px] text-emerald-900 dark:text-emerald-100/95"
         >
-          <Zap
-            className="size-3 shrink-0 text-amber-400 motion-safe:animate-pulse motion-reduce:opacity-80"
-            aria-hidden
-          />
-          <span className="onboarding-credits-bait-num tabular-nums">
-            {TRIAL_AI_CREDITS_LIMIT.toLocaleString()} AI credits
-          </span>
-          <span className="text-muted-foreground">· after card</span>
+          <Zap className="mr-1 size-3 opacity-80" aria-hidden />
+          <span className="tabular-nums font-medium text-foreground">{creditsFormatted}</span>
+          <span className="ml-1 text-muted-foreground">credits · ready</span>
         </Badge>
-        <Badge
-          variant="outline"
-          className="border-border/55 bg-muted/25 px-2.5 py-1 font-normal text-[11px] text-muted-foreground"
-        >
+        <Badge variant="outline" className="border-border/50 bg-muted/15 px-2.5 py-1 font-normal text-[11px] text-muted-foreground">
           <Star className="mr-1 size-3 opacity-70" aria-hidden />
-          2-day trial · card required
+          2-day trial
         </Badge>
       </div>
-      <p className="mt-4 max-w-[22rem] text-[11px] leading-relaxed text-muted-foreground">
-        Credits unlock after Stripe setup; subscription renews unless you cancel before the trial ends.
+
+      <p className="mt-4 max-w-[22rem] text-[11px] leading-relaxed text-muted-foreground/90">
+        Subscription follows trial terms unless you cancel before it ends.
       </p>
+
       <Link
         href="/dashboard/guide"
         className="mt-6 inline-flex items-center gap-2 text-[13px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -154,12 +222,19 @@ function OnboardingCompleteContent({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-export function OnboardingModal({ open, onComplete, userName = 'Creator' }: OnboardingModalProps) {
+export function OnboardingModal({
+  open,
+  onComplete,
+  userName = 'Creator',
+  trialBillingAttached = false,
+}: OnboardingModalProps) {
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
+  const [trialCheckoutFinishedSession, setTrialCheckoutFinishedSession] = useState(false)
+  const openedSoftRefreshDoneRef = useRef(false)
 
-  const steps: OnboardingStep[] = useMemo(
-    () => [
-    {
+  const steps: OnboardingStep[] = useMemo(() => {
+    const welcome: OnboardingStep = {
       id: 'welcome',
       title: 'Welcome',
       description: 'Circe et Venus',
@@ -193,8 +268,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </div>
         </div>
       ),
-    },
-    {
+    }
+
+    const dashboard: OnboardingStep = {
       id: 'dashboard',
       title: 'Your dashboard',
       description: 'Command center',
@@ -242,8 +318,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </div>
         </div>
       ),
-    },
-    {
+    }
+
+    const connect: OnboardingStep = {
       id: 'connect',
       title: 'Connect platforms',
       description: 'Secure links',
@@ -325,8 +402,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </p>
         </div>
       ),
-    },
-    {
+    }
+
+    const divineManager: OnboardingStep = {
       id: 'divine-manager',
       title: 'Divine Manager',
       description: 'One companion',
@@ -378,8 +456,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </p>
         </div>
       ),
-    },
-    {
+    }
+
+    const aiStudio: OnboardingStep = {
       id: 'ai-studio',
       title: 'Circe and Venus',
       description: 'Two guides',
@@ -447,8 +526,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </div>
         </div>
       ),
-    },
-    {
+    }
+
+    const features: OnboardingStep = {
       id: 'features',
       title: 'Where things live',
       description: 'A quick map',
@@ -512,22 +592,79 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           </div>
         </div>
       ),
-    },
-    {
-      id: 'complete',
+    }
+
+    const trialWallet: OnboardingStep = {
+      id: 'trial-wallet',
+      title: 'Trial wallet',
+      description: 'Your credits',
+      icon: CreditCard,
+      iconColor: 'text-primary',
+      content: (
+        <OnboardingTrialWalletStep
+          checkoutFinished={trialCheckoutFinishedSession}
+          onCheckoutSuccess={() => setTrialCheckoutFinishedSession(true)}
+        />
+      ),
+    }
+
+    const celebrationEarly: OnboardingStep = {
+      id: 'celebration',
       title: 'Ready',
       description: 'Continue',
       icon: Check,
       iconColor: 'text-green-500',
-      content: <OnboardingCompleteContent onComplete={onComplete} />,
-    },
-  ],
-    [userName, onComplete],
-  )
+      content: <OnboardingCelebrationStep variant="early" onComplete={onComplete} />,
+    }
 
-  const progress = ((currentStep + 1) / steps.length) * 100
+    const celebrationLate: OnboardingStep = {
+      ...celebrationEarly,
+      content: <OnboardingCelebrationStep variant="late" onComplete={onComplete} />,
+    }
+
+    const coreAfterDashboard = [divineManager, aiStudio, features]
+
+    if (trialBillingAttached) {
+      return [welcome, dashboard, connect, ...coreAfterDashboard, celebrationEarly]
+    }
+
+    return [welcome, dashboard, ...coreAfterDashboard, trialWallet, connect, celebrationLate]
+  }, [userName, onComplete, trialBillingAttached, trialCheckoutFinishedSession])
+
+  const totalSteps = steps.length
+  const lastStepIndex = totalSteps - 1
+
+  /** While users advance through cards, re-fetch RSC props so `trialBillingAttached` catches Stripe/webhook writes. */
+  useEffect(() => {
+    if (!open) {
+      openedSoftRefreshDoneRef.current = false
+      setTrialCheckoutFinishedSession(false)
+      return
+    }
+    setCurrentStep(0)
+  }, [open])
+
+  useEffect(() => {
+    setCurrentStep((i) => Math.min(i, Math.max(0, steps.length - 1)))
+  }, [steps.length])
+
+  useEffect(() => {
+    if (!open || openedSoftRefreshDoneRef.current) return
+    openedSoftRefreshDoneRef.current = true
+    const t = window.setTimeout(() => router.refresh(), 950)
+    return () => window.clearTimeout(t)
+  }, [open, router])
+
+  useEffect(() => {
+    if (!open || currentStep !== lastStepIndex) return
+    void router.refresh()
+    const late = window.setTimeout(() => router.refresh(), 4200)
+    return () => window.clearTimeout(late)
+  }, [open, currentStep, lastStepIndex, router])
+
+  const progress = ((currentStep + 1) / totalSteps) * 100
   const currentStepData = steps[currentStep]
-  const isLastStep = currentStep === steps.length - 1
+  const isLastStep = currentStep === lastStepIndex
 
   const handleNext = () => {
     if (isLastStep) {
@@ -548,7 +685,15 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
   }
 
   const suppressStepHeading =
-    currentStepData.id === 'welcome' || currentStepData.id === 'complete'
+    currentStepData.id === 'welcome' ||
+    currentStepData.id === 'celebration' ||
+    currentStepData.id === 'trial-wallet'
+
+  const trialWalletNeedsCheckout =
+    currentStepData.id === 'trial-wallet' && !trialCheckoutFinishedSession
+
+  /** Late path: no dismiss until trial card capture completes (matches footer Next lock). */
+  const skipLockedUntilCard = !trialBillingAttached && !trialCheckoutFinishedSession
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -560,8 +705,9 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           'border-border/45 bg-background/95 shadow-[0_26px_80px_-32px_rgba(0,0,0,0.55)]',
           'duration-300 sm:max-w-[26rem]',
           'p-0',
-          currentStepData.id === 'complete' &&
-            'max-h-[min(96dvh,58rem)] sm:max-w-[min(100%,32rem)]',
+          currentStepData.id === 'celebration' || currentStepData.id === 'trial-wallet'
+            ? 'max-h-[min(96dvh,58rem)] sm:max-w-[min(100%,32rem)]'
+            : '',
         )}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
@@ -573,7 +719,7 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
         <header className="shrink-0 px-8 pt-[1.875rem]">
           <div className="flex items-start justify-between gap-6">
             <p className="pt-0.5 tabular-nums text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Step {currentStep + 1} of {steps.length}
+              Step {currentStep + 1} of {totalSteps}
             </p>
             <div className="flex shrink-0 items-center gap-1 pr-[2px] sm:gap-1.5">
               <Link
@@ -582,24 +728,28 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
               >
                 Guide
               </Link>
-              <span className="select-none px-0.5 text-[11px] text-border" aria-hidden>
-                ·
-              </span>
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                Skip
-              </button>
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="-mr-2 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Close onboarding"
-              >
-                <X className="size-4 stroke-[1.75]" aria-hidden />
-              </button>
+              {!skipLockedUntilCard ? (
+                <>
+                  <span className="select-none px-0.5 text-[11px] text-border" aria-hidden>
+                    ·
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSkip}
+                    className="rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSkip}
+                    className="-mr-2 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="Close onboarding"
+                  >
+                    <X className="size-4 stroke-[1.75]" aria-hidden />
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
           <div
@@ -652,10 +802,13 @@ export function OnboardingModal({ open, onComplete, userName = 'Creator' }: Onbo
           <Button
             type="button"
             onClick={handleNext}
+            disabled={trialWalletNeedsCheckout}
             className="h-11 min-w-[8.75rem] gap-2 rounded-full px-7 font-medium tracking-tight shadow-sm"
           >
             {isLastStep ? (
               'Get Started'
+            ) : trialWalletNeedsCheckout ? (
+              'Add card to continue'
             ) : (
               <>
                 Next

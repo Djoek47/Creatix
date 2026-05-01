@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isAdminIpAllowed } from '@/lib/admin/ip-allowlist'
+import { syncCreatixLocaleCookie } from '@/lib/supabase/middleware-locale-cookie'
 
 export async function updateSession(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/admin') && !isAdminIpAllowed(request)) {
@@ -88,6 +89,14 @@ export async function updateSession(request: NextRequest) {
   //    return myNewResponse
   // If this is not done, you may be causing the browser and server to go out
   // of sync and terminate the user's session prematurely!
+
+  await syncCreatixLocaleCookie({
+    request,
+    response: supabaseResponse,
+    supabase,
+    user,
+    pathname: request.nextUrl.pathname,
+  })
 
   return supabaseResponse
 }

@@ -77,7 +77,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const consumed = await consumeAiCredits(supabase, user.id, CREDITS_LEAK_SCAN)
+  const consumed = await consumeAiCredits(supabase, user.id, CREDITS_LEAK_SCAN, {
+    reasonCode: 'leak_scan',
+    metadata: { service_display_name: 'Leak Scanner' },
+  })
   if (!consumed.ok) {
     return insufficientAiCreditsResponse(consumed.used, consumed.limit)
   }

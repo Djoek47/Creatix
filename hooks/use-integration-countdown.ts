@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
  * Cosmetic release countdown used for Protection “deep integration” teasers (MarkIt pane, attribution trace UX).
  * Update when targeting a shipping window — keep aligned with product.
  */
-export const INTEGRATION_COUNTDOWN_END_MS = new Date('2026-05-02T12:00:00.000Z').getTime()
+export const INTEGRATION_COUNTDOWN_END_MS = new Date('2026-05-09T12:00:00.000Z').getTime()
 
 export function useCountdownMs(targetMs: number): number {
   const [remaining, setRemaining] = useState(() => Math.max(0, targetMs - Date.now()))

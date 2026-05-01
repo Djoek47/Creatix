@@ -25,6 +25,25 @@ const capsTrial = resolveWorkspaceCapabilities(trialActiveRow)
 assert.equal(capsTrial.isNonApiProtectionTier, false)
 assert.equal(capsTrial.canUseMessaging, true)
 
+const trialIncompleteStackedProtection = {
+  plan_id: 'divine-trial',
+  status: 'incomplete',
+  protection_plan_active: true,
+}
+const capsTrialIncomplete = resolveWorkspaceCapabilities(trialIncompleteStackedProtection)
+assert.equal(capsTrialIncomplete.isNonApiProtectionTier, false)
+assert.equal(capsTrialIncomplete.canUseDivineManagerNav, true)
+
+const trialSeatHeldRow = {
+  plan_id: 'divine-trial',
+  status: 'trial',
+  protection_plan_active: true,
+  stripe_subscription_id: 'sub_test',
+}
+const capsTrialSeat = resolveWorkspaceCapabilities(trialSeatHeldRow)
+assert.equal(capsTrialSeat.isNonApiProtectionTier, false)
+assert.equal(capsTrialSeat.canUseDivineManagerNav, true)
+
 const proRow = {
   plan_id: 'cev-paid',
   status: 'active',

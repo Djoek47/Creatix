@@ -18,6 +18,7 @@ import { FanProfileModal } from '@/components/messages/fan-profile-modal'
 import { InboxFiltersBar } from '@/components/messages/inbox-filters-bar'
 import { cn } from '@/lib/utils'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { dispatchMessagesNavUnreadTotal } from '@/lib/messages/messages-nav-unread-events'
 import { uiFadeTransition, uiPanelTransition, useUiMotionPreferences } from '@/components/ui/motion-presets'
 import {
   Sheet,
@@ -286,6 +287,11 @@ function MessagesLayoutContent({
     const t = window.setTimeout(() => setSearchDebounced(inboxSearch.trim()), 320)
     return () => window.clearTimeout(t)
   }, [inboxSearch])
+
+  useEffect(() => {
+    const total = conversations.reduce((sum, c) => sum + (Number(c.unreadCount) || 0), 0)
+    dispatchMessagesNavUnreadTotal(total)
+  }, [conversations])
 
   const dispatchCollapseDashboardSidebar = useCallback(() => {
     if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {

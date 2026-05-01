@@ -29,15 +29,65 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Archive, Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
+import { VaultHoverPlayVideo } from '@/components/ai/vault-hover-cinema-video'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
+import { toast } from '@/components/ui/use-toast'
 
 /** Billing id matches `POST /api/ai/photo-edit-intent` (`requireAiToolSessionAndCredits`). */
 const VAULT_PHOTO_AI_TOOL_ID = 'photo-enhancer' as const
+
+const SETTINGS_INTEGRATIONS_HREF = '/dashboard/settings?tab=integrations'
+
+function VaultPlatformConnectEmpty({ platform }: { platform: 'onlyfans' | 'fansly' }) {
+  const isOf = platform === 'onlyfans'
+  const label = isOf ? 'OnlyFans' : 'Fansly'
+
+  return (
+    <div className="flex min-h-[min(52vh,460px)] flex-col items-center justify-center gap-8 px-4 py-12 text-center sm:px-6">
+      <div className="max-w-[28ch] space-y-2">
+        <h3 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground sm:text-lg">
+          Connect {label}
+        </h3>
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          {isOf
+            ? 'Link your creator account to pull posts into Creatix and add them to your vault.'
+            : 'Link your Fansly account in Settings. Post browse here will follow the same flow as OnlyFans.'}
+        </p>
+      </div>
+
+      <Link
+        href={SETTINGS_INTEGRATIONS_HREF}
+        className={cn(
+          'group flex w-full max-w-[18rem] flex-col items-center justify-center gap-4 rounded-2xl border border-black/[0.07] bg-background px-10 py-11 shadow-[0_8px_30px_-22px_rgba(0,0,0,0.14)] transition-[border-color,background-color,box-shadow]',
+          'hover:border-foreground/16 hover:bg-muted/[0.35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'dark:border-white/[0.1] dark:bg-background/55 dark:shadow-[0_12px_40px_-28px_rgba(0,0,0,0.55)] dark:hover:bg-white/[0.05]',
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- trusted brand asset */}
+        <img
+          src={isOf ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC}
+          alt=""
+          aria-hidden
+          className={cn(
+            'w-auto object-contain opacity-[0.94] transition-opacity duration-200 group-hover:opacity-100',
+            isOf ? 'h-[4.25rem] sm:h-[5rem]' : 'h-[3.75rem] sm:h-[4.5rem]',
+          )}
+        />
+        <span className="text-[14px] font-semibold tracking-[-0.015em] text-foreground">
+          Sign in with {label}
+        </span>
+        <span className="max-w-[22ch] text-[11px] leading-snug text-muted-foreground">
+          Opens Settings → Integrations to finish connecting securely.
+        </span>
+      </Link>
+    </div>
+  )
+}
 
 export type VaultContentRow = {
   id: string
@@ -123,22 +173,31 @@ function resolveVaultPreviewMedia(
 function VaultPreviewSurface({
   row,
   placeholderIconClass,
+  hoverPlayVideo = true,
 }: {
   row: VaultContentRow
   placeholderIconClass?: string
+  /** When true, video tiles play on hover (respects reduced motion). */
+  hoverPlayVideo?: boolean
 }) {
   const media = resolveVaultPreviewMedia(row)
   const placeholderCls = placeholderIconClass ?? 'h-10 w-10 text-muted-foreground'
+  const titleLabel = row.title.trim() || 'Vault video preview'
 
   if (media.kind === 'video') {
+    const poster = httpVaultUrl(row.thumbnail_url)
+    if (hoverPlayVideo) {
+      return <VaultHoverPlayVideo src={media.src} poster={poster} titleLabel={titleLabel} />
+    }
     return (
       <video
         src={media.src}
+        poster={poster ?? undefined}
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         muted
         playsInline
         preload="metadata"
-        aria-label={row.title.trim() || 'Vault video preview'}
+        aria-label={titleLabel}
       />
     )
   }
@@ -161,6 +220,8 @@ export function MediaVaultHub() {
   const [ofPosts, setOfPosts] = useState<OfPost[]>([])
   const [ofLoading, setOfLoading] = useState(false)
   const [ofError, setOfError] = useState<string | null>(null)
+  const [ofNeedsConnect, setOfNeedsConnect] = useState(false)
+  const [fanslyConnected, setFanslyConnected] = useState<boolean | null>(null)
   const [selected, setSelected] = useState<VaultContentRow | null>(null)
   const [saving, setSaving] = useState(false)
   const [linking, setLinking] = useState<string | null>(null)
@@ -250,36 +311,78 @@ export function MediaVaultHub() {
     void loadVault()
   }, [loadVault])
 
-  const loadOfPosts = async () => {
+  const loadOfPosts = useCallback(async () => {
     setOfLoading(true)
     setOfError(null)
     try {
       const res = await fetch('/api/onlyfans/vault-posts?limit=50')
-      const json = await res.json()
+      const json = (await res.json()) as { posts?: OfPost[]; error?: string; total?: number }
       if (!res.ok) {
+        setOfNeedsConnect(false)
         setOfError(json.error || 'Failed to load')
         setOfPosts([])
         return
       }
+      if (json.error === 'OnlyFans not connected') {
+        setOfNeedsConnect(true)
+        setOfError(null)
+        setOfPosts([])
+        return
+      }
+      setOfNeedsConnect(false)
       setOfPosts(Array.isArray(json.posts) ? json.posts : [])
     } catch {
+      setOfNeedsConnect(false)
       setOfError('Network error')
       setOfPosts([])
     } finally {
       setOfLoading(false)
     }
-  }
+  }, [])
+
+  const refreshFanslyConnection = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setFanslyConnected(false)
+      return
+    }
+    const { data } = await supabase
+      .from('platform_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('platform', 'fansly')
+      .eq('is_connected', true)
+      .maybeSingle()
+    setFanslyConnected(!!data)
+  }, [supabase])
 
   useEffect(() => {
     void loadOfPosts()
-  }, [])
+  }, [loadOfPosts])
 
-  const loadQuota = useCallback(async () => {
+  useEffect(() => {
+    void refreshFanslyConnection()
+  }, [refreshFanslyConnection])
+
+  const loadQuota = useCallback(async (opts?: { bust?: boolean }) => {
     try {
-      const res = await fetch('/api/content/vault/storage-quota', { credentials: 'include' })
+      const qs = opts?.bust ? `?t=${Date.now()}` : ''
+      const res = await fetch(`/api/content/vault/storage-quota${qs}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
       if (!res.ok) return
       const json = (await res.json()) as VaultQuota
-      if (typeof json?.quotaBytes === 'number') setVaultQuota(json)
+      if (
+        typeof json?.quotaBytes === 'number' &&
+        typeof json?.usageBytes === 'number' &&
+        typeof json?.remainingBytes === 'number' &&
+        typeof json?.usagePercent === 'number'
+      ) {
+        setVaultQuota(json)
+      }
     } catch {
       // ignore
     }
@@ -288,6 +391,18 @@ export function MediaVaultHub() {
   useEffect(() => {
     void loadQuota()
   }, [loadQuota])
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        void loadQuota({ bust: true })
+        void loadOfPosts()
+        void refreshFanslyConnection()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [loadQuota, loadOfPosts, refreshFanslyConnection])
 
   const openRow = (r: VaultContentRow, opts?: { resetFrameMsg?: boolean }) => {
     setSelected(r)
@@ -318,14 +433,20 @@ export function MediaVaultHub() {
       })
       const j = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) {
-        console.warn(j.error || 'Delete failed')
+        const msg = j.error || `Delete failed (${res.status})`
+        console.warn(msg)
+        toast({
+          variant: 'destructive',
+          title: 'Could not delete vault item',
+          description: msg,
+        })
         return
       }
       if (selected?.id === r.id) {
         setSelected(null)
       }
       await loadVault()
-      void loadQuota()
+      void loadQuota({ bust: true })
     } finally {
       setDeleteBusyId(null)
     }
@@ -385,7 +506,7 @@ export function MediaVaultHub() {
         return
       }
       await loadVault()
-      await loadQuota()
+      await loadQuota({ bust: true })
     } finally {
       setLinking(null)
     }
@@ -572,7 +693,7 @@ export function MediaVaultHub() {
         return
       }
       await loadVault()
-      await loadQuota()
+      await loadQuota({ bust: true })
       if (j.content?.id) {
         const { data } = await supabase
           .from('content')
@@ -653,20 +774,24 @@ export function MediaVaultHub() {
             ))}
           </div>
 
-          <section className="rounded-2xl border border-border/80 bg-card/30 p-5 sm:p-6">
-            <div className="mb-5 space-y-1">
-              <h2 className="text-base font-semibold tracking-tight text-foreground">New item</h2>
-              <p className="text-sm text-muted-foreground">
-                Title, type, optional media—as much or as little as you want before opening the sheet.
+          <section className="rounded-[1.25rem] border border-black/[0.06] bg-card/85 p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_40px_-28px_rgba(0,0,0,0.14)] backdrop-blur-[2px] dark:border-white/[0.09] dark:bg-card/70 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_16px_48px_-32px_rgba(0,0,0,0.45)] sm:p-8">
+            <header className="max-w-[52ch] space-y-2 border-b border-border/40 pb-6 dark:border-white/[0.06]">
+              <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground sm:text-lg">
+                New item
+              </h2>
+              <p className="text-[13px] leading-relaxed text-muted-foreground/88">
+                Name it, choose video or photo, add a file now or from the detail sheet.
               </p>
-            </div>
+            </header>
+            <div className="pt-6">
             <VaultQuickAdd
-              onSuccess={() => {
-                void loadVault()
-                void loadQuota()
+              onSuccess={async () => {
+                await loadVault()
+                await loadQuota({ bust: true })
               }}
               vaultQuota={vaultQuota}
             />
+            </div>
           </section>
 
           {loading ? (
@@ -702,7 +827,7 @@ export function MediaVaultHub() {
                     onClick={() => openRow(r)}
                     className="flex flex-col text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
-                    <div className="relative aspect-video bg-muted">
+                    <div className="relative aspect-video overflow-hidden bg-muted">
                       <VaultPreviewSurface row={r} />
                       <span
                         className={cn(
@@ -759,58 +884,96 @@ export function MediaVaultHub() {
             </div>
           ) : ofError ? (
             <p className="rounded-xl border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{ofError}</p>
+          ) : ofNeedsConnect ? (
+            <div className="overflow-hidden rounded-[1.25rem] border border-black/[0.06] bg-card/60 dark:border-white/[0.08] dark:bg-card/45">
+              <VaultPlatformConnectEmpty platform="onlyfans" />
+            </div>
           ) : (
             <ScrollArea className="h-[min(60vh,520px)] pr-3">
-              <div className="space-y-3">
-                {ofPosts.map((p) => {
-                  const prev = p.media?.[0]?.url
-                  return (
-                    <Card key={p.id} className="rounded-2xl border-border/80 shadow-none">
-                      <CardContent className="flex gap-3 p-3.5">
-                        <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md bg-muted">
-                          {prev ? (
-                            <Image src={prev} alt="" fill className="object-cover" unoptimized />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                              Text
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm">{p.text || '(no caption)'}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {new Date(p.createdAt).toLocaleDateString()}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-2 gap-1 rounded-full"
-                            disabled={linking === p.id}
-                            onClick={() => void linkOfPost(p)}
-                          >
-                            {linking === p.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
+              {ofPosts.length === 0 ? (
+                <div className="flex min-h-[min(52vh,480px)] flex-col items-center justify-center gap-3 px-4 py-14 text-center">
+                  <p className="max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
+                    No posts returned yet. When your feed syncs, they will appear here.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full text-[13px] text-foreground"
+                    onClick={() => void loadOfPosts()}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {ofPosts.map((p) => {
+                    const prev = p.media?.[0]?.url
+                    return (
+                      <Card key={p.id} className="rounded-2xl border-border/80 shadow-none">
+                        <CardContent className="flex gap-3 p-3.5">
+                          <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md bg-muted">
+                            {prev ? (
+                              <Image src={prev} alt="" fill className="object-cover" unoptimized />
                             ) : (
-                              <Link2 className="h-3 w-3" />
+                              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                                Text
+                              </div>
                             )}
-                            Add to vault
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm">{p.text || '(no caption)'}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {new Date(p.createdAt).toLocaleDateString()}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-2 gap-1 rounded-full"
+                              disabled={linking === p.id}
+                              onClick={() => void linkOfPost(p)}
+                            >
+                              {linking === p.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Link2 className="h-3 w-3" />
+                              )}
+                              Add to vault
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
             </ScrollArea>
           )}
         </TabsContent>
 
         <TabsContent value="fansly" className="mt-8">
-          <div className="rounded-2xl border border-border/80 py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              Fansly feed is not available yet. Use the <span className="font-medium text-foreground">Vault</span> tab.
-            </p>
-          </div>
+          {fanslyConnected === null ? (
+            <div className="flex justify-center py-16">
+              <div
+                className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
+                style={{ animationDuration: '0.85s' }}
+                role="status"
+                aria-label="Checking Fansly connection"
+              />
+            </div>
+          ) : !fanslyConnected ? (
+            <div className="overflow-hidden rounded-[1.25rem] border border-black/[0.06] bg-card/60 dark:border-white/[0.08] dark:bg-card/45">
+              <VaultPlatformConnectEmpty platform="fansly" />
+            </div>
+          ) : (
+            <div className="rounded-[1.25rem] border border-border/80 bg-muted/[0.12] px-6 py-14 text-center dark:bg-muted/[0.08]">
+              <p className="mx-auto max-w-[36ch] text-[13px] leading-relaxed text-muted-foreground">
+                Fansly is connected. Post browsing in this library is not wired yet — use the{' '}
+                <span className="font-medium text-foreground">Vault</span> tab to add media, or check back after a future
+                release.
+              </p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { callGrokVision } from '@/lib/ai/grok-tools'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
 import { getBrandContext, type BrandContextPayload } from '@/lib/brand/get-brand-context'
 import { evaluateBrandTextCompliance } from '@/lib/brand/brand-governance'
@@ -200,7 +201,7 @@ async function finalizeResponse(
 
   try {
     if (userId) {
-      await consumeAiCredits(supabase, userId, getCreditsForToolId('caption-generator'))
+      await consumeAiCredits(supabase, userId, getCreditsForToolId('caption-generator'), ledgerDebitOptsForBillingTool('caption-generator'))
     }
   } catch {
     // ignore credit errors

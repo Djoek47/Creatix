@@ -2,8 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { SidebarBrandLockup } from '@/components/dashboard/sidebar-brand-lockup'
 import { cn } from '@/lib/utils'
+import {
+  DASHBOARD_MESSAGES_NAV_HREF,
+  dashboardMessagesNavIconClass,
+  dashboardMessagesNavLabelClass,
+} from '@/lib/dashboard-nav-messages-accent'
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +18,7 @@ import {
   Shield,
   TrendingUp,
   Settings,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Moon,
@@ -36,12 +43,15 @@ import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capab
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { AiStudioNavStar } from '@/components/dashboard/ai-studio-nav-star'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
+import { MessagesNavUnreadSweep } from '@/components/dashboard/messages-nav-unread-sweep'
+import { useMessagesNavUnreadTotal } from '@/hooks/use-messages-nav-unread-total'
 import {
   bottomTwinChipIconClasses,
-  bottomTwinInner,
-  bottomTwinRimGold,
-  bottomTwinRimPurple,
+  bottomTwinInnerGuide,
+  bottomTwinInnerSettings,
+  bottomTwinRimPlain,
 } from '@/components/dashboard/sidebar-bottom-nav-tokens'
 
 interface SidebarProps {
@@ -50,7 +60,7 @@ interface SidebarProps {
 }
 
 interface NavItem {
-  name: string
+  nameKey: string
   href: string
   icon: LucideIcon
   /** If set, item is active when pathname matches any of these (exact or child path). */
@@ -69,16 +79,16 @@ function navItemIsActive(pathname: string, item: NavItem): boolean {
 
 // Circe's domain (Purple) — all items always visible
 const circeNavigation: NavItem[] = [
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Protection', href: '/dashboard/protection', icon: Shield },
-  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
+  { nameKey: 'sidebar.analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { nameKey: 'sidebar.protection', href: '/dashboard/protection', icon: Shield },
+  { nameKey: 'sidebar.retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
 // Venus's domain (Gold) — all items always visible
 const venusNavigation: NavItem[] = [
-  { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-  { name: 'Fan Atlas', href: '/dashboard/commenter', icon: MessagesSquare },
+  { nameKey: 'sidebar.fans', href: '/dashboard/fans', icon: Users },
+  { nameKey: 'sidebar.mentions', href: '/dashboard/mentions', icon: TrendingUp },
+  { nameKey: 'sidebar.fanAtlas', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
 /** Base desktop rail sizing (keeps current look on roomy screens). */
@@ -97,27 +107,26 @@ const SIDEBAR_SIZE = {
 
 // Silver themed navigation
 const silverNavigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
-  { name: 'Content', href: '/dashboard/content', icon: Layers },
-  { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'Social', href: '/dashboard/social', icon: Share2 },
+  { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { nameKey: 'sidebar.divineManager', href: '/dashboard/divine-manager', icon: Crown },
+  { nameKey: 'sidebar.content', href: '/dashboard/content', icon: Layers },
+  { nameKey: 'sidebar.wellbeing', href: '/dashboard/well-being', icon: HeartPulse },
+  { nameKey: 'sidebar.messages', href: '/dashboard/messages', icon: MessageSquare },
+  { nameKey: 'sidebar.social', href: '/dashboard/social', icon: Share2 },
 ]
 
 const aiStudioNavigation: NavItem[] = [
-  { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Star },
+  { nameKey: 'sidebar.aiStudio', href: '/dashboard/ai-studio', icon: Star },
 ]
 
 const bottomNavigation: NavItem[] = [
   {
-    /** Short slug for footer twin chips; routing unchanged */
-    name: 'Guide',
+    nameKey: 'sidebar.guide',
     href: '/dashboard/guide',
     icon: BookOpen,
     activeMatch: ['/dashboard/guide', '/dashboard/community'],
   },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { nameKey: 'sidebar.settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 /** Motion: short, precise; no decorative easing. */
@@ -157,7 +166,7 @@ type NavVariant = keyof typeof variantStyles
 /** Vertical rhythm: short viewports tighten gaps/padding so the rail rarely scrolls. */
 type SidebarVerticalDensity = 'normal' | 'tight' | 'cramped'
 
-/** Guide (violet rim) · Settings (amber rim) — one accent per pill. */
+/** Guide (violet rim + fill) · Settings (Divine launcher–style pop surface, no extra gold ring). */
 function SidebarBottomTwinNav({
   pathname,
   collapsed,
@@ -169,6 +178,7 @@ function SidebarBottomTwinNav({
   compactDensity: boolean
   verticalDensity: SidebarVerticalDensity
 }) {
+  const tNav = useTranslations('navigation')
   const guide = bottomNavigation[0]
   const settings = bottomNavigation[1]
   const guideActive = navItemIsActive(pathname, guide)
@@ -202,12 +212,14 @@ function SidebarBottomTwinNav({
   }) => {
     const Icon = item.icon
 
+    const innerPlate = accent === 'guide' ? bottomTwinInnerGuide : bottomTwinInnerSettings
+
     const linkBody = (
       <Link
         href={item.href}
         data-tour={item.href}
         className={cn(
-          bottomTwinInner,
+          innerPlate,
           'group relative flex outline-none ring-sidebar-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
           collapsed
             ? 'min-h-8 flex-1 justify-center px-0 py-1'
@@ -216,12 +228,8 @@ function SidebarBottomTwinNav({
                 accent === 'settings' ? 'justify-center' : 'justify-start',
               ),
           active
-            ? 'bg-sidebar-accent/55 text-sidebar-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
-            : [
-                'text-sidebar-foreground/76',
-                'hover:bg-sidebar-accent/38 hover:text-sidebar-foreground',
-                'active:bg-sidebar-accent/44',
-              ],
+            ? 'ring-2 ring-violet-600/30 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)] dark:ring-violet-400/35'
+            : 'text-foreground/82 hover:brightness-[1.04] active:brightness-[0.99] dark:text-foreground/88',
         )}
         aria-current={active ? 'page' : undefined}
       >
@@ -234,7 +242,7 @@ function SidebarBottomTwinNav({
             className={cn(
               'shrink-0 whitespace-nowrap',
               twinChipLabelClass,
-              active ? 'text-sidebar-foreground' : 'text-sidebar-foreground/82',
+              active ? 'text-foreground dark:text-foreground' : 'text-foreground/84 dark:text-foreground/86',
             )}
           >
             {label}
@@ -283,15 +291,15 @@ function SidebarBottomTwinNav({
       <TwinChip
         item={guide}
         active={guideActive}
-        rimClass={bottomTwinRimPurple}
-        label="Guide"
+        rimClass={bottomTwinRimPlain}
+        label={tNav('sidebar.guide')}
         accent="guide"
       />
       <TwinChip
         item={settings}
         active={settingsActive}
-        rimClass={bottomTwinRimGold}
-        label="Settings"
+        rimClass={bottomTwinRimPlain}
+        label={tNav('sidebar.settings')}
         accent="settings"
       />
     </div>
@@ -306,6 +314,7 @@ function NavLink({
   compactDensity,
   verticalDensity,
   pulseNavSeverity,
+  messagesUnreadTotal,
 }: {
   item: NavItem
   variant?: NavVariant
@@ -314,10 +323,15 @@ function NavLink({
   compactDensity: boolean
   verticalDensity: SidebarVerticalDensity
   pulseNavSeverity?: PulseSeverity
+  /** Sum of unread in loaded inbox; speeds sweep when high. */
+  messagesUnreadTotal?: number
 }) {
+  const tNav = useTranslations('navigation')
   const isActive = navItemIsActive(pathname, item)
   const isAiStudio = variant === 'ai-studio'
   const isDivineManager = item.href === '/dashboard/divine-manager'
+  const isMessagesNav =
+    variant === 'default' && item.href === DASHBOARD_MESSAGES_NAV_HREF
   const styles = variantStyles[variant]
   const Icon = item.icon
 
@@ -340,6 +354,7 @@ function NavLink({
               : 'min-h-10 py-2.5',
         ),
     isActive ? styles.active : styles.inactive,
+    isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'relative isolate overflow-visible',
   )
 
   const wellbeingPulseClass =
@@ -367,47 +382,51 @@ function NavLink({
       {isAiStudio ? (
         <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
           <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
-            <Star
-              aria-hidden
+            <AiStudioNavStar
+              gradientSlot="sidebar-desktop"
               className={cn(
-                'relative z-[1] flex-shrink-0',
+                'relative z-[1] shrink-0',
                 navEase,
                 compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-                'ai-studio-sidebar-star',
               )}
             />
           </span>
         </span>
       ) : isDivineManager ? (
         <SidebarDivineManagerCrown
+          gradientSlot="sidebar-desktop"
           navEase={navEase}
           iconBoxClass={compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox}
         />
       ) : (
         <Icon
           className={cn(
-            'relative z-[1] flex-shrink-0 transition-colors',
-            navEase,
+            'relative z-[1] flex-shrink-0',
             compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
             wellbeingPulseClass
-              ? cn(wellbeingPulseClass, isActive && 'opacity-100')
-              : isActive
-                ? 'text-sidebar-foreground'
-                : styles.icon,
+              ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors', navEase)
+              : isMessagesNav
+                ? dashboardMessagesNavIconClass(isActive)
+                : cn(
+                    'transition-colors',
+                    navEase,
+                    isActive ? 'text-sidebar-foreground' : styles.icon,
+                  ),
           )}
         />
       )}
       {!collapsed && (
-        <div className="flex min-w-0 items-center gap-2">
+        <div className={cn('flex min-w-0 items-center gap-2', isMessagesNav && 'relative z-[1]')}>
           <span
             className={cn(
               isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
               isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+              isMessagesNav && dashboardMessagesNavLabelClass(isActive),
               wellbeingTextPulseClass,
               (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
             )}
           >
-            {item.name}
+            {tNav(item.nameKey)}
           </span>
         </div>
       )}
@@ -421,6 +440,7 @@ function NavLink({
       className={linkClassName}
       aria-current={isActive ? 'page' : undefined}
     >
+      {isMessagesNav ? <MessagesNavUnreadSweep unreadTotal={messagesUnreadTotal ?? 0} /> : null}
       {linkInner}
     </Link>
   )
@@ -441,12 +461,13 @@ function NavLink({
             <span
               className={cn(
                 'font-medium',
+                isMessagesNav && dashboardMessagesNavLabelClass(isActive),
                 isDivineManager && 'sidebar-divine-manager-text',
                 wellbeingTextPulseClass,
                 (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
               )}
             >
-              {item.name}
+              {tNav(item.nameKey)}
             </span>
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
@@ -457,11 +478,13 @@ function NavLink({
   return linkEl
 }
 
-export function DashboardSidebar({ profile }: SidebarProps) {
+export function DashboardSidebar({ profile: _profile }: SidebarProps) {
   const pulseOptional = useDashboardPulseOptional()
   const pulseNavSeverity = pulseOptional?.pulse?.severity
   const caps = useWorkspaceCapabilities()
+  const messagesNavUnread = useMessagesNavUnreadTotal(caps.canUseMessaging)
   const pathname = usePathname()
+  const tNavSections = useTranslations('navigation')
   const [collapsed, setCollapsed] = useState(false)
   const [compactDensity, setCompactDensity] = useState(false)
   const [verticalDensity, setVerticalDensity] = useState<SidebarVerticalDensity>('normal')
@@ -554,7 +577,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         <div className={navItemStack}>
           {silverFiltered.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.nameKey}
               item={item}
               variant="default"
               pathname={pathname}
@@ -562,6 +585,9 @@ export function DashboardSidebar({ profile }: SidebarProps) {
               compactDensity={compactDensity}
               verticalDensity={verticalDensity}
               pulseNavSeverity={item.href === '/dashboard/well-being' ? pulseNavSeverity : undefined}
+              messagesUnreadTotal={
+                item.href === DASHBOARD_MESSAGES_NAV_HREF ? messagesNavUnread : undefined
+              }
             />
           ))}
         </div>
@@ -569,7 +595,7 @@ export function DashboardSidebar({ profile }: SidebarProps) {
         <div className={navItemStack}>
           {aiStudioFiltered.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.nameKey}
               item={item}
               variant="ai-studio"
               pathname={pathname}
@@ -601,13 +627,13 @@ export function DashboardSidebar({ profile }: SidebarProps) {
                   compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
-                Circe
+                {tNavSections('sidebar.circeSection')}
               </span>
             </div>
           )}
           {circeFiltered.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.nameKey}
               item={item}
               variant="circe"
               pathname={pathname}
@@ -639,13 +665,13 @@ export function DashboardSidebar({ profile }: SidebarProps) {
                   compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
-                Venus
+                {tNavSections('sidebar.venusSection')}
               </span>
             </div>
           )}
           {venusFiltered.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.nameKey}
               item={item}
               variant="venus"
               pathname={pathname}
@@ -666,21 +692,40 @@ export function DashboardSidebar({ profile }: SidebarProps) {
           verticalDensity={verticalDensity}
         />
 
-        {!collapsed && profile && !compactDensity && (
+        {!collapsed && !compactDensity && (
           <div
             className={cn(
               'border-t border-sidebar-border/35',
               verticalDensity === 'cramped' ? 'mt-2 pt-2' : verticalDensity === 'tight' ? 'mt-3 pt-3' : 'mt-4 pt-4',
             )}
           >
-          <div className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/22 p-3 transition-colors duration-200">
-            <p className={cn('truncate font-medium leading-tight text-sidebar-foreground', SIDEBAR_SIZE.cozy.linkText)}>
-              {profile.full_name || 'Divine Creator'}
-            </p>
-            <p className="truncate text-[0.8rem] leading-tight text-sidebar-foreground/52">
-              {profile.email}
-            </p>
-          </div>
+            <div
+              className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/18 px-3 py-2.5 transition-colors duration-200 dark:bg-sidebar-accent/12"
+              role="note"
+              aria-label={`${tNavSections('sidebar.systemStripTitle')}: ${tNavSections('sidebar.systemStripStatus')}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <Activity
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600/85 dark:text-emerald-400/90"
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
+                    {tNavSections('sidebar.systemStripTitle')}
+                  </p>
+                  <p className={cn('truncate text-[12px] font-medium leading-snug text-sidebar-foreground/88', SIDEBAR_SIZE.cozy.linkText)}>
+                    {tNavSections('sidebar.systemStripStatus')}
+                  </p>
+                  <p className="truncate text-[10px] leading-snug text-sidebar-foreground/48">
+                    {tNavSections('sidebar.systemStripHint')}
+                  </p>
+                </div>
+                <ChevronDown
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 -rotate-90 text-sidebar-foreground/22"
+                  aria-hidden
+                />
+              </div>
+            </div>
           </div>
         )}
         </div>

@@ -21,6 +21,7 @@ import {
 } from '@/lib/onlyfans/creator-page-model'
 import { logAiUsageEvent } from '@/lib/usage/server-log'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
@@ -68,7 +69,7 @@ function utcDayString(d = new Date()): string {
 }
 
 async function bumpAiCredits(supabase: SupabaseClient, userId: string): Promise<void> {
-  await consumeAiCredits(supabase, userId, getCreditsForToolId('ai-chatter'))
+  await consumeAiCredits(supabase, userId, getCreditsForToolId('ai-chatter'), ledgerDebitOptsForBillingTool('ai-chatter'))
 }
 
 async function loadVaultSnippet(supabase: SupabaseClient, userId: string): Promise<string> {

@@ -112,7 +112,15 @@ Use these to steer tone and style as described. Do not mention this control bloc
 
     if (user) {
       try {
-        await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+        await consumeAiCredits(
+          supabase,
+          user.id,
+          CREDITS_DIVINE_CHAT_MESSAGE,
+          {
+            reasonCode: 'divine_chat_flirt',
+            metadata: { service_display_name: 'Flirt mode' },
+          },
+        )
       } catch {
         // ignore credit errors
       }

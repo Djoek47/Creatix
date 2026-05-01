@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const access = await requireAiToolSessionAndCredits(req, 'standard-of-attraction')
     if (!access.ok) return access.response
-    const { supabase, userId, cost } = access.data
+    const { supabase, userId, cost, billingToolId } = access.data
 
     const systemPrompt = GROK_SYSTEM(niche, platform)
 
@@ -115,7 +115,7 @@ Rate as two goddesses giving a combined verdict. Score 1-10 (10 = will clearly s
       object = o
     }
 
-    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
     if (!charged.ok) return charged.response
 
     return NextResponse.json(object)

@@ -153,7 +153,7 @@ export function DashboardRefreshButton() {
         onClick={() => void handleRefresh()}
         className={cn(
           shellButtonClass,
-          'hidden h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium sm:inline-flex',
+          'hidden h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium sm:inline-flex',
           busy && 'min-w-[9.5rem] cursor-wait',
         )}
       >
@@ -176,7 +176,9 @@ export function DashboardRefreshButton() {
             aria-hidden
           />
         )}
-        <span className="tabular-nums text-amber-950 dark:text-amber-50">{busy ? 'Syncing…' : 'Refresh data'}</span>
+        <span className="shrink-0 whitespace-nowrap text-amber-950 dark:text-amber-50">
+          {busy ? 'Syncing…' : 'Refresh data'}
+        </span>
       </button>
 
       <button

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +16,8 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
 export default function LoginPage() {
+  const tAuth = useTranslations('auth')
+  const tCommon = useTranslations('common')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +45,8 @@ export default function LoginPage() {
     router.refresh()
   }
 
+  const badCredentials = Boolean(error?.toLowerCase().includes('invalid login credentials'))
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-16 sm:px-6">
       <AuthScenicBackdrop />
@@ -51,7 +56,7 @@ export default function LoginPage() {
         className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:left-8 sm:top-8"
       >
         <ArrowLeft className="h-4 w-4 opacity-70" />
-        Back
+        {tCommon('back')}
       </Link>
 
       <div className="relative z-10 mb-10 flex flex-col items-center gap-5 sm:mb-12">
@@ -62,9 +67,9 @@ export default function LoginPage() {
         <ThemedLogo width={96} height={96} className="relative z-10 rounded-full" priority />
         <div className="relative z-10 text-center">
           <p className="font-serif text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-            Circe et Venus
+            {tCommon('brand.name')}
           </p>
-          <p className="mt-1.5 text-xs text-muted-foreground/90">Creator workspace</p>
+          <p className="mt-1.5 text-xs text-muted-foreground/90">{tCommon('brand.subtitle')}</p>
         </div>
       </div>
 
@@ -77,10 +82,10 @@ export default function LoginPage() {
       >
         <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
           <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
-            Welcome back
+            {tAuth('loginTitle')}
           </CardTitle>
           <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
-            Sign in to continue. Your session is private and encrypted.
+            {tAuth('loginCardSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-10 pt-8">
@@ -94,14 +99,12 @@ export default function LoginPage() {
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
                   <div className="min-w-0 space-y-1">
                     <p className="font-medium leading-snug text-destructive">
-                      {error.toLowerCase().includes('invalid login credentials')
-                        ? 'We couldn’t match that email and password.'
-                        : 'Unable to sign in right now.'}
+                      {badCredentials
+                        ? tAuth('loginErrorBadCredentialsTitle')
+                        : tAuth('loginErrorGenericTitle')}
                     </p>
                     <p className="text-xs leading-relaxed text-destructive/85">
-                      {error.toLowerCase().includes('invalid login credentials')
-                        ? 'Check your details and try again, or reset your password.'
-                        : error}
+                      {badCredentials ? tAuth('loginErrorBadCredentialsDetail') : error}
                     </p>
                   </div>
                 </div>
@@ -110,12 +113,12 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-[13px] font-medium text-foreground">
-                Email
+                {tAuth('emailLabel')}
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={tAuth('emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -127,18 +130,18 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <Label htmlFor="password" className="text-[13px] font-medium text-foreground">
-                  Password
+                  {tAuth('passwordLabel')}
                 </Label>
                 <Link
                   href="/auth/forgot-password"
                   className="text-[13px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
                 >
-                  Forgot password?
+                  {tAuth('forgotPassword')}
                 </Link>
               </div>
               <AuthPasswordField
                 id="password"
-                placeholder="••••••••"
+                placeholder={tAuth('passwordMaskedPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -160,21 +163,21 @@ export default function LoginPage() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin opacity-80" />
-                  Signing in…
+                  {tAuth('loggingIn')}
                 </span>
               ) : (
-                'Continue'
+                tAuth('continue')
               )}
             </Button>
           </form>
 
           <p className="mt-8 text-center text-[15px] text-muted-foreground">
-            New here?{' '}
+            {tAuth('loginNewHere')}{' '}
             <Link
               href="/auth/sign-up"
               className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
             >
-              Create an account
+              {tAuth('loginCreateAccount')}
             </Link>
           </p>
         </CardContent>

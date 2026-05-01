@@ -22,10 +22,10 @@ export const TIP_POPUP_ROLL_CHANCE = 0.52
 export const TIP_POPUP_SITE_WIDE_RETRY_MS = 10 * 60 * 1000
 
 /**
- * QA: pin how long the random tip popup stays open (ms). Set to `0` to restore the
- * reading-time heuristic in `CirceTipPopupHost` (~14–32s).
+ * When > 0, overrides reading-time visibility when env `NEXT_PUBLIC_CIRCE_TIP_POPUP_VISIBLE_MS` is unset.
+ * Production/dev default `0` → use natural read-length (~14–32s). Set env for longer QA sessions only.
  */
-export const TIP_POPUP_QA_FIXED_VISIBLE_MS = 120_000
+export const TIP_POPUP_QA_FIXED_VISIBLE_MS = 0
 
 export const TIP_POPUP_PREFS_EVENT = 'creatix-tip-prefs-changed'
 export const TIP_POPUP_FORCE_EVENT = 'creatix-tip-popup-force'

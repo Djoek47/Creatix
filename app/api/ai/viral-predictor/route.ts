@@ -3,6 +3,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
@@ -72,7 +73,7 @@ Analyze and provide a viral score with detailed insights.`,
 
   if (user) {
     try {
-      await consumeAiCredits(supabase, user.id, cost)
+      await consumeAiCredits(supabase, user.id, cost, ledgerDebitOptsForBillingTool('viral-predictor'))
     } catch {
       // ignore credit errors
     }

@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass, X } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
@@ -39,7 +39,8 @@ import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
 import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
-import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
+import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
+import { cn } from '@/lib/utils'
 
 type WizardStep = 1 | 2 | 3 | 4
 
@@ -842,79 +843,106 @@ export default function DivineManagerPage() {
 
   // First-run wizard: no settings row yet
   if (!settings) {
+    const stepMeta = [
+      { step: 1 as const, title: 'Voice', hint: 'How Divine sounds when it writes.' },
+      { step: 2 as const, title: 'Goals & posture', hint: 'Outcomes you care about, plus daily cadence.' },
+      { step: 3 as const, title: 'Automation', hint: 'What runs on its own. All off by default.' },
+      { step: 4 as const, title: 'Review', hint: 'One pass, then activate.' },
+    ]
+    const currentMeta = stepMeta[wizardStep - 1]
+
     return (
-      <div className="divine-page-bg min-h-full">
-        <div className="divine-fade-in mx-auto max-w-2xl space-y-10 px-4 pb-16 pt-8 sm:px-6">
-          <header className="space-y-2">
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Set up Divine Manager
+      <div className="divine-setup-wizard-page min-h-full">
+        <div className="divine-fade-in mx-auto max-w-xl px-4 pb-20 pt-10 sm:px-6 lg:max-w-[42rem]">
+          <header className="mx-auto max-w-lg space-y-3 text-center sm:text-left">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground/90">Divine Manager</p>
+            <h1 className="font-serif text-[1.75rem] font-semibold tracking-[-0.02em] text-foreground sm:text-[2.25rem] sm:leading-[1.1]">
+              Set up once
             </h1>
-            <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-              Four steps. Everything here can be changed later.
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
+              Four steps · Nothing is permanent — tune everything inside the console after this.
             </p>
           </header>
 
-          <Card className="divine-card rounded-2xl shadow-sm">
-          <CardHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2" role="group" aria-label="Setup progress">
-                {([1, 2, 3, 4] as const).map((step) => (
-                  <div key={step} className="flex flex-1 items-center last:flex-none">
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors ${
-                        wizardStep > step
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : wizardStep === step
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-muted-foreground/30 bg-transparent text-muted-foreground'
-                      }`}
-                    >
-                      {wizardStep > step ? <Check className="h-4 w-4" /> : step}
-                    </div>
-                    {step < 4 && <div className="mx-1 h-0.5 flex-1 bg-border" />}
+          <div className="divine-setup-wizard-shell divine-card mt-10">
+            <div className="relative overflow-hidden rounded-[1.265rem] border border-white/35 bg-card/72 shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-card/65">
+              <div className="space-y-6 px-5 pb-6 pt-6 sm:px-8 sm:pb-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Step {wizardStep} of 4
+                    </p>
+                    <h2 className="font-serif text-xl font-semibold tracking-tight text-foreground">{currentMeta.title}</h2>
+                    <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">{currentMeta.hint}</p>
                   </div>
-                ))}
-              </div>
-              <CardDescription className="text-sm">
-                {wizardStep === 1 && 'Persona & boundaries'}
-                {wizardStep === 2 && 'Goals, archetype & notifications'}
-                {wizardStep === 3 && 'Automation rules'}
-                {wizardStep === 4 && 'Review and activate'}
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+                </div>
+
+                <div className="flex items-center gap-1.5" role="navigation" aria-label="Setup steps">
+                  {([1, 2, 3, 4] as const).map((step) => {
+                    const passed = wizardStep > step
+                    const active = wizardStep === step
+                    return (
+                      <div key={step} className="flex flex-1 items-center gap-1.5">
+                        <div
+                          className={cn(
+                            'flex h-2 flex-1 overflow-hidden rounded-full bg-muted/50 transition-colors duration-300',
+                            passed && 'bg-primary/28 dark:bg-venus/35',
+                            active && 'bg-primary/55 ring-2 ring-primary/25 dark:bg-venus/55 dark:ring-venus/25',
+                          )}
+                          aria-current={active ? 'step' : undefined}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div key={wizardStep} className="divine-setup-step-animate space-y-8 pb-2">
             {wizardStep === 1 && (
               <>
-                <div className="space-y-2">
-                  <Label>How do you talk to fans?</Label>
-                  <Select value={persona.tone ?? 'friendly'} onValueChange={(v) => setPersona((p) => ({ ...p, tone: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="friendly">Friendly & warm</SelectItem>
-                      <SelectItem value="playful">Playful & teasing</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="casual">Casual & laid-back</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3">
+                  <Label className="text-[13px] font-semibold tracking-tight">Messaging style</Label>
+                  <p className="-mt-1 text-[13px] text-muted-foreground">
+                    Pick one pairing — tone and flirt stay in sync so you aren&apos;t asked twice.
+                  </p>
+                  <div className="grid gap-2.5 sm:grid-cols-2" role="listbox" aria-label="Messaging style">
+                    {DIVINE_VOICE_STYLE_PRESETS.map((preset) => {
+                      const sel = divineVoicePresetIdForPersona(persona) === preset.id
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          role="option"
+                          aria-selected={sel}
+                          data-selected={sel ? 'true' : 'false'}
+                          className="divine-setup-preset-trigger group flex flex-col items-start rounded-2xl border border-border/65 bg-muted/25 px-4 py-3.5 text-left transition-colors duration-200 hover:border-primary/35 hover:bg-muted/40 dark:border-white/[0.08] dark:bg-background/35 dark:hover:bg-background/48"
+                          onClick={() =>
+                            setPersona((p) => ({
+                              ...p,
+                              tone: preset.tone,
+                              flirtyLevel: preset.flirtyLevel,
+                            }))
+                          }
+                        >
+                          <span className="text-[14px] font-semibold tracking-tight text-foreground">{preset.title}</span>
+                          <span className="mt-1 text-[13px] leading-snug text-muted-foreground">{preset.subtitle}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {divineVoicePresetIdForPersona(persona) === null ? (
+                    <p className="text-[12px] text-muted-foreground">
+                      Prefer a rare mix not listed? Finish setup, then open Persona inside the Divine console.
+                    </p>
+                  ) : null}
                 </div>
-                <div className="space-y-2">
-                  <Label>Comfort level with flirty tone</Label>
-                  <Select value={persona.flirtyLevel ?? 'mild'} onValueChange={(v) => setPersona((p) => ({ ...p, flirtyLevel: v as DivineManagerPersona['flirtyLevel'] }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="mild">Mild</SelectItem>
-                      <SelectItem value="moderate">Moderate</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Off-limits (add one at a time)</Label>
-                  <div className="flex gap-2">
+
+                <div className="space-y-2.5">
+                  <Label className="text-[13px] font-semibold tracking-tight">Hard lines</Label>
+                  <p className="text-[13px] text-muted-foreground">Topics or requests Divine never crosses.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <Input
-                      placeholder="e.g. No explicit content, no politics"
+                      placeholder="One line, then Enter"
+                      className="h-11 rounded-xl border-border/50 bg-background/80 sm:flex-1"
                       value={boundaryInput}
                       onChange={(e) => setBoundaryInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -926,7 +954,8 @@ export default function DivineManagerPage() {
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
+                      className="h-11 shrink-0 rounded-xl px-5"
                       onClick={() => {
                         if (boundaryInput.trim()) {
                           setPersona((p) => ({ ...p, boundaries: [...(p.boundaries ?? []), boundaryInput.trim()] }))
@@ -937,24 +966,43 @@ export default function DivineManagerPage() {
                       Add
                     </Button>
                   </div>
-                  {(persona.boundaries?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
+                  {(persona.boundaries?.length ?? 0) > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-1" aria-label="Boundaries">
                       {(persona.boundaries ?? []).map((b, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {b}
-                        </Badge>
+                        <li key={`${i}-${b}`}>
+                          <button
+                            type="button"
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/35 py-1.5 pl-3 pr-2 text-left text-[12px] font-medium tracking-tight text-foreground transition-colors hover:bg-muted/50"
+                            onClick={() =>
+                              setPersona((p) => ({
+                                ...p,
+                                boundaries: (p.boundaries ?? []).filter((_, j) => j !== i),
+                              }))
+                            }
+                          >
+                            <span className="min-w-0 truncate">{b}</span>
+                            <X className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="sr-only">Remove boundary</span>
+                          </button>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
+                  ) : (
+                    <p className="text-[12px] italic text-muted-foreground/85">Nothing yet — tap Add when ready.</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Example phrases (optional)</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Short lines you like so Divine can echo your vibe in drafts.
+
+                <div className="space-y-2.5">
+                  <Label className="text-[13px] font-semibold tracking-tight">
+                    Echo lines <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <p className="text-[13px] text-muted-foreground">
+                    Tiny phrases Divine can borrow so drafts feel unmistakably you.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <Input
-                      placeholder="e.g. Hey love — thanks for being here"
+                      placeholder="One phrase, then Enter"
+                      className="h-11 rounded-xl border-border/50 bg-background/80 sm:flex-1"
                       value={examplePhraseInput}
                       onChange={(e) => setExamplePhraseInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -969,7 +1017,8 @@ export default function DivineManagerPage() {
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
+                      className="h-11 shrink-0 rounded-xl px-5"
                       onClick={() => {
                         if (examplePhraseInput.trim()) {
                           setPersona((p) => ({
@@ -983,25 +1032,35 @@ export default function DivineManagerPage() {
                       Add
                     </Button>
                   </div>
-                  {(persona.examplePhrases?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
+                  {(persona.examplePhrases?.length ?? 0) > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-1" aria-label="Example phrases">
                       {(persona.examplePhrases ?? []).map((phrase, i) => (
-                        <Badge key={i} variant="outline" className="text-xs max-w-full break-words">
-                          {phrase}
-                        </Badge>
+                        <li key={`${i}-${phrase.slice(0, 24)}`}>
+                          <button
+                            type="button"
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-dashed border-border/60 bg-background/55 py-1.5 pl-3 pr-2 text-left text-[12px] font-medium tracking-tight text-foreground hover:bg-muted/45"
+                            onClick={() =>
+                              setPersona((p) => ({
+                                ...p,
+                                examplePhrases: (p.examplePhrases ?? []).filter((_, j) => j !== i),
+                              }))
+                            }
+                          >
+                            <span className="min-w-0 break-words text-left">{phrase}</span>
+                            <X className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="sr-only">Remove phrase</span>
+                          </button>
+                        </li>
                       ))}
-                    </div>
-                  )}
+                    </ul>
+                  ) : null}
                 </div>
               </>
             )}
 
             {wizardStep === 2 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  What you&apos;re working toward — plus how Divine should feel day to day.
-                </p>
-                <div className="space-y-2 rounded-lg border border-border p-4">
+                <div className="space-y-2 rounded-xl border border-border/50 bg-muted/15 p-4 sm:p-5">
                   <Label>Goals (one at a time)</Label>
                   <div className="flex gap-2">
                     <Input
@@ -1097,31 +1156,33 @@ export default function DivineManagerPage() {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground pt-2">
-                  Choose your Divine Manager&apos;s style and how often it should ping you.
-                </p>
-                <div className="space-y-3">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">Manager persona and pings.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Manager archetype</Label>
+                    <Label className="text-[13px] font-medium">Archetype</Label>
                     <Select value={managerArchetype} onValueChange={(v) => setManagerArchetype(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hermes">Hermes – Messages & money focus</SelectItem>
-                        <SelectItem value="hephaestus">Hephaestus – Systems & schedules</SelectItem>
-                        <SelectItem value="hestia">Hestia – Retention & VIP care</SelectItem>
-                        <SelectItem value="eros">Eros – Charm & script optimization</SelectItem>
+                        <SelectItem value="hermes">Hermes · messages & revenue</SelectItem>
+                        <SelectItem value="hephaestus">Hephaestus · systems & schedules</SelectItem>
+                        <SelectItem value="hestia">Hestia · retention & VIP</SelectItem>
+                        <SelectItem value="eros">Eros · charm & scripts</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Notification level</Label>
-                    <Select value={notifyLevel} onValueChange={(v: any) => setNotifyLevel(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Label className="text-[13px] font-medium">Notifications</Label>
+                    <Select value={notifyLevel} onValueChange={(v: 'none' | 'only_issues' | 'daily_digest' | 'all') => setNotifyLevel(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Never notify me</SelectItem>
-                        <SelectItem value="only_issues">Only if something breaks or needs approval</SelectItem>
-                        <SelectItem value="daily_digest">Daily summary of moves & money</SelectItem>
-                        <SelectItem value="all">Notify for every action</SelectItem>
+                        <SelectItem value="none">Never</SelectItem>
+                        <SelectItem value="only_issues">Only when something needs you</SelectItem>
+                        <SelectItem value="daily_digest">Daily summary</SelectItem>
+                        <SelectItem value="all">Every action</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1228,7 +1289,7 @@ export default function DivineManagerPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="space-y-2 pt-4">
                       <Label>Manual End call button</Label>
                       <Select
                         value={automationRules.voice_hangup_policy ?? 'always'}
@@ -1251,15 +1312,15 @@ export default function DivineManagerPage() {
                         Strict mode requires Divine to call voice_allow_user_hangup before End unlocks. Use Force end if stuck.
                       </p>
                     </div>
-                    <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="space-y-2 pt-4">
                       <Label>How chatty Divine is</Label>
                       <Select
                         value={automationRules.manager_talkativeness ?? 'balanced'}
                         onValueChange={(v) =>
-                          void persistAutomationRules({
-                            ...automationRules,
+                          setAutomationRules((r) => ({
+                            ...r,
                             manager_talkativeness: v as 'low' | 'balanced' | 'high',
-                          })
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -1355,84 +1416,125 @@ export default function DivineManagerPage() {
 
             {wizardStep === 4 && (
               <>
-                <p className="font-serif text-sm font-medium text-foreground">Review and activate</p>
-                <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
-                  <p className="text-sm text-muted-foreground">Tone: {persona.tone} · Flirty: {persona.flirtyLevel}</p>
-                  {(persona.examplePhrases?.length ?? 0) > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Example phrases: {(persona.examplePhrases ?? []).slice(0, 3).join(' · ')}
-                      {(persona.examplePhrases ?? []).length > 3 ? '…' : ''}
-                    </p>
-                  ) : null}
-                  <p className="text-sm text-muted-foreground">
-                    Goals:{' '}
-                    {(goals.qualitativeGoals?.length ?? 0) > 0
-                      ? (goals.qualitativeGoals ?? []).join(', ')
-                      : 'None listed'}
-                    {[
-                      goals.targetSubscribers != null && `${goals.targetSubscribers} subs`,
-                      goals.targetRetention != null && `${goals.targetRetention}% retention`,
-                      goals.targetARPU != null && `ARPU ${goals.targetARPU}`,
-                    ]
-                      .filter(Boolean)
-                      .length > 0
-                      ? ` · ${[
-                          goals.targetSubscribers != null && `${goals.targetSubscribers} subs`,
-                          goals.targetRetention != null && `${goals.targetRetention}% retention`,
-                          goals.targetARPU != null && `ARPU ${goals.targetARPU}`,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')}`
-                      : ''}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Archetype: {managerArchetype}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Automation: {[automationRules.autoPostSchedule?.enabled && 'Posts', automationRules.autoWelcomeDm?.enabled && 'Welcome DMs', automationRules.autoFollowUpAfterTips?.enabled && 'Tip follow-up'].filter(Boolean).join(', ') || 'None'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Notifications: {notifyLevel === 'none' ? 'Never' : notifyLevel === 'only_issues' ? 'Only issues' : notifyLevel === 'daily_digest' ? 'Daily digest' : 'All actions'}
-                  </p>
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Divine Manager is <span className="font-semibold">BETA</span>. It can make mistakes. You remain responsible for all actions.
+                <div className="rounded-xl border border-border/45 bg-muted/20 p-5 sm:p-6">
+                  <p className="text-[13px] font-medium text-foreground">Summary</p>
+                  <dl className="mt-4 space-y-3 text-[13px] text-muted-foreground">
+                    <div className="flex flex-col gap-0.5 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Voice</dt>
+                      <dd className="min-w-0 sm:text-right">{divineVoiceLabelForPersona(persona)}</dd>
+                    </div>
+                    {(persona.boundaries?.length ?? 0) > 0 ? (
+                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                        <dt className="shrink-0 font-medium text-foreground/88">Hard lines</dt>
+                        <dd className="min-w-0 sm:text-right">{(persona.boundaries ?? []).join(' · ')}</dd>
+                      </div>
+                    ) : null}
+                    {(persona.examplePhrases?.length ?? 0) > 0 ? (
+                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                        <dt className="shrink-0 font-medium text-foreground/88">Echo lines</dt>
+                        <dd className="min-w-0 sm:text-right">
+                          {(persona.examplePhrases ?? []).slice(0, 3).join(' · ')}
+                          {(persona.examplePhrases ?? []).length > 3 ? '…' : ''}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Goals</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {(() => {
+                          const parts: string[] = [...(goals.qualitativeGoals ?? [])]
+                          if (goals.targetSubscribers != null) parts.push(`${goals.targetSubscribers} subs`)
+                          if (goals.targetRetention != null) parts.push(`${goals.targetRetention}% retention`)
+                          if (goals.targetARPU != null) parts.push(`ARPU ${goals.targetARPU}`)
+                          return parts.length > 0 ? parts.join(' · ') : '—'
+                        })()}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Archetype</dt>
+                      <dd className="min-w-0 capitalize sm:text-right">{managerArchetype}</dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Automation</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {[automationRules.autoPostSchedule?.enabled && 'Posts', automationRules.autoWelcomeDm?.enabled && 'Welcome', automationRules.autoFollowUpAfterTips?.enabled && 'Tips'].filter(Boolean).join(' · ') || 'All off'}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Alerts</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {notifyLevel === 'none'
+                          ? 'Never'
+                          : notifyLevel === 'only_issues'
+                            ? 'When needed'
+                            : notifyLevel === 'daily_digest'
+                              ? 'Daily summary'
+                              : 'Every action'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
+                    Divine Manager is <span className="font-semibold text-foreground/90">beta</span>. It can slip. You approve what ships.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={betaAcknowledged} onCheckedChange={setBetaAcknowledged} />
-                  <span className="text-xs text-muted-foreground">
-                    I understand this feature is beta and may make mistakes; I remain responsible for all actions.
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <Label>Manager mode</Label>
-                  <Select value={selectedMode} onValueChange={(v: DivineManagerMode) => setSelectedMode(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">Off — No suggestions or actions</SelectItem>
-                      <SelectItem value="suggest_only">Suggest only — Manager suggests; you approve</SelectItem>
-                      <SelectItem value="semi_auto">Semi-automatic — Manager can run allowed rules</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-xl border border-border/40 bg-background/55 p-4">
+                    <Switch
+                      checked={betaAcknowledged}
+                      onCheckedChange={setBetaAcknowledged}
+                      className="mt-0.5"
+                      aria-label="Acknowledge beta"
+                    />
+                    <span className="text-[13px] leading-snug text-muted-foreground">
+                      I understand Divine can make mistakes. I approve what ships.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[13px] font-medium">Start mode</Label>
+                    <Select value={selectedMode} onValueChange={(v: DivineManagerMode) => setSelectedMode(v)}>
+                      <SelectTrigger className="h-11 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">Off · paused</SelectItem>
+                        <SelectItem value="suggest_only">Suggest · you approve</SelectItem>
+                        <SelectItem value="semi_auto">Semi-auto · trusted rules run</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </>
             )}
 
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" disabled={wizardStep === 1} onClick={() => setWizardStep((s) => (s - 1) as WizardStep)}>
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                variant="ghost"
+                className="h-11 rounded-full px-5 text-muted-foreground hover:text-foreground"
+                disabled={wizardStep === 1}
+                onClick={() => setWizardStep((s) => (s - 1) as WizardStep)}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" /> Back
               </Button>
               {wizardStep < 4 ? (
-                <Button onClick={() => setWizardStep((s) => (s + 1) as WizardStep)}>
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                <Button className="h-11 rounded-full px-7" onClick={() => setWizardStep((s) => (s + 1) as WizardStep)}>
+                  Continue <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleCompleteWizard} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                  Activate Divine Manager
+                <Button
+                  className="h-11 rounded-full px-7"
+                  onClick={handleCompleteWizard}
+                  disabled={saving || !betaAcknowledged}
+                  title={!betaAcknowledged ? 'Confirm you understand beta limitations' : undefined}
+                >
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                  Activate
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )

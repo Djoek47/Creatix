@@ -10,6 +10,17 @@ function metadataSize(metadata: unknown): number {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+/** Size from a Storage list entry (metadata.size and/or top-level size — varies by API version). */
+function vaultListedObjectSizeBytes(obj: unknown): number {
+  if (!obj || typeof obj !== 'object') return 0
+  const o = obj as { metadata?: unknown; size?: unknown }
+  const fromMeta = metadataSize(o.metadata)
+  if (fromMeta > 0) return fromMeta
+  const raw = o.size
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
 const MAX_PAGES = 10_000
 
 /**
@@ -38,7 +49,7 @@ export async function sumVaultMediaUsageBytes(
     if (!data) break
 
     for (const obj of data.objects ?? []) {
-      total += metadataSize(obj.metadata as unknown)
+      total += vaultListedObjectSizeBytes(obj as unknown)
     }
 
     if (!data.hasNext || !data.nextCursor) break
@@ -71,7 +82,7 @@ export async function vaultObjectSizeBytes(service: SupabaseClient, vaultPath: s
     for (const obj of data.objects ?? []) {
       const key = (obj.key ?? `${dirPrefix}${obj.name}`).replace(/^\/+/, '')
       if (obj.name === basename || key === trimmed) {
-        return metadataSize(obj.metadata as unknown)
+        return vaultListedObjectSizeBytes(obj as unknown)
       }
     }
 

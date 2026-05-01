@@ -3,6 +3,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 30
@@ -116,7 +117,7 @@ Generate comprehensive revenue optimization recommendations.`,
 
   if (user) {
     try {
-      await consumeAiCredits(supabase, user.id, revCost)
+      await consumeAiCredits(supabase, user.id, revCost, ledgerDebitOptsForBillingTool('revenue-optimizer'))
     } catch {
       // ignore credit errors
     }

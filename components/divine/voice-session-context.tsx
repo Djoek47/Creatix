@@ -118,8 +118,10 @@ export type VoiceSessionContextValue = {
   forceEndVoiceCall: () => void
   /** Last ~30s of the staged silence protocol (47s + 60s) — crown shows rainbow. */
   silenceProtocolRainbowActive: boolean
-  /** OpenAI Realtime + TTS; same tier as premium messaging (paid + add-on, unless env grant). */
+  /** OpenAI Realtime + TTS; paid add-on, Divine trial, paid Stripe `trialing`, or env grant. */
   divineVoicePremium: boolean
+  /** Re-read subscription from the server (e.g. after billing) so the launcher updates without a full reload. */
+  refreshDivineVoiceEntitlement: () => Promise<void>
 }
 
 const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
@@ -137,6 +139,27 @@ export function VoiceSessionProvider({
   divineVoicePremium?: boolean
 }) {
   const divinePanel = useDivinePanel()
+  /** When non-null, overrides server prop (after client entitlement fetch). Cleared when the prop changes. */
+  const [premiumFetched, setPremiumFetched] = useState<boolean | null>(null)
+  const divineVoicePremiumLive = premiumFetched !== null ? premiumFetched : divineVoicePremium
+
+  useEffect(() => {
+    setPremiumFetched(null)
+  }, [divineVoicePremium])
+
+  const refreshDivineVoiceEntitlement = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing/divine-voice-entitlement', { credentials: 'include' })
+      if (!res.ok) return
+      const j = (await res.json().catch(() => ({}))) as { divineVoicePremium?: unknown }
+      if (typeof j.divineVoicePremium === 'boolean') {
+        setPremiumFetched(j.divineVoicePremium)
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, [])
+
   const [status, setStatus] = useState<VoiceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [remoteVoiceStream, setRemoteVoiceStream] = useState<MediaStream | null>(null)
@@ -476,8 +499,8 @@ export function VoiceSessionProvider({
     realtimeBodyExtras?: Record<string, unknown>
   }) => {
     if (status === 'connecting' || status === 'connected') return
-    if (!divineVoicePremium) {
-      setError('Divine voice is on Premium — includes Markit and the dashboard.')
+    if (!divineVoicePremiumLive) {
+      setError('Divine voice is Premium — realtime audio, tools, and dashboard handoff.')
       setStatus('idle')
       return
     }
@@ -894,7 +917,15 @@ export function VoiceSessionProvider({
       setStatus('error')
       playCue('error')
     }
-  }, [endVoiceCall, playCue, status, divinePanel, sendBriefingQuestion, refreshVoiceHangupPolicy, divineVoicePremium])
+  }, [
+    endVoiceCall,
+    playCue,
+    status,
+    divinePanel,
+    sendBriefingQuestion,
+    refreshVoiceHangupPolicy,
+    divineVoicePremiumLive,
+  ])
 
   /** Arm optional idle disconnect + staged silence watchdog when connected. */
   useEffect(() => {
@@ -1160,7 +1191,8 @@ export function VoiceSessionProvider({
     canManualHangup,
     forceEndVoiceCall,
     silenceProtocolRainbowActive,
-    divineVoicePremium,
+    divineVoicePremium: divineVoicePremiumLive,
+    refreshDivineVoiceEntitlement,
   }
 
   return (

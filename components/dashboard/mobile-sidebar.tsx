@@ -3,8 +3,15 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { AiStudioNavStar } from '@/components/dashboard/ai-studio-nav-star'
 import { SidebarBrandLockup } from '@/components/dashboard/sidebar-brand-lockup'
 import { cn } from '@/lib/utils'
+import {
+  DASHBOARD_MESSAGES_NAV_HREF,
+  dashboardMessagesNavIconClass,
+  dashboardMessagesNavLabelClass,
+} from '@/lib/dashboard-nav-messages-accent'
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +20,7 @@ import {
   Shield,
   TrendingUp,
   Settings,
+  ChevronDown,
   Moon,
   Sun,
   Star,
@@ -29,6 +37,9 @@ import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
+import { MessagesNavUnreadSweep } from '@/components/dashboard/messages-nav-unread-sweep'
+import { useMessagesNavUnreadTotal } from '@/hooks/use-messages-nav-unread-total'
+import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
 import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
 import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
@@ -45,7 +56,7 @@ interface MobileSidebarProps {
 }
 
 interface NavItem {
-  name: string
+  nameKey: string
   href: string
   icon: LucideIcon
   activeMatch?: readonly string[]
@@ -62,15 +73,15 @@ function navItemIsActive(pathname: string, item: NavItem): boolean {
 }
 
 const circeNavigation: NavItem[] = [
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Protection', href: '/dashboard/protection', icon: Shield },
-  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
+  { nameKey: 'sidebar.analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { nameKey: 'sidebar.protection', href: '/dashboard/protection', icon: Shield },
+  { nameKey: 'sidebar.retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
 const venusNavigation: NavItem[] = [
-  { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
-  { name: 'Fan Atlas', href: '/dashboard/commenter', icon: MessagesSquare },
+  { nameKey: 'sidebar.fans', href: '/dashboard/fans', icon: Users },
+  { nameKey: 'sidebar.mentions', href: '/dashboard/mentions', icon: TrendingUp },
+  { nameKey: 'sidebar.fanAtlas', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
 /** Match desktop sidebar: ~9% larger than text-sm; icons scale with row */
@@ -78,32 +89,35 @@ const mobileNavText = 'text-[0.95rem] leading-snug'
 const mobileNavIcon = 'h-[1.125rem] w-[1.125rem]'
 
 const silverNavigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
-  { name: 'Content', href: '/dashboard/content', icon: Layers },
-  { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'Social', href: '/dashboard/social', icon: Share2 },
+  { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { nameKey: 'sidebar.divineManager', href: '/dashboard/divine-manager', icon: Crown },
+  { nameKey: 'sidebar.content', href: '/dashboard/content', icon: Layers },
+  { nameKey: 'sidebar.wellbeing', href: '/dashboard/well-being', icon: HeartPulse },
+  { nameKey: 'sidebar.messages', href: '/dashboard/messages', icon: MessageSquare },
+  { nameKey: 'sidebar.social', href: '/dashboard/social', icon: Share2 },
 ]
 
 const aiStudioNavigation: NavItem[] = [
-  { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Star },
+  { nameKey: 'sidebar.aiStudio', href: '/dashboard/ai-studio', icon: Star },
 ]
 
 const bottomNavigation: NavItem[] = [
   {
-    name: 'Guide',
+    nameKey: 'sidebar.guide',
     href: '/dashboard/guide',
     icon: BookOpen,
     activeMatch: ['/dashboard/guide', '/dashboard/community'],
   },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { nameKey: 'sidebar.settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function MobileSidebar({ user, profile }: MobileSidebarProps) {
+export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
   const pathname = usePathname()
+  const tNav = useTranslations('navigation')
   const pulseOptional = useDashboardPulseOptional()
   const pulseNavSeverity = pulseOptional?.pulse?.severity
+  const caps = useWorkspaceCapabilities()
+  const messagesNavUnread = useMessagesNavUnreadTotal(caps.canUseMessaging)
   const [compactMobile, setCompactMobile] = useState(false)
 
   const handleRealmReload = () => {
@@ -133,14 +147,18 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
     item,
     variant = 'default',
     pulseNavSeverity: pulseSev,
+    messagesUnreadTotal,
   }: {
     item: NavItem
     variant?: 'default' | 'circe' | 'venus' | 'ai-studio'
     pulseNavSeverity?: PulseSeverity
+    messagesUnreadTotal?: number
   }) => {
     const isActive = navItemIsActive(pathname, item)
     const isAiStudio = variant === 'ai-studio'
     const isDivineManager = item.href === '/dashboard/divine-manager'
+    const isMessagesNav =
+      variant === 'default' && item.href === DASHBOARD_MESSAGES_NAV_HREF
 
     const wellbeingPulseClass =
       item.href === '/dashboard/well-being' && pulseSev
@@ -186,6 +204,7 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
         : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
       navTextClass,
       isActive ? styles.active : styles.inactive,
+      isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'relative isolate overflow-visible',
     )
 
     const linkEl = (
@@ -195,40 +214,39 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
         className={linkClassName}
         aria-current={isActive ? 'page' : undefined}
       >
+        {isMessagesNav ? <MessagesNavUnreadSweep unreadTotal={messagesUnreadTotal ?? 0} /> : null}
         {isAiStudio ? (
           <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
             <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
-              <Star
-                aria-hidden
-                className={cn(navIconClass, 'flex-shrink-0 ai-studio-sidebar-star')}
-              />
+              <AiStudioNavStar gradientSlot="sidebar-mobile" className={cn(navIconClass, 'shrink-0')} />
             </span>
           </span>
         ) : isDivineManager ? (
-          <SidebarDivineManagerCrown iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
+          <SidebarDivineManagerCrown gradientSlot="sidebar-mobile" iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
         ) : (
           <item.icon
             className={cn(
               navIconClass,
-              'flex-shrink-0 transition-colors duration-150 ease-out',
+              'relative z-[1] flex-shrink-0',
               wellbeingPulseClass
-                ? cn(wellbeingPulseClass, isActive && 'opacity-100')
-                : isActive
-                  ? 'text-foreground'
-                  : styles.icon,
+                ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors duration-150 ease-out')
+                : isMessagesNav
+                  ? dashboardMessagesNavIconClass(isActive)
+                  : cn('transition-colors duration-150 ease-out', isActive ? 'text-foreground' : styles.icon),
             )}
           />
         )}
-        <div className="flex min-w-0 items-center gap-2">
+        <div className={cn('flex min-w-0 items-center gap-2', isMessagesNav && 'relative z-[1]')}>
           <span
             className={cn(
               isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
               isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+              isMessagesNav && dashboardMessagesNavLabelClass(isActive),
               wellbeingTextPulseClass,
               (wellbeingTextPulseClass || isDivineManager) && 'transition-colors duration-150 ease-out',
             )}
           >
-            {item.name}
+            {tNav(item.nameKey)}
           </span>
         </div>
       </Link>
@@ -251,17 +269,20 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
         <div className="space-y-1">
           {silverNavigation.map((item) => (
             <NavLink
-              key={item.name}
+              key={item.href}
               item={item}
               variant="default"
               pulseNavSeverity={item.href === '/dashboard/well-being' ? pulseNavSeverity : undefined}
+              messagesUnreadTotal={
+                item.href === DASHBOARD_MESSAGES_NAV_HREF ? messagesNavUnread : undefined
+              }
             />
           ))}
         </div>
 
         <div className="space-y-1">
           {aiStudioNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="ai-studio" />
+            <NavLink key={item.href} item={item} variant="ai-studio" />
           ))}
         </div>
 
@@ -280,11 +301,11 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                 compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
               )}
             >
-              Circe
+              {tNav('sidebar.circeSection')}
             </span>
           </div>
           {circeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="circe" />
+            <NavLink key={item.href} item={item} variant="circe" />
           ))}
         </div>
 
@@ -303,11 +324,11 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                 compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
               )}
             >
-              Venus
+              {tNav('sidebar.venusSection')}
             </span>
           </div>
           {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="venus" />
+            <NavLink key={item.href} item={item} variant="venus" />
           ))}
         </div>
       </nav>
@@ -337,7 +358,7 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                   className={bottomTwinChipIconClasses('guide', footerGuideActive, 'sheet')}
                   aria-hidden
                 />
-                <span className="shrink-0 whitespace-nowrap">{footerGuideNav.name}</span>
+                <span className="shrink-0 whitespace-nowrap">{tNav(footerGuideNav.nameKey)}</span>
               </Link>
             </SheetClose>
           </div>
@@ -359,19 +380,32 @@ export function MobileSidebar({ user, profile }: MobileSidebarProps) {
                   className={bottomTwinChipIconClasses('settings', footerSettingsActive, 'sheet')}
                   aria-hidden
                 />
-                <span className="shrink-0 whitespace-nowrap">{footerSettingsNav.name}</span>
+                <span className="shrink-0 whitespace-nowrap">{tNav(footerSettingsNav.nameKey)}</span>
               </Link>
             </SheetClose>
           </div>
         </div>
 
-        {profile && !compactMobile && (
+        {!compactMobile && (
           <div className="mt-4 border-t border-border/40 pt-4">
-            <div className="rounded-xl border border-border/50 bg-muted/35 p-3">
-              <p className={cn('truncate font-medium text-foreground', mobileNavText)}>
-                {profile.full_name || 'Divine Creator'}
-              </p>
-              <p className="truncate text-[0.8rem] leading-tight text-foreground/52">{profile.email}</p>
+            <div
+              className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5 dark:bg-muted/20"
+              role="note"
+              aria-label={`${tNav('sidebar.systemStripTitle')}: ${tNav('sidebar.systemStripStatus')}`}
+            >
+              <div className="flex items-start gap-2.5">
+                <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600/85 dark:text-emerald-400/90" aria-hidden />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/45">
+                    {tNav('sidebar.systemStripTitle')}
+                  </p>
+                  <p className={cn('truncate text-[12px] font-medium leading-snug text-foreground/88', mobileNavText)}>
+                    {tNav('sidebar.systemStripStatus')}
+                  </p>
+                  <p className="truncate text-[10px] leading-snug text-foreground/48">{tNav('sidebar.systemStripHint')}</p>
+                </div>
+                <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 -rotate-90 text-foreground/22" aria-hidden />
+              </div>
             </div>
           </div>
         )}

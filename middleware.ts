@@ -1,14 +1,98 @@
+import createIntlMiddleware from 'next-intl/middleware'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+
+import { routing } from '@/lib/i18n/routing'
+import { LOCALE_COOKIE } from '@/lib/i18n/constants'
+import { isBareMarketingPath } from '@/lib/i18n/marketing-paths'
+import { negotiatePublicLocale } from '@/lib/i18n/resolve-locale'
 import { updateSession } from '@/lib/supabase/middleware'
-import { NextResponse, type NextRequest } from 'next/server'
+
+const intlMiddleware = createIntlMiddleware(routing)
+
+function applyCookiesFrom(source: NextResponse, onto: NextResponse): void {
+  source.cookies.getAll().forEach((c) => {
+    onto.cookies.set(c.name, c.value, {
+      expires: c.expires,
+      maxAge: typeof c.maxAge === 'number' ? c.maxAge : undefined,
+      domain: c.domain ?? undefined,
+      path: c.path ?? '/',
+      secure: c.secure,
+      httpOnly: c.httpOnly,
+      sameSite:
+        typeof c.sameSite === 'boolean'
+          ? c.sameSite === true
+            ? ('strict' as const)
+            : undefined
+          : ((c.sameSite as 'strict' | 'lax' | 'none' | undefined) ?? undefined),
+    })
+  })
+}
+
+export function bypassLocaleRouting(pathname: string): boolean {
+  return (
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/mobile') ||
+    pathname.startsWith('/protected') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/cookies') ||
+    pathname.startsWith('/contact') ||
+    pathname.startsWith('/about')
+  )
+}
+
+/** Marketing routes rewritten as `/en/…`; legal stays unprefixed. */
+function pathnameHasMarketingLocaleSegment(pathname: string): boolean {
+  return /^\/(en|es|pt|fr)(\/|$)/.test(pathname)
+}
 
 export async function middleware(request: NextRequest) {
-  /** Stripe must verify HMAC against the exact raw body — skip Supabase session/auth here. */
   if (request.nextUrl.pathname.startsWith('/api/stripe/webhook')) {
     return NextResponse.next()
   }
 
   try {
-    return await updateSession(request)
+    const sessionResponse = await updateSession(request)
+    const pathname = request.nextUrl.pathname
+
+    if (sessionResponse.status !== 200) {
+      return sessionResponse
+    }
+
+    if (sessionResponse.headers.has('location')) {
+      return sessionResponse
+    }
+
+    if (bypassLocaleRouting(pathname)) {
+      return sessionResponse
+    }
+
+    if (pathnameHasMarketingLocaleSegment(pathname)) {
+      const intlResponse = intlMiddleware(request)
+      applyCookiesFrom(sessionResponse, intlResponse)
+      return intlResponse
+    }
+
+    if (isBareMarketingPath(pathname)) {
+      const locale = negotiatePublicLocale(
+        sessionResponse.cookies.get(LOCALE_COOKIE)?.value ??
+          request.cookies.get(LOCALE_COOKIE)?.value ??
+          null,
+        request.headers.get('accept-language'),
+      )
+      const url = request.nextUrl.clone()
+      url.pathname =
+        pathname === '/' || pathname === '' ? `/${locale}` : `/${locale}${pathname}`
+      const redirectResponse = NextResponse.redirect(url)
+      applyCookiesFrom(sessionResponse, redirectResponse)
+      return redirectResponse
+    }
+
+    return sessionResponse
   } catch (err) {
     console.error('[middleware]', err)
     return new NextResponse('Middleware error', { status: 500 })

@@ -407,7 +407,7 @@ Produce structured JSON per schema. Lead with competitor comparison (same band v
     const analysis = object as AnalysisOut
     const cohortPercentileSummary = buildCohortPercentileSummary(fanCount, benchForPrompt)
 
-    const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, creditCost)
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, creditCost, access.data.billingToolId)
     if (!charged.ok) return charged.response
 
     return NextResponse.json({

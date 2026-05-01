@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const access = await requireAiToolSessionAndCredits(req, 'fantasy-writer')
   if (!access.ok) return access.response
 
-  const { supabase, userId, cost } = access.data
+  const { supabase, userId, cost, billingToolId } = access.data
 
   const contextBlocks: string[] = []
   if (calendarEventSummary) {
@@ -107,7 +107,7 @@ Keep content sensual but classy - think romance novel, not explicit content.`
     return Response.json({ error: message }, { status: 500 })
   }
 
-  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
   if (!charged.ok) return charged.response
 
   return Response.json(output)

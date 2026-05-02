@@ -197,6 +197,9 @@ export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
     
     const styles = variantStyles[variant]
     
+    const messagesUnreadCount = messagesUnreadTotal ?? 0
+    const messagesUnreadAccent = isMessagesNav && messagesUnreadCount > 0
+
     const linkClassName = cn(
       'group',
       compactMobile
@@ -204,7 +207,27 @@ export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
         : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
       navTextClass,
       isActive ? styles.active : styles.inactive,
-      isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'relative isolate overflow-visible',
+    )
+
+    const labelCol = (
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2',
+          isMessagesNav && !messagesUnreadAccent && 'relative z-[1]',
+        )}
+      >
+        <span
+          className={cn(
+            isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
+            isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+            isMessagesNav && dashboardMessagesNavLabelClass(isActive),
+            wellbeingTextPulseClass,
+            (wellbeingTextPulseClass || isDivineManager) && 'transition-colors duration-150 ease-out',
+          )}
+        >
+          {tNav(item.nameKey)}
+        </span>
+      </div>
     )
 
     const linkEl = (
@@ -214,41 +237,52 @@ export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
         className={linkClassName}
         aria-current={isActive ? 'page' : undefined}
       >
-        {isMessagesNav ? <MessagesNavUnreadSweep unreadTotal={messagesUnreadTotal ?? 0} /> : null}
         {isAiStudio ? (
-          <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
-            <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
-              <AiStudioNavStar gradientSlot="sidebar-mobile" className={cn(navIconClass, 'shrink-0')} />
+          <>
+            <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
+              <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
+                <AiStudioNavStar gradientSlot="sidebar-mobile" className={cn(navIconClass, 'shrink-0')} />
+              </span>
             </span>
-          </span>
+            {labelCol}
+          </>
         ) : isDivineManager ? (
-          <SidebarDivineManagerCrown gradientSlot="sidebar-mobile" iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
-        ) : (
-          <item.icon
-            className={cn(
-              navIconClass,
-              'relative z-[1] flex-shrink-0',
-              wellbeingPulseClass
-                ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors duration-150 ease-out')
-                : isMessagesNav
-                  ? dashboardMessagesNavIconClass(isActive)
-                  : cn('transition-colors duration-150 ease-out', isActive ? 'text-foreground' : styles.icon),
-            )}
-          />
-        )}
-        <div className={cn('flex min-w-0 items-center gap-2', isMessagesNav && 'relative z-[1]')}>
-          <span
-            className={cn(
-              isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
-              isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
-              isMessagesNav && dashboardMessagesNavLabelClass(isActive),
-              wellbeingTextPulseClass,
-              (wellbeingTextPulseClass || isDivineManager) && 'transition-colors duration-150 ease-out',
-            )}
-          >
-            {tNav(item.nameKey)}
+          <>
+            <SidebarDivineManagerCrown gradientSlot="sidebar-mobile" iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
+            {labelCol}
+          </>
+        ) : messagesUnreadAccent ? (
+          <span className="relative z-[1] flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-md">
+            <MessagesNavUnreadSweep unreadTotal={messagesUnreadCount} />
+            <item.icon
+              className={cn(
+                navIconClass,
+                'relative z-[1] flex-shrink-0',
+                'messages-nav-bubble-icon messages-nav-bubble-icon--unread',
+                dashboardMessagesNavIconClass(isActive),
+              )}
+              fill="currentColor"
+              fillOpacity={0.28}
+            />
+            {labelCol}
           </span>
-        </div>
+        ) : (
+          <>
+            <item.icon
+              className={cn(
+                navIconClass,
+                'relative z-[1] flex-shrink-0',
+                wellbeingPulseClass
+                  ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors duration-150 ease-out')
+                  : isMessagesNav
+                    ? dashboardMessagesNavIconClass(isActive)
+                    : cn('transition-colors duration-150 ease-out', isActive ? 'text-foreground' : styles.icon),
+              )}
+              {...(isMessagesNav ? { fill: 'currentColor', fillOpacity: 0.14 } : {})}
+            />
+            {labelCol}
+          </>
+        )}
       </Link>
     )
 

@@ -371,7 +371,6 @@ function NavLink({
       : isActive
         ? styles.linkActive
         : styles.linkInactive,
-    isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'isolate overflow-visible',
   )
 
   const surfaceClassName =
@@ -390,6 +389,62 @@ function NavLink({
     item.href === '/dashboard/well-being'
       ? wellbeingNavTextPulseClass(pulseNavSeverity)
       : null
+
+  const messagesUnreadCount = messagesUnreadTotal ?? 0
+  const messagesUnreadAccent = isMessagesNav && messagesUnreadCount > 0
+  const iconBox = compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox
+
+  const defaultIconClassName = cn(
+    'relative z-[2] flex-shrink-0',
+    iconBox,
+    wellbeingPulseClass
+      ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors', navEase)
+      : isMessagesNav
+        ? cn(
+            dashboardMessagesNavIconClass(isActive),
+            messagesUnreadAccent && 'messages-nav-bubble-icon messages-nav-bubble-icon--unread',
+          )
+        : cn(
+            'transition-[color,transform] duration-200 ease-out motion-reduce:transition-colors motion-reduce:group-hover:scale-100',
+            'group-hover:scale-[1.04]',
+            isActive ? styles.iconActive : styles.iconInactive,
+          ),
+  )
+
+  const labelBlock = !collapsed && (
+    <div
+      className={cn(
+        'flex min-w-0 items-center gap-2',
+        isMessagesNav && !messagesUnreadAccent && 'relative z-[1]',
+      )}
+    >
+      <span
+        className={cn(
+          isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
+          isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+          isMessagesNav && dashboardMessagesNavLabelClass(isActive),
+          wellbeingTextPulseClass,
+          (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
+        )}
+      >
+        {tNav(item.nameKey)}
+      </span>
+    </div>
+  )
+
+  const defaultIconEl = !isAiStudio && !isDivineManager && (
+    <Icon
+      className={defaultIconClassName}
+      {...(isMessagesNav
+        ? { fill: 'currentColor', fillOpacity: messagesUnreadAccent ? 0.28 : 0.14 }
+        : {})}
+    />
+  )
+
+  const messagesAccentWrapClass = cn(
+    'relative z-[1] min-w-0 overflow-hidden rounded-md',
+    collapsed ? 'inline-flex items-center justify-center' : 'flex flex-1 items-center gap-3',
+  )
 
   const linkInner = (
     <>
@@ -418,37 +473,17 @@ function NavLink({
           navEase={navEase}
           iconBoxClass={compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox}
         />
+      ) : messagesUnreadAccent ? (
+        <span className={messagesAccentWrapClass}>
+          <MessagesNavUnreadSweep unreadTotal={messagesUnreadCount} />
+          {defaultIconEl}
+          {labelBlock}
+        </span>
       ) : (
-        <Icon
-          className={cn(
-            'relative z-[2] flex-shrink-0',
-            compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-            wellbeingPulseClass
-              ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors', navEase)
-              : isMessagesNav
-                ? dashboardMessagesNavIconClass(isActive)
-                : cn(
-                    'transition-[color,transform] duration-200 ease-out motion-reduce:transition-colors motion-reduce:group-hover:scale-100',
-                    'group-hover:scale-[1.04]',
-                    isActive ? styles.iconActive : styles.iconInactive,
-                  ),
-          )}
-        />
-      )}
-      {!collapsed && (
-        <div className={cn('flex min-w-0 items-center gap-2', isMessagesNav && 'relative z-[1]')}>
-          <span
-            className={cn(
-              isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
-              isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
-              isMessagesNav && dashboardMessagesNavLabelClass(isActive),
-              wellbeingTextPulseClass,
-              (wellbeingTextPulseClass || isDivineManager) && cn(navEase, 'transition-colors'),
-            )}
-          >
-            {tNav(item.nameKey)}
-          </span>
-        </div>
+        <>
+          {defaultIconEl}
+          {labelBlock}
+        </>
       )}
     </>
   )
@@ -470,7 +505,6 @@ function NavLink({
           )}
         />
       ) : null}
-      {isMessagesNav ? <MessagesNavUnreadSweep unreadTotal={messagesUnreadTotal ?? 0} /> : null}
       {linkInner}
     </Link>
   )

@@ -25,6 +25,33 @@ const LEGACY_DISPLAY_LEVEL_KEY = 'divine-protocol-rail-level'
  */
 const MICRO_DOT_UI_RESTORE_KEY = 'divine-protocol-rail-micro-dot-restored-202604'
 
+/** Glass shell — outer stack (both lanes sit on this surface). */
+const railGlassShell = cn(
+  'divine-protocol-stack-shell overflow-hidden rounded-2xl border shadow-[0_22px_60px_-28px_rgba(109,40,217,0.12)] backdrop-blur-2xl backdrop-saturate-150 touch-pan-y',
+  'border-white/45 bg-white/[0.82] ring-1 ring-black/[0.04]',
+  'dark:border-white/[0.09] dark:bg-slate-950/[0.74] dark:shadow-[0_28px_72px_-32px_rgba(0,0,0,0.55)] dark:ring-white/[0.05]',
+)
+
+/** Protocols row: light = violet (flipped), dark = warm gold. */
+const railProtocolsLane = cn(
+  'shrink-0 border-b backdrop-blur-md',
+  'border-violet-200/45 bg-gradient-to-r from-violet-500/[0.09] via-fuchsia-500/[0.06] to-violet-600/[0.08]',
+  'dark:border-amber-400/25 dark:from-amber-500/16 dark:via-amber-400/10 dark:to-amber-600/14',
+)
+
+/** Body / briefing / task list: light = soft gold wash, dark = violet depth (opposite of protocols lane in each mode). */
+const railBodyLane = cn(
+  'border-t backdrop-blur-xl',
+  'border-amber-100/55 bg-gradient-to-b from-amber-50/85 via-white/55 to-violet-50/[0.28]',
+  'dark:border-violet-500/20 dark:from-violet-950/38 dark:via-slate-950/22 dark:to-fuchsia-950/28',
+)
+
+const railProtocolsChip = cn(
+  'rounded-xl border shadow-sm backdrop-blur-xl transition-colors duration-200',
+  'border-violet-300/35 bg-gradient-to-br from-violet-500/[0.08] to-fuchsia-500/[0.06] hover:from-violet-500/12 hover:to-fuchsia-500/10',
+  'dark:border-amber-400/22 dark:bg-gradient-to-br dark:from-amber-500/12 dark:to-amber-600/10 dark:hover:from-amber-500/16 dark:hover:to-amber-600/14',
+)
+
 /** 0 = full “Protocols & tasks”, 1 = “Tasks · purpose”, 2 = micro dot only */
 type DisplayLevel = 0 | 1 | 2
 
@@ -186,7 +213,7 @@ export function DivineProtocolTaskRail({
   if (showEmptyShell && !menuOpen) {
     const lv = displayLevel
     return (
-      <div className="divine-protocol-stack-shell flex w-fit max-w-[min(92vw,400px)] items-center gap-1">
+      <div className={cn(railGlassShell, 'flex w-fit max-w-[min(92vw,400px)] items-center gap-1 px-1 py-1')}>
         {onCollapseProtocolRail ? (
           <button
             type="button"
@@ -202,8 +229,9 @@ export function DivineProtocolTaskRail({
         <button
           type="button"
           className={cn(
-            'inline-flex items-center justify-between border border-amber-400/15 bg-gradient-to-br from-amber-500/[0.06] to-purple-500/[0.07] text-left shadow-sm backdrop-blur-xl transition-colors duration-200 hover:from-amber-500/10 hover:to-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
-            lv === 2 ? 'h-9 min-w-9 rounded-full p-0' : 'max-w-full gap-3 rounded-2xl px-4 py-2.5',
+            railProtocolsChip,
+            'inline-flex items-center justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+            lv === 2 ? 'h-9 min-w-9 rounded-full border p-0' : 'max-w-full gap-3 rounded-2xl px-4 py-2.5',
             lv === 1 && 'max-w-[min(88vw,17rem)]',
           )}
           onClick={() => setMenuOpen(true)}
@@ -239,11 +267,11 @@ export function DivineProtocolTaskRail({
   return (
     <div
       className={cn(
-        'divine-protocol-stack-shell overflow-hidden rounded-2xl border border-border/50 bg-card/90 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] touch-pan-y',
+        railGlassShell,
         menuOpen && !showEmptyShell ? 'w-[min(92vw,400px)]' : 'w-fit max-w-[min(92vw,400px)]',
         showEmptyShell
           ? cn(
-              'border-dashed border-border/45 bg-card/75',
+              'border-dashed border-violet-200/55 bg-white/[0.72] dark:border-white/[0.14] dark:bg-slate-950/55',
               menuOpen && 'flex min-h-[11rem] max-h-[min(78dvh,calc(100dvh-9rem))] flex-col',
             )
           : cn(
@@ -283,10 +311,16 @@ export function DivineProtocolTaskRail({
               className={cn(
                 'text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
                 headerLevel === 2
-                  ? 'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full hover:bg-muted/40'
+                  ? 'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full hover:bg-foreground/[0.04] dark:hover:bg-white/[0.06]'
                   : headerLevel === 1
-                    ? 'inline-flex w-fit max-w-[min(calc(100%-2.75rem),19rem)] flex-col items-start gap-0.5 rounded-xl border border-amber-400/12 bg-gradient-to-br from-amber-500/[0.05] to-purple-500/[0.06] px-2.5 py-1.5 shadow-sm backdrop-blur-xl hover:from-amber-500/10 hover:to-purple-500/10 sm:items-end sm:text-right'
-                    : 'inline-flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-amber-400/15 bg-gradient-to-br from-amber-500/[0.06] to-purple-500/[0.07] px-3 py-2 shadow-sm backdrop-blur-xl transition-colors duration-200 hover:from-amber-500/10 hover:to-purple-500/10 sm:flex-initial sm:gap-2.5',
+                    ? cn(
+                        railProtocolsChip,
+                        'inline-flex w-fit max-w-[min(calc(100%-2.75rem),19rem)] flex-col items-start gap-0.5 px-2.5 py-1.5 sm:items-end sm:text-right',
+                      )
+                    : cn(
+                        railProtocolsChip,
+                        'inline-flex min-h-9 min-w-0 flex-1 items-center gap-2 px-3 py-2 sm:flex-initial sm:gap-2.5',
+                      ),
               )}
               aria-label={
                 headerLevel === 2
@@ -343,11 +377,15 @@ export function DivineProtocolTaskRail({
           )}
         >
           {showEmptyShell ? (
-            <div className="flex flex-col items-stretch gap-3 px-4 pb-4 pt-1">
+            <div className={cn(railBodyLane, 'flex flex-col items-stretch gap-3 px-4 pb-4 pt-3')}>
               <Button
                 type="button"
                 size="sm"
-                className="h-9 w-full justify-center gap-2 rounded-xl bg-foreground text-[13px] font-medium text-background shadow-none transition-opacity hover:bg-foreground/88 disabled:opacity-45"
+                className={cn(
+                  'h-9 w-full justify-center gap-2 rounded-xl border border-transparent text-[13px] font-semibold tracking-[-0.01em] text-white shadow-md transition-[filter,opacity] hover:brightness-[1.05] disabled:opacity-45',
+                  'bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-800',
+                  'dark:from-violet-500 dark:via-fuchsia-500 dark:to-violet-600',
+                )}
                 disabled={briefingLoading}
                 onClick={() => void runBriefingUnified()}
               >
@@ -390,7 +428,7 @@ export function DivineProtocolTaskRail({
                 </Button>
               </div>
               {briefingHint ? (
-                <p className="border-b border-border/35 px-4 py-2.5 text-[12px] leading-snug text-muted-foreground/85">
+                <p className="border-b border-violet-200/30 px-4 py-2.5 text-[12px] leading-snug text-muted-foreground/85 dark:border-violet-400/12">
                   {briefingHint}
                 </p>
               ) : null}
@@ -403,13 +441,13 @@ export function DivineProtocolTaskRail({
                 <div className="flex flex-col gap-2 p-3">
                   {loading && !openTasks.length ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" aria-hidden />
+                      <Loader2 className="h-5 w-5 animate-spin text-violet-400/50 dark:text-muted-foreground/50" aria-hidden />
                       <p className="text-[12px] text-muted-foreground/75">Loading tasks</p>
                     </div>
                   ) : (
                     <>
                       {/* Peek: read-only; Done / inbox only on Divine Manager */}
-                      <ProtocolOpenTasksListPeek tasks={openTasks} textAlign="right" />
+                      <ProtocolOpenTasksListPeek tasks={openTasks} textAlign="right" railBodyFlip />
                     </>
                   )}
                 </div>

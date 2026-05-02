@@ -578,10 +578,11 @@ export function VoiceControlPopup() {
                   className="flex w-full items-center justify-between gap-2 rounded-lg px-0.5 py-1.5 text-left transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 dark:hover:bg-white/[0.05]"
                   aria-expanded={launcherShortcutsOpen}
                   aria-controls="divine-launcher-shortcuts-nav"
+                  aria-label={launcherShortcutsOpen ? 'Hide tools' : 'Open tools'}
                   onClick={() => setLauncherShortcutsOpen((v) => !v)}
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-600/75 dark:text-violet-300/75">
-                    Go to
+                    Open tools
                   </span>
                   {launcherShortcutsOpen ? (
                     <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-80" aria-hidden />
@@ -593,7 +594,7 @@ export function VoiceControlPopup() {
                   <nav
                     id="divine-launcher-shortcuts-nav"
                     className="mt-1 flex flex-col gap-0.5 pb-0.5"
-                    aria-label="Divine shortcuts"
+                    aria-label="Tools and shortcuts"
                   >
                     <Link
                       href="/dashboard/divine-manager?section=text"

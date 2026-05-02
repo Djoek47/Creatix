@@ -16,17 +16,27 @@ import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 export function protocolStatusShell(
   status: string,
   children: ReactNode,
-  options?: { leftover?: boolean },
+  options?: { leftover?: boolean; railBodyFlip?: boolean },
 ) {
   const executing = status === 'executing'
   const done = status === 'done'
   const failed = status === 'failed'
   const leftover = options?.leftover === true && !done && !executing
+  const rail = options?.railBodyFlip === true
 
   if (executing) {
     return (
-      <div className="rounded-lg bg-gradient-to-r from-violet-500 via-amber-400 to-violet-600 p-px shadow-sm animate-pulse">
-        <div className="rounded-[7px] border border-transparent bg-card/95 px-2.5 py-2">{children}</div>
+      <div
+        className={cn(
+          'rounded-lg p-px shadow-sm animate-pulse',
+          rail
+            ? 'bg-gradient-to-r from-violet-500 via-fuchsia-400 to-amber-400 dark:from-amber-400 dark:via-violet-500 dark:to-fuchsia-500'
+            : 'bg-gradient-to-r from-violet-500 via-amber-400 to-violet-600',
+        )}
+      >
+        <div className="rounded-[7px] border border-transparent bg-card/95 px-2.5 py-2 backdrop-blur-sm dark:bg-card/90">
+          {children}
+        </div>
       </div>
     )
   }
@@ -34,11 +44,19 @@ export function protocolStatusShell(
   return (
     <div
       className={cn(
-        'rounded-lg border px-2.5 py-2',
+        'rounded-lg border px-2.5 py-2 backdrop-blur-sm',
         done && 'border-emerald-500/50 bg-emerald-500/10',
         failed && 'border-red-500/50 bg-red-500/10',
-        leftover && 'border-amber-500/45 bg-amber-500/[0.08]',
-        !done && !failed && !leftover && 'border-border bg-card/90',
+        leftover &&
+          (rail
+            ? 'border-violet-400/40 bg-violet-500/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:border-amber-400/45 dark:bg-amber-500/[0.11] dark:shadow-none'
+            : 'border-amber-500/45 bg-amber-500/[0.08]'),
+        !done &&
+          !failed &&
+          !leftover &&
+          (rail
+            ? 'border-amber-200/50 bg-white/[0.55] dark:border-violet-400/25 dark:bg-violet-500/[0.07]'
+            : 'border-border bg-card/90'),
       )}
     >
       {children}
@@ -50,6 +68,8 @@ type ListLayoutProps = {
   tasks: CreatorProtocolTaskRow[]
   textAlign?: 'left' | 'right'
   className?: string
+  /** Floating rail only: body vs header accent flip (light vs dark). */
+  railBodyFlip?: boolean
 }
 
 function protocolTaskTextBlock(t: CreatorProtocolTaskRow, alignClass: string, actions: ReactNode | null) {
@@ -76,7 +96,12 @@ function protocolTaskTextBlock(t: CreatorProtocolTaskRow, alignClass: string, ac
  * Read-only task queue for the floating protocols rail / FAB.
  * Completing tasks happens only on Divine Manager ({@link ProtocolOpenTasksListManage}).
  */
-export function ProtocolOpenTasksListPeek({ tasks, textAlign = 'right', className }: ListLayoutProps) {
+export function ProtocolOpenTasksListPeek({
+  tasks,
+  textAlign = 'right',
+  className,
+  railBodyFlip = false,
+}: ListLayoutProps) {
   const alignClass = textAlign === 'left' ? 'text-left' : 'text-right'
   return (
     <div
@@ -88,7 +113,10 @@ export function ProtocolOpenTasksListPeek({ tasks, textAlign = 'right', classNam
         const leftover = isLeftoverTask(t.metadata)
         return (
           <div key={t.id}>
-            {protocolStatusShell(t.status, protocolTaskTextBlock(t, alignClass, null), { leftover })}
+            {protocolStatusShell(t.status, protocolTaskTextBlock(t, alignClass, null), {
+              leftover,
+              railBodyFlip,
+            })}
           </div>
         )
       })}

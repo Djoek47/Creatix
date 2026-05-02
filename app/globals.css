@@ -807,6 +807,51 @@
   }
 }
 
+/* Filled chat bubble + gentle pulse when unread sweep is active (icon only; sweep clipped to icon+label wrap). */
+.messages-nav-bubble-icon svg {
+  fill: currentColor;
+  fill-opacity: 0.2;
+  transition: fill-opacity 0.2s ease, transform 0.2s ease;
+}
+
+.group:hover .messages-nav-bubble-icon svg {
+  fill-opacity: 0.38;
+}
+
+.dark .messages-nav-bubble-icon svg {
+  fill-opacity: 0.22;
+}
+
+.dark .group:hover .messages-nav-bubble-icon svg {
+  fill-opacity: 0.42;
+}
+
+@keyframes messages-nav-bubble-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.messages-nav-bubble-icon--unread svg {
+  fill-opacity: 0.36;
+  transform-origin: center;
+  animation: messages-nav-bubble-pulse 2.15s ease-in-out infinite;
+}
+
+.dark .messages-nav-bubble-icon--unread svg {
+  fill-opacity: 0.34;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages-nav-bubble-icon--unread svg {
+    animation: none;
+  }
+}
+
 /**
  * Messages sidebar icon — dual drop-shadow halo tuned to match label `text-shadow` bloom.
  * Implemented as plain `filter` so both layers survive Tailwind merge (multiple `drop-shadow-*` utilities collapse).

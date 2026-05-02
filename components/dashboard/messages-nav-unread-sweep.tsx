@@ -8,7 +8,7 @@ export function MessagesNavUnreadSweep({ unreadTotal }: { unreadTotal: number })
   const sec = messagesNavSweepSeconds(unreadTotal)
   return (
     <span
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit] motion-reduce:hidden"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md motion-reduce:hidden"
       aria-hidden
     >
       <span

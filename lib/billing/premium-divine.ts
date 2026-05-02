@@ -1,6 +1,7 @@
 /**
  * Entitlement: Divine Voice Manager (OpenAI Realtime + TTS) and premium OpenAI chat models
- * for messaging. Gated to paid add-on, Divine trial SKU, paid plan in Stripe `trialing`, or bypass env.
+ * for messaging. Included for active/trialing paid creator plans, Divine trial SKU, Stripe `trialing` on paid SKUs,
+ * optional `divine_voice_premium` add-on for edge cases, or `DIVINE_VOICE_GRANT_ALL_PAID`.
  */
 
 import type Stripe from 'stripe'
@@ -56,7 +57,7 @@ function envGrantAllPaid(): boolean {
 }
 
 /**
- * The user may use Realtime, TTS, and premium chat models (add-on, Divine trial SKU, or paid plan in Stripe `trialing`).
+ * The user may use Realtime, TTS, and premium chat models.
  */
 export function hasDivineVoicePremium(row: SubscriptionRowForPremiumDivine | null | undefined): boolean {
   if (!row) return false
@@ -71,7 +72,8 @@ export function hasDivineVoicePremium(row: SubscriptionRowForPremiumDivine | nul
   if (st === 'trialing' && isPaidPlanId(row.plan_id)) return true
 
   if (st !== 'active' && st !== 'trialing') return false
-  if (!isPaidPlanId(row.plan_id)) return false
+  /** Creator paid plans include voice; DB flag is for rare voice-only / legacy rows without a paid plan_id. */
+  if (isPaidPlanId(row.plan_id)) return true
   return row.divine_voice_premium === true
 }
 

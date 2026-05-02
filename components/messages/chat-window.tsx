@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
@@ -9,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import {
   Send,
@@ -50,8 +51,14 @@ import {
   ChevronsDown,
   MessageCircle,
   Shield,
+  Mic,
+  PenLine,
+  TrendingUp,
+  AlertTriangle,
+  MessageSquarePlus,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
+import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { cn } from '@/lib/utils'
@@ -246,14 +253,6 @@ interface OnlyFansMessage {
     removedFromPlatformAt?: string | null
     cachedAt?: string | null
   }
-}
-
-type VaultVideoRow = {
-  id: string
-  title: string | null
-  content_type: string
-  file_url: string | null
-  vault_storage_path?: string | null
 }
 
 interface ChatWindowProps {
@@ -496,13 +495,6 @@ export function ChatWindow({
   const [ppvPrice, setPpvPrice] = useState<string>('')
   const [attachedMediaIds, setAttachedMediaIds] = useState<string[]>([])
   const [uploadingMedia, setUploadingMedia] = useState(false)
-  const [traceEnabled, setTraceEnabled] = useState(false)
-  const [traceContentId, setTraceContentId] = useState('')
-  const [traceRecipientKey, setTraceRecipientKey] = useState('')
-  const [traceVaultRows, setTraceVaultRows] = useState<VaultVideoRow[]>([])
-  const [traceVaultLoading, setTraceVaultLoading] = useState(false)
-  /** Mobile: Ariadne block collapsed by default to preserve composer space. */
-  const [aridaneMobileOpen, setAriadneMobileOpen] = useState(false)
   const chatFileInputRef = useRef<HTMLInputElement>(null)
   const [activePanel, setActivePanel] = useState<'circe' | 'venus' | 'flirt' | 'mimic' | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -571,6 +563,8 @@ export function ChatWindow({
   const composerTypeAbortRef = useRef<AbortController | null>(null)
   /** Keep scan tools collapsed by default so the thread remains readable. */
   const [aiSectionOpen, setAiSectionOpen] = useState(false)
+  /** Mobile-only: compact Divine operator drawer from the composer tray (not fullscreen). */
+  const [mobileDivineOperatorSheetOpen, setMobileDivineOperatorSheetOpen] = useState(false)
   const messagesFocusChrome = useMessagesFocusChromeOptional()
   useEffect(() => {
     if (messagesFocusChrome?.focusMode) setAiSectionOpen(true)
@@ -598,31 +592,6 @@ export function ChatWindow({
     void refreshCreditSnapshot()
   }, [aiSectionOpen, refreshCreditSnapshot, conversation?.user?.id])
 
-  useEffect(() => {
-    if (!traceEnabled || !isOnlyFansConversation) return
-    let cancelled = false
-    setTraceVaultLoading(true)
-    void (async () => {
-      try {
-        const res = await fetch('/api/content/vault')
-        const json = (await res.json()) as { items?: VaultVideoRow[] }
-        if (!res.ok || cancelled) return
-        const list = Array.isArray(json.items) ? json.items : []
-        const videos = list.filter((row) => row.content_type === 'video' && (row.file_url || row.vault_storage_path))
-        if (cancelled) return
-        setTraceVaultRows(videos)
-        if (!traceContentId && videos.length > 0) setTraceContentId(videos[0].id)
-      } catch {
-        if (!cancelled) setTraceVaultRows([])
-      } finally {
-        if (!cancelled) setTraceVaultLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [traceEnabled, isOnlyFansConversation, traceContentId])
-
   const onlyFansChatReadMode = useMemo(() => {
     if (!conversation || conversation.platform !== 'onlyfans' || !messagingReadPrefs) return null
     return effectiveChatReadMode(messagingReadPrefs, 'onlyfans', String(conversation.user.id))
@@ -631,6 +600,14 @@ export function ChatWindow({
   useEffect(() => {
     pendingChatterOutboxIdRef.current = null
   }, [chatterDraftOutboxId, conversation?.user.id])
+
+  useEffect(() => {
+    setMobileDivineOperatorSheetOpen(false)
+  }, [conversation?.user.id])
+
+  useEffect(() => {
+    if (!isMobile) setMobileDivineOperatorSheetOpen(false)
+  }, [isMobile])
 
   useEffect(() => {
     pendingComposerSuggestionRef.current = 'user'
@@ -676,10 +653,6 @@ export function ChatWindow({
       (mimicSuggestions && mimicSuggestions.length > 0)
     if (hasAiContent) setAiSectionOpen(true)
   }, [isMobile, scanInsights, activePanel, circeSuggestions, venusSuggestions, flirtSuggestions, mimicSuggestions])
-
-  useEffect(() => {
-    setAriadneMobileOpen(false)
-  }, [conversation?.user.id, conversation?.platform])
 
   const prevConvIdForScrollRef = useRef<string | undefined>(undefined)
   const didSnapBottomForConvRef = useRef<string | null>(null)
@@ -1361,25 +1334,9 @@ export function ChatWindow({
         text: string
         mediaIds?: string[]
         price?: number
-        trace?: {
-          enabled: boolean
-          contentId: string
-          recipientKey?: string
-          recipientUsername?: string
-          recipientDisplayName?: string
-        }
       } = { text: messageText }
       if (mediaIdsToSend.length > 0) body.mediaIds = mediaIdsToSend
       if (priceToSend != null && !Number.isNaN(priceToSend) && priceToSend >= 0) body.price = priceToSend
-      if (traceEnabled) {
-        body.trace = {
-          enabled: true,
-          contentId: traceContentId,
-          recipientKey: traceRecipientKey.trim() || conversation.user.username || String(conversation.user.id),
-          recipientUsername: conversation.user.username,
-          recipientDisplayName: conversation.user.name,
-        }
-      }
 
       const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}`, {
         method: 'POST',
@@ -1390,7 +1347,6 @@ export function ChatWindow({
         const data = (await res.json()) as {
         error?: string
         message?: OnlyFansMessage & { id?: string | number }
-        trace?: { payloadId?: string; exportId?: string; creditsCharged?: number }
       }
 
       if (!res.ok) {
@@ -1424,9 +1380,6 @@ export function ChatWindow({
             }),
           }).catch(() => undefined)
         }
-      }
-      if (data.trace?.payloadId) {
-        setError(null)
       }
       void fetch('/api/divine/refresh-thread-insight', {
         method: 'POST',
@@ -1547,19 +1500,22 @@ export function ChatWindow({
               <button
                 type="button"
                 className={cn(
-                  'thread-toolbar-gear-btn relative shrink-0 rounded-full p-[1.5px]',
+                  'thread-toolbar-gear-btn relative isolate shrink-0 overflow-visible rounded-full',
                   'outline-none ring-sidebar-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  'bg-gradient-to-br from-amber-400/78 via-violet-500/58 to-violet-950/90',
-                  'shadow-[0_0_14px_-4px_rgba(139,92,246,0.42)]',
-                  'transition-shadow duration-300 hover:shadow-[0_0_17px_-3px_rgba(167,139,250,0.48)]',
+                  'transition-[filter] duration-300 hover:brightness-[1.06]',
                 )}
                 aria-haspopup="menu"
                 aria-label={tChat('threadToolsAria')}
               >
                 <span
+                  className="thread-toolbar-gear-rim pointer-events-none absolute inset-[-3px] z-0 rounded-full bg-[conic-gradient(from_0deg,#fbbf24,#a855f7,#e9d5ff,#f59e0b,#7c3aed,#d8b4fe,#fbbf24)] opacity-[0.92]"
+                  aria-hidden
+                />
+                <span
                   className={cn(
-                    'flex h-[34px] w-[34px] items-center justify-center rounded-[10px]',
-                    'border border-white/12 bg-background/94 backdrop-blur-sm dark:bg-slate-950/90',
+                    'relative z-[1] flex h-[34px] w-[34px] items-center justify-center rounded-full',
+                    'border border-white/18 bg-background/94 backdrop-blur-sm dark:bg-slate-950/92',
+                    'shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]',
                   )}
                 >
                   <Settings className="thread-toolbar-gear-icon h-[17px] w-[17px] text-amber-200/92" aria-hidden />
@@ -2173,143 +2129,26 @@ export function ChatWindow({
             </CollapsibleContent>
           </Collapsible>
           {isOnlyFansConversation ? (
-            <>
-              <div className="border-t border-border/50 md:hidden">
-                <Collapsible open={aridaneMobileOpen} onOpenChange={setAriadneMobileOpen}>
-                  <div className="overflow-hidden bg-muted/10">
-                    <div className="flex items-stretch gap-1.5 px-2 py-2">
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-auto min-h-0 flex-1 flex-col items-start gap-0.5 px-2 py-1.5 text-left"
-                          aria-expanded={aridaneMobileOpen}
-                        >
-                          <span className="flex w-full items-center gap-1.5">
-                            <Shield className="h-3.5 w-3.5 shrink-0 text-violet-400" aria-hidden />
-                            {aridaneMobileOpen ? (
-                              <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
-                            )}
-                            <span className="text-xs font-medium text-foreground">{tChat('ariadneTraceTitle')}</span>
-                          </span>
-                          <span className="pl-7 text-[10px] text-muted-foreground">
-                            {traceEnabled ? tChat('ariadneTraceStatusOn') : tChat('ariadneTraceStatusOff')}
-                          </span>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <Button
-                        type="button"
-                        variant={traceEnabled ? 'secondary' : 'outline'}
-                        size="sm"
-                        className="shrink-0 self-center"
-                        onClick={() => setTraceEnabled((v) => !v)}
-                      >
-                        {traceEnabled ? tChat('toggleShortOn') : tChat('toggleShortOff')}
-                      </Button>
-                    </div>
-                    <CollapsibleContent>
-                      <div className="space-y-2 border-t border-border/50 px-2 pb-2 pt-1">
-                        <p className="text-[11px] text-muted-foreground">{tChat('ariadneTraceBillingNote')}</p>
-                        {traceEnabled ? (
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">{tChat('traceSourceVideoLabel')}</Label>
-                              <Select value={traceContentId} onValueChange={setTraceContentId}>
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue
-                                    placeholder={
-                                      traceVaultLoading
-                                        ? tChat('traceVaultLoadingPlaceholder')
-                                        : tChat('traceSelectVideoPlaceholder')
-                                    }
-                                  />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {traceVaultRows.map((row) => (
-                                    <SelectItem key={row.id} value={row.id}>
-                                      {(row.title || tChat('untitledVideo')).slice(0, 46)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px]">{tChat('traceRecipientKeyLabel')}</Label>
-                              <Input
-                                value={traceRecipientKey}
-                                onChange={(e) => setTraceRecipientKey(e.target.value)}
-                                className="h-8 text-xs"
-                                placeholder={conversation.user.username || String(conversation.user.id)}
-                              />
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
+            <div className="border-t border-border/50 px-2 py-1 sm:px-3">
+              <div className="flex min-h-0 items-center gap-2 rounded-md border border-border/35 bg-muted/10 px-2 py-1">
+                <Shield className="h-3.5 w-3.5 shrink-0 text-violet-400" aria-hidden />
+                <p className="min-w-0 flex-1 truncate text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+                  <span className="font-medium text-foreground/90">{tChat('ariadneTeaserTitle')}</span>
+                  <span className="text-muted-foreground/90"> · {tChat('ariadneTeaserLine')}</span>
+                </p>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-violet-500/35 bg-violet-500/[0.12] px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-violet-100/90"
+                >
+                  {tChat('ariadneTeaserBadge')}
+                </Badge>
+                <Button asChild size="sm" variant="secondary" className="h-7 shrink-0 px-2.5 text-[11px]">
+                  <Link href="/dashboard/ai-studio/ariadne" prefetch={false}>
+                    {tChat('ariadneTeaserCta')}
+                  </Link>
+                </Button>
               </div>
-              <div className="hidden border-t border-border/50 md:block">
-                <div className="p-2">
-                  <div className="rounded-md border border-border bg-muted/20 p-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-medium text-foreground">{tChat('ariadneBeforeSendTitle')}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {traceEnabled
-                            ? tChat('ariadneBeforeSendBillingEnabled')
-                            : tChat('ariadneBeforeSendBillingDisabled')}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant={traceEnabled ? 'secondary' : 'outline'}
-                        size="sm"
-                        onClick={() => setTraceEnabled((v) => !v)}
-                      >
-                        {traceEnabled ? tChat('traceToggleOn') : tChat('traceToggleOff')}
-                      </Button>
-                    </div>
-                    {traceEnabled ? (
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <Label className="text-[11px]">{tChat('traceSourceVideoLabel')}</Label>
-                          <Select value={traceContentId} onValueChange={setTraceContentId}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue
-                                placeholder={
-                                  traceVaultLoading
-                                    ? tChat('traceVaultLoadingPlaceholder')
-                                    : tChat('traceSelectVideoPlaceholder')
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {traceVaultRows.map((row) => (
-                                <SelectItem key={row.id} value={row.id}>
-                                  {(row.title || tChat('untitledVideo')).slice(0, 46)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px]">{tChat('traceRecipientKeyLabel')}</Label>
-                          <Input
-                            value={traceRecipientKey}
-                            onChange={(e) => setTraceRecipientKey(e.target.value)}
-                            className="h-8 text-xs"
-                            placeholder={conversation.user.username || String(conversation.user.id)}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </>
+            </div>
           ) : null}
         </div>
 
@@ -2471,32 +2310,14 @@ export function ChatWindow({
                   variant="outline"
                   size="sm"
                   className="h-9 shrink-0 gap-1 px-2.5"
-                  disabled={!isOnlyFansConversation}
-                  onClick={() => setAriadneMobileOpen(true)}
+                  title={tChat('divineOperatorSheetTitle')}
+                  onClick={() => setMobileDivineOperatorSheetOpen(true)}
                 >
-                  <Shield className="h-3.5 w-3.5" />
-                  {tChat('toolbarTrace')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 gap-1 px-2.5"
-                  onClick={() => setAiSectionOpen(true)}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {tChat('toolbarAi')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0 gap-1 px-2.5"
-                  onClick={openDivineVoiceLauncher}
-                  title={tChat('divineVoiceSessionTitle')}
-                >
-                  <Crown className="h-3.5 w-3.5 text-amber-500" />
-                  {tChat('toolbarDivine')}
+                  <SidebarDivineManagerCrown
+                    iconBoxClass="h-3.5 w-3.5"
+                    gradientSlot="composer-tray-mobile"
+                  />
+                  <span className="text-[11px] font-medium">{tChat('toolbarDivine')}</span>
                 </Button>
               </div>
             </>
@@ -2622,6 +2443,135 @@ export function ChatWindow({
         />
       )}
     </Card>
+
+      {isMobile ? (
+        <Sheet open={mobileDivineOperatorSheetOpen} onOpenChange={setMobileDivineOperatorSheetOpen}>
+          <SheetContent
+            side="bottom"
+            className="max-h-[min(72dvh,520px)] gap-0 overflow-hidden rounded-t-2xl border-t p-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>button]:top-3"
+          >
+            <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-1 text-left">
+              <SheetTitle className="text-base">{tChat('divineOperatorSheetTitle')}</SheetTitle>
+              <SheetDescription className="text-xs">{tChat('divineOperatorSheetSubtitle')}</SheetDescription>
+            </SheetHeader>
+            <div className="max-h-[min(58dvh,440px)] overflow-y-auto">
+              <div className="flex flex-col py-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                  }}
+                >
+                  <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  {tChat('divineOpSmartReplies')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                    void callSuggestionApi('mimic')
+                  }}
+                >
+                  <PenLine className="h-4 w-4 shrink-0 text-sky-500" aria-hidden />
+                  {tChat('divineOpRewrite')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                    void callSuggestionApi('flirt')
+                  }}
+                >
+                  <Heart className="h-4 w-4 shrink-0 text-pink-500" aria-hidden />
+                  {tChat('divineOpFlirt')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                    void callSuggestionApi('venus')
+                  }}
+                >
+                  <TrendingUp className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                  {tChat('divineOpUpsell')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                    void callSuggestionApi('circe')
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 shrink-0 text-violet-400" aria-hidden />
+                  {tChat('divineOpRevive')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    setAiSectionOpen(true)
+                    void callSuggestionApi('scan')
+                  }}
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-orange-400" aria-hidden />
+                  {tChat('divineOpObjection')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  onClick={() => {
+                    setMobileDivineOperatorSheetOpen(false)
+                    openDivineVoiceLauncher()
+                  }}
+                >
+                  <Mic className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  {tChat('divineOpVoiceSession')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
+                  asChild
+                >
+                  <Link
+                    href="/dashboard/divine-manager"
+                    prefetch={false}
+                    onClick={() => setMobileDivineOperatorSheetOpen(false)}
+                    className="inline-flex w-full items-center gap-3"
+                  >
+                    <MessageSquarePlus className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    {tChat('divineOpCustomPrompt')}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+
       <AlertDialog open={chatDeleteDialogOpen} onOpenChange={setChatDeleteDialogOpen}>
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>

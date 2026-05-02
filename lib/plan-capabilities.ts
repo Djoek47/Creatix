@@ -64,7 +64,3 @@ export function resolveWorkspaceCapabilities(row: SubscriptionCapsRow): Workspac
   }
   return capsFull()
 }
-
-export function getNonApiUpgradeMessage(): string {
-  return 'Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put.'
-}

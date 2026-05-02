@@ -14,19 +14,18 @@ import { routing } from '@/lib/i18n/routing'
 import type { Phase1Locale } from '@/lib/i18n/routing'
 import { usePathname, useRouter } from '@/lib/i18n/navigation'
 
-const localeLabels: Record<Phase1Locale, string> = {
-  en: 'English',
-  es: 'Español',
-  pt: 'Português',
-  fr: 'Français',
-}
-
 export function MarketingLocaleSwitcher({
   variant = 'footer',
 }: {
   variant?: 'footer' | 'header'
 }) {
   const t = useTranslations('navigation.localeSwitcher')
+  const localeNames: Record<Phase1Locale, string> = {
+    en: t('names.en'),
+    es: t('names.es'),
+    fr: t('names.fr'),
+    pt: t('names.pt'),
+  }
   const locale = useLocale() as Phase1Locale
   const router = useRouter()
   const pathname = usePathname()
@@ -48,7 +47,7 @@ export function MarketingLocaleSwitcher({
           aria-label={t('label')}
         >
           <Globe className="h-3.5 w-3.5 opacity-80" aria-hidden />
-          <span className="font-medium">{localeLabels[locale] ?? localeLabels.en}</span>
+          <span className="font-medium">{localeNames[locale] ?? localeNames.en}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={variant === 'footer' ? 'end' : 'start'} className="min-w-[11rem]">
@@ -62,7 +61,7 @@ export function MarketingLocaleSwitcher({
               })
             }
           >
-            {localeLabels[l]}
+            {localeNames[l]}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

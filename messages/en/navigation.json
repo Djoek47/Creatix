@@ -37,7 +37,13 @@
     "terms": "Terms"
   },
   "localeSwitcher": {
-    "label": "Language"
+    "label": "Language",
+    "names": {
+      "en": "English",
+      "es": "Español",
+      "fr": "Français",
+      "pt": "Português"
+    }
   },
   "wellbeingUnread": "{count} unread"
 }

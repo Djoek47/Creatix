@@ -1,4 +1,4 @@
-import type { FanProfileType } from '@/lib/fans/profile-types'
+import { normalizeAudienceProfileOverride, type FanProfileType } from '@/lib/fans/profile-types'
 
 export type ProfileEvolutionInput = {
   manualOverride: FanProfileType | null
@@ -17,9 +17,10 @@ export type ProfileEvolutionResult = {
 }
 
 export function deriveProfileType(input: ProfileEvolutionInput): ProfileEvolutionResult {
-  if (input.manualOverride) {
+  const manual = normalizeAudienceProfileOverride(input.manualOverride)
+  if (manual != null) {
     return {
-      profileType: input.manualOverride,
+      profileType: manual,
       source: 'manual',
       reason: 'Manual override has priority',
     }

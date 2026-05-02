@@ -57,6 +57,12 @@ export async function loadAppMessages(locale: Phase1Locale): Promise<AbstractInt
     'wellbeing',
     'messages',
     'protection',
+    'retention-churn',
+    'retention-tease',
+    'commenter',
+    'fans',
+    'divine-manager',
+    'legal',
   ] as const
   return loadMessagesForNamespaces(locale, ns)
 }

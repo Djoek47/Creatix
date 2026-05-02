@@ -69,7 +69,6 @@ import {
   type MimicProfileV1,
 } from '@/lib/divine/mimic-types'
 import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
-import { getNonApiUpgradeMessage } from '@/lib/plan-capabilities'
 import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { PHASE1_LOCALES } from '@/lib/i18n/routing'
@@ -434,7 +433,7 @@ export default function SettingsPage() {
       })
       const data = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) {
-        throw new Error(data.error || 'Could not save preferences')
+        throw new Error(data.error || t('errors.prefsSaveFailed'))
       }
       setPreferences((p) => ({ ...p, language: locale }))
       setPrefsMessage({ variant: 'success', text: t('savedToast') })
@@ -461,7 +460,7 @@ export default function SettingsPage() {
       })
       const data = (await res.json().catch(() => ({}))) as { mimic_profile?: unknown; error?: string }
       if (!res.ok) {
-        throw new Error(data.error || 'Unable to update Mimic settings')
+        throw new Error(data.error || t('errors.mimicUpdateFailed'))
       }
       setMimicProfile(parseMimicProfile(data.mimic_profile) ?? nextProfile)
       setMimicSaveMessage(t('preferences.fanDrafts.saved'))
@@ -1132,7 +1131,7 @@ export default function SettingsPage() {
                   <CardHeader className={SETTINGS_CARD_HEADER}>
                     <CardTitle className={SETTINGS_CARD_TITLE}>{t('integrations.apiTitle')}</CardTitle>
                     <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
-                      {getNonApiUpgradeMessage()}
+                      {t('integrations.nonApiUpgradeBody')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className={SETTINGS_CARD_CONTENT}>
@@ -1311,6 +1310,9 @@ export default function SettingsPage() {
                         <SelectItem value="AUD">AUD ($)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-[0.75rem] leading-relaxed text-muted-foreground/85 sm:max-w-xl">
+                      {t('preferences.currencyHint')}
+                    </p>
                   </div>
                 </div>
 

@@ -10,34 +10,44 @@ import {
   type PlatformConnectionObservedRow,
 } from '@/lib/billing/onlyfans-billing-gate'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatCreatorStatusLabel } from '@/lib/creator-platform-status'
+import {
+  normalizeCreatorStatusDetail,
+  normalizeCreatorStatusPreset,
+  type CreatorStatusPreset,
+} from '@/lib/creator-platform-status'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
-const OnlyFansLogo = ({ className }: { className?: string }) => (
+const OnlyFansLogo = ({ className, alt }: { className?: string; alt: string }) => (
   <img
     src={ONLYFANS_LOGO_SRC}
-    alt="OnlyFans"
+    alt={alt}
     className={cn('h-4 w-auto max-w-[4.5rem] object-contain object-left', className)}
   />
 )
 
-const FanslyLogo = ({ className }: { className?: string }) => (
+const FanslyLogo = ({ className, alt }: { className?: string; alt: string }) => (
   <img
     src={FANSLY_LOGO_SRC}
-    alt="Fansly"
+    alt={alt}
     className={cn('h-4 w-auto max-w-[4rem] object-contain object-left', className)}
   />
 )
 
-const PLATFORM_META: Record<string, { color: string; label: string; Logo: React.FC<{ className?: string }> }> = {
-  onlyfans: { color: '#00AFF0', label: 'OnlyFans', Logo: OnlyFansLogo },
-  fansly:   { color: '#009FFF', label: 'Fansly',   Logo: FanslyLogo  },
+type PlatformKey = 'onlyfans' | 'fansly'
+
+const PLATFORM_META: Record<
+  PlatformKey,
+  { color: string; labelKey: 'platformOnlyfans' | 'platformFansly'; altKey: 'onlyfansLogoAlt' | 'fanslyLogoAlt'; Logo: typeof OnlyFansLogo }
+> = {
+  onlyfans: { color: '#00AFF0', labelKey: 'platformOnlyfans', altKey: 'onlyfansLogoAlt', Logo: OnlyFansLogo },
+  fansly: { color: '#009FFF', labelKey: 'platformFansly', altKey: 'fanslyLogoAlt', Logo: FanslyLogo },
 }
 
 interface Connection {
@@ -48,17 +58,51 @@ interface Connection {
   creator_status_detail?: string | null
 }
 
-function formatLastSync(dateStr?: string) {
-  if (!dateStr) return 'Never synced'
+type ConnectedPlatformsT = ReturnType<typeof useTranslations>
+
+function formatRelativeSync(dateStr: string | undefined, t: ConnectedPlatformsT): string {
+  if (!dateStr) return t('syncNever')
   const diffMins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
-  if (diffMins < 1)  return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffMins < 1) return t('syncJustNow')
+  if (diffMins < 60) return t('syncMinutesAgo', { count: diffMins })
   const h = Math.floor(diffMins / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  if (h < 24) return t('syncHoursAgo', { count: h })
+  return t('syncDaysAgo', { count: Math.floor(h / 24) })
+}
+
+function creatorPresetLabel(preset: CreatorStatusPreset, t: ConnectedPlatformsT): string {
+  switch (preset) {
+    case 'available':
+      return t('creatorStatus.available')
+    case 'away':
+      return t('creatorStatus.away')
+    case 'busy':
+      return t('creatorStatus.busy')
+    case 'dnd':
+      return t('creatorStatus.dnd')
+    case 'custom':
+      return t('creatorStatus.custom')
+    default:
+      return t('creatorStatus.available')
+  }
+}
+
+function formatTranslatedCreatorStatus(
+  presetValue: unknown,
+  detailValue: unknown,
+  t: ConnectedPlatformsT,
+): string | null {
+  const preset = normalizeCreatorStatusPreset(presetValue)
+  const detail = normalizeCreatorStatusDetail(detailValue)
+  if (preset === 'custom') {
+    return detail ?? creatorPresetLabel('custom', t)
+  }
+  const base = creatorPresetLabel(preset, t)
+  return detail ? `${base} - ${detail}` : base
 }
 
 export function ConnectedPlatforms() {
+  const t = useTranslations('dashboard.connectedPlatformsWidget')
   const [connections, setConnections] = useState<Connection[]>([])
   const [syncing, setSyncing] = useState<string | null>(null)
   const supabase = createClient()
@@ -86,14 +130,12 @@ export function ConnectedPlatforms() {
     else setConnections([])
   }, [supabase])
 
-  // Sync a single platform then reload connections + refresh page data
   const handleSync = useCallback(async (platform: string) => {
     if (syncing) return
     setSyncing(platform)
     try {
       await fetch(`/api/${platform}/sync`, { method: 'POST' })
       await loadConnections()
-      // Reload page to pick up new data in RSC
       window.location.reload()
     } catch {
       // silent
@@ -102,36 +144,30 @@ export function ConnectedPlatforms() {
     }
   }, [syncing, loadConnections])
 
-  // On mount: check for accounts via API (auto-saves if found), then load from Supabase
   useEffect(() => {
     const init = async () => {
-      // First, check for OnlyFans accounts via API and auto-save if found
       try {
         const res = await fetch('/api/onlyfans/check-connection')
         const data = await res.json()
         if (data.connected) {
-          // Account found - trigger a sync to ensure data is up to date
           await fetch('/api/onlyfans/sync', { method: 'POST' })
-          // Refresh server-rendered analytics/dashboard data after sync completes
           router.refresh()
         }
       } catch {
         // ignore
       }
-      // Then load connections from Supabase
       await loadConnections()
     }
-    init()
-  }, [loadConnections])
+    void init()
+  }, [loadConnections, router])
 
-  // Auto-refresh every 2 minutes — only calls sync API, no listAccounts
   useEffect(() => {
     if (connections.length === 0) return
     intervalRef.current = setInterval(() => {
-      connections.forEach(conn => {
-        fetch(`/api/${conn.platform}/sync`, { method: 'POST' }).catch(() => {})
+      connections.forEach((conn) => {
+        void fetch(`/api/${conn.platform}/sync`, { method: 'POST' }).catch(() => undefined)
       })
-      loadConnections()
+      void loadConnections()
     }, 2 * 60 * 1000)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -144,10 +180,18 @@ export function ConnectedPlatforms() {
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-2">
         {connections.map((conn) => {
-          const meta = PLATFORM_META[conn.platform]
+          const key = conn.platform as PlatformKey
+          const meta = PLATFORM_META[key]
           if (!meta) return null
-          const { color, label, Logo } = meta
+          const { color, labelKey, altKey, Logo } = meta
+          const label = t(labelKey)
+          const logoAlt = t(altKey)
           const isSyncing = syncing === conn.platform
+          const statusText = formatTranslatedCreatorStatus(
+            conn.creator_status_preset,
+            conn.creator_status_detail,
+            t,
+          )
 
           return (
             <Tooltip key={conn.platform}>
@@ -161,31 +205,31 @@ export function ConnectedPlatforms() {
                     border: `1.5px solid ${color}40`,
                     color,
                   }}
-                  onClick={() => handleSync(conn.platform)}
+                  onClick={() => void handleSync(conn.platform)}
                   disabled={isSyncing}
-                  aria-label={`Refresh ${label} data`}
+                  aria-label={t('refreshAria', { platform: label })}
                 >
                   {isSyncing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Logo />
+                    <Logo alt={logoAlt} />
                   )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 <p className="font-semibold text-background">{label}</p>
-                {conn.platform_username && (
+                {conn.platform_username ? (
                   <p className="text-background/75">@{conn.platform_username}</p>
-                )}
+                ) : null}
                 <p className="mt-1 text-background/75">
-                  Last synced: {formatLastSync(conn.last_sync_at)}
+                  {t('lastSyncedLabel')} {formatRelativeSync(conn.last_sync_at, t)}
                 </p>
-                {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail) ? (
+                {statusText ? (
                   <p className="mt-0.5 text-background/75">
-                    Status: {formatCreatorStatusLabel(conn.creator_status_preset, conn.creator_status_detail)}
+                    {t('statusLabel')} {statusText}
                   </p>
                 ) : null}
-                <p className="mt-0.5 font-medium text-primary">Click to refresh</p>
+                <p className="mt-0.5 font-medium text-primary">{t('clickToRefresh')}</p>
               </TooltipContent>
             </Tooltip>
           )

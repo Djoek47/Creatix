@@ -1913,7 +1913,7 @@
   animation: divine-setup-step-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* First-run onboarding: theme-native wash — quiet, not decorative noise */
+/* First-run onboarding: soft gold / violet wash over dashboard canvas — no opaque plate (stars stay visible) */
 .divine-setup-wizard-page {
   background:
     radial-gradient(118% 85% at 50% -12%, color-mix(in oklch, var(--primary) 14%, transparent) 0%, transparent 52%),
@@ -1921,15 +1921,13 @@
       95% 55% at 100% -5%,
       color-mix(in oklch, var(--venus) 10%, transparent) 0%,
       transparent 48%
-    ),
-    var(--background);
+    );
 }
 
 .dark .divine-setup-wizard-page {
   background:
     radial-gradient(112% 80% at 40% -8%, color-mix(in oklch, var(--venus) 16%, transparent) 0%, transparent 55%),
-    radial-gradient(88% 50% at 102% 4%, color-mix(in oklch, var(--primary) 10%, transparent) 0%, transparent 45%),
-    var(--background);
+    radial-gradient(88% 50% at 102% 4%, color-mix(in oklch, var(--primary) 10%, transparent) 0%, transparent 45%);
 }
 
 .divine-setup-wizard-shell {
@@ -4034,7 +4032,7 @@ body {
   }
 }
 
-/* Messages thread menu — gear affordance (gold + violet rim, one-shot spin when open) */
+/* Messages thread menu — gear affordance (gold + violet rim; idle glow + slow spin; snap spin when open) */
 @keyframes thread-toolbar-gear-once {
   from {
     transform: rotate(0deg);
@@ -4044,18 +4042,70 @@ body {
   }
 }
 
+@keyframes thread-toolbar-gear-idle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes thread-toolbar-gear-rim-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.thread-toolbar-gear-rim {
+  transform: rotate(0deg);
+  animation: thread-toolbar-gear-rim-spin 18s linear infinite;
+}
+
+@keyframes thread-toolbar-glow-idle {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.72 0.16 300) 42%, transparent),
+      0 0 10px -1px color-mix(in oklch, oklch(0.62 0.2 295) 52%, transparent),
+      0 0 26px -4px color-mix(in oklch, oklch(0.74 0.15 85) 44%, transparent),
+      0 0 40px -10px color-mix(in oklch, oklch(0.52 0.22 298) 36%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.82 0.12 85) 48%, transparent),
+      0 0 14px -2px color-mix(in oklch, oklch(0.78 0.14 85) 58%, transparent),
+      0 0 32px -6px color-mix(in oklch, oklch(0.58 0.2 295) 50%, transparent),
+      0 0 48px -12px color-mix(in oklch, oklch(0.6 0.2 298) 38%, transparent);
+  }
+}
+
 @keyframes thread-toolbar-glow-swap {
   0%,
   100% {
     box-shadow:
-      0 0 14px -3px color-mix(in oklch, oklch(0.62 0.2 295) 55%, transparent),
-      0 0 6px -2px color-mix(in oklch, oklch(0.78 0.14 85) 35%, transparent);
+      0 0 0 1px color-mix(in oklch, oklch(0.68 0.18 295) 50%, transparent),
+      0 0 16px -2px color-mix(in oklch, oklch(0.62 0.2 295) 58%, transparent),
+      0 0 10px -2px color-mix(in oklch, oklch(0.78 0.14 85) 42%, transparent),
+      0 0 36px -8px color-mix(in oklch, oklch(0.55 0.2 298) 40%, transparent);
   }
   50% {
     box-shadow:
-      0 0 16px -2px color-mix(in oklch, oklch(0.78 0.14 85) 55%, transparent),
-      0 0 8px -2px color-mix(in oklch, oklch(0.58 0.2 295) 45%, transparent);
+      0 0 0 1px color-mix(in oklch, oklch(0.84 0.12 85) 52%, transparent),
+      0 0 20px -2px color-mix(in oklch, oklch(0.78 0.14 85) 62%, transparent),
+      0 0 12px -2px color-mix(in oklch, oklch(0.58 0.2 295) 50%, transparent),
+      0 0 42px -8px color-mix(in oklch, oklch(0.62 0.18 295) 45%, transparent);
   }
+}
+
+/* Idle: Radix may omit data-state until mounted — base rules apply, open overrides below */
+.thread-toolbar-gear-btn {
+  animation: thread-toolbar-glow-idle 3.2s ease-in-out infinite;
+}
+
+.thread-toolbar-gear-btn .thread-toolbar-gear-icon {
+  animation: thread-toolbar-gear-idle-spin 14s linear infinite;
+  transform-origin: center;
 }
 
 .thread-toolbar-gear-btn[data-state='open'] {
@@ -4067,11 +4117,23 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thread-toolbar-gear-btn[data-state='open'] {
+  .thread-toolbar-gear-rim {
     animation: none;
   }
-  .thread-toolbar-gear-btn[data-state='open'] .thread-toolbar-gear-icon {
+  .thread-toolbar-gear-btn {
     animation: none;
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.7 0.15 300) 38%, transparent),
+      0 0 18px -6px color-mix(in oklch, oklch(0.58 0.18 295) 42%, transparent),
+      0 0 22px -8px color-mix(in oklch, oklch(0.72 0.12 85) 32%, transparent);
+  }
+  .thread-toolbar-gear-btn .thread-toolbar-gear-icon {
+    animation: none;
+  }
+  .thread-toolbar-gear-btn[data-state='open'] {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.72 0.16 295) 45%, transparent),
+      0 0 20px -8px color-mix(in oklch, oklch(0.6 0.18 295) 40%, transparent);
   }
 }
 

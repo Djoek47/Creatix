@@ -1,0 +1,109 @@
+{
+  "errors": {
+    "loadSettings": "Could not load settings",
+    "saveFailed": "Save failed",
+    "scanFailed": "Scan failed",
+    "needCreditsBeforeAuto": "Add at least {cost, plural, one {# AI credit} other {# AI credits}} before enabling automatic scans (you have {remaining}). Open Billing to top up."
+  },
+  "loading": "Loading",
+  "creditContextSettings": "Churn retention settings",
+  "creditContextScan": "Churn scan",
+  "header": {
+    "kicker": "Retention · Credits when a run finds matches",
+    "title": "Churn Predictor",
+    "subtitle": "Surfaces fans who may drift before they leave—one calm report with context, ideas, and draft messages."
+  },
+  "scanNow": {
+    "button": "Scan now",
+    "titleInsufficient": "Need at least {cost, plural, one {# AI credit} other {# AI credits}} (you have {remaining}). Add credits under Billing.",
+    "titleSufficient": "Uses up to {cost, plural, one {# AI credit} other {# AI credits}} when at least one fan matches your churn rules (same as “Credits per run”). Nothing debited if no one qualifies.",
+    "balanceLoading": "Loading balance…",
+    "balanceLeft": "{remaining} left · OnlyFans + Fansly · {cost} if anyone matches ·",
+    "addCredits": "Add credits",
+    "noneIfEmpty": "none if empty"
+  },
+  "oneFan": "One fan",
+  "calendarCard": {
+    "title": "Upcoming drops for scans",
+    "body": "Edit your content calendar on its own page so churn scans can reference what you actually plan to post.",
+    "linkTease": "User retention by tease"
+  },
+  "autoScans": {
+    "title": "Automatic scans",
+    "description": "Matches your churn rules against OnlyFans & Fansly CRM fans. Charges up to {credits} {creditsLabel} only when the batch finds qualifiers—same cap as Scan now. Scheduled runs respect {fansPerRun} below; Scan now can review broader lists.",
+    "credit": "credit",
+    "credits": "credits",
+    "fansPerRunHighlight": "Fans per run",
+    "lowCreditsLead": "{remaining} credits available — need {cost} per run. ",
+    "lowCreditsBilling": "Billing",
+    "lowCreditsTail": " · or lower Credits per match in Configuration.",
+    "balanceLine": "Balance {remaining}",
+    "switchAria": "Automatic churn scans enabled",
+    "recurrenceKicker": "Recurrence",
+    "recurrenceHint": "Off defers to manual Scan only.",
+    "frequency": "Frequency",
+    "cadenceOff": "Off — manual only",
+    "cadenceDaily": "Daily",
+    "cadenceWeekly": "Weekly",
+    "hourUtc": "Hour (UTC)",
+    "hourOption": "{hour}:00 UTC",
+    "weeklyFootnote": "Weekly waits at least seven days since the previous run before the next window. Persist options with Save under Configuration."
+  },
+  "config": {
+    "kicker": "Configuration",
+    "title": "Schedule & rules",
+    "description": "Qualification, notifications, and follow-ups. Cadence is set in Automatic scans above; manual Scan now ignores it.",
+    "whoHeading": "Who qualifies",
+    "whoSub": "OnlyFans and Fansly fans in your CRM. Narrow windows mean fewer, sharper names.",
+    "renewalWindow": "Renewal window",
+    "renewalHint": "Days until subscription end to include.",
+    "quietSubscriber": "Quiet subscriber",
+    "quietHint": "Days since last message to treat as quiet.",
+    "includeQuietLabel": "Include quiet fans, not only renewals",
+    "includeQuietHelp": "When off, only subscribers nearing expiry are considered.",
+    "batchHeading": "Batch & credits",
+    "batchSub": "Credits when someone matches apply to every path. Scheduled runs use {fansPerRun}; Scan now analyzes all synced CRM (OnlyFans + Fansly together, up to 25 qualifiers).",
+    "fansPerRun": "Fans per run",
+    "fansPerRunHint": "Automatic scans: max per report (1–25). Scan now considers both platforms together, up to 25 qualifiers.",
+    "creditsPerMatch": "Credits per match",
+    "creditsPerMatchHint": "Up to this many after a successful run (1–10)."
+  },
+  "notifications": {
+    "heading": "Notifications",
+    "sub": "After each automatic run, what should reach your inbox.",
+    "runReadyTitle": "Run ready",
+    "runReadyDesc": "New report is available.",
+    "runReadyAria": "Notify when a run completes with matches",
+    "emptyTitle": "Empty run",
+    "emptyDesc": "No one matched this time.",
+    "emptyAria": "Notify on empty run"
+  },
+  "followUps": {
+    "heading": "Follow-ups",
+    "sub": "Optional tasks in Manager and on your protocol list.",
+    "managerTitle": "Manager",
+    "managerDesc": "Suggested task you can accept or dismiss.",
+    "managerAria": "Create Divine Manager suggestion",
+    "protocolTitle": "Protocol",
+    "protocolDesc": "Checklist item with your other automations.",
+    "protocolAria": "Create protocol task",
+    "openManager": "Open Divine Manager"
+  },
+  "save": {
+    "button": "Save",
+    "savedAt": "Saved {time}",
+    "unsavedHint": "Unsaved changes are lost if you leave."
+  },
+  "history": {
+    "kicker": "History",
+    "title": "Last run",
+    "completedAt": "Completed {datetime}",
+    "noAutoRunYet": "No automatic run yet.",
+    "errorPrefix": "Error:",
+    "digestTimestamp": "{datetime}",
+    "latestOutput": "Latest output",
+    "emptyDigestLead": "No results yet. After a scheduled or manual batch run, they appear here. Keep ",
+    "emptyDigestFans": "Fans",
+    "emptyDigestTail": " synced so renewals and spend stay accurate."
+  }
+}

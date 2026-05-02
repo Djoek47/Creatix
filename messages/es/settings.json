@@ -59,7 +59,8 @@
       "es": "Español",
       "pt": "Portugués",
       "fr": "Francés"
-    }
+    },
+    "currencyHint": "Los análisis y totales sincronizados desde las plataformas (ingresos, gasto de fans, etc.) se muestran en esta moneda con tipos de referencia del BCE en tiempo casi real (actualizados aprox. cada hora). Suscripciones, créditos y el checkout siguen en USD."
   },
   "profile": {
     "title": "Perfil",
@@ -347,7 +348,8 @@
   },
   "integrations": {
     "apiTitle": "API e integraciones",
-    "viewPlans": "Ver planes"
+    "viewPlans": "Ver planes",
+    "nonApiUpgradeBody": "Añade un plan Creatix completo cuando quieras para desbloquear conexiones API de creadora, mensajes, AI Studio y automatización: tus datos de protección se mantienen."
   },
   "data": {
     "yours": {
@@ -393,6 +395,7 @@
   },
   "errors": {
     "prefsSaveFailed": "No se pudieron guardar.",
+    "mimicUpdateFailed": "No se pudieron actualizar los ajustes de Mimic.",
     "deleteAccountCancelled": "Cancelado."
   },
   "confirm": {

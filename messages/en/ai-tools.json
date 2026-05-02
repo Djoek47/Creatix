@@ -24,6 +24,7 @@
     "noToolsTitle": "No tools match",
     "noToolsBody": "Try a different search or category.",
     "backToStudio": "Back to AI Studio",
+    "backToTools": "Back to tools",
     "back": "Back",
     "billingTitle": "Billing — top up or view usage",
     "availableCredits": "{count, number} available"
@@ -537,6 +538,126 @@
       "description": "Legacy route",
       "longDescription": "This tool route is no longer available from AI Studio."
     }
+  },
+  "labels": {
+    "error": "Error"
+  },
+  "chatterPage": {
+    "errors": {
+      "signInRequired": "Sign in required.",
+      "loadAutomationsFailed": "Failed to load automations",
+      "loadFailed": "Load failed",
+      "pickFanFirst": "Pick a fan first.",
+      "createFailed": "Create failed",
+      "saveFailed": "Save failed",
+      "activateFailed": "Activate failed",
+      "deleteFailed": "Delete failed"
+    },
+    "confirmRemoveAutomation": "Remove this automation?",
+    "platformTagline": "OnlyFans · Mimic, thread context, queue by default",
+    "betaDisclaimer": {
+      "title": "Beta",
+      "body": "Wrong tone, platform rules, over-messaging, and PPV mistakes are possible. You stay responsible for every message. Mimic consent and queue/review are recommended. Auto-send requires acknowledgment below."
+    },
+    "tabs": {
+      "chatter": "AI Chatter",
+      "whisper": "Whale whisper"
+    },
+    "tabHelp": {
+      "chatter": "Standard automations. Optional auto-send with beta acknowledgment.",
+      "whisper": "VIP list: drafts only—nothing is ever sent automatically. You review every message in Messages."
+    },
+    "automations": {
+      "title": "Automations",
+      "descWhisper": "Whale whisper automations (outbox-only).",
+      "descStandard": "Standard chatter automations.",
+      "newLabel": "New automation (OnlyFans fan)",
+      "loadingFans": "Loading fans…",
+      "chooseFan": "Choose fan",
+      "add": "Add",
+      "fansHintBefore": "Fans come from your CRM (synced conversations). Open",
+      "fansHintLink": "Messages",
+      "fansHintAfter": "to refresh fan rows.",
+      "emptyList": "No automations in this tab yet.",
+      "badgeVip": "VIP"
+    },
+    "settings": {
+      "title": "Settings",
+      "pickAutomation": "Pick an automation.",
+      "editingFan": "Editing @{username}",
+      "emptySelect": "Create or select an automation to edit.",
+      "whaleAlertTitle": "Whale whisper",
+      "whaleAlertBody": "Auto-send is disabled for this profile. Every reply stays in your outbox until you send it from Messages.",
+      "engagementProfile": "Engagement profile",
+      "profileStandard": "Standard chatter",
+      "profileWhisper": "Whale whisper (drafts only)",
+      "status": "Status",
+      "statusDraft": "Draft setup",
+      "statusActive": "Active",
+      "statusPaused": "Paused",
+      "giftWishlist": "Include saved gift wishlist in AI context",
+      "giftWishlistManage": "(manage links)",
+      "sendModeLabel": "Send mode",
+      "sendModeWhisperSuffix": "(not used for whale whisper)",
+      "modeQueueTitle": "Queue for review (default)",
+      "modeQueueDesc": "Draft lands in your outbox; we notify you and open Messages with the text ready to send.",
+      "modeOptInTitle": "Opt-in auto-send",
+      "modeOptInDesc": "Sends text-only replies when Mimic allows (or when bypass is enabled). Requires beta acknowledgment.",
+      "modeExperimentalTitle": "Experimental auto (not recommended)",
+      "modeExperimentalDesc": "Requires beta acknowledgment and \"bypass Mimic review gate\". Higher misfire risk.",
+      "ackAutoRisk": "I understand auto-send risks and platform rules; I remain responsible for outbound content.",
+      "bypassMimic": "Bypass Mimic \"never send without review\" (required for experimental auto; optional for opt-in auto when Mimic blocks).",
+      "notifyRisk": "Notify on risk / escalation signals",
+      "whaleTone": "Whale-nurture tone in prompts",
+      "maxReplies": "Max replies / UTC day",
+      "minMinutes": "Min minutes between sends",
+      "escalationKeywords": "Escalation keywords (one per line or comma-separated)",
+      "escalationPlaceholder": "refund\nchargeback\nlawyer",
+      "save": "Save",
+      "refreshThread": "Refresh thread snapshot",
+      "primeActive": "Prime & set active",
+      "deleteAria": "Delete automation",
+      "openThreadLead": "Open thread:",
+      "openThreadLink": "Messages",
+      "statusApi": {
+        "draft_setup": "Draft setup",
+        "active": "Active",
+        "paused": "Paused"
+      }
+    },
+    "activity": {
+      "title": "Recent activity",
+      "descSelected": "Events for this automation (latest first).",
+      "descAll": "All recent events.",
+      "empty": "No events yet."
+    },
+    "loading": "Loading…"
+  },
+  "giftWishlistPage": {
+    "errors": {
+      "loadFailed": "Failed to load",
+      "addFailed": "Add failed",
+      "genericLoad": "Load failed"
+    },
+    "title": "Gift wishlist",
+    "intro": "Add as many HTTPS product links as you like. We extract title, price, and description when the store allows it—edit anything by hand when it does not. Your list gives Chatter, Divine Manager, and Gift Suggester real context when a fan wants to send a gift or you run a guided pick.",
+    "retailTitle": "Retail sites vary",
+    "retailBody": "Many shops block bots. If fetch fails, tap Refetch or set title and price yourself, then Save.",
+    "addCardTitle": "Add link",
+    "addCardDesc": "HTTPS product or gift page.",
+    "urlPlaceholder": "https://…",
+    "addFetch": "Add & fetch",
+    "savedTitle": "Saved items",
+    "emptyItems": "No items yet.",
+    "refetchTitle": "Refetch",
+    "removeTitle": "Remove",
+    "fieldTitle": "Title",
+    "fieldPrice": "Price",
+    "fieldCurrency": "Currency",
+    "saveTitlePrice": "Save title & price"
+  },
+  "ariadnePage": {
+    "loading": "Loading Ariadne…"
   },
   "mediaVault": {
     "connectTitleOnlyfans": "Connect OnlyFans",

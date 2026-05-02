@@ -1,0 +1,109 @@
+{
+  "errors": {
+    "loadSettings": "Não foi possível carregar as definições",
+    "saveFailed": "Falha ao guardar",
+    "scanFailed": "Falha na análise",
+    "needCreditsBeforeAuto": "Adiciona pelo menos {cost, plural, one {# crédito de IA} other {# créditos de IA}} antes de ativar análises automáticas (tens {remaining}). Abre Faturação para carregar."
+  },
+  "loading": "A carregar",
+  "creditContextSettings": "Definições de retenção por churn",
+  "creditContextScan": "Análise de churn",
+  "header": {
+    "kicker": "Retenção · Créditos quando uma execução encontra correspondências",
+    "title": "Preditor de churn",
+    "subtitle": "Mostra fãs que podem arrefecer antes de saírem — um relatório calmo com contexto, ideias e rascunhos de mensagens."
+  },
+  "scanNow": {
+    "button": "Analisar agora",
+    "titleInsufficient": "Precisas de pelo menos {cost, plural, one {# crédito de IA} other {# créditos de IA}} (tens {remaining}). Adiciona créditos em Faturação.",
+    "titleSufficient": "Usa até {cost, plural, one {# crédito de IA} other {# créditos de IA}} quando pelo menos um fã corresponde às tuas regras (igual a «Créditos por execução»). Nada é debitado se ninguém qualificar.",
+    "balanceLoading": "A carregar saldo…",
+    "balanceLeft": "{remaining} restantes · OnlyFans + Fansly · {cost} se alguém corresponder ·",
+    "addCredits": "Adicionar créditos",
+    "noneIfEmpty": "nenhum se vazio"
+  },
+  "oneFan": "Um fã",
+  "calendarCard": {
+    "title": "Próximos lançamentos para análises",
+    "body": "Edita o teu calendário de conteúdo na própria página para as análises de churn refletirem o que realmente planeias publicar.",
+    "linkTease": "Retenção de utilizadores por teaser"
+  },
+  "autoScans": {
+    "title": "Análises automáticas",
+    "description": "Cruza as tuas regras de churn com fãs OnlyFans e Fansly no CRM. Cobra até {credits} {creditsLabel} só quando o lote encontra candidatos — o mesmo limite que Analisar agora. As execuções agendadas respeitam {fansPerRun} abaixo; Analisar agora pode rever listas mais largas.",
+    "credit": "crédito",
+    "credits": "créditos",
+    "fansPerRunHighlight": "Fãs por execução",
+    "lowCreditsLead": "{remaining} créditos disponíveis — precisas de {cost} por execução. ",
+    "lowCreditsBilling": "Faturação",
+    "lowCreditsTail": " · ou baixa «Créditos por correspondência» em Configuração.",
+    "balanceLine": "Saldo {remaining}",
+    "switchAria": "Análises automáticas de churn ativadas",
+    "recurrenceKicker": "Recorrência",
+    "recurrenceHint": "Desligado fica só análise manual.",
+    "frequency": "Frequência",
+    "cadenceOff": "Desligado — só manual",
+    "cadenceDaily": "Diário",
+    "cadenceWeekly": "Semanal",
+    "hourUtc": "Hora (UTC)",
+    "hourOption": "{hour}:00 UTC",
+    "weeklyFootnote": "Semanal espera pelo menos sete dias desde a execução anterior antes da próxima janela. Grava com Guardar em Configuração."
+  },
+  "config": {
+    "kicker": "Configuração",
+    "title": "Agenda e regras",
+    "description": "Qualificação, notificações e acompanhamentos. A cadência define-se em Análises automáticas acima; Analisar agora ignora-a.",
+    "whoHeading": "Quem qualifica",
+    "whoSub": "Fãs OnlyFans e Fansly no teu CRM. Janelas mais estreitas significam menos nomes, mais foco.",
+    "renewalWindow": "Janela de renovação",
+    "renewalHint": "Dias até ao fim da subscrição a incluir.",
+    "quietSubscriber": "Subscritor em silêncio",
+    "quietHint": "Dias desde a última mensagem para considerar silêncio.",
+    "includeQuietLabel": "Incluir fãs em silêncio, não só renovações",
+    "includeQuietHelp": "Desligado, só entram subscritores perto do fim.",
+    "batchHeading": "Lote e créditos",
+    "batchSub": "Créditos por correspondência aplicam-se a todos os fluxos. Execuções agendadas usam {fansPerRun}; Analisar agora analisa todo o CRM sincronizado (OnlyFans + Fansly juntos, até 25 candidatos).",
+    "fansPerRun": "Fãs por execução",
+    "fansPerRunHint": "Análises automáticas: máximo por relatório (1–25). Analisar agora considera ambas as plataformas juntas, até 25 candidatos.",
+    "creditsPerMatch": "Créditos por correspondência",
+    "creditsPerMatchHint": "No máximo após uma execução com sucesso (1–10)."
+  },
+  "notifications": {
+    "heading": "Notificações",
+    "sub": "Após cada execução automática, o que deve chegar à tua caixa de entrada.",
+    "runReadyTitle": "Execução pronta",
+    "runReadyDesc": "Há um relatório novo disponível.",
+    "runReadyAria": "Notificar quando uma execução termina com correspondências",
+    "emptyTitle": "Execução vazia",
+    "emptyDesc": "Ninguém correspondeu desta vez.",
+    "emptyAria": "Notificar em execução vazia"
+  },
+  "followUps": {
+    "heading": "Acompanhamentos",
+    "sub": "Tarefas opcionais no Manager e na tua lista de protocolo.",
+    "managerTitle": "Manager",
+    "managerDesc": "Tarefa sugerida que podes aceitar ou dispensar.",
+    "managerAria": "Criar sugestão no Divine Manager",
+    "protocolTitle": "Protocolo",
+    "protocolDesc": "Item de checklist com as tuas outras automações.",
+    "protocolAria": "Criar tarefa de protocolo",
+    "openManager": "Abrir Divine Manager"
+  },
+  "save": {
+    "button": "Guardar",
+    "savedAt": "Guardado {time}",
+    "unsavedHint": "Alterações não guardadas perdem-se se saíres."
+  },
+  "history": {
+    "kicker": "Histórico",
+    "title": "Última execução",
+    "completedAt": "Concluída {datetime}",
+    "noAutoRunYet": "Ainda não há execução automática.",
+    "errorPrefix": "Erro:",
+    "digestTimestamp": "{datetime}",
+    "latestOutput": "Última saída",
+    "emptyDigestLead": "Ainda não há resultados. Depois de uma execução agendada ou manual, aparecem aqui. Mantém ",
+    "emptyDigestFans": "Fãs",
+    "emptyDigestTail": " sincronizado para renovações e gastos precisos."
+  }
+}

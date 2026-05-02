@@ -1,5 +1,13 @@
 {
   "footerTagline": "One workspace for OnlyFans and Fansly—messages, fans, AI tools, and protection, with voice-first Divine Manager.",
+  "footerNavigationAria": "Footer navigation",
+  "pricingCycleStorefronts": {
+    "mv": "ManyVids",
+    "mym": "MYM",
+    "c4s": "Clips4Sale",
+    "lf": "LoyalFans",
+    "fv": "Fanvue"
+  },
   "language": "Website language",
   "metadataDefaultTitle": "{siteName} — Divine creator OS",
   "home": {
@@ -71,6 +79,7 @@
       "lowBandCaption": "Lowest revenue band — your price scales with earnings. One workspace.",
       "seePricing": "See pricing",
       "antiPiracyBundle": "Anti-piracy bundle",
+      "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Base monthly price by platform"
     }
   },

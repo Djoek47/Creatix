@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import type { Fan, Platform } from '@/lib/types'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 
 function formatCurrency(amount: number): string {
   const str = Math.round(amount).toString()
@@ -43,6 +44,7 @@ const TIER_KEYS = new Set(['whale', 'regular', 'new', 'inactive'])
 
 export function RecentFans({ fans, totalFans }: RecentFansProps) {
   const t = useTranslations('dashboard.recentFans')
+  const { formatApiUsd } = useAnalyticsMoney()
   const hasImportedFans = fans.length > 0
   const hasAnyFans =
     hasImportedFans || (typeof totalFans === 'number' && totalFans > 0)
@@ -112,7 +114,7 @@ export function RecentFans({ fans, totalFans }: RecentFansProps) {
                       {fan.platform.toUpperCase()}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {t('spent', { amount: `$${formatCurrency(fan.total_spent)}` })}
+                      {t('spent', { amount: formatApiUsd(fan.total_spent, 0) })}
                     </span>
                   </div>
                 </div>

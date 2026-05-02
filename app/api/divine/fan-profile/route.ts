@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { buildUnifiedFanProfile } from '@/lib/divine/fan-profile-server'
 import { getFanRecentById } from '@/lib/divine/fan-recents-server'
-import { isFanProfileType } from '@/lib/fans/profile-types'
+import { normalizeAudienceProfileOverride } from '@/lib/fans/profile-types'
 
 /**
  * GET ?fanId=&platform=onlyfans — aggregated fan core + thread insight + AI summary + creator detector (profile UI).
@@ -77,10 +77,12 @@ export async function PATCH(req: NextRequest) {
       const v = body.audience_profile_override
       if (v === null || v === '') {
         audienceProfileOverride = null
-      } else if (isFanProfileType(v)) {
-        audienceProfileOverride = v
       } else {
-        return NextResponse.json({ error: 'audience_profile_override invalid' }, { status: 400 })
+        const n = normalizeAudienceProfileOverride(v)
+        if (n == null) {
+          return NextResponse.json({ error: 'audience_profile_override invalid' }, { status: 400 })
+        }
+        audienceProfileOverride = n
       }
     }
 
@@ -110,8 +112,32 @@ export async function PATCH(req: NextRequest) {
     if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 })
 
     if (existingFan?.id) {
-      const { error } = await supabase.from('fans').update(patch).eq('id', existingFan.id)
+      const { data: updatedRow, error } = await supabase
+        .from('fans')
+        .update(patch)
+        .eq('id', existingFan.id)
+        .select('audience_profile_override')
+        .single()
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (audienceProfileOverride !== undefined && updatedRow) {
+        const stored = normalizeAudienceProfileOverride(updatedRow.audience_profile_override)
+        if (audienceProfileOverride === null) {
+          if (stored != null) {
+            return NextResponse.json(
+              { error: 'Could not clear CRM profile type override. Try again.' },
+              { status: 500 },
+            )
+          }
+        } else if (stored !== audienceProfileOverride) {
+          return NextResponse.json(
+            {
+              error:
+                'CRM profile type did not persist (database returned a different value). Refresh and try again.',
+            },
+            { status: 500 },
+          )
+        }
+      }
     } else {
       const recent = await getFanRecentById(supabase, user.id, fanId, platform)
       const safeFanKey = fanId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100)

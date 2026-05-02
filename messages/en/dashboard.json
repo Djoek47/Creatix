@@ -135,6 +135,28 @@
     "planPrefix": "Plan:",
     "connectedPlatforms": "Connected platforms"
   },
+  "connectedPlatformsWidget": {
+    "platformOnlyfans": "OnlyFans",
+    "platformFansly": "Fansly",
+    "onlyfansLogoAlt": "OnlyFans",
+    "fanslyLogoAlt": "Fansly",
+    "refreshAria": "Refresh {platform} data",
+    "lastSyncedLabel": "Last synced:",
+    "statusLabel": "Status:",
+    "clickToRefresh": "Click to refresh",
+    "syncNever": "Never synced",
+    "syncJustNow": "Just now",
+    "syncMinutesAgo": "{count}m ago",
+    "syncHoursAgo": "{count}h ago",
+    "syncDaysAgo": "{count}d ago",
+    "creatorStatus": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "dnd": "Do not disturb",
+      "custom": "Custom"
+    }
+  },
   "homeTiles": {
     "messages": {
       "title": "Messages",

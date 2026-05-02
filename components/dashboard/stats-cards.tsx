@@ -5,6 +5,7 @@ import { DollarSign, Users, MessageSquare, Calendar, TrendingUp, TrendingDown } 
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import type { DashboardStats } from '@/lib/types'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 
 function formatNumber(amount: number): string {
   const str = Math.round(amount).toString()
@@ -21,12 +22,13 @@ interface StatsCardsProps {
 
 export function StatsCards({ stats }: StatsCardsProps) {
   const t = useTranslations('dashboard.statsCards')
+  const { formatApiUsd } = useAnalyticsMoney()
   const hasConnectedPlatforms = stats.hasConnectedPlatforms
 
   const cards = [
     {
       titleKey: 'totalRevenue' as const,
-      value: hasConnectedPlatforms ? `$${formatNumber(stats.totalRevenue)}` : '--',
+      value: hasConnectedPlatforms ? formatApiUsd(stats.totalRevenue, 0) : '--',
       change: hasConnectedPlatforms ? stats.revenueChange : null,
       icon: DollarSign,
     },

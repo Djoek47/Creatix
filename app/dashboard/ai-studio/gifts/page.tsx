@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Gift, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { StudioBackLink } from '@/components/ai/studio-back-link'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ type WishlistItem = {
 }
 
 export default function GiftWishlistPage() {
+  const t = useTranslations('ai-tools')
   const [items, setItems] = useState<WishlistItem[]>([])
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(true)
@@ -38,7 +40,7 @@ export default function GiftWishlistPage() {
       const res = await fetch('/api/gift-wishlist', { credentials: 'include' })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError((j as { error?: string }).error || 'Failed to load')
+        setError((j as { error?: string }).error || t('giftWishlistPage.errors.loadFailed'))
         return
       }
       const list = (j as { items: WishlistItem[] }).items ?? []
@@ -53,11 +55,11 @@ export default function GiftWishlistPage() {
       }
       setEdits(next)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Load failed')
+      setError(e instanceof Error ? e.message : t('giftWishlistPage.errors.genericLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void load()
@@ -76,13 +78,13 @@ export default function GiftWishlistPage() {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError((j as { error?: string }).error || 'Add failed')
+        setError((j as { error?: string }).error || t('giftWishlistPage.errors.addFailed'))
         return
       }
       setUrl('')
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Add failed')
+      setError(e instanceof Error ? e.message : t('giftWishlistPage.errors.addFailed'))
     } finally {
       setAdding(false)
     }
@@ -125,55 +127,49 @@ export default function GiftWishlistPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
-        <StudioBackLink href="/dashboard/ai-studio/tools" aria-label="Back to tools" />
+        <StudioBackLink href="/dashboard/ai-studio/tools" aria-label={t('chrome.backToTools')} />
         <div className="flex items-center gap-2">
           <Gift className="h-7 w-7 text-primary" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Gift wishlist</h1>
-            <p className="text-sm text-muted-foreground">
-              Add as many HTTPS product links as you like. We extract title, price, and description when the store
-              allows it—edit anything by hand when it does not. Your list gives Chatter, Divine Manager, and Gift
-              Suggester real context when a fan wants to send a gift or you run a guided pick.
-            </p>
+            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">{t('giftWishlistPage.title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('giftWishlistPage.intro')}</p>
           </div>
         </div>
       </div>
 
       <Alert>
-        <AlertTitle>Retail sites vary</AlertTitle>
-        <AlertDescription className="text-sm">
-          Many shops block bots. If fetch fails, tap Refetch or set title and price yourself, then Save.
-        </AlertDescription>
+        <AlertTitle>{t('giftWishlistPage.retailTitle')}</AlertTitle>
+        <AlertDescription className="text-sm">{t('giftWishlistPage.retailBody')}</AlertDescription>
       </Alert>
 
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('labels.error')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Add link</CardTitle>
-          <CardDescription>HTTPS product or gift page.</CardDescription>
+          <CardTitle className="text-base">{t('giftWishlistPage.addCardTitle')}</CardTitle>
+          <CardDescription>{t('giftWishlistPage.addCardDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row">
           <Input
-            placeholder="https://…"
+            placeholder={t('giftWishlistPage.urlPlaceholder')}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="flex-1"
           />
           <Button disabled={adding || !url.trim()} onClick={() => void addUrl()}>
-            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add & fetch'}
+            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : t('giftWishlistPage.addFetch')}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Saved items</CardTitle>
+          <CardTitle className="text-base">{t('giftWishlistPage.savedTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
@@ -181,7 +177,7 @@ export default function GiftWishlistPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No items yet.</p>
+            <p className="text-sm text-muted-foreground">{t('giftWishlistPage.emptyItems')}</p>
           ) : (
             items.map((it) => (
               <div key={it.id} className="space-y-2 rounded-lg border border-border p-3">
@@ -196,10 +192,22 @@ export default function GiftWishlistPage() {
                   </a>
                   <div className="flex gap-1">
                     <Badge variant={it.fetch_status === 'ok' ? 'secondary' : 'outline'}>{it.fetch_status}</Badge>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => void refetch(it.id)} title="Refetch">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void refetch(it.id)}
+                      title={t('giftWishlistPage.refetchTitle')}
+                    >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => void remove(it.id)} title="Remove">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void remove(it.id)}
+                      title={t('giftWishlistPage.removeTitle')}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -207,7 +215,7 @@ export default function GiftWishlistPage() {
                 {it.fetch_error && <p className="text-xs text-destructive">{it.fetch_error}</p>}
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="sm:col-span-2 space-y-1">
-                    <Label className="text-xs">Title</Label>
+                    <Label className="text-xs">{t('giftWishlistPage.fieldTitle')}</Label>
                     <Input
                       value={edits[it.id]?.title ?? ''}
                       onChange={(e) =>
@@ -220,7 +228,7 @@ export default function GiftWishlistPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Price</Label>
+                      <Label className="text-xs">{t('giftWishlistPage.fieldPrice')}</Label>
                       <Input
                         value={edits[it.id]?.price ?? ''}
                         onChange={(e) =>
@@ -232,7 +240,7 @@ export default function GiftWishlistPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Currency</Label>
+                      <Label className="text-xs">{t('giftWishlistPage.fieldCurrency')}</Label>
                       <Input
                         value={edits[it.id]?.currency ?? 'USD'}
                         onChange={(e) =>
@@ -246,7 +254,7 @@ export default function GiftWishlistPage() {
                   </div>
                 </div>
                 <Button type="button" size="sm" variant="secondary" onClick={() => void saveManual(it.id)}>
-                  Save title & price
+                  {t('giftWishlistPage.saveTitlePrice')}
                 </Button>
               </div>
             ))

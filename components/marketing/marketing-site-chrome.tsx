@@ -227,7 +227,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
             <div className="flex flex-col items-center gap-5 sm:items-end">
               <nav
                 className="flex max-w-full flex-wrap justify-center gap-x-7 gap-y-2.5 sm:justify-end"
-                aria-label="Footer"
+                aria-label={tm('footerNavigationAria')}
               >
                 {[...mainNavItems, ...footerExtraItems.map((x) => ({ href: x.href, label: x.label }))].map((item) => {
                   const isLocalized = MAIN_NAV_HREFS.includes(item.href as (typeof MAIN_NAV_HREFS)[number])

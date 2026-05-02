@@ -81,6 +81,25 @@ function formatSecondsShort(seconds: number | null): string {
   return remMin > 0 ? `${hours}h ${remMin}m` : `${hours}h`
 }
 
+function latestDmTimestampMs(rows: DmCacheRow[]): number {
+  let max = 0
+  for (const row of rows) {
+    const t = getMessageTimestamp(row)
+    if (t > max) max = t
+  }
+  return max
+}
+
+/** Prefer the more recent of CRM last touch and latest cached DM (thread may be ahead of CRM sync). */
+function pickLastActiveIso(crmIso: string | null | undefined, rows: DmCacheRow[]): string | null {
+  const dmMax = latestDmTimestampMs(rows)
+  const crmMs = crmIso ? Date.parse(crmIso) : NaN
+  const crmT = Number.isNaN(crmMs) ? 0 : crmMs
+  if (dmMax <= 0 && crmT <= 0) return null
+  if (dmMax >= crmT) return new Date(dmMax).toISOString()
+  return new Date(crmT).toISOString()
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)
@@ -91,7 +110,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const fanId = searchParams.get('fanId')?.trim() || ''
-    const platform = (searchParams.get('platform')?.trim() || 'onlyfans').toLowerCase()
+    const platformRaw = (searchParams.get('platform')?.trim() || 'onlyfans').toLowerCase()
+    const platformNorm = platformRaw === 'fansly' ? 'fansly' : 'onlyfans'
+    /** OnlyFans DM cache is keyed by OF fan ids — never query it for Fansly threads. */
+    const useOfDmCacheForFan = Boolean(fanId) && platformNorm === 'onlyfans'
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
     const startOfDayIso = startOfDay.toISOString()
@@ -140,7 +162,7 @@ export async function GET(request: NextRequest) {
               'platform,platform_fan_id,username,display_name,avatar_url,total_spent,subscription_tier,last_interaction_at,first_subscribed_at,subscription_start,spend_subscriptions,spend_tips,spend_messages,spend_posts,tags',
             )
             .eq('user_id', user.id)
-            .eq('platform', platform === 'fansly' ? 'fansly' : 'onlyfans')
+            .eq('platform', platformNorm)
             .eq('platform_fan_id', fanId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -205,6 +227,35 @@ export async function GET(request: NextRequest) {
           .slice(0, 3)
       : []
 
+    const recentOrdersPayload = spendRows.map((row) => ({
+      id: row.id,
+      title: row.label,
+      amount: row.amount,
+    }))
+
+    const lastActiveForFan = pickLastActiveIso(selectedFan?.last_interaction_at, selectedFanRows)
+
+    const fanContext =
+      fanId.length > 0
+        ? {
+            fanId,
+            platform: platformNorm,
+            username: selectedFan?.username ?? null,
+            displayName: selectedFan?.display_name ?? null,
+            avatarUrl: selectedFan?.avatar_url ?? null,
+            totalSpent: selectedFan ? Number(selectedFan.total_spent ?? 0) : 0,
+            subscriptionTier: selectedFan?.subscription_tier ?? null,
+            memberSince: selectedFan?.first_subscribed_at || selectedFan?.subscription_start || null,
+            lastActive: lastActiveForFan,
+            totalMessages: useOfDmCacheForFan ? selectedFanRows.length : null,
+            responseRate: useOfDmCacheForFan ? fanResponsePct : null,
+            avgResponseTimeSeconds: useOfDmCacheForFan ? fanMetrics.averageResponseSeconds : null,
+            avgResponseTimeLabel: useOfDmCacheForFan ? formatSecondsShort(fanMetrics.averageResponseSeconds) : null,
+            tags: selectedFan?.tags ?? [],
+            recentOrders: recentOrdersPayload,
+          }
+        : null
+
     return NextResponse.json({
       kpis: {
         totalConversations: Number(fansCountRes.count ?? 0),
@@ -217,29 +268,7 @@ export async function GET(request: NextRequest) {
         { id: 'high-value', label: 'High-value fans', value: Number(highValueRes.count ?? 0), enabled: true },
         { id: 'creator-signal', label: 'Creator signals', value: Number(creatorSignalRes.count ?? 0), enabled: true },
       ],
-      fanContext: selectedFan
-        ? {
-            fanId: selectedFan.platform_fan_id,
-            platform: selectedFan.platform,
-            username: selectedFan.username,
-            displayName: selectedFan.display_name,
-            avatarUrl: selectedFan.avatar_url,
-            totalSpent: Number(selectedFan.total_spent ?? 0),
-            subscriptionTier: selectedFan.subscription_tier ?? null,
-            memberSince: selectedFan.first_subscribed_at || selectedFan.subscription_start || null,
-            lastActive: selectedFan.last_interaction_at || null,
-            totalMessages: selectedFanRows.length,
-            responseRate: fanResponsePct,
-            avgResponseTimeSeconds: fanMetrics.averageResponseSeconds,
-            avgResponseTimeLabel: formatSecondsShort(fanMetrics.averageResponseSeconds),
-            tags: selectedFan.tags ?? [],
-            recentOrders: spendRows.map((row) => ({
-              id: row.id,
-              title: row.label,
-              amount: row.amount,
-            })),
-          }
-        : null,
+      fanContext,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load workspace stats'

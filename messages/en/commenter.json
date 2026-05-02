@@ -1,0 +1,81 @@
+{
+  "errors": {
+    "loadFailed": "Failed to load commenter data.",
+    "syncFailed": "Sync failed",
+    "analyzeFailed": "Analysis failed",
+    "saveFailed": "Failed to save reply",
+    "classifyFailed": "Classification failed",
+    "classifyDisabledArrangements": "Turn on smart lists under Fans → Arrangements first.",
+    "classifyRunFailed": "Could not run classification",
+    "syncLoadCommentsFailed": "Could not load comments"
+  },
+  "sync": {
+    "commentsAdded": "{count, plural, one {Added # comment.} other {Added # comments.}}",
+    "upToDate": "Up to date."
+  },
+  "classify": {
+    "defaultSuccess": "Lists and tags updated from your CRM."
+  },
+  "empty": {
+    "fetching": "Fetching comments…",
+    "noCommentsYet": "No comments yet.",
+    "connectOnlyfans": "Connect OnlyFans to load comments.",
+    "settings": "Settings",
+    "feedLoadErrorBefore": "Couldn't load your OnlyFans feed. Tap ",
+    "feedLoadErrorAfter": " to try again.",
+    "noOnlyfansPosts": "You don't have any posts on OnlyFans yet. Publish a post first—comments will show up here when fans engage.",
+    "noCommentsOnPosts": "No comments on your posts yet.",
+    "noCommentsToShowYet": "No comments to show yet."
+  },
+  "header": {
+    "backAiStudio": "AI Studio",
+    "title": "Commenter",
+    "subtitle": "Fan comments on your posts—draft replies here, then paste on OnlyFans."
+  },
+  "actions": {
+    "sync": "Sync",
+    "loading": "Loading…"
+  },
+  "detail": {
+    "postMeta": "Post {postId}",
+    "safetyReview": "Safety review",
+    "analysis": {
+      "sentiment": "Sentiment",
+      "action": "Action",
+      "safety": "Safety",
+      "tags": "Tags",
+      "signals": "Signals",
+      "best": "Best"
+    },
+    "suggestedReplies": "Suggested replies",
+    "yourReply": "Your reply",
+    "placeholderReply": "What you posted on OnlyFans (optional note)",
+    "saveNote": "Save note",
+    "refresh": "Refresh",
+    "openDms": "Open DMs",
+    "lastSaved": "Last saved: {time}"
+  },
+  "fanAtlas": {
+    "title": "Fan Atlas",
+    "betaBadge": "Beta",
+    "descStart": "Segment fans from your CRM by",
+    "subscriptionStatus": "subscription status",
+    "lifetimeSpend": "lifetime spend",
+    "descMid": "and the rules in",
+    "arrangementsLink": "Fans → Arrangements",
+    "descEnd": "—then push matches to OnlyFans lists and Fansly tags. Scheduled sync still runs in the background; use the button below when you want an immediate refresh."
+  },
+  "classifyPanel": {
+    "classifyFansNow": "Classify fans now",
+    "editRules": "Edit rules",
+    "integrations": "Integrations",
+    "openArrangements": "Open Arrangements"
+  },
+  "voices": {
+    "circe": "Circe",
+    "venus": "Venus",
+    "flirt": "Flirt",
+    "professional": "Professional",
+    "best": "Best"
+  }
+}

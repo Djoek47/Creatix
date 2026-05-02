@@ -4,7 +4,7 @@ import { detectCreatorLikelyFromText, type CreatorDetectorSignal } from '@/lib/d
 import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
 import { policySkipExpensiveAiForCreatorLikely } from '@/lib/divine/creator-resource-policy'
 import { deriveProfileType } from '@/lib/fans/profile-evolution'
-import { isFanProfileType, type FanProfileType } from '@/lib/fans/profile-types'
+import { normalizeAudienceProfileOverride, type FanProfileType } from '@/lib/fans/profile-types'
 
 export type UnifiedFanProfilePayload = {
   fanId: string
@@ -223,6 +223,7 @@ export async function buildUnifiedFanProfile(
   const fanRow = fanCrm as {
     id?: string
     audience_profile_override?: string | null
+    audienceProfileOverride?: string | null
     creator_classification?: string | null
     total_spent?: string | number | null
     subscription_tier?: string | null
@@ -233,8 +234,11 @@ export async function buildUnifiedFanProfile(
 
   const crmFanId =
     fanRow && typeof fanRow.id === 'string' && fanRow.id.trim() ? fanRow.id.trim() : null
-  const apoRaw = fanRow?.audience_profile_override
-  const audienceProfileOverride: FanProfileType | null = isFanProfileType(apoRaw) ? apoRaw : null
+  const apoRaw =
+    fanRow?.audience_profile_override != null && String(fanRow.audience_profile_override).trim() !== ''
+      ? fanRow.audience_profile_override
+      : fanRow?.audienceProfileOverride
+  const audienceProfileOverride: FanProfileType | null = normalizeAudienceProfileOverride(apoRaw)
   const ccRaw = fanRow?.creator_classification
   const creatorClassification =
     typeof ccRaw === 'string' && ccRaw.trim() ? ccRaw.trim().slice(0, 2000) : null

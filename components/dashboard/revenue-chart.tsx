@@ -16,6 +16,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { AnalyticsSnapshot } from '@/lib/types'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 
 type PlatformKey = 'onlyfans' | 'fansly'
 
@@ -91,11 +92,12 @@ function ChartTooltip({
   platform: PlatformKey
 }) {
   const t = useTranslations('dashboard.revenueChart')
+  const { formatApiUsd } = useAnalyticsMoney()
   if (!active || !payload?.length) return null
   const row = payload[0].payload
   const value = platform === 'onlyfans' ? row.onlyfans : row.fansly
   const platformLabel = platform === 'onlyfans' ? t('onlyfans') : t('fansly')
-  const valueStr = `$${value.toLocaleString()}`
+  const valueStr = formatApiUsd(value, 2)
   return (
     <div className="rounded-2xl border border-border/60 bg-popover/95 px-3 py-2 text-xs shadow-lg backdrop-blur-md">
       <p className="font-medium text-foreground">{row.label}</p>
@@ -113,6 +115,7 @@ export function RevenueChart({
   connectedFansly = false,
 }: RevenueChartProps) {
   const t = useTranslations('dashboard.revenueChart')
+  const { formatApiUsd } = useAnalyticsMoney()
   const locale = useLocale()
   const intlTag = intlTagFromPhase1(locale)
   const [platform, setPlatform] = useState<PlatformKey>(() =>
@@ -251,7 +254,7 @@ export function RevenueChart({
                     tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `$${Math.round(v)}`}
+                    tickFormatter={(v) => formatApiUsd(Math.round(v), 0)}
                     dx={-4}
                   />
                   <Tooltip

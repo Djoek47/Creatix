@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,7 +35,8 @@ import {
   fanDisplayMemberSinceIso,
   fanDisplayPeriodEndIso,
 } from '@/lib/fans/fan-display-dates'
-import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
+import { formatFanDateUtc } from '@/lib/fans/crm-format'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 import { useFansGalleryColumns } from '@/hooks/use-fans-gallery-columns'
 import { FansListEmptyConnected, FansListEmptyDisconnected, type FansListPlatformScope } from '@/components/fans/fans-list-empty'
 
@@ -80,10 +82,16 @@ function spendSegments(fan: Fan) {
 }
 
 function SpendMixBar({ fan }: { fan: Fan }) {
+  const t = useTranslations('fans.gallery')
+  const { formatApiUsd } = useAnalyticsMoney()
   const { sub, tips, dms, feed } = spendSegments(fan)
   const sum = sub + tips + dms + feed
   if (sum <= 0) {
-    return <p className="text-[11px] text-muted-foreground">Tracked categories sum to $0 so far.</p>
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        {t('spendMixEmpty', { amount: formatApiUsd(0, 0) })}
+      </p>
+    )
   }
   const pct = (n: number) => `${Math.max(2, (n / sum) * 100)}%`
   return (
@@ -93,43 +101,43 @@ function SpendMixBar({ fan }: { fan: Fan }) {
           <div
             className="bg-chart-2 h-full min-w-[4px] transition-all"
             style={{ width: pct(sub) }}
-            title={`Subscription $${formatFanCurrency(sub)}`}
+            title={t('spendTitleSub', { amount: formatApiUsd(sub, 0) })}
           />
         ) : null}
         {tips > 0 ? (
           <div
             className="h-full min-w-[4px] bg-amber-500/80 transition-all"
             style={{ width: pct(tips) }}
-            title={`Tips $${formatFanCurrency(tips)}`}
+            title={t('spendTitleTips', { amount: formatApiUsd(tips, 0) })}
           />
         ) : null}
         {dms > 0 ? (
           <div
             className="h-full min-w-[4px] bg-violet-500/75 transition-all"
             style={{ width: pct(dms) }}
-            title={`DMs / chat PPV $${formatFanCurrency(dms)}`}
+            title={t('spendTitleDms', { amount: formatApiUsd(dms, 0) })}
           />
         ) : null}
         {feed > 0 ? (
           <div
             className="h-full min-w-[4px] bg-teal-500/75 transition-all"
             style={{ width: pct(feed) }}
-            title={`Feed PPV $${formatFanCurrency(feed)}`}
+            title={t('spendTitleFeed', { amount: formatApiUsd(feed, 0) })}
           />
         ) : null}
       </div>
       <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground sm:grid-cols-4">
         <li>
-          <span className="text-chart-2">Sub</span> ${formatFanCurrency(sub)}
+          <span className="text-chart-2">{t('spendSub')}</span> {formatApiUsd(sub, 0)}
         </li>
         <li>
-          <span className="text-amber-600 dark:text-amber-400">Tips</span> ${formatFanCurrency(tips)}
+          <span className="text-amber-600 dark:text-amber-400">{t('spendTips')}</span> {formatApiUsd(tips, 0)}
         </li>
         <li>
-          <span className="text-violet-600 dark:text-violet-400">DMs</span> ${formatFanCurrency(dms)}
+          <span className="text-violet-600 dark:text-violet-400">{t('spendDms')}</span> {formatApiUsd(dms, 0)}
         </li>
         <li>
-          <span className="text-teal-600 dark:text-teal-400">Feed</span> ${formatFanCurrency(feed)}
+          <span className="text-teal-600 dark:text-teal-400">{t('spendFeed')}</span> {formatApiUsd(feed, 0)}
         </li>
       </ul>
     </div>
@@ -154,13 +162,16 @@ function FansGalleryCard({
   showSubscriptionEnd: boolean
   onOpenSummary: (fan: Fan) => void
 }) {
+  const t = useTranslations('fans')
+  const tg = useTranslations('fans.gallery')
+  const { formatApiUsd } = useAnalyticsMoney()
   const whale = fan.audience?.isWhaleOrVip || fan.tier === 'whale'
   const creator = fan.audience?.isCreatorLikely
   const platformLabel =
     fan.platform === 'onlyfans'
-      ? 'OnlyFans'
+      ? t('platform.onlyfansAlt')
       : fan.platform === 'fansly'
-        ? 'Fansly'
+        ? t('platform.fanslyAlt')
         : fan.platform.toUpperCase()
   const metaAccent = whale
     ? 'border-l-violet-500/50'
@@ -193,7 +204,7 @@ function FansGalleryCard({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="truncate text-[17px] font-semibold leading-[1.2] tracking-tight text-foreground">
-                    {fan.display_name || fan.platform_username || 'Unknown'}
+                    {fan.display_name || fan.platform_username || tg('unknownFan')}
                   </p>
                   <p className="truncate text-[13px] text-muted-foreground">@{fan.platform_username || '—'}</p>
                 </div>
@@ -203,7 +214,7 @@ function FansGalleryCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
-                      aria-label="Fan actions"
+                      aria-label={tg('fanActionsAria')}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -215,13 +226,13 @@ function FansGalleryCard({
                         className="flex items-center"
                       >
                         <Eye className="mr-2 h-4 w-4" />
-                        Open in Messages
+                        {tg('openMessages')}
                       </Link>
                     </DropdownMenuItem>
                     {fan.platform === 'onlyfans' && (fan.platform_fan_id || liveFilter) ? (
                       <DropdownMenuItem onClick={() => onOpenSummary(fan)}>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        AI fan summary
+                        {tg('aiSummary')}
                       </DropdownMenuItem>
                     ) : null}
                     {fan.platform === 'onlyfans' && (fan.audience?.isWhaleOrVip || fan.tier === 'whale') ? (
@@ -231,22 +242,22 @@ function FansGalleryCard({
                           className="flex items-center"
                         >
                           <Crown className="mr-2 h-4 w-4" />
-                          Whale whisper
+                          {tg('whaleWhisper')}
                         </Link>
                       </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuItem>
                       <MessageSquare className="mr-2 h-4 w-4" />
-                      Send Message
+                      {tg('sendMessage')}
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Star className="mr-2 h-4 w-4" />
-                      {fan.is_favorite ? 'Remove Favorite' : 'Add to Favorites'}
+                      {fan.is_favorite ? tg('removeFavorite') : tg('addFavorite')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive">
                       <Ban className="mr-2 h-4 w-4" />
-                      Block Fan
+                      {tg('blockFan')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -287,7 +298,7 @@ function FansGalleryCard({
                   {fan.tier}
                 </Badge>
                 {fan.is_favorite ? (
-                  <Star className="h-3.5 w-3.5 fill-amber-500/85 text-amber-500" aria-label="Favorite" />
+                  <Star className="h-3.5 w-3.5 fill-amber-500/85 text-amber-500" aria-label={tg('favoriteStarAria')} />
                 ) : null}
               </div>
             </div>
@@ -312,7 +323,7 @@ function FansGalleryCard({
           <dl className="mt-5 space-y-0 divide-y divide-border/35 border-t border-border/35 pt-1">
             <div className="flex justify-between gap-4 py-3">
               <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
-                Member since
+                {tg('memberSince')}
               </dt>
               <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
                 {memberSince ? formatFanDateUtc(memberSince) : '—'}
@@ -321,7 +332,7 @@ function FansGalleryCard({
             {showSubscriptionEnd ? (
               <div className="flex justify-between gap-4 py-3">
                 <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
-                  Period ends
+                  {tg('periodEnds')}
                 </dt>
                 <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
                   {periodEnd ? formatFanDateUtc(periodEnd) : '—'}
@@ -330,7 +341,7 @@ function FansGalleryCard({
             ) : null}
             <div className="flex justify-between gap-4 py-3 last:border-b-0 last:pb-0">
               <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
-                Last active
+                {tg('lastActive')}
               </dt>
               <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
                 {fan.last_interaction ? formatFanDateUtc(fan.last_interaction) : '—'}
@@ -341,22 +352,22 @@ function FansGalleryCard({
           <div className="mt-5 rounded-xl bg-muted/25 px-4 py-3.5 transition-colors duration-200 group-hover:bg-muted/35">
             <div className="flex items-end justify-between gap-3">
               <span className="pb-0.5 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground/90">
-                Total spent
+                {tg('totalSpent')}
               </span>
               <span className="text-[22px] font-semibold tracking-tight tabular-nums text-foreground">
-                ${formatFanCurrency(fan.total_spent)}
+                {formatApiUsd(fan.total_spent, 0)}
               </span>
             </div>
             {hasSpendChannelsTracked(fan) ? (
               <div className="mt-4 border-t border-border/35 pt-3">
                 <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
-                  Revenue mix
+                  {tg('revenueMix')}
                 </p>
                 <SpendMixBar fan={fan} />
               </div>
             ) : (
               <p className="mt-3 max-w-[32ch] text-[11px] leading-relaxed text-muted-foreground/95">
-                Breakdowns appear as tips, renewals, and purchases sync from your platforms.
+                {tg('breakdownHint')}
               </p>
             )}
           </div>
@@ -381,6 +392,7 @@ export function FansGallery({
   liveFilter,
   showSubscriptionEnd = false,
 }: FansGalleryProps) {
+  const tg = useTranslations('fans.gallery')
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryFanId, setSummaryFanId] = useState<string | null>(null)
   const [summaryLabel, setSummaryLabel] = useState('')
@@ -415,7 +427,7 @@ export function FansGallery({
       <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <Loader2 className="mb-4 h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading fans…</p>
+          <p className="text-sm text-muted-foreground">{tg('loading')}</p>
         </CardContent>
       </Card>
     )
@@ -425,16 +437,20 @@ export function FansGallery({
     return (
       <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <h3 className="text-[17px] font-semibold tracking-tight text-foreground">No matches</h3>
+          <h3 className="text-[17px] font-semibold tracking-tight text-foreground">{tg('noMatchesTitle')}</h3>
           <p className="mt-1 max-w-md text-[15px] leading-relaxed text-muted-foreground">
-            Nothing matches <span className="text-foreground/90">{searchTerm}</span>
-            {filteredCountBeforeSearch > 0
-              ? ` among ${filteredCountBeforeSearch.toLocaleString()} fans in this view.`
-              : '.'}
+            {filteredCountBeforeSearch > 0 ? (
+              <>
+                {tg('noMatchesAmong', {
+                  term: searchTerm,
+                  count: filteredCountBeforeSearch.toLocaleString(),
+                })}
+              </>
+            ) : (
+              tg('noMatchesShort', { term: searchTerm })
+            )}
           </p>
-          <p className="mt-5 text-[13px] text-muted-foreground">
-            Clear the search bar or widen your audience filters.
-          </p>
+          <p className="mt-5 text-[13px] text-muted-foreground">{tg('noMatchesHint')}</p>
         </CardContent>
       </Card>
     )
@@ -495,7 +511,7 @@ export function FansGallery({
           ref={scrollRef}
           className="max-h-[min(72vh,960px)] min-h-[300px] overflow-auto rounded-xl"
           role="region"
-          aria-label="Fan gallery"
+          aria-label={tg('regionAria')}
         >
           <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
             {virtualItems.map((vi) => {

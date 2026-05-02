@@ -4,12 +4,17 @@ import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /** Fixed DOM ids so stroke `url(#…)` matches SSR + client (avoid `useId` hydration drift). */
-export type DivineManagerCrownGradientSlot = 'sidebar-desktop' | 'sidebar-mobile' | 'voice-fab'
+export type DivineManagerCrownGradientSlot =
+  | 'sidebar-desktop'
+  | 'sidebar-mobile'
+  | 'voice-fab'
+  | 'composer-tray-mobile'
 
 const GRADIENT_ID: Record<DivineManagerCrownGradientSlot, string> = {
   'sidebar-desktop': 'creatix-dm-crown-grad-sidebar-desktop',
   'sidebar-mobile': 'creatix-dm-crown-grad-sidebar-mobile',
   'voice-fab': 'creatix-dm-crown-grad-voice-fab',
+  'composer-tray-mobile': 'creatix-dm-crown-grad-composer-tray-mobile',
 }
 
 type Props = {

@@ -4,7 +4,8 @@ import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Card, CardContent } from '@/components/ui/card'
 
-import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
+import { formatFanDateUtc } from '@/lib/fans/crm-format'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 import { fanDisplayPeriodEndIso } from '@/lib/fans/fan-display-dates'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { Button } from '@/components/ui/button'
@@ -83,6 +84,7 @@ function FansTableFanRow({
   liveFilter: FansTableProps['liveFilter']
   onOpenSummary: (fan: Fan) => void
 }) {
+  const { formatApiUsd } = useAnalyticsMoney()
   const periodEnd = fanDisplayPeriodEndIso(fan)
   return (
     <TableRow className="border-border hover:bg-muted/25">
@@ -152,7 +154,7 @@ function FansTableFanRow({
           {fan.tier}
         </Badge>
       </TableCell>
-      <TableCell className="text-right font-medium">${formatFanCurrency(fan.total_spent)}</TableCell>
+      <TableCell className="text-right font-medium">{formatApiUsd(fan.total_spent, 0)}</TableCell>
       {showSubscriptionEnd ? (
         <TableCell className="text-muted-foreground text-xs">
           {periodEnd ? formatFanDateUtc(periodEnd) : '—'}

@@ -26,6 +26,7 @@ import {
 import { filterFansBySearchQuery } from '@/lib/fans/fan-search-filter'
 import { postQuickFanPlatformSync } from '@/lib/fans/post-quick-fan-sync'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { useTranslations } from 'next-intl'
 import { LayoutGrid, Search, Table2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +72,7 @@ export function FansPageClient({
   snapshotFansByPlatform = {},
   snapshotFollowsByPlatform = {},
 }: FansPageClientProps) {
+  const t = useTranslations('fans')
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -169,7 +171,7 @@ export function FansPageClient({
 
         if (!runOf && !runFl) {
           setLiveFans([])
-          setLiveFetchError('Connect OnlyFans or Fansly (or change platform scope) to load live lists.')
+          setLiveFetchError(t('live.needConnect'))
           return
         }
 
@@ -191,14 +193,14 @@ export function FansPageClient({
           const data = payloads[i]
           i += 1
           if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
-          else if (!res.ok) err = data.error || `OnlyFans live list failed (${res.status}).`
+          else if (!res.ok) err = data.error || t('live.onlyfansFailed', { status: res.status })
         }
         if (runFl) {
           const res = responses[i]
           const data = payloads[i]
           if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
           else if (!res.ok) {
-            const flErr = data.error || `Fansly live list failed (${res.status}).`
+            const flErr = data.error || t('live.fanslyFailed', { status: res.status })
             err = err ? `${err} ${flErr}` : flErr
           }
         }
@@ -209,10 +211,7 @@ export function FansPageClient({
           else setLiveFetchError(null)
         } else {
           setLiveFans([])
-          setLiveFetchError(
-            err ||
-              'Could not load live fans. Try “All synced”, reconnect the platform, or check billing.',
-          )
+          setLiveFetchError(err || t('live.combinedHint'))
         }
       } catch {
         setLiveFans([])
@@ -221,7 +220,7 @@ export function FansPageClient({
         setLoadingLive(false)
       }
     },
-    [hasLiveSource, hasOnlyFansConnected, hasFanslyConnected, platformScope],
+    [hasLiveSource, hasOnlyFansConnected, hasFanslyConnected, platformScope, t],
   )
 
   const fetchExpiring = useCallback(async () => {
@@ -292,17 +291,17 @@ export function FansPageClient({
   const handleEmptyQuickSync = useCallback(async () => {
     if (!hasFanPlatformsConnected) return
     setEmptyQuickSyncBusy(true)
-    setSyncStatusMessage('Syncing subscribers from connected platforms…')
+    setSyncStatusMessage(t('sync.runningSubscribers'))
     try {
       await postQuickFanPlatformSync()
       router.refresh()
-      setSyncStatusMessage('Quick sync finished.')
+      setSyncStatusMessage(t('sync.finished'))
     } catch {
-      setSyncStatusMessage('Quick sync failed — try again.')
+      setSyncStatusMessage(t('sync.failed'))
     } finally {
       setEmptyQuickSyncBusy(false)
     }
-  }, [hasFanPlatformsConnected, router])
+  }, [hasFanPlatformsConnected, router, t])
 
   const snapshotCreatorTotal = useMemo(() => {
     if (platformScope === 'all') {
@@ -341,8 +340,8 @@ export function FansPageClient({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="h-11 rounded-xl border-border/50 bg-background/70 pl-9 pr-10 text-[15px] tracking-tight shadow-none placeholder:text-muted-foreground/70"
-          placeholder="Search name or handle"
-          aria-label="Search fans by name or handle"
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.ariaLabel')}
           autoComplete="off"
         />
         {searchQuery ? (
@@ -351,17 +350,17 @@ export function FansPageClient({
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={() => setSearchQuery('')}
           >
-            Clear
+            {t('search.clear')}
           </button>
         ) : null}
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-5">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">Platform</span>
+          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">{t('platform.label')}</span>
           <div
             className="inline-flex max-w-full rounded-full border border-border/45 bg-muted/[0.2] p-1 dark:bg-muted/15"
             role="group"
-            aria-label="Platform scope"
+            aria-label={t('platform.scopeAria')}
           >
             {(['all', 'onlyfans', 'fansly'] as const).map((scope) => (
               <Button
@@ -380,11 +379,11 @@ export function FansPageClient({
                 title={scope === 'all' ? 'All platforms' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
               >
                 {scope === 'all' ? (
-                  'All'
+                  t('platform.all')
                 ) : scope === 'onlyfans' ? (
                   <Image
                     src="/onlyfans-logo.png"
-                    alt="OnlyFans"
+                    alt={t('platform.onlyfansAlt')}
                     width={140}
                     height={40}
                     className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
@@ -393,7 +392,7 @@ export function FansPageClient({
                 ) : (
                   <Image
                     src="/fansly-logo.png"
-                    alt="Fansly"
+                    alt={t('platform.fanslyAlt')}
                     width={140}
                     height={40}
                     className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
@@ -405,13 +404,13 @@ export function FansPageClient({
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">Audience</span>
+          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">{t('audience.label')}</span>
           <Select
             value={audienceFilter}
             onValueChange={(v) => setAudienceFilter(v as AudienceFilter)}
           >
             <SelectTrigger className="h-10 w-full min-w-[10rem] max-w-[16rem] rounded-full border-border/45 bg-background/70 shadow-none sm:w-[200px]">
-              <SelectValue placeholder="Filter audience" />
+              <SelectValue placeholder={t('audience.placeholder')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
@@ -440,7 +439,7 @@ export function FansPageClient({
         snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <span className="sr-only">Layout</span>
+        <span className="sr-only">{t('layout.viewAria')}</span>
         <div className="inline-flex rounded-full border border-border/45 bg-muted/[0.2] p-1 dark:bg-muted/15">
           <Button
             type="button"
@@ -450,7 +449,7 @@ export function FansPageClient({
             onClick={() => setViewMode('gallery')}
           >
             <LayoutGrid className="h-4 w-4" />
-            Gallery
+            {t('layout.gallery')}
           </Button>
           <Button
             type="button"
@@ -460,7 +459,7 @@ export function FansPageClient({
             onClick={() => setViewMode('table')}
           >
             <Table2 className="h-4 w-4" />
-            Table
+            {t('layout.table')}
           </Button>
         </div>
       </div>

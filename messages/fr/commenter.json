@@ -1,0 +1,81 @@
+{
+  "errors": {
+    "loadFailed": "Échec du chargement des données Commenter.",
+    "syncFailed": "Échec de la synchronisation",
+    "analyzeFailed": "Échec de l'analyse",
+    "saveFailed": "Échec de l'enregistrement de la note",
+    "classifyFailed": "Échec de la classification",
+    "classifyDisabledArrangements": "Activez d'abord les listes intelligentes sous Fans → Arrangements.",
+    "classifyRunFailed": "Impossible d'exécuter la classification",
+    "syncLoadCommentsFailed": "Impossible de charger les commentaires"
+  },
+  "sync": {
+    "commentsAdded": "{count, plural, one {# commentaire ajouté.} other {# commentaires ajoutés.}}",
+    "upToDate": "À jour."
+  },
+  "classify": {
+    "defaultSuccess": "Listes et étiquettes mises à jour depuis votre CRM."
+  },
+  "empty": {
+    "fetching": "Récupération des commentaires…",
+    "noCommentsYet": "Pas encore de commentaires.",
+    "connectOnlyfans": "Connectez OnlyFans pour charger les commentaires.",
+    "settings": "Paramètres",
+    "feedLoadErrorBefore": "Impossible de charger votre fil OnlyFans. Appuyez sur ",
+    "feedLoadErrorAfter": " pour réessayer.",
+    "noOnlyfansPosts": "Vous n'avez pas encore de publications sur OnlyFans. Publiez d'abord un post — les commentaires apparaîtront ici lorsque les fans interagiront.",
+    "noCommentsOnPosts": "Pas encore de commentaires sur vos publications.",
+    "noCommentsToShowYet": "Aucun commentaire à afficher pour le moment."
+  },
+  "header": {
+    "backAiStudio": "Studio IA",
+    "title": "Commenter",
+    "subtitle": "Commentaires des fans sur vos publications — rédigez des réponses ici, puis collez-les sur OnlyFans."
+  },
+  "actions": {
+    "sync": "Synchroniser",
+    "loading": "Chargement…"
+  },
+  "detail": {
+    "postMeta": "Publication {postId}",
+    "safetyReview": "Revue sécurité",
+    "analysis": {
+      "sentiment": "Sentiment",
+      "action": "Action",
+      "safety": "Sécurité",
+      "tags": "Étiquettes",
+      "signals": "Signaux",
+      "best": "Meilleur"
+    },
+    "suggestedReplies": "Réponses suggérées",
+    "yourReply": "Votre réponse",
+    "placeholderReply": "Ce que vous avez publié sur OnlyFans (note facultative)",
+    "saveNote": "Enregistrer la note",
+    "refresh": "Actualiser",
+    "openDms": "Ouvrir les MP",
+    "lastSaved": "Dernier enregistrement : {time}"
+  },
+  "fanAtlas": {
+    "title": "Atlas des fans",
+    "betaBadge": "Bêta",
+    "descStart": "Segmentez les fans depuis votre CRM par",
+    "subscriptionStatus": "statut d'abonnement",
+    "lifetimeSpend": "dépense cumulée",
+    "descMid": "et les règles dans",
+    "arrangementsLink": "Fans → Arrangements",
+    "descEnd": "—puis poussez les correspondances vers les listes OnlyFans et les étiquettes Fansly. La synchro planifiée tourne toujours en arrière-plan ; utilisez le bouton ci-dessous pour un rafraîchissement immédiat."
+  },
+  "classifyPanel": {
+    "classifyFansNow": "Classer les fans maintenant",
+    "editRules": "Modifier les règles",
+    "integrations": "Intégrations",
+    "openArrangements": "Ouvrir Arrangements"
+  },
+  "voices": {
+    "circe": "Circé",
+    "venus": "Vénus",
+    "flirt": "Flirt",
+    "professional": "Professionnel",
+    "best": "Meilleur"
+  }
+}

@@ -59,7 +59,8 @@
       "es": "Spanish",
       "pt": "Portuguese",
       "fr": "French"
-    }
+    },
+    "currencyHint": "Analytics and synced platform totals (e.g. revenue, fan spend) show in this currency using live ECB reference rates (updated about hourly). Subscriptions, credits, and checkout stay in USD."
   },
   "profile": {
     "title": "Profile",
@@ -347,7 +348,8 @@
   },
   "integrations": {
     "apiTitle": "API & integrations",
-    "viewPlans": "View plans"
+    "viewPlans": "View plans",
+    "nonApiUpgradeBody": "Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put."
   },
   "data": {
     "yours": {
@@ -393,6 +395,7 @@
   },
   "errors": {
     "prefsSaveFailed": "Could not save preferences.",
+    "mimicUpdateFailed": "Unable to update Mimic settings.",
     "deleteAccountCancelled": "Delete cancelled."
   },
   "confirm": {

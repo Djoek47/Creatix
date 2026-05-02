@@ -56,14 +56,16 @@ export default async function LandingPage({ params }: PageProps) {
 
   const platforms = [
     {
-      name: 'OnlyFans',
+      id: 'onlyfans' as const,
+      name: t('pricingCalculator.focusPlatform.onlyfans'),
       logoSrc: ONLYFANS_LOGO_SRC,
       delay: '0s',
       logoWidthPx: 200,
       logoHeightPx: 52,
     },
     {
-      name: 'Fansly',
+      id: 'fansly' as const,
+      name: t('pricingCalculator.focusPlatform.fansly'),
       logoSrc: FANSLY_LOGO_SRC,
       delay: '0.9s',
       logoWidthPx: 180,
@@ -139,11 +141,11 @@ export default async function LandingPage({ params }: PageProps) {
                 const h = platform.logoHeightPx
                 return (
                   <div
-                    key={platform.name}
+                    key={platform.id}
                     className={cn(
                       'marketing-float group relative flex min-h-11 shrink-0 items-center gap-3 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3.5 backdrop-blur-sm sm:gap-3.5 sm:pl-2.5 sm:pr-4',
-                      platform.name === 'OnlyFans' && 'marketing-hero-platform-pill-of',
-                      platform.name === 'Fansly' && 'marketing-hero-platform-pill-fl',
+                      platform.id === 'onlyfans' && 'marketing-hero-platform-pill-of',
+                      platform.id === 'fansly' && 'marketing-hero-platform-pill-fl',
                     )}
                     style={{ animationDelay: platform.delay }}
                   >

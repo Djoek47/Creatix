@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import {
   getSettings,
@@ -46,13 +47,14 @@ import { cn } from '@/lib/utils'
 
 type WizardStep = 1 | 2 | 3 | 4
 
-const MODE_LABELS: Record<DivineManagerMode, string> = {
-  off: 'Off',
-  suggest_only: 'Suggest only',
-  semi_auto: 'Semi-automatic',
+function divineModeLabel(t: (key: string) => string, m: DivineManagerMode) {
+  if (m === 'off') return t('modes.off')
+  if (m === 'suggest_only') return t('modes.suggest_only')
+  return t('modes.semi_auto')
 }
 
 export default function DivineManagerPage() {
+  const tDm = useTranslations('divine-manager')
   const searchParams = useSearchParams()
   const panelCtx = useDivinePanel()
   const voiceSession = useVoiceSession()
@@ -1838,7 +1840,7 @@ export default function DivineManagerPage() {
           <div
             className="inline-flex rounded-full border border-border/80 bg-muted/20 p-1"
             role="group"
-            aria-label="Manager mode"
+            aria-label={tDm('toolbar.modeAria')}
           >
             {(['off', 'suggest_only', 'semi_auto'] as const).map((m) => (
               <button
@@ -1851,13 +1853,13 @@ export default function DivineManagerPage() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {MODE_LABELS[m]}
+                {divineModeLabel(tDm, m)}
               </button>
             ))}
           </div>
           {mode !== 'off' && (
             <Button variant="ghost" size="sm" onClick={() => handleUpdateMode('off')}>
-              <Pause className="h-4 w-4 mr-1" /> Pause
+              <Pause className="h-4 w-4 mr-1" /> {tDm('toolbar.pause')}
             </Button>
           )}
           <Button
@@ -1868,7 +1870,7 @@ export default function DivineManagerPage() {
             className="text-muted-foreground"
           >
             {resetting && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-            Reset
+            {tDm('toolbar.reset')}
           </Button>
         </div>
 

@@ -19,25 +19,31 @@ import { runOnlyFansFullChatScan } from '@/lib/fans/onlyfans-chat-scan-client'
 import { postQuickFanPlatformSync } from '@/lib/fans/post-quick-fan-sync'
 import { runAllThreadInsightBatches } from '@/lib/fans/thread-insights-batch-client'
 import { ChevronDown, Loader2, RefreshCw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import type { FansFilter } from './fans-page-client'
 
-/** Primary line on the trigger — calm, scannable; menu holds nuance. */
-const TRIGGER_LABELS: Record<FansFilter, string> = {
-  database: 'All synced',
-  expiring: 'Renewals soon',
-  active: 'Active now',
-  expired: 'Recently ended',
-  latest: 'Newest first',
-  top: 'Top spenders',
+function filterTriggerLabel(t: (key: string) => string, filter: FansFilter): string {
+  switch (filter) {
+    case 'database':
+      return t('header.filterTrigger.database')
+    case 'expiring':
+      return t('header.filterTrigger.expiring')
+    case 'active':
+      return t('header.filterTrigger.active')
+    case 'expired':
+      return t('header.filterTrigger.expired')
+    case 'latest':
+      return t('header.filterTrigger.latest')
+    case 'top':
+      return t('header.filterTrigger.top')
+    default:
+      return t('header.filterTrigger.database')
+  }
 }
 
-function filterTriggerLabel(filter: FansFilter): string {
-  return TRIGGER_LABELS[filter]
-}
-
-function filterDataSourceLine(filter: FansFilter): string {
-  return filter === 'database' || filter === 'expiring' ? 'Stored in Circe' : 'Live from platforms'
+function filterDataSourceLine(t: (key: string) => string, filter: FansFilter): string {
+  return filter === 'database' || filter === 'expiring' ? t('header.dataSource.crm') : t('header.dataSource.live')
 }
 
 interface FansHeaderProps {
@@ -61,6 +67,7 @@ export function FansHeader({
   loadingLive = false,
   onSyncStatus,
 }: FansHeaderProps = {}) {
+  const t = useTranslations('fans')
   const router = useRouter()
   const [syncBusy, setSyncBusy] = useState(false)
 
@@ -68,17 +75,17 @@ export function FansHeader({
 
   async function handleQuickSync() {
     if (!hasFanPlatformsConnected) {
-      onSyncStatus?.('Connect OnlyFans or Fansly in Settings to sync.')
+      onSyncStatus?.(t('header.statusConnectPlatforms'))
       return
     }
     setSyncBusy(true)
-    onSyncStatus?.('Syncing subscribers and stats from connected platforms…')
+    onSyncStatus?.(t('header.statusSyncingSubscribers'))
     try {
       await postQuickFanPlatformSync()
-      onSyncStatus?.('Quick sync finished.')
+      onSyncStatus?.(t('header.statusQuickSyncDone'))
       router.refresh()
     } catch {
-      onSyncStatus?.('Quick sync failed — try again or reconnect the platform.')
+      onSyncStatus?.(t('header.statusQuickSyncFailed'))
     } finally {
       setSyncBusy(false)
     }
@@ -95,10 +102,10 @@ export function FansHeader({
       await postQuickFanPlatformSync()
       router.refresh()
       if (!hasOnlyFansConnected) {
-        onSyncStatus?.('Quick sync done. Connect OnlyFans to include all DM threads in CRM.')
+        onSyncStatus?.(t('header.statusOfDmHint'))
         return
       }
-      onSyncStatus?.('Step 2/2: walking every OnlyFans DM and saving subscription data to CRM…')
+      onSyncStatus?.(t('header.statusStep2'))
       const chat = await runOnlyFansFullChatScan((m) => onSyncStatus?.(m))
       if (chat.error) {
         onSyncStatus?.(chat.error)
@@ -108,7 +115,10 @@ export function FansHeader({
         return
       }
       onSyncStatus?.(
-        `Full CRM update done: ${chat.totalSynced} profiles from DMs${chat.totalFailed ? ` (${chat.totalFailed} errors)` : ''}.`,
+        t('header.fullCrmDone', {
+          totalSynced: chat.totalSynced,
+          errorPart: chat.totalFailed ? t('header.fullCrmErrors', { count: chat.totalFailed }) : '',
+        }),
       )
       router.refresh()
     } catch {
@@ -120,15 +130,15 @@ export function FansHeader({
 
   async function handleThreadInsightsAll() {
     if (filter !== 'database') {
-      onSyncStatus?.('Switch the fan list to “All synced” first, then run this again.')
+      onSyncStatus?.(t('header.statusSwitchAllSynced'))
       return
     }
     if (!hasOnlyFansConnected) {
-      onSyncStatus?.('Connect OnlyFans to refresh thread insights.')
+      onSyncStatus?.(t('header.statusConnectOfInsights'))
       return
     }
     setSyncBusy(true)
-    onSyncStatus?.('Refreshing stored thread insights for all CRM fans (may take a while)…')
+    onSyncStatus?.(t('header.statusThreadInsightsRunning'))
     try {
       const r = await runAllThreadInsightBatches((m) => onSyncStatus?.(m))
       if (r.error) {
@@ -137,7 +147,7 @@ export function FansHeader({
       }
       router.refresh()
     } catch {
-      onSyncStatus?.('Thread insights refresh failed.')
+      onSyncStatus?.(t('header.statusThreadInsightsFailed'))
     } finally {
       setSyncBusy(false)
     }
@@ -153,40 +163,35 @@ export function FansHeader({
                 variant="outline"
                 className="gap-1.5 rounded-full border-border/40 min-h-[44px] px-4 shadow-none hover:bg-muted/40 sm:min-h-[2.5rem]"
                 disabled={syncBusy}
-                title="Sync subscribers, all DM threads, or thread insights"
+                title={t('header.syncMenuAria')}
               >
                 {syncBusy ? (
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4 shrink-0" />
                 )}
-                <span className="hidden sm:inline">Sync</span>
+                <span className="hidden sm:inline">{t('header.syncMenuTitle')}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)]">
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                One menu — pick how deep to update the CRM
+                {t('header.syncMenuHelp')}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={!hasFanPlatformsConnected || syncBusy}
                 onClick={() => void handleQuickSync()}
               >
-                <span className="font-medium">Quick sync</span>
-                <span className="block text-xs text-muted-foreground">
-                  Subscribers list + analytics (OnlyFans & Fansly)
-                </span>
+                <span className="font-medium">{t('header.quickSyncTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.quickSyncDesc')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!hasFanPlatformsConnected || syncBusy}
                 onClick={() => void handleFullCrmUpdate()}
               >
-                <span className="font-medium">Full CRM update</span>
-                <span className="block text-xs text-muted-foreground">
-                  Quick sync, then walk every OnlyFans DM (subs, expiry, spend). Fansly has no full DM walk yet—use
-                  Quick sync for Fansly subscribers.
-                </span>
+                <span className="font-medium">{t('header.fullCrmTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.fullCrmDesc')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -195,10 +200,8 @@ export function FansHeader({
                 }
                 onClick={() => void handleThreadInsightsAll()}
               >
-                <span className="font-medium">Thread insights (full pass)</span>
-                <span className="block text-xs text-muted-foreground">
-                  Runs on CRM when the table shows &quot;All synced&quot; fans.
-                </span>
+                <span className="font-medium">{t('header.threadInsightsTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.threadInsightsDesc')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -211,8 +214,11 @@ export function FansHeader({
                   'border-border/40 bg-background/50 px-4 py-2.5 shadow-none',
                   'transition-[background-color,border-color,color] duration-200 hover:bg-muted/40 sm:min-h-[2.5rem] sm:min-w-[12.5rem] sm:py-2',
                 )}
-                title="Choose CRM data or a live slice from connected platforms"
-                aria-label={`Fan list: ${filterTriggerLabel(filter)}. ${filterDataSourceLine(filter)}.`}
+                title={t('header.filterMenuTitle')}
+                aria-label={t('header.filterMenuAria', {
+                  label: filterTriggerLabel(t, filter),
+                  source: filterDataSourceLine(t, filter),
+                })}
                 type="button"
                 disabled={syncBusy}
               >
@@ -221,13 +227,13 @@ export function FansHeader({
                     className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                     aria-hidden
                   >
-                    Fan list
+                    {t('header.fanListKicker')}
                   </span>
                   <span className="mt-0.5 truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-                    {filterTriggerLabel(filter)}
+                    {filterTriggerLabel(t, filter)}
                   </span>
                   <span className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
-                    {filterDataSourceLine(filter)}
+                    {filterDataSourceLine(t, filter)}
                   </span>
                 </span>
                 <ChevronDown
@@ -244,7 +250,7 @@ export function FansHeader({
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <DropdownMenuLabel className="px-3 pb-2 pt-1.5 text-[11px] font-medium leading-snug text-muted-foreground">
-                What appears in the table
+                {t('header.filterSectionTable')}
               </DropdownMenuLabel>
 
               <DropdownMenuRadioGroup
@@ -253,7 +259,7 @@ export function FansHeader({
               >
                 <DropdownMenuGroup className="space-y-0.5">
                   <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
-                    In Circe CRM
+                    {t('header.filterSectionCrm')}
                   </div>
                   <DropdownMenuRadioItem
                     value="database"
@@ -262,11 +268,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        All synced fans
+                        {t('header.allSyncedFansTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        Full searchable list · default
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.allSyncedFansDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
@@ -276,11 +280,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        Renewals soon
+                        {t('header.renewalsTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        Ending within 14 days · CRM dates
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.renewalsDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                 </DropdownMenuGroup>
@@ -290,23 +292,23 @@ export function FansHeader({
                 <DropdownMenuGroup className="space-y-0.5">
                   <div className="flex items-baseline justify-between gap-2 px-3 pb-1.5 pt-1">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
-                      Live snapshot
+                      {t('header.liveSnapshot')}
                     </span>
                     {loadingLive ? (
-                      <span className="text-[10px] font-normal text-muted-foreground">Updating…</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">{t('header.liveUpdating')}</span>
                     ) : null}
                   </div>
 
                   {!liveEnabled ? (
                     <p className="px-3 pb-2 text-[12px] leading-relaxed text-muted-foreground">
-                      Connect{' '}
+                      {t('header.liveConnectPromptBefore')}{' '}
                       <Link
                         href="/dashboard/settings?tab=integrations"
                         className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
                       >
-                        OnlyFans or Fansly
+                        {t('header.liveConnectLink')}
                       </Link>{' '}
-                      for smaller live slices from each platform&apos;s API.
+                      {t('header.liveConnectPromptAfter')}
                     </p>
                   ) : null}
 
@@ -317,11 +319,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        Active subscriptions
+                        {t('header.activeSubsTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        Currently billed as active (~50 per request)
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.activeSubsDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
@@ -331,11 +331,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        Recently expired
+                        {t('header.recentlyExpiredTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        Live list · may differ slightly from nightly CRM sync
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.recentlyExpiredDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
@@ -345,11 +343,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        Newest first
+                        {t('header.newestFirstTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        Ordering from each platform&apos;s API
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.newestFirstDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
@@ -359,11 +355,9 @@ export function FansHeader({
                   >
                     <span className="flex flex-col gap-1">
                       <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
-                        Highest spend
+                        {t('header.highestSpendTitle')}
                       </span>
-                      <span className="text-[12px] leading-snug text-muted-foreground">
-                        OnlyFans exposes spend · Fansly may mirror active cohort
-                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.highestSpendDesc')}</span>
                     </span>
                   </DropdownMenuRadioItem>
                 </DropdownMenuGroup>
@@ -371,9 +365,7 @@ export function FansHeader({
 
               <DropdownMenuSeparator className="my-2 bg-border/60" />
 
-              <p className="px-3 pb-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                CRM lists scale for search and bulk work. Live uses quick API batches for freshness.
-              </p>
+              <p className="px-3 pb-1.5 text-[11px] leading-relaxed text-muted-foreground">{t('header.footerHint')}</p>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

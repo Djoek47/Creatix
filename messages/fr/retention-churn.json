@@ -1,0 +1,109 @@
+{
+  "errors": {
+    "loadSettings": "Impossible de charger les réglages",
+    "saveFailed": "Échec de l’enregistrement",
+    "scanFailed": "Échec du scan",
+    "needCreditsBeforeAuto": "Ajoutez au moins {cost, plural, one {# crédit IA} other {# crédits IA}} avant d’activer les scans automatiques (vous en avez {remaining}). Ouvrez Facturation pour recharger."
+  },
+  "loading": "Chargement",
+  "creditContextSettings": "Réglages de rétention churn",
+  "creditContextScan": "Scan churn",
+  "header": {
+    "kicker": "Rétention · Crédits quand une exécution trouve des correspondances",
+    "title": "Prédicteur de churn",
+    "subtitle": "Repère les fans qui peuvent se refroidir avant de partir — un rapport posé avec contexte, idées et brouillons de messages."
+  },
+  "scanNow": {
+    "button": "Scanner maintenant",
+    "titleInsufficient": "Il faut au moins {cost, plural, one {# crédit IA} other {# crédits IA}} (vous en avez {remaining}). Ajoutez des crédits dans Facturation.",
+    "titleSufficient": "Utilise jusqu’à {cost, plural, one {# crédit IA} other {# crédits IA}} lorsqu’au moins un fan correspond à vos règles (identique à « Crédits par exécution »). Rien n’est débité si personne ne qualifie.",
+    "balanceLoading": "Chargement du solde…",
+    "balanceLeft": "{remaining} restants · OnlyFans + Fansly · {cost} si quelqu’un correspond ·",
+    "addCredits": "Ajouter des crédits",
+    "noneIfEmpty": "aucun si vide"
+  },
+  "oneFan": "Un fan",
+  "calendarCard": {
+    "title": "Prochains contenus pour les scans",
+    "body": "Modifiez votre calendrier éditorial sur sa page dédiée pour que les scans churn reflètent ce que vous prévoyez vraiment de publier.",
+    "linkTease": "Rétention utilisateur par teasing"
+  },
+  "autoScans": {
+    "title": "Scans automatiques",
+    "description": "Compare vos règles churn aux fans OnlyFans et Fansly du CRM. Facture jusqu’à {credits} {creditsLabel} seulement lorsque le lot trouve des profils — même plafond que Scanner maintenant. Les exécutions planifiées respectent {fansPerRun} ci-dessous ; Scanner maintenant peut couvrir des listes plus larges.",
+    "credit": "crédit",
+    "credits": "crédits",
+    "fansPerRunHighlight": "Fans par exécution",
+    "lowCreditsLead": "{remaining} crédits disponibles — il en faut {cost} par exécution. ",
+    "lowCreditsBilling": "Facturation",
+    "lowCreditsTail": " · ou baissez « Crédits par correspondance » dans Configuration.",
+    "balanceLine": "Solde {remaining}",
+    "switchAria": "Scans automatiques churn activés",
+    "recurrenceKicker": "Récurrence",
+    "recurrenceHint": "Désactivé : scan manuel uniquement.",
+    "frequency": "Fréquence",
+    "cadenceOff": "Désactivé — manuel seulement",
+    "cadenceDaily": "Quotidien",
+    "cadenceWeekly": "Hebdomadaire",
+    "hourUtc": "Heure (UTC)",
+    "hourOption": "{hour}:00 UTC",
+    "weeklyFootnote": "Hebdomadaire attend au moins sept jours depuis la précédente exécution avant la fenêtre suivante. Enregistrez avec Enregistrer dans Configuration."
+  },
+  "config": {
+    "kicker": "Configuration",
+    "title": "Planning et règles",
+    "description": "Qualification, notifications et suivis. La cadence est définie dans Scans automatiques ci-dessus ; Scanner maintenant l’ignore.",
+    "whoHeading": "Qui est éligible",
+    "whoSub": "Fans OnlyFans et Fansly dans votre CRM. Des fenêtres plus étroites donnent moins de noms, plus ciblés.",
+    "renewalWindow": "Fenêtre de renouvellement",
+    "renewalHint": "Jours avant fin d’abonnement à inclure.",
+    "quietSubscriber": "Abonné silencieux",
+    "quietHint": "Jours depuis le dernier message pour considérer le silence.",
+    "includeQuietLabel": "Inclure les fans silencieux, pas seulement les renouvellements",
+    "includeQuietHelp": "Si désactivé, seuls les abonnés proches de l’échéance sont pris en compte.",
+    "batchHeading": "Lot et crédits",
+    "batchSub": "Les crédits par match s’appliquent à tous les chemins. Les exécutions planifiées utilisent {fansPerRun} ; Scanner maintenant analyse tout le CRM synchronisé (OnlyFans + Fansly ensemble, jusqu’à 25 profils).",
+    "fansPerRun": "Fans par exécution",
+    "fansPerRunHint": "Scans auto : max par rapport (1–25). Scanner maintenant considère les deux plateformes ensemble, jusqu’à 25 profils.",
+    "creditsPerMatch": "Crédits par correspondance",
+    "creditsPerMatchHint": "Au plus après une exécution réussie (1–10)."
+  },
+  "notifications": {
+    "heading": "Notifications",
+    "sub": "Après chaque exécution automatique, ce qui doit arriver dans votre boîte.",
+    "runReadyTitle": "Exécution prête",
+    "runReadyDesc": "Un nouveau rapport est disponible.",
+    "runReadyAria": "Notifier quand une exécution se termine avec des correspondances",
+    "emptyTitle": "Exécution vide",
+    "emptyDesc": "Personne ne correspond cette fois.",
+    "emptyAria": "Notifier sur exécution vide"
+  },
+  "followUps": {
+    "heading": "Suivis",
+    "sub": "Tâches optionnelles dans Manager et sur votre liste protocole.",
+    "managerTitle": "Manager",
+    "managerDesc": "Tâche suggérée que vous pouvez accepter ou ignorer.",
+    "managerAria": "Créer une suggestion Divine Manager",
+    "protocolTitle": "Protocole",
+    "protocolDesc": "Élément de checklist avec vos autres automatisations.",
+    "protocolAria": "Créer une tâche protocole",
+    "openManager": "Ouvrir Divine Manager"
+  },
+  "save": {
+    "button": "Enregistrer",
+    "savedAt": "Enregistré {time}",
+    "unsavedHint": "Les modifications non enregistrées seront perdues si vous quittez."
+  },
+  "history": {
+    "kicker": "Historique",
+    "title": "Dernière exécution",
+    "completedAt": "Terminée {datetime}",
+    "noAutoRunYet": "Pas encore d’exécution automatique.",
+    "errorPrefix": "Erreur :",
+    "digestTimestamp": "{datetime}",
+    "latestOutput": "Dernière sortie",
+    "emptyDigestLead": "Pas encore de résultats. Après une exécution planifiée ou manuelle, ils apparaîtront ici. Gardez ",
+    "emptyDigestFans": "Fans",
+    "emptyDigestTail": " synchronisé pour que renouvellements et dépenses restent exacts."
+  }
+}

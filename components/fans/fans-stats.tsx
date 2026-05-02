@@ -1,6 +1,9 @@
 'use client'
 
+import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 import { Users, Crown, DollarSign, Activity } from 'lucide-react'
 
 // Manual number formatting to avoid hydration mismatch (no Intl/locale dependency)
@@ -16,12 +19,21 @@ function formatNumber(amount: number): string {
 type PlatformScope = 'all' | 'onlyfans' | 'fansly'
 
 /** First number = synced fan/subscriber count; second = free / non-sub follows when the API provides it. */
-function platformSublabel(name: 'OnlyFans' | 'Fansly', fans: number, follows: number): string {
+function platformSublabel(
+  t: (key: string, values?: Record<string, string | number>) => string,
+  name: string,
+  fans: number,
+  follows: number,
+): string {
   if (fans <= 0 && follows <= 0) return ''
   if (follows > 0) {
-    return `${name} ${formatNumber(fans)} · ${formatNumber(follows)} follows`
+    return t('stats.platformWithFollows', {
+      name,
+      fans: formatNumber(fans),
+      follows: formatNumber(follows),
+    })
   }
-  return `${name} ${formatNumber(fans)}`
+  return t('stats.platformFansOnly', { name, fans: formatNumber(fans) })
 }
 
 interface FansStatsProps {
@@ -44,6 +56,8 @@ export function FansStats({
   snapshotFansByPlatform = {},
   snapshotFollowsByPlatform = {},
 }: FansStatsProps) {
+  const t = useTranslations('fans')
+  const { formatApiUsd } = useAnalyticsMoney()
   const ofSnap = snapshotFansByPlatform.onlyfans ?? 0
   const flSnap = snapshotFansByPlatform.fansly ?? 0
   const ofFollows = snapshotFollowsByPlatform.onlyfans ?? 0
@@ -51,14 +65,17 @@ export function FansStats({
   const showBreakdown =
     platformScope === 'all' && (ofSnap > 0 || flSnap > 0 || ofFollows > 0 || flFollows > 0)
   const totalFansSublabel = showBreakdown
-    ? [platformSublabel('OnlyFans', ofSnap, ofFollows), platformSublabel('Fansly', flSnap, flFollows)]
+    ? [
+        platformSublabel(t, t('platform.onlyfansAlt'), ofSnap, ofFollows),
+        platformSublabel(t, t('platform.fanslyAlt'), flSnap, flFollows),
+      ]
         .filter((s) => s.length > 0)
         .join(' · ')
     : undefined
 
   const totalFansFootnote =
     stats.rowsInView != null && stats.rowsInView !== stats.totalFans
-      ? `${formatNumber(stats.rowsInView)} in this view`
+      ? t('stats.inViewFootnote', { count: formatNumber(stats.rowsInView) })
       : undefined
 
   const cards: Array<{
@@ -69,44 +86,56 @@ export function FansStats({
     icon: typeof Users
     color: string
     bgColor: string
-  }> = [
-    {
-      title: 'Total fans',
-      value: formatNumber(stats.totalFans),
-      sublabel: totalFansSublabel,
-      footnote: totalFansFootnote,
-      icon: Users,
-      color: 'text-chart-1',
-      bgColor: 'bg-chart-1/10',
-    },
-    {
-      title: 'Whale Tier',
-      value: formatNumber(stats.whales),
-      sublabel: undefined,
-      footnote: undefined,
-      icon: Crown,
-      color: 'text-chart-4',
-      bgColor: 'bg-chart-4/10',
-    },
-    {
-      title: 'Total Revenue',
-      value: `$${formatNumber(stats.totalRevenue)}`,
-      sublabel: undefined,
-      footnote: undefined,
-      icon: DollarSign,
-      color: 'text-chart-2',
-      bgColor: 'bg-chart-2/10',
-    },
-    {
-      title: 'Active Fans',
-      value: formatNumber(stats.activeFans),
-      sublabel: undefined,
-      footnote: undefined,
-      icon: Activity,
-      color: 'text-chart-5',
-      bgColor: 'bg-chart-5/10',
-    },
-  ]
+  }> = useMemo(
+    () => [
+      {
+        title: t('stats.totalFans'),
+        value: formatNumber(stats.totalFans),
+        sublabel: totalFansSublabel,
+        footnote: totalFansFootnote,
+        icon: Users,
+        color: 'text-chart-1',
+        bgColor: 'bg-chart-1/10',
+      },
+      {
+        title: t('stats.whaleTier'),
+        value: formatNumber(stats.whales),
+        sublabel: undefined,
+        footnote: undefined,
+        icon: Crown,
+        color: 'text-chart-4',
+        bgColor: 'bg-chart-4/10',
+      },
+      {
+        title: t('stats.totalRevenue'),
+        value: formatApiUsd(stats.totalRevenue, 0),
+        sublabel: undefined,
+        footnote: undefined,
+        icon: DollarSign,
+        color: 'text-chart-2',
+        bgColor: 'bg-chart-2/10',
+      },
+      {
+        title: t('stats.activeFans'),
+        value: formatNumber(stats.activeFans),
+        sublabel: undefined,
+        footnote: undefined,
+        icon: Activity,
+        color: 'text-chart-5',
+        bgColor: 'bg-chart-5/10',
+      },
+    ],
+    [
+      formatApiUsd,
+      stats.activeFans,
+      stats.totalFans,
+      stats.totalRevenue,
+      stats.whales,
+      totalFansFootnote,
+      totalFansSublabel,
+      t,
+    ],
+  )
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

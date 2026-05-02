@@ -24,6 +24,7 @@
     "noToolsTitle": "Nenhuma ferramenta corresponde",
     "noToolsBody": "Tente outra pesquisa ou categoria.",
     "backToStudio": "Voltar ao AI Studio",
+    "backToTools": "Voltar às ferramentas",
     "back": "Voltar",
     "billingTitle": "Cobrança — recarregar ou ver uso",
     "availableCredits": "{count, number} disponíveis"
@@ -538,6 +539,126 @@
       "description": "Rota legada",
       "longDescription": "This tool route is no longer available from AI Studio."
     }
+  },
+  "labels": {
+    "error": "Erro"
+  },
+  "chatterPage": {
+    "errors": {
+      "signInRequired": "Inicie sessão para continuar.",
+      "loadAutomationsFailed": "Não foi possível carregar as automações",
+      "loadFailed": "Falha ao carregar",
+      "pickFanFirst": "Escolha um fã primeiro.",
+      "createFailed": "Falha ao criar",
+      "saveFailed": "Falha ao guardar",
+      "activateFailed": "Falha ao ativar",
+      "deleteFailed": "Falha ao eliminar"
+    },
+    "confirmRemoveAutomation": "Remover esta automação?",
+    "platformTagline": "OnlyFans · Mimic, contexto do tópico, fila por defeito",
+    "betaDisclaimer": {
+      "title": "Beta",
+      "body": "Tom incorreto, regras da plataforma, excesso de mensagens e erros em PPV são possíveis. Continua responsável por cada mensagem. Consentimento Mimic e fila/revisão recomendados. Envio automático exige confirmação abaixo."
+    },
+    "tabs": {
+      "chatter": "AI Chatter",
+      "whisper": "Sussurro a baleias"
+    },
+    "tabHelp": {
+      "chatter": "Automações padrão. Envio automático opcional com confirmação beta.",
+      "whisper": "Lista VIP: só rascunhos — nada é enviado automaticamente. Reves cada mensagem em Mensagens."
+    },
+    "automations": {
+      "title": "Automações",
+      "descWhisper": "Automações de sussurro a baleias (só caixa de saída).",
+      "descStandard": "Automações de chatter padrão.",
+      "newLabel": "Nova automação (fã OnlyFans)",
+      "loadingFans": "A carregar fãs…",
+      "chooseFan": "Escolher fã",
+      "add": "Adicionar",
+      "fansHintBefore": "Os fãs vêm do teu CRM (conversas sincronizadas). Abre",
+      "fansHintLink": "Mensagens",
+      "fansHintAfter": "para atualizar as linhas de fãs.",
+      "emptyList": "Ainda não há automações neste separador.",
+      "badgeVip": "VIP"
+    },
+    "settings": {
+      "title": "Definições",
+      "pickAutomation": "Escolhe uma automação.",
+      "editingFan": "A editar @{username}",
+      "emptySelect": "Cria ou seleciona uma automação para editar.",
+      "whaleAlertTitle": "Sussurro a baleias",
+      "whaleAlertBody": "O envio automático está desativado para este perfil. Cada resposta fica na caixa de saída até enviares a partir de Mensagens.",
+      "engagementProfile": "Perfil de envolvimento",
+      "profileStandard": "Chatter padrão",
+      "profileWhisper": "Sussurro a baleias (só rascunhos)",
+      "status": "Estado",
+      "statusDraft": "Configuração em rascunho",
+      "statusActive": "Ativo",
+      "statusPaused": "Em pausa",
+      "giftWishlist": "Incluir lista de desejos guardada no contexto da IA",
+      "giftWishlistManage": "(gerir ligações)",
+      "sendModeLabel": "Modo de envio",
+      "sendModeWhisperSuffix": "(não usado em sussurro a baleias)",
+      "modeQueueTitle": "Fila para revisão (predefinido)",
+      "modeQueueDesc": "O rascunho vai para a caixa de saída; notificamos-te e abrimos Mensagens com o texto pronto a enviar.",
+      "modeOptInTitle": "Envio automático opt-in",
+      "modeOptInDesc": "Envia respostas só texto quando o Mimic permite (ou com bypass ativo). Requer confirmação beta.",
+      "modeExperimentalTitle": "Automático experimental (não recomendado)",
+      "modeExperimentalDesc": "Requer confirmação beta e «ignorar porta de revisão do Mimic». Maior risco de falhas.",
+      "ackAutoRisk": "Compreendo os riscos do envio automático e as regras da plataforma; continuo responsável pelo conteúdo enviado.",
+      "bypassMimic": "Ignorar «nunca enviar sem revisão» do Mimic (obrigatório para automático experimental; opcional para opt-in quando o Mimic bloqueia).",
+      "notifyRisk": "Notificar sinais de risco ou escalação",
+      "whaleTone": "Tom de cuidado com baleias nos prompts",
+      "maxReplies": "Máx. respostas / dia UTC",
+      "minMinutes": "Mín. minutos entre envios",
+      "escalationKeywords": "Palavras-chave de escalação (uma por linha ou separadas por vírgulas)",
+      "escalationPlaceholder": "reembolso\nestorno\nadvogado",
+      "save": "Guardar",
+      "refreshThread": "Atualizar instantâneo do tópico",
+      "primeActive": "Preparar e definir ativo",
+      "deleteAria": "Eliminar automação",
+      "openThreadLead": "Abrir tópico:",
+      "openThreadLink": "Mensagens",
+      "statusApi": {
+        "draft_setup": "Configuração em rascunho",
+        "active": "Ativo",
+        "paused": "Em pausa"
+      }
+    },
+    "activity": {
+      "title": "Atividade recente",
+      "descSelected": "Eventos desta automação (mais recentes primeiro).",
+      "descAll": "Todos os eventos recentes.",
+      "empty": "Ainda não há eventos."
+    },
+    "loading": "A carregar…"
+  },
+  "giftWishlistPage": {
+    "errors": {
+      "loadFailed": "Falha ao carregar",
+      "addFailed": "Falha ao adicionar",
+      "genericLoad": "Falha ao carregar"
+    },
+    "title": "Lista de presentes",
+    "intro": "Adiciona quantos links HTTPS de produtos quiseres. Extraímos título, preço e descrição quando a loja permite — edita à mão quando não. A tua lista dá contexto real ao Chatter, Divine Manager e ao sugestor de presentes quando um fã quer enviar um presente ou fazes uma escolha guiada.",
+    "retailTitle": "As lojas variam",
+    "retailBody": "Muitas bloqueiam bots. Se a obtenção falhar, toca em Voltar a obter ou define título e preço manualmente, depois Guardar.",
+    "addCardTitle": "Adicionar ligação",
+    "addCardDesc": "Página HTTPS de produto ou presente.",
+    "urlPlaceholder": "https://…",
+    "addFetch": "Adicionar e obter",
+    "savedTitle": "Itens guardados",
+    "emptyItems": "Ainda não há itens.",
+    "refetchTitle": "Voltar a obter",
+    "removeTitle": "Remover",
+    "fieldTitle": "Título",
+    "fieldPrice": "Preço",
+    "fieldCurrency": "Moeda",
+    "saveTitlePrice": "Guardar título e preço"
+  },
+  "ariadnePage": {
+    "loading": "A carregar Ariadne…"
   },
   "mediaVault": {
     "connectTitleOnlyfans": "Conectar OnlyFans",

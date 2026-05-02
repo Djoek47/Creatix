@@ -24,6 +24,7 @@
     "noToolsTitle": "Aucun outil ne correspond",
     "noToolsBody": "Essayez une autre recherche ou catégorie.",
     "backToStudio": "Retour à AI Studio",
+    "backToTools": "Retour aux outils",
     "back": "Retour",
     "billingTitle": "Facturation — recharger ou voir l’usage",
     "availableCredits": "{count, number} disponibles"
@@ -538,6 +539,126 @@
       "description": "Ancienne route",
       "longDescription": "This tool route is no longer available from AI Studio."
     }
+  },
+  "labels": {
+    "error": "Erreur"
+  },
+  "chatterPage": {
+    "errors": {
+      "signInRequired": "Connexion requise.",
+      "loadAutomationsFailed": "Impossible de charger les automatisations",
+      "loadFailed": "Échec du chargement",
+      "pickFanFirst": "Choisissez d’abord un fan.",
+      "createFailed": "Échec de la création",
+      "saveFailed": "Échec de l’enregistrement",
+      "activateFailed": "Échec de l’activation",
+      "deleteFailed": "Échec de la suppression"
+    },
+    "confirmRemoveAutomation": "Supprimer cette automatisation ?",
+    "platformTagline": "OnlyFans · Mimic, contexte de fil, file d’attente par défaut",
+    "betaDisclaimer": {
+      "title": "Bêta",
+      "body": "Ton inadapté, règles de plateforme, sur-messagerie et erreurs PPV sont possibles. Vous restez responsable de chaque message. Consentement Mimic et file/revue recommandés. L’envoi auto exige l’accusé de réception ci-dessous."
+    },
+    "tabs": {
+      "chatter": "AI Chatter",
+      "whisper": "Whale whisper"
+    },
+    "tabHelp": {
+      "chatter": "Automatisations standard. Envoi auto facultatif avec accusé bêta.",
+      "whisper": "Liste VIP : brouillons uniquement — rien n’est jamais envoyé automatiquement. Vous validez chaque message dans Messages."
+    },
+    "automations": {
+      "title": "Automatisations",
+      "descWhisper": "Automatisations whale whisper (sortie uniquement).",
+      "descStandard": "Automatisations chatter standard.",
+      "newLabel": "Nouvelle automatisation (fan OnlyFans)",
+      "loadingFans": "Chargement des fans…",
+      "chooseFan": "Choisir un fan",
+      "add": "Ajouter",
+      "fansHintBefore": "Les fans viennent du CRM (conversations synchronisées). Ouvrez",
+      "fansHintLink": "Messages",
+      "fansHintAfter": "pour rafraîchir les lignes fans.",
+      "emptyList": "Aucune automatisation dans cet onglet pour l’instant.",
+      "badgeVip": "VIP"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "pickAutomation": "Choisissez une automatisation.",
+      "editingFan": "Édition @{username}",
+      "emptySelect": "Créez ou sélectionnez une automatisation à modifier.",
+      "whaleAlertTitle": "Whale whisper",
+      "whaleAlertBody": "L’envoi auto est désactivé pour ce profil. Chaque réponse reste dans votre boîte d’envoi jusqu’à envoi depuis Messages.",
+      "engagementProfile": "Profil d’engagement",
+      "profileStandard": "Chatter standard",
+      "profileWhisper": "Whale whisper (brouillons uniquement)",
+      "status": "Statut",
+      "statusDraft": "Configuration brouillon",
+      "statusActive": "Actif",
+      "statusPaused": "En pause",
+      "giftWishlist": "Inclure la liste de souhaits enregistrée dans le contexte IA",
+      "giftWishlistManage": "(gérer les liens)",
+      "sendModeLabel": "Mode d’envoi",
+      "sendModeWhisperSuffix": "(non utilisé pour whale whisper)",
+      "modeQueueTitle": "File pour relecture (défaut)",
+      "modeQueueDesc": "Le brouillon arrive dans votre boîte d’envoi ; nous vous notifions et ouvrons Messages avec le texte prêt à envoyer.",
+      "modeOptInTitle": "Envoi auto opt-in",
+      "modeOptInDesc": "Envoie des réponses texte uniquement lorsque Mimic l’autorise (ou si le contournement est activé). Accusé bêta requis.",
+      "modeExperimentalTitle": "Auto expérimental (non recommandé)",
+      "modeExperimentalDesc": "Exige l’accusé bêta et le contournement de la barrière de relecture Mimic. Risque d’erreurs plus élevé.",
+      "ackAutoRisk": "Je comprends les risques d’envoi auto et les règles de la plateforme ; je reste responsable du contenu sortant.",
+      "bypassMimic": "Contourner « ne jamais envoyer sans relecture » de Mimic (requis pour l’auto expérimental ; facultatif pour l’opt-in lorsque Mimic bloque).",
+      "notifyRisk": "Notifier en cas de signaux de risque ou d’escalade",
+      "whaleTone": "Ton « nurture » baleines dans les prompts",
+      "maxReplies": "Réponses max / jour UTC",
+      "minMinutes": "Minutes min entre envois",
+      "escalationKeywords": "Mots-clés d’escalade (un par ligne ou séparés par des virgules)",
+      "escalationPlaceholder": "remboursement\nrétrofacturation\navocat",
+      "save": "Enregistrer",
+      "refreshThread": "Rafraîchir l’instantané du fil",
+      "primeActive": "Amorcer et activer",
+      "deleteAria": "Supprimer l’automatisation",
+      "openThreadLead": "Ouvrir le fil :",
+      "openThreadLink": "Messages",
+      "statusApi": {
+        "draft_setup": "Configuration brouillon",
+        "active": "Actif",
+        "paused": "En pause"
+      }
+    },
+    "activity": {
+      "title": "Activité récente",
+      "descSelected": "Événements pour cette automatisation (plus récents en premier).",
+      "descAll": "Tous les événements récents.",
+      "empty": "Aucun événement pour l’instant."
+    },
+    "loading": "Chargement…"
+  },
+  "giftWishlistPage": {
+    "errors": {
+      "loadFailed": "Échec du chargement",
+      "addFailed": "Échec de l’ajout",
+      "genericLoad": "Échec du chargement"
+    },
+    "title": "Liste de cadeaux",
+    "intro": "Ajoutez autant de liens produits HTTPS que vous voulez. Nous extrayons titre, prix et description quand la boutique le permet — sinon éditez à la main. Votre liste nourrit Chatter, Divine Manager et le suggesteur de cadeaux quand un fan veut offrir ou pour un choix guidé.",
+    "retailTitle": "Les sites varient",
+    "retailBody": "Beaucoup bloquent les robots. Si la récupération échoue, touchez Rafraîchir ou saisissez titre et prix, puis Enregistrer.",
+    "addCardTitle": "Ajouter un lien",
+    "addCardDesc": "Page produit ou cadeau HTTPS.",
+    "urlPlaceholder": "https://…",
+    "addFetch": "Ajouter et récupérer",
+    "savedTitle": "Éléments enregistrés",
+    "emptyItems": "Aucun élément pour l’instant.",
+    "refetchTitle": "Récupérer à nouveau",
+    "removeTitle": "Retirer",
+    "fieldTitle": "Titre",
+    "fieldPrice": "Prix",
+    "fieldCurrency": "Devise",
+    "saveTitlePrice": "Enregistrer titre et prix"
+  },
+  "ariadnePage": {
+    "loading": "Chargement d’Ariadne…"
   },
   "mediaVault": {
     "connectTitleOnlyfans": "Connecter OnlyFans",

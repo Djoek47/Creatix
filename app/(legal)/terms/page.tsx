@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
@@ -23,6 +24,7 @@ function Caps({ children, className }: { children: React.ReactNode; className?: 
 
 export default function TermsOfServicePage() {
   const router = useRouter()
+  const t = useTranslations('legal')
 
   const handleBack = () => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -42,19 +44,15 @@ export default function TermsOfServicePage() {
           </Link>
           <Button variant="ghost" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t('back')}
           </Button>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-        <p className="text-sm font-medium text-muted-foreground">circeetvenus.com</p>
-        <h1 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">
-          Terms of Service &amp; User Agreement
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-          Effective date: April 1, 2026
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">{t('siteDomain')}</p>
+        <h1 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">{t('terms.title')}</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">{t('terms.effective')}</p>
 
         <article className="prose prose-invert mt-10 max-w-full space-y-10 text-muted-foreground prose-headings:font-semibold prose-headings:text-foreground prose-p:leading-relaxed prose-li:marker:text-primary">
           <section>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -34,6 +35,7 @@ const blockSub = 'mt-1.5 max-w-prose text-[13px] leading-relaxed text-muted-fore
 const labelClass = 'text-[13px] font-medium text-foreground/90'
 
 export default function ChurnPredictorHubPage() {
+  const t = useTranslations('retention-churn')
   const { wallet, loading: creditsLoading, refresh: refreshCredits } = useCreditSnapshot()
   const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const [loading, setLoading] = useState(true)
@@ -68,7 +70,7 @@ export default function ChurnPredictorHubPage() {
       const res = await fetch('/api/circe-churn/settings')
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Could not load settings')
+        setError(typeof data.error === 'string' ? data.error : t('errors.loadSettings'))
         return
       }
       const s = data.settings as CirceChurnSettingsRow & {
@@ -92,11 +94,11 @@ export default function ChurnPredictorHubPage() {
       setDigest(s.last_digest_markdown ?? null)
       setDigestAt(s.last_digest_at ?? null)
     } catch {
-      setError('Could not load settings')
+      setError(t('errors.loadSettings'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void load()
@@ -133,13 +135,13 @@ export default function ChurnPredictorHubPage() {
           requiredCredits: perRun,
           used: typeof payload.used === 'number' ? payload.used : undefined,
           limit: typeof payload.limit === 'number' ? payload.limit : undefined,
-          contextLabel: 'Churn retention settings',
+          contextLabel: t('creditContextSettings'),
         })
         await refreshCredits()
         return
       }
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Save failed')
+        setError(typeof data.error === 'string' ? data.error : t('errors.saveFailed'))
         return
       }
       const s = data.settings as CirceChurnSettingsRow & { last_digest_markdown?: string | null }
@@ -148,7 +150,7 @@ export default function ChurnPredictorHubPage() {
       setDigest(s.last_digest_markdown ?? null)
       setSavedAt(new Date().toLocaleTimeString())
     } catch {
-      setError('Save failed')
+      setError(t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -167,19 +169,19 @@ export default function ChurnPredictorHubPage() {
           requiredCredits: cost,
           used: typeof payload.used === 'number' ? payload.used : undefined,
           limit: typeof payload.limit === 'number' ? payload.limit : undefined,
-          contextLabel: 'Churn scan',
+          contextLabel: t('creditContextScan'),
         })
         await refreshCredits()
         return
       }
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Scan failed')
+        setError(typeof data.error === 'string' ? data.error : t('errors.scanFailed'))
         return
       }
       await load()
       await refreshCredits()
     } catch {
-      setError('Scan failed')
+      setError(t('errors.scanFailed'))
     } finally {
       setScanning(false)
     }
@@ -195,7 +197,7 @@ export default function ChurnPredictorHubPage() {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
         <Loader2 className="h-7 w-7 animate-spin opacity-80" aria-hidden />
-        <p className="text-[13px] tracking-wide text-muted-foreground/90">Loading</p>
+        <p className="text-[13px] tracking-wide text-muted-foreground/90">{t('loading')}</p>
       </div>
     )
   }
@@ -205,13 +207,13 @@ export default function ChurnPredictorHubPage() {
       <header className="space-y-8">
         <div className="flex flex-col gap-10 sm:flex-row sm:items-end sm:justify-between sm:gap-14">
           <div className="max-w-md space-y-6">
-            <p className={sectionKicker}>Retention · Credits when a run finds matches</p>
+            <p className={sectionKicker}>{t('header.kicker')}</p>
             <div className="space-y-4">
               <h1 className="text-balance font-sans text-[32px] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-[36px]">
-                Churn Predictor
+                {t('header.title')}
               </h1>
               <p className="text-pretty text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-                Surfaces fans who may drift before they leave—one calm report with context, ideas, and draft messages.
+                {t('header.subtitle')}
               </p>
             </div>
           </div>
@@ -226,8 +228,8 @@ export default function ChurnPredictorHubPage() {
                   onClick={() => void runScanNow()}
                   title={
                     !canAffordScan && !creditsLoading
-                      ? `Need at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} (you have ${creditsRemaining}). Add credits under Billing.`
-                      : `Uses up to ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} when at least one fan matches your churn rules (same as “Credits per run”). Nothing debited if no one qualifies.`
+                      ? t('scanNow.titleInsufficient', { cost: scanCreditCost, remaining: creditsRemaining })
+                      : t('scanNow.titleSufficient', { cost: scanCreditCost })
                   }
                 >
                   {scanning ? (
@@ -235,28 +237,25 @@ export default function ChurnPredictorHubPage() {
                   ) : (
                     <ScanLine className="mr-2 h-4 w-4 opacity-90" strokeWidth={2} />
                   )}
-                  Scan now
+                  {t('scanNow.button')}
                 </Button>
                 <p className="flex max-w-[16rem] items-start gap-2 text-[12px] leading-snug text-muted-foreground sm:text-right">
                   <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
                   <span>
                     {creditsLoading ? (
-                      'Loading balance…'
+                      t('scanNow.balanceLoading')
                     ) : (
                       <>
-                        <span className="tabular-nums font-medium text-foreground/80">{creditsRemaining}</span> left ·
-                        OnlyFans + Fansly ·{' '}
-                        <span className="tabular-nums font-medium text-foreground/80">{scanCreditCost}</span> if anyone
-                        matches ·{' '}
+                        {t('scanNow.balanceLeft', { remaining: creditsRemaining, cost: scanCreditCost })}{' '}
                         {!canAffordScan ? (
                           <Link
                             href="/dashboard/settings?tab=billing"
                             className="font-medium text-primary underline-offset-2 hover:underline"
                           >
-                            Add credits
+                            {t('scanNow.addCredits')}
                           </Link>
                         ) : (
-                          <span className="text-muted-foreground/85">none if empty</span>
+                          <span className="text-muted-foreground/85">{t('scanNow.noneIfEmpty')}</span>
                         )}
                       </>
                     )}
@@ -271,7 +270,7 @@ export default function ChurnPredictorHubPage() {
               >
                 <Link href="/dashboard/ai-studio/tools/churn-predictor">
                   <BarChart3 className="mr-2 h-4 w-4 opacity-70" strokeWidth={2} />
-                  One fan
+                  {t('oneFan')}
                 </Link>
               </Button>
             </div>
@@ -309,14 +308,12 @@ export default function ChurnPredictorHubPage() {
               <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
             </div>
             <div className="min-w-0 space-y-1">
-              <p className="text-[14px] font-semibold text-foreground">Upcoming drops for scans</p>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Edit your content calendar on its own page so churn scans can reference what you actually plan to post.
-              </p>
+              <p className="text-[14px] font-semibold text-foreground">{t('calendarCard.title')}</p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{t('calendarCard.body')}</p>
             </div>
           </div>
           <Button asChild variant="outline" className="h-10 shrink-0 rounded-xl px-4">
-            <Link href="/dashboard/retention/tease">User retention by tease</Link>
+            <Link href="/dashboard/retention/tease">{t('calendarCard.linkTease')}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -330,30 +327,28 @@ export default function ChurnPredictorHubPage() {
             <div className="min-w-0 flex-1 space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <CardTitle className="font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                  Automatic scans
+                  {t('autoScans.title')}
                 </CardTitle>
                 <Switch
                   checked={enabled}
                   disabled={creditsLoading}
                   onCheckedChange={(v) => {
                     if (v && !canAffordScan) {
-                      setError(
-                        `Add at least ${scanCreditCost} AI credit${scanCreditCost === 1 ? '' : 's'} before enabling automatic scans (you have ${creditsRemaining}). Open Billing to top up.`,
-                      )
+                      setError(t('errors.needCreditsBeforeAuto', { cost: scanCreditCost, remaining: creditsRemaining }))
                       return
                     }
                     setEnabled(v)
                   }}
-                  aria-label="Automatic churn scans enabled"
+                  aria-label={t('autoScans.switchAria')}
                   className="mt-0.5 shrink-0 data-[state=checked]:shadow-sm"
                 />
               </div>
               <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-[14px]">
-                Matches your churn rules against OnlyFans &amp; Fansly CRM fans. Charges{' '}
-                <span className="font-medium tabular-nums text-foreground/90">up to {creditsPerRun}</span>{' '}
-                credit{creditsPerRun === 1 ? '' : 's'} only when the batch finds qualifiers—same cap as Scan now.
-                Scheduled runs respect <span className="text-foreground/85">Fans per run</span> below; Scan now can review
-                broader lists.
+                {t('autoScans.description', {
+                  credits: creditsPerRun,
+                  creditsLabel: creditsPerRun === 1 ? t('autoScans.credit') : t('autoScans.credits'),
+                  fansPerRun: t('autoScans.fansPerRunHighlight'),
+                })}
               </p>
               {!creditsLoading && !canAffordScan ? (
                 <div
@@ -362,18 +357,15 @@ export default function ChurnPredictorHubPage() {
                   )}
                   role="status"
                 >
-                  <span className="tabular-nums font-medium">{creditsRemaining}</span> credits available — need{' '}
-                  <span className="tabular-nums font-semibold">{scanCreditCost}</span> per run.{' '}
+                  {t('autoScans.lowCreditsLead', { remaining: creditsRemaining, cost: scanCreditCost })}
                   <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                    Billing
+                    {t('autoScans.lowCreditsBilling')}
                   </Link>
-                  {' · '}
-                  or lower Credits per match in Configuration.
+                  {t('autoScans.lowCreditsTail')}
                 </div>
               ) : !creditsLoading ? (
                 <p className="text-[12px] tabular-nums text-muted-foreground/85">
-                  Balance{' '}
-                  <span className="font-medium text-foreground/90">{creditsRemaining}</span>
+                  {t('autoScans.balanceLine', { remaining: creditsRemaining })}
                 </p>
               ) : null}
             </div>
@@ -383,29 +375,31 @@ export default function ChurnPredictorHubPage() {
           <div className={insetFieldGroup}>
             <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75">Recurrence</p>
-                <p className="mt-1 text-[12px] text-muted-foreground/88">Off defers to manual Scan only.</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75">
+                  {t('autoScans.recurrenceKicker')}
+                </p>
+                <p className="mt-1 text-[12px] text-muted-foreground/88">{t('autoScans.recurrenceHint')}</p>
               </div>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
               <div className="space-y-2">
                 <Label htmlFor="churn-cadence-auto" className={labelClass}>
-                  Frequency
+                  {t('autoScans.frequency')}
                 </Label>
                 <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
                   <SelectTrigger id="churn-cadence-auto" className="h-11 rounded-xl border-border/40 bg-background/60 text-[14px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="off">Off — manual only</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="off">{t('autoScans.cadenceOff')}</SelectItem>
+                    <SelectItem value="daily">{t('autoScans.cadenceDaily')}</SelectItem>
+                    <SelectItem value="weekly">{t('autoScans.cadenceWeekly')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="churn-hour-auto" className={labelClass}>
-                  Hour (UTC)
+                  {t('autoScans.hourUtc')}
                 </Label>
                 <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
                   <SelectTrigger
@@ -417,7 +411,7 @@ export default function ChurnPredictorHubPage() {
                   <SelectContent className="max-h-60">
                     {hourOptions.map((h) => (
                       <SelectItem key={h} value={String(h)}>
-                        {h.toString().padStart(2, '0')}:00 UTC
+                        {t('autoScans.hourOption', { hour: h.toString().padStart(2, '0') })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -425,43 +419,32 @@ export default function ChurnPredictorHubPage() {
               </div>
             </div>
           </div>
-          <p className="text-[12px] leading-relaxed text-muted-foreground/80">
-            <span className="font-medium text-foreground/82">Weekly</span> waits at least seven days since the previous
-            run before the next window. Persist options with{' '}
-            <span className="font-medium text-foreground/85">Save</span> under Configuration.
-          </p>
+          <p className="text-[12px] leading-relaxed text-muted-foreground/80">{t('autoScans.weeklyFootnote')}</p>
         </CardContent>
       </Card>
 
       <Card className={cn(surfaceCard, 'overflow-hidden')}>
         <CardHeader className="space-y-3 border-b border-border/25 px-6 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8">
-          <p className={sectionKicker}>Configuration</p>
-          <CardTitle className={`${sectionHeading} font-sans`}>Schedule &amp; rules</CardTitle>
-          <CardDescription className={`${sectionSub} !mt-3 max-w-none`}>
-            Qualification, notifications, and follow-ups. Cadence is set in Automatic scans above; manual Scan now ignores
-            it.
-          </CardDescription>
+          <p className={sectionKicker}>{t('config.kicker')}</p>
+          <CardTitle className={`${sectionHeading} font-sans`}>{t('config.title')}</CardTitle>
+          <CardDescription className={`${sectionSub} !mt-3 max-w-none`}>{t('config.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-0 px-6 pb-8 pt-8 sm:px-8 sm:pb-10 sm:pt-10">
           {/* Who qualifies */}
           <section className="space-y-6 pb-12 sm:pb-14" aria-labelledby="churn-who-heading">
             <div>
               <h2 id="churn-who-heading" className={blockHeading}>
-                Who qualifies
+                {t('config.whoHeading')}
               </h2>
-              <p className={blockSub}>
-                OnlyFans and Fansly fans in your CRM. Narrow windows mean fewer, sharper names.
-              </p>
+              <p className={blockSub}>{t('config.whoSub')}</p>
             </div>
             <div className={insetFieldGroup}>
               <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
                 <div className="space-y-2">
                   <Label htmlFor="exp-d" className={labelClass}>
-                    Renewal window
+                    {t('config.renewalWindow')}
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                    Days until subscription end to include.
-                  </p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.renewalHint')}</p>
                   <Input
                     id="exp-d"
                     type="number"
@@ -474,11 +457,9 @@ export default function ChurnPredictorHubPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="stale-d" className={labelClass}>
-                    Quiet subscriber
+                    {t('config.quietSubscriber')}
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                    Days since last message to treat as quiet.
-                  </p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.quietHint')}</p>
                   <Input
                     id="stale-d"
                     type="number"
@@ -499,11 +480,9 @@ export default function ChurnPredictorHubPage() {
                 />
                 <div className="min-w-0">
                   <label htmlFor="stale-include" className="cursor-pointer text-[14px] font-medium text-foreground">
-                    Include quiet fans, not only renewals
+                    {t('config.includeQuietLabel')}
                   </label>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-                    When off, only subscribers nearing expiry are considered.
-                  </p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{t('config.includeQuietHelp')}</p>
                 </div>
               </div>
             </div>
@@ -515,19 +494,19 @@ export default function ChurnPredictorHubPage() {
           <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-batch-heading">
             <div>
               <h2 id="churn-batch-heading" className={blockHeading}>
-                Batch &amp; credits
+                {t('config.batchHeading')}
               </h2>
-              <p className={blockSub}>Credits when someone matches apply to every path. Scheduled runs use Fans per run; Scan now analyzes all synced CRM (OnlyFans + Fansly together, up to 25 qualifiers).</p>
+              <p className={blockSub}>
+                {t('config.batchSub', { fansPerRun: t('config.fansPerRun') })}
+              </p>
             </div>
             <div className={insetFieldGroup}>
               <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
                 <div className="space-y-2">
                   <Label htmlFor="max-f" className={labelClass}>
-                    Fans per run
+                    {t('config.fansPerRun')}
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                    Automatic scans: max per report (1–25). Scan now considers both platforms together, up to 25 qualifiers.
-                  </p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.fansPerRunHint')}</p>
                   <Input
                     id="max-f"
                     type="number"
@@ -540,9 +519,9 @@ export default function ChurnPredictorHubPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="credits" className={labelClass}>
-                    Credits per match
+                    {t('config.creditsPerMatch')}
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">Up to this many after a successful run (1–10).</p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.creditsPerMatchHint')}</p>
                   <Input
                     id="credits"
                     type="number"
@@ -567,25 +546,29 @@ export default function ChurnPredictorHubPage() {
               </div>
               <div>
                 <h2 id="churn-notify-heading" className={blockHeading}>
-                  Notifications
+                  {t('notifications.heading')}
                 </h2>
-                <p className={`${blockSub} !mt-2`}>After each automatic run, what should reach your inbox.</p>
+                <p className={`${blockSub} !mt-2`}>{t('notifications.sub')}</p>
               </div>
             </div>
             <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[14px] font-medium text-foreground">Run ready</p>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">New report is available.</p>
+                  <p className="text-[14px] font-medium text-foreground">{t('notifications.runReadyTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('notifications.runReadyDesc')}</p>
                 </div>
-                <Switch checked={notifySummary} onCheckedChange={setNotifySummary} aria-label="Notify when a run completes with matches" />
+                <Switch
+                  checked={notifySummary}
+                  onCheckedChange={setNotifySummary}
+                  aria-label={t('notifications.runReadyAria')}
+                />
               </div>
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[14px] font-medium text-foreground">Empty run</p>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">No one matched this time.</p>
+                  <p className="text-[14px] font-medium text-foreground">{t('notifications.emptyTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('notifications.emptyDesc')}</p>
                 </div>
-                <Switch checked={notifyEmpty} onCheckedChange={setNotifyEmpty} aria-label="Notify on empty run" />
+                <Switch checked={notifyEmpty} onCheckedChange={setNotifyEmpty} aria-label={t('notifications.emptyAria')} />
               </div>
             </div>
           </section>
@@ -600,32 +583,32 @@ export default function ChurnPredictorHubPage() {
               </div>
               <div>
                 <h2 id="churn-followups-heading" className={blockHeading}>
-                  Follow-ups
+                  {t('followUps.heading')}
                 </h2>
-                <p className={`${blockSub} !mt-2`}>Optional tasks in Manager and on your protocol list.</p>
+                <p className={`${blockSub} !mt-2`}>{t('followUps.sub')}</p>
               </div>
             </div>
             <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[14px] font-medium text-foreground">Manager</p>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">Suggested task you can accept or dismiss.</p>
+                  <p className="text-[14px] font-medium text-foreground">{t('followUps.managerTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('followUps.managerDesc')}</p>
                 </div>
-                <Switch checked={linkMgr} onCheckedChange={setLinkMgr} aria-label="Create Divine Manager suggestion" />
+                <Switch checked={linkMgr} onCheckedChange={setLinkMgr} aria-label={t('followUps.managerAria')} />
               </div>
               <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[14px] font-medium text-foreground">Protocol</p>
-                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">Checklist item with your other automations.</p>
+                  <p className="text-[14px] font-medium text-foreground">{t('followUps.protocolTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('followUps.protocolDesc')}</p>
                 </div>
-                <Switch checked={linkProto} onCheckedChange={setLinkProto} aria-label="Create protocol task" />
+                <Switch checked={linkProto} onCheckedChange={setLinkProto} aria-label={t('followUps.protocolAria')} />
               </div>
             </div>
             <Link
               href="/dashboard/divine-manager"
               className="inline-flex text-[14px] font-medium text-foreground underline-offset-[5px] transition hover:underline"
             >
-              Open Divine Manager
+              {t('followUps.openManager')}
             </Link>
           </section>
 
@@ -637,12 +620,12 @@ export default function ChurnPredictorHubPage() {
               className="h-12 rounded-xl px-8 text-[15px] font-medium shadow-sm"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save
+              {t('save.button')}
             </Button>
             {savedAt ? (
-              <span className="text-[13px] tabular-nums text-muted-foreground">Saved {savedAt}</span>
+              <span className="text-[13px] tabular-nums text-muted-foreground">{t('save.savedAt', { time: savedAt })}</span>
             ) : (
-              <span className="text-[13px] text-muted-foreground/80">Unsaved changes are lost if you leave.</span>
+              <span className="text-[13px] text-muted-foreground/80">{t('save.unsavedHint')}</span>
             )}
           </div>
         </CardContent>
@@ -650,14 +633,18 @@ export default function ChurnPredictorHubPage() {
 
       <Card className={cn(surfaceCard, 'overflow-hidden')}>
         <CardHeader className="border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
-          <p className={sectionKicker}>History</p>
+          <p className={sectionKicker}>{t('history.kicker')}</p>
           <CardTitle className="mt-2 font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            Last run
+            {t('history.title')}
           </CardTitle>
           <CardDescription className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-            {lastRunAt ? `Completed ${new Date(lastRunAt).toLocaleString()}` : 'No automatic run yet.'}
+            {lastRunAt
+              ? t('history.completedAt', { datetime: new Date(lastRunAt).toLocaleString() })
+              : t('history.noAutoRunYet')}
             {lastError ? (
-              <span className="mt-2 block text-[13px] text-destructive">Error: {lastError}</span>
+              <span className="mt-2 block text-[13px] text-destructive">
+                {t('history.errorPrefix')} {lastError}
+              </span>
             ) : null}
           </CardDescription>
         </CardHeader>
@@ -665,7 +652,9 @@ export default function ChurnPredictorHubPage() {
           {digest ? (
             <div className="space-y-3">
               <p className="text-[12px] tabular-nums text-muted-foreground">
-                {digestAt ? `${new Date(digestAt).toLocaleString()}` : 'Latest output'}
+                {digestAt
+                  ? t('history.digestTimestamp', { datetime: new Date(digestAt).toLocaleString() })
+                  : t('history.latestOutput')}
               </p>
               <div className="max-h-[480px] overflow-y-auto rounded-xl border border-border/35 bg-muted/[0.06] p-5 dark:bg-muted/[0.08]">
                 <AiToolMarkdownReadout content={digest} variant="circeRetention" className="text-[13px]" />
@@ -673,11 +662,11 @@ export default function ChurnPredictorHubPage() {
             </div>
           ) : (
             <p className="text-[14px] leading-relaxed text-muted-foreground">
-              No results yet. After a scheduled or manual batch run, they appear here. Keep{' '}
+              {t('history.emptyDigestLead')}
               <Link href="/dashboard/fans" className="font-medium text-foreground underline-offset-4 hover:underline">
-                Fans
-              </Link>{' '}
-              synced so renewals and spend stay accurate.
+                {t('history.emptyDigestFans')}
+              </Link>
+              {t('history.emptyDigestTail')}
             </p>
           )}
         </CardContent>

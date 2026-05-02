@@ -1,5 +1,13 @@
 {
   "footerTagline": "Un solo espacio para OnlyFans y Fansly: mensajes, fans, herramientas IA y protección, con Divine Manager primero por voz.",
+  "footerNavigationAria": "Navegación del pie de página",
+  "pricingCycleStorefronts": {
+    "mv": "ManyVids",
+    "mym": "MYM",
+    "c4s": "Clips4Sale",
+    "lf": "LoyalFans",
+    "fv": "Fanvue"
+  },
   "language": "Idioma del sitio",
   "metadataDefaultTitle": "{siteName} — SO divina para creadoras",
   "demo": {
@@ -304,6 +312,7 @@
       "lowBandCaption": "Banda de ingresos más baja — tu precio escala con lo que ganas. Un solo espacio.",
       "seePricing": "Ver precios",
       "antiPiracyBundle": "Paquete antipiratería",
+      "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Precio mensual base por plataforma"
     }
   },

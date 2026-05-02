@@ -14,6 +14,15 @@ export function isFanProfileType(value: unknown): value is FanProfileType {
   return (FAN_PROFILE_TYPES as readonly string[]).includes(value)
 }
 
+/** Normalize DB / API values (trim, lowercase) before validating. */
+export function normalizeAudienceProfileOverride(raw: unknown): FanProfileType | null {
+  if (raw == null) return null
+  if (typeof raw !== 'string') return null
+  const v = raw.trim().toLowerCase()
+  if (!v) return null
+  return isFanProfileType(v) ? v : null
+}
+
 export type AudienceProfileOverride = FanProfileType | null
 
 /**

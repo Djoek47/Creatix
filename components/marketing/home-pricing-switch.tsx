@@ -15,6 +15,27 @@ import { useTranslations } from 'next-intl'
 
 const ROTATE_MS = 10_000
 
+function marketingCycleStorefrontName(
+  t: ReturnType<typeof useTranslations<'marketing'>>,
+  id: string,
+  fallback: string,
+): string {
+  switch (id) {
+    case 'mv':
+      return t('pricingCycleStorefronts.mv')
+    case 'mym':
+      return t('pricingCycleStorefronts.mym')
+    case 'c4s':
+      return t('pricingCycleStorefronts.c4s')
+    case 'lf':
+      return t('pricingCycleStorefronts.lf')
+    case 'fv':
+      return t('pricingCycleStorefronts.fv')
+    default:
+      return fallback
+  }
+}
+
 type BaseKey = 'of' | 'fl' | 'ap'
 
 type BaseOption = {
@@ -24,6 +45,7 @@ type BaseOption = {
 }
 
 type RotatingPlatformMark = {
+  id: string
   name: string
   logoSrc?: string
   short?: string
@@ -35,7 +57,7 @@ export function HomePricingSwitch() {
   const reduce = useReducedMotion()
   const tier0 = PRICING_TIERS[0]!
   const antiPiracyPlatforms = useMemo<RotatingPlatformMark[]>(
-    () => PRICING_ANTI_PIRACY_CYCLE_LOGOS.map((m) => ({ name: m.name, logoSrc: m.logoSrc })),
+    () => PRICING_ANTI_PIRACY_CYCLE_LOGOS.map((m) => ({ id: m.id, name: m.name, logoSrc: m.logoSrc })),
     [],
   )
 
@@ -127,8 +149,14 @@ export function HomePricingSwitch() {
               b.key === 'ap'
                 ? t('home.pricingSwitch.antiPiracyBundle')
                 : b.key === 'of'
-                  ? 'OnlyFans'
-                  : 'Fansly'
+                  ? t('pricingCalculator.focusPlatform.onlyfans')
+                  : t('pricingCalculator.focusPlatform.fansly')
+            const platformLogoAlt =
+              b.key === 'of'
+                ? t('pricingCalculator.focusPlatform.onlyfans')
+                : b.key === 'fl'
+                  ? t('pricingCalculator.focusPlatform.fansly')
+                  : ''
             return (
               <button
                 key={b.key}
@@ -151,7 +179,7 @@ export function HomePricingSwitch() {
                   {b.key === 'ap' ? (
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.span
-                        key={antiPiracyPlatforms[antiPiracyIndex]?.name}
+                        key={antiPiracyPlatforms[antiPiracyIndex]?.id}
                         initial={reduce ? false : { opacity: 0, y: 6, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.96 }}
@@ -161,7 +189,11 @@ export function HomePricingSwitch() {
                         {antiPiracyPlatforms[antiPiracyIndex]?.logoSrc ? (
                           <Image
                             src={antiPiracyPlatforms[antiPiracyIndex]!.logoSrc!}
-                            alt={antiPiracyPlatforms[antiPiracyIndex]!.name}
+                            alt={marketingCycleStorefrontName(
+                              t,
+                              antiPiracyPlatforms[antiPiracyIndex]!.id,
+                              antiPiracyPlatforms[antiPiracyIndex]!.name,
+                            )}
                             width={200}
                             height={56}
                             className="mx-auto h-11 w-auto max-h-11 max-w-[min(100%,8.75rem)] object-contain object-center opacity-95 sm:h-12 sm:max-h-12 sm:max-w-[10rem]"
@@ -169,7 +201,11 @@ export function HomePricingSwitch() {
                         ) : (
                           <span className="text-[10px] font-semibold tracking-tight text-foreground/90">
                             {antiPiracyPlatforms[antiPiracyIndex]?.short ??
-                              antiPiracyPlatforms[antiPiracyIndex]?.name}
+                              marketingCycleStorefrontName(
+                                t,
+                                antiPiracyPlatforms[antiPiracyIndex]!.id,
+                                antiPiracyPlatforms[antiPiracyIndex]!.name,
+                              )}
                           </span>
                         )}
                       </motion.span>
@@ -177,13 +213,15 @@ export function HomePricingSwitch() {
                   ) : b.logoSrc ? (
                     <Image
                       src={b.logoSrc}
-                      alt=""
+                      alt={platformLogoAlt}
                       width={200}
                       height={56}
                       className="mx-auto h-11 w-auto max-h-11 max-w-[min(100%,8.75rem)] object-contain object-center opacity-95 sm:h-12 sm:max-h-12 sm:max-w-[10rem]"
                     />
                   ) : (
-                    <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">AP</span>
+                    <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">
+                      {t('home.pricingSwitch.antiPiracyAbbrev')}
+                    </span>
                   )}
                 </span>
                 <span className="text-xs font-medium tabular-nums text-foreground/85 sm:text-sm">${b.price}</span>

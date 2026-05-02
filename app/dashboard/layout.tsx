@@ -34,6 +34,8 @@ import { HtmlLangUpdater } from '@/components/i18n/html-lang-updater'
 import { LOCALE_COOKIE } from '@/lib/i18n/constants'
 import { resolveDashboardLocale } from '@/lib/i18n/resolve-locale'
 import type { UiPreferences } from '@/lib/types'
+import { fetchUsdFiatRates } from '@/lib/fx/fetch-usd-fiat-rates'
+import { AnalyticsCurrencyProvider } from '@/components/dashboard/analytics-currency-context'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
 export const metadata: Metadata = {
@@ -98,6 +100,7 @@ export default async function DashboardLayout({
   )
   setRequestLocale(locale)
   const messages = await getMessages()
+  const analyticsFxRates = await fetchUsdFiatRates()
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
@@ -126,11 +129,17 @@ export default async function DashboardLayout({
                     <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">
                       <DashboardSidebar user={serializableUser} profile={serializableProfile} />
                     </div>
-                    <MessagesFocusChromeProvider>
-                      <DashboardMessagesChrome user={serializableUser} profile={serializableProfile}>
-                        <DashboardMainShell>{children}</DashboardMainShell>
-                      </DashboardMessagesChrome>
-                    </MessagesFocusChromeProvider>
+                    <AnalyticsCurrencyProvider
+                      displayCurrency={uiPrefs?.currency}
+                      rates={analyticsFxRates}
+                      locale={locale}
+                    >
+                      <MessagesFocusChromeProvider>
+                        <DashboardMessagesChrome user={serializableUser} profile={serializableProfile}>
+                          <DashboardMainShell>{children}</DashboardMainShell>
+                        </DashboardMessagesChrome>
+                      </MessagesFocusChromeProvider>
+                    </AnalyticsCurrencyProvider>
                   </div>
                   <Suspense fallback={null}>
                     <VoiceControlPopup />

@@ -17,12 +17,13 @@ import {
   Clock3,
   DollarSign,
   MessageSquare,
+  Reply,
   ShoppingBag,
   UserRound,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-type RightDrawerFanContext = {
+export type RightDrawerFanContext = {
   memberSince?: string | null
   lastActive?: string | null
   totalMessages?: number | null
@@ -61,6 +62,16 @@ const disclosureTriggerClass =
 
 const statRowClass =
   'flex items-baseline justify-between gap-4 border-b border-border/15 py-3 last:border-0 dark:border-white/[0.06]'
+
+function formatSpend(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return `$${Math.round(value).toLocaleString()}`
+}
+
+function formatMessageCount(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return String(Math.max(0, Math.round(value)))
+}
 
 const shortcutRowClass =
   'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[12px] font-medium text-foreground/85 transition-colors duration-150 hover:bg-foreground/[0.04] dark:hover:bg-white/[0.04]'
@@ -156,7 +167,7 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
               Messages
             </span>
             <span className="text-[13px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">
-              {fanContext?.totalMessages ?? 0}
+              {formatMessageCount(fanContext?.totalMessages)}
             </span>
           </div>
           <div className={statRowClass}>
@@ -165,7 +176,7 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
               Spend
             </span>
             <span className="text-[13px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">
-              ${Math.round(fanContext?.totalSpent ?? 0).toLocaleString()}
+              {formatSpend(fanContext?.totalSpent)}
             </span>
           </div>
           <div className={statRowClass}>
@@ -184,6 +195,17 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
             </span>
             <span className="text-[13px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">
               {fanContext?.responseRate != null ? `${fanContext.responseRate}%` : '—'}
+            </span>
+          </div>
+          <div className={statRowClass}>
+            <span className="inline-flex items-center gap-2 text-[12px] text-muted-foreground/85">
+              <Reply className="h-3.5 w-3.5 opacity-70" aria-hidden />
+              Avg reply time
+            </span>
+            <span className="text-[13px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">
+              {fanContext?.avgResponseTimeLabel && fanContext.avgResponseTimeLabel !== '—'
+                ? fanContext.avgResponseTimeLabel
+                : '—'}
             </span>
           </div>
         </div>

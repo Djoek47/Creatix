@@ -1,6 +1,16 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import {
+  Suspense,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -13,7 +23,7 @@ import { ChatWindow } from './chat-window'
 import { MessagingLayout } from './MessagingLayout'
 import { MassMessageDialog, MassMessageLaunchControl } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
-import { RightDrawer } from './RightDrawer'
+import { RightDrawer, type RightDrawerFanContext } from './RightDrawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -102,27 +112,58 @@ type WorkspaceStatsPayload = {
     totalSpent: number
     memberSince: string | null
     lastActive: string | null
-    totalMessages: number
+    totalMessages: number | null
     responseRate: number | null
     avgResponseTimeLabel: string | null
     recentOrders: Array<{ id: string; title: string; amount: number }>
   } | null
 }
 
-const SEGMENT_LABEL: Record<InboxSegment, string> = {
-  all: 'All',
-  unread: 'Unread',
-  whales: 'Whales',
-  creators: 'Creators',
-  fans: 'Fans',
+function pickNewerIso(a: string | null | undefined, b: string | null | undefined): string | null {
+  if (!a && !b) return null
+  if (!a) return b ?? null
+  if (!b) return a
+  const ta = Date.parse(a)
+  const tb = Date.parse(b)
+  if (Number.isNaN(ta)) return b
+  if (Number.isNaN(tb)) return a
+  return ta >= tb ? a : b
 }
 
-function conversationMobileSubtitle(c: Conversation): string {
-  const platform = c.platform === 'onlyfans' ? 'OF' : 'Fansly'
-  const badge = c.crm?.audienceBadges?.[0]?.label
-  const tier = c.crm?.tier?.trim()
-  const segment = badge || tier || 'Fan'
-  return `${platform} · ${segment}`
+function mergeDrawerFanContext(
+  conv: Conversation,
+  api: WorkspaceStatsPayload['fanContext'] | null,
+): RightDrawerFanContext {
+  const idMatch =
+    api != null &&
+    String(api.fanId) === String(conv.user.id) &&
+    String(api.platform) === conv.platform
+  const crm = conv.crm
+  const threadTouch = conv.lastMessage?.createdAt ?? null
+
+  if (!idMatch) {
+    return {
+      memberSince: crm?.subscriptionStart ?? null,
+      lastActive: threadTouch,
+      totalMessages: null,
+      totalSpent: crm?.totalSpent ?? null,
+      responseRate: null,
+      avgResponseTimeLabel: null,
+      recentOrders: [],
+    }
+  }
+
+  const mergedSpend = Math.max(Number(api.totalSpent) || 0, Number(crm?.totalSpent) || 0)
+
+  return {
+    memberSince: api.memberSince ?? crm?.subscriptionStart ?? null,
+    lastActive: pickNewerIso(api.lastActive, threadTouch),
+    totalMessages: api.totalMessages,
+    totalSpent: mergedSpend,
+    responseRate: api.responseRate,
+    avgResponseTimeLabel: api.avgResponseTimeLabel,
+    recentOrders: api.recentOrders ?? [],
+  }
 }
 
 const mobileSegBtnBase =
@@ -217,7 +258,7 @@ function WorkspaceKpiPanel({
                     : 'border-dashed border-border/40 bg-background/20 text-muted-foreground/60 hover:bg-background/35',
                 )}
                 onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
-                title={visible ? 'Hide this KPI tag' : 'Show this KPI tag'}
+                title={visible ? t('kpiTagHide') : t('kpiTagShow')}
               >
                 <span className="font-medium text-foreground/90">{tag.label}</span>
                 <span className="tabular-nums text-muted-foreground">{tag.value}</span>
@@ -227,7 +268,7 @@ function WorkspaceKpiPanel({
           {workspaceStatsLoading ? (
             <span className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground/85">
               <Loader2 className="h-3 w-3 animate-spin opacity-80" aria-hidden />
-              Updating
+              {t('kpiUpdating')}
             </span>
           ) : null}
         </div>
@@ -240,7 +281,8 @@ const inboxToolbarRowClass =
   'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-snug tracking-[-0.01em] sm:text-[13px]'
 
 function ThreadCountChip({ count }: { count: number }) {
-  const label = `${count} thread${count === 1 ? '' : 's'}`
+  const t = useTranslations('messages.layout')
+  const label = t('threadCount', { count })
   return (
     <span
       className={cn(
@@ -262,11 +304,12 @@ function ToolbarSep() {
 }
 
 function PlatformConnectChips() {
+  const t = useTranslations('messages.layout')
   const chip =
     'inline-flex items-center gap-1 rounded-md border border-border/35 bg-background/40 px-1.5 py-0.5 ring-1 ring-primary/[0.08] dark:bg-white/[0.04]'
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-      <span className="font-medium text-muted-foreground/90">Connect</span>
+      <span className="font-medium text-muted-foreground/90">{t('connectChip')}</span>
       <span className={chip}>
         <Image
           src={ONLYFANS_LOGO_SRC}
@@ -275,12 +318,12 @@ function PlatformConnectChips() {
           height={13}
           className="rounded-[3px]"
         />
-        <span className="text-[11px] font-medium text-foreground/88">OnlyFans</span>
+        <span className="text-[11px] font-medium text-foreground/88">{t('platformOnlyfans')}</span>
       </span>
-      <span className="text-[11px] text-muted-foreground/55">or</span>
+      <span className="text-[11px] text-muted-foreground/55">{t('connectOr')}</span>
       <span className={chip}>
         <Image src={FANSLY_LOGO_SRC} alt="" width={13} height={13} className="rounded-[3px]" />
-        <span className="text-[11px] font-medium text-foreground/88">Fansly</span>
+        <span className="text-[11px] font-medium text-foreground/88">{t('platformFansly')}</span>
       </span>
     </span>
   )
@@ -302,9 +345,9 @@ function MessagesInboxToolbarSubtitle({
     return (
       <div className={inboxToolbarRowClass}>
         <BarChart3 className="h-3.5 w-3.5 shrink-0 text-violet-400/90" aria-hidden />
-        <span className="font-semibold text-foreground/90">Insights</span>
+        <span className="font-semibold text-foreground/90">{t('insightsTitle')}</span>
         <ToolbarSep />
-        <span className="text-muted-foreground/88">direct & mass performance</span>
+        <span className="text-muted-foreground/88">{t('insightsSubtitle')}</span>
       </div>
     )
   }
@@ -327,7 +370,7 @@ function MessagesInboxToolbarSubtitle({
         <ThreadCountChip count={n} />
         <ToolbarSep />
         <Filter className="h-3.5 w-3.5 shrink-0 text-amber-400/85" aria-hidden />
-        <span className="text-muted-foreground/88">None match this filter</span>
+        <span className="text-muted-foreground/88">{t('noneMatchFilter')}</span>
       </div>
     )
   }
@@ -349,7 +392,7 @@ function MessagesInboxToolbarSubtitle({
         <ThreadCountChip count={n} />
         <ToolbarSep />
         <Filter className="h-3.5 w-3.5 shrink-0 text-amber-400/85" aria-hidden />
-        <span className="font-medium text-foreground/85">Filtered</span>
+        <span className="font-medium text-foreground/85">{t('filteredLabel')}</span>
       </div>
     )
   }
@@ -360,7 +403,7 @@ function MessagesInboxToolbarSubtitle({
       <ToolbarSep />
       <Link2 className="h-3.5 w-3.5 shrink-0 text-primary/75" aria-hidden />
       <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground/88">
-        <span className="font-medium text-foreground/80">CRM segments</span>
+        <span className="font-medium text-foreground/80">{t('crmSegments')}</span>
         <ToolbarSep />
         <span className="inline-flex items-center gap-1 rounded-md border border-border/30 bg-background/35 px-1.5 py-0.5 dark:bg-white/[0.04]">
           <Image
@@ -370,12 +413,12 @@ function MessagesInboxToolbarSubtitle({
             height={12}
             className="rounded-[2px]"
           />
-          <span className="text-[11px] font-medium text-foreground/85">OnlyFans</span>
+          <span className="text-[11px] font-medium text-foreground/85">{t('platformOnlyfans')}</span>
         </span>
-        <span className="text-muted-foreground/50">&</span>
+        <span className="text-muted-foreground/50">{t('platformAmpersand')}</span>
         <span className="inline-flex items-center gap-1 rounded-md border border-border/30 bg-background/35 px-1.5 py-0.5 dark:bg-white/[0.04]">
           <Image src={FANSLY_LOGO_SRC} alt="" width={12} height={12} className="rounded-[2px]" />
-          <span className="text-[11px] font-medium text-foreground/85">Fansly</span>
+          <span className="text-[11px] font-medium text-foreground/85">{t('platformFansly')}</span>
         </span>
       </span>
     </div>
@@ -389,6 +432,7 @@ function MessagesLayoutContent({
   hasFanPlatformConnected = false,
 }: MessagesLayoutProps) {
   const tLayout = useTranslations('messages.layout')
+  const tInbox = useTranslations('messages.inbox')
   const { reduced } = useUiMotionPreferences()
   const fadeTransition = uiFadeTransition(reduced)
   const panelTransition = uiPanelTransition(reduced)
@@ -429,6 +473,10 @@ function MessagesLayoutContent({
   const [workspaceStats, setWorkspaceStats] = useState<WorkspaceStatsPayload | null>(null)
   const [workspaceStatsLoading, setWorkspaceStatsLoading] = useState(false)
   const [workspaceTagVisibility, setWorkspaceTagVisibility] = useState<Record<string, boolean>>({})
+  const drawerFanContext = useMemo((): RightDrawerFanContext | undefined => {
+    if (!selectedConversation) return undefined
+    return mergeDrawerFanContext(selectedConversation, workspaceStats?.fanContext ?? null)
+  }, [selectedConversation, workspaceStats?.fanContext])
   const inboxSearchInputRef = useRef<HTMLInputElement>(null)
   const mobileSearchInputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
@@ -475,9 +523,41 @@ function MessagesLayoutContent({
   const [loadingMore, setLoadingMore] = useState(false)
   const listOffsetRef = useRef(0)
 
+  const inboxSegmentLabel = useCallback(
+    (seg: InboxSegment) => {
+      switch (seg) {
+        case 'all':
+          return tInbox('segmentAll')
+        case 'unread':
+          return tInbox('segmentUnread')
+        case 'whales':
+          return tInbox('segmentWhales')
+        case 'creators':
+          return tInbox('segmentCreators')
+        case 'fans':
+          return tInbox('segmentFans')
+        default:
+          return tInbox('segmentAll')
+      }
+    },
+    [tInbox],
+  )
+
+  const conversationMobileSubtitleForConv = useCallback(
+    (c: Conversation) => {
+      const platform =
+        c.platform === 'onlyfans' ? tLayout('mobilePlatformOfAbbrev') : tLayout('mobilePlatformFansly')
+      const badge = c.crm?.audienceBadges?.[0]?.label
+      const tier = c.crm?.tier?.trim()
+      const segmentLabel = badge || tier || tLayout('mobileSegmentFallback')
+      return `${platform} · ${segmentLabel}`
+    },
+    [tLayout],
+  )
+
   useEffect(() => {
-    const t = window.setTimeout(() => setSearchDebounced(inboxSearch.trim()), 320)
-    return () => window.clearTimeout(t)
+    const debounceTimer = window.setTimeout(() => setSearchDebounced(inboxSearch.trim()), 320)
+    return () => window.clearTimeout(debounceTimer)
   }, [inboxSearch])
 
   useEffect(() => {
@@ -595,20 +675,18 @@ function MessagesLayoutContent({
 
         if (!res.ok) {
           const msg =
-            data.message || data.error || `Failed to load inbox (${res.status})`
+            data.message ||
+            data.error ||
+            tLayout('errorLoadInboxStatus', { status: String(res.status) })
           if (data.code === 'ONLYFANS_SESSION_EXPIRED') {
-            setError(
-              'OnlyFans session expired. Reconnect OnlyFans in Settings to load messages.',
-            )
+            setError(tLayout('errorSessionExpired'))
           } else if (
             res.status === 429 ||
             data.code === 'ONLYFANS_RATE_LIMIT' ||
             res.status === 503 ||
             data.code === 'ONLYFANS_UPSTREAM'
           ) {
-            setError(
-              'OnlyFans is having a temporary issue (rate limit or upstream). Wait a minute, then refresh. Your list is unchanged.',
-            )
+            setError(tLayout('errorRateLimitUpstream'))
           } else {
             setError(msg)
           }
@@ -663,7 +741,7 @@ function MessagesLayoutContent({
           }).catch(() => undefined)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load conversations')
+        setError(err instanceof Error ? err.message : tLayout('errorLoadConversations'))
         setInboxMeta(null)
       } finally {
         setLoading(false)
@@ -671,7 +749,7 @@ function MessagesLayoutContent({
         setLoadingMore(false)
       }
     },
-    [segment, sort, inboxPlatform, tag, searchDebounced],
+    [segment, sort, inboxPlatform, tag, searchDebounced, tLayout],
   )
 
   const loadInboxRef = useRef(loadInbox)
@@ -809,7 +887,7 @@ function MessagesLayoutContent({
       <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
         <div className="flex flex-col items-center text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="text-sm text-muted-foreground">Loading messages...</p>
+          <p className="text-sm text-muted-foreground">{tLayout('loadingMessages')}</p>
         </div>
       </div>
     )
@@ -843,23 +921,23 @@ function MessagesLayoutContent({
   const emptyInboxChatTitle =
     conversations.length === 0
       ? !hasFanPlatformConnected
-        ? 'Connect a platform'
+        ? tLayout('emptyConnectPlatformTitle')
         : inboxNarrowingActive
-          ? 'No threads match'
-          : 'No messages yet'
+          ? tLayout('emptyNoThreadsTitle')
+          : tLayout('emptyNoMessagesTitle')
       : undefined
 
   const emptyInboxChatDescription =
     conversations.length === 0
       ? !hasFanPlatformConnected
-        ? 'Your conversations sync after you connect.'
+        ? tLayout('emptyConnectPlatformDesc')
         : inboxNarrowingActive
           ? segment === 'whales'
-            ? 'None match Whales in this inbox right now. Switch to All or tap Refresh.'
+            ? tLayout('emptyWhalesHint')
             : segment !== 'all'
-              ? `None match ${SEGMENT_LABEL[segment]} — try All or tap Refresh.`
-              : 'None match these filters — clear search, tags, or platform, or tap Refresh.'
-          : 'Your inbox is empty — new threads appear when fans message you. Tap Refresh to pull the latest from the platform.'
+              ? tLayout('emptySegmentHint', { segment: inboxSegmentLabel(segment) })
+              : tLayout('emptyFiltersHint')
+          : tLayout('emptyInboxDefault')
       : undefined
 
   const hideMessagesToolbar = focusMode && !isMobile
@@ -936,14 +1014,14 @@ function MessagesLayoutContent({
                 size="icon"
                 className="h-10 w-10 flex-shrink-0"
                 onClick={openChatsMenu}
-                aria-label="Back to conversations"
+                aria-label={tLayout('mobileBackConversationsAria')}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             ) : null}
             <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={openChatsMenu}>
               <PanelLeft className="h-3.5 w-3.5" />
-              Chats
+              {tLayout('mobileChats')}
             </Button>
           </div>
           <Button
@@ -953,7 +1031,7 @@ function MessagesLayoutContent({
             onClick={() => setFocusMode(false)}
           >
             <Minimize2 className="h-4 w-4" />
-            Exit focus
+            {tLayout('mobileExitFocus')}
           </Button>
         </div>
       ) : null}
@@ -970,7 +1048,7 @@ function MessagesLayoutContent({
                       size="icon"
                       className="h-10 w-10 flex-shrink-0"
                       onClick={openChatsMenu}
-                      aria-label="Back to conversations"
+                      aria-label={tLayout('mobileBackConversationsAria')}
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
@@ -993,7 +1071,7 @@ function MessagesLayoutContent({
                           {selectedConversation.user.name || selectedConversation.user.username || 'Fan'}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
-                          {conversationMobileSubtitle(selectedConversation)}
+                          {conversationMobileSubtitleForConv(selectedConversation)}
                         </p>
                       </div>
                     </button>
@@ -1020,7 +1098,7 @@ function MessagesLayoutContent({
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10 flex-shrink-0"
-                      aria-label="More inbox actions"
+                      aria-label={tLayout('moreInboxActionsAria')}
                     >
                       <MoreHorizontal className="h-5 w-5" />
                     </Button>
@@ -1429,12 +1507,7 @@ function MessagesLayoutContent({
                     <RightDrawer
                       conversation={selectedConversation}
                       onOpenFanProfile={() => setFanProfileOpen(true)}
-                      fanContext={
-                        workspaceStats?.fanContext &&
-                        String(workspaceStats.fanContext.fanId) === String(selectedConversation.user.id)
-                          ? workspaceStats.fanContext
-                          : null
-                      }
+                      fanContext={drawerFanContext}
                     />
                   ) : null
                 }

@@ -1,5 +1,13 @@
 {
   "footerTagline": "Un seul espace pour OnlyFans et Fansly — messages, fans, outils IA et protection, avec Divine Manager d’abord voix.",
+  "footerNavigationAria": "Navigation du pied de page",
+  "pricingCycleStorefronts": {
+    "mv": "ManyVids",
+    "mym": "MYM",
+    "c4s": "Clips4Sale",
+    "lf": "LoyalFans",
+    "fv": "Fanvue"
+  },
   "language": "Langue du site",
   "metadataDefaultTitle": "{siteName} — OS divine pour créatrices",
   "demo": {
@@ -304,6 +312,7 @@
       "lowBandCaption": "Tranche de revenu la plus basse — votre prix évolue avec vos gains. Un seul espace.",
       "seePricing": "Voir les tarifs",
       "antiPiracyBundle": "Pack anti-piratage",
+      "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Prix mensuel de base par plateforme"
     }
   },

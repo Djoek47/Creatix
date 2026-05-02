@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { FansPageClient } from '@/components/fans/fans-page-client'
 import type { Fan } from '@/lib/types'
@@ -67,7 +68,7 @@ export default async function FansPage() {
   }
 
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading fans…</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">{t('page.loading')}</div>}>
       <FansPageClient
         initialFans={fans}
         threadInsightsBrief={(insightRows || []) as ThreadInsightBrief[]}

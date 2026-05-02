@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
@@ -29,12 +30,14 @@ function LogoHubLink({
   src,
   logoAlt,
   description,
+  integrationCaption,
 }: {
   href: string
   label: string
   src: string
   logoAlt: string
   description: string
+  integrationCaption: string
 }) {
   return (
     <Link
@@ -61,7 +64,7 @@ function LogoHubLink({
       </span>
       <p className="mt-5 max-w-[22rem] text-center text-[13px] leading-snug tracking-tight text-muted-foreground">{description}</p>
       <span className="mt-4 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/90 transition-colors group-hover:text-foreground">
-        Integration settings
+        {integrationCaption}
       </span>
     </Link>
   )
@@ -75,6 +78,7 @@ export function FansListEmptyConnected({
   onQuickSync,
   quickSyncBusy = false,
 }: FansListEmptyConnectedProps) {
+  const t = useTranslations('fans.empty')
   const showOnlyFans =
     hasOnlyFansConnected && (platformScope === 'all' || platformScope === 'onlyfans')
   const showFansly =
@@ -93,35 +97,31 @@ export function FansListEmptyConnected({
             />
           </svg>
         </div>
-        <h3 className="text-[17px] font-semibold tracking-tight text-foreground">Nothing in this live view</h3>
+        <h3 className="text-[17px] font-semibold tracking-tight text-foreground">{t('liveNothingTitle')}</h3>
         <p className="mt-2 max-w-md text-[14px] leading-relaxed text-muted-foreground">
-          Open the fan list menu → <span className="text-foreground/90">All synced</span> to browse CRM, then use{' '}
-          <span className="font-medium text-foreground/90">Sync → Quick sync</span> above. Live previews pull small
-          subsets from{' '}
-          {showOnlyFans && showFansly ? 'both platforms' : showOnlyFans ? 'OnlyFans' : 'Fansly'} — the partner sometimes
-          returns no rows until your session catches up or subs exist in this cohort.
+          {t('liveNothingBody', {
+            allSynced: t('allSynced'),
+            quickSync: t('quickSync'),
+            platforms:
+              showOnlyFans && showFansly
+                ? t('platformsBoth')
+                : showOnlyFans
+                  ? t('platformsOf')
+                  : t('platformsFl'),
+          })}
         </p>
       </div>
     )
   }
 
-  const ofDescription =
-    'Your OnlyFans subscriber list pulls into Circe after quick sync — new fans arrive as subs renew or tips arrive.'
-
-  const flDescription =
-    'Your Fansly subscribers sync the same way: run quick sync once, then new fans populate as subscriptions and purchases flow in.'
+  const ofDescription = t('ofHubDescription')
+  const flDescription = t('flHubDescription')
 
   return (
     <div className="flex flex-col items-center py-14 text-center sm:py-16">
-      <h3 className="text-[18px] font-semibold tracking-tight text-foreground">No fans in this hub yet</h3>
+      <h3 className="text-[18px] font-semibold tracking-tight text-foreground">{t('hubTitle')}</h3>
       <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
-        You’re linked —{' '}
-        {showOnlyFans && showFansly
-          ? 'each platform has its own hub below.'
-          : showOnlyFans
-            ? 'below is OnlyFans.'
-            : 'below is Fansly.'}{' '}
-        Sync once to hydrate fans, or reopen settings if credentials need a refresh.
+        {showOnlyFans && showFansly ? t('hubBodyBoth') : showOnlyFans ? t('hubBodyOf') : t('hubBodyFl')}
       </p>
 
       <div
@@ -147,8 +147,9 @@ export function FansListEmptyConnected({
               href={INTEGRATIONS_HREF}
               logoAlt="Fansly"
               src={FANSLY_LOGO_SRC}
-              label="Fansly — open integration settings"
+              label={t('flHubAria')}
               description={flDescription}
+              integrationCaption={t('integrationSettings')}
             />
           </div>
         ) : null}
@@ -166,13 +167,13 @@ export function FansListEmptyConnected({
             {quickSyncBusy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Syncing…
+                {t('syncing')}
               </>
             ) : (
-              <>Quick sync from connected platforms</>
+              <>{t('quickSyncCta')}</>
             )}
           </Button>
-          <p className="text-[11px] text-muted-foreground">Runs the same action as Sync → Quick sync above.</p>
+          <p className="text-[11px] text-muted-foreground">{t('quickSyncSameAsMenu')}</p>
         </div>
       ) : null}
     </div>
@@ -180,6 +181,7 @@ export function FansListEmptyConnected({
 }
 
 export function FansListEmptyDisconnected() {
+  const t = useTranslations('fans.empty')
   return (
     <div className="flex flex-col items-center py-16 text-center">
       <div className="mb-4 rounded-full bg-muted p-4">
@@ -192,30 +194,30 @@ export function FansListEmptyDisconnected() {
           />
         </svg>
       </div>
-      <h3 className="text-lg font-semibold tracking-tight">Connect a fan hub</h3>
-      <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-muted-foreground">
-        Link OnlyFans or Fansly to mirror subscribers — each platform has its own tile on the integrations page.
-      </p>
+      <h3 className="text-lg font-semibold tracking-tight">{t('disconnectedTitle')}</h3>
+      <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-muted-foreground">{t('disconnectedBody')}</p>
 
       <div className="mt-10 grid w-full max-w-xl gap-8 sm:grid-cols-2 sm:gap-10">
         <LogoHubLink
           href={INTEGRATIONS_HREF}
           logoAlt="OnlyFans"
           src={ONLYFANS_LOGO_SRC}
-          label="Connect OnlyFans"
-          description="Connect your OnlyFans creator account to sync subscribers, spend, and chat context."
+          label={t('connectOfAria')}
+          description={t('connectOfDescription')}
+          integrationCaption={t('integrationSettings')}
         />
         <LogoHubLink
           href={INTEGRATIONS_HREF}
           logoAlt="Fansly"
           src={FANSLY_LOGO_SRC}
-          label="Connect Fansly"
-          description="Connect Fansly to pull followers and subscribers into the same CRM."
+          label={t('connectFlAria')}
+          description={t('connectFlDescription')}
+          integrationCaption={t('integrationSettings')}
         />
       </div>
 
       <Button variant="secondary" size="sm" className="mt-10" asChild>
-        <Link href={INTEGRATIONS_HREF}>Open integrations</Link>
+        <Link href={INTEGRATIONS_HREF}>{t('openIntegrations')}</Link>
       </Button>
     </div>
   )

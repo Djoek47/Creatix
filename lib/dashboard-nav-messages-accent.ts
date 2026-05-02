@@ -2,10 +2,11 @@ import { cn } from '@/lib/utils'
 
 export const DASHBOARD_MESSAGES_NAV_HREF = '/dashboard/messages'
 
-/** Icon: color + filter (dual drop-shadow halo in globals). */
-const messagesNavIconTransitionClass = 'duration-150 ease-out transition-[color,filter]'
+/** Icon: color + filter + subtle lift (sidebar row animates icon separately from the pill surface). */
+const messagesNavIconTransitionClass =
+  'duration-200 ease-out transition-[color,filter,transform] group-hover:scale-[1.04] motion-reduce:transition-[color,filter] motion-reduce:group-hover:scale-100'
 /** Label: color + text-shadow. */
-const messagesNavLabelTransitionClass = 'duration-150 ease-out transition-[color,text-shadow]'
+const messagesNavLabelTransitionClass = 'duration-200 ease-out transition-[color,text-shadow]'
 
 /** Silver-rail Messages row: icon halo via `.dashboard-messages-nav-icon-halo` (globals) — dual drop-shadow matches label bloom. */
 export function dashboardMessagesNavIconClass(isActive: boolean) {

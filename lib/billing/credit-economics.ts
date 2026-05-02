@@ -111,6 +111,10 @@ export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTI
 /** Wide + social Serper batch (Mentions “Scan web” / `runReputationScanCore`). */
 export const CREDITS_REPUTATION_WEB_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperReputationRun)
 export const CREDITS_ONLYFANS_BIO_FALLBACK = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
+/** Fan profile “Refresh bio”: Serper + gpt-4o-mini classification + short bio extract (no OnlyFans API). */
+export const CREDITS_FAN_WEB_BIO_SERPER_AI = creditsForProviderUsdEstimate(
+  PROVIDER_USD_ESTIMATE.toolLight + PROVIDER_USD_ESTIMATE.chatMiniTurn,
+)
 
 /** Expanded AI playbook for locating DMCA / abuse intake on unknown hosts (same unit weight as short gen). */
 export const CREDITS_AI_TAKEDOWN_GUIDE = CREDITS_MESSAGE_GENERATION_LIGHT

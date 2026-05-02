@@ -57,6 +57,7 @@ const LEDGER_REASON_LABELS: Record<string, string> = {
 
   // OnlyFans helpers
   'onlyfans bio serper fallback': 'OnlyFans bio enrichment',
+  'fan web bio serper ai': 'Fan profile · Web bio + creator check',
 
   // Guidance (draft flow — distinct ledger key from generic `dmca claim`)
   'dmca claim draft': 'DMCA claim draft',

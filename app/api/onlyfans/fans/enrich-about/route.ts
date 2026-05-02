@@ -1,32 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getFanRecentById } from '@/lib/divine/fan-recents-server'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
-import { extractAboutFromOnlyFansFanPayload } from '@/lib/onlyfans/extract-fan-about'
-import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
-import { SerperProvider } from '@/lib/leaks/search-providers'
 import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
-import { CREDITS_ONLYFANS_BIO_FALLBACK } from '@/lib/billing/credit-economics'
+import { CREDITS_FAN_WEB_BIO_SERPER_AI } from '@/lib/billing/credit-economics'
+import {
+  analysisToCreatorDetector,
+  analyzeSerperHitsForFanCreatorBio,
+  collectFanWebSerperHits,
+  formatSerperResultsForBioPrompt,
+  mergeCreatorDetectorIntoFanThreadInsight,
+} from '@/lib/divine/fan-web-bio-serper-ai'
+import { SerperProvider } from '@/lib/leaks/search-providers'
 
 export const maxDuration = 60
-
-function parseSerperAbout(results: Array<{ title?: string; link: string; snippet?: string }>): string | null {
-  for (const r of results) {
-    const link = String(r.link || '').toLowerCase()
-    if (!link.includes('onlyfans.com')) continue
-    const snippet = String(r.snippet || '').trim()
-    if (snippet && snippet.length >= 20) return snippet.slice(0, 2000)
-  }
-  const fallback = results.find((r) => String(r.snippet || '').trim().length >= 20)
-  return fallback?.snippet?.trim().slice(0, 2000) ?? null
-}
 
 function isMissingFansColumnError(message: string): boolean {
   return /column .*fans\./i.test(message)
 }
 
 /**
- * POST { fanId: platform_fan_id } — fetch OnlyFans /fans/{id} and store platform_about when the API exposes it.
+ * POST { fanId: platform_fan_id, force?: boolean }
+ * Serper web search + small LLM: classify fellow creator vs fan, extract a short public bio when evidence supports it.
+ * Persists `fans.platform_about` (source `serper`) and merges `creator_detector` into `fan_thread_insights.profile_json`.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,9 +30,6 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const billingBlock = await onlyFansBillingGateResponse(supabase)
-    if (billingBlock) return billingBlock
 
     const body = (await req.json().catch(() => ({}))) as { fanId?: string; force?: boolean }
     const fanId = typeof body.fanId === 'string' ? body.fanId.trim() : ''
@@ -54,8 +46,6 @@ export async function POST(req: NextRequest) {
 
     if (fanErr) return NextResponse.json({ error: fanErr.message }, { status: 500 })
 
-    // Profile UI can load from recents/thread tables without a `fans` row; align with PATCH
-    // /api/divine/fan-profile so "Refresh from OnlyFans" still persists platform_about.
     let resolvedFanRow = fanRow as
       | {
           platform_about?: string | null
@@ -89,7 +79,7 @@ export async function POST(req: NextRequest) {
       }
       const { data: again, error: againErr } = await supabase
         .from('fans')
-      .select('platform_about, platform_about_fetched_at, platform_about_source, platform_about_refreshed_at, platform_fan_id, username')
+        .select('platform_about, platform_about_fetched_at, platform_about_source, platform_about_refreshed_at, platform_fan_id, username')
         .eq('user_id', user.id)
         .eq('platform', 'onlyfans')
         .eq('platform_fan_id', fanId)
@@ -122,71 +112,73 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: connection, error: connErr } = await supabase
-      .from('platform_connections')
-      .select('access_token')
-      .eq('user_id', user.id)
-      .eq('platform', 'onlyfans')
-      .eq('is_connected', true)
-      .maybeSingle()
-
-    if (connErr || !connection?.access_token) {
-      return NextResponse.json({ error: 'OnlyFans not connected' }, { status: 400 })
-    }
-
-    const api = createOnlyFansAPI(connection.access_token)
-    let raw: unknown
-    try {
-      raw = await api.getFanDetailRaw(fanId)
-    } catch (e) {
+    const serperKey = process.env.SERPER_API_KEY
+    if (!serperKey) {
       return NextResponse.json(
-        { error: e instanceof Error ? e.message : 'OnlyFans API request failed' },
-        { status: 502 },
+        { error: 'Serper is not configured. Add SERPER_API_KEY to your environment, then redeploy.' },
+        { status: 503 },
       )
     }
 
-    const aboutFromApi = extractAboutFromOnlyFansFanPayload(raw)
-    let resolvedAbout = aboutFromApi
-    let source: 'of_api' | 'serper' | 'none' = aboutFromApi?.trim() ? 'of_api' : 'none'
-    const now = new Date().toISOString()
-
-    if (!resolvedAbout?.trim()) {
-      const serperKey = process.env.SERPER_API_KEY
-      if (serperKey) {
-        const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_ONLYFANS_BIO_FALLBACK)
-        if (!gate.ok) return insufficientAiCreditsResponse(gate.used, gate.limit)
-
-        const username =
-          typeof (resolvedFanRow as { username?: string | null }).username === 'string'
-            ? (resolvedFanRow as { username?: string | null }).username?.trim()
-            : ''
-        const query = username
-          ? `site:onlyfans.com "${username}" bio profile`
-          : `site:onlyfans.com "${fanId}" bio profile`
-        try {
-          const provider = new SerperProvider(serperKey)
-          const results = await provider.search(query, { limit: 6, page: 1 })
-          const serperAbout = parseSerperAbout(results)
-          if (serperAbout) {
-            const debit = await consumeAiCredits(supabase, user.id, CREDITS_ONLYFANS_BIO_FALLBACK, {
-              reasonCode: 'onlyfans_bio_serper_fallback',
-              reasonRef: fanId,
-              metadata: { fanId, query, tool: 'onlyfans-bio-fallback' },
-            })
-            if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
-            resolvedAbout = serperAbout
-            source = 'serper'
-          }
-        } catch {
-          // keep source as none and return not_found if no API about text
-        }
-      }
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: 'OpenAI is not configured. Add OPENAI_API_KEY for web bio + creator classification.' },
+        { status: 503 },
+      )
     }
+
+    const gate = await hasEnoughAiCredits(supabase, user.id, CREDITS_FAN_WEB_BIO_SERPER_AI)
+    if (!gate.ok) return insufficientAiCreditsResponse(gate.used, gate.limit)
+
+    const recent = await getFanRecentById(supabase, user.id, fanId, 'onlyfans')
+    const username =
+      typeof resolvedFanRow.username === 'string' && resolvedFanRow.username.trim()
+        ? resolvedFanRow.username.trim()
+        : (recent?.username?.trim() ?? '')
+    const displayName = recent?.display_name?.trim() ?? null
+
+    const provider = new SerperProvider(serperKey)
+    const hits = await collectFanWebSerperHits(provider, {
+      username,
+      displayName,
+      fanId,
+    })
+
+    if (hits.length === 0) {
+      return NextResponse.json({
+        success: true,
+        state: 'not_found',
+        source: 'none',
+        about: null,
+        aboutLength: 0,
+        reason: 'no_serper_hits',
+      })
+    }
+
+    const evidenceBlock = formatSerperResultsForBioPrompt(hits)
+    const subjectLine = `platform_fan_id=${fanId}; username=${username || 'unknown'}; display_name=${displayName ?? '—'}`
+    const analysis = await analyzeSerperHitsForFanCreatorBio(evidenceBlock, subjectLine)
+    const detector = analysisToCreatorDetector(analysis)
+    const aboutText =
+      typeof analysis.creator_bio === 'string' && analysis.creator_bio.trim().length > 0
+        ? analysis.creator_bio.trim().slice(0, 8000)
+        : null
+
+    const debit = await consumeAiCredits(supabase, user.id, CREDITS_FAN_WEB_BIO_SERPER_AI, {
+      reasonCode: 'fan_web_bio_serper_ai',
+      reasonRef: fanId,
+      metadata: { fanId, username, tool: 'fan-web-bio-serper-ai' },
+    })
+    if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
+
+    const now = new Date().toISOString()
+    const source: 'serper' | 'none' =
+      aboutText != null || detector.is_creator_likely ? 'serper' : 'none'
 
     let { error: upErr } = await supabase
       .from('fans')
       .update({
-        platform_about: resolvedAbout,
+        platform_about: aboutText,
         platform_about_fetched_at: now,
         platform_about_source: source === 'none' ? null : source,
         platform_about_refreshed_at: now,
@@ -200,7 +192,7 @@ export async function POST(req: NextRequest) {
       ;({ error: upErr } = await supabase
         .from('fans')
         .update({
-          platform_about: resolvedAbout,
+          platform_about: aboutText,
           platform_about_fetched_at: now,
           updated_at: now,
         })
@@ -219,13 +211,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: upErr.message }, { status: 500 })
     }
 
+    const merged = await mergeCreatorDetectorIntoFanThreadInsight(supabase, user.id, 'onlyfans', fanId, detector)
+    if (!merged.ok) {
+      console.warn('[enrich-about] fan_thread_insights merge failed:', merged.error)
+    }
+
     return NextResponse.json({
       success: true,
-      state:
-        source === 'of_api' ? 'of_api_used' : source === 'serper' ? 'serper_fallback_used' : 'not_found',
+      state: 'serper_ai_used',
       source,
-      about: resolvedAbout ?? null,
-      aboutLength: resolvedAbout?.length ?? 0,
+      about: aboutText,
+      aboutLength: aboutText?.length ?? 0,
+      likelyFellowCreator: detector.is_creator_likely,
+      creatorConfidence: detector.confidence,
     })
   } catch (e) {
     return NextResponse.json(

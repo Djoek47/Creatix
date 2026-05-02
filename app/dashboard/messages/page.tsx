@@ -13,13 +13,15 @@ export default async function MessagesPage({
 
   const { data: platformRows } = await supabase
     .from('platform_connections')
-    .select('id')
+    .select('platform')
     .eq('user_id', user.id)
     .eq('is_connected', true)
     .in('platform', ['onlyfans', 'fansly'])
-    .limit(1)
 
-  const hasFanPlatformConnected = (platformRows?.length ?? 0) > 0
+  const connected = new Set((platformRows ?? []).map((r) => r.platform as string))
+  const hasOnlyFansConnected = connected.has('onlyfans')
+  const hasFanslyConnected = connected.has('fansly')
+  const hasFanPlatformConnected = hasOnlyFansConnected || hasFanslyConnected
 
   const sp = searchParams ? await searchParams : {}
   /** Voice/Divine + notifications use `fanId`; dashboard widgets use `chat` + optional `platform`. */
@@ -30,6 +32,8 @@ export default async function MessagesPage({
       initialFanId={initialFanId}
       initialPlatform={sp.platform}
       hasFanPlatformConnected={hasFanPlatformConnected}
+      hasOnlyFansConnected={hasOnlyFansConnected}
+      hasFanslyConnected={hasFanslyConnected}
     />
   )
 }

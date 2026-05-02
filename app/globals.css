@@ -278,6 +278,43 @@
   box-shadow: 0 0 22px -4px oklch(0.55 0.2 295 / 0.4), 0 0 16px -2px oklch(0.78 0.12 85 / 0.3);
 }
 
+/* Marketing hero — “Start free trial”: same animated rainbow rim as dashboard tools; only on :hover */
+.cta-trial-rainbow-shell {
+  border-radius: 9999px;
+  display: inline-flex;
+  padding: 0;
+  transition:
+    padding 0.22s ease,
+    box-shadow 0.22s ease,
+    background-color 0.22s ease;
+}
+.cta-trial-rainbow-shell:hover,
+.cta-trial-rainbow-shell:focus-within {
+  padding: 2px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.78 0.14 85),
+    oklch(0.65 0.22 295),
+    oklch(0.72 0.15 200),
+    oklch(0.78 0.14 85),
+    oklch(0.62 0.24 310),
+    oklch(0.78 0.14 85)
+  );
+  background-size: 200% 100%;
+  animation: header-tools-rainbow-shift 7s linear infinite;
+  box-shadow: 0 0 18px -4px oklch(0.55 0.2 295 / 0.35), 0 0 14px -2px oklch(0.78 0.12 85 / 0.25);
+}
+.dark .cta-trial-rainbow-shell:hover,
+.dark .cta-trial-rainbow-shell:focus-within {
+  box-shadow: 0 0 22px -4px oklch(0.55 0.2 295 / 0.4), 0 0 16px -2px oklch(0.78 0.12 85 / 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-trial-rainbow-shell:hover,
+  .cta-trial-rainbow-shell:focus-within {
+    animation: none;
+  }
+}
+
 /* Header — notification count: same language as Tools (gradient ring, calm inner) */
 .header-tools-rainbow-pip {
   border-radius: 9999px;

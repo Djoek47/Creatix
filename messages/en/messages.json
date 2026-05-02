@@ -77,7 +77,11 @@
     "threadCount": "{count, plural, one {# thread} other {# threads}}",
     "mobilePlatformOfAbbrev": "OF",
     "mobilePlatformFansly": "Fansly",
-    "mobileSegmentFallback": "Fan"
+    "mobileSegmentFallback": "Fan",
+    "inboxDegradedPartialShort": "Partial load — showing available chats",
+    "inboxDegradedGenericShort": "Inbox sync may be slow",
+    "inboxDegradedPartialTitle": "Inbox is partially loaded. One provider is degraded; showing available conversations.",
+    "inboxDegradedGenericTitle": "A provider is currently degraded, which may affect inbox freshness."
   },
   "chat": {
     "platformElsewhereFansly": "Couldn't load this here. Full video and some content may only be available in the Fansly app or on fansly.com.",

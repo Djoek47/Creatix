@@ -459,6 +459,29 @@ function ChatPreviewImage({
   )
 }
 
+/** Thread overflow menu — glass surface + calmer item chrome (matches chat card language). */
+const threadToolsDropdownContentClass = cn(
+  'w-[min(100vw-1.25rem,20rem)]',
+  'rounded-2xl border border-white/26 bg-white/[0.78] p-2 shadow-[0_26px_88px_-32px_rgba(15,23,42,0.32)] backdrop-blur-2xl backdrop-saturate-[1.35]',
+  'dark:border-white/[0.085] dark:bg-slate-950/[0.72] dark:shadow-[0_32px_100px_-36px_rgba(0,0,0,0.72)]',
+  'ring-1 ring-black/[0.035] dark:ring-white/[0.06]',
+  '[&_[data-slot=dropdown-menu-separator]]:my-2.5 [&_[data-slot=dropdown-menu-separator]]:bg-border/45',
+)
+
+const threadToolsMenuItemClass = cn(
+  'gap-3 rounded-[11px] px-3 py-2.5 text-[15px] font-medium tracking-[-0.015em] transition-colors duration-200',
+  '[&_svg]:size-[17px] [&_svg]:shrink-0 [&_svg]:opacity-[0.88]',
+  'focus:bg-foreground/[0.055] focus:text-foreground data-[highlighted]:bg-foreground/[0.055] data-[highlighted]:text-foreground',
+  'dark:focus:bg-white/[0.06] dark:data-[highlighted]:bg-white/[0.06]',
+)
+
+const threadToolsMenuItemSelectedClass = cn(
+  'bg-foreground/[0.05] ring-1 ring-inset ring-foreground/[0.08]',
+  'focus:bg-foreground/[0.07] data-[highlighted]:bg-foreground/[0.07]',
+  'dark:bg-white/[0.05] dark:ring-white/[0.09]',
+  'dark:focus:bg-white/[0.075] dark:data-[highlighted]:bg-white/[0.075]',
+)
+
 export function ChatWindow({
   conversation,
   userId: _userId,
@@ -1522,23 +1545,25 @@ export function ChatWindow({
                 </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[min(100vw-1.25rem,20rem)]">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent align="end" className={threadToolsDropdownContentClass}>
+              <DropdownMenuItem asChild className={threadToolsMenuItemClass}>
                 <a href="/dashboard/divine-manager" className="flex items-center">
-                  <Crown className="mr-2 h-4 w-4" />
+                  <Crown className="text-foreground/80" aria-hidden />
                   {tChat('openDivineManager')}
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem
+                className={threadToolsMenuItemClass}
                 onClick={() => {
                   if (onOpenFanProfile) onOpenFanProfile()
                   else setInternalProfileOpen(true)
                 }}
               >
-                <User className="mr-2 h-4 w-4" />
+                <User className="text-foreground/80" aria-hidden />
                 {tChat('viewProfile')}
               </DropdownMenuItem>
               <DropdownMenuItem
+                className={threadToolsMenuItemClass}
                 onClick={() => {
                   if (conversation.platform !== 'onlyfans') {
                     setError(tChat('fanslyRefreshNotAvailable'))
@@ -1562,7 +1587,7 @@ export function ChatWindow({
                     .finally(() => setLoading(false))
                 }}
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="text-foreground/80" aria-hidden />
                 {tChat('refreshMessages')}
               </DropdownMenuItem>
               {conversation.platform === 'onlyfans' && (
@@ -1570,51 +1595,67 @@ export function ChatWindow({
                   <DropdownMenuSeparator />
                   <div
                     role="presentation"
-                    className="flex items-center justify-between gap-3 px-2 py-2.5"
+                    className="mx-0.5 mb-1 flex items-center justify-between gap-3 rounded-xl border border-black/[0.04] bg-foreground/[0.03] px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.04]"
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <span className="text-[13px] font-medium leading-tight text-foreground">{tChat('stayOnLatest')}</span>
+                    <span className="text-[14px] font-medium leading-snug tracking-[-0.012em] text-foreground">
+                      {tChat('stayOnLatest')}
+                    </span>
                     <Switch
                       checked={followThreadLatest}
                       onCheckedChange={(v) => persistFollowLatest(v)}
                       aria-label={tChat('scrollLatestAria')}
                     />
                   </div>
-                  <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">{tChat('stayOnLatestHelp')}</p>
+                  <p className="mx-0.5 mb-1 px-3 pb-2 text-[12px] leading-relaxed text-muted-foreground/90">
+                    {tChat('stayOnLatestHelp')}
+                  </p>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    className={threadToolsMenuItemClass}
                     onClick={async () => {
                       const cid = String(conversation.chatId || conversation.user.id)
                       await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' })
                     }}
                   >
-                    <CheckCheck className="mr-2 h-4 w-4" />
+                    <CheckCheck className="text-foreground/80" aria-hidden />
                     {tChat('markAsRead')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    className={threadToolsMenuItemClass}
                     onClick={async () => {
                       const cid = String(conversation.chatId || conversation.user.id)
                       await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/unread`, { method: 'POST' })
                     }}
                   >
-                    <Mail className="mr-2 h-4 w-4" />
+                    <Mail className="text-foreground/80" aria-hidden />
                     {tChat('markAsUnread')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <div className="px-2 pb-1 pt-1.5">
-                    <p className="text-[11px] font-medium text-foreground">{tChat('markReadWhenOpening')}</p>
-                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{tChat('markReadWhenOpeningHelp')}</p>
+                  <div className="mx-0.5 px-3 pb-2 pt-1">
+                    <p className="text-[12px] font-semibold tracking-[-0.01em] text-foreground/95">
+                      {tChat('markReadWhenOpening')}
+                    </p>
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground/88">
+                      {tChat('markReadWhenOpeningHelp')}
+                    </p>
                   </div>
                   <DropdownMenuItem
                     onSelect={(e) => {
                       e.preventDefault()
                       void setChatReadBehavior('inherit')
                     }}
-                    className={cn('cursor-pointer', onlyFansChatReadMode === 'inherit' && 'bg-accent/70')}
+                    className={cn(
+                      threadToolsMenuItemClass,
+                      'cursor-pointer',
+                      onlyFansChatReadMode === 'inherit' && threadToolsMenuItemSelectedClass,
+                    )}
                   >
-                    <span className="flex w-full flex-col gap-0.5">
-                      <span className="text-[13px] font-medium leading-tight">{tChat('accountDefault')}</span>
-                      <span className="text-[11px] text-muted-foreground">
+                    <span className="flex w-full flex-col gap-1">
+                      <span className="text-[14px] font-medium leading-snug tracking-[-0.012em]">
+                        {tChat('accountDefault')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground/90">
                         {tChat('messagingPrefLabel', {
                           state: messagingReadPrefs?.auto_mark_on_open
                             ? tChat('messagingPrefOn')
@@ -1628,25 +1669,38 @@ export function ChatWindow({
                       e.preventDefault()
                       void setChatReadBehavior('auto')
                     }}
-                    className={cn('cursor-pointer', onlyFansChatReadMode === 'auto' && 'bg-accent/70')}
+                    className={cn(
+                      threadToolsMenuItemClass,
+                      'cursor-pointer',
+                      onlyFansChatReadMode === 'auto' && threadToolsMenuItemSelectedClass,
+                    )}
                   >
-                    <span className="text-[13px] font-medium">{tChat('alwaysThisThread')}</span>
+                    <span className="text-[14px] font-medium tracking-[-0.012em]">{tChat('alwaysThisThread')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={(e) => {
                       e.preventDefault()
                       void setChatReadBehavior('never')
                     }}
-                    className={cn('cursor-pointer', onlyFansChatReadMode === 'never' && 'bg-accent/70')}
+                    className={cn(
+                      threadToolsMenuItemClass,
+                      'cursor-pointer',
+                      onlyFansChatReadMode === 'never' && threadToolsMenuItemSelectedClass,
+                    )}
                   >
-                    <span className="text-[13px] font-medium">{tChat('neverThisThread')}</span>
+                    <span className="text-[14px] font-medium tracking-[-0.012em]">{tChat('neverThisThread')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
+                    variant="destructive"
+                    className={cn(
+                      threadToolsMenuItemClass,
+                      'text-destructive focus:bg-destructive/[0.08] focus:text-destructive data-[highlighted]:bg-destructive/[0.08] data-[highlighted]:text-destructive',
+                      'dark:focus:bg-destructive/15 dark:data-[highlighted]:bg-destructive/15',
+                    )}
                     onClick={() => setChatDeleteDialogOpen(true)}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 aria-hidden />
                     {tChat('deleteChat')}
                   </DropdownMenuItem>
                 </>

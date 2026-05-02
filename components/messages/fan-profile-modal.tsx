@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   Dialog,
@@ -105,27 +105,42 @@ export function FanProfileModal({
   const [enrichAboutLoading, setEnrichAboutLoading] = useState(false)
   const [treatFanSaving, setTreatFanSaving] = useState(false)
   const [profileTypeSaving, setProfileTypeSaving] = useState(false)
+  /** Abort stale GET /fan-profile so a slow in-flight load cannot overwrite a completed PATCH. */
+  const profileFetchAbortRef = useRef<AbortController | null>(null)
 
   const load = useCallback(async () => {
     if (!fanId) return
+    profileFetchAbortRef.current?.abort()
+    const ac = new AbortController()
+    profileFetchAbortRef.current = ac
     setLoading(true)
     setError(null)
     try {
       const res = await fetch(
         `/api/divine/fan-profile?fanId=${encodeURIComponent(fanId)}&platform=${encodeURIComponent(platform)}`,
-        { credentials: 'include' },
+        { credentials: 'include', signal: ac.signal },
       )
       const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & { error?: string }
       if (!res.ok) throw new Error(json.error || 'Failed to load profile')
+      if (ac.signal.aborted) return
       setData(json)
       setClassificationDraft(json.creatorClassification ?? '')
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      if (e instanceof Error && e.name === 'AbortError') return
       setError(e instanceof Error ? e.message : 'Failed to load')
       setData(null)
     } finally {
+      if (profileFetchAbortRef.current === ac) {
+        profileFetchAbortRef.current = null
+      }
       setLoading(false)
     }
   }, [fanId, platform])
+
+  useEffect(() => {
+    return () => profileFetchAbortRef.current?.abort()
+  }, [])
 
   useEffect(() => {
     if (!open || !fanId) return
@@ -137,14 +152,16 @@ export function FanProfileModal({
   const username = data?.core?.username || initialUsername || '—'
   const avatar = data?.core?.avatarUrl || initialAvatar || ''
 
+  /** Same effective type as the CRM grid: manual override wins, else backend-evolved profileType. */
   const audienceBadges = useMemo(() => {
-    if (!data?.creatorDetector) return []
+    if (!data) return []
     const tier = data.crm?.subscriptionTier || 'regular'
+    const effectiveForBadges = (data.audienceProfileOverride ?? data.profileType) as FanProfileType
     return audienceMetaWithProfileOverride(
-      data.audienceProfileOverride ?? null,
+      effectiveForBadges,
       data.crm?.totalSpent ?? 0,
       tier,
-      data.creatorDetector.is_creator_likely,
+      data.creatorDetector?.is_creator_likely ?? false,
     ).badges
   }, [data])
 
@@ -286,6 +303,7 @@ export function FanProfileModal({
                   disabled={profileTypeSaving || loading || !fanId}
                   onChange={async (v) => {
                     if (!data) return
+                    profileFetchAbortRef.current?.abort()
                     const prev = data
                     const optimistic = {
                       ...data,
@@ -447,7 +465,8 @@ export function FanProfileModal({
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">OnlyFans bio</p>
                 <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">
-                  Feeds creator detection: official API when possible; otherwise general web snippets (best-effort). Cached ~24h.
+                  Web search (Serper) plus a short AI pass: flags likely fellow creators and writes a concise public bio when
+                  the snippets support it. Does not call OnlyFans for their bio. Cached ~24h unless you force refresh.
                 </p>
               </div>
               {data.platformAboutSource !== 'none' ? (

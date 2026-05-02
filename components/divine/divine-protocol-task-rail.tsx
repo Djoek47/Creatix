@@ -285,8 +285,8 @@ export function DivineProtocolTaskRail({
                 headerLevel === 2
                   ? 'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full hover:bg-muted/40'
                   : headerLevel === 1
-                    ? 'inline-flex w-fit max-w-[min(calc(100%-2.75rem),19rem)] flex-col items-start gap-0.5 rounded-xl px-2 py-1 hover:bg-muted/35 sm:items-end sm:text-right'
-                    : 'inline-flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-muted/35 sm:flex-initial sm:gap-2.5',
+                    ? 'inline-flex w-fit max-w-[min(calc(100%-2.75rem),19rem)] flex-col items-start gap-0.5 rounded-xl border border-amber-400/12 bg-gradient-to-br from-amber-500/[0.05] to-purple-500/[0.06] px-2.5 py-1.5 shadow-sm backdrop-blur-xl hover:from-amber-500/10 hover:to-purple-500/10 sm:items-end sm:text-right'
+                    : 'inline-flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-amber-400/15 bg-gradient-to-br from-amber-500/[0.06] to-purple-500/[0.07] px-3 py-2 shadow-sm backdrop-blur-xl transition-colors duration-200 hover:from-amber-500/10 hover:to-purple-500/10 sm:flex-initial sm:gap-2.5',
               )}
               aria-label={
                 headerLevel === 2

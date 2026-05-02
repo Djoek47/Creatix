@@ -135,29 +135,39 @@ const navEase = 'duration-150 ease-out'
 /** One surface language: neutral pills; section identity reads through icon tint only. */
 const variantStyles = {
   default: {
-    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
-    inactive:
-      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
-    icon: 'text-sidebar-foreground/48 group-hover:text-sidebar-foreground/78',
+    linkActive: 'text-sidebar-foreground',
+    linkInactive:
+      'text-sidebar-foreground/68 hover:text-sidebar-foreground active:text-sidebar-foreground',
+    surfaceActive: 'bg-sidebar-accent/55',
+    surfaceInactive: 'bg-transparent group-hover:bg-sidebar-accent/30 group-active:bg-sidebar-accent/40',
+    iconInactive: 'text-sidebar-foreground/48 group-hover:text-sidebar-foreground/78',
+    iconActive: 'text-sidebar-foreground',
   },
   circe: {
-    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
-    inactive:
-      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
-    icon: 'text-circe-light/42 group-hover:text-circe-light/72',
+    linkActive: 'text-sidebar-foreground',
+    linkInactive:
+      'text-sidebar-foreground/68 hover:text-sidebar-foreground active:text-sidebar-foreground',
+    surfaceActive: 'bg-sidebar-accent/55',
+    surfaceInactive: 'bg-transparent group-hover:bg-sidebar-accent/30 group-active:bg-sidebar-accent/40',
+    iconInactive: 'text-circe-light/42 group-hover:text-circe-light/72',
+    iconActive: 'text-sidebar-foreground',
   },
   venus: {
-    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
-    inactive:
-      'text-sidebar-foreground/68 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground active:bg-sidebar-accent/40',
-    icon: 'text-gold/45 group-hover:text-gold/78',
+    linkActive: 'text-sidebar-foreground',
+    linkInactive:
+      'text-sidebar-foreground/68 hover:text-sidebar-foreground active:text-sidebar-foreground',
+    surfaceActive: 'bg-sidebar-accent/55',
+    surfaceInactive: 'bg-transparent group-hover:bg-sidebar-accent/30 group-active:bg-sidebar-accent/40',
+    iconInactive: 'text-gold/45 group-hover:text-gold/78',
+    iconActive: 'text-sidebar-foreground',
   },
   'ai-studio': {
-    active: 'bg-sidebar-accent/55 text-sidebar-foreground',
-    /* Row stays flat on hover — accent only on the star slot (see globals `.ai-studio-nav-*`). */
-    inactive:
+    /** Whole row keeps painted surface (star slot animates separately). */
+    linkActive: 'bg-sidebar-accent/55 text-sidebar-foreground',
+    linkInactive:
       'text-sidebar-foreground/68 hover:bg-transparent active:bg-transparent hover:text-sidebar-foreground',
-    icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
+    iconInactive: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
+    iconActive: 'text-sidebar-foreground',
   },
 } as const
 
@@ -333,16 +343,17 @@ function NavLink({
   const isMessagesNav =
     variant === 'default' && item.href === DASHBOARD_MESSAGES_NAV_HREF
   const styles = variantStyles[variant]
+  /** Background pill animates on its own layer; AI Studio row keeps legacy whole-link paint. */
+  const splitSurface = variant !== 'ai-studio'
   const Icon = item.icon
 
   const linkClassName = cn(
-    'group flex items-center font-medium',
-    'transition-[background-color,color]',
-    navEase,
+    'group relative flex items-center font-medium',
+    splitSurface ? undefined : cn('transition-[background-color,color]', navEase),
     compactDensity ? SIDEBAR_SIZE.compact.linkText : SIDEBAR_SIZE.cozy.linkText,
     collapsed
       ? cn(
-          'relative justify-center overflow-visible gap-0 rounded-xl px-2',
+          'justify-center overflow-visible gap-0 rounded-xl px-2',
           verticalDensity === 'cramped' ? 'min-h-8 py-1.5' : verticalDensity === 'tight' ? 'min-h-9 py-1.5' : 'min-h-10 py-2',
         )
       : cn(
@@ -353,9 +364,18 @@ function NavLink({
               ? 'min-h-9 py-2'
               : 'min-h-10 py-2.5',
         ),
-    isActive ? styles.active : styles.inactive,
-    isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'relative isolate overflow-visible',
+    splitSurface
+      ? isActive
+        ? styles.linkActive
+        : styles.linkInactive
+      : isActive
+        ? styles.linkActive
+        : styles.linkInactive,
+    isMessagesNav && (messagesUnreadTotal ?? 0) > 0 && 'isolate overflow-visible',
   )
+
+  const surfaceClassName =
+    splitSurface && (isActive ? styles.surfaceActive : styles.surfaceInactive)
 
   const wellbeingPulseClass =
     item.href === '/dashboard/well-being' && pulseNavSeverity
@@ -375,7 +395,7 @@ function NavLink({
     <>
       {collapsed && !isAiStudio && !isDivineManager && (
         <span
-          className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-0 rounded-xl"
+          className="sidebar-nav-collapsed-glow pointer-events-none absolute inset-0 z-[1] rounded-xl"
           aria-hidden
         />
       )}
@@ -401,16 +421,16 @@ function NavLink({
       ) : (
         <Icon
           className={cn(
-            'relative z-[1] flex-shrink-0',
+            'relative z-[2] flex-shrink-0',
             compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
             wellbeingPulseClass
               ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors', navEase)
               : isMessagesNav
                 ? dashboardMessagesNavIconClass(isActive)
                 : cn(
-                    'transition-colors',
-                    navEase,
-                    isActive ? 'text-sidebar-foreground' : styles.icon,
+                    'transition-[color,transform] duration-200 ease-out motion-reduce:transition-colors motion-reduce:group-hover:scale-100',
+                    'group-hover:scale-[1.04]',
+                    isActive ? styles.iconActive : styles.iconInactive,
                   ),
           )}
         />
@@ -440,6 +460,16 @@ function NavLink({
       className={linkClassName}
       aria-current={isActive ? 'page' : undefined}
     >
+      {splitSurface ? (
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute inset-0 z-0 rounded-xl',
+            'transition-[background-color,opacity] duration-200 ease-out motion-reduce:transition-none',
+            surfaceClassName,
+          )}
+        />
+      ) : null}
       {isMessagesNav ? <MessagesNavUnreadSweep unreadTotal={messagesUnreadTotal ?? 0} /> : null}
       {linkInner}
     </Link>

@@ -66,6 +66,7 @@ import {
   Link2,
   MoreHorizontal,
   Megaphone,
+  AlertTriangle,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useMessagesFocusChrome } from '@/components/messages/messages-focus-chrome-context'
@@ -185,6 +186,9 @@ interface MessagesLayoutProps {
   initialPlatform?: string
   /** True when OnlyFans or Fansly is connected (Integrations). Empty inbox is not always “not connected”. */
   hasFanPlatformConnected?: boolean
+  /** Used to tune degraded-inbox notices (optional; both set from messages page). */
+  hasOnlyFansConnected?: boolean
+  hasFanslyConnected?: boolean
 }
 
 function pickConversationForDeepLink(
@@ -251,17 +255,36 @@ function WorkspaceKpiPanel({
               <button
                 key={tag.id}
                 type="button"
+                aria-pressed={visible}
+                aria-label={`${tag.label} (${tag.value}). ${visible ? t('kpiTagHide') : t('kpiTagShow')}`}
                 className={cn(
-                  'inline-flex items-baseline gap-1 rounded-md border px-2 py-0.5 text-[10px] transition-[background-color,border-color,opacity] duration-150 ease-out',
+                  'inline-flex min-h-8 max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none tracking-tight',
+                  'shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-black/[0.04] transition-[transform,box-shadow,background-color,border-color,opacity,color] duration-200 ease-out',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:ring-white/[0.06] dark:focus-visible:ring-venus/35 dark:focus-visible:ring-offset-slate-950',
+                  'active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100',
                   visible
-                    ? 'border-border/35 bg-background/40 text-muted-foreground hover:bg-background/55'
-                    : 'border-dashed border-border/40 bg-background/20 text-muted-foreground/60 hover:bg-background/35',
+                    ? 'border-white/35 bg-gradient-to-r from-background/75 via-background/55 to-muted/25 text-muted-foreground hover:border-white/45 hover:from-background/90 hover:via-background/70 hover:to-muted/35 hover:shadow-[0_4px_14px_-6px_rgba(15,23,42,0.18)] dark:border-white/[0.12] dark:from-white/[0.08] dark:via-white/[0.05] dark:to-slate-900/40 dark:hover:border-white/[0.16] dark:hover:shadow-[0_6px_20px_-8px_rgba(0,0,0,0.5)]'
+                    : 'border-dashed border-border/50 bg-background/15 text-muted-foreground/55 opacity-90 hover:border-border/65 hover:bg-background/28 hover:text-muted-foreground/75 hover:opacity-100 dark:border-white/[0.1] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]',
                 )}
                 onClick={() => setWorkspaceTagVisibility((prev) => ({ ...prev, [tag.id]: !visible }))}
                 title={visible ? t('kpiTagHide') : t('kpiTagShow')}
               >
-                <span className="font-medium text-foreground/90">{tag.label}</span>
-                <span className="tabular-nums text-muted-foreground">{tag.value}</span>
+                <span
+                  className={cn(
+                    'min-w-0 truncate font-semibold',
+                    visible ? 'text-foreground/92' : 'text-foreground/55',
+                  )}
+                >
+                  {tag.label}
+                </span>
+                <span
+                  className={cn(
+                    'shrink-0 tabular-nums leading-none',
+                    visible ? 'text-muted-foreground/90' : 'text-muted-foreground/50',
+                  )}
+                >
+                  {tag.value}
+                </span>
               </button>
             )
           })}
@@ -430,6 +453,8 @@ function MessagesLayoutContent({
   initialFanId,
   initialPlatform,
   hasFanPlatformConnected = false,
+  hasOnlyFansConnected,
+  hasFanslyConnected,
 }: MessagesLayoutProps) {
   const tLayout = useTranslations('messages.layout')
   const tInbox = useTranslations('messages.inbox')
@@ -522,6 +547,29 @@ function MessagesLayoutContent({
   const [hasMoreInbox, setHasMoreInbox] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const listOffsetRef = useRef(0)
+
+  const platformDegradeFlagsKnown =
+    typeof hasOnlyFansConnected === 'boolean' && typeof hasFanslyConnected === 'boolean'
+  const onlyFansConnectedFlag = Boolean(hasOnlyFansConnected)
+  const fanslyConnectedFlag = Boolean(hasFanslyConnected)
+
+  const showDegradedInboxBanner = useMemo(() => {
+    if (view !== 'conversations' || !inboxMeta?.degraded) return false
+    const fs = platformDegradeFlagsKnown ? fanslyConnectedFlag : true
+    const of = platformDegradeFlagsKnown ? onlyFansConnectedFlag : false
+    const ofOnlyEmpty = platformDegradeFlagsKnown && of && !fs && conversations.length === 0
+    if (inboxMeta.partial && !fs) return false
+    if (ofOnlyEmpty) return false
+    return true
+  }, [
+    view,
+    inboxMeta?.degraded,
+    inboxMeta?.partial,
+    platformDegradeFlagsKnown,
+    onlyFansConnectedFlag,
+    fanslyConnectedFlag,
+    conversations.length,
+  ])
 
   const inboxSegmentLabel = useCallback(
     (seg: InboxSegment) => {
@@ -1370,16 +1418,25 @@ function MessagesLayoutContent({
         </div>
       ) : null}
 
-      {view === 'conversations' && inboxMeta?.degraded ? (
+      {showDegradedInboxBanner ? (
         <div
+          title={
+            inboxMeta?.partial
+              ? tLayout('inboxDegradedPartialTitle')
+              : tLayout('inboxDegradedGenericTitle')
+          }
           className={cn(
-            'mb-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-2.5 text-[13px] leading-snug backdrop-blur-sm',
-            'text-amber-950/90 dark:border-amber-400/20 dark:bg-amber-400/[0.09] dark:text-amber-50/90',
+            'mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/[0.06] px-2 py-1',
+            'text-[10px] font-medium leading-tight text-amber-950/88 backdrop-blur-sm',
+            'dark:border-amber-400/16 dark:bg-amber-400/[0.07] dark:text-amber-50/88',
           )}
         >
-          {inboxMeta.partial
-            ? 'Inbox is partially loaded. One provider is degraded; showing available conversations.'
-            : 'A provider is currently degraded, which may affect inbox freshness.'}
+          <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600 opacity-90 dark:text-amber-300" aria-hidden />
+          <span className="min-w-0">
+            {inboxMeta?.partial
+              ? tLayout('inboxDegradedPartialShort')
+              : tLayout('inboxDegradedGenericShort')}
+          </span>
         </div>
       ) : null}
 

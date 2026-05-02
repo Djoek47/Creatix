@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { Search, LogOut, User, Settings, Menu, HeartPulse, Sparkles, Zap } from 'lucide-react'
+import { Search, LogOut, User, Settings, Menu, HeartPulse, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -32,6 +32,7 @@ import { isDashboardCreditSummaryVisible } from '@/lib/dashboard-credit-summary-
 import type { CreditWalletSnapshot } from '@/hooks/use-credit-snapshot'
 import { cn } from '@/lib/utils'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
+import { RainbowSparklePill } from '@/components/dashboard/rainbow-sparkle-pill'
 
 const userMenuContentClass = cn(
   'w-[min(calc(100vw-2rem),22rem)] max-w-[22rem] sm:w-80',
@@ -162,29 +163,13 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
     >
       {/* AI Studio Tools — solitary lead control (start) */}
       <div className="flex shrink-0 items-center justify-start">
-        <span className="header-tools-rainbow-wrap inline-flex rounded-full">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 w-9 shrink-0 gap-2 rounded-full border-0 bg-background/92 p-0 text-[13px] font-medium shadow-none ring-0 transition-colors duration-300 hover:bg-background dark:bg-card/88 dark:hover:bg-card/95 sm:h-9 sm:w-auto sm:px-3.5"
-            asChild
-            title={tDash('header.aiStudioToolsTitle')}
-          >
-            <Link
-              href="/dashboard/ai-studio/tools"
-              className="flex items-center justify-center gap-2"
-              aria-label={tDash('header.aiStudioToolsAria')}
-            >
-              <Sparkles
-                className="h-4 w-4 shrink-0 text-amber-600 motion-safe:animate-pulse drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:text-amber-300"
-                aria-hidden
-              />
-              <span className="hidden bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[13px] font-semibold text-transparent sm:inline dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300">
-                {tDash('header.toolsBadge')}
-              </span>
-            </Link>
-          </Button>
-        </span>
+        <RainbowSparklePill
+          href="/dashboard/ai-studio/tools"
+          label={tDash('header.toolsBadge')}
+          title={tDash('header.aiStudioToolsTitle')}
+          aria-label={tDash('header.aiStudioToolsAria')}
+          className="shadow-none"
+        />
       </div>
 
       {/* Search — centered between Tools and utilities (lg+) */}

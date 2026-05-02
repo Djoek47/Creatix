@@ -1,13 +1,15 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { GlowInsightsPayload } from '@/lib/wellbeing/types'
 
 export function GoldenHourTimeline({ timeline }: { timeline: GlowInsightsPayload['timeline'] }) {
+  const t = useTranslations('wellbeing.cards')
   return (
     <Card className="border-border/60 bg-card/80 backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-base">Daylight Timeline</CardTitle>
+        <CardTitle className="text-base">{t('daylightTimeline')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-3">

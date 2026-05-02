@@ -2,16 +2,20 @@
 
 import { motion } from 'framer-motion'
 import { Mic, Sparkles, Wand2, MessageCircle, BarChart3, Send, Volume2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
-const intents = [
-  { icon: MessageCircle, label: 'DM fans & mass outreach', hue: 'from-circe/30 to-circe-light/10' },
-  { icon: BarChart3, label: 'Read stats & set prices', hue: 'from-primary/30 to-gold/10' },
-  { icon: Send, label: 'Publish & schedule content', hue: 'from-violet-500/20 to-circe/15' },
-  { icon: Wand2, label: 'Run AI tools & bundles', hue: 'from-fuchsia-500/20 to-primary/15' },
-]
+const INTENT_ICONS = [MessageCircle, BarChart3, Send, Wand2] as const
+const INTENT_HUES = [
+  'from-circe/30 to-circe-light/10',
+  'from-primary/30 to-gold/10',
+  'from-violet-500/20 to-circe/15',
+  'from-fuchsia-500/20 to-primary/15',
+] as const
 
 export function DivineCommandCenter({ className }: { className?: string }) {
+  const t = useTranslations('marketing')
+
   return (
     <div
       className={cn(
@@ -66,46 +70,49 @@ export function DivineCommandCenter({ className }: { className?: string }) {
             </div>
           </motion.div>
           <p className="mt-6 text-center text-xs text-muted-foreground lg:text-left">
-            <Volume2 className="mb-1 inline h-3.5 w-3.5 align-middle text-primary" />{' '}
-            Your empire always listens.
+            <Volume2 className="mb-1 inline h-3.5 w-3.5 align-middle text-primary" aria-hidden />{' '}
+            {t('divineCommandCenter.footnote')}
           </p>
         </div>
 
         <div className="space-y-6">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-circe-light">
-              Divine Manager
+              {t('divineCommandCenter.eyebrow')}
             </p>
             <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
-              Speak it into <span className="text-primary">existence</span>
+              {t('divineCommandCenter.headlineBefore')}{' '}
+              <span className="text-primary">{t('divineCommandCenter.headlineAccent')}</span>
             </h2>
             <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-              The Divine Manager is your voice-first control room: ask in plain language, get answers, and trigger
-              real actions across OnlyFans, Fansly, ManyVids, and your social graph —{' '}
-              <span className="text-foreground/90">often without typing a single character.</span> Dictate DMs, adjust
-              bundles, queue content, and interrogate your analytics as if the platform were a person who never judges,
-              never sleeps, and never misses a detail.
+              {t.rich('divineCommandCenter.body', {
+                bold: (chunks) => <span className="text-foreground/90">{chunks}</span>,
+              })}
             </p>
           </div>
           <ul className="grid gap-3 sm:grid-cols-2">
-            {intents.map(({ icon: Icon, label, hue }) => (
-              <motion.li
-                key={label}
-                initial={{ opacity: 0, x: -12 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4 }}
-                className={cn(
-                  'flex items-center gap-3 rounded-2xl border border-border/60 bg-gradient-to-br p-4 text-sm font-medium',
-                  hue,
-                )}
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background/60 ring-1 ring-primary/15">
-                  <Icon className="h-5 w-5 text-primary" />
-                </span>
-                {label}
-              </motion.li>
-            ))}
+            {INTENT_ICONS.map((Icon, index) => {
+              const label = t(`divineCommandCenter.pillars.${index}`)
+              const hue = INTENT_HUES[index] ?? INTENT_HUES[0]
+              return (
+                <motion.li
+                  key={label}
+                  initial={{ opacity: 0, x: -12 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4 }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-2xl border border-border/60 bg-gradient-to-br p-4 text-sm font-medium',
+                    hue,
+                  )}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background/60 ring-1 ring-primary/15">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </span>
+                  {label}
+                </motion.li>
+              )
+            })}
           </ul>
         </div>
       </div>

@@ -1,13 +1,15 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PerfectShotDay } from '@/lib/wellbeing/types'
 
 export function PerfectShotCarousel({ days }: { days: PerfectShotDay[] }) {
+  const t = useTranslations('wellbeing.cards')
   return (
     <Card className="border-border/60 bg-card/80 backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-base">Perfect Shot Predictor</CardTitle>
+        <CardTitle className="text-base">{t('perfectShot')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-3 overflow-x-auto pb-1">

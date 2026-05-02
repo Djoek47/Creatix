@@ -42,7 +42,9 @@ export async function loadMessagesForNamespaces(
 export async function loadAppMessages(locale: Phase1Locale): Promise<AbstractIntlMessages> {
   const ns = [
     'common',
+    'about',
     'navigation',
+    'niches',
     'dashboard',
     'billing',
     'auth',
@@ -52,6 +54,9 @@ export async function loadAppMessages(locale: Phase1Locale): Promise<AbstractInt
     'settings',
     'toasts',
     'marketing',
+    'wellbeing',
+    'messages',
+    'protection',
   ] as const
   return loadMessagesForNamespaces(locale, ns)
 }

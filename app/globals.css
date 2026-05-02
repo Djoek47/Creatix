@@ -1418,6 +1418,83 @@
   }
 }
 
+/* Home hero — “Coming soon” eyebrow: Circe purple + gold sweep + lit glow (oklch tokens, light + dark) */
+@keyframes home-hero-upcoming-eyebrow-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 220% 50%;
+  }
+}
+
+@keyframes home-hero-upcoming-eyebrow-glow-light {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px color-mix(in oklch, var(--circe) 32%, transparent))
+      drop-shadow(0 0 9px color-mix(in oklch, var(--primary) 22%, transparent));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px color-mix(in oklch, var(--circe-light) 40%, transparent))
+      drop-shadow(0 0 12px color-mix(in oklch, var(--primary) 34%, transparent))
+      drop-shadow(0 0 18px color-mix(in oklch, var(--primary) 14%, transparent));
+  }
+}
+
+@keyframes home-hero-upcoming-eyebrow-glow-dark {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px color-mix(in oklch, var(--circe-light) 38%, transparent))
+      drop-shadow(0 0 11px color-mix(in oklch, var(--primary) 30%, transparent));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px color-mix(in oklch, var(--circe-light) 52%, transparent))
+      drop-shadow(0 0 16px color-mix(in oklch, var(--primary) 44%, transparent))
+      drop-shadow(0 0 26px color-mix(in oklch, var(--primary) 22%, transparent));
+  }
+}
+
+.home-hero-upcoming-eyebrow {
+  background: linear-gradient(
+    102deg,
+    color-mix(in oklch, var(--foreground) 42%, var(--muted-foreground)) 0%,
+    color-mix(in oklch, var(--circe) 78%, var(--foreground)) 16%,
+    color-mix(in oklch, var(--circe-light) 85%, transparent) 30%,
+    color-mix(in oklch, var(--primary) 92%, var(--circe-light)) 42%,
+    color-mix(in oklch, var(--primary) 100%, transparent) 49.5%,
+    color-mix(in oklch, var(--primary) 96%, oklch(0.99 0.04 95)) 50%,
+    color-mix(in oklch, var(--primary) 100%, transparent) 50.5%,
+    color-mix(in oklch, var(--primary) 88%, var(--circe-light)) 58%,
+    color-mix(in oklch, var(--circe-light) 72%, transparent) 70%,
+    color-mix(in oklch, var(--circe) 70%, var(--foreground)) 86%,
+    color-mix(in oklch, var(--muted-foreground) 75%, var(--foreground)) 100%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    home-hero-upcoming-eyebrow-shimmer 5.75s linear infinite,
+    home-hero-upcoming-eyebrow-glow-light 3.15s ease-in-out infinite;
+}
+
+.dark .home-hero-upcoming-eyebrow {
+  animation:
+    home-hero-upcoming-eyebrow-shimmer 5.75s linear infinite,
+    home-hero-upcoming-eyebrow-glow-dark 3.15s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-upcoming-eyebrow {
+    animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--muted-foreground);
+    filter: none;
+  }
+}
+
 .marketing-aurora {
   position: fixed;
   inset: 0;
@@ -1501,9 +1578,62 @@
   animation: marketing-float-soft 5s ease-in-out infinite;
 }
 
+/* Home hero — platform pills: soft brand-colored edge glow (float + glow run together). */
+@keyframes marketing-hero-platform-glow-of {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px oklch(0.58 0.1 240 / 0.42),
+      0 0 14px oklch(0.68 0.12 230 / 0.38),
+      0 0 28px oklch(0.62 0.1 235 / 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px oklch(0.88 0.1 210 / 0.78),
+      0 0 22px oklch(0.76 0.14 220 / 0.55),
+      0 0 40px oklch(0.7 0.12 230 / 0.38),
+      0 0 52px oklch(0.64 0.1 240 / 0.18);
+  }
+}
+
+@keyframes marketing-hero-platform-glow-fl {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px oklch(0.55 0.14 260 / 0.4),
+      0 0 14px oklch(0.62 0.16 255 / 0.36),
+      0 0 28px oklch(0.55 0.14 265 / 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px oklch(0.82 0.12 250 / 0.72),
+      0 0 22px oklch(0.68 0.18 255 / 0.52),
+      0 0 40px oklch(0.6 0.16 265 / 0.36),
+      0 0 52px oklch(0.52 0.14 270 / 0.16);
+  }
+}
+
+.marketing-float.marketing-hero-platform-pill-of {
+  animation:
+    marketing-float-soft 5s ease-in-out infinite,
+    marketing-hero-platform-glow-of 2.85s ease-in-out infinite;
+}
+
+.marketing-float.marketing-hero-platform-pill-fl {
+  animation:
+    marketing-float-soft 5s ease-in-out infinite,
+    marketing-hero-platform-glow-fl 2.85s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marketing-float {
     animation: none;
+  }
+
+  .marketing-float.marketing-hero-platform-pill-of,
+  .marketing-float.marketing-hero-platform-pill-fl {
+    animation: none;
+    box-shadow: none;
   }
 }
 
@@ -3943,4 +4073,146 @@ body {
   .thread-toolbar-gear-btn[data-state='open'] .thread-toolbar-gear-icon {
     animation: none;
   }
+}
+
+/* Divine crown launcher — Idle + Beta pills: soft violet→amber glow (respects reduced motion) */
+@keyframes divine-launcher-status-pill-ambient {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(251, 191, 36, 0.16);
+  }
+}
+
+.animate-divine-launcher-status-pill {
+  animation: divine-launcher-status-pill-ambient 2.85s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-divine-launcher-status-pill {
+    animation: none;
+  }
+}
+
+/* Divine launcher — inline “BETA” in body copy: shifting brand gradient */
+@keyframes divine-launcher-beta-word-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.divine-launcher-beta-word {
+  display: inline;
+  padding: 0 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background-image: linear-gradient(
+    105deg,
+    oklch(0.78 0.14 85) 0%,
+    oklch(0.72 0.2 330) 35%,
+    oklch(0.68 0.22 295) 55%,
+    oklch(0.78 0.14 85) 100%
+  );
+  background-size: 240% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: divine-launcher-beta-word-shimmer 2.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .divine-launcher-beta-word {
+    animation: none;
+    background: none;
+    color: oklch(0.82 0.14 85);
+    -webkit-text-fill-color: oklch(0.82 0.14 85);
+  }
+}
+
+/* Marketing demo — “Start free trial” pill: soft orbital violet / gold / fuchsia glow */
+.demo-trial-cta-shell {
+  position: relative;
+  border-radius: 9999px;
+  isolation: isolate;
+}
+
+.demo-trial-cta-shell .demo-trial-cta-aurora {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 150%;
+  aspect-ratio: 1;
+  min-width: 7.5rem;
+  border-radius: 9999px;
+  background: conic-gradient(
+    oklch(0.56 0.17 295 / 0.55),
+    oklch(0.86 0.13 85 / 0.72),
+    oklch(0.66 0.22 330 / 0.62),
+    oklch(0.5 0.1 260 / 0.42),
+    oklch(0.56 0.17 295 / 0.55)
+  );
+  filter: blur(11px);
+  opacity: 0.68;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: demo-trial-aurora-spin 12s linear infinite;
+}
+
+@keyframes demo-trial-aurora-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-trial-cta-shell .demo-trial-cta-aurora {
+    animation: none;
+    opacity: 0.36;
+  }
+}
+
+.demo-trial-cta-shell .demo-trial-cta-edge {
+  position: relative;
+  z-index: 1;
+  animation: demo-trial-edge-shimmer 4.8s ease-in-out infinite;
+}
+
+@keyframes demo-trial-edge-shimmer {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.62 0.18 295) 34%, transparent),
+      0 0 18px -8px color-mix(in oklch, oklch(0.78 0.14 85) 16%, transparent),
+      0 0 32px -12px color-mix(in oklch, oklch(0.58 0.2 295) 10%, transparent);
+  }
+  40% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.78 0.14 85) 42%, transparent),
+      0 0 22px -6px color-mix(in oklch, oklch(0.64 0.2 330) 14%, transparent),
+      0 0 36px -10px color-mix(in oklch, oklch(0.72 0.16 295) 12%, transparent);
+  }
+  70% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, oklch(0.58 0.2 330) 36%, transparent),
+      0 0 16px -10px color-mix(in oklch, oklch(0.82 0.12 85) 12%, transparent),
+      0 0 28px -14px color-mix(in oklch, oklch(0.55 0.18 295) 10%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-trial-cta-shell .demo-trial-cta-edge {
+    animation: none;
+  }
+}
+
+.demo-trial-cta-shell .demo-trial-cta-edge:hover {
+  animation: none;
 }

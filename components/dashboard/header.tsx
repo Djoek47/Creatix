@@ -156,7 +156,10 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
     (avatarChipLoading || avatarChipWallet !== null)
 
   return (
-    <header className="dashboard-header-chrome flex h-14 w-full min-w-0 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6">
+    <header
+      id="dashboard-workspace-header"
+      className="dashboard-header-chrome flex h-14 w-full min-w-0 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6"
+    >
       {/* AI Studio Tools — solitary lead control (start) */}
       <div className="flex shrink-0 items-center justify-start">
         <span className="header-tools-rainbow-wrap inline-flex rounded-full">

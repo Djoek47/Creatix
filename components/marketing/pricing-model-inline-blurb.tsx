@@ -1,15 +1,27 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
+import { protectionProduct } from '@/lib/seo/pricing-seo'
+import { fmtUsd } from '@/lib/marketing/fmt-usd'
 
 /** How single-platform vs Bundled works — short; details live on /pricing. */
 export function PricingModelInlineBlurb({ className }: { className?: string }) {
+  const t = useTranslations('marketing')
+  const protectionPrice = fmtUsd(protectionProduct.priceMonthly ?? 25)
+  const bundleAddon = fmtUsd(BUNDLE_ADDONS.FL_ON_OF)
+
   return (
     <p className={cn('text-muted-foreground', className)}>
-      <strong className="text-foreground">Single platform</strong> is one platform or a two-platform pair (e.g. OnlyFans + ManyVids) with band-specific list
-      prices. <strong className="text-foreground">Bundled</strong> is OnlyFans + Fansly in one bill for that band.{' '}
-      <strong className="text-foreground">Protection &amp; Anti-Piracy</strong> is a separate $25/mo add-on for Clips4Sale, ManyVids, Loyalfans,
-      Fanvue, MYM, and other non-API coverage (stackable with a main plan). List bundles like OnlyFans + Fansly use fixed band prices, not a simple +$
-      {BUNDLE_ADDONS.FL_ON_OF} on the OnlyFans line — use the <strong className="text-foreground">Pricing</strong> calculator for exact numbers.
+      {t.rich('pricing.inline.blurb', {
+        protectionPrice,
+        bundleAddon,
+        sp: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+        bu: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+        pr: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+        calc: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+      })}
     </p>
   )
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
+import { finalizeVaultExportUpload, vaultExportExistingBytes } from '@/lib/frame-vault-export-finalize'
 import {
   DEFAULT_VAULT_USER_QUOTA_MB,
   isAllowedVaultVideoMime,
@@ -10,11 +11,14 @@ import {
   VAULT_EXPORT_MAX_BYTES,
   VAULT_MEDIA_BUCKET,
 } from '@/lib/frame-vault-media'
-import { sumVaultMediaUsageBytes, vaultObjectSizeBytes } from '@/lib/vault-storage-usage'
+import { sumVaultMediaUsageBytes } from '@/lib/vault-storage-usage'
 
 export const runtime = 'nodejs'
 
 /**
+ * Small multipart uploads only — Vercel limits request bodies (~4.5MB+) with `FUNCTION_PAYLOAD_TOO_LARGE`.
+ * For videos, use JSON `POST .../frame-export/prepare` → PUT to `signedUrl` → `POST .../frame-export/complete`.
+ *
  * Upload edited video: either Frame service (X-Frame-Export-Secret + exportToken) or logged-in user (session).
  */
 export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -101,7 +105,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     return NextResponse.json({ error: usageResult.error || 'Could not verify vault usage' }, { status: 500 })
   }
   let usageBytes = usageResult.bytes
-  const existingBytes = currentPath ? await vaultObjectSizeBytes(service, currentPath) : 0
+  const existingBytes = await vaultExportExistingBytes(service, currentPath)
   const projectedBytes = usageBytes - existingBytes + file.size
   if (projectedBytes > quotaBytes) {
     return NextResponse.json(
@@ -132,41 +136,21 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     return NextResponse.json({ error: (upErr.message || 'Upload failed') + hint }, { status: 500 })
   }
 
-  const signedSeconds = 60 * 24 * 60 * 60 // 60 days
-  const { data: signed, error: signErr } = await service.storage
-    .from(VAULT_MEDIA_BUCKET)
-    .createSignedUrl(path, signedSeconds)
+  const finalized = await finalizeVaultExportUpload(service, {
+    userId,
+    contentId: id,
+    storagePath: path,
+    mime,
+  })
 
-  if (signErr || !signed?.signedUrl) {
-    return NextResponse.json({ error: signErr?.message || 'Could not sign URL' }, { status: 500 })
-  }
-
-  const patch: Record<string, unknown> = {
-    file_url: signed.signedUrl,
-    vault_storage_path: path,
-    updated_at: new Date().toISOString(),
-  }
-
-  const { data: updated, error: updErr } = await service
-    .from('content')
-    .update(patch)
-    .eq('id', id)
-    .eq('user_id', userId)
-    .select('id, file_url, vault_storage_path, updated_at')
-    .maybeSingle()
-
-  if (updErr || !updated) {
-    return NextResponse.json({ error: updErr?.message || 'Update failed' }, { status: 500 })
-  }
-
-  if (currentPath && currentPath !== path) {
-    void service.storage.from(VAULT_MEDIA_BUCKET).remove([currentPath])
+  if (!finalized.ok) {
+    return NextResponse.json({ error: finalized.error }, { status: finalized.status })
   }
 
   return NextResponse.json({
     success: true,
-    content: updated,
-    downloadUrl: signed.signedUrl,
-    signedUrlExpiresInSec: signedSeconds,
+    content: finalized.content,
+    downloadUrl: finalized.downloadUrl,
+    signedUrlExpiresInSec: finalized.signedUrlExpiresInSec,
   })
 }

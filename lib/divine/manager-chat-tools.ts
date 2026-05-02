@@ -2379,19 +2379,21 @@ export async function runToolCall(
     (intentRes.status && intentRes.status !== 'executed' ? `Intent status: ${intentRes.status}` : undefined) ??
     JSON.stringify(intentRes)
   const dataIntent = name as string
-  if (dataIntent === 'list_fans' && Array.isArray((intentRes as { fans?: unknown[] }).fans)) {
-    const fans = (intentRes as { fans: unknown[] }).fans
+  if (dataIntent === 'list_fans' && Array.isArray((intentRes as unknown as { fans?: unknown[] }).fans)) {
+    const fans = (intentRes as unknown as { fans: unknown[] }).fans
     summary += '\n' + JSON.stringify(fans.slice(0, 30)).slice(0, 3000)
   } else if (
     dataIntent === 'get_fan_subscription_history' &&
-    Array.isArray((intentRes as { history?: unknown[] }).history)
+    Array.isArray((intentRes as unknown as { history?: unknown[] }).history)
   ) {
-    summary += '\n' + JSON.stringify((intentRes as { history: unknown[] }).history).slice(0, 2000)
+    summary += '\n' + JSON.stringify((intentRes as unknown as { history: unknown[] }).history).slice(0, 2000)
   } else if (
     dataIntent === 'list_followings' &&
-    Array.isArray((intentRes as { followings?: unknown[] }).followings)
+    Array.isArray((intentRes as unknown as { followings?: unknown[] }).followings)
   ) {
-    summary += '\n' + JSON.stringify((intentRes as { followings: unknown[] }).followings.slice(0, 20)).slice(0, 2000)
+    summary +=
+      '\n' +
+      JSON.stringify((intentRes as unknown as { followings: unknown[] }).followings.slice(0, 20)).slice(0, 2000)
   } else if (dataIntent === 'get_top_message') {
     const r = intentRes as { message?: unknown; buyers?: unknown[] }
     if (r.message) summary += '\nMessage: ' + JSON.stringify(r.message).slice(0, 1000)

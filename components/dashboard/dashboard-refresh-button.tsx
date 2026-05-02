@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -68,6 +69,7 @@ const shellButtonClass =
  * so RSC-backed mentions, leaks, and widgets pick up fresh data.
  */
 export function DashboardRefreshButton() {
+  const t = useTranslations('dashboard')
   const [busy, setBusy] = useState(false)
   const [platforms, setPlatforms] = useState<string[]>([])
   const [tick, setTick] = useState(0)
@@ -138,9 +140,8 @@ export function DashboardRefreshButton() {
     }
   }, [])
 
-  const label = busy ? 'Syncing…' : 'Refresh data'
-  const title =
-    'Sync all connected platforms, then reload (mentions, leaks, dashboard)'
+  const label = busy ? t('refresh.syncing') : t('refresh.label')
+  const title = t('refresh.title')
 
   return (
     <>
@@ -177,7 +178,7 @@ export function DashboardRefreshButton() {
           />
         )}
         <span className="shrink-0 whitespace-nowrap text-amber-950 dark:text-amber-50">
-          {busy ? 'Syncing…' : 'Refresh data'}
+          {busy ? t('refresh.syncing') : t('refresh.label')}
         </span>
       </button>
 

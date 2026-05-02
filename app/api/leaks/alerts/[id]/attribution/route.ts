@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { enrichAttributionWithExport } from '@/lib/ariadne/attribution-analyze'
+import type { MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
 import { progressiveMarkitAttributionFromBuffer } from '@/lib/ariadne/progressive-leak-scan'
 import { fetchBinaryWithSizeCap } from '@/lib/leaks/safe-leak-url-fetch'
 import { normalizeUrl } from '@/lib/leaks/url-utils'
@@ -125,12 +126,12 @@ export async function POST(_request: NextRequest, ctx: { params: Promise<{ id: s
 
   const progressive = await progressiveMarkitAttributionFromBuffer(buffer)
   const { scan_stages, ...resultRest } = progressive as typeof progressive & { scan_stages: string[] }
-  let out = {
+  let out: MarkitAttributionResult = {
     ...resultRest,
     evidence: {
       ...resultRest.evidence,
       progressive: {
-        ...resultRest.evidence.progressive,
+        ...(resultRest.evidence.progressive ?? {}),
         used_tail_range_fetch: usedRangeTail,
         scan_stages: scan_stages,
       },

@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Calendar, Users } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -74,41 +75,42 @@ export function FantasyWriterRunnerInputs({
   fantasyScheduledContent,
   crmFansMeta,
 }: FantasyWriterRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.fantasy-writer')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Tone</Label>
+            <Label>{t('easyToneLabel')}</Label>
             <Select value={contentType} onValueChange={setContentType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="romantic">Romantic</SelectItem>
-                <SelectItem value="playful">Playful</SelectItem>
-                <SelectItem value="mysterious">Mysterious</SelectItem>
-                <SelectItem value="dominant">Dominant</SelectItem>
-                <SelectItem value="submissive">Submissive</SelectItem>
+                <SelectItem value="romantic">{t('toneRomantic')}</SelectItem>
+                <SelectItem value="playful">{t('tonePlayful')}</SelectItem>
+                <SelectItem value="mysterious">{t('toneMysterious')}</SelectItem>
+                <SelectItem value="dominant">{t('toneDominant')}</SelectItem>
+                <SelectItem value="submissive">{t('toneSubmissive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Platform</Label>
+            <Label>{ts('platform')}</Label>
             <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Scene or vibe</Label>
+          <Label>{t('easySceneLabel')}</Label>
           <Textarea
-            placeholder="What should happen in the fantasy? (You can use the mic.)"
+            placeholder={t('easyScenePlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[100px]"
           />
-          <p className="text-[11px] text-muted-foreground">
-            Pro mode: tie to calendar events, a planned post, or one fan from CRM.
-          </p>
+          <p className="text-[11px] text-muted-foreground">{t('easyProHint')}</p>
         </div>
       </div>
     )
@@ -118,39 +120,39 @@ export function FantasyWriterRunnerInputs({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Tone/Style</Label>
+          <Label>{t('proToneStyleLabel')}</Label>
           <Select value={contentType} onValueChange={setContentType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="romantic">Romantic</SelectItem>
-              <SelectItem value="playful">Playful</SelectItem>
-              <SelectItem value="mysterious">Mysterious</SelectItem>
-              <SelectItem value="dominant">Dominant</SelectItem>
-              <SelectItem value="submissive">Submissive</SelectItem>
+              <SelectItem value="romantic">{t('toneRomantic')}</SelectItem>
+              <SelectItem value="playful">{t('tonePlayful')}</SelectItem>
+              <SelectItem value="mysterious">{t('toneMysterious')}</SelectItem>
+              <SelectItem value="dominant">{t('toneDominant')}</SelectItem>
+              <SelectItem value="submissive">{t('toneSubmissive')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          Cosmic calendar event (next ~90 days)
+          {t('cosmicCalendarLabel')}
         </Label>
         <Select
           value={fantasyHolidayEventId || 'none'}
           onValueChange={(v) => setFantasyHolidayEventId(v === 'none' ? '' : v)}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Optional — tie fantasy to a holiday / event" />
+            <SelectValue placeholder={t('cosmicCalendarPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="none">{ts('none')}</SelectItem>
             {upcomingCosmicEvents.map((ev) => (
               <SelectItem key={ev.id} value={ev.id}>
                 {formatFantasyRunnerDate(ev.date)} — {ev.holiday.name}
@@ -160,13 +162,13 @@ export function FantasyWriterRunnerInputs({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Your scheduled content (content calendar)</Label>
+        <Label>{t('scheduledContentLabel')}</Label>
         <Select value={fantasyContentId || 'none'} onValueChange={(v) => setFantasyContentId(v === 'none' ? '' : v)}>
           <SelectTrigger>
-            <SelectValue placeholder="Optional — match a planned post" />
+            <SelectValue placeholder={t('scheduledContentPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="none">{ts('none')}</SelectItem>
             {fantasyScheduledContent.map((row) => (
               <SelectItem key={row.id} value={row.id}>
                 {row.title}
@@ -176,25 +178,25 @@ export function FantasyWriterRunnerInputs({
           </SelectContent>
         </Select>
         {fantasyScheduledContent.length === 0 && (
-          <p className="text-xs text-muted-foreground">No items in your content calendar yet. Add posts under Content.</p>
+          <p className="text-xs text-muted-foreground">{t('noCalendarItems')}</p>
         )}
       </div>
       <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
-          Fan profile (personalize for one fan)
+          {t('fanProfileLabel')}
         </Label>
         <Select value={fantasyFanId || 'none'} onValueChange={(v) => setFantasyFanId(v === 'none' ? '' : v)}>
           <SelectTrigger>
-            <SelectValue placeholder="Optional — fantasy tailored to this fan" />
+            <SelectValue placeholder={t('fanProfilePlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="none">{ts('none')}</SelectItem>
             {fantasyFans.map((f) => {
-              const h = f.username || f.platform_username || 'fan'
+              const handle = f.username || f.platform_username || ts('fanFallback')
               return (
                 <SelectItem key={f.id} value={f.id}>
-                  @{h} · {f.platform}
+                  @{handle} · {f.platform}
                   {f.total_spent != null ? ` · ~$${f.total_spent}` : ''}
                 </SelectItem>
               )
@@ -207,16 +209,16 @@ export function FantasyWriterRunnerInputs({
         {fantasyFans.length === 0 && (
           <p className="text-xs text-muted-foreground">
             {crmFansMeta == null
-              ? 'Could not load fans. Refresh the page or try again.'
+              ? t('fansLoadError')
               : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
-                : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync subscribers into this list.'}
+                ? t('fansSyncHint')
+                : t('fansConnectHint')}
           </p>
         )}
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Scenario or theme (optional if you picked calendar / fan / scheduled post above)</Label>
+          <Label>{t('scenarioLabel')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -224,7 +226,7 @@ export function FantasyWriterRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="e.g. masquerade strangers, slow burn, exclusive VIP vibe — or leave blank and rely on calendar + fan context."
+          placeholder={t('scenarioPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"

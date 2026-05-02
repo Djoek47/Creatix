@@ -123,7 +123,9 @@ export async function GET(request: NextRequest) {
       const listFailed = listKind !== null
 
       if (countsFailed && listFailed) {
-        const kinds = [countsKind, listKind].filter((k): k is PartnerErrKind => k != null)
+        const kinds = ([countsKind, listKind] as Array<PartnerErrKind | null>).filter(
+          (k): k is PartnerErrKind => k != null,
+        )
         if (kinds.includes('rate')) {
           if (cachedSnapshot) {
             notificationsCache.set(cacheKey, {

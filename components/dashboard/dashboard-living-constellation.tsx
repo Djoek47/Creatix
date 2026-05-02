@@ -62,11 +62,17 @@ export function DashboardLivingConstellation() {
   }, [])
 
   useEffect(() => {
-    const wrap = wrapRef.current
-    const canvas = canvasRef.current
-    if (!wrap || !canvas || !ctxLoaded) return
-    const ctx = canvas.getContext('2d')
+    const wrapEl = wrapRef.current
+    const canvasEl = canvasRef.current
+    const skyCtxLoaded = ctxLoaded
+    if (!wrapEl || !canvasEl || !skyCtxLoaded) return
+    const ctx = canvasEl.getContext('2d')
     if (!ctx) return
+
+    const wrap = wrapEl
+    const canvas = canvasEl
+    const sky = skyCtxLoaded
+    const ctx2d = ctx
 
     const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -94,7 +100,7 @@ export function DashboardLivingConstellation() {
       canvas.height = h * dpr
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0)
       if (!reduced && dustLen > 0) {
         dustPx = new Float32Array(dustLen * 4)
         for (let i = 0; i < dustLen; i += 1) {
@@ -114,24 +120,24 @@ export function DashboardLivingConstellation() {
     let t0 = performance.now()
 
     function drawFrame(nowMs: number) {
-      ctx.clearRect(0, 0, w, h)
+      ctx2d.clearRect(0, 0, w, h)
 
       const jd = jdFromDateUtc(new Date())
-      const lst = localSiderealDegrees(jd, ctxLoaded.longitude)
-      const { latitude } = ctxLoaded
+      const lst = localSiderealDegrees(jd, sky.longitude)
+      const { latitude } = sky
       const cx = w / 2
       const cy = h / 2
       const radial = Math.min(w, h) * 0.42
       const dark = darkMode()
-      ctx.save()
-      ctx.beginPath()
-      ctx.arc(cx, cy, radial * 1.02, 0, Math.PI * 2)
-      ctx.strokeStyle = dark ? 'rgba(168,85,247,0.07)' : 'rgba(88,28,135,0.06)'
-      ctx.lineWidth = 1
-      ctx.stroke()
+      ctx2d.save()
+      ctx2d.beginPath()
+      ctx2d.arc(cx, cy, radial * 1.02, 0, Math.PI * 2)
+      ctx2d.strokeStyle = dark ? 'rgba(168,85,247,0.07)' : 'rgba(88,28,135,0.06)'
+      ctx2d.lineWidth = 1
+      ctx2d.stroke()
 
-      ctx.lineCap = 'round'
-      ctx.globalAlpha = dark ? 0.55 : 0.42
+      ctx2d.lineCap = 'round'
+      ctx2d.globalAlpha = dark ? 0.55 : 0.42
 
       for (const edge of STAR_STICK_FIGURES) {
         const [raA, decA] = edge.raDecA
@@ -144,29 +150,29 @@ export function DashboardLivingConstellation() {
         const xb = cx + pb.x * radial
         const yb = cy + pb.y * radial
 
-        ctx.strokeStyle = dark ? 'rgba(251,191,36,0.45)' : 'rgba(120,53,18,0.35)'
-        ctx.lineWidth = 0.9
-        ctx.beginPath()
-        ctx.moveTo(xa, ya)
-        ctx.lineTo(xb, yb)
-        ctx.stroke()
+        ctx2d.strokeStyle = dark ? 'rgba(251,191,36,0.45)' : 'rgba(120,53,18,0.35)'
+        ctx2d.lineWidth = 0.9
+        ctx2d.beginPath()
+        ctx2d.moveTo(xa, ya)
+        ctx2d.lineTo(xb, yb)
+        ctx2d.stroke()
 
-        ctx.fillStyle = dark ? 'rgba(255,247,237,0.55)' : 'rgba(109,40,217,0.45)'
+        ctx2d.fillStyle = dark ? 'rgba(255,247,237,0.55)' : 'rgba(109,40,217,0.45)'
         for (const p of [
           [xa, ya],
           [xb, yb],
         ] as const) {
-          ctx.beginPath()
-          ctx.arc(p[0], p[1], 1.2, 0, Math.PI * 2)
-          ctx.fill()
+          ctx2d.beginPath()
+          ctx2d.arc(p[0], p[1], 1.2, 0, Math.PI * 2)
+          ctx2d.fill()
         }
       }
-      ctx.restore()
+      ctx2d.restore()
 
       /* Faint drifting dust — does not resemble real asterisms */
       if (!reduced && dustPx) {
         const dt = ((nowMs - t0) / 45000) * (Math.PI / 180)
-        ctx.globalAlpha = dark ? 0.065 : 0.045
+        ctx2d.globalAlpha = dark ? 0.065 : 0.045
         for (let i = 0; i < dustLen; i += 1) {
           const o = i * 4
           let x = dustPx[o]
@@ -177,10 +183,10 @@ export function DashboardLivingConstellation() {
           if (x > w || x < 0) x = Math.random() * w
           dustPx[o] = x
           dustPx[o + 1] = yy
-          ctx.fillStyle = dustPx[o + 3] > 0.62 ? '#c7b5ff44' : '#fef3c744'
-          ctx.fillRect(Math.floor(x), Math.floor(yy), 1, 1)
+          ctx2d.fillStyle = dustPx[o + 3] > 0.62 ? '#c7b5ff44' : '#fef3c744'
+          ctx2d.fillRect(Math.floor(x), Math.floor(yy), 1, 1)
         }
-        ctx.globalAlpha = 1
+        ctx2d.globalAlpha = 1
       }
 
       if (reduced) return

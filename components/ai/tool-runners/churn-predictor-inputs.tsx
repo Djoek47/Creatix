@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import {
   UserRound,
@@ -90,20 +91,21 @@ export function ChurnPredictorRunnerInputs({
   setContentDescription,
   crmFansMeta,
 }: ChurnPredictorRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.churn-predictor')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-5">
-        <p className="text-[14px] leading-relaxed text-muted-foreground">
-          Pick someone from your CRM — we&apos;ll surface churn risk and practical next steps.
-        </p>
+        <p className="text-[14px] leading-relaxed text-muted-foreground">{t('easyIntro')}</p>
         <div className={cn(sectionShell, 'space-y-3')}>
-          <p className={kicker}>Fan</p>
+          <p className={kicker}>{t('kickerFan')}</p>
           <Select value={churnFanId} onValueChange={setChurnFanId}>
             <SelectTrigger className={selectTriggerClass}>
-              <SelectValue placeholder="Choose fan" />
+              <SelectValue placeholder={ts('chooseFan')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="manual">Type details myself</SelectItem>
+              <SelectItem value="manual">{t('manualTypeDetails')}</SelectItem>
               {churnFans.map((f) => (
                 <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
                   <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -112,24 +114,21 @@ export function ChurnPredictorRunnerInputs({
                     </span>
                     <span>
                       @{f.username}
-                      {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
+                      {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)}{' '}
+                      {ts('spendSuffix')}
                     </span>
                   </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {churnFans.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground">
-              No fans loaded yet — connect a platform or use &quot;Type details myself&quot;.
-            </p>
-          ) : null}
+          {churnFans.length === 0 ? <p className="text-[12px] text-muted-foreground">{t('noFansLoaded')}</p> : null}
         </div>
         {churnFanId === 'manual' ? (
           <div className={cn(sectionShell, 'space-y-2')}>
-            <p className={kicker}>Describe the fan</p>
+            <p className={kicker}>{t('kickerDescribe')}</p>
             <Textarea
-              placeholder="Spend, tenure, what changed recently…"
+              placeholder={t('describeFanPlaceholder')}
               value={fanMessage}
               onChange={(e) => setFanMessage(e.target.value)}
               className="min-h-[88px] rounded-xl border-border/45 bg-background/70 text-[14px]"
@@ -137,18 +136,15 @@ export function ChurnPredictorRunnerInputs({
           </div>
         ) : null}
         <div className={cn(sectionShell, 'space-y-2')}>
-          <p className={kicker}>Anything new? (optional)</p>
+          <p className={kicker}>{t('kickerOptional')}</p>
           <Textarea
-            placeholder="Recent DMs, tips, or unusual silence…"
+            placeholder={t('optionalPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[72px] rounded-xl border-border/45 bg-background/70 text-[14px]"
           />
         </div>
-        <p className="text-center text-[11px] text-muted-foreground">
-          <span className="font-medium text-foreground/90">Pro</span> adds expiring-soon filter, renewal dates in the list,
-          and deeper CRM context.
-        </p>
+        <p className="text-center text-[11px] text-muted-foreground">{t('easyProFootnote')}</p>
       </div>
     )
   }
@@ -159,27 +155,26 @@ export function ChurnPredictorRunnerInputs({
         <QuickLink
           href="/dashboard/retention/churn"
           icon={LayoutGrid}
-          label="Batch & schedule"
-          sub="Multi-fan digests, Scan now, calendar teasers"
+          label={t('linkBatchLabel')}
+          sub={t('linkBatchSub')}
         />
         <QuickLink
           href="/dashboard/retention/tease"
           icon={CalendarClock}
-          label="Content calendar"
-          sub="Teasers referenced in scans"
+          label={t('linkCalendarLabel')}
+          sub={t('linkCalendarSub')}
         />
         <QuickLink
           href="/dashboard/messages"
           icon={MessagesSquare}
-          label="Messages"
-          sub="Refresh thread cache for richer context"
+          label={t('linkMessagesLabel')}
+          sub={t('linkMessagesSub')}
         />
       </div>
 
       <p className="text-[14px] leading-relaxed text-muted-foreground">
-        <span className="font-medium text-foreground">This run</span> is one fan at a time with CRM + thread context.
-        Use <span className="text-foreground/95">Batch & schedule</span> for scheduled multi-fan digests across
-        OnlyFans and Fansly.
+        <span className="font-medium text-foreground">{t('proIntroLead')}</span>
+        {t('proIntroRest')}
       </p>
 
       <div className={sectionShell}>
@@ -189,12 +184,9 @@ export function ChurnPredictorRunnerInputs({
           </span>
           <div className="min-w-0 flex-1 space-y-4">
             <div>
-              <p className={kicker}>Step 1 — Who</p>
-              <p className="mt-1 text-[13px] font-medium text-foreground">Choose a CRM fan or enter manually</p>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-                Lists combine saved CRM rows with live subscribers where available; renewal dates need a recent sync from
-                Fans.
-              </p>
+              <p className={kicker}>{t('step1Kicker')}</p>
+              <p className="mt-1 text-[13px] font-medium text-foreground">{t('step1Title')}</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{t('step1Body')}</p>
             </div>
 
             <div className="rounded-xl border border-border/25 bg-muted/[0.06] px-3 py-3 dark:bg-muted/[0.08]">
@@ -206,20 +198,18 @@ export function ChurnPredictorRunnerInputs({
                   className="mt-0.5 border-border/60 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
                 />
                 <Label htmlFor="churn-expiring-only" className="cursor-pointer text-[13px] font-normal leading-snug">
-                  Only show fans whose period ends within <span className="tabular-nums font-medium">14 days</span>
-                  <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                    Requires subscription end dates in CRM — run a full sync if the list looks empty.
-                  </span>
+                  {t('expiringCheckbox')}
+                  <span className="mt-0.5 block text-[12px] text-muted-foreground">{t('expiringCheckboxHint')}</span>
                 </Label>
               </div>
             </div>
 
             <Select value={churnFanId} onValueChange={setChurnFanId}>
               <SelectTrigger className={selectTriggerClass}>
-                <SelectValue placeholder="Select fan" />
+                <SelectValue placeholder={ts('selectFan')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="manual">Manual entry only</SelectItem>
+                <SelectItem value="manual">{t('manualEntryOnly')}</SelectItem>
                 {churnFansFiltered.map((f) => (
                   <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
                     <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -228,9 +218,12 @@ export function ChurnPredictorRunnerInputs({
                       </span>
                       <span>
                         @{f.username}
-                        {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
-                        {f.subscription_expires_at ? ` · ends ${f.subscription_expires_at.slice(0, 10)}` : ''}
-                        {f._source !== 'database' ? ' · live list' : ''}
+                        {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)}{' '}
+                        {ts('spendSuffix')}
+                        {f.subscription_expires_at
+                          ? ` · ${ts('endsPrefix')} ${f.subscription_expires_at.slice(0, 10)}`
+                          : ''}
+                        {f._source !== 'database' ? ` · ${ts('liveListSuffix')}` : ''}
                       </span>
                     </span>
                   </SelectItem>
@@ -249,16 +242,14 @@ export function ChurnPredictorRunnerInputs({
             {!churnExpiringOnly && churnFansFiltered.length === 0 ? (
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 {crmFansMeta == null
-                  ? 'Fans could not be loaded. Refresh the page or try again.'
+                  ? t('fansCouldNotLoad')
                   : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                    ? 'No CRM rows or live subscribers yet. Open Fans to sync, check Integrations if a session expired, or use manual entry.'
-                    : 'Connect OnlyFans or Fansly in Settings, sync from Fans, or use manual entry.'}
+                    ? t('noCrmYet')
+                    : t('connectOrManual')}
               </p>
             ) : null}
             {churnExpiringOnly && churnFansFiltered.length === 0 ? (
-              <p className="text-[12px] leading-relaxed text-muted-foreground">
-                No one matches the expiring window. Run a full CRM update from Fans so subscription end dates populate.
-              </p>
+              <p className="text-[12px] leading-relaxed text-muted-foreground">{t('noExpiringMatches')}</p>
             ) : null}
           </div>
         </div>
@@ -267,21 +258,19 @@ export function ChurnPredictorRunnerInputs({
       <Separator className="bg-border/50" />
 
       <div className={sectionShell}>
-        <p className={kicker}>Step 2 — Context for the model</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-          More detail usually means better plays; all fields below are optional when a CRM fan is selected.
-        </p>
+        <p className={kicker}>{t('step2Kicker')}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{t('step2Intro')}</p>
 
         <div className="mt-4 space-y-4">
           {churnFanId === 'manual' ? (
             <div className="space-y-2">
               <Label className="text-[13px] font-medium text-foreground" htmlFor="churn-manual-fan">
-                Fan details
+                {t('fanDetailsLabel')}
               </Label>
-              <p className="text-[12px] text-muted-foreground">Who they are, spend level, tenure, and what worries you.</p>
+              <p className="text-[12px] text-muted-foreground">{t('fanDetailsHint')}</p>
               <Textarea
                 id="churn-manual-fan"
-                placeholder="Example: 6-month sub, used to tip weekly, quiet for 10 days…"
+                placeholder={t('fanDetailsPlaceholder')}
                 value={fanMessage}
                 onChange={(e) => setFanMessage(e.target.value)}
                 className="min-h-[120px] rounded-xl border-border/45 bg-background/70 text-[14px]"
@@ -290,12 +279,12 @@ export function ChurnPredictorRunnerInputs({
           ) : (
             <div className="space-y-2">
               <Label className="text-[13px] font-medium text-foreground" htmlFor="churn-spend-notes">
-                Spend & trend notes (optional)
+                {t('spendTrendLabel')}
               </Label>
-              <p className="text-[12px] text-muted-foreground">Adds on top of CRM totals — e.g. tips vs last month.</p>
+              <p className="text-[12px] text-muted-foreground">{t('spendTrendHint')}</p>
               <Textarea
                 id="churn-spend-notes"
-                placeholder="e.g. tips down vs last month, PPV purchases stopped…"
+                placeholder={t('spendTrendPlaceholder')}
                 value={fanMessage}
                 onChange={(e) => setFanMessage(e.target.value)}
                 className="min-h-[88px] rounded-xl border-border/45 bg-background/70 text-[14px]"
@@ -305,12 +294,12 @@ export function ChurnPredictorRunnerInputs({
 
           <div className="space-y-2">
             <Label className="text-[13px] font-medium text-foreground" htmlFor="churn-behavior">
-              Recent behavior (optional)
+              {t('recentBehaviorLabel')}
             </Label>
-            <p className="text-[12px] text-muted-foreground">DM tone, boundaries, or anything that changed lately.</p>
+            <p className="text-[12px] text-muted-foreground">{t('recentBehaviorHint')}</p>
             <Textarea
               id="churn-behavior"
-              placeholder="Short notes on chat, purchases, or silence…"
+              placeholder={t('recentBehaviorPlaceholder')}
               value={contentDescription}
               onChange={(e) => setContentDescription(e.target.value)}
               className="min-h-[88px] rounded-xl border-border/45 bg-background/70 text-[14px]"

@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { ToolHelpDialog } from '@/components/ai/tool-help-dialog'
@@ -68,8 +69,9 @@ import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 import { formatFantasyRunnerDate } from '@/lib/calendar/format-fantasy-runner-date'
 import type { FantasyFanPickerRow, FantasyScheduledRow } from '@/components/ai/tool-runners/fantasy-writer-inputs'
 import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
+import type { LucideIcon } from 'lucide-react'
 
-/** Visual-only fields; names/descriptions come from `getToolMeta` to match ALL_TOOLS_META. */
+/** Visual-only fields; names/descriptions come from per-locale `messages` … `ai-tools.json`. */
 const WORKING_TOOL_ROWS = [
   {
     id: 'fantasy-writer',
@@ -108,16 +110,6 @@ const WORKING_TOOL_ROWS = [
   },
 ] as const
 
-const workingTools = WORKING_TOOL_ROWS.map((row) => {
-  const m = getToolMeta(row.id)
-  return {
-    ...row,
-    name: m?.name ?? row.id,
-    description: m?.description ?? '',
-    longDescription: m?.longDescription ?? '',
-  }
-})
-
 const PRO_TOOL_ROWS = [
   {
     id: 'pricing-optimizer',
@@ -155,18 +147,6 @@ const PRO_TOOL_ROWS = [
     borderColor: 'border-amber-500/30',
   },
 ] as const
-
-const proTools = PRO_TOOL_ROWS.map((row) => {
-  const canonical = resolveCanonicalToolId(row.id)
-  const m = getToolMeta(canonical)
-  return {
-    ...row,
-    name: m?.name ?? row.id,
-    description: m?.description ?? '',
-    longDescription: m?.longDescription ?? '',
-    isPro: true as const,
-  }
-})
 
 function showToolInSelectorGrid(tool: { id: string }) {
   return !getToolMeta(resolveCanonicalToolId(tool.id))?.hiddenFromLibrary
@@ -289,19 +269,35 @@ interface PhotoEditIntentResult {
   creditsUsed?: number
 }
 
-type ToolType = typeof workingTools[0] | typeof proTools[0]
+type ToolType = {
+  id: string
+  name: string
+  description: string
+  longDescription: string
+  icon: LucideIcon
+  color: string
+  bgColor: string
+  borderColor: string
+  isPro?: true
+}
 
-function makeGenericTool(toolId: string): ToolType {
-  const meta = getToolMeta(toolId)
+function makeGenericTool(
+  toolId: string,
+  t: ReturnType<typeof useTranslations<'ai-tools'> >,
+): ToolType {
+  const canonical = resolveCanonicalToolId(toolId)
+  const nameKey = `tools.${canonical}.name`
+  const descKey = `tools.${canonical}.description`
+  const longKey = `tools.${canonical}.longDescription`
   return {
     id: toolId,
-    name: meta?.name ?? toolId,
-    description: meta?.description ?? 'AI-powered tool',
-    longDescription: meta?.longDescription ?? 'Describe what you need below and run.',
+    name: t.has(nameKey) ? t(nameKey) : t('selector.genericFallbackName'),
+    description: t.has(descKey) ? t(descKey) : t('selector.genericFallbackDesc'),
+    longDescription: t.has(longKey) ? t(longKey) : t('selector.genericFallbackDesc'),
     icon: Wand2,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
-    borderColor: 'border-primary/30',
+    color: 'text-fuchsia-500',
+    bgColor: 'bg-fuchsia-500/10',
+    borderColor: 'border-fuchsia-500/30',
   }
 }
 
@@ -312,6 +308,35 @@ export function AIToolsSelector({
   initialToolId?: string
   backHref?: string
 } = {}) {
+  const t = useTranslations('ai-tools')
+  const workingTools = useMemo(
+    () =>
+      WORKING_TOOL_ROWS.map((row) => {
+        const canonical = resolveCanonicalToolId(row.id)
+        return {
+          ...row,
+          name: t(`tools.${canonical}.name`),
+          description: t(`tools.${canonical}.description`),
+          longDescription: t(`tools.${canonical}.longDescription`),
+        }
+      }),
+    [t],
+  )
+  const proTools = useMemo(
+    () =>
+      PRO_TOOL_ROWS.map((row) => {
+        const canonical = resolveCanonicalToolId(row.id)
+        return {
+          ...row,
+          name: t(`tools.${canonical}.name`),
+          description: t(`tools.${canonical}.description`),
+          longDescription: t(`tools.${canonical}.longDescription`),
+          isPro: true as const,
+        }
+      }),
+    [t],
+  )
+
   const voiceSession = useVoiceSession()
   const photoVoiceImageRef = useRef<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
@@ -322,9 +347,14 @@ export function AIToolsSelector({
   const [contentStudioSubtab, setContentStudioSubtab] = useState<'ideas' | 'captions'>('ideas')
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<CaptionResult | ContentIdeasResult | AIResult | IncomePredictorApiResult | null>(
-    null,
-  )
+  const [result, setResult] = useState<
+    | CaptionResult
+    | ContentIdeasResult
+    | AIResult
+    | IncomePredictorApiResult
+    | PhotoEditIntentResult
+    | null
+  >(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
   const [toolRunError, setToolRunError] = useState<string | null>(null)
@@ -353,7 +383,7 @@ export function AIToolsSelector({
   }, [loadSubscription])
 
   /** Which API + form to run when Content Ideas card is open (ideas vs fused caption generator). */
-  const effectiveRunnerId = useMemo(() => {
+  const effectiveRunnerId = useMemo((): string | null => {
     if (!selectedTool) return null
     if (selectedTool.id === 'content-ideas' && contentStudioSubtab === 'captions') {
       return 'caption-generator'
@@ -392,7 +422,7 @@ export function AIToolsSelector({
     if (found) {
       setSelectedTool(found)
     } else {
-      setSelectedTool(makeGenericTool(initialToolId) as ToolType)
+      setSelectedTool(makeGenericTool(initialToolId, t))
     }
     if (mappedId === 'content-ideas') {
       setContentStudioSubtab(
@@ -402,8 +432,8 @@ export function AIToolsSelector({
       setContentStudioSubtab('ideas')
     }
     setResolvingInitial(false)
-  }, [initialToolId, searchParams])
-  
+  }, [initialToolId, searchParams, workingTools, proTools, t])
+
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
   const [competitorTargets, setCompetitorTargets] = useState('')
@@ -591,7 +621,10 @@ export function AIToolsSelector({
                 const when = c.scheduled_at
                   ? formatFantasyRunnerDate(new Date(c.scheduled_at))
                   : 'not scheduled yet'
-                return `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.${c.description ? ` Notes: ${c.description}` : ''}`
+                return (
+                  `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.` +
+                  (c.description ? ` Notes: ${c.description}` : '')
+                )
               })()
             : undefined
 
@@ -898,7 +931,7 @@ export function AIToolsSelector({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-primary" />
-          Caption Suggestions
+          {t('results.captionSuggestionsTitle')}
         </h3>
         <div className="space-y-3">
           {captionResult.captions.map((caption, index) => (
@@ -939,7 +972,7 @@ export function AIToolsSelector({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium flex items-center gap-2">
             <Hash className="h-4 w-4 text-primary" />
-            Hashtags
+            {t('results.hashtagsTitle')}
           </h3>
           <Button
             size="sm"
@@ -969,7 +1002,7 @@ export function AIToolsSelector({
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" />
-              Teaser Message
+              {t('results.teaserMessageTitle')}
             </h4>
             <Button
               size="sm"
@@ -991,7 +1024,7 @@ export function AIToolsSelector({
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-medium text-green-400 flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5" />
-              PPV Sales Copy
+              {t('results.ppvSalesCopyTitle')}
             </h4>
             <Button
               size="sm"
@@ -1014,7 +1047,7 @@ export function AIToolsSelector({
       <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
         <Clock className="h-5 w-5 text-primary" />
         <div>
-          <p className="text-xs text-muted-foreground">Best Time to Post</p>
+          <p className="text-xs text-muted-foreground">{t('results.bestTimeToPost')}</p>
           <p className="text-sm font-medium">{captionResult.bestPostingTime}</p>
         </div>
       </div>
@@ -1026,22 +1059,22 @@ export function AIToolsSelector({
     <div className="space-y-4 pt-4 border-t border-border">
       <div className="flex items-center gap-3 rounded-lg border border-gold/30 bg-gold/10 p-4">
         <span className="text-3xl font-bold text-gold">{res.score}</span>
-        <span className="text-sm text-muted-foreground">/ 10</span>
+        <span className="text-sm text-muted-foreground">{t('results.outOfTen')}</span>
         <p className="text-sm font-medium flex-1">{res.verdict}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-venus/20 bg-venus/5 p-3">
-          <h4 className="text-xs font-medium text-venus mb-1">Venus</h4>
+          <h4 className="text-xs font-medium text-venus mb-1">{t('results.venusColumn')}</h4>
           <p className="text-sm">{res.venusTake}</p>
         </div>
         <div className="rounded-lg border border-circe/20 bg-circe/5 p-3">
-          <h4 className="text-xs font-medium text-circe-light mb-1">Circe</h4>
+          <h4 className="text-xs font-medium text-circe-light mb-1">{t('results.circeColumn')}</h4>
           <p className="text-sm">{res.circeTake}</p>
         </div>
       </div>
       {res.strengths?.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Strengths</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('results.strengths')}</h4>
           <ul className="space-y-1">
             {res.strengths.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -1054,7 +1087,7 @@ export function AIToolsSelector({
       )}
       {res.improvements?.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Improvements</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('results.improvements')}</h4>
           <ul className="space-y-1">
             {res.improvements.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -1076,7 +1109,7 @@ export function AIToolsSelector({
       </Badge>
       <div className="relative overflow-hidden rounded-lg border border-border bg-muted/20">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={res.imageBase64} alt="Edited preview" className="max-h-[min(50vh,420px)] w-full object-contain" />
+        <img src={res.imageBase64} alt={t('results.editedPreviewAlt')} className="max-h-[min(50vh,420px)] w-full object-contain" />
       </div>
       <Button
         type="button"
@@ -1088,7 +1121,7 @@ export function AIToolsSelector({
         }}
       >
         <Copy className="h-3.5 w-3.5" />
-        Copy data URL
+        {t('results.copyDataUrl')}
       </Button>
     </div>
   )
@@ -1106,23 +1139,23 @@ export function AIToolsSelector({
         </p>
       ) : null}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.summary')}</h4>
         <div className="rounded-lg border border-border bg-muted/20 p-3">
           <AiToolMarkdownReadout content={res.executiveSummary} variant="competitor" />
         </div>
       </div>
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market context</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.marketContext')}</h4>
         <AiToolMarkdownReadout content={res.marketContext} variant="competitor" className="text-muted-foreground" />
       </div>
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tier note (qualitative)</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.tierNoteQualitative')}</h4>
         <AiToolMarkdownReadout content={res.qualitativeTierNote} variant="competitor" />
       </div>
       {res.peerArchetypes?.length ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Competitors — same band vs one tier up
+            {t('results.competitorsSameBand')}
           </h4>
           <ul className="space-y-3">
             {res.peerArchetypes.map((p, i) => (
@@ -1137,7 +1170,7 @@ export function AIToolsSelector({
       ) : null}
       {res.differentiationAngles?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Differentiation</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.differentiation')}</h4>
           <ul className="space-y-1">
             {res.differentiationAngles.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1150,7 +1183,7 @@ export function AIToolsSelector({
       ) : null}
       {res.postingCadenceIdeas?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Posting &amp; cadence</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.postingCadence')}</h4>
           <ul className="space-y-1">
             {res.postingCadenceIdeas.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1163,7 +1196,7 @@ export function AIToolsSelector({
       ) : null}
       {res.chattingAndDmTips?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chatting &amp; DMs</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.chattingDms')}</h4>
           <ul className="space-y-1">
             {res.chattingAndDmTips.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1176,7 +1209,7 @@ export function AIToolsSelector({
       ) : null}
       {res.commentingAndSocialTips?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commenting &amp; social</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.commentingSocial')}</h4>
           <ul className="space-y-1">
             {res.commentingAndSocialTips.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1190,7 +1223,7 @@ export function AIToolsSelector({
       {res.cohortPercentileSummary ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Your cohort (imported fans)
+            {t('results.cohortImportedFans')}
           </h4>
           <div className="rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
             <AiToolMarkdownReadout content={res.cohortPercentileSummary} variant="competitor" />
@@ -1200,7 +1233,7 @@ export function AIToolsSelector({
       {res.improvementPriorities?.length ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Prioritized improvements
+            {t('results.prioritizedImprovements')}
           </h4>
           <ul className="space-y-1">
             {res.improvementPriorities.map((x, i) => (
@@ -1226,7 +1259,7 @@ export function AIToolsSelector({
       <div className="space-y-4 border-t border-border pt-4">
         <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-circe/90">
           <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          Income predictor readout
+          {t('results.incomePredictorReadout')}
         </p>
         <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
           {ai?.headline ? <p className="text-sm font-semibold text-foreground">{ai.headline}</p> : null}
@@ -1234,16 +1267,16 @@ export function AIToolsSelector({
             <AiToolMarkdownReadout content={ai.summary} variant="income" className="text-muted-foreground" />
           ) : null}
           {!ai?.headline && !ai?.summary ? (
-            <p className="text-xs text-muted-foreground">No summary returned. Open the full Income Predictor for details.</p>
+            <p className="text-xs text-muted-foreground">{t('results.incomeNoSummary')}</p>
           ) : null}
           {h?.level ? (
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Goal realism:</span>
+              <span className="text-muted-foreground">{t('results.goalRealism')}</span>
               <Badge variant="secondary" className="capitalize">
                 {h.level}
               </Badge>
               {h.suggestedNextTierOrRange ? (
-                <span className="text-muted-foreground">Next band: {h.suggestedNextTierOrRange}</span>
+                <span className="text-muted-foreground">{t('results.nextBand', { band: h.suggestedNextTierOrRange })}</span>
               ) : null}
             </div>
           ) : null}
@@ -1268,12 +1301,10 @@ export function AIToolsSelector({
             <p className="text-xs text-amber-700 dark:text-amber-400">{ctx.partnerForecastError}</p>
           ) : null}
           {typeof ctx?.openLeakAlerts === 'number' && ctx.openLeakAlerts > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Open leak alerts: {ctx.openLeakAlerts} — review under Protection.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('results.openLeakAlerts', { count: ctx.openLeakAlerts })}</p>
           ) : null}
           <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-            <Link href="/dashboard/analytics/income-predictor">Open full Income Predictor</Link>
+            <Link href="/dashboard/analytics/income-predictor">{t('results.openFullIncomePredictor')}</Link>
           </Button>
         </div>
       </div>
@@ -1285,12 +1316,12 @@ export function AIToolsSelector({
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         <Badge variant="secondary" className="gap-1 font-normal">
           <Users className="h-3 w-3" aria-hidden />
-          {Array.isArray(res.newFans) ? res.newFans.length : 0} newest in batch
+          {t('results.cupidNewestInBatch', { count: Array.isArray(res.newFans) ? res.newFans.length : 0 })}
         </Badge>
         {typeof res.markedForChurnCount === 'number' && res.tagForChurn !== false ? (
           <Badge variant="outline" className="gap-1 border-amber-500/35 font-normal text-amber-700 dark:text-amber-300">
             <TrendingDown className="h-3 w-3" aria-hidden />
-            {res.markedForChurnCount} CRM fan{res.markedForChurnCount === 1 ? '' : 's'} tagged for churn follow-up
+            {t('results.cupidChurnTagged', { count: res.markedForChurnCount })}
           </Badge>
         ) : null}
       </div>
@@ -1304,7 +1335,7 @@ export function AIToolsSelector({
       {Array.isArray(res.newFans) && res.newFans.length > 0 ? (
         <div className="rounded-lg border border-border bg-muted/20">
           <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
-            Newest fans (CRM + live lists)
+            {t('selector.cupidNewFansHeading')}
           </div>
           <ul className="max-h-[220px] space-y-1.5 overflow-y-auto p-3 text-xs">
             {res.newFans.map((f) => (
@@ -1327,10 +1358,10 @@ export function AIToolsSelector({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/retention/churn">Retention → Churn</Link>
+          <Link href="/dashboard/retention/churn">{t('selector.cupidRetentionLink')}</Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/ai-studio/tools/churn-predictor">Churn Predictor</Link>
+          <Link href="/dashboard/ai-studio/tools/churn-predictor">{t('selector.cupidChurnToolLink')}</Link>
         </Button>
       </div>
     </div>
@@ -1340,7 +1371,7 @@ export function AIToolsSelector({
     <div className="space-y-3 border-t border-border pt-4">
       <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-violet-300/90 dark:text-violet-200/85">
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Circe retention readout
+        {t('selector.circeRetentionReadout')}
       </p>
       <div className="rounded-xl border border-violet-500/25 bg-violet-950/25 p-4 dark:bg-violet-950/35">
         <AiToolMarkdownReadout content={res.content} variant="circeRetention" />
@@ -1374,7 +1405,7 @@ export function AIToolsSelector({
         Array.isArray((res as AIResult).suggestions) &&
         (res as AIResult).suggestions!.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Suggestions</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('selector.suggestionsHeading')}</h4>
           <ul className="space-y-1">
             {(res as AIResult).suggestions!.map((suggestion, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
@@ -1408,11 +1439,9 @@ export function AIToolsSelector({
               <PenTool className="h-5 w-5 text-primary sparkle-icon" />
               <Sparkles className="h-3 w-3 text-primary absolute -top-1 -right-1 animate-pulse" />
             </div>
-            <span className="rainbow-text">Tools</span>
+            <span className="rainbow-text">{t('selector.gridTitle')}</span>
           </CardTitle>
-          <CardDescription>
-            Choose an AI tool to enhance your content
-          </CardDescription>
+          <CardDescription>{t('selector.gridSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[400px] pr-4">
@@ -1447,7 +1476,9 @@ export function AIToolsSelector({
                           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
                           <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                             <Zap className="h-3 w-3" />
-                            {formatToolCreditCost(resolveCanonicalToolId(tool.id))}/use
+                            {t('selector.perUse', {
+                              cost: formatToolCreditCost(resolveCanonicalToolId(tool.id)),
+                            })}
                           </div>
                         </div>
                       </div>
@@ -1460,12 +1491,9 @@ export function AIToolsSelector({
             <div className="mt-6">
               <div className="mb-3 flex items-center gap-2">
                 <ListTree className="h-4 w-4 text-amber-500/90" aria-hidden />
-                <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Fan Atlas</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t('selector.commenterFanAtlasTitle')}</h3>
               </div>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Web dashboard tools — same entries as AI Studio → Tools library. Fan Atlas runs Smart classify (spend,
-                threads, freeloaders) into OnlyFans lists and Fansly tags from Arrangements.
-              </p>
+              <p className="mb-3 text-xs text-muted-foreground">{t('selector.commenterFanAtlasBlurb')}</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="relative rounded-xl focus-within:ring-2 focus-within:ring-violet-500/35">
                   <div
@@ -1484,12 +1512,10 @@ export function AIToolsSelector({
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1">
-                              <h3 className="text-sm font-semibold">Commenter</h3>
+                              <h3 className="text-sm font-semibold">{t('selector.commenterTitle')}</h3>
                               <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              Post comments — draft replies, personas, safety flags.
-                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t('selector.commenterDesc')}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1513,12 +1539,10 @@ export function AIToolsSelector({
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1">
-                              <h3 className="text-sm font-semibold">Fan Atlas</h3>
+                              <h3 className="text-sm font-semibold">{t('selector.fanAtlasTitle')}</h3>
                               <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              Classify by spend &amp; threads; surface freeloaders — sync lists from Arrangements.
-                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t('selector.fanAtlasDesc')}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1532,8 +1556,8 @@ export function AIToolsSelector({
             <div className="mt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Crown className="h-4 w-4 text-gold" />
-                <h3 className="font-semibold text-sm text-gold">Pro Tools</h3>
-                {isPro && <Badge className="bg-gold/20 text-gold text-[10px]">Unlocked</Badge>}
+                <h3 className="font-semibold text-sm text-gold">{t('selector.proToolsTitle')}</h3>
+                {isPro && <Badge className="bg-gold/20 text-gold text-[10px]">{t('selector.unlockedBadge')}</Badge>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {proTools.filter(showToolInSelectorGrid).map((tool) => (
@@ -1566,7 +1590,9 @@ export function AIToolsSelector({
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
                             <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                               <Zap className="h-3 w-3" />
-                              {formatToolCreditCost(resolveCanonicalToolId(tool.id))}/use
+                              {t('selector.perUse', {
+                                cost: formatToolCreditCost(resolveCanonicalToolId(tool.id)),
+                              })}
                             </div>
                           </div>
                         </div>
@@ -1583,15 +1609,13 @@ export function AIToolsSelector({
                       <Crown className="h-5 w-5 text-gold" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Get Competitor Analysis, Churn Prediction, Mass DM Composer and more
-                      </p>
+                      <h4 className="font-semibold text-sm text-gold">{t('selector.unlockProTitle')}</h4>
+                      <p className="text-xs text-muted-foreground">{t('selector.unlockProBody')}</p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">
                       <Button size="sm" variant="outline" className="border-gold/30 text-gold hover:bg-gold/10 hover:text-gold">
                         <Crown className="h-3 w-3 mr-1" />
-                        Upgrade
+                        {t('chrome.upgrade')}
                       </Button>
                     </Link>
                   </div>
@@ -1606,7 +1630,7 @@ export function AIToolsSelector({
             >
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" aria-hidden />
-                <span className="text-sm">Credits available</span>
+                <span className="text-sm">{t('selector.creditsAvailable')}</span>
               </div>
               <span className="font-medium tabular-nums">
                 {creditWalletLoading ? '…' : (creditWallet?.totalRemaining ?? 0).toLocaleString()}
@@ -1617,7 +1641,17 @@ export function AIToolsSelector({
       </Card>
     )
   }
-  
+
+  if (!selectedTool) {
+    return (
+      <Card className="border-primary/20">
+        <CardContent className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Tool workspace view
   return (
     <Card
@@ -1684,8 +1718,8 @@ export function AIToolsSelector({
                   className="mt-3 w-full max-w-md"
                 >
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="ideas">Ideas</TabsTrigger>
-                    <TabsTrigger value="captions">Captions</TabsTrigger>
+                    <TabsTrigger value="ideas">{t('selector.contentStudioIdeasTab')}</TabsTrigger>
+                    <TabsTrigger value="captions">{t('selector.contentStudioCaptionsTab')}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               ) : null}
@@ -1695,7 +1729,7 @@ export function AIToolsSelector({
             <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
             <Link
               href="/dashboard/settings?tab=billing"
-              title="Billing — top up or view usage"
+              title={t('chrome.billingTitle')}
               className="inline-flex"
               {...DASHBOARD_CREDIT_SUMMARY_MARK}
             >
@@ -1706,7 +1740,7 @@ export function AIToolsSelector({
                 <Zap className="h-3 w-3 opacity-70" aria-hidden />
                 {creditWalletLoading
                   ? '…'
-                  : `${(creditWallet?.totalRemaining ?? 0).toLocaleString()} available`}
+                  : t('chrome.availableCredits', { count: creditWallet?.totalRemaining ?? 0 })}
               </Badge>
             </Link>
             <Badge
@@ -1722,15 +1756,11 @@ export function AIToolsSelector({
         </div>
         {!isContentStudioIdeasOnly ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-muted/15 px-4 py-3.5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.04]">
-            <p className="text-[13px] leading-snug text-muted-foreground">
-              <span className="font-medium text-foreground">Easy</span> keeps steps short.{' '}
-              <span className="font-medium text-foreground">Pro</span> exposes every option. Credits apply when a run
-              succeeds.
-            </p>
+            <p className="text-[13px] leading-snug text-muted-foreground">{t('selector.runnerHintEasyPro')}</p>
             <EasyProModeToggle
               value={runnerMode}
               onChange={setRunnerMode}
-              ariaLabel="AI tool layout mode"
+              ariaLabel={t('selector.layoutModeAria')}
               className="shrink-0 self-start sm:self-center"
             />
           </div>
@@ -1739,7 +1769,7 @@ export function AIToolsSelector({
       <CardContent className="space-y-6 px-6 pb-8 pt-8">
         {toolRunError ? (
           <Alert variant="destructive">
-            <AlertTitle>Could not run tool</AlertTitle>
+            <AlertTitle>{t('results.toolRunError')}</AlertTitle>
             <AlertDescription>{toolRunError}</AlertDescription>
           </Alert>
         ) : null}
@@ -1749,7 +1779,7 @@ export function AIToolsSelector({
           onClick={runTool} 
           disabled={
             loading ||
-            (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
+            (effectiveRunnerId === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
             (selectedTool.id === 'photo-enhancer' && (!photoEditImageDataUrl || !contentDescription.trim())) ||
             (effectiveRunnerId === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
             (selectedTool.id === 'fantasy-writer' &&
@@ -1772,21 +1802,24 @@ export function AIToolsSelector({
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
+              {t('results.processing')}
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4 opacity-90" />
-              {showGenerateCreditHint
-                ? `Generate — ${formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))}`
-                : 'Generate'}
+              {showGenerateCreditHint && effectiveRunnerId
+                ? t('results.generateWithCost', {
+                    cost: formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId)),
+                  })
+                : t('results.generate')}
             </>
           )}
         </Button>
-        {showGenerateCreditHint ? (
+        {showGenerateCreditHint && effectiveRunnerId ? (
           <p className="text-center text-xs text-muted-foreground/90">
-            This run uses {formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))} when it completes
-            successfully.
+            {t('results.runUsesCreditsWhenDone', {
+              cost: formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId)),
+            })}
           </p>
         ) : null}
         
@@ -1807,7 +1840,7 @@ export function AIToolsSelector({
                   typeof result === 'object' &&
                   'executiveSummary' in result
                 ? renderCompetitorResults(result as CompetitorInsightResult)
-              : selectedTool.id === 'standard-of-attraction' && 'score' in result
+              : effectiveRunnerId === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
               : selectedTool.id === 'photo-enhancer' &&
                     result &&
@@ -1815,7 +1848,7 @@ export function AIToolsSelector({
                     'imageBase64' in result &&
                     'explanation' in result
                   ? renderPhotoEditResults(result as PhotoEditIntentResult)
-              : selectedTool.id === 'venus-cupid' && result && typeof result === 'object' && 'content' in result
+              : effectiveRunnerId === 'venus-cupid' && result && typeof result === 'object' && 'content' in result
                 ? renderCupidResults(result as CupidArrowResult)
               : selectedTool.id === 'churn-predictor'
                 ? renderChurnResults(result as AIResult)

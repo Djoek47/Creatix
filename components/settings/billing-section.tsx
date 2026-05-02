@@ -85,6 +85,7 @@ import {
   AntiPiracyStorefrontLogoCycle,
 } from '@/components/settings/anti-piracy-storefront-logo-cycle'
 import { PricingPageCalculator } from '@/components/marketing/pricing-page-calculator'
+import { useTranslations } from 'next-intl'
 
 const BILLING_GLASS =
   'rounded-2xl border border-white/45 bg-white/55 py-0 shadow-[0_18px_50px_-26px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.52)]'
@@ -155,6 +156,7 @@ function formatStorageUsageMbDisplay(mb: number): string {
 }
 
 export function BillingSection({ userId }: BillingSectionProps) {
+  const t = useTranslations('settings')
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [subscription, setSubscription] = useState<{
@@ -380,7 +382,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
   const handleCheckoutComplete = useCallback(async () => {
     const previousTotal = wallet?.totalRemaining ?? prevTotalRef.current ?? 0
     setPaymentState('processing')
-    setPaymentMessage('Payment confirmed. Syncing your latest credits...')
+    setPaymentMessage(t('billing.syncingCredits'))
 
     const waitsMs = [800, 1200, 1800, 2600, 3500, 4500, 6000]
     let updated = false
@@ -397,12 +399,12 @@ export function BillingSection({ userId }: BillingSectionProps) {
     await loadSubscriptionData()
     if (updated) {
       setPaymentState('success')
-      setPaymentMessage('Payment successful — your credits are now updated.')
+      setPaymentMessage(t('billing.paySuccessMsg'))
     } else {
       setPaymentState('pending')
-      setPaymentMessage('Payment is confirmed. Final reconciliation is in progress and will update shortly.')
+      setPaymentMessage(t('billing.payReconcileMsg'))
     }
-  }, [loadSubscriptionData, router, wallet?.totalRemaining])
+  }, [loadSubscriptionData, router, wallet?.totalRemaining, t])
 
   useEffect(() => {
     if (!creditPulse) return
@@ -527,7 +529,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
         name: subscription.plan,
         priceMonthly: paidActive ? subscribedMonthlyUsd ?? 0 : 0,
       }
-    : { name: PRODUCTS.find((p) => p.id === 'divine-trial')?.name || 'Divine Trial', priceMonthly: 0 }
+    : { name: PRODUCTS.find((p) => p.id === 'divine-trial')?.name || t('billing.divineTrial'), priceMonthly: 0 }
 
   const aiCreditsUsed = subData?.ai_credits_used || 0
   const aiCreditsLimit = useMemo(
@@ -581,7 +583,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
   }, [customTopupLux])
   const lastSyncedLabel = lastSyncedAt
     ? `${lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
-    : 'Not synced yet'
+    : t('billing.notSyncedYet')
 
   const checkoutTierRow = useMemo(() => getTierByIndex(checkoutTierIndex), [checkoutTierIndex])
   /** Paired Focus (OF·MV vs FL·MV) totals at selected band — same matrix as `/pricing`. */
@@ -620,58 +622,63 @@ export function BillingSection({ userId }: BillingSectionProps) {
         <CardHeader className={BILLING_CARD_HEADER}>
           <CardTitle className="flex items-center gap-2 text-[1.0625rem] font-semibold tracking-tight">
             <CreditCard className="h-5 w-5 opacity-70" />
-            Plan & billing
+            {t('billing.planSectionTitle')}
           </CardTitle>
-          <CardDescription>Current subscription, credits, and quick actions.</CardDescription>
+          <CardDescription>{t('billing.planSectionDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="rounded-xl border border-border/30 bg-background/35 p-6 backdrop-blur-sm sm:p-7">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
               <div className="min-w-0 flex-1 space-y-1.5">
                 <h3 className="text-[1.125rem] font-semibold leading-snug tracking-tight text-pretty text-foreground">
-                  {currentPlan?.name || 'Divine Trial'}
+                  {currentPlan?.name || t('billing.divineTrial')}
                 </h3>
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
                   {paidActive ? (
                     <>
-                      <span className="text-foreground/75">Active</span>
+                      <span className="text-foreground/75">{t('billing.active')}</span>
                       <span className="mx-1.5 text-border">·</span>
-                      Renews{' '}
                       {subscription?.currentPeriodEnd
-                        ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
-                        : 'soon'}
+                        ? t('billing.renews', {
+                            date: new Date(subscription.currentPeriodEnd).toLocaleDateString(),
+                          })
+                        : t('billing.renewsSoon')}
                     </>
                   ) : trialSubtitleBadge === 'expired' ? (
                     <>
-                      <span className="text-foreground/75">Trial expired</span>
+                      <span className="text-foreground/75">{t('billing.trialExpired')}</span>
                       {subData?.trial_ends_at ? (
                         <>
                           <span className="mx-1.5 text-border">·</span>
-                          Ended {new Date(subData.trial_ends_at).toLocaleDateString()}
+                          {t('billing.trialEnded', {
+                            date: new Date(subData.trial_ends_at).toLocaleDateString(),
+                          })}
                         </>
                       ) : null}
                     </>
                   ) : trialSubtitleBadge === 'redeemed' ? (
                     <>
-                      <span className="text-foreground/75">Trial redeemed</span>
+                      <span className="text-foreground/75">{t('billing.trialRedeemed')}</span>
                       {subData?.trial_ends_at ? (
                         <>
                           <span className="mx-1.5 text-border">·</span>
-                          Ends {new Date(subData.trial_ends_at).toLocaleDateString()}
+                          {t('billing.trialEnds', {
+                            date: new Date(subData.trial_ends_at).toLocaleDateString(),
+                          })}
                         </>
                       ) : null}
                     </>
                   ) : subData?.trial_ends_at ? (
                     <>
-                      <span className="text-foreground/75">Trial</span>
+                      <span className="text-foreground/75">{t('billing.trial')}</span>
                       <span className="mx-1.5 text-border">·</span>
-                      Ends {new Date(subData.trial_ends_at).toLocaleDateString()}
+                      {t('billing.trialEnds', { date: new Date(subData.trial_ends_at).toLocaleDateString() })}
                     </>
                   ) : (
                     <>
-                      <span className="text-foreground/75">Free</span>
+                      <span className="text-foreground/75">{t('billing.free')}</span>
                       <span className="mx-1.5 text-border">·</span>
-                      View plans below
+                      {t('billing.viewPlansBelow')}
                     </>
                   )}
                 </p>
@@ -680,7 +687,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 <p className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
                   {paidActive ? `$${subscribedMonthlyUsd ?? 0}` : `$${currentPlan?.priceMonthly ?? 0}`}
                 </p>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">per month</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">{t('billing.perMonth')}</p>
               </div>
             </div>
 
@@ -693,7 +700,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     className="h-11 w-full rounded-xl bg-foreground text-background font-medium shadow-none hover:opacity-[0.92] sm:w-auto sm:min-w-[13.5rem]"
                   >
                     {loadingPortal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Manage billing
+                    {t('billing.manageBilling')}
                   </Button>
                   <div className="flex flex-wrap items-baseline gap-x-1 gap-y-2 text-[13px]">
                     <Button
@@ -703,7 +710,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                       onClick={() => void openPortalFlow('payment_method_update')}
                       className="h-auto p-0 font-normal text-muted-foreground underline-offset-4 hover:text-foreground"
                     >
-                      Payment method
+                      {t('billing.paymentMethod')}
                     </Button>
                     {!subData?.cancel_at_period_end ? (
                       <>
@@ -717,7 +724,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                           onClick={() => void openPortalFlow('subscription_cancel')}
                           className="h-auto p-0 font-normal text-destructive/85 underline-offset-4 hover:text-destructive"
                         >
-                          Cancel subscription
+                          {t('billing.cancelSubscription')}
                         </Button>
                       </>
                     ) : null}
@@ -731,7 +738,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                     document.getElementById('revenue-pricing')?.scrollIntoView({ behavior: 'smooth' })
                   }
                 >
-                  View plans
+                  {t('billing.viewPlans')}
                 </Button>
               )}
             </div>
@@ -740,10 +747,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 min-[480px]:gap-4 xl:grid-cols-4">
             <div className="min-w-0 rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm sm:p-5">
               <Calendar className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Period</p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('billing.period')}</p>
               <p className="text-xl font-semibold tabular-nums">{daysRemaining}</p>
               <p className="text-xs text-muted-foreground">
-                {subData?.cancel_at_period_end ? 'days until end' : 'days left'}
+                {subData?.cancel_at_period_end ? t('billing.daysUntilEnd') : t('billing.daysLeft')}
               </p>
             </div>
             <div
@@ -755,27 +762,30 @@ export function BillingSection({ userId }: BillingSectionProps) {
               {...DASHBOARD_CREDIT_SUMMARY_MARK}
             >
               <Zap className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">AI credits</p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t('billing.aiCreditsLabel')}
+              </p>
               <p className="text-xl font-semibold tabular-nums">{visibleCreditsRemaining.toLocaleString()}</p>
               <div className="mx-auto mt-2 max-w-[16rem] space-y-2 text-left text-xs leading-snug text-muted-foreground sm:max-w-none sm:text-center">
                 <p className="tabular-nums sm:whitespace-normal">
-                  <span className="text-foreground/90">{(wallet?.includedRemaining ?? 0).toLocaleString()}</span> included
+                  <span className="text-foreground/90">{(wallet?.includedRemaining ?? 0).toLocaleString()}</span>{' '}
+                  {t('usageCredits.included').toLowerCase()}
                   <span className="text-muted-foreground/80"> · </span>
                   <span className="text-foreground/90">{(wallet?.purchasedRemaining ?? 0).toLocaleString()}</span>{' '}
-                  purchased
+                  {t('usageCredits.purchased').toLowerCase()}
                 </p>
                 {divineTrialLive ? (
                   <p className="text-xs text-muted-foreground">
-                    Trial pool: {TRIAL_AI_CREDITS_LIMIT.toLocaleString()} credits (card verified).
+                    {t('billing.trialPool', { n: TRIAL_AI_CREDITS_LIMIT.toLocaleString() })}
                   </p>
                 ) : null}
                 {trialPendingCard ? (
                   <p className="text-xs text-amber-700 dark:text-amber-200/90">
-                    Credits activate after card setup in Stripe.
+                    {t('billing.activateAfterStripe')}
                   </p>
                 ) : null}
                 <p className="text-xs leading-snug text-muted-foreground">
-                  {Math.round(1 / CREDIT_USD_VALUE)} credits per $1.
+                  {t('billing.creditsPerUsd', { n: Math.round(1 / CREDIT_USD_VALUE) })}
                 </p>
               </div>
               <Progress
@@ -792,12 +802,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
               data-storage-limited="true"
               title={
                 vaultStorage?.trace
-                  ? `Creatix vault: ${vaultStorage.quotaMb} MB cap (${vaultStorage.trace.quotaSource}). Usage from Supabase Storage.`
-                  : `Storage cap: ${storageLimitMb} MB. Connect to load live usage from the vault.`
+                  ? t('billing.storageTooltipVault', {
+                      quotaMb: vaultStorage.quotaMb,
+                      quotaSource: vaultStorage.trace.quotaSource,
+                    })
+                  : t('billing.storageTooltipFallback', { capMb: storageLimitMb })
               }
             >
               <Database className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Storage</p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('billing.storageLabel')}</p>
               <p className="mt-1 text-lg font-semibold tabular-nums leading-snug sm:text-xl">
                 {storageLimitMb < 1024 ? (
                   <>
@@ -821,9 +834,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
             </div>
             <div className="min-w-0 rounded-xl border border-border/35 bg-background/30 p-4 text-center backdrop-blur-sm sm:p-5">
               <Mail className="mx-auto h-5 w-5 text-muted-foreground" />
-              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Messages</p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t('billing.messagesLabel')}
+              </p>
               <p className="text-xl font-semibold tabular-nums">{messagesThisMonth.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">this month (est.)</p>
+              <p className="text-xs text-muted-foreground">{t('billing.messagesSubtitle')}</p>
             </div>
           </div>
 
@@ -831,13 +846,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
             <div className="flex flex-col gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4 backdrop-blur-sm sm:flex-row sm:items-center">
               <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">Subscription ending</p>
+                <p className="text-sm font-medium text-foreground">{t('billing.subscriptionEnding')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Access continues through{' '}
-                  {subData.current_period_end
-                    ? new Date(subData.current_period_end).toLocaleDateString()
-                    : 'the end of the period'}
-                  .
+                  {t('billing.subscriptionEndingBody', {
+                    date: subData.current_period_end
+                      ? new Date(subData.current_period_end).toLocaleDateString()
+                      : t('billing.periodEndFallback'),
+                  })}
                 </p>
               </div>
               <Button
@@ -847,7 +862,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 onClick={() => openPortalFlow('subscription_update')}
                 disabled={loadingPortal}
               >
-                Resume billing
+                {t('billing.resumeBilling')}
               </Button>
             </div>
           )}
@@ -866,10 +881,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
               <div>
                 <p className="text-sm font-semibold text-foreground">
                   {paymentState === 'success'
-                    ? 'Payment complete'
+                    ? t('billing.payCompleteTitle')
                     : paymentState === 'pending'
-                      ? 'Payment recorded'
-                      : 'Finalizing'}
+                      ? t('billing.payPendingTitle')
+                      : t('billing.payFinalizingTitle')}
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{paymentMessage}</p>
               </div>
@@ -880,7 +895,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 onClick={() => void handleForceRefresh()}
               >
                 {manualRefreshing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-                Refresh balance
+                {t('billing.refreshBalance')}
               </Button>
             </div>
           </CardContent>
@@ -889,7 +904,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/35 bg-background/35 px-3 py-2.5 text-[12px] backdrop-blur-sm">
         <p className="text-muted-foreground">
-          Wallet updated <span className="font-medium text-foreground">{lastSyncedLabel}</span>
+          {t('billing.walletUpdated')} <span className="font-medium text-foreground">{lastSyncedLabel}</span>
         </p>
         <Button
           variant="ghost"
@@ -903,16 +918,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
           )}
-          Sync
+          {t('billing.syncTitle')}
         </Button>
       </div>
 
       <Card className={BILLING_GLASS}>
         <CardHeader className={BILLING_CARD_HEADER}>
-          <CardTitle className="font-semibold">Top Up Credits</CardTitle>
-          <CardDescription>
-            Fast top-ups for peak demand. Purchased credits roll one extra month.
-          </CardDescription>
+          <CardTitle className="font-semibold">{t('billing.topUpTitle')}</CardTitle>
+          <CardDescription>{t('billing.topUpDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
@@ -920,8 +933,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
               productId="credit-topup-2000"
               buttonText={
                 <>
-                  <span className="block leading-tight">500 credits</span>
-                  <span className="mt-0.5 block text-xs font-normal opacity-90">$5</span>
+                  <span className="block leading-tight">{t('billing.creditsStarterLine')}</span>
+                  <span className="mt-0.5 block text-xs font-normal opacity-90">
+                    {t('billing.creditsStarterPrice')}
+                  </span>
                 </>
               }
               buttonClassName={BILLING_TOPUP_STARTER}
@@ -931,8 +946,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
               productId="credit-topup-5000"
               buttonText={
                 <>
-                  <span className="block leading-tight">1,000 credits</span>
-                  <span className="mt-0.5 block text-xs font-normal opacity-90">$10</span>
+                  <span className="block leading-tight">{t('billing.creditsMidLine')}</span>
+                  <span className="mt-0.5 block text-xs font-normal opacity-90">
+                    {t('billing.creditsMidPrice')}
+                  </span>
                 </>
               }
               buttonClassName={BILLING_TOPUP_BALANCE}
@@ -942,8 +959,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
               productId="credit-topup-10000"
               buttonText={
                 <>
-                  <span className="block leading-tight">2,500 credits</span>
-                  <span className="mt-0.5 block text-xs font-normal opacity-90">$25</span>
+                  <span className="block leading-tight">{t('billing.creditsPlusLine')}</span>
+                  <span className="mt-0.5 block text-xs font-normal opacity-90">
+                    {t('billing.creditsPlusPrice')}
+                  </span>
                 </>
               }
               buttonClassName={BILLING_TOPUP_PLUS}
@@ -953,7 +972,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
           <div className="rounded-xl border border-border/35 bg-background/30 p-4 backdrop-blur-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-4">
               <div className="min-w-0 shrink-0 space-y-2 lg:w-48 xl:w-52">
-                <Label htmlFor="custom-topup">Custom amount</Label>
+                <Label htmlFor="custom-topup">{t('billing.customAmount')}</Label>
                 <Input
                   id="custom-topup"
                   type="number"
@@ -971,7 +990,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   placeholder={String(CUSTOM_CREDIT_TOPUP_DEFAULT_USD)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Minimum ${CUSTOM_CREDIT_TOPUP_MIN_USD} for checkout (100 credits per $1)
+                  {t('billing.customMinCheckout', {
+                    min: CUSTOM_CREDIT_TOPUP_MIN_USD,
+                    perUsd: Math.round(1 / CREDIT_USD_VALUE),
+                  })}
                 </p>
               </div>
               <div className="min-w-0 flex-1">
@@ -982,13 +1004,16 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   buttonText={
                     customTopupValid ? (
                       <>
-                        <span className="block font-medium leading-tight">Purchase credits</span>
+                        <span className="block font-medium leading-tight">{t('billing.purchaseCredits')}</span>
                         <span className="mt-1 block text-xs font-normal leading-snug opacity-90">
-                          ${customTopupUsd} · {(customTopupUsd * 100).toLocaleString()} credits
+                          {t('billing.creditsUsdLine', {
+                            usd: customTopupUsd,
+                            credits: Math.round(customTopupUsd / CREDIT_USD_VALUE).toLocaleString(),
+                          })}
                         </span>
                       </>
                     ) : (
-                      `Enter at least $${CUSTOM_CREDIT_TOPUP_MIN_USD}`
+                      t('billing.enterAtLeast', { min: CUSTOM_CREDIT_TOPUP_MIN_USD })
                     )
                   }
                   buttonClassName={cn(BILLING_TOPUP_BTN, 'billing-topup-custom-lux disabled:opacity-50')}
@@ -1000,12 +1025,12 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </div>
           <div className="flex flex-col justify-between gap-3 rounded-xl border border-border/35 bg-background/25 p-3 backdrop-blur-sm sm:flex-row sm:items-center">
             <div>
-              <p className="text-sm font-medium">Credits planner</p>
-              <p className="text-xs text-muted-foreground">Day-by-day planning lives on the dashboard.</p>
+              <p className="text-sm font-medium">{t('billing.plannerCardTitle')}</p>
+              <p className="text-xs text-muted-foreground">{t('billing.plannerCardSubtitle')}</p>
             </div>
             <Button asChild variant="outline" className="gap-1.5 rounded-xl border-border/40">
               <Link href="/dashboard/credits-planner">
-                Open planner
+                {t('billing.openPlanner')}
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -1016,14 +1041,15 @@ export function BillingSection({ userId }: BillingSectionProps) {
       <Card id="revenue-pricing" className={BILLING_GLASS}>
         <CardHeader className="space-y-1.5 px-5 pb-4 pt-8 sm:px-6 sm:pt-9">
           <CardTitle className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            Plans &amp; pricing
+            {t('billing.pricingPlansTitle')}
           </CardTitle>
           <CardDescription className="max-w-2xl text-[13px] leading-snug text-muted-foreground">
-            Same tiers as the{' '}
+            {t('billing.pricingPlansDescriptionLead')}{' '}
             <Link href="/pricing" className="font-medium text-foreground/90 underline-offset-4 hover:underline">
-              public pricing page
+              {t('billing.publicPricingLink')}
             </Link>
-            . Checkout uses the total shown in the estimate below.
+            {'. '}
+            {t('billing.pricingPlansDescriptionTrail')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-5 pb-8 pt-0 sm:px-6 sm:pb-9">
@@ -1087,17 +1113,19 @@ export function BillingSection({ userId }: BillingSectionProps) {
                           })
                         }
                       }}
-                      aria-label={`Include anti-piracy coverage for other storefronts with Bundled plan. ${PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle.`}
+                      aria-label={t('billing.manyvidsCheckboxAria', {
+                        credits: PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+                      })}
                     />
                     <AntiPiracyStorefrontCycleProvider>
                       <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                           <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-foreground">
-                            Anti-piracy coverage for other platforms
+                            {t('billing.antipiracyOtherPlatformsTitle')}
                           </h3>
                           <Badge variant="secondary" className="h-6 shrink-0 px-2 text-[10px] font-semibold uppercase tracking-wide">
-                            Beta
+                            {t('preferences.beta')}
                           </Badge>
                         </div>
                         <AntiPiracyStorefrontLogoCycle />
@@ -1112,7 +1140,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                               onPointerDown={(e) => e.stopPropagation()}
                             >
                               <Info className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                              Coverage
+                              {t('billing.coverageInfoTrigger')}
                             </button>
                           </PopoverTrigger>
                           <PopoverContent
@@ -1120,35 +1148,29 @@ export function BillingSection({ userId }: BillingSectionProps) {
                             className="max-w-sm border-border/50 text-[13px] leading-relaxed"
                             sideOffset={6}
                           >
-                            <p className="font-medium text-foreground">Storefronts</p>
-                            <p className="mt-2 text-muted-foreground">
-                              Same coverage family as the multi-platform row on pricing (Clips4Sale, Fanvue, Loyalfans,
-                              MYM, and similar). Bundled into your workspace total—not a separate subscription.
-                            </p>
+                            <p className="font-medium text-foreground">{t('billing.antipiracyPopoverStorefrontsTitle')}</p>
+                            <p className="mt-2 text-muted-foreground">{t('billing.antipiracyPopoverStorefrontsBody')}</p>
                             <p className="mt-3 text-muted-foreground">
                               {MULTIPLATFORM_PROTECTION_COMING_SOON ? (
-                                <>
-                                  Broader standalone Protection (separate bill) is{' '}
-                                  <span className="font-medium text-foreground/90">coming soon</span> from the
-                                  Protection card below—we are not enrolling new plans yet.
-                                </>
+                                t.rich('billing.antipiracyPopoverStandaloneRich', {
+                                  highlight: (chunks) => (
+                                    <span className="font-medium text-foreground/90">{chunks}</span>
+                                  ),
+                                })
                               ) : (
-                                <>
-                                  For standalone protection across more sites, use the Protection add-on below (separate
-                                  bill).
-                                </>
+                                t('billing.antipiracyPopoverStandaloneAvailable')
                               )}
                             </p>
                           </PopoverContent>
                         </Popover>
                       </div>
                       <p className="sr-only">
-                        Anti-piracy coverage for additional storefronts with Bundled plan only.{' '}
-                        {PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS.toLocaleString()} AI credits per billing cycle. Price
-                        follows your revenue band.{' '}
+                        {t('billing.antipiracySrOnlyLead', {
+                          credits: PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+                        })}{' '}
                         {MULTIPLATFORM_PROTECTION_COMING_SOON
-                          ? 'Standalone Multiplatform Protection below is coming soon for new subscriptions.'
-                          : 'Protection add-on below is billed separately.'}
+                          ? t('billing.antipiracySrOnlyComingSoon')
+                          : t('billing.antipiracySrOnlySeparate')}
                       </p>
                       </div>
                     </AntiPiracyStorefrontCycleProvider>
@@ -1171,7 +1193,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
                         : manyvidsFocusSelectedTotalUsd != null
                           ? String(manyvidsFocusSelectedTotalUsd)
                           : manyvidsPairUsdRangeLabel}
-                      <span className="ml-1 text-sm font-normal text-muted-foreground">/mo</span>
+                      <span className="ml-1 text-sm font-normal text-muted-foreground">{t('billing.perMoAbbrev')}</span>
                     </p>
                   </div>
                 </div>
@@ -1181,9 +1203,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
 
           <Collapsible defaultOpen={false} className="space-y-2">
             <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/35 bg-background/25 px-4 py-3 text-left text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-background/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span>Full revenue band matrix</span>
+              <span>{t('billing.fullRevenueBandMatrix')}</span>
               <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
-                <span className="hidden sm:inline">Show all tiers</span>
+                <span className="hidden sm:inline">{t('billing.showAllTiers')}</span>
                 <ChevronDown
                   className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
                   aria-hidden
@@ -1195,10 +1217,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 <table className="w-full min-w-[520px] text-sm">
                   <thead>
                     <tr className="border-b border-border/40 bg-background/40">
-                      <th className="p-3 text-left font-medium">Revenue</th>
-                      <th className="p-3 text-right font-medium">OnlyFans</th>
-                      <th className="p-3 text-right font-medium">Fansly</th>
-                      <th className="p-3 text-right font-medium">Bundled (OnlyFans + Fansly)</th>
+                      <th className="p-3 text-left font-medium">{t('billing.matrixColRevenue')}</th>
+                      <th className="p-3 text-right font-medium">{t('billing.matrixColOnlyfans')}</th>
+                      <th className="p-3 text-right font-medium">{t('billing.matrixColFansly')}</th>
+                      <th className="p-3 text-right font-medium">{t('billing.matrixColBundled')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1242,58 +1264,56 @@ export function BillingSection({ userId }: BillingSectionProps) {
       >
         <CardHeader className="space-y-2 border-b border-border/[0.08] px-6 pb-5 pt-7 dark:border-white/[0.06] sm:px-8 sm:pb-6 sm:pt-8">
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
-            Stand alone
+            {t('billing.protectionStandaloneEyebrow')}
           </p>
           <CardTitle className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            <span>{getProduct(PROTECTION_PLAN_ID)?.name ?? 'Protection & Anti-Piracy'}</span>
+            <span>{getProduct(PROTECTION_PLAN_ID)?.name ?? t('billing.protectionPlanFallbackName')}</span>
             {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
               <Badge variant="secondary" className="font-medium">
-                Coming soon
+                {t('billing.comingSoonBadge')}
               </Badge>
             ) : null}
           </CardTitle>
           <CardDescription className="max-w-prose text-[13px] leading-snug text-muted-foreground">
             {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
-              <>
-                Standalone anti-piracy for extra fan and clip storefronts will be available as its own Protection
-                subscription—we are not enrolling new plans yet. ManyVids Bundled add-on above stays on your main
-                subscription when selected.
-              </>
+              <>{t('billing.protectionDescComingSoon')}</>
             ) : (
-              <>
-                Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated
-                Protection hub. Separate bill from single-platform and Bundled plans: ManyVids on the Bundled plan above is part of that subscription;
-                Protection is its own subscription for broader storefront coverage.
-              </>
+              <>{t('billing.protectionDescLive')}</>
             )}
             {subData && isProtectionEntitled(subData) ? (
-              <span className="mt-2 block font-medium text-emerald-600 dark:text-emerald-400">Active on your account.</span>
+              <span className="mt-2 block font-medium text-emerald-600 dark:text-emerald-400">
+                {t('billing.protectionActiveOnAccount')}
+              </span>
             ) : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6 px-6 pb-7 pt-6 sm:px-8 sm:pb-8 sm:pt-7">
           {MULTIPLATFORM_PROTECTION_COMING_SOON && !isProtectionEntitled(subData) ? (
             <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground">
-              New subscriptions are not open yet. We will enable checkout on this card when Multiplatform Protection
-              enrollment launches.
+              {t('billing.protectionEnrollmentClosed')}
             </p>
           ) : (
             <>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
-                  Monthly
+                  {t('billing.monthlyEyebrow')}
                 </p>
                 <p className="mt-2 font-serif text-3xl font-medium tabular-nums tracking-tight text-foreground sm:text-[2rem]">
                   ${(getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25).toFixed(0)}
-                  <span className="ml-1 text-lg font-normal text-muted-foreground/85 sm:text-xl">/mo</span>
+                  <span className="ml-1 text-lg font-normal text-muted-foreground/85 sm:text-xl">
+                    {t('billing.perMoAbbrev')}
+                  </span>
                 </p>
               </div>
               <Checkout
                 productId={PROTECTION_PLAN_ID}
                 buttonText={
                   subData && isProtectionEntitled(subData)
-                    ? 'Update payment'
-                    : `Subscribe — $${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}/mo`
+                    ? t('billing.protectionUpdatePayment')
+                    : t('billing.protectionSubscribeCta', {
+                        price: `$${getProduct(PROTECTION_PLAN_ID)?.priceMonthly ?? 25}`,
+                        period: t('billing.perMoAbbrev'),
+                      })
                 }
                 onComplete={handleCheckoutComplete}
                 buttonClassName={BILLING_PRIMARY_CHECKOUT_CTA_CLASS}
@@ -1310,24 +1330,23 @@ export function BillingSection({ userId }: BillingSectionProps) {
         >
           <div className="px-7 pb-9 pt-10 sm:px-9 sm:pb-10 sm:pt-11">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85">
-              Trial
+              {t('billing.trialCardEyebrow')}
             </p>
             <h2
               id="billing-trial-heading"
               className="mt-3 text-[1.375rem] font-semibold leading-[1.2] tracking-[-0.035em] text-foreground sm:text-[1.5625rem]"
             >
-              Unlock trial access
+              {t('billing.trialUnlockHeading')}
             </h2>
             <p className="mt-3 max-w-[38ch] text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground">
-              Add a card on file—no charge until the trial ends. Trial credits activate once Stripe confirms your payment
-              method.
+              {t('billing.trialUnlockBody')}
             </p>
 
             <div className="mt-8 rounded-2xl border border-border/[0.14] bg-gradient-to-b from-muted/[0.38] to-transparent px-5 py-[1.125rem] dark:border-white/[0.07] dark:from-white/[0.05] dark:to-transparent sm:px-6 sm:py-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-[13px] font-semibold tracking-tight text-foreground">
-                    {getProduct(TRIAL_PLAN_ID)?.name ?? 'Divine Trial'}
+                    {getProduct(TRIAL_PLAN_ID)?.name ?? t('billing.divineTrial')}
                   </p>
                   <p className="text-[12.5px] leading-relaxed text-muted-foreground sm:text-[13px]">
                     {getProduct(TRIAL_PLAN_ID)?.description}
@@ -1335,17 +1354,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 </div>
                 <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end sm:text-right">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/78">
-                    Due today
+                    {t('billing.trialDueToday')}
                   </span>
                   <span className="text-[22px] font-semibold tabular-nums tracking-tight text-foreground">$0</span>
                 </div>
               </div>
               <div className="mt-4 border-t border-border/[0.11] pt-4 dark:border-white/[0.06]">
                 <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-                  <span className="font-medium text-foreground/92">
-                    {TRIAL_AI_CREDITS_LIMIT.toLocaleString()} AI credits
-                  </span>{' '}
-                  in the trial pool while your trial is active.
+                  {t('billing.trialPoolActiveLine', { credits: TRIAL_AI_CREDITS_LIMIT })}
                 </p>
               </div>
             </div>
@@ -1353,12 +1369,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
             <Checkout
               productId={TRIAL_PLAN_ID}
               onComplete={handleCheckoutComplete}
-              buttonText="Add card · start trial"
+              buttonText={t('billing.trialAddCardCta')}
               buttonClassName={cn(BILLING_PRIMARY_CHECKOUT_CTA_CLASS, 'mt-8 w-full')}
             />
             <p className="mx-auto mt-5 max-w-[41ch] text-[11px] leading-relaxed text-muted-foreground/85">
-              Billing begins when the trial window ends unless you cancel beforehand. You authorize future charges by
-              completing Stripe Checkout.
+              {t('billing.trialFinePrint')}
             </p>
           </div>
         </section>
@@ -1367,7 +1382,7 @@ export function BillingSection({ userId }: BillingSectionProps) {
       <Card className={cn(BILLING_GLASS, 'mx-auto w-full max-w-md overflow-hidden')}>
         <div className="px-6 pb-8 pt-9 sm:px-8 sm:pb-10 sm:pt-11">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85 dark:text-muted-foreground/72">
-            Documents
+            {t('billing.documentsEyebrow')}
           </p>
 
           <div className="mt-5 flex justify-start">
@@ -1380,10 +1395,10 @@ export function BillingSection({ userId }: BillingSectionProps) {
           </div>
 
           <h3 className="mt-7 font-serif text-[1.625rem] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground sm:text-[1.75rem]">
-            Invoices
+            {t('billing.invoicesHeading')}
           </h3>
           <p className="mt-2 max-w-[40ch] text-[13px] leading-[1.5] tracking-[-0.015em] text-muted-foreground sm:text-[14px] sm:leading-[1.5]">
-            Hosted by Stripe—the same ledger and receipts as Checkout and your billing portal.
+            {t('billing.invoicesDescription')}
           </p>
 
           <div className="mt-8 border-t border-border/12 pt-8 dark:border-white/[0.06]">
@@ -1402,15 +1417,17 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   ) : (
                     <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" aria-hidden />
                   )}
-                  View invoices
+                  {t('billing.viewInvoices')}
                 </Button>
-                <p className="text-[11px] leading-snug text-muted-foreground/88">Opens Stripe Customer Portal</p>
+                <p className="text-[11px] leading-snug text-muted-foreground/88">{t('billing.opensStripePortal')}</p>
               </div>
             ) : (
               <div className="space-y-1">
-                <p className="font-serif text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground/95">Nothing yet</p>
+                <p className="font-serif text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground/95">
+                  {t('billing.invoicesNothingYet')}
+                </p>
                 <p className="max-w-[38ch] text-[13px] leading-relaxed text-muted-foreground">
-                  Subscribe and your invoice PDFs will show up here—delivered through Stripe automatically.
+                  {t('billing.invoicesSubscribeHint')}
                 </p>
               </div>
             )}

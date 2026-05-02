@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
@@ -21,20 +22,25 @@ type PlatformKey = 'onlyfans' | 'fansly'
 interface RevenueChartProps {
   analytics: AnalyticsSnapshot[]
   hasConnectedPlatforms?: boolean
-  /** When false, OnlyFans tab is disabled (not connected). */
   connectedOnlyFans?: boolean
-  /** When false, Fansly tab is disabled (not connected). */
   connectedFansly?: boolean
 }
 
 type Row = { label: string; iso: string; onlyfans: number; fansly: number }
 
-function formatDayLabel(iso: string): string {
-  const d = new Date(`${iso}T12:00:00.000Z`)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+function intlTagFromPhase1(locale: string): string {
+  if (locale === 'pt') return 'pt-BR'
+  if (locale === 'fr') return 'fr-FR'
+  if (locale === 'es') return 'es-ES'
+  return 'en-US'
 }
 
-function buildChartRows(analytics: AnalyticsSnapshot[], maxDays: number): Row[] {
+function formatDayLabel(iso: string, intlTag: string): string {
+  const d = new Date(`${iso}T12:00:00.000Z`)
+  return d.toLocaleDateString(intlTag, { month: 'short', day: 'numeric' })
+}
+
+function buildChartRows(analytics: AnalyticsSnapshot[], maxDays: number, intlTag: string): Row[] {
   const byDay = new Map<string, { onlyfans: number; fansly: number }>()
   for (const a of analytics) {
     if (!a?.date) continue
@@ -53,21 +59,21 @@ function buildChartRows(analytics: AnalyticsSnapshot[], maxDays: number): Row[] 
     const v = byDay.get(iso)!
     return {
       iso,
-      label: formatDayLabel(iso),
+      label: formatDayLabel(iso, intlTag),
       onlyfans: v.onlyfans,
       fansly: v.fansly,
     }
   })
 }
 
-function emptyLastDays(days: number): Row[] {
+function emptyLastDays(days: number, intlTag: string): Row[] {
   const out: Row[] = []
   const today = new Date()
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
     const iso = d.toISOString().slice(0, 10)
-    out.push({ iso, label: formatDayLabel(iso), onlyfans: 0, fansly: 0 })
+    out.push({ iso, label: formatDayLabel(iso, intlTag), onlyfans: 0, fansly: 0 })
   }
   return out
 }
@@ -84,15 +90,17 @@ function ChartTooltip({
   payload?: Array<{ payload: Row }>
   platform: PlatformKey
 }) {
+  const t = useTranslations('dashboard.revenueChart')
   if (!active || !payload?.length) return null
   const row = payload[0].payload
   const value = platform === 'onlyfans' ? row.onlyfans : row.fansly
-  const name = platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'
+  const platformLabel = platform === 'onlyfans' ? t('onlyfans') : t('fansly')
+  const valueStr = `$${value.toLocaleString()}`
   return (
     <div className="rounded-2xl border border-border/60 bg-popover/95 px-3 py-2 text-xs shadow-lg backdrop-blur-md">
       <p className="font-medium text-foreground">{row.label}</p>
       <p className="mt-0.5 tabular-nums text-muted-foreground">
-        {name}: <span className="font-semibold text-foreground">${value.toLocaleString()}</span>
+        {t('tooltipLine', { platform: platformLabel, value: valueStr })}
       </p>
     </div>
   )
@@ -104,6 +112,9 @@ export function RevenueChart({
   connectedOnlyFans = false,
   connectedFansly = false,
 }: RevenueChartProps) {
+  const t = useTranslations('dashboard.revenueChart')
+  const locale = useLocale()
+  const intlTag = intlTagFromPhase1(locale)
   const [platform, setPlatform] = useState<PlatformKey>(() =>
     connectedOnlyFans ? 'onlyfans' : 'fansly',
   )
@@ -114,12 +125,12 @@ export function RevenueChart({
   }, [platform, connectedOnlyFans, connectedFansly])
 
   const chartRows = useMemo(() => {
-    const built = buildChartRows(analytics, 14)
+    const built = buildChartRows(analytics, 14, intlTag)
     if (built.length === 0 && hasConnectedPlatforms) {
-      return emptyLastDays(7)
+      return emptyLastDays(7, intlTag)
     }
     return built
-  }, [analytics, hasConnectedPlatforms])
+  }, [analytics, hasConnectedPlatforms, intlTag])
 
   const hasData = chartRows.length > 0
   const hasAnyRevenue = chartRows.some((d) => (d.onlyfans ?? 0) > 0 || (d.fansly ?? 0) > 0)
@@ -134,26 +145,27 @@ export function RevenueChart({
   const yDomain: [number, number] = [0, maxVal * 1.08]
 
   const showSwitcher = connectedOnlyFans || connectedFansly
+  const platformName = platform === 'onlyfans' ? t('onlyfans') : t('fansly')
 
   return (
     <Card className="overflow-hidden border-border/60 bg-card shadow-sm">
       <CardHeader className="space-y-1 pb-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-0.5">
-            <CardTitle className="text-base font-semibold tracking-tight">Revenue</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-tight">{t('title')}</CardTitle>
             <CardDescription className="text-[13px] leading-snug text-muted-foreground">
               {showSwitcher
                 ? platform === 'onlyfans'
-                  ? 'Estimated earnings from synced OnlyFans snapshots.'
-                  : 'Estimated earnings from synced Fansly snapshots.'
-                : 'Connect a platform to see earnings over time.'}
+                  ? t('descOnlyfans')
+                  : t('descFansly')
+                : t('descConnect')}
             </CardDescription>
           </div>
           {showSwitcher ? (
             <div
               className="flex shrink-0 items-center gap-0.5 rounded-full border border-border/70 bg-muted/30 p-0.5 shadow-inner"
               role="tablist"
-              aria-label="Revenue platform"
+              aria-label={t('platformSwitcherAria')}
             >
               <button
                 type="button"
@@ -168,10 +180,10 @@ export function RevenueChart({
                     : 'opacity-60 hover:opacity-90',
                   !connectedOnlyFans && 'cursor-not-allowed opacity-30 hover:opacity-30',
                 )}
-                title={connectedOnlyFans ? 'OnlyFans' : 'OnlyFans not connected'}
+                title={connectedOnlyFans ? t('onlyfans') : t('onlyfansNotConnected')}
               >
                 <Image src={ONLYFANS_LOGO_SRC} alt="" width={88} height={22} className="h-5 w-auto max-w-[5.5rem] object-contain object-left" />
-                <span className="sr-only">OnlyFans</span>
+                <span className="sr-only">{t('onlyfans')}</span>
               </button>
               <button
                 type="button"
@@ -186,10 +198,10 @@ export function RevenueChart({
                     : 'opacity-60 hover:opacity-90',
                   !connectedFansly && 'cursor-not-allowed opacity-30 hover:opacity-30',
                 )}
-                title={connectedFansly ? 'Fansly' : 'Fansly not connected'}
+                title={connectedFansly ? t('fansly') : t('fanslyNotConnected')}
               >
                 <Image src={FANSLY_LOGO_SRC} alt="" width={80} height={22} className="h-5 w-auto max-w-[5rem] object-contain object-left" />
-                <span className="sr-only">Fansly</span>
+                <span className="sr-only">{t('fansly')}</span>
               </button>
             </div>
           ) : null}
@@ -203,10 +215,8 @@ export function RevenueChart({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium">No revenue data yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Connect OnlyFans or Fansly to start tracking earnings on this chart.
-            </p>
+            <h3 className="text-lg font-medium">{t('emptyTitle')}</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t('emptyBody')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -251,7 +261,7 @@ export function RevenueChart({
                   <Area
                     type="natural"
                     dataKey={dataKey}
-                    name={platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                    name={platformName}
                     stroke={stroke}
                     strokeWidth={2}
                     fill={`url(#${gradientId})`}
@@ -264,7 +274,7 @@ export function RevenueChart({
             </div>
             {hasConnectedPlatforms && hasData && !hasAnyRevenue ? (
               <p className="border-t border-border/50 pt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
-                No revenue in this window yet — numbers appear as your platforms sync. Check back after the next sync.
+                {t('syncHint')}
               </p>
             ) : null}
           </div>

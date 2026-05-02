@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -27,13 +27,11 @@ import {
   getMonthlyPriceUsd,
   getTierByIndex,
   tierIndexFromMonthlyRevenue,
-  focusPlatformDisplayName,
-  focusPlatformsShortLabel,
-  pairBundleDescription,
   BUNDLE_ANTIPIRACY_ADDON_USD,
   BUNDLE_ANTIPIRACY_SCAN_CREDITS,
   type BillingVariant,
 } from '@/lib/pricing-matrix'
+import { BUNDLE_ADDONS } from '@/lib/circe-venus-pricing'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { Checkout } from '@/components/stripe/checkout'
 import {
@@ -58,6 +56,7 @@ import {
 } from '@/lib/billing/billing-plan-visual'
 import { CLIP_FOCUS_ADDON_CAROUSEL, BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE } from '@/lib/billing/clip-focus-addon-carousel'
 import { BundledAntipiracyStorefrontLogoMark } from '@/components/billing/bundled-antipiracy-storefront-mark'
+import { useTranslations } from 'next-intl'
 
 const FOCUS_PLATFORMS: AdultBillingPlatform[] = ['onlyfans', 'fansly']
 
@@ -65,13 +64,7 @@ const OTHER_PLATFORM_BUNDLE_ADDON_USD = 25
 /** Protection marketing strip — same storefronts as billing ManyVids row (logos only). */
 const BUNDLED_STORE_SLIDE_COUNT = BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE.length
 
-/** Popover “Available tools” — short labels only (Protection hub). */
-const PROTECTION_POPOVER_TOOLS = [
-  'DMCA scanner',
-  'Leak detection',
-  'Reputation tool',
-  'Model reputation',
-] as const
+const PROTECTION_TOOL_KEYS = ['dmcaScanner', 'leakDetection', 'reputationTool', 'modelReputation'] as const
 
 /** Calm override control for billing—no gradient/glow; fits settings glass. */
 const PRICING_REVENUE_OVERRIDE_CHECKBOX_CLASS = cn(
@@ -158,6 +151,47 @@ export function PricingPageCalculator({
   lockRevenueBand = false,
   belowFocusPlatformsSlot,
 }: PricingPageCalculatorProps = {}) {
+  const tm = useTranslations('marketing')
+  const tierLabel = useCallback(
+    (idx: number) => tm(`pricingCalculator.tierBands.${idx}` as never),
+    [tm],
+  )
+  const tierNumberFallback = useCallback(
+    (n: number) => tm('pricingCalculator.tierNumberFallback', { tier: n }),
+    [tm],
+  )
+  const focusName = useCallback(
+    (p: AdultBillingPlatform) => {
+      if (p === 'onlyfans') return tm('pricingCalculator.focusPlatform.onlyfans')
+      if (p === 'fansly') return tm('pricingCalculator.focusPlatform.fansly')
+      return tm('pricingCalculator.focusPlatform.antipiracyFocus')
+    },
+    [tm],
+  )
+  const focusPlatformsShortTranslated = useCallback(
+    (platforms: AdultBillingPlatform[]) => {
+      const sorted = sortFocusPlatforms(platforms)
+      if (sorted.length === 0) return focusName('onlyfans')
+      if (sorted.length === 1) return focusName(sorted[0])
+      return sorted.map((p) => focusName(p)).join(tm('pricingCalculator.pairJoiner'))
+    },
+    [focusName, tm],
+  )
+  const pairBundleTranslated = useCallback(
+    (a: AdultBillingPlatform, b: AdultBillingPlatform) => {
+      const addonUsd = (n: number) => `$${n}`
+      const s = new Set<AdultBillingPlatform>([a, b])
+      if (s.has('onlyfans') && s.has('fansly')) {
+        return tm('pricingCalculator.pairFocus.ofFansly', { addon: addonUsd(BUNDLE_ADDONS.FL_ON_OF) })
+      }
+      if (s.has('onlyfans') && s.has('manyvids')) {
+        return tm('pricingCalculator.pairFocus.ofMv', { addon: addonUsd(BUNDLE_ADDONS.MV_ON_OF) })
+      }
+      return tm('pricingCalculator.pairFocus.flMv', { addon: addonUsd(BUNDLE_ADDONS.MV_ON_FL) })
+    },
+    [tm],
+  )
+
   const isControlled = controlled != null
   const reduceMotion = useReducedMotion()
   const revenueBandLocked = surface === 'settings' && lockRevenueBand
@@ -350,31 +384,39 @@ export function PricingPageCalculator({
   const breakdown = useMemo(() => {
     if (protectionOnly) {
       return {
-        lines: [{ label: 'Multiplatform protection', usd: OTHER_PLATFORM_BUNDLE_ADDON_USD }] satisfies BreakdownLines,
-        note: 'Standalone plan for leak alerts and DMCA-style coverage on extra fan and clip storefronts.',
+        lines: [{ label: tm('pricingCalculator.breakdown.multiplatformProtection'), usd: OTHER_PLATFORM_BUNDLE_ADDON_USD }] satisfies BreakdownLines,
+        note: tm('pricingCalculator.breakdown.protectionOnlyLead'),
       }
     }
     if (!tierRow) return null
     if (variant === 'multi') {
       const lines: { label: string; usd: number | null }[] = [
-        { label: 'Bundled (OnlyFans + Fansly)', usd: tierRow.multiPriceUsd },
+        { label: tm('pricingCalculator.breakdown.bundledOfFl'), usd: tierRow.multiPriceUsd },
       ]
       if (sortedPlatforms.includes('manyvids')) {
         lines.push({
-          label: `${BUNDLE_ANTIPIRACY_SCAN_CREDITS.toLocaleString()} credits · Anti‑Piracy storefront`,
+          label: tm('pricingCalculator.breakdown.antiPiracyCreditsAllocated', {
+            credits: BUNDLE_ANTIPIRACY_SCAN_CREDITS,
+          }),
           usd: null,
         })
-        lines.push({ label: 'Anti‑Piracy', usd: BUNDLE_ANTIPIRACY_ADDON_USD })
+        lines.push({
+          label: tm('pricingCalculator.breakdown.antiPiracyFee'),
+          usd: BUNDLE_ANTIPIRACY_ADDON_USD,
+        })
       }
+      const creditsAllocated = BUNDLE_ANTIPIRACY_SCAN_CREDITS
       return {
         lines,
         note: MULTIPLATFORM_PROTECTION_COMING_SOON
           ? surface === 'settings'
-            ? 'One Bundled bill. Anti‑Piracy is the ManyVids storefront connector (800 credits allocated per cycle above). Standalone Multiplatform Protection is coming soon.'
-            : 'Bundled workspace for OnlyFans and Fansly. Anti‑Piracy adds ManyVids and the connector line item. Standalone Protection for extra storefronts is coming soon.'
+            ? tm('pricingCalculator.breakdown.noteBundledSoonSettings', {
+                credits: creditsAllocated,
+              })
+            : tm('pricingCalculator.breakdown.noteBundledSoonMarketing')
           : surface === 'settings'
-            ? 'One Bundled bill. Anti‑Piracy is the ManyVids storefront connector (800 credits allocated per cycle above). Multiplatform Protection is billed separately.'
-            : 'Bundled workspace for OnlyFans and Fansly. Anti‑Piracy adds ManyVids and the connector line item; Protection for extra storefronts is on the pricing page.',
+            ? tm('pricingCalculator.breakdown.noteBundledLiveSettings', { credits: creditsAllocated })
+            : tm('pricingCalculator.breakdown.noteBundledLiveMarketing'),
       }
     }
     if (sortedPlatforms.length === 1) {
@@ -382,11 +424,11 @@ export function PricingPageCalculator({
       return {
         lines: [
           {
-            label: focusPlatformDisplayName(p),
+            label: focusName(p),
             usd: getMonthlyPriceUsd('single', effectiveTier, [p]),
           },
         ],
-        note: 'Single platform',
+        note: tm('pricingCalculator.noteSinglePlatform'),
       }
     }
     if (sortedPlatforms.length === 2) {
@@ -395,15 +437,28 @@ export function PricingPageCalculator({
       return {
         lines: [
           {
-            label: `Single platform (${focusPlatformsShortLabel([a, b])})`,
+            label: tm('pricingCalculator.singlePlatformCombined', {
+              pair: focusPlatformsShortTranslated([a, b]),
+            }),
             usd: bundleUsd,
           },
         ],
-        note: pairBundleDescription(a, b),
+        note: pairBundleTranslated(a, b),
       }
     }
     return null
-  }, [tierRow, variant, sortedPlatforms, effectiveTier, protectionOnly, surface])
+  }, [
+    tm,
+    protectionOnly,
+    tierRow,
+    variant,
+    sortedPlatforms,
+    effectiveTier,
+    surface,
+    focusName,
+    focusPlatformsShortTranslated,
+    pairBundleTranslated,
+  ])
 
   const setBundled = () => {
     setProtectionOnly(false)
@@ -489,36 +544,39 @@ export function PricingPageCalculator({
     <Root
       className={rootClass}
       {...(surface === 'landing'
-        ? { role: 'region', 'aria-label': 'Pricing estimate' }
+        ? { role: 'region', 'aria-label': tm('pricingCalculator.landingAria') }
         : surface === 'settings'
           ? {}
           : { 'aria-labelledby': 'pricing-calculator-heading' })}
     >
       {surface === 'landing' ? (
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Your plan</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          {tm('pricingCalculator.landingEyebrow')}
+        </p>
       ) : surface === 'settings' ? (
         <header className="mb-5 flex flex-col gap-3 border-b border-border/20 pb-5 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-8 sm:pb-6 dark:border-white/[0.06]">
           <div className="min-w-0 space-y-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/80 dark:text-muted-foreground/65">
-              Estimate
+              {tm('pricingCalculator.settingsEyebrow')}
             </p>
             <h2 className="font-serif text-xl font-medium tracking-tight text-foreground sm:text-2xl">
-              Same math as checkout
+              {tm('pricingCalculator.settingsEstimateTitle')}
             </h2>
           </div>
           <p className="max-w-md text-[13px] leading-snug text-muted-foreground sm:max-w-[20rem] sm:text-right">
-            Revenue band, plan shape, and platforms match Stripe before taxes or discounts.
+            {tm('pricingCalculator.settingsEstimateSubtitle')}
           </p>
         </header>
       ) : (
         <header className="mb-10 border-b border-border/25 pb-8">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Pricing</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            {tm('pricingCalculator.defaultEyebrow')}
+          </p>
           <h2 id="pricing-calculator-heading" className="mt-2 font-serif text-3xl font-medium tracking-tight sm:text-4xl">
-            What you&apos;ll pay
+            {tm('pricingCalculator.defaultHeading')}
           </h2>
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-            Choose your revenue band, plan shape, and platforms. Figures match Stripe checkout before discounts or
-            taxes.
+            {tm('pricingCalculator.defaultSubtitle')}
           </p>
         </header>
       )}
@@ -539,7 +597,7 @@ export function PricingPageCalculator({
                 htmlFor={revenueBandLocked ? 'pricing-tier-readonly' : 'pricing-tier-select'}
                 className="text-xs text-muted-foreground"
               >
-                Revenue band
+                {tm('pricingCalculator.revenueBand')}
               </Label>
               {revenueBandLocked ? (
                 <div
@@ -552,7 +610,7 @@ export function PricingPageCalculator({
                       'border-amber-500/35 bg-gradient-to-r from-amber-500/[0.08] via-violet-500/[0.06] to-background/35 dark:border-amber-400/22',
                   )}
                 >
-                  {getTierByIndex(effectiveTier)?.label ?? '—'}
+                  {getTierByIndex(effectiveTier) ? tierLabel(effectiveTier) : tm('pricingCalculator.emDashPlaceholder')}
                 </div>
               ) : (
                 <Select
@@ -579,13 +637,14 @@ export function PricingPageCalculator({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {tierChoices.map((t) => {
-                      const belowFloor = isSettings && tierFloor != null && t.tierIndex < tierFloor
-                      const linkedBand = isSettings && tierFloor != null && t.tierIndex === tierFloor
+                    {tierChoices.map((bandRow) => {
+                      const belowFloor =
+                        isSettings && tierFloor != null && bandRow.tierIndex < tierFloor
+                      const linkedBand = isSettings && tierFloor != null && bandRow.tierIndex === tierFloor
                       return (
                         <SelectItem
-                          key={t.tierIndex}
-                          value={String(t.tierIndex)}
+                          key={bandRow.tierIndex}
+                          value={String(bandRow.tierIndex)}
                           disabled={belowFloor}
                           className={cn(
                             linkedBand &&
@@ -593,11 +652,11 @@ export function PricingPageCalculator({
                           )}
                         >
                           <span className="flex w-full items-center justify-between gap-3 pr-1">
-                            <span>{t.label}</span>
+                            <span>{tierLabel(bandRow.tierIndex)}</span>
                             {linkedBand ? (
                               <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/35 bg-violet-500/[0.09] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-900 dark:border-amber-400/25 dark:bg-violet-400/[0.08] dark:text-amber-100/95">
                                 <Sparkles className="size-3 opacity-85" aria-hidden />
-                                Linked
+                                {tm('pricingCalculator.linkedBadge')}
                               </span>
                             ) : null}
                           </span>
@@ -610,55 +669,61 @@ export function PricingPageCalculator({
               <p className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed')}>
                 {isSettings && revenueBandLocked ? (
                   <>
-                    Synced from combined OnlyFans / Fansly month‑to‑date totals—the same ladder as checkout after your
-                    subscribed band is updated.
+                    {tm('pricingCalculator.revenue.helpLockedP1')}
                     {tierFloor != null ? (
                       <>
                         {' '}
-                        Bands below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} stay visible but can’t be
-                        selected while integrations stay linked.
+                        {tm('pricingCalculator.revenue.helpLockedP2', {
+                          band: getTierByIndex(tierFloor)
+                            ? tierLabel(tierFloor)
+                            : tierNumberFallback(tierFloor),
+                        })}
                       </>
                     ) : null}
                     {observationCapturedAtIso ? (
                       <>
                         {' '}
-                        Updated{' '}
-                        {Number.isFinite(Date.parse(observationCapturedAtIso))
-                          ? new Date(observationCapturedAtIso).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })
-                          : observationCapturedAtIso}
-                        .
+                        {tm('pricingCalculator.revenue.updated', {
+                          when: Number.isFinite(Date.parse(observationCapturedAtIso))
+                            ? new Date(observationCapturedAtIso).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })
+                            : observationCapturedAtIso,
+                        })}
                       </>
                     ) : null}{' '}
-                    Disconnect integrations to pick a revenue band manually.
+                    {tm('pricingCalculator.revenue.helpLockedP3')}
                   </>
                 ) : isSettings && tierFloor != null ? (
                   <>
-                    Band estimate uses combined linked earnings (OnlyFans + Fansly). Every tier stays visible; bands
-                    below {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`} are disabled until you disconnect an
-                    integration—the same ladder enforced at checkout.
+                    {tm('pricingCalculator.revenue.helpPartialLinkedP1', {
+                      band: getTierByIndex(tierFloor)
+                        ? tierLabel(tierFloor)
+                        : tierNumberFallback(tierFloor),
+                    })}
                     {observationCapturedAtIso ? (
                       <>
                         {' '}
-                        Updated{' '}
-                        {Number.isFinite(Date.parse(observationCapturedAtIso))
-                          ? new Date(observationCapturedAtIso).toLocaleString()
-                          : observationCapturedAtIso}
-                        .
+                        {tm('pricingCalculator.revenue.updated', {
+                          when: Number.isFinite(Date.parse(observationCapturedAtIso))
+                            ? new Date(observationCapturedAtIso).toLocaleString()
+                            : observationCapturedAtIso,
+                        })}
                       </>
                     ) : null}
                   </>
                 ) : isSettings ? (
-                  'Tier mirrors gross monthly billings at checkout.'
+                  tm('pricingCalculator.revenue.helpSettingsSimple')
                 ) : (
-                  'Same tiers as checkout. Pick the interval that matches your gross monthly billings.'
+                  tm('pricingCalculator.revenue.helpMarketingSimple')
                 )}
               </p>
               {isSettings && typeof observedCombinedMonthlyUsd === 'number' ? (
                 <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                  <span className="font-medium text-foreground/90">Linked MTD estimate (combined): </span>
+                  <span className="font-medium text-foreground/90">
+                    {tm('pricingCalculator.revenue.linkedMtdLead')}{' '}
+                  </span>
                   <span className="tabular-nums text-foreground/95">${formatScopedUsd(observedCombinedMonthlyUsd)}</span>
                   {typeof observedOnlyfansMonthlyUsd === 'number' ||
                   typeof observedFanslyMonthlyUsd === 'number' ? (
@@ -666,14 +731,22 @@ export function PricingPageCalculator({
                       {' '}
                       (
                       {typeof observedOnlyfansMonthlyUsd === 'number' ? (
-                        <>OnlyFans ${formatScopedUsd(observedOnlyfansMonthlyUsd)}</>
+                        <>
+                          {tm('pricingCalculator.revenue.onlyFansLabel', {
+                            amount: `$${formatScopedUsd(observedOnlyfansMonthlyUsd)}`,
+                          })}
+                        </>
                       ) : null}
                       {typeof observedOnlyfansMonthlyUsd === 'number' &&
                       typeof observedFanslyMonthlyUsd === 'number'
                         ? ' · '
                         : null}
                       {typeof observedFanslyMonthlyUsd === 'number' ? (
-                        <>Fansly ${formatScopedUsd(observedFanslyMonthlyUsd)}</>
+                        <>
+                          {tm('pricingCalculator.revenue.fanslyLabel', {
+                            amount: `$${formatScopedUsd(observedFanslyMonthlyUsd)}`,
+                          })}
+                        </>
                       ) : null}
                       )
                     </span>
@@ -682,13 +755,12 @@ export function PricingPageCalculator({
               ) : null}
               {subscribedBelowLinkedFloor ? (
                 <p className="mt-2 max-w-[52ch] text-[11px] leading-snug text-muted-foreground">
-                  Your subscribed band sits below earnings implied by linked accounts. Finish checkout for the band you
-                  select above—the next Stripe invoice reflects the upgrade.
+                  {tm('pricingCalculator.revenue.subscribedBelowFloor')}
                 </p>
               ) : null}
               {bandDemoActive ? (
                 <p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/90">
-                  Cycling bands as a preview—open the menu or switch to revenue estimate to hold still.
+                  {tm('pricingCalculator.revenue.bandPreviewCycling')}
                 </p>
               ) : null}
             </div>
@@ -713,9 +785,9 @@ export function PricingPageCalculator({
                 htmlFor="pricing-revenue-override"
                 className="cursor-pointer text-[13px] font-normal leading-snug tracking-[-0.01em] text-foreground/90"
               >
-                Enter monthly revenue instead
+                {tm('pricingCalculator.revenue.overrideLabel')}
                 <span className="mt-1 block text-[11px] font-normal tracking-normal text-muted-foreground">
-                  Use when integrations aren&apos;t linked yet—still matches tier ladders at checkout.
+                  {tm('pricingCalculator.revenue.overrideHint')}
                 </span>
               </Label>
             </div>
@@ -723,12 +795,12 @@ export function PricingPageCalculator({
 
           {useRevenueForBand && (
             <div className="space-y-2">
-              <Label htmlFor="pricing-revenue">Gross monthly revenue (USD)</Label>
+              <Label htmlFor="pricing-revenue">{tm('pricingCalculator.revenue.grossMonthlyUsdLabel')}</Label>
               <Input
                 id="pricing-revenue"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="e.g. 5000"
+                placeholder={tm('pricingCalculator.revenue.placeholderExample')}
                 value={revenueInput}
                 onChange={(e) => setRevenueInput(e.target.value)}
                 aria-describedby="pricing-revenue-hint"
@@ -739,19 +811,33 @@ export function PricingPageCalculator({
                 className={cn('text-muted-foreground', isSettings ? 'text-[11px] leading-snug' : 'text-xs')}
               >
                 {isSettings
-                  ? `Maps to ${suggestedRow?.label ?? '—'}.`
-                  : `Maps to ${suggestedRow?.label ?? '—'}, same as billing.`}
+                  ? tm('pricingCalculator.revenue.mapsToSettings', {
+                      band: suggestedRow
+                        ? tierLabel(suggestedRow.tierIndex)
+                        : tm('pricingCalculator.emDashPlaceholder'),
+                    })
+                  : tm('pricingCalculator.revenue.mapsToMarketing', {
+                      band: suggestedRow
+                        ? tierLabel(suggestedRow.tierIndex)
+                        : tm('pricingCalculator.emDashPlaceholder'),
+                    })}
               </p>
               {tierFloor != null && derivedTier < tierFloor ? (
                 <p className="text-[11px] leading-snug text-amber-800/90 dark:text-amber-400/85">
-                  Linked accounts require at least {getTierByIndex(tierFloor)?.label ?? `tier ${tierFloor}`}; the preview uses that minimum so totals match checkout.
+                  {tm('pricingCalculator.revenue.requiresMinTier', {
+                    band: getTierByIndex(tierFloor)
+                      ? tierLabel(tierFloor)
+                      : tierNumberFallback(tierFloor),
+                  })}
                 </p>
               ) : null}
             </div>
           )}
 
           <div className={cn(isSettings ? 'space-y-2' : 'space-y-3')}>
-            <span className={cn('text-muted-foreground', isSettings ? 'text-[11px] font-medium' : 'text-xs')}>Plan</span>
+            <span className={cn('text-muted-foreground', isSettings ? 'text-[11px] font-medium' : 'text-xs')}>
+              {tm('pricingCalculator.planHeading')}
+            </span>
             <div className="flex rounded-full bg-muted/35 p-0.5 dark:bg-muted/25">
               <button
                 type="button"
@@ -770,7 +856,7 @@ export function PricingPageCalculator({
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                Single platform
+                {tm('pricingCalculator.singlePlatform')}
               </button>
               <button
                 type="button"
@@ -791,7 +877,7 @@ export function PricingPageCalculator({
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                Bundled
+                {tm('pricingCalculator.bundled')}
               </button>
             </div>
           </div>
@@ -799,7 +885,7 @@ export function PricingPageCalculator({
           {platformsPickerVisible ? (
             <div className={cn(isSettings ? 'space-y-2' : 'space-y-3')}>
               <span className={cn('text-muted-foreground', isSettings ? 'text-[11px] font-medium' : 'text-xs')}>
-                Platforms
+                {tm('pricingCalculator.platformsHeading')}
               </span>
               <div className={cn('flex flex-wrap', isSettings ? 'gap-2' : 'gap-3')}>
                 {FOCUS_PLATFORMS.map((p) => {
@@ -874,7 +960,7 @@ export function PricingPageCalculator({
                           />
                         )}
                       </span>
-                      <span className="font-medium text-foreground/90">{focusPlatformDisplayName(p)}</span>
+                      <span className="font-medium text-foreground/90">{focusName(p)}</span>
                     </button>
                   )
                 })}
@@ -907,7 +993,7 @@ export function PricingPageCalculator({
           <div className="flex flex-col">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-muted-foreground/80 dark:text-muted-foreground/65">
-                Estimated monthly
+                {tm('pricingCalculator.aside.estimatedMonthly')}
               </p>
               <motion.div
                 key={`${monthlyUsd}-${effectiveTier}-${variant}-${protectionOnly ? 'p' : 'f'}`}
@@ -929,7 +1015,7 @@ export function PricingPageCalculator({
                       isSettings ? 'text-lg sm:text-xl' : 'text-[1.35rem] sm:text-2xl',
                     )}
                   >
-                    /mo
+                    {tm('pricingCalculator.aside.perMo')}
                   </span>
                 </p>
               </motion.div>
@@ -943,7 +1029,9 @@ export function PricingPageCalculator({
                 )}
               >
                 <dl className="space-y-0">
-                  <dt className="text-[11px] font-medium tracking-wide text-muted-foreground">Included AI credits</dt>
+                  <dt className="text-[11px] font-medium tracking-wide text-muted-foreground">
+                    {tm('pricingCalculator.aside.includedAiCredits')}
+                  </dt>
                   <dd
                     className={cn(
                       'mt-2 font-serif font-medium tabular-nums tracking-tight text-foreground',
@@ -961,8 +1049,8 @@ export function PricingPageCalculator({
                     )}
                   >
                     {isSettings
-                      ? 'Applied each cycle for AI tools on this plan. Top up anytime.'
-                      : 'Credited every billing cycle for assistants and automations on this plan. Add credits whenever you need more runway.'}
+                      ? tm('pricingCalculator.aside.creditsExplainSettings')
+                      : tm('pricingCalculator.aside.creditsExplainMarketing')}
                   </dd>
                 </dl>
               </div>
@@ -976,7 +1064,7 @@ export function PricingPageCalculator({
                 )}
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground/75 dark:text-muted-foreground/65">
-                  Composition
+                  {tm('pricingCalculator.aside.composition')}
                 </p>
                 <ul className={cn('leading-snug', isSettings ? 'mt-3 space-y-3 text-[12px]' : 'mt-5 space-y-4 text-[13px]')}>
                   {breakdown.lines.map((row, idx) => (
@@ -991,13 +1079,15 @@ export function PricingPageCalculator({
                           row.usd == null ? 'text-muted-foreground/85' : 'text-foreground',
                         )}
                       >
-                        {row.usd == null ? '—' : `$${row.usd}`}
+                        {row.usd == null ? tm('pricingCalculator.emDashPlaceholder') : `$${row.usd}`}
                       </span>
                     </li>
                   ))}
                   {otherPlatformBundleEnabled && !protectionOnly ? (
                     <li className="flex items-baseline justify-between gap-4 tabular-nums sm:gap-6">
-                      <span className="min-w-0 text-muted-foreground">Multiplatform protection</span>
+                      <span className="min-w-0 text-muted-foreground">
+                        {tm('pricingCalculator.breakdown.multiplatformProtection')}
+                      </span>
                       <span className="shrink-0 font-medium text-foreground">+${OTHER_PLATFORM_BUNDLE_ADDON_USD}</span>
                     </li>
                   ) : null}
@@ -1021,7 +1111,7 @@ export function PricingPageCalculator({
               <Button asChild className={BILLING_PRIMARY_TRIAL_CTA_CLASS}>
                 <Link href="/auth/sign-up" className="inline-flex items-center">
                   <Sparkles className="h-4 w-4 opacity-95" />
-                  Start free trial
+                  {tm('pricingCalculator.marketing.startTrial')}
                 </Link>
               </Button>
               <Button
@@ -1030,7 +1120,9 @@ export function PricingPageCalculator({
                 className="h-11 rounded-2xl border-border/45 bg-transparent px-6 text-[15px] font-medium shadow-none transition-colors hover:border-border/70 hover:bg-muted/20"
               >
                 <Link href={surface === 'landing' ? '/pricing' : '/dashboard/settings?tab=billing'}>
-                  {surface === 'landing' ? 'Full pricing page' : 'Open billing'}
+                  {surface === 'landing'
+                    ? tm('pricingCalculator.marketing.fullPricingPage')
+                    : tm('pricingCalculator.marketing.openBilling')}
                 </Link>
               </Button>
             </div>
@@ -1048,7 +1140,10 @@ export function PricingPageCalculator({
                         ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
                         : null
                   }
-                  buttonText={`Subscribe — $${planMonthlySubtotal}/mo`}
+                  buttonText={tm('pricingCalculator.subscribePlan', {
+                    price: `$${planMonthlySubtotal}`,
+                    period: tm('pricingCalculator.aside.perMo'),
+                  })}
                   buttonClassName={cn(
                     BILLING_PRIMARY_CHECKOUT_CTA_CLASS,
                     isSettings && 'h-11',
@@ -1060,7 +1155,10 @@ export function PricingPageCalculator({
               {protectionOnly ? (
                 <Checkout
                   productId={PROTECTION_PLAN_ID}
-                  buttonText={`Subscribe — Protection $${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo`}
+                  buttonText={tm('pricingCalculator.subscribeProtection', {
+                    price: `$${OTHER_PLATFORM_BUNDLE_ADDON_USD}`,
+                    period: tm('pricingCalculator.aside.perMo'),
+                  })}
                   buttonClassName={cn(BILLING_PRIMARY_CHECKOUT_CTA_CLASS, isSettings && 'h-11')}
                   onComplete={onCheckoutComplete}
                 />
@@ -1068,11 +1166,13 @@ export function PricingPageCalculator({
             </div>
           ) : (
             <p className={cn('text-[12px] leading-relaxed text-muted-foreground', isSettings ? 'mt-8 sm:mt-10' : 'mt-14 sm:mt-16')}>
-              Subscribe from our{' '}
-              <Link href="/pricing" className="font-medium text-foreground underline-offset-4 hover:underline">
-                pricing page
-              </Link>
-              . Totals match this estimate.
+              {tm.rich('pricingCalculator.subscribeFromPricingRich', {
+                link: (chunks) => (
+                  <Link href="/pricing" className="font-medium text-foreground underline-offset-4 hover:underline">
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </p>
           )}
         </aside>
@@ -1085,14 +1185,13 @@ export function PricingPageCalculator({
               {bundledProtectionAsideLogoMark}
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+                  <h3 className="font-medium text-foreground">{tm('pricingCalculator.footer.multiplatformHeading')}</h3>
                   <Badge variant="secondary" className="font-medium">
-                    Coming soon
+                    {tm('pricingCalculator.footer.comingSoonBadge')}
                   </Badge>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Extra storefront coverage (beyond OnlyFans &amp; Fansly) as its own Protection subscription is not
-                  available for new sign-ups yet—we’ll announce it here when enrollment opens.
+                  {tm('pricingCalculator.footer.comingSoonBody')}
                 </p>
               </div>
             </div>
@@ -1101,13 +1200,13 @@ export function PricingPageCalculator({
               {bundledProtectionAsideLogoMark}
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className="font-medium text-foreground">Multiplatform protection</h3>
+                  <h3 className="font-medium text-foreground">{tm('pricingCalculator.footer.multiplatformHeading')}</h3>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         type="button"
                         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label="What multiplatform protection includes — storefronts beyond OnlyFans and Fansly (see logos)"
+                        aria-label={tm('pricingCalculator.footer.multiplatformAria')}
                       >
                         <Info className="h-4 w-4" />
                       </button>
@@ -1121,7 +1220,7 @@ export function PricingPageCalculator({
                       <div className="flex flex-col gap-8">
                         <header>
                           <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/65">
-                            Multiplatform protection
+                            {tm('pricingCalculator.footer.multiplatformHeading')}
                           </p>
                         </header>
 
@@ -1130,7 +1229,7 @@ export function PricingPageCalculator({
                             id="protection-popover-storefronts"
                             className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
                           >
-                            Storefronts
+                            {tm('pricingCalculator.footer.popover.sectionStorefronts')}
                           </p>
                           <ul className="flex flex-col gap-2.5">
                             {CLIP_FOCUS_ADDON_CAROUSEL.map((e) => (
@@ -1138,7 +1237,7 @@ export function PricingPageCalculator({
                                 key={e.id}
                                 className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
                               >
-                                {e.label}
+                                {tm(`pricingCalculator.footer.storefront.${e.id}` as never)}
                               </li>
                             ))}
                           </ul>
@@ -1151,15 +1250,15 @@ export function PricingPageCalculator({
                             id="protection-popover-tools"
                             className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground/55"
                           >
-                            Tools
+                            {tm('pricingCalculator.footer.popover.sectionTools')}
                           </p>
                           <ul className="flex flex-col gap-2.5">
-                            {PROTECTION_POPOVER_TOOLS.map((label) => (
+                            {PROTECTION_TOOL_KEYS.map((key) => (
                               <li
-                                key={label}
+                                key={key}
                                 className="border-l border-border/40 pl-3 text-[14px] leading-snug text-foreground/[0.92]"
                               >
-                                {label}
+                                {tm(`pricingCalculator.footer.tools.${key}` as never)}
                               </li>
                             ))}
                           </ul>
@@ -1169,8 +1268,9 @@ export function PricingPageCalculator({
                   </Popover>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Extra storefront coverage (beyond OnlyFans &amp; Fansly) at ${OTHER_PLATFORM_BUNDLE_ADDON_USD}/mo as a
-                  separate Protection subscription—include it in your estimate here or subscribe on its own.
+                  {tm('pricingCalculator.footer.liveBody', {
+                    usd: `$${OTHER_PLATFORM_BUNDLE_ADDON_USD}`,
+                  })}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -1183,7 +1283,13 @@ export function PricingPageCalculator({
                       setOtherPlatformBundleEnabled((v) => !v)
                     }}
                   >
-                    {otherPlatformBundleEnabled && !protectionOnly ? 'Added (+$25/mo)' : 'Add to estimate (+$25/mo)'}
+                    {otherPlatformBundleEnabled && !protectionOnly
+                      ? tm('pricingCalculator.footer.toggle.addedEstimate', {
+                          usd: `$${OTHER_PLATFORM_BUNDLE_ADDON_USD}`,
+                        })
+                      : tm('pricingCalculator.footer.toggle.addEstimate', {
+                          usd: `$${OTHER_PLATFORM_BUNDLE_ADDON_USD}`,
+                        })}
                   </Button>
                   <Button
                     type="button"
@@ -1195,7 +1301,11 @@ export function PricingPageCalculator({
                       setProtectionOnly((v) => !v)
                     }}
                   >
-                    {protectionOnly ? 'Protection only ($25/mo)' : 'Protection only'}
+                    {protectionOnly
+                      ? tm('pricingCalculator.footer.toggle.protectionOnlyActive', {
+                          usd: `$${OTHER_PLATFORM_BUNDLE_ADDON_USD}`,
+                        })
+                      : tm('pricingCalculator.footer.toggle.protectionOnly')}
                   </Button>
                 </div>
               </div>

@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
@@ -9,39 +7,73 @@ import { ArrowRight, Shield, TrendingUp, Moon, Sun } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { Phase1Locale } from '@/lib/i18n/routing'
 import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
-import { buildHomePricingTeaserLine } from '@/lib/seo/pricing-seo'
 import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
 import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
+import { HomeHeroUpcoming } from '@/components/marketing/home-hero-upcoming'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
-
-const HOME_DESC = `Circe et Venus is a creator workspace for OnlyFans and Fansly: messages, fans, AI tools, and protection in one dashboard — with voice-first Divine Manager. ${PRICING_MODEL_TRIAL_LINE} ${buildHomePricingTeaserLine()}`
+import { getTranslations } from 'next-intl/server'
+import { Link } from '@/lib/i18n/navigation'
+import { getPricingSeoInterpolation } from '@/lib/seo/pricing-seo'
+import { fmtUsd } from '@/lib/marketing/fmt-usd'
+import { cn } from '@/lib/utils'
 
 type PageProps = { params: Promise<{ locale: string }> }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'marketing' })
+  const seo = getPricingSeoInterpolation()
+  const pricingTeaser = t('pricing.seo.homeTeaser', {
+    minOfPrice: fmtUsd(seo.minOf),
+    maxBundledPrice: fmtUsd(seo.maxBundled),
+    protectionPrice: fmtUsd(seo.prot),
+  })
+  const description = t('home.meta.description', {
+    body: t('home.meta.body'),
+    trialLine: t('pricing.model.trialLine'),
+    pricingTeaser,
+  })
+  const keywords = asStringArray(t.raw('home.meta.keywords'))
+
   return buildMarketingLocaleMetadata({
     locale: locale as Phase1Locale,
     path: '/',
-    title: 'Circe et Venus — Creator workspace for OnlyFans & Fansly',
-    description: HOME_DESC,
-    keywords: [
-      'creator OS',
-      'OnlyFans manager',
-      'Fansly',
-      'ManyVids',
-      'Divine Manager',
-      'AI for creators',
-      'fan retention',
-      'creator analytics',
-      'Circe et Venus',
-      'Creatix',
-    ],
+    title: t('home.meta.title'),
+    description,
+    keywords,
   })
 }
 
-export default function LandingPage() {
+export default async function LandingPage({ params }: PageProps) {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'marketing' })
+
+  const platforms = [
+    {
+      name: 'OnlyFans',
+      logoSrc: ONLYFANS_LOGO_SRC,
+      delay: '0s',
+      logoWidthPx: 200,
+      logoHeightPx: 52,
+    },
+    {
+      name: 'Fansly',
+      logoSrc: FANSLY_LOGO_SRC,
+      delay: '0.9s',
+      logoWidthPx: 180,
+      logoHeightPx: 52,
+    },
+  ] as const
+
+  const circeBullets = [0, 1, 2].map((i) => t(`home.goddesses.circeBullets.${i}`))
+  const venusBullets = [0, 1, 2].map((i) => t(`home.goddesses.venusBullets.${i}`))
+
   return (
     <main className="relative z-10 pt-14 sm:pt-16">
       <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-24 sm:pt-16 lg:pt-20">
@@ -60,80 +92,92 @@ export default function LandingPage() {
           </MotionReveal>
 
           <MotionReveal delay={0.1}>
-            <h1 className="text-balance font-serif text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+            <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
               <span className="bg-gradient-to-r from-amber-200 via-primary to-circe-light/70 bg-clip-text text-transparent">
-                Earn More,
+                {t('home.hero.headlineEarnMore')}
               </span>{' '}
-              Run Smarter,{' '}
+              {t('home.hero.headlineRunSmarter')}{' '}
               <span className="bg-gradient-to-r from-circe-light via-fuchsia-300 to-primary/70 bg-clip-text text-transparent">
-                Grow Faster.
+                {t('home.hero.headlineGrowFaster')}
               </span>
             </h1>
           </MotionReveal>
 
           <MotionReveal delay={0.14}>
             <p className="mx-auto mt-6 max-w-xl text-pretty text-lg text-muted-foreground sm:text-xl">
-              Get AI management for your daily operations. Protect your content with faster response workflows.
-              Seamlessly run OnlyFans and Fansly in one dashboard.
+              {t('home.hero.subhead')}
             </p>
           </MotionReveal>
 
           <MotionReveal delay={0.16}>
-            <div className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-2.5">
-              {[
-                {
-                  name: 'OnlyFans',
-                  logoSrc: ONLYFANS_LOGO_SRC,
-                  delay: '0s',
-                  logoWidthPx: 200,
-                  logoHeightPx: 52,
-                },
-                {
-                  name: 'Fansly',
-                  logoSrc: FANSLY_LOGO_SRC,
-                  delay: '0.9s',
-                  logoWidthPx: 180,
-                  logoHeightPx: 52,
-                },
-              ].map((platform) => {
+            <div className="relative mx-auto mt-8 max-w-2xl sm:mt-10">
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,420px)] w-[min(100%,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-b from-primary/20 via-circe/12 to-transparent blur-3xl"
+                aria-hidden
+              />
+              <div className="relative flex flex-col items-center">
+                <Link href="/auth/sign-up" className="inline-flex">
+                  <Button
+                    size="lg"
+                    className="h-12 gap-2.5 rounded-full bg-gradient-to-r from-primary to-circe/90 px-11 text-base font-semibold text-primary-foreground shadow-[0_22px_48px_-14px] shadow-primary/40 ring-1 ring-foreground/10 transition-[opacity,transform] hover:opacity-[0.97] active:scale-[0.99] sm:h-14 sm:gap-3 sm:px-14 sm:text-lg sm:shadow-[0_28px_56px_-16px] sm:shadow-primary/45"
+                  >
+                    {t('home.hero.ctaTrial')}{' '}
+                    <ArrowRight className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" aria-hidden />
+                  </Button>
+                </Link>
+                <p className="mt-4 max-w-md text-pretty text-center text-xs leading-relaxed text-muted-foreground sm:mt-3.5 sm:text-sm">
+                  {t('pricing.model.trialLine')}
+                </p>
+              </div>
+            </div>
+          </MotionReveal>
+
+          <MotionReveal delay={0.18}>
+            <div className="mx-auto mt-10 flex max-w-2xl flex-wrap items-center justify-center gap-2.5 sm:mt-12">
+              {platforms.map((platform) => {
                 const w = platform.logoWidthPx
                 const h = platform.logoHeightPx
                 return (
                   <div
                     key={platform.name}
-                    className="marketing-float group relative flex min-h-11 shrink-0 items-center gap-3 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3.5 backdrop-blur-sm sm:gap-3.5 sm:pl-2.5 sm:pr-4"
+                    className={cn(
+                      'marketing-float group relative flex min-h-11 shrink-0 items-center gap-3 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3.5 backdrop-blur-sm sm:gap-3.5 sm:pl-2.5 sm:pr-4',
+                      platform.name === 'OnlyFans' && 'marketing-hero-platform-pill-of',
+                      platform.name === 'Fansly' && 'marketing-hero-platform-pill-fl',
+                    )}
                     style={{ animationDelay: platform.delay }}
                   >
                     <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                     <Image
                       src={platform.logoSrc}
-                      alt={`${platform.name} logo`}
+                      alt={t('home.hero.platformLogoAlt', { name: platform.name })}
                       width={w}
                       height={h}
                       className="relative z-10 h-[3.25rem] w-auto shrink-0 object-contain object-left sm:h-14"
                       sizes="(max-width: 640px) 160px, 200px"
                     />
                     <span className="relative text-xs font-medium text-foreground/90 sm:text-sm">
-                      Compatible with <span className="text-primary">{platform.name}</span>
+                      {t('home.hero.platformCompatibleBefore')} <span className="text-primary">{platform.name}</span>
                     </span>
                   </div>
                 )
               })}
             </div>
-          </MotionReveal>
-
-          <MotionReveal delay={0.18}>
-            <div className="mt-10 flex justify-center">
-              <Link href="/auth/sign-up">
-                <Button
-                  size="lg"
-                  className="h-12 gap-2 rounded-full bg-gradient-to-r from-primary to-circe/90 px-10 text-base text-primary-foreground shadow-xl shadow-primary/25 hover:opacity-[0.97]"
-                >
-                  Start free trial <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">{PRICING_MODEL_TRIAL_LINE}</p>
+            <HomeHeroUpcoming
+              eyebrow={t('home.hero.upcoming.eyebrow')}
+              items={
+                [
+                  t('home.hero.upcoming.item0'),
+                  t('home.hero.upcoming.item1'),
+                  t('home.hero.upcoming.item2'),
+                ] as const
+              }
+              pricingCycleCaption={t('home.hero.upcoming.pricingCycleCaption')}
+              caption={t('home.hero.upcoming.caption')}
+              linkLabel={t('home.hero.upcoming.link')}
+              expandAriaLabel={t('home.hero.upcoming.expandAria')}
+              collapseAriaLabel={t('home.hero.upcoming.collapseAria')}
+            />
           </MotionReveal>
         </div>
       </section>
@@ -141,7 +185,7 @@ export default function LandingPage() {
       <section className="px-4 py-12 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">
           <MotionReveal className="mb-8 text-center">
-            <h2 className="font-serif text-3xl font-semibold sm:text-4xl">Speak. It runs.</h2>
+            <h2 className="font-serif text-3xl font-semibold sm:text-4xl">{t('home.speakSection.heading')}</h2>
           </MotionReveal>
           <MotionReveal>
             <DivineCommandCenter />
@@ -153,7 +197,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <MotionReveal className="text-center">
             <h2 className="font-serif text-3xl font-semibold sm:text-4xl">
-              Circe <span className="text-muted-foreground">&</span> <span className="text-primary">Venus</span>
+              {t('home.goddesses.circeTitle')}{' '}
+              <span className="text-muted-foreground">{t('home.goddesses.headingAnd')}</span>{' '}
+              <span className="text-primary">{t('home.goddesses.venusTitle')}</span>
             </h2>
           </MotionReveal>
 
@@ -176,21 +222,19 @@ export default function LandingPage() {
                     <Shield className="h-8 w-8" aria-hidden />
                   </div>
                   <h3 className="mb-2 font-serif text-2xl font-semibold tracking-tight text-circe-light sm:text-[1.65rem]">
-                    Circe
+                    {t('home.goddesses.circeTitle')}
                   </h3>
                   <p className="mb-1 text-sm font-semibold leading-snug text-circe-light/95 sm:text-base">
-                    Keep fans enchanted — and thieves frustrated.
+                    {t('home.goddesses.circeTagline')}
                   </p>
-                  <p className="mb-5 text-xs font-medium uppercase tracking-[0.2em] text-circe/75">Retention · leaks · nuance</p>
+                  <p className="mb-5 text-xs font-medium uppercase tracking-[0.2em] text-circe/75">
+                    {t('home.goddesses.circeEyebrow')}
+                  </p>
                   <ul className="space-y-3.5 text-sm leading-relaxed text-foreground/90 sm:text-[0.9375rem]">
-                    {[
-                      'Churn radar: who’s cooling off before they ghost you',
-                      'Leak defense with DMCA-ready drafts — less doom-scrolling, more doing',
-                      'Fan context that reads the room — warmer replies, fewer misreads',
-                    ].map((t) => (
-                      <li key={t} className="flex gap-3">
+                    {circeBullets.map((line) => (
+                      <li key={line} className="flex gap-3">
                         <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-circe-light shadow-[0_0_10px_oklch(0.72_0.12_295/0.7)]" />
-                        <span>{t}</span>
+                        <span>{line}</span>
                       </li>
                     ))}
                   </ul>
@@ -215,23 +259,19 @@ export default function LandingPage() {
                     <TrendingUp className="h-8 w-8" aria-hidden />
                   </div>
                   <h3 className="mb-2 font-serif text-2xl font-semibold tracking-tight text-primary sm:text-[1.65rem]">
-                    Venus
+                    {t('home.goddesses.venusTitle')}
                   </h3>
                   <p className="mb-1 text-sm font-semibold leading-snug text-foreground/95 sm:text-base">
-                    Turn attention into momentum — without the hustle hangover.
+                    {t('home.goddesses.venusTagline')}
                   </p>
                   <p className="mb-5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/90">
-                    Growth · mentions · momentum
+                    {t('home.goddesses.venusEyebrow')}
                   </p>
                   <ul className="space-y-3.5 text-sm leading-relaxed text-foreground/90 sm:text-[0.9375rem]">
-                    {[
-                      'Fan CRM with heat & spend signals — know who earns your focus',
-                      'Mentions & reputation briefings that surface drama before it spreads',
-                      'Comment & list bulk moves — batch the boring, stay magnetic',
-                    ].map((t) => (
-                      <li key={t} className="flex gap-3">
+                    {venusBullets.map((line) => (
+                      <li key={line} className="flex gap-3">
                         <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_10px_oklch(0.78_0.14_85/0.65)]" />
-                        <span>{t}</span>
+                        <span>{line}</span>
                       </li>
                     ))}
                   </ul>
@@ -245,7 +285,7 @@ export default function LandingPage() {
       <MarketingModeProvider>
         <section className="px-4 pb-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl justify-end">
-            <ProModeToggle className="mb-4" proLabel="Complete" proAccent="logo" />
+            <ProModeToggle className="mb-4" proLabel={t('home.proMode.complete')} proAccent="logo" />
           </div>
         </section>
         <HomePricingSwitch />

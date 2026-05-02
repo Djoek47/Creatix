@@ -68,7 +68,7 @@ export async function notifyRevenueTierChange(
     .join('')
     .slice(0, 2000)
 
-  await insertDivineAppNotification(supabase as NotificationInsertClient, userId, {
+  await insertDivineAppNotification(supabase as unknown as NotificationInsertClient, userId, {
     type: 'system',
     title,
     description,
@@ -158,7 +158,7 @@ export async function notifyRevenueBandMismatchIfNeeded(
     .join('')
     .slice(0, 2000)
 
-  await insertDivineAppNotification(supabase as NotificationInsertClient, userId, {
+  await insertDivineAppNotification(supabase as unknown as NotificationInsertClient, userId, {
     type: 'system',
     title,
     description,

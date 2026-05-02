@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useTranslations } from 'next-intl'
 import { Check, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -99,6 +100,7 @@ const subtitleClass = cn(
 const THEME_STORAGE_KEY = 'creatix-ui-theme'
 
 export function ThemeToggle() {
+  const t = useTranslations('dashboard')
   const { setTheme, theme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
@@ -129,7 +131,7 @@ export function ThemeToggle() {
           className="h-5 w-5 text-amber-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite] dark:text-amber-600"
           aria-hidden
         />
-        <span className="sr-only">Toggle theme</span>
+        <span className="sr-only">{t('theme.toggleSrOnly')}</span>
       </Button>
     )
   }
@@ -146,7 +148,7 @@ export function ThemeToggle() {
             className="absolute h-5 w-5 rotate-90 scale-0 text-circe-light transition-all motion-safe:animate-[pulse_4.5s_ease-in-out_infinite] dark:rotate-0 dark:scale-100 dark:text-fuchsia-200"
             aria-hidden
           />
-          <span className="sr-only">Toggle theme</span>
+          <span className="sr-only">{t('theme.toggleSrOnly')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className={menuContentClass}>
@@ -164,8 +166,8 @@ export function ThemeToggle() {
               <Sun className="size-4 text-amber-600/85 dark:text-amber-400/90" strokeWidth={1.75} aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn('block text-foreground/90', titleVenusAccent)}>Venus</span>
-              <span className={subtitleClass}>Light appearance</span>
+              <span className={cn('block text-foreground/90', titleVenusAccent)}>{t('theme.venusTitle')}</span>
+              <span className={subtitleClass}>{t('theme.venusSubtitle')}</span>
             </span>
             <Check
               className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'light' && 'opacity-0')}
@@ -181,8 +183,8 @@ export function ThemeToggle() {
               <Moon className="size-4 text-circe/90 dark:text-circe-light/90" strokeWidth={1.75} aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn('block text-foreground/90', titleCirceAccent)}>Circe</span>
-              <span className={subtitleClass}>Dark appearance</span>
+              <span className={cn('block text-foreground/90', titleCirceAccent)}>{t('theme.circeTitle')}</span>
+              <span className={subtitleClass}>{t('theme.circeSubtitle')}</span>
             </span>
             <Check
               className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'dark' && 'opacity-0')}
@@ -193,7 +195,7 @@ export function ThemeToggle() {
           <DropdownMenuRadioItem
             value="system"
             className={cn(appearanceRowBase, 'pl-3 [&>span:first-child]:hidden')}
-            title="Automatically uses light or dark to match your device."
+            title={t('theme.systemRowTitle')}
           >
             <span className={appearanceIconAuto}>
               <span className="relative inline-flex size-4 shrink-0 items-center justify-center" aria-hidden>
@@ -210,10 +212,8 @@ export function ThemeToggle() {
               </span>
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn('block text-foreground/90', titleAutoAccent)}>Match device</span>
-              <span className={subtitleClass}>
-                OS light/dark only—not your profile timezone
-              </span>
+              <span className={cn('block text-foreground/90', titleAutoAccent)}>{t('theme.matchDeviceTitle')}</span>
+              <span className={subtitleClass}>{t('theme.matchDeviceSubtitle')}</span>
             </span>
             <Check
               className={cn('size-4 shrink-0 text-foreground/40', appearanceValue !== 'system' && 'opacity-0')}

@@ -1,5 +1,7 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { PRICING_MODEL_HEADLINE } from '@/lib/marketing/pricing-copy'
 
 type Props = {
   /** Smaller type on inner marketing pages; landing uses default */
@@ -10,6 +12,7 @@ type Props = {
 }
 
 export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Props) {
+  const t = useTranslations('marketing')
   const size =
     Tag === 'h1'
       ? 'text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl'
@@ -25,7 +28,7 @@ export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Pro
         className,
       )}
     >
-      {PRICING_MODEL_HEADLINE}
+      {t('pricing.model.headline')}
     </Tag>
   )
 }

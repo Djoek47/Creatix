@@ -12,7 +12,7 @@ export function DashboardRouteHero() {
   const tDash = useTranslations('dashboard')
   const focusChrome = useMessagesFocusChromeOptional()
   const zenMessages =
-    focusChrome?.focusMode === true &&
+    (focusChrome?.focusMode === true || focusChrome?.workspaceBarCollapsed === true) &&
     (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) &&
     !pathname.startsWith('/dashboard/messages/mass')
   if (zenMessages) return null

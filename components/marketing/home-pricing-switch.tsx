@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { LandingPricingSection } from '@/components/marketing/landing-pricing-section'
 import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { ArrowRight } from 'lucide-react'
 import { useMarketingMode } from '@/components/marketing/marketing-mode-context'
 import { cn } from '@/lib/utils'
-import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
+import { PRICING_ANTI_PIRACY_CYCLE_LOGOS, PRICING_HERO_PLATFORM_CYCLE_MS } from '@/lib/marketing/pricing-cycle-platform-marks'
+import { Link } from '@/lib/i18n/navigation'
+import { useTranslations } from 'next-intl'
 
 const ROTATE_MS = 10_000
 
@@ -17,7 +19,6 @@ type BaseKey = 'of' | 'fl' | 'ap'
 
 type BaseOption = {
   key: BaseKey
-  name: string
   price: number
   logoSrc: string | null
 }
@@ -29,17 +30,12 @@ type RotatingPlatformMark = {
 }
 
 export function HomePricingSwitch() {
+  const t = useTranslations('marketing')
   const { mode } = useMarketingMode()
   const reduce = useReducedMotion()
   const tier0 = PRICING_TIERS[0]!
   const antiPiracyPlatforms = useMemo<RotatingPlatformMark[]>(
-    () => [
-      { name: 'ManyVids', logoSrc: MANYVIDS_LOGO_SRC },
-      { name: 'MYM', logoSrc: '/mym-logo.png' },
-      { name: 'Clips4Sale', logoSrc: '/clips4sale-logo.png' },
-      { name: 'LoyalFans', logoSrc: '/loyalfans-logo.svg' },
-      { name: 'Fanvue', logoSrc: '/fanvue-logo.png' },
-    ],
+    () => PRICING_ANTI_PIRACY_CYCLE_LOGOS.map((m) => ({ name: m.name, logoSrc: m.logoSrc })),
     [],
   )
 
@@ -47,19 +43,16 @@ export function HomePricingSwitch() {
     () => [
       {
         key: 'of',
-        name: 'OnlyFans',
         price: tier0.prices.of,
         logoSrc: ONLYFANS_LOGO_SRC,
       },
       {
         key: 'fl',
-        name: 'Fansly',
         price: tier0.prices.fl,
         logoSrc: FANSLY_LOGO_SRC,
       },
       {
         key: 'ap',
-        name: 'Anti-piracy bundle',
         price: 25,
         logoSrc: null,
       },
@@ -91,7 +84,7 @@ export function HomePricingSwitch() {
     if (reduce) return
     const id = window.setInterval(() => {
       setAntiPiracyIndex((prev) => (prev + 1) % antiPiracyPlatforms.length)
-    }, 2400)
+    }, PRICING_HERO_PLATFORM_CYCLE_MS)
     return () => window.clearInterval(id)
   }, [reduce, antiPiracyPlatforms.length])
 
@@ -100,7 +93,9 @@ export function HomePricingSwitch() {
   return (
     <section id="pricing" className="border-y border-border/30 bg-card/30 px-4 py-16 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-lg text-center">
-        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Starting at</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+          {t('home.pricingSwitch.startingAt')}
+        </p>
         <div className="mt-2 flex min-h-[3.25rem] items-baseline justify-center gap-1 sm:min-h-[3.5rem]">
           <span className="text-lg font-medium text-muted-foreground sm:text-xl">$</span>
           <div className="relative inline-flex overflow-hidden tabular-nums">
@@ -117,19 +112,23 @@ export function HomePricingSwitch() {
               </motion.span>
             </AnimatePresence>
           </div>
-          <span className="text-lg font-medium text-muted-foreground sm:text-xl">/mo</span>
+          <span className="text-lg font-medium text-muted-foreground sm:text-xl">{t('home.pricingSwitch.perMo')}</span>
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          Lowest revenue band — your price scales with earnings. One workspace.
-        </p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{t('home.pricingSwitch.lowBandCaption')}</p>
 
         <div
           className="mx-auto mt-8 flex max-w-md justify-center gap-2 sm:gap-3"
           role="radiogroup"
-          aria-label="Base monthly price by platform"
+          aria-label={t('home.pricingSwitch.ariaPlatformPrices')}
         >
           {bases.map((b) => {
             const selected = displayed === b.key
+            const srLabel =
+              b.key === 'ap'
+                ? t('home.pricingSwitch.antiPiracyBundle')
+                : b.key === 'of'
+                  ? 'OnlyFans'
+                  : 'Fansly'
             return (
               <button
                 key={b.key}
@@ -187,10 +186,8 @@ export function HomePricingSwitch() {
                     <span className="text-[11px] font-semibold tracking-tight text-muted-foreground">AP</span>
                   )}
                 </span>
-                <span className="text-xs font-medium tabular-nums text-foreground/85 sm:text-sm">
-                  ${b.price}
-                </span>
-                <span className="sr-only">{b.name}</span>
+                <span className="text-xs font-medium tabular-nums text-foreground/85 sm:text-sm">${b.price}</span>
+                <span className="sr-only">{srLabel}</span>
               </button>
             )
           })}
@@ -204,7 +201,7 @@ export function HomePricingSwitch() {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             )}
           >
-            See pricing
+            {t('home.pricingSwitch.seePricing')}
             <ArrowRight className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
           </Link>
         </div>

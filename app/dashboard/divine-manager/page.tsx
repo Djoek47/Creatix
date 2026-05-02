@@ -39,6 +39,8 @@ import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
 import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
+import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
 import { cn } from '@/lib/utils'
 
@@ -1911,6 +1913,7 @@ export default function DivineManagerPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <DivineVoiceRateCard />
             <div className="flex flex-col gap-2 rounded-lg border border-amber-500/15 bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">Floating crown</p>

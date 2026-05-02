@@ -13,6 +13,22 @@ function safeJsonParseLocal(input: string | null): Record<string, unknown> {
   }
 }
 
+function buildVerifyExcerptFromNotes(
+  n: Record<string, unknown>,
+  sourceUrl: string,
+): { excerpt: string; usedMetadataOnly: boolean } | null {
+  const title = typeof n.title === 'string' ? n.title.trim() : ''
+  const snippet = typeof n.snippet === 'string' ? n.snippet.trim() : ''
+  if (!title && !snippet) return null
+  const lines = [
+    'Note: Live page fetch returned no usable text (site may block bots, use a JS shell, or require sign-in). Verification uses leak-scan metadata only.',
+    `URL: ${sourceUrl}`,
+  ]
+  if (title) lines.push(`Search / scan title: ${title}`)
+  if (snippet) lines.push(`Search / scan snippet: ${snippet}`)
+  return { excerpt: lines.join('\n').slice(0, 12_000), usedMetadataOnly: true }
+}
+
 /**
  * POST — Re-run page excerpt + Grok verification for a single leak (Pro + XAI).
  * Used for critical items without waiting for a full scan.
@@ -56,9 +72,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const sourceUrl = (row as { source_url: string }).source_url
   const notes = (row as { notes: string | null }).notes
   const n = safeJsonParseLocal(notes)
-  const excerpt = await fetchPageTextExcerpt(sourceUrl)
+  let excerpt = await fetchPageTextExcerpt(sourceUrl)
+  let usedMetadataOnly = false
   if (!excerpt) {
-    return NextResponse.json({ error: 'Could not fetch page text (blocked or empty)' }, { status: 422 })
+    const fb = buildVerifyExcerptFromNotes(n, sourceUrl)
+    if (fb) {
+      excerpt = fb.excerpt
+      usedMetadataOnly = fb.usedMetadataOnly
+    }
+  }
+  if (!excerpt) {
+    return NextResponse.json(
+      {
+        error: 'Could not fetch page text (blocked or empty)',
+        code: 'page_fetch_empty',
+        hint: 'This URL did not return readable HTML from the server, and this alert has no stored title/snippet to fall back on. Try again later, open the URL manually, or re-run a scan after the index updates metadata.',
+      },
+      { status: 422 },
+    )
   }
 
   const { data: profileRow } = await supabase
@@ -117,10 +148,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         rationale: v.rationale,
         checkedAt: new Date().toISOString(),
         manual: true,
+        excerptSource: usedMetadataOnly ? 'metadata_fallback' : 'live_fetch',
       },
     }
     await supabase.from('leak_alerts').update({ notes: JSON.stringify(nextNotes) }).eq('id', id)
-    return NextResponse.json({ success: true, pageVerify: nextNotes.pageVerify })
+    return NextResponse.json({
+      success: true,
+      pageVerify: nextNotes.pageVerify,
+      usedMetadataOnly,
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Verification failed'
     return NextResponse.json({ error: msg }, { status: 500 })

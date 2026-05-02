@@ -4,28 +4,33 @@ import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
 import { MotionReveal } from '@/components/marketing/motion-reveal'
 import { MobileLaunchListForm } from '@/components/marketing/mobile-launch-list-form'
 import { cn } from '@/lib/utils'
+import { getTranslations } from 'next-intl/server'
 
 type PageProps = { params: Promise<{ locale: string }> }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'marketing' })
+  const keywords = asStringArray(t.raw('launchList.meta.keywords'))
+
   return buildMarketingLocaleMetadata({
     locale: locale as Phase1Locale,
     path: '/launch-list',
-    title: 'Mobile Launch List | Circe et Venus',
-    description:
-      'Join the Circe et Venus mobile launch list. Get first access to iOS and Android release updates.',
-    keywords: [
-      'Circe et Venus launch list',
-      'mobile waitlist',
-      'iOS creator app',
-      'Android creator app',
-      'mobile app early access',
-    ],
+    title: t('launchList.meta.title'),
+    description: t('launchList.meta.description'),
+    keywords,
   })
 }
 
-export default function LaunchListPage() {
+export default async function LaunchListPage({ params }: PageProps) {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'marketing' })
+
   return (
     <main className="relative z-10 pt-14 sm:pt-16">
       <section className="relative overflow-hidden px-4 pb-24 pt-12 sm:px-6 sm:pb-28 sm:pt-16">
@@ -35,13 +40,13 @@ export default function LaunchListPage() {
         <div className="mx-auto max-w-[32rem]">
           <MotionReveal className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/75 dark:text-amber-200/65">
-              Mobile launch
+              {t('launchList.eyebrow')}
             </p>
             <h1 className="mt-4 font-serif text-[2.125rem] font-semibold leading-[1.06] tracking-[-0.035em] text-foreground sm:text-[2.625rem] md:text-[2.875rem]">
-              Join the launch list
+              {t('launchList.title')}
             </h1>
             <p className="mx-auto mt-4 max-w-[36ch] text-pretty text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground sm:text-[15.5px]">
-              First access when Circe et Venus ships on iOS and Android.
+              {t('launchList.subhead')}
             </p>
           </MotionReveal>
           <MotionReveal

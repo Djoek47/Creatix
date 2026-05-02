@@ -21,7 +21,9 @@ import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
 import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
 import { creditAutoTopupMaxFailures } from '@/lib/billing/credit-auto-topup'
-import { checkoutProductDescription, checkoutProductName, getMonthlyPriceCents } from '@/lib/pricing-matrix'
+import { checkoutProductDescriptionForLocale, checkoutProductNameForLocale } from '@/lib/billing/checkout-product-intl'
+import { resolveCheckoutLocaleForUser } from '@/lib/i18n/resolve-checkout-locale'
+import { getMonthlyPriceCents } from '@/lib/pricing-matrix'
 import {
   parseDivineVoiceFromStripeMetadata,
   subscriptionStripeHasDivineVoicePrice,
@@ -373,15 +375,20 @@ export async function POST(req: NextRequest) {
             trialSource: meta?.trialSource || 'card_required',
           }
 
-          const productTitle = checkoutProductName(
+          const checkoutLocale = await resolveCheckoutLocaleForUser(supabase, userId)
+          const focusForProduct =
+            conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined
+          const productTitle = await checkoutProductNameForLocale(
+            checkoutLocale,
             conversionVariant,
             conversionTier,
-            conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+            focusForProduct,
           )
-          const productDescription = checkoutProductDescription(
+          const productDescription = await checkoutProductDescriptionForLocale(
+            checkoutLocale,
             conversionVariant,
             conversionTier,
-            conversionVariant === 'single' ? conversionFocusPlatforms ?? ['onlyfans'] : undefined,
+            focusForProduct,
           )
           const stripeProduct = await stripeProductForInlinePriceData({
             name: productTitle,

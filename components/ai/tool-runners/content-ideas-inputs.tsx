@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,25 +25,28 @@ export function ContentIdeasRunnerInputs({
   contentDescription,
   setContentDescription,
 }: ContentIdeasRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.content-ideas')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>What do you post about?</Label>
+          <Label>{t('easyNicheLabel')}</Label>
           <Input
-            placeholder="e.g. cosplay, fitness, GFE…"
+            placeholder={t('easyNichePlaceholder')}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
         <div className="space-y-2">
-          <Label>Anything trending on your mind? (optional)</Label>
+          <Label>{t('easyTrendingLabel')}</Label>
           <Textarea
-            placeholder="Optional — holidays, memes, collabs…"
+            placeholder={t('easyTrendingPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[72px]"
@@ -56,18 +60,18 @@ export function ContentIdeasRunnerInputs({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Your Niche</Label>
-          <Input placeholder="e.g., fitness, cosplay, GFE..." value={niche} onChange={(e) => setNiche(e.target.value)} />
+          <Label>{t('proYourNiche')}</Label>
+          <Input placeholder={t('proNichePlaceholder')} value={niche} onChange={(e) => setNiche(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Any specific trends or themes to explore? (optional)</Label>
+        <Label>{t('proTrendsLabel')}</Label>
         <Textarea
-          placeholder="Current trends you've noticed, or themes you want to try..."
+          placeholder={t('proTrendsPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[80px]"

@@ -2,9 +2,10 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { DollarSign, Users, MessageSquare, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import type { DashboardStats } from '@/lib/types'
-// Manual number formatting to avoid hydration mismatch (no Intl/locale dependency)
+
 function formatNumber(amount: number): string {
   const str = Math.round(amount).toString()
   const parts: string[] = []
@@ -19,30 +20,30 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
-  // Check if user has any connected platforms - if connected, show actual numbers (even 0)
+  const t = useTranslations('dashboard.statsCards')
   const hasConnectedPlatforms = stats.hasConnectedPlatforms
 
   const cards = [
     {
-      title: 'Total Revenue',
+      titleKey: 'totalRevenue' as const,
       value: hasConnectedPlatforms ? `$${formatNumber(stats.totalRevenue)}` : '--',
       change: hasConnectedPlatforms ? stats.revenueChange : null,
       icon: DollarSign,
     },
     {
-      title: 'Total Fans',
+      titleKey: 'totalFans' as const,
       value: hasConnectedPlatforms ? formatNumber(stats.totalFans) : '--',
       change: hasConnectedPlatforms ? stats.fansChange : null,
       icon: Users,
     },
     {
-      title: 'Active Conversations',
+      titleKey: 'activeConversations' as const,
       value: hasConnectedPlatforms ? formatNumber(stats.activeConversations) : '--',
       change: hasConnectedPlatforms ? stats.conversationsChange : null,
       icon: MessageSquare,
     },
     {
-      title: 'Scheduled Content',
+      titleKey: 'scheduledContent' as const,
       value: hasConnectedPlatforms ? formatNumber(stats.scheduledContent) : '--',
       change: hasConnectedPlatforms ? stats.contentChange : null,
       icon: Calendar,
@@ -53,14 +54,14 @@ export function StatsCards({ stats }: StatsCardsProps) {
     <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
       {cards.map((card, i) => (
         <Card
-          key={card.title}
+          key={card.titleKey}
           className="overflow-hidden rounded-2xl border border-white/40 bg-white/45 shadow-[0_10px_36px_-20px_rgba(15,23,42,0.2)] backdrop-blur-xl backdrop-saturate-150 constellation-bg dark:border-white/[0.09] dark:bg-slate-950/40 dark:shadow-[0_14px_44px_-24px_rgba(0,0,0,0.48)]"
         >
           <CardContent className="p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/85">
-                  {card.title}
+                  {t(card.titleKey)}
                 </p>
                 <p className="mt-2 truncate text-2xl font-semibold tabular-nums tracking-tight text-foreground md:text-[1.65rem]">
                   {card.value}
@@ -94,11 +95,11 @@ export function StatsCards({ stats }: StatsCardsProps) {
                   {card.change >= 0 ? '+' : ''}
                   {card.change}%
                 </span>
-                <span className="text-muted-foreground">vs last month</span>
+                <span className="text-muted-foreground">{t('vsLastMonth')}</span>
               </div>
             ) : (
               <div className="mt-4 text-xs text-muted-foreground">
-                {hasConnectedPlatforms ? 'No prior period yet' : 'Connect platforms to track'}
+                {hasConnectedPlatforms ? t('noPriorPeriod') : t('connectToTrack')}
               </div>
             )}
           </CardContent>

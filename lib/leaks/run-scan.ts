@@ -591,7 +591,8 @@ export async function runLeakScan(
   }
 
   let pageVerifyCount = 0
-  let insertedRows: Array<{ id: string; source_url: string; notes: string | null }> | null = null
+  type InsertedLeakRow = { id: string; source_url: string; notes: string | null }
+  let insertedRows: InsertedLeakRow[] | null = null
 
   if (inserts.length > 0) {
     const { data: rows, error: insertErr } = await supabase
@@ -611,7 +612,7 @@ export async function runLeakScan(
         fetchVerified: fetchVerifyTopN > 0 ? fetchVerified : undefined,
       }
     }
-    insertedRows = rows as typeof insertedRows
+    insertedRows = (rows ?? []) as InsertedLeakRow[]
   }
 
   const pageVerifyLevels = parsePageVerifySeverities()

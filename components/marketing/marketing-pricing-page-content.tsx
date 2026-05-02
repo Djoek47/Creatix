@@ -1,6 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { PRICING_TIERS } from '@/lib/circe-venus-pricing'
 import { PricingModelHeadline } from '@/components/marketing/pricing-model-headline'
 import { MotionReveal } from '@/components/marketing/motion-reveal'
@@ -9,29 +10,34 @@ import { PricingPageCalculator } from '@/components/marketing/pricing-page-calcu
 import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { useMarketingMode } from '@/components/marketing/marketing-mode-context'
 import { ProModeToggle } from '@/components/marketing/pro-mode-toggle'
+import { protectionProduct } from '@/lib/seo/pricing-seo'
+import { fmtUsd } from '@/lib/marketing/fmt-usd'
+
+const COMPARISON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6] as const
 
 function PricingFaqs() {
   const { mode } = useMarketingMode()
+  const t = useTranslations('marketing')
+  const protectionPrice = fmtUsd(protectionProduct.priceMonthly ?? 25)
+
   const items = [
     {
-      question: 'Single platform vs Bundled?',
-      answer:
-        'Single platform = one platform or a two-platform pair with band-specific list prices. Bundled = OnlyFans + Fansly together. Non-API coverage (ManyVids, Clips4Sale, etc.) uses the separate $25/mo Protection plan.',
+      question: t('pricing.faq.bundleQuestion'),
+      answer: t('pricing.faq.bundleAnswer', { protectionPrice }),
     },
     {
-      question: 'How do AI credits work?',
-      answer:
-        `Paid plans include 20% of your subscription as credits each month ($1 = 100 credits). Trial: ${TRIAL_AI_CREDITS_LIMIT} credits total.`,
+      question: t('pricing.faq.creditsQuestion'),
+      answer: t('pricing.faq.creditsAnswer', { trialCredits: TRIAL_AI_CREDITS_LIMIT }),
     },
     {
-      question: 'Free trial?',
-      answer: 'See current trial terms when you sign up. Upgrade or cancel anytime in Settings → Billing.',
+      question: t('pricing.faq.trialQuestion'),
+      answer: t('pricing.faq.trialAnswerPage'),
     },
     ...(mode === 'pro'
       ? [
           {
-            question: 'Change plans later?',
-            answer: 'Yes. Swap platforms, single-platform vs Bundled, Protection, or band in Settings → Billing.',
+            question: t('pricing.faq.changeQuestion'),
+            answer: t('pricing.faq.changeAnswerPagePro'),
           },
         ]
       : []),
@@ -41,7 +47,7 @@ function PricingFaqs() {
     <section className="px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-3xl">
         <MotionReveal className="mb-8 text-center">
-          <h2 className="font-serif text-2xl font-semibold sm:text-3xl">Questions</h2>
+          <h2 className="font-serif text-2xl font-semibold sm:text-3xl">{t('pricing.faq.heading')}</h2>
         </MotionReveal>
         <div className="space-y-3">
           {items.map((faq, i) => (
@@ -59,19 +65,29 @@ function PricingFaqs() {
 }
 
 function PricingProSections() {
-  const comparisonRows = [
-    { feature: '2-day free trial (card required)', trial: true, paid: true },
-    {
-      feature: 'AI credits',
-      trial: `${TRIAL_AI_CREDITS_LIMIT}/mo`,
-      paid: '20% of subscription/mo',
-    },
-    { feature: 'OnlyFans connection', trial: true, paid: true },
-    { feature: 'Fansly', trial: true, paid: true },
-    { feature: 'Divine Manager', trial: true, paid: true },
-    { feature: 'Leak & reputation tools', trial: 'Limited', paid: true },
-    { feature: 'Priority support', trial: false, paid: true },
-  ]
+  const t = useTranslations('marketing')
+  const protectionPrice = fmtUsd(protectionProduct.priceMonthly ?? 25)
+
+  const comparisonRows = COMPARISON_ROW_KEYS.map((key, index) => {
+    const feature = t(`pricing.page.comparisonRows.${key}.feature`)
+    if (index === 0) {
+      return { feature, trial: true, paid: true as const }
+    }
+    if (index === 1) {
+      return {
+        feature,
+        trial: t('pricing.page.comparisonAiTrial', { count: TRIAL_AI_CREDITS_LIMIT }),
+        paid: t('pricing.page.comparisonAiPaid'),
+      }
+    }
+    if (index === 5) {
+      return { feature, trial: t('pricing.page.comparisonLimited'), paid: true as const }
+    }
+    if (index === 6) {
+      return { feature, trial: false, paid: true as const }
+    }
+    return { feature, trial: true, paid: true as const }
+  })
 
   return (
     <>
@@ -80,18 +96,20 @@ function PricingProSections() {
           <MotionReveal>
             <details className="group rounded-3xl border border-border/60 bg-card/30 backdrop-blur-md" open>
               <summary className="cursor-pointer list-none px-5 py-4 text-sm font-medium text-muted-foreground hover:text-foreground sm:px-6 [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-2">Full price table</span>
+                <span className="inline-flex items-center gap-2">{t('pricing.page.fullPriceTableToggle')}</span>
               </summary>
               <div className="border-t border-border/60 pb-4">
                 <div className="overflow-x-auto px-2 sm:px-4">
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
-                        <th className="p-3 text-left font-serif font-semibold sm:p-4">Revenue tier</th>
-                        <th className="p-3 text-right font-medium sm:p-4">OnlyFans</th>
-                        <th className="p-3 text-right font-medium sm:p-4">Fansly</th>
+                        <th className="p-3 text-left font-serif font-semibold sm:p-4">
+                          {t('pricing.page.matrixColRevenueTier')}
+                        </th>
+                        <th className="p-3 text-right font-medium sm:p-4">{t('pricing.page.matrixColOnlyFans')}</th>
+                        <th className="p-3 text-right font-medium sm:p-4">{t('pricing.page.matrixColFansly')}</th>
                         <th className="p-3 text-right font-medium text-fuchsia-900 dark:text-fuchsia-200 sm:p-4">
-                          Bundled (OnlyFans + Fansly)
+                          {t('pricing.page.matrixColBundled')}
                         </th>
                       </tr>
                     </thead>
@@ -117,9 +135,10 @@ function PricingProSections() {
                   </table>
                 </div>
                 <p className="px-2 pt-3 text-center text-xs text-muted-foreground sm:px-4">
-                  <strong className="text-foreground/90">Protection &amp; Anti-Piracy</strong> (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM, and other
-                  non-API coverage) is a separate <strong className="text-foreground/90">$25/mo</strong> add-on — use it alone or stack it with a
-                  main plan. Checkout in the app.
+                  {t.rich('pricing.page.fullPriceTableFootnote', {
+                    protectionPrice,
+                    lead: (chunks) => <strong className="text-foreground/90">{chunks}</strong>,
+                  })}
                 </p>
               </div>
             </details>
@@ -130,7 +149,7 @@ function PricingProSections() {
       <section className="border-y border-border/40 bg-card/20 px-4 py-12 backdrop-blur-sm sm:px-6 sm:py-16">
         <div className="mx-auto max-w-3xl">
           <MotionReveal className="text-center">
-            <h2 className="font-serif text-2xl font-semibold sm:text-3xl">Trial vs paid</h2>
+            <h2 className="font-serif text-2xl font-semibold sm:text-3xl">{t('pricing.page.trialVsPaidHeading')}</h2>
           </MotionReveal>
           <MotionReveal delay={0.08}>
             <div className="mt-8 overflow-hidden rounded-2xl border border-border/60">
@@ -138,8 +157,8 @@ function PricingProSections() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="p-4 text-left"></th>
-                    <th className="p-4 text-center">Trial</th>
-                    <th className="p-4 text-center">Paid</th>
+                    <th className="p-4 text-center">{t('pricing.page.trialVsPaidColTrial')}</th>
+                    <th className="p-4 text-center">{t('pricing.page.trialVsPaidColPaid')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -182,6 +201,7 @@ function PricingProSections() {
 
 function PricingPageBody() {
   const { mode } = useMarketingMode()
+  const t = useTranslations('marketing')
 
   return (
     <>
@@ -192,11 +212,11 @@ function PricingPageBody() {
         <div className="mx-auto max-w-3xl text-center">
           <MotionReveal>
             <PricingModelHeadline as="h1" />
-            <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground sm:text-lg">
-              Pick your band. Pick your platforms. That’s it.
-            </p>
+            <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground sm:text-lg">{t('pricing.page.pickBand')}</p>
             <p className="mx-auto mt-3 max-w-md text-xs text-muted-foreground">
-              Toggle <span className="font-medium text-foreground">Matrix</span> for the full matrix and trial comparison.
+              {t('pricing.page.toggleBefore')}
+              <span className="font-medium text-foreground">{t('pricing.page.toggleMatrixWord')}</span>
+              {t('pricing.page.toggleAfter')}
             </p>
           </MotionReveal>
         </div>
@@ -204,11 +224,11 @@ function PricingPageBody() {
 
       <section className="px-4 pb-2 sm:px-6">
         <div className="mx-auto flex max-w-6xl justify-end">
-          <ProModeToggle className="mb-4" proLabel="Matrix" proAccent="rainbow" />
+          <ProModeToggle className="mb-4" proLabel={t('pricing.page.proModeMatrix')} proAccent="rainbow" />
         </div>
       </section>
 
-      <section className="px-4 pb-12 sm:px-6" aria-label="Interactive pricing estimate">
+      <section className="px-4 pb-12 sm:px-6" aria-label={t('pricingCalculator.landingAria')}>
         <MotionReveal>
           <PricingPageCalculator />
         </MotionReveal>

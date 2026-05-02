@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -34,69 +35,73 @@ export function CompetitorAnalysisRunnerInputs({
   useCompetitorWebSearch,
   setUseCompetitorWebSearch,
 }: CompetitorAnalysisRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.competitor-analysis')
+  const ts = useTranslations('ai-tools.runners.shared')
+
+  const methodology = t.rich('methodologyLead', {
+    cohort: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+    named: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+    same: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+    tier: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+  })
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Your niche</Label>
-            <Input placeholder="e.g. fitness, cosplay…" value={niche} onChange={(e) => setNiche(e.target.value)} />
+            <Label>{t('easyYourNiche')}</Label>
+            <Input placeholder={t('easyNichePh')} value={niche} onChange={(e) => setNiche(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Platform</Label>
+            <Label>{ts('platform')}</Label>
             <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Who should we compare you to?</Label>
+          <Label>{t('compareTo')}</Label>
           <Textarea
-            placeholder="@handles or links you’re OK citing (public stuff only)"
+            placeholder={t('comparePlaceholder')}
             value={competitorTargets}
             onChange={(e) => setCompetitorTargets(e.target.value)}
             className="min-h-[80px]"
           />
         </div>
         <div className="space-y-2">
-          <Label>What do you want to learn? (optional)</Label>
+          <Label>{t('learnOptional')}</Label>
           <Textarea
-            placeholder="e.g. pricing vs them, promo cadence gaps…"
+            placeholder={t('learnPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[72px]"
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">Pro mode: live web discovery toggle and full methodology copy.</p>
+        <p className="text-[11px] text-muted-foreground">{t('easyProHint')}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        We anchor you on <strong className="text-foreground">your cohort stat band</strong> (imported fans vs anonymized
-        Creatix quartiles), then compare you to <strong className="text-foreground">named competitors</strong> in the{' '}
-        <strong className="text-foreground">same band</strong> and contrast with{' '}
-        <strong className="text-foreground">one tier above</strong> (next quartile up). Use only public marketing signals —
-        no harassment or private data.
-      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">{methodology}</p>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Your niche</Label>
+          <Label>{t('proYourNiche')}</Label>
           <Input
-            placeholder="e.g., fitness, cosplay, GFE, domme…"
+            placeholder={t('proNichePlaceholder')}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Primary platform</Label>
+          <Label>{t('primaryPlatform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Competitors to compare (required for a focused run)</Label>
+        <Label>{t('competitorsRequired')}</Label>
         <Textarea
-          placeholder="@handles, public profile links, or notes on who sits near you vs who feels one step ahead (themes, price tier if public, cadence)…"
+          placeholder={t('competitorsPlaceholder')}
           value={competitorTargets}
           onChange={(e) => setCompetitorTargets(e.target.value)}
           className="min-h-[100px]"
@@ -104,7 +109,7 @@ export function CompetitorAnalysisRunnerInputs({
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>What you want out of the comparison</Label>
+          <Label>{t('comparisonGoal')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -112,7 +117,7 @@ export function CompetitorAnalysisRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="e.g., Where I’m weak vs peers in my band · what one-tier-up creators do on promos or DMs · gaps I can own without racing to the bottom…"
+          placeholder={t('comparisonPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"
@@ -125,8 +130,7 @@ export function CompetitorAnalysisRunnerInputs({
           onCheckedChange={(v) => setUseCompetitorWebSearch(v === true)}
         />
         <label htmlFor="competitor-web" className="text-xs leading-snug text-muted-foreground cursor-pointer">
-          Run live web discovery (Serper) for public guides and articles — adds verifiable context. Turn off to use cohort
-          benchmarks + shared library + Community tips only.
+          {t('webSearchCheckbox')}
         </label>
       </div>
     </div>

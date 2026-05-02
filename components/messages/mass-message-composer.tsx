@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -77,6 +78,7 @@ export function MassMessageComposer({
   } | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
+  const t = useTranslations('messages.layout')
 
   useEffect(() => {
     async function loadPlatforms() {
@@ -404,9 +406,9 @@ export function MassMessageComposer({
       </div>
 
       <div className="space-y-2">
-        <Label>Send to platforms</Label>
+        <Label>{t('sendToPlatforms')}</Label>
         {connectedPlatforms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No platforms connected. Connect your accounts first.</p>
+          <p className="text-sm text-muted-foreground">{t('noPlatformsConnected')}</p>
         ) : (
           <div className="space-y-2">
             {connectedPlatforms.map((platform) => {
@@ -438,7 +440,7 @@ export function MassMessageComposer({
       </div>
 
       <div className="space-y-2">
-        <Label>Send to</Label>
+        <Label>{t('sendTo')}</Label>
         <Select value={filter} onValueChange={(v: typeof filter) => setFilter(v)}>
           <SelectTrigger>
             <SelectValue />
@@ -464,7 +466,7 @@ export function MassMessageComposer({
             {listsLoading ? (
               <p className="text-xs text-muted-foreground">Loading lists…</p>
             ) : ofUserLists.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No lists found. Create lists in OnlyFans or configure segments under Fans → Arrangements.</p>
+              <p className="text-xs text-muted-foreground">{t('noListsFound')}</p>
             ) : (
               <div className="max-h-36 space-y-2 overflow-y-auto">
                 {ofUserLists.map((l) => (

@@ -27,7 +27,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useResponsive } from '@/hooks/use-responsive'
 import { DivineVoiceVisual } from '@/components/divine-voice-visual'
-import { useDivineVoiceSession } from '@/hooks/use-divine-voice-session'
+import { useDivineVoice } from '@/contexts/divine-voice'
 
 type DivineSettings = {
   voice_hangup_policy?: string
@@ -71,7 +71,7 @@ function normalizeRouteParam(value: string | string[] | undefined): string | und
 export default function DivineManagerScreen() {
   const params = useLocalSearchParams<{ section?: string | string[] }>()
   const r = useResponsive()
-  const voice = useDivineVoiceSession()
+  const voice = useDivineVoice()
   const dismissVoicePending = voice.dismissPendingConfirmation
   const listRef = useRef<FlatList<ChatMessage>>(null)
   const chatInputRef = useRef<TextInput>(null)

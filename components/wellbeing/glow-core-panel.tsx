@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -12,12 +13,13 @@ type Props = {
 }
 
 export function GlowCorePanel({ insight, embedded = false }: Props) {
+  const t = useTranslations('wellbeing.cards')
   if (embedded) {
     return (
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-medium tracking-[0.16em] text-muted-foreground normal-case">Sun glow</p>
+            <p className="text-[10px] font-medium tracking-[0.16em] text-muted-foreground normal-case">{t('sunGlowTitle')}</p>
             <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-foreground">
               {insight.glowScore}
             </p>
@@ -54,7 +56,7 @@ export function GlowCorePanel({ insight, embedded = false }: Props) {
       <CardContent className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Score</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{t('score')}</p>
             <p className="text-3xl font-semibold tabular-nums tracking-tight">{insight.glowScore}</p>
           </div>
           <Badge

@@ -2,22 +2,18 @@
 
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import { CircleHelp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useSessionEnergyPercent } from '@/hooks/use-session-energy-meter'
 import { sereneEase } from '@/lib/wellbeing/motion'
 import { cn } from '@/lib/utils'
 import type { FlowStatePayload } from '@/lib/wellbeing/flow-state-ai'
 
-const MOOD_META: Record<FlowStatePayload['mood'], { label: string; emoji: string }> = {
-  calm: { label: 'Calm', emoji: '😌' },
-  creative: { label: 'Creative', emoji: '🎨' },
-  charged: { label: 'Charged', emoji: '⚡' },
-  fragile: { label: 'Fragile', emoji: '🫧' },
-  focused: { label: 'Focused', emoji: '🎯' },
-}
+type WellbeingT = ReturnType<typeof useTranslations<'wellbeing'>>
 
 type Props = {
   flowState: FlowStatePayload | null
@@ -33,17 +29,21 @@ function FlowMeters({
   meta,
   summary,
   embedded,
+  sessionEnergy,
+  t,
 }: {
   flowState: FlowStatePayload | null
   flowUnavailable: boolean
   meta: { label: string; emoji: string } | null
   summary: string | null
   embedded: boolean
+  sessionEnergy: number
+  t: WellbeingT
 }) {
   if (!flowState) {
     return (
       <p className="text-sm text-muted-foreground">
-        {flowUnavailable ? 'Unavailable' : 'Reading…'}
+        {flowUnavailable ? t('stateStrip.unavailable') : t('stateStrip.reading')}
       </p>
     )
   }
@@ -66,9 +66,9 @@ function FlowMeters({
       </div>
 
       <div className="grid gap-2.5 sm:grid-cols-3 sm:gap-3">
-        <ReadoutMeter embedded={embedded} label="Energy" value={flowState.energy} accent="bg-emerald-500/65" />
-        <ReadoutMeter embedded={embedded} label="Stress" value={flowState.stress} accent="bg-amber-500/60" />
-        <ReadoutMeter embedded={embedded} label="Focus" value={flowState.focus} accent="bg-violet-500/60" />
+        <ReadoutMeter embedded={embedded} label={t('mood.energy')} value={sessionEnergy} accent="bg-emerald-500/65" />
+        <ReadoutMeter embedded={embedded} label={t('mood.stress')} value={flowState.stress} accent="bg-amber-500/60" />
+        <ReadoutMeter embedded={embedded} label={t('mood.focus')} value={flowState.focus} accent="bg-violet-500/60" />
       </div>
 
       {!embedded ? (
@@ -123,18 +123,41 @@ function ReadoutMeter({
 }
 
 export function MoodConstellation({ flowState, flowUnavailable = false, embedded = false }: Props) {
-  const meta = flowState ? MOOD_META[flowState.mood] : null
+  const t = useTranslations('wellbeing')
+  const sessionEnergy = useSessionEnergyPercent()
+  const moodKey = flowState?.mood
+  const meta = useMemo(() => {
+    if (!flowState || !moodKey) return null
+    const emojiByMood: Record<FlowStatePayload['mood'], string> = {
+      calm: '😌',
+      creative: '🎨',
+      charged: '⚡',
+      fragile: '🫧',
+      focused: '🎯',
+    }
+    return {
+      label: t(`mood.names.${moodKey}` as Parameters<typeof t>[0]),
+      emoji: emojiByMood[moodKey],
+    }
+  }, [flowState, moodKey, t])
+
   const summary = useMemo(() => {
-    if (!flowState) return null
-    return `Mood: ${flowState.mood}. Energy ${flowState.energy}, stress ${flowState.stress}, focus ${flowState.focus}.`
-  }, [flowState])
+    if (!flowState || !moodKey) return null
+    const moodLabel = t(`mood.names.${moodKey}` as Parameters<typeof t>[0])
+    return t('mood.summaryLine', {
+      mood: moodLabel,
+      energy: sessionEnergy,
+      stress: flowState.stress,
+      focus: flowState.focus,
+    })
+  }, [flowState, moodKey, sessionEnergy, t])
 
   if (embedded) {
     return (
       <div className="rounded-2xl border border-border/30 bg-background/40 px-4 py-5 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">Flow</h3>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">{t('mood.flowHeading')}</h3>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -142,21 +165,22 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground [&_svg]:text-current"
-                  aria-label="How Flow is inferred"
+                  aria-label={t('mood.flowHelpAria')}
                 >
                   <CircleHelp className="h-3.5 w-3.5" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="max-w-[19rem] text-sm leading-relaxed" align="start" sideOffset={6}>
                 <p className="text-muted-foreground leading-relaxed">
-                  Inbox, protocols, queue, goals, glow, dashboard activity · UTC · review-only—you don&apos;t type these scores.
+                  {t('mood.embeddedHelpP1')}{' '}
+                  <span className="text-foreground/90">{t('mood.embeddedHelpP2')}</span>
                 </p>
               </PopoverContent>
             </Popover>
           </div>
           {flowState ? (
             <Badge variant="secondary" className="shrink-0 rounded-full text-[10px] font-medium uppercase tracking-wide">
-              {flowState.source === 'ai' ? 'Model' : 'Heuristic'}
+              {flowState.source === 'ai' ? t('mood.sourceModel') : t('mood.sourceHeuristic')}
             </Badge>
           ) : null}
         </div>
@@ -167,6 +191,8 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
             flowUnavailable={flowUnavailable}
             meta={meta}
             summary={summary}
+            sessionEnergy={sessionEnergy}
+            t={t}
           />
         </div>
       </div>
@@ -178,14 +204,12 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <CardTitle className="text-base font-semibold tracking-tight">Flow state</CardTitle>
-            <CardDescription className="text-sm">
-              Inbox, queues, goals, glow, light engagement · UTC · review-only
-            </CardDescription>
+            <CardTitle className="text-base font-semibold tracking-tight">{t('cards.flowState')}</CardTitle>
+            <CardDescription className="text-sm">{t('mood.cardSubtitle')}</CardDescription>
           </div>
           {flowState ? (
             <Badge variant="secondary" className="shrink-0 text-[10px] font-medium uppercase tracking-wide">
-              {flowState.source === 'ai' ? 'Model' : 'Fallback'}
+              {flowState.source === 'ai' ? t('mood.sourceModel') : t('mood.sourceFallback')}
             </Badge>
           ) : null}
         </div>
@@ -197,6 +221,8 @@ export function MoodConstellation({ flowState, flowUnavailable = false, embedded
           flowUnavailable={flowUnavailable}
           meta={meta}
           summary={summary}
+          sessionEnergy={sessionEnergy}
+          t={t}
         />
       </CardContent>
     </Card>

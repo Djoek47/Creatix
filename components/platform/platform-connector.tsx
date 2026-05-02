@@ -40,11 +40,33 @@ import { cn } from '@/lib/utils'
 import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 import {
   CREATOR_STATUS_PRESETS,
-  formatCreatorStatusLabel,
   normalizeCreatorStatusDetail,
   normalizeCreatorStatusPreset,
   type CreatorStatusPreset,
 } from '@/lib/creator-platform-status'
+import { useLocale, useTranslations } from 'next-intl'
+
+function intlTagFromPhase1(locale: string): string {
+  if (locale === 'pt') return 'pt-BR'
+  if (locale === 'fr') return 'fr-FR'
+  if (locale === 'es') return 'es-ES'
+  return 'en-US'
+}
+
+function formatLocalizedCreatorStatusLabel(
+  t: ReturnType<typeof useTranslations>,
+  presetValue: unknown,
+  detailValue: unknown,
+): string | null {
+  const preset = normalizeCreatorStatusPreset(presetValue)
+  const detail = normalizeCreatorStatusDetail(detailValue)
+  const presetLabel =
+    preset === 'dnd' ? t('statusEditor.dnd') : t(`statusPreset.${preset}` as 'statusPreset.available')
+  if (preset === 'custom') {
+    return detail ?? t('statusPreset.custom')
+  }
+  return detail ? `${presetLabel} - ${detail}` : presetLabel
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,20 +144,16 @@ const TikTokLogo = () => (
   </svg>
 )
 
-const PLATFORMS: Platform[] = [
+const PLATFORM_DEFS: Omit<Platform, 'name' | 'description'>[] = [
   {
     id: 'onlyfans',
-    name: 'OnlyFans',
     color: '#00AFF0',
     gradient: 'from-[#00AFF0] to-[#0090C0]',
-    description: 'Fans, messages, and revenue in one place.',
   },
   {
     id: 'fansly',
-    name: 'Fansly',
     color: '#009FFF',
     gradient: 'from-[#009FFF] to-[#0066CC]',
-    description: 'Subscribers and performance data.',
   },
 ]
 
@@ -157,6 +175,7 @@ interface PlatformConnectorProps {
 }
 
 function OnlyFansSdkProgressOverlay({ open }: { open: boolean }) {
+  const t = useTranslations('dashboard.platformConnector.overlay')
   if (!open) return null
   return (
     <div
@@ -166,14 +185,13 @@ function OnlyFansSdkProgressOverlay({ open }: { open: boolean }) {
     >
       <div className="mx-4 max-w-sm rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
         <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
-        <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
-        <p className="mt-1 text-sm text-muted-foreground">Secured by OnlyFansAPI.com</p>
+        <p className="font-medium text-foreground">{t('title')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('securedBy')}</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          This page is paused until you finish or close the sign-in window.
+          {t('paused')}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or
-          using a different network if it fails.
+          {t('vpnHint')}
         </p>
       </div>
     </div>
@@ -186,6 +204,18 @@ type PlatformStatusDraft = {
 }
 
 export function PlatformConnector({ compact = false, bareConnect = false }: PlatformConnectorProps) {
+  const t = useTranslations('dashboard.platformConnector')
+  const tNiche = useTranslations('niches')
+  const locale = useLocale()
+  const intlTag = intlTagFromPhase1(locale)
+  const platforms: Platform[] = PLATFORM_DEFS.map((p) => {
+    const id = p.id as 'onlyfans' | 'fansly'
+    return {
+      ...p,
+      name: t(`platforms.${id}.name`),
+      description: t(`platforms.${id}.description`),
+    }
+  })
   const [connections, setConnections] = useState<PlatformConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState<string | null>(null)
@@ -247,10 +277,10 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         .eq('platform', 'onlyfans')
       if (upErr) throw new Error(upErr.message)
       await loadConnections()
-      setSuccess('OnlyFans page type saved for AI & automations.')
+      setSuccess(t('success.pageTypeSaved'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save page type')
+      setError(e instanceof Error ? e.message : t('errors.savePageTypeFailed'))
     } finally {
       setSavingOfPageModel(false)
     }
@@ -346,14 +376,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       if (data.connected && data.newlySynced) {
         // New account was synced from OnlyFans API - reload connections and sync data
         await loadConnections()
-        setSuccess(`OnlyFans connected as @${data.username || 'user'}! Syncing data...`)
+        setSuccess(t('success.onlyfansConnectedSyncing', { username: data.username || 'user' }))
         
         // Automatically sync data from the newly connected account
         try {
           await fetch('/api/onlyfans/sync', { method: 'POST' })
-          setSuccess(`OnlyFans synced! Your revenue data is now available.`)
+          setSuccess(t('success.onlyfansSynced'))
         } catch {
-          setSuccess(`OnlyFans connected! Click Sync to import your data.`)
+          setSuccess(t('success.onlyfansConnectedClickSync'))
         }
         
         setTimeout(() => setSuccess(null), 5000)
@@ -394,13 +424,13 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
       // If we previously saw the iframe and now it's gone, user likely closed (X)
       if (onlyfansSdkSeenIframeRef.current && !hasIframe) {
-        void cancelOnlyfansSdkAuth('OnlyFans sign-in was cancelled')
+        void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInCancelled'))
         return
       }
 
       // If nothing showed up after a while, likely blocked
       if (!onlyfansSdkSeenIframeRef.current && Date.now() - startedAt > 10000) {
-        void cancelOnlyfansSdkAuth('OnlyFans sign-in window did not open (popup blocked?). Please allow popups and try again.')
+        void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInPopupBlocked'))
         return
       }
     }
@@ -412,7 +442,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [onlyfansSdkInProgress])
+  }, [onlyfansSdkInProgress, t])
 
   // Recovery polling: if the user clicked Continue but onSuccess never fired (e.g. postMessage lost),
   // poll check-connection so we still detect the connection and unblock the UI.
@@ -430,7 +460,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         if (cancelled) return
         if (data.connected === true) {
           await loadConnections()
-          setSuccess(`OnlyFans connected as @${data.username || 'user'}!`)
+          setSuccess(t('success.onlyfansConnected', { username: data.username || 'user' }))
           setOnlyfansSdkInProgress(false)
           try {
             await fetch('/api/onlyfans/sync', { method: 'POST' })
@@ -482,7 +512,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     const detail = normalizeCreatorStatusDetail(draft.detail)
 
     if (preset === 'custom' && !detail) {
-      setError('Custom status requires a detail message.')
+      setError(t('errors.customStatusDetail'))
       return
     }
 
@@ -500,10 +530,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         .eq('is_connected', true)
       if (upErr) throw new Error(upErr.message)
       await loadConnections()
-      setSuccess(`Saved ${platformId} status.`)
+      setSuccess(
+        t('success.savedStatus', {
+          platform: platformId === 'onlyfans' ? t('platforms.onlyfans.name') : t('platforms.fansly.name'),
+        }),
+      )
       setTimeout(() => setSuccess(null), 2500)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save platform status')
+      setError(e instanceof Error ? e.message : t('errors.saveStatusFailed'))
     } finally {
       setSavingStatusByPlatform((prev) => ({ ...prev, [platformId]: false }))
     }
@@ -512,13 +546,13 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
   const renderStatusEditor = (platformId: string, compactView = false) => {
     const draft = getStatusDraft(platformId)
     const saving = savingStatusByPlatform[platformId] === true
-    const preview = formatCreatorStatusLabel(draft.preset, draft.detail)
+    const preview = formatLocalizedCreatorStatusLabel(t, draft.preset, draft.detail)
     const isCustom = draft.preset === 'custom'
 
     return (
       <div className={cn('space-y-3 rounded-xl border border-border/35 bg-background/25 p-4', compactView && 'p-2.5')}>
         <Label className={cn('text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground', compactView && 'text-[10px]')}>
-          Status on this platform
+          {t('statusEditor.label')}
         </Label>
         <Select
           value={draft.preset}
@@ -526,12 +560,12 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
           disabled={saving}
         >
           <SelectTrigger className={cn('h-9 text-sm bg-background', compactView && 'h-8 text-xs')}>
-            <SelectValue placeholder="Choose status" />
+            <SelectValue placeholder={t('statusEditor.choosePlaceholder')} />
           </SelectTrigger>
           <SelectContent>
             {CREATOR_STATUS_PRESETS.map((preset) => (
               <SelectItem key={preset} value={preset}>
-                {preset === 'dnd' ? 'Do not disturb' : preset[0].toUpperCase() + preset.slice(1)}
+                {preset === 'dnd' ? t('statusEditor.dnd') : t(`statusPreset.${preset}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -539,14 +573,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         <Input
           value={draft.detail}
           onChange={(e) => updateStatusDraft(platformId, { detail: e.target.value.slice(0, 120) })}
-          placeholder={isCustom ? 'Type custom status...' : 'Optional detail (e.g. back at 6pm)'}
+          placeholder={isCustom ? t('statusEditor.detailCustom') : t('statusEditor.detailOptional')}
           className={cn('h-9', compactView && 'h-8 text-xs')}
           disabled={saving}
           maxLength={120}
         />
         <div className="flex items-center justify-between gap-2">
           <p className={cn('line-clamp-1 text-xs text-muted-foreground', compactView && 'text-[11px]')}>
-            {preview ?? 'No status set'}
+            {preview ?? t('statusEditor.noStatus')}
           </p>
           <Button
             type="button"
@@ -557,7 +591,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             disabled={saving || (isCustom && !draft.detail.trim())}
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Settings2 className="h-3.5 w-3.5" />}
-            Save
+            {t('statusEditor.save')}
           </Button>
         </div>
       </div>
@@ -613,7 +647,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     }
     // Prevent double authentication: do not start if already connected
     if (isConnected('onlyfans')) {
-      setError('OnlyFans is already connected. Disconnect in Settings if you want to link a different account.')
+      setError(t('errors.onlyfansAlreadyConnected'))
       return
     }
     setOnlyfansSdkInProgress(true)
@@ -629,20 +663,20 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         if (res.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
-          setError(typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || 'Subscription required.')
+          setError(typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'))
           setOnlyfansSdkInProgress(false)
           return
         }
         if (res.status === 409 && data?.code === 'ALREADY_CONNECTED') {
-          setError(data.error || 'OnlyFans is already connected.')
+          setError(data.error || t('errors.onlyfansAlreadyConnectedShort'))
           await loadConnections()
           setOnlyfansSdkInProgress(false)
           return
         }
-        throw new Error(data.error || 'Failed to get session')
+        throw new Error(data.error || t('errors.getSessionFailed'))
       }
       const { token } = await res.json()
-      if (!token || typeof token !== 'string') throw new Error('No session token')
+      if (!token || typeof token !== 'string') throw new Error(t('errors.noSessionToken'))
 
       const { startOnlyFansAuthentication } = await import('@onlyfansapi/auth')
       startOnlyFansAuthentication(token, {
@@ -666,7 +700,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             if (!cbRes.ok) {
               const err = await cbRes.json().catch(() => ({}))
               if (cbRes.status === 403 && err?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
-                setError(typeof err.error === 'string' ? err.error : adultPlatformConnectDenialMessage || 'Subscription required.')
+                setError(typeof err.error === 'string' ? err.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'))
                 setOnlyfansSdkInProgress(false)
                 return
               }
@@ -679,7 +713,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
               return
             }
             await loadConnections()
-            setSuccess(`OnlyFans connected as @${data.username || 'user'}!`)
+            setSuccess(t('success.onlyfansConnected', { username: data.username || 'user' }))
             try {
               await fetch('/api/onlyfans/sync', { method: 'POST' })
               setTimeout(() => window.location.reload(), 1000)
@@ -687,21 +721,21 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
               setTimeout(() => setSuccess(null), 3000)
             }
           } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to save connection')
+            setError(e instanceof Error ? e.message : t('errors.saveConnectionFailed'))
           } finally {
             setOnlyfansSdkInProgress(false)
           }
         },
         onError: (err: { message?: string; code?: string }) => {
           if (err?.code === 'AUTH_CANCELLED') {
-            void cancelOnlyfansSdkAuth('OnlyFans sign-in was cancelled')
+            void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInCancelled'))
             return
           }
-          void cancelOnlyfansSdkAuth(err?.message || 'OnlyFans sign-in was cancelled or failed')
+          void cancelOnlyfansSdkAuth(err?.message || t('errors.onlyfansSignInFailedOrCancelled'))
         },
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to start OnlyFans sign-in')
+      setError(e instanceof Error ? e.message : t('errors.startOnlyfansFailed'))
       setOnlyfansSdkInProgress(false)
     }
   }
@@ -711,7 +745,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
   const openFanslyDialog = () => {
     if (isConnected('fansly')) {
-      setError('Fansly is already connected. Disconnect in Settings if you want to link a different account.')
+      setError(t('errors.fanslyAlreadyConnected'))
       return
     }
     if (adultPlatformConnectDenialMessage) {
@@ -747,7 +781,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       if (response.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
         setFanslyDialogOpen(false)
         setError(
-          typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || 'Subscription required.',
+          typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'),
         )
         setFanslyLoading(false)
         return
@@ -758,7 +792,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         setError(
           typeof data.error === 'string'
             ? data.error
-            : 'Your plan is Focus for OnlyFans only. Upgrade to Unified under Billing to connect Fansly.',
+            : t('errors.fanslyFocusUpgrade'),
         )
         setMultiUpgradeOpen(true)
         setFanslyLoading(false)
@@ -767,7 +801,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
       if (response.status === 409 && data?.code === 'ALREADY_CONNECTED') {
         setFanslyDialogOpen(false)
-        setError(data.error || 'Fansly is already connected.')
+        setError(data.error || t('errors.fanslyAlreadyConnectedShort'))
         await loadConnections()
         setFanslyLoading(false)
         return
@@ -797,7 +831,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect Fansly')
+      setError(err instanceof Error ? err.message : t('errors.connectFanslyFailed'))
     } finally {
       setFanslyLoading(false)
     }
@@ -811,7 +845,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       setError(adultPlatformConnectDenialMessage)
       return
     }
-    const platform = PLATFORMS.find(p => p.id === platformId)
+    const platform = platforms.find(p => p.id === platformId)
     if (platform?.comingSoon) return
 
     if (adultPlatformConnectBlockedByFocusPlan(connections, billingSub ?? undefined, platformId)) {
@@ -833,18 +867,16 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         // Handle OnlyFans-specific session expiry so we can log the user out cleanly
         if (platformId === 'onlyfans' && response.status === 401 && data?.code === 'ONLYFANS_SESSION_EXPIRED') {
           if (typeof window !== 'undefined') window.localStorage.removeItem('onlyfans_auth_attempt')
-          setError(
-            'Your OnlyFans password or session changed. To keep your data safe, we disconnected your OnlyFans account. Please reconnect (use a fresh login; you can try a different proxy if it was stuck).'
-          )
+          setError(t('errors.onlyfansSessionExpired'))
           await loadConnections()
           return
         }
-        throw new Error(data.error || 'Sync failed')
+        throw new Error(data.error || t('errors.syncFailed'))
       }
       await loadConnections()
       setTimeout(() => window.location.reload(), 1000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed')
+      setError(err instanceof Error ? err.message : t('errors.syncFailed'))
     } finally {
       setSyncing(null)
     }
@@ -858,14 +890,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       const response = await fetch(`/api/${platformId}/disconnect`, { method: 'POST' })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to disconnect')
+        throw new Error(data.error || t('errors.disconnectGeneric'))
       }
 
       await loadConnections()
-      setSuccess('Platform disconnected successfully')
+      setSuccess(t('success.platformDisconnected'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect')
+      setError(err instanceof Error ? err.message : t('errors.disconnectFailed'))
     } finally {
       setDisconnecting(null)
     }
@@ -899,7 +931,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
               <AlertDescription className="text-[13px]">
                 {adultPlatformConnectDenialMessage}{' '}
                 <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                  Open billing
+                  {t('bareConnect.openBilling')}
                 </Link>
                 .
               </AlertDescription>
@@ -924,7 +956,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                 alt=""
                 className="h-7 w-auto max-w-[9rem] object-contain dark:brightness-110"
               />
-              <span className="sr-only">Connect OnlyFans</span>
+              <span className="sr-only">{t('bareConnect.srConnectOnlyfans')}</span>
             </button>
             <button
               type="button"
@@ -944,42 +976,22 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                 alt=""
                 className="h-7 w-auto max-w-[8rem] object-contain dark:brightness-110"
               />
-              <span className="sr-only">Connect Fansly</span>
+              <span className="sr-only">{t('bareConnect.srConnectFansly')}</span>
             </button>
           </div>
           <Link
             href="/dashboard/settings?tab=integrations"
             className="block text-center text-[12px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
           >
-            More in Settings
+            {t('bareConnect.moreInSettings')}
           </Link>
         </div>
 
-        <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unified plan required</AlertDialogTitle>
-              <AlertDialogDescription>
-                Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
-                Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
-                by your revenue tier
-                {billingSub?.revenue_band_label ? (
-                  <>
-                    {' '}
-                    (your band: <strong>{billingSub.revenue_band_label}</strong>)
-                  </>
-                ) : null}
-                . Upgrade under Billing, then connect again.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Not now</AlertDialogCancel>
-              <Button asChild>
-                <Link href="/dashboard/settings?tab=billing">Open billing</Link>
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <UnifiedPlanAlertDialog
+          open={multiUpgradeOpen}
+          onOpenChange={setMultiUpgradeOpen}
+          revenueBandLabel={billingSub?.revenue_band_label}
+        />
 
         <ConnectDialogs
           fanslyDialogOpen={fanslyDialogOpen}
@@ -999,7 +1011,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     )
   }
 
-  const connectedCount = PLATFORMS.filter(p => isConnected(p.id)).length
+  const connectedCount = platforms.filter(p => isConnected(p.id)).length
 
   const Alerts = () => (
     <>
@@ -1031,17 +1043,17 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                   <Link2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Creator Platforms</CardTitle>
-                  <CardDescription className="text-xs">Connect to import your data</CardDescription>
+                  <CardTitle className="text-lg">{t('compact.title')}</CardTitle>
+                  <CardDescription className="text-xs">{t('compact.subtitle')}</CardDescription>
                 </div>
               </div>
               {connectedCount > 0 ? (
                 <Badge className="gap-1.5 bg-green-500/10 text-green-500 border-green-500/20">
                   <Check className="h-3.5 w-3.5" />
-                  {connectedCount} Connected
+                  {t('compact.connectedBadge', { count: connectedCount })}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-muted-foreground">Not Connected</Badge>
+                <Badge variant="outline" className="text-muted-foreground">{t('compact.notConnectedBadge')}</Badge>
               )}
             </div>
           </CardHeader>
@@ -1065,13 +1077,13 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                 <AlertDescription className="text-xs">
                   {adultPlatformConnectDenialMessage}{' '}
                   <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                    Billing
+                    {t('compact.billingLink')}
                   </Link>
                 </AlertDescription>
               </Alert>
             ) : null}
 
-            {PLATFORMS.map((platform) => {
+            {platforms.map((platform) => {
               const connected = isConnected(platform.id)
               const connection = getConnection(platform.id)
               return (
@@ -1097,7 +1109,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                         <span className="font-semibold text-sm">{platform.name}</span>
                         {platform.comingSoon && !connected && (
                           <Badge className="text-[10px] px-1.5 py-0.5" variant="outline">
-                            Coming soon
+                            {t('compact.comingSoon')}
                           </Badge>
                         )}
                         {connected && (
@@ -1109,18 +1121,19 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                       {connection?.platform_username ? (
                         <p className="text-xs text-muted-foreground">@{connection.platform_username}</p>
                       ) : platform.comingSoon ? (
-                        <p className="text-xs text-muted-foreground">Integration in progress</p>
+                        <p className="text-xs text-muted-foreground">{t('compact.integrationInProgress')}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          {connected ? 'Connected' : 'Click to connect'}
+                          {connected ? t('compact.connected') : t('compact.clickToConnect')}
                         </p>
                       )}
                       {connected ? (
                         <p className="text-[11px] text-muted-foreground">
-                          {formatCreatorStatusLabel(
+                          {formatLocalizedCreatorStatusLabel(
+                            t,
                             connection?.creator_status_preset,
                             connection?.creator_status_detail,
-                          ) ?? 'Available'}
+                          ) ?? t('statusPreset.available')}
                         </p>
                       ) : null}
                     </div>
@@ -1130,7 +1143,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5">
                         <Check className="h-3.5 w-3.5 text-green-500" />
-                        <span className="text-xs font-medium text-green-600">Connected</span>
+                        <span className="text-xs font-medium text-green-600">{t('compact.connected')}</span>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1147,7 +1160,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             {syncing === platform.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
                               : <RefreshCw className="h-4 w-4" />}
-                            Sync data
+                            {t('compact.syncData')}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -1158,7 +1171,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             {disconnecting === platform.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
                               : <Unplug className="h-4 w-4" />}
-                            Disconnect
+                            {t('compact.disconnect')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1166,7 +1179,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                   ) : platform.comingSoon ? (
                     <Button size="sm" variant="outline" disabled className="opacity-70 cursor-not-allowed">
                       <ExternalLink className="h-4 w-4" />
-                      Coming soon
+                      {t('compact.comingSoon')}
                     </Button>
                   ) : (
                     <Button
@@ -1179,7 +1192,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                         !isConnected(platform.id)
                       }
                     >
-                      Connect
+                      {t('compact.connect')}
                     </Button>
                   )}
                 </div>
@@ -1188,38 +1201,18 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 
             <Link href="/dashboard/settings?tab=integrations" className="block">
               <Button variant="ghost" size="sm" className="w-full mt-2 gap-1.5 text-primary hover:text-primary hover:bg-primary/5">
-                Manage All Platforms
+                {t('compact.manageAll')}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unified plan required</AlertDialogTitle>
-              <AlertDialogDescription>
-                Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
-                Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
-                by your revenue tier
-                {billingSub?.revenue_band_label ? (
-                  <>
-                    {' '}
-                    (your band: <strong>{billingSub.revenue_band_label}</strong>)
-                  </>
-                ) : null}
-                . Upgrade under Billing, then connect again.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Not now</AlertDialogCancel>
-              <Button asChild>
-                <Link href="/dashboard/settings?tab=billing">Open billing</Link>
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <UnifiedPlanAlertDialog
+          open={multiUpgradeOpen}
+          onOpenChange={setMultiUpgradeOpen}
+          revenueBandLabel={billingSub?.revenue_band_label}
+        />
 
         <ConnectDialogs
           fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}
@@ -1243,7 +1236,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         <Alerts />
 
         <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:max-w-5xl">
-          {PLATFORMS.map((platform) => {
+          {platforms.map((platform) => {
             const connected = isConnected(platform.id)
             const connection = getConnection(platform.id)
 
@@ -1280,14 +1273,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                         </CardTitle>
                         {connected ? (
                           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-600/90 dark:text-emerald-400/90">
-                            Connected
+                            {t('full.connectedLabel')}
                           </span>
                         ) : null}
                       </div>
                       {connection?.platform_username ? (
                         <p className="truncate text-[13px] text-muted-foreground">@{connection.platform_username}</p>
                       ) : (
-                        <p className="text-[13px] text-muted-foreground">Not linked</p>
+                        <p className="text-[13px] text-muted-foreground">{t('full.notLinked')}</p>
                       )}
                     </div>
                   </div>
@@ -1301,7 +1294,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                       {platform.id === 'onlyfans' ? (
                         <div className="space-y-2">
                           <Label className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-                            Page type
+                            {t('full.pageType')}
                           </Label>
                           <Select
                             value={
@@ -1316,30 +1309,29 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                             disabled={savingOfPageModel}
                           >
                             <SelectTrigger className="h-10 rounded-xl border-border/40 bg-background/50 text-[14px]">
-                              <SelectValue placeholder="Choose" />
+                              <SelectValue placeholder={t('full.choosePlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="free">Free page — PPV, tips, messages</SelectItem>
-                              <SelectItem value="paid">Paid subscription page</SelectItem>
-                              <SelectItem value="unknown">Let Circe infer when possible</SelectItem>
+                              <SelectItem value="free">{t('full.pageFree')}</SelectItem>
+                              <SelectItem value="paid">{t('full.pagePaid')}</SelectItem>
+                              <SelectItem value="unknown">{t('full.pageUnknown')}</SelectItem>
                             </SelectContent>
                           </Select>
                           {(connection?.onlyfans_creator_page_model_source === 'api' &&
                             connection?.onlyfans_creator_page_model &&
                             connection.onlyfans_creator_page_model !== 'unknown') ? (
                             <p className="text-[11px] leading-relaxed text-muted-foreground">
-                              Inferred from your account — correct above if needed.
+                              {t('full.pageInferredHint')}
                             </p>
                           ) : null}
                           <details className="group rounded-xl border border-border/30 bg-background/[0.15] px-3 py-2 text-[12px] text-muted-foreground">
                             <summary className="cursor-pointer list-none py-1 font-medium text-foreground/80 outline-none transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
                               <span className="border-b border-dotted border-muted-foreground/40 pb-px">
-                                Why we ask
+                                {t('full.whyWeAsk')}
                               </span>
                             </summary>
                             <p className="mt-2 leading-relaxed">
-                              Free pages monetize with PPV and tips; paid pages use subscriptions. We use this so AI
-                              replies match how you earn — separate from per-fan CRM tiers.
+                              {t('full.whyWeAskBody')}
                             </p>
                           </details>
                         </div>
@@ -1353,9 +1345,9 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                           <AlertDescription className="text-sm">
                             {adultPlatformBilling.message}{' '}
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                              Review billing
+                              {t('full.reviewBilling')}
                             </Link>
-                            , or disconnect until your plan matches.
+                            {t('full.billingAlertSuffix')}
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1365,9 +1357,9 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                           <AlertDescription className="text-sm">
                             {adultPlatformBilling.message}{' '}
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                              Review billing
+                              {t('full.reviewBilling')}
                             </Link>
-                            , or disconnect until your plan matches.
+                            {t('full.billingAlertSuffix')}
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1375,7 +1367,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                       {(platform.id === 'onlyfans' || platform.id === 'fansly') && (
                         <details className="rounded-xl border border-border/30 bg-background/[0.12]">
                           <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
-                            Content niche &amp; boundaries
+                            {t('full.nicheSummary')}
                           </summary>
                           <div className="border-t border-border/25 px-4 pb-4 pt-3">
                             <div className="flex flex-wrap gap-1.5">
@@ -1396,13 +1388,13 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                                         : 'border-border/60 bg-transparent text-muted-foreground hover:border-border hover:text-foreground',
                                     )}
                                   >
-                                    {NICHE_LABELS[key]}
+                                    {tNiche(`labels.${key}`)}
                                   </button>
                                 )
                               })}
                             </div>
                             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                              Shapes tone and guardrails for AI replies.
+                              {t('full.nicheHint')}
                             </p>
                           </div>
                         </details>
@@ -1421,7 +1413,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                           ) : (
                             <RefreshCw className="h-3.5 w-3.5" />
                           )}
-                          Sync
+                          {t('full.sync')}
                         </Button>
                         <Button
                           size="sm"
@@ -1435,7 +1427,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                           ) : (
                             <Unplug className="h-3.5 w-3.5" />
                           )}
-                          Disconnect
+                          {t('full.disconnect')}
                         </Button>
                       </div>
                     </div>
@@ -1450,7 +1442,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                               href="/dashboard/settings?tab=billing"
                               className="font-medium underline underline-offset-2"
                             >
-                              Open billing
+                              {t('full.openBilling')}
                             </Link>
                             .
                           </AlertDescription>
@@ -1468,14 +1460,18 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                         disabled={!!adultPlatformConnectDenialMessage}
                       >
                         <Link2 className="h-4 w-4 opacity-80" />
-                        Connect {platform.name}
+                        {t('full.connectNamed', { name: platform.name })}
                       </Button>
                     </>
                   )}
 
                   {connection?.last_sync_at ? (
                     <p className="text-center text-[11px] text-muted-foreground">
-                      Last synced {new Date(connection.last_sync_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                      {t('full.lastSynced', {
+                        date: new Date(connection.last_sync_at).toLocaleDateString(intlTag, {
+                          dateStyle: 'medium',
+                        }),
+                      })}
                     </p>
                   ) : null}
                 </CardContent>
@@ -1485,31 +1481,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         </div>
       </div>
 
-      <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unified plan required</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
-              Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
-              by your revenue tier
-              {billingSub?.revenue_band_label ? (
-                <>
-                  {' '}
-                  (your band: <strong>{billingSub.revenue_band_label}</strong>)
-                </>
-              ) : null}
-              . Upgrade under Billing, then connect again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Not now</AlertDialogCancel>
-            <Button asChild>
-              <Link href="/dashboard/settings?tab=billing">Open billing</Link>
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnifiedPlanAlertDialog
+        open={multiUpgradeOpen}
+        onOpenChange={setMultiUpgradeOpen}
+        revenueBandLabel={billingSub?.revenue_band_label}
+      />
 
       <ConnectDialogs
         fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}
@@ -1526,6 +1502,37 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
 }
 
 // ── Shared Dialogs ─────────────────────────────────────────────────────────
+
+function UnifiedPlanAlertDialog({
+  open,
+  onOpenChange,
+  revenueBandLabel,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  revenueBandLabel: string | null | undefined
+}) {
+  const t = useTranslations('dashboard.platformConnector')
+  const description = revenueBandLabel
+    ? t('unifiedUpgrade.bodyWithBand', { band: revenueBandLabel })
+    : t('unifiedUpgrade.bodyNoBand')
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('unifiedUpgrade.title')}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('unifiedUpgrade.notNow')}</AlertDialogCancel>
+          <Button asChild>
+            <Link href="/dashboard/settings?tab=billing">{t('unifiedUpgrade.openBilling')}</Link>
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
 
 interface ConnectDialogsProps {
   fanslyDialogOpen: boolean
@@ -1551,6 +1558,7 @@ function ConnectDialogs({
   fanslyMaskedEmail, fanslyLoading,
   handleFanslyLogin,
 }: ConnectDialogsProps) {
+  const t = useTranslations('dashboard.platformConnector')
   return (
     <>
       {/* Fansly Login Dialog */}
@@ -1562,11 +1570,13 @@ function ConnectDialogs({
                 <FanslyLogo />
               </div>
               <div>
-                <DialogTitle>Connect Fansly</DialogTitle>
+                <DialogTitle>{t('fanslyDialog.title')}</DialogTitle>
                 <DialogDescription>
                   {fansly2FAToken
-                    ? `Enter the code sent to ${fanslyMaskedEmail || 'your email'}`
-                    : 'Sign in with your Fansly credentials'}
+                    ? t('fanslyDialog.desc2fa', {
+                        email: fanslyMaskedEmail || t('fanslyDialog.fallbackEmail'),
+                      })
+                    : t('fanslyDialog.descSignIn')}
                 </DialogDescription>
               </div>
             </div>
@@ -1576,28 +1586,28 @@ function ConnectDialogs({
             {!fansly2FAToken ? (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="fl-email">Email</Label>
+                  <Label htmlFor="fl-email">{t('fanslyDialog.email')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fl-email" type="email" placeholder="your@email.com" value={fanslyEmail} onChange={e => setFanslyEmail(e.target.value)} className="pl-10" />
+                    <Input id="fl-email" type="email" placeholder={t('fanslyDialog.emailPlaceholder')} value={fanslyEmail} onChange={e => setFanslyEmail(e.target.value)} className="pl-10" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fl-password">Password</Label>
+                  <Label htmlFor="fl-password">{t('fanslyDialog.password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fl-password" type="password" placeholder="Enter your password" value={fanslyPassword} onChange={e => setFanslyPassword(e.target.value)} className="pl-10" />
+                    <Input id="fl-password" type="password" placeholder={t('fanslyDialog.passwordPlaceholder')} value={fanslyPassword} onChange={e => setFanslyPassword(e.target.value)} className="pl-10" />
                   </div>
                 </div>
               </>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="fl-2fa">Verification Code</Label>
+                <Label htmlFor="fl-2fa">{t('fanslyDialog.verificationCode')}</Label>
                 <div className="relative">
                   <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="fl-2fa" type="text" placeholder="Enter 6-digit code" value={fansly2FACode} onChange={e => setFansly2FACode(e.target.value)} className="pl-10 text-center text-lg tracking-widest" maxLength={6} />
+                  <Input id="fl-2fa" type="text" placeholder={t('fanslyDialog.codePlaceholder')} value={fansly2FACode} onChange={e => setFansly2FACode(e.target.value)} className="pl-10 text-center text-lg tracking-widest" maxLength={6} />
                 </div>
-                <p className="text-xs text-muted-foreground">Check your email or authenticator app for the code</p>
+                <p className="text-xs text-muted-foreground">{t('fanslyDialog.codeHint')}</p>
               </div>
             )}
 
@@ -1608,9 +1618,9 @@ function ConnectDialogs({
               disabled={fanslyLoading || (!fansly2FAToken && (!fanslyEmail || !fanslyPassword)) || (!!fansly2FAToken && fansly2FACode.length < 5)}
             >
               {fanslyLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {fansly2FAToken ? 'Verify & Connect' : 'Connect Fansly'}
+              {fansly2FAToken ? t('fanslyDialog.submit2fa') : t('fanslyDialog.submitConnect')}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">Your credentials are securely encrypted and never stored locally</p>
+            <p className="text-xs text-muted-foreground text-center">{t('fanslyDialog.credentialsNote')}</p>
           </div>
         </DialogContent>
       </Dialog>

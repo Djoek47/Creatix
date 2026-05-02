@@ -259,8 +259,8 @@ export function LeakAlertCard(props: {
   /** Pinned “confirmed” lane: compact, no swipe; undo / not mine only. */
   presentation?: 'default' | 'confirmedLane'
   onPatch: (alertId: string, body: Record<string, unknown>) => Promise<void> | void
-  onVerify: (alertId: string) => Promise<void>
-  onTrace: (alert: LeakAlert) => Promise<void>
+  onVerify: (alertId: string) => Promise<void> | void
+  onTrace: (alert: LeakAlert) => Promise<void> | void
   onDmca: (alert: LeakAlert) => void
 }) {
   const {

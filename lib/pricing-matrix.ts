@@ -117,7 +117,8 @@ export function focusPlatformsShortLabel(platforms: AdultBillingPlatform[]): str
   return s.map((p) => focusPlatformDisplayName(p)).join(' + ')
 }
 
-function normalizeFocusPlatformsInput(
+/** Single-plan checkout focus list (1–2 platforms). */
+export function normalizeCheckoutFocusPlatforms(
   platforms: AdultBillingPlatform[] | undefined | null,
 ): AdultBillingPlatform[] {
   if (!platforms?.length) return ['onlyfans']
@@ -149,7 +150,7 @@ export function getMonthlyPriceUsd(
   const core = pricingTierAtIndex(tierIndex)
   if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
   if (variant === 'multi') return bundledMultiUsdWithPlatforms(tierIndex, focusPlatforms ?? null)
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
+  const fps = normalizeCheckoutFocusPlatforms(focusPlatforms ?? undefined)
   if (fps.length === 1) {
     if (fps[0] === 'manyvids') return core.prices.mv
     if (fps[0] === 'fansly') return core.prices.fl
@@ -167,38 +168,6 @@ export function getMonthlyPriceCents(
 ): number {
   const usd = getMonthlyPriceUsd(variant, tierIndex, focusPlatforms)
   return Math.round(usd * 100)
-}
-
-export function checkoutProductName(
-  variant: BillingVariant,
-  tierIndex: number,
-  focusPlatforms?: AdultBillingPlatform[] | null,
-): string {
-  const row = getTierByIndex(tierIndex)
-  if (!row) return 'Circe et Venus'
-  if (variant === 'multi') {
-    return `Circe et Venus — Bundled (OnlyFans + Fansly) — ${row.label}`
-  }
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
-  const label = focusPlatformsShortLabel(fps)
-  return `Circe et Venus — Focus (${label}) — ${row.label}`
-}
-
-export function checkoutProductDescription(
-  variant: BillingVariant,
-  tierIndex: number,
-  focusPlatforms?: AdultBillingPlatform[] | null,
-): string {
-  const row = getTierByIndex(tierIndex)
-  if (!row) return 'Monthly subscription'
-  if (variant === 'multi') {
-    return `Monthly · ${row.label} · OnlyFans + Fansly in one workspace (Bundled)`
-  }
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
-  if (fps.length === 1) {
-    return `Monthly · ${row.label} · Full tools for ${focusPlatformDisplayName(fps[0])}`
-  }
-  return `Monthly · ${row.label} · Full tools for ${focusPlatformDisplayName(fps[0])} and ${focusPlatformDisplayName(fps[1])}`
 }
 
 export function tierIndexFromMonthlyRevenue(monthlyRevenueUsd: number): number {

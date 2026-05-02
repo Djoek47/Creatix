@@ -36,11 +36,13 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { GuideOrbIconKey, GuideOrbStep, GuideOrbTheme } from '@/lib/guide-onboarding-data'
+import type { GuideOrbitIconKey, GuideOrbStep, GuideOrbTheme } from '@/lib/guide-onboarding-data'
 import { GUIDE_ORBIT_STEPS } from '@/lib/guide-onboarding-data'
 
-const ICON_MAP: Record<GuideOrbIconKey, React.ComponentType<{ className?: string }>> = {
+const ICON_MAP: Record<GuideOrbitIconKey, React.ComponentType<{ className?: string }>> = {
   Sparkles,
+  /** Alias: tour data uses `Wand`; lucide exports `Wand2`. */
+  Wand: Wand2,
   Map: MapIcon,
   LayoutDashboard,
   Crown,

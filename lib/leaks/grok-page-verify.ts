@@ -75,7 +75,9 @@ ${JSON.stringify(items, null, 2)}`
         ? (parsed as { items: unknown[] }).items
         : []
     return (arr as Array<{ url?: string; verifiedLikelyMatch?: boolean; rationale?: string }>)
-      .filter((x) => x && typeof x.url === 'string')
+      .filter((x): x is { url: string; verifiedLikelyMatch?: boolean; rationale?: string } =>
+        Boolean(x && typeof x.url === 'string'),
+      )
       .map((x) => ({
         url: x.url,
         verifiedLikelyMatch: Boolean(x.verifiedLikelyMatch),

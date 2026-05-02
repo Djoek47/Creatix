@@ -4,6 +4,7 @@ import {
   chargeAiToolCreditsAfterSuccess,
   requireAiToolSessionAndCredits,
 } from '@/lib/ai/assert-ai-tool-access'
+import { englishToolDescription, englishToolLongDescription, englishToolName } from '@/lib/ai/ai-tools-english-copy'
 import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 
 export const maxDuration = 30
@@ -47,8 +48,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const toolName = meta.name ?? canonical
-    const toolDesc = meta.longDescription ?? meta.description ?? ''
+    const toolName = englishToolName(canonical)
+    const toolDesc = englishToolLongDescription(canonical) || englishToolDescription(canonical)
 
     const { text } = await generateText({
       model: 'openai/gpt-4o-mini',

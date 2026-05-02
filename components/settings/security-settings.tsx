@@ -10,8 +10,10 @@ import { Shield, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { TwoFactorSection } from '@/components/settings/two-factor-section'
 import { SecurityPlatformStatus } from '@/components/settings/security-platform-status'
+import { useTranslations } from 'next-intl'
 
 export function SecuritySettings() {
+  const t = useTranslations('settings')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
@@ -21,11 +23,11 @@ export function SecuritySettings() {
 
   async function handlePasswordUpdate() {
     if (!currentPassword.trim() || !newPassword.trim()) {
-      setPasswordMessage({ type: 'error', text: 'Enter current and new password.' })
+      setPasswordMessage({ type: 'error', text: t('securityCard.errors.fillBoth') })
       return
     }
     if (newPassword.length < 6) {
-      setPasswordMessage({ type: 'error', text: 'New password must be at least 6 characters.' })
+      setPasswordMessage({ type: 'error', text: t('securityCard.errors.newTooShort') })
       return
     }
     setPasswordLoading(true)
@@ -34,7 +36,7 @@ export function SecuritySettings() {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user?.email) {
-      setPasswordMessage({ type: 'error', text: 'No email on account.' })
+      setPasswordMessage({ type: 'error', text: t('securityCard.errors.noEmail') })
       setPasswordLoading(false)
       return
     }
@@ -43,17 +45,17 @@ export function SecuritySettings() {
       password: currentPassword,
     })
     if (signInError) {
-      setPasswordMessage({ type: 'error', text: signInError.message || 'Current password is wrong.' })
+      setPasswordMessage({ type: 'error', text: signInError.message || t('securityCard.errors.currentWrong') })
       setPasswordLoading(false)
       return
     }
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
     if (updateError) {
-      setPasswordMessage({ type: 'error', text: updateError.message || 'Failed to update password.' })
+      setPasswordMessage({ type: 'error', text: updateError.message || t('securityCard.errors.updateFailed') })
       setPasswordLoading(false)
       return
     }
-    setPasswordMessage({ type: 'success', text: 'Password updated.' })
+    setPasswordMessage({ type: 'success', text: t('securityCard.successUpdated') })
     setCurrentPassword('')
     setNewPassword('')
     setPasswordLoading(false)
@@ -64,20 +66,22 @@ export function SecuritySettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-semibold">
           <Shield className="h-5 w-5" aria-hidden />
-          Security
+          {t('securityCard.title')}
         </CardTitle>
-        <CardDescription>Protect your Circe identity and integrations</CardDescription>
+        <CardDescription>{t('securityCard.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         <SecurityPlatformStatus />
         <Separator className="bg-border/70" />
 
         <div className="space-y-3">
-          <Label className="text-[13px] font-medium tracking-tight text-foreground">Sign-in password</Label>
+          <Label className="text-[13px] font-medium tracking-tight text-foreground">
+            {t('securityCard.passwordHeading')}
+          </Label>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
               type="password"
-              placeholder="Current password"
+              placeholder={t('securityCard.currentPasswordPlaceholder')}
               className="bg-input"
               autoComplete="current-password"
               value={currentPassword}
@@ -85,7 +89,7 @@ export function SecuritySettings() {
             />
             <Input
               type="password"
-              placeholder="New password"
+              placeholder={t('securityCard.newPasswordPlaceholder')}
               className="bg-input"
               autoComplete="new-password"
               value={newPassword}
@@ -101,7 +105,7 @@ export function SecuritySettings() {
           ) : null}
           <Button variant="outline" className="min-h-11" onClick={handlePasswordUpdate} disabled={passwordLoading}>
             {passwordLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Update password
+            {t('securityCard.updatePassword')}
           </Button>
         </div>
 

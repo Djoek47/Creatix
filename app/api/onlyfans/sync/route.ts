@@ -44,7 +44,19 @@ export async function POST(request: NextRequest) {
     const userData = (accountData as any)?.onlyfans_user_data || {}
 
     let stats = { fans: { total: 0, active: 0, expired: 0, new: 0 }, earnings: { today: 0, thisWeek: 0, thisMonth: 0, total: 0 }, content: { posts: 0, photos: 0, videos: 0 } }
-    let earningsData = { total: 0, subscriptions: 0, tips: 0, messages: 0, posts: 0, streams: 0, referrals: 0, period: { start: '', end: '' } }
+    let earningsData: {
+      total: number
+      subscriptions: number
+      tips: number
+      messages: number
+      posts: number
+      streams: number
+      referrals: number
+      period: { start: string; end: string }
+      today?: number
+      thisDay?: number
+      thisMonth?: number
+    } = { total: 0, subscriptions: 0, tips: 0, messages: 0, posts: 0, streams: 0, referrals: 0, period: { start: '', end: '' } }
     let fansData = { fans: [] as any[], total: 0 }
     let conversationsData = { conversations: [] as any[] }
     let chartData = { data: [] as any[] }

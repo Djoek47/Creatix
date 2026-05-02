@@ -1,5 +1,5 @@
 {
-  "complete": "Complete setup",
-  "skip": "Skip for now",
+  "complete": "Completar configuración",
+  "skip": "Omitir por ahora",
   "progress": "{current} / {total}"
 }

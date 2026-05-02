@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,23 +27,25 @@ export function GiftSuggesterRunnerInputs({
   giftUseWishlist,
   setGiftUseWishlist,
 }: GiftSuggesterRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.gift-suggester')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Who is this fan?</Label>
+          <Label>{t('easyWhoFan')}</Label>
           <Textarea
-            placeholder="Spend level, vibe, things they’ve said they like…"
+            placeholder={t('easyFanPlaceholder')}
             value={fanMessage}
             onChange={(e) => setFanMessage(e.target.value)}
             className="min-h-[88px]"
           />
         </div>
         <div className="space-y-2">
-          <Label>Budget (optional)</Label>
-          <Input placeholder="e.g. around $75" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} />
+          <Label>{t('easyBudgetOptional')}</Label>
+          <Input placeholder={t('easyBudgetPlaceholder')} value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} />
         </div>
-        <p className="text-[11px] text-muted-foreground">Pro mode: voice input and wishlist links from your gift list.</p>
+        <p className="text-[11px] text-muted-foreground">{t('easyProHint')}</p>
       </div>
     )
   }
@@ -51,7 +54,7 @@ export function GiftSuggesterRunnerInputs({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Fan context</Label>
+          <Label>{t('fanContext')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setFanMessage((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -59,16 +62,16 @@ export function GiftSuggesterRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="Who they are, spend level, interests, recent behavior…"
+          placeholder={t('proFanPlaceholder')}
           value={fanMessage}
           onChange={(e) => setFanMessage(e.target.value)}
           className="min-h-[100px]"
         />
       </div>
       <div className="space-y-2">
-        <Label>Budget or tier hint (optional)</Label>
+        <Label>{t('budgetTierHint')}</Label>
         <Input
-          placeholder="e.g. $50–150, or deluxe"
+          placeholder={t('proBudgetPlaceholder')}
           value={currentPrice}
           onChange={(e) => setCurrentPrice(e.target.value)}
         />
@@ -76,9 +79,9 @@ export function GiftSuggesterRunnerInputs({
       <div className="flex items-center space-x-2 rounded-md border border-border p-3">
         <Checkbox id="gift-wl" checked={giftUseWishlist} onCheckedChange={(c) => setGiftUseWishlist(c === true)} />
         <label htmlFor="gift-wl" className="text-sm cursor-pointer">
-          Use my saved wishlist links (title + price){' '}
+          {t('useWishlist')}{' '}
           <Link href="/dashboard/ai-studio/gifts" className="text-primary underline">
-            Manage list
+            {t('manageList')}
           </Link>
         </label>
       </div>

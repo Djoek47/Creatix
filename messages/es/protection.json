@@ -1,0 +1,15 @@
+{
+  "page": {
+    "activeSignals": "Señales activas",
+    "activeSignalsHint": "Revisar o DMCA",
+    "closedCases": "Casos cerrados",
+    "closedCasesHint": "Resueltos, estafa, FP…",
+    "vaultItems": "Ítems de bóveda",
+    "vaultItemsHint": "Biblioteca con huella",
+    "dmcaClaims": "Reclamaciones DMCA",
+    "dmcaDraftsHint": "borradores incluidos",
+    "dmcaFiledPrefix": "{count, number} presentados · ",
+    "runScanHeading": "Ejecutar un escaneo",
+    "loadingTools": "Cargando herramientas de protección…"
+  }
+}

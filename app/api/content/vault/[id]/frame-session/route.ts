@@ -86,19 +86,22 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
 
   const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`
   const frameAssistApiUrl = `${base}/api/frame/ai/assist`
+  const exportPrepareUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/prepare')
+  const exportCompleteUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/complete')
 
   return NextResponse.json({
     contentId: id,
     assetProxyUrl,
     exportToken,
     exportUrl,
+    exportPrepareUrl,
+    exportCompleteUrl,
     ariadneEmbedApiUrl,
     frameAssistApiUrl,
     frameBaseUrl: frameBase || null,
     frameLaunchUrl,
     frameConfigured,
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
-    instructions:
-      'Open frameLaunchUrl in a new tab (when the editor is deployed). Configure your deployment to POST exported files to exportUrl with headers X-Frame-Export-Secret and form field exportToken, or use Replace video in the vault to upload manually. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" } (session cookie or same-site auth). Frame AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.',
+    instructions: `Open frameLaunchUrl in a new tab when the editor is deployed. Large video exports bypass Creatix body limits: POST JSON to this response's exportPrepareUrl with header X-Frame-Export-Secret and body { exportToken, fileName, mimeType, fileSize }; PUT file bytes to signedUrl from that response; POST JSON to exportCompleteUrl with { exportToken, path, mimeType }. The Frame editor POST /api/export proxy runs this flow. Or use Replace video in Media & vault. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" }. Frame AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.`,
   })
 }

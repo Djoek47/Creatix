@@ -1,40 +1,40 @@
 {
   "sidebar": {
-    "analytics": "Analytics",
+    "analytics": "Analytiques",
     "protection": "Protection",
-    "retention": "Retention",
+    "retention": "Rétention",
     "fans": "Fans",
     "mentions": "Mentions",
     "fanAtlas": "Fan Atlas",
-    "dashboard": "Dashboard",
+    "dashboard": "Tableau de bord",
     "divineManager": "Divine Manager",
-    "content": "Content",
-    "wellbeing": "Well-being",
+    "content": "Contenu",
+    "wellbeing": "Bien-être",
     "messages": "Messages",
     "social": "Social",
     "aiStudio": "AI Studio",
     "guide": "Guide",
-    "settings": "Settings",
+    "settings": "Paramètres",
     "circeSection": "Circe",
     "venusSection": "Venus",
     "systemStripTitle": "État et avis",
     "systemStripStatus": "Services opérationnels",
-    "systemStripHint": "Nouveautés : Guide · Paramètres."
+    "systemStripHint": "Nouveautés produit : Guide · Paramètres."
   },
   "marketingNav": {
-    "home": "Home",
-    "features": "Features",
-    "demo": "Demo",
-    "mobileApp": "Mobile App",
-    "pricing": "Pricing"
+    "home": "Accueil",
+    "features": "Fonctionnalités",
+    "demo": "Démo",
+    "mobileApp": "Appli mobile",
+    "pricing": "Tarifs"
   },
   "footerNav": {
-    "about": "About",
-    "privacy": "Privacy",
-    "terms": "Terms"
+    "about": "À propos",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
   },
   "localeSwitcher": {
-    "label": "Language"
+    "label": "Langue"
   },
-  "wellbeingUnread": "{count} unread"
+  "wellbeingUnread": "{count} non lu(s)"
 }

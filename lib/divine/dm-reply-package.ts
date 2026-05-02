@@ -152,18 +152,22 @@ export async function fetchDmReplySuggestionsPackage(
     throw err
   }
 
-  const scan = scanResult && 'insights' in (scanResult as object)
-    ? (scanResult as { insights?: { insights?: string[]; riskFlags?: string[]; suggestedAngles?: string[] } }).insights ?? null
-    : null
-  const circeSuggestions = (circeResult && 'suggestions' in circeResult ? (circeResult.suggestions || []) : [])
-    .map((s: { text?: string }) => s.text)
-    .filter(Boolean) as string[]
-  const venusSuggestions = (venusResult && 'suggestions' in venusResult ? (venusResult.suggestions || []) : [])
-    .map((s: { text?: string }) => s.text)
-    .filter(Boolean) as string[]
-  const flirtSuggestions = (flirtResult && 'suggestions' in flirtResult ? (flirtResult.suggestions || []) : [])
-    .map((s: { text?: string }) => s.text)
-    .filter(Boolean) as string[]
+  const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null
+
+  const scan = isObj(scanResult) && isObj(scanResult.insights) ? (scanResult.insights as {
+    insights?: string[]
+    riskFlags?: string[]
+    suggestedAngles?: string[]
+  }) : null
+
+  const suggestionTexts = (x: unknown) =>
+    (isObj(x) && Array.isArray(x.suggestions) ? x.suggestions : [])
+      .map((s) => (isObj(s) && typeof s.text === 'string' ? s.text : ''))
+      .filter((t): t is string => t.length > 0)
+
+  const circeSuggestions = suggestionTexts(circeResult)
+  const venusSuggestions = suggestionTexts(venusResult)
+  const flirtSuggestions = suggestionTexts(flirtResult)
 
   let recommendation: 'circe' | 'venus' | 'flirt' | null = null
   let recommendationReason: string | null = null
@@ -180,7 +184,7 @@ export async function fetchDmReplySuggestionsPackage(
       const { text, usage } = await generateText({
         model: gateway('openai/gpt-4o-mini'),
         temperature: 0.3,
-        maxTokens: 120,
+        maxOutputTokens: 120,
         prompt: `You are the Divine Manager. Given thread scan and three reply styles, pick ONE persona for the creator to use for the next reply. Reply with exactly two lines:
 Line 1: one word: CIRCE or VENUS or FLIRT
 Line 2: one short sentence why (e.g. "Retention risk; Circe keeps them subscribed.")

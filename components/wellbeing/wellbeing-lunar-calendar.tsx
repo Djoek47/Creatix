@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ const AFFIRMATIONS_QUIET = [
  * Apple-like restraint — no hero gradients or zodiac carousels.
  */
 export function WellbeingLunarCalendar() {
+  const t = useTranslations('wellbeing.lunar')
   const [cursor, setCursor] = useState(() => new Date())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
@@ -55,14 +57,14 @@ export function WellbeingLunarCalendar() {
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
         {/* Today — typography + moon */}
         <div className="flex flex-col justify-center border-border/40 p-8 sm:p-10 lg:border-r">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Today</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{t('today')}</p>
           <h2 className="mt-4 text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[2rem]">
             {moon.name}
           </h2>
           <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">{note}</p>
           <dl className="mt-8 grid gap-5 border-t border-border/40 pt-8 text-sm">
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Sun sign</dt>
+              <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{t('sunSign')}</dt>
               <dd className="mt-1.5 text-foreground">
                 <span className="text-lg tabular-nums">{sunSign.symbol}</span>{' '}
                 <span className="font-medium">{sunSign.name}</span>
@@ -96,7 +98,7 @@ export function WellbeingLunarCalendar() {
       {/* Month */}
       <div className="border-t border-border/40 px-5 pb-6 pt-5 sm:px-8 sm:pb-8">
         <div className="mb-5 flex items-center justify-between gap-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Month</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{t('month')}</p>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -123,7 +125,7 @@ export function WellbeingLunarCalendar() {
                 setCursor(new Date(year, month + 1, 1))
                 setSelectedDay(null)
               }}
-              aria-label="Next month"
+              aria-label={t('monthNextAria')}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -196,23 +198,22 @@ export function WellbeingLunarCalendar() {
             {selectedCell.zodiac.name} · {selectedCell.chineseZodiac.animal}
           </p>
         ) : (
-          <p className="mt-4 text-center text-[12px] text-muted-foreground">Select a day for detail</p>
+          <p className="mt-4 text-center text-[12px] text-muted-foreground">{t('selectDay')}</p>
         )}
       </div>
 
       <Collapsible className="border-t border-border/40">
         <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 px-5 py-3.5 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground sm:px-8">
-          <span>Full calendar &amp; tools</span>
+          <span>{t('fullCalendar')}</span>
           <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <p className="border-t border-border/30 px-5 py-4 text-sm leading-relaxed text-muted-foreground sm:px-8">
-            Holidays, local events, and photo-spot tools live in the expanded cosmic calendar. We keep this view quiet so
-            your rhythm stays readable.
+            {t('collapsibleHint')}
           </p>
           <div className="px-5 pb-6 sm:px-8">
             <Button asChild variant="outline" size="sm" className="rounded-full border-border/60">
-              <Link href="/dashboard/content">Open content workspace</Link>
+              <Link href="/dashboard/content">{t('openContentWorkspace')}</Link>
             </Button>
           </div>
         </CollapsibleContent>

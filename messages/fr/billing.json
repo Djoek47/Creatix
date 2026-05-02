@@ -1,4 +1,32 @@
 {
-  "title": "Billing",
-  "cardTitle": "Subscription"
+  "title": "Facturation",
+  "cardTitle": "Abonnement",
+  "checkout": {
+    "tierBands": {
+      "0": "Sous $1k",
+      "1": "1–5 k$",
+      "2": "5–7,5 k$",
+      "3": "7,5–10 k$",
+      "4": "10–15 k$",
+      "5": "15–25 k$",
+      "6": "25–35 k$",
+      "7": "35–45 k$",
+      "8": "45–60 k$",
+      "9": "60–80 k$",
+      "10": "+80 k$"
+    },
+    "fallbackName": "Circe et Venus",
+    "fallbackDescription": "Abonnement mensuel",
+    "nameBundled": "Circe et Venus — Groupé (OnlyFans + Fansly) — {band}",
+    "nameFocus": "Circe et Venus — Focus ({focus}) — {band}",
+    "descriptionBundled": "Mensuel · {band} · OnlyFans + Fansly dans un espace (groupé)",
+    "descriptionSingle": "Mensuel · {band} · Outils complets pour {platform}",
+    "descriptionDual": "Mensuel · {band} · Outils complets pour {p0} et {p1}",
+    "platformJoiner": " + ",
+    "platform": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly",
+      "manyvids": "Anti-piratage"
+    }
+  }
 }

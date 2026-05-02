@@ -1,23 +1,29 @@
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
-import { buildPricingMetaDescription, buildPricingSoftwareOfferGraph } from '@/lib/seo/pricing-seo'
+import { buildPricingSoftwareOfferGraph, type PricingSoftwareOfferCopy } from '@/lib/seo/pricing-seo'
 
 type FaqItem = { question: string; answer: string }
 
-export function PricingJsonLd({ faqs }: { faqs: FaqItem[] }) {
+type Props = {
+  faqs: FaqItem[]
+  pageTitle: string
+  pageDescription: string
+  softwareOfferCopy: PricingSoftwareOfferCopy
+}
+
+export function PricingJsonLd({ faqs, pageTitle, pageDescription, softwareOfferCopy }: Props) {
   const base = getAppUrl()
   const url = getCanonicalUrl('/pricing')
-  const description = buildPricingMetaDescription()
 
   const graph = [
     {
       '@type': 'WebPage',
       '@id': `${url}#webpage`,
       url,
-      name: 'Pricing | Circe et Venus',
-      description,
+      name: pageTitle,
+      description: pageDescription,
       isPartOf: { '@type': 'WebSite', '@id': `${base}/#website`, url: base },
     },
-    ...buildPricingSoftwareOfferGraph(url),
+    ...buildPricingSoftwareOfferGraph(url, softwareOfferCopy),
     {
       '@type': 'FAQPage',
       '@id': `${url}#faq`,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
-import { DIVINE_VOICE_CREDITS_PER_SECOND } from '@/lib/billing/credit-economics'
+import { divineVoiceCreditsForWholeSeconds } from '@/lib/billing/credit-economics'
 import { divineManagerDebitMetadata } from '@/lib/billing/divine-manager-ledger'
 
 const MAX_MS_PER_STATE_PER_REQUEST = 120_000
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const totalMs = Math.min(idle + working + speaking, MAX_BILLABLE_MS_PER_REQUEST)
   const wholeSeconds = Math.max(0, Math.floor(totalMs / 1000))
-  const credits = wholeSeconds * DIVINE_VOICE_CREDITS_PER_SECOND
+  const credits = divineVoiceCreditsForWholeSeconds(wholeSeconds)
 
   if (credits > 0) {
     const debit = await consumeAiCredits(supabase, user.id, credits, {

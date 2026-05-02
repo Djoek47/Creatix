@@ -1,14 +1,14 @@
 {
   "brand": {
     "name": "Circe et Venus",
-    "subtitle": "Creator workspace"
+    "subtitle": "Espaço de trabalho para criadoras"
   },
-  "signIn": "Sign in",
-  "getStarted": "Get started",
-  "start": "Start",
-  "openMenu": "Open site menu",
+  "signIn": "Entrar",
+  "getStarted": "Começar",
+  "start": "Iniciar",
+  "openMenu": "Abrir menu do site",
   "copyright": "© {year} Circe et Venus Inc.",
   "menu": "Menu",
-  "back": "Back",
+  "back": "Voltar",
   "profilePlaceholder": "Divine Creator"
 }

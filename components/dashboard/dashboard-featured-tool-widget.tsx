@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   ArrowRight,
   Calendar,
@@ -27,7 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { listFeaturedToolCandidates } from '@/lib/dashboard/featured-tool-options'
 
 const ICON_BY_TOOL: Partial<Record<string, LucideIcon>> = {
@@ -62,7 +63,19 @@ type Props = {
 }
 
 export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
+  const tDash = useTranslations('dashboard')
+  const tTools = useTranslations('ai-tools')
   const meta = getToolMeta(toolId) ?? getToolMeta('standard-of-attraction')!
+  const canonical = resolveCanonicalToolId(toolId)
+  const toolTitle = tTools.has(`tools.${canonical}.name`)
+    ? tTools(`tools.${canonical}.name`)
+    : toolId
+  const toolDesc = tTools.has(`tools.${canonical}.description`)
+    ? tTools(`tools.${canonical}.description`)
+    : ''
+  const toolLong = tTools.has(`tools.${canonical}.longDescription`)
+    ? tTools(`tools.${canonical}.longDescription`)
+    : ''
   const Icon = ICON_BY_TOOL[toolId] ?? Sparkles
   const candidates = listFeaturedToolCandidates()
 
@@ -71,22 +84,26 @@ export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <Label htmlFor="dashboard-featured-tool" className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Pinned tool
+            {tDash('featuredTool.pinnedLabel')}
           </Label>
           <Select value={toolId} onValueChange={onToolIdChange}>
             <SelectTrigger
               id="dashboard-featured-tool"
               className="dashboard-featured-tool-picker h-9 w-full max-w-full text-left text-sm sm:max-w-[min(100%,320px)]"
             >
-              <SelectValue placeholder="Choose a tool" />
+              <SelectValue placeholder={tDash('featuredTool.choosePlaceholder')} />
             </SelectTrigger>
             <SelectContent position="popper" className="max-h-[min(60vh,360px)]">
-              {candidates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                  {t.isPro ? ' (Pro)' : ''}
-                </SelectItem>
-              ))}
+              {candidates.map((cand) => {
+                const cid = resolveCanonicalToolId(cand.id)
+                const name = tTools.has(`tools.${cid}.name`) ? tTools(`tools.${cid}.name`) : cand.id
+                return (
+                  <SelectItem key={cand.id} value={cand.id}>
+                    {name}
+                    {cand.isPro ? tDash('featuredTool.proSuffix') : ''}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -99,17 +116,17 @@ export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
               <span className="rounded-lg border border-gold/30 bg-gold/10 p-2">
                 <Icon className="h-5 w-5" aria-hidden />
               </span>
-              {meta.name}
+              {toolTitle}
               {meta.isPro ? (
                 <span className="rounded border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[10px] font-sans font-normal uppercase tracking-wide text-gold">
-                  Pro
+                  {tDash('featuredTool.proBadge')}
                 </span>
               ) : null}
             </CardTitle>
             <CardDescription className="max-w-2xl space-y-2 text-left">
-              <p className="text-sm font-medium leading-snug text-foreground/95">{meta.description}</p>
-              {meta.longDescription && meta.longDescription.trim() !== meta.description.trim() ? (
-                <p className="text-sm font-normal leading-relaxed text-muted-foreground">{meta.longDescription}</p>
+              <p className="text-sm font-medium leading-snug text-foreground/95">{toolDesc}</p>
+              {toolLong && toolLong.trim() !== toolDesc.trim() ? (
+                <p className="text-sm font-normal leading-relaxed text-muted-foreground">{toolLong}</p>
               ) : null}
             </CardDescription>
           </div>
@@ -120,7 +137,7 @@ export function DashboardFeaturedToolWidget({ toolId, onToolIdChange }: Props) {
             className="group shrink-0 h-9 rounded-full border-gold/35 bg-background/70 px-4 font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-gold/55 hover:bg-gold/[0.08] hover:text-foreground hover:shadow-md focus-visible:ring-gold/30 dark:bg-background/40 dark:hover:bg-gold/[0.12]"
           >
             <Link href={toolHref(toolId)} className="inline-flex items-center gap-1.5">
-              Open tool
+              {tDash('featuredTool.openTool')}
               <ArrowRight
                 className="size-3.5 opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
                 aria-hidden

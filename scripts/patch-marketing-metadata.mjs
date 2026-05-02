@@ -7,34 +7,7 @@ function replacePrefixUntil(file, keepFromNeedle, head) {
   fs.writeFileSync(file, head + s.slice(keep))
 }
 
-replacePrefixUntil(
-  'app/[locale]/(marketing)/pricing/page.tsx',
-  'const pricingJsonLdFaqs',
-  `import type { Metadata } from 'next'
-import type { Phase1Locale } from '@/lib/i18n/routing'
-import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
-import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
-import { buildPricingMetaDescription, buildPricingKeywords } from '@/lib/seo/pricing-seo'
-import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
-import { MarketingPricingPageContent } from '@/components/marketing/marketing-pricing-page-content'
-import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
-import { PRICING_MODEL_TRIAL_LINE } from '@/lib/marketing/pricing-copy'
-
-type PageProps = { params: Promise<{ locale: string }> }
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { locale } = await params
-  return buildMarketingLocaleMetadata({
-    locale: locale as Phase1Locale,
-    path: '/pricing',
-    title: 'Pricing | Circe et Venus',
-    description: buildPricingMetaDescription(),
-    keywords: buildPricingKeywords(),
-  })
-}
-
-`,
-)
+// NOTE: /pricing metadata is maintained in-repo with next-intl (`messages/*/marketing.json`).
 
 replacePrefixUntil(
   'app/[locale]/(marketing)/launch-list/page.tsx',

@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { mergeWithDefaults, type NotificationPreferences } from '@/lib/notification-preferences'
 
+type NotificationPrefsPatch = {
+  notify_new_message?: boolean
+  notify_new_subscriber?: boolean
+  notify_new_tip?: boolean
+  notify_subscription_expired?: boolean
+  notify_subscription_renewed?: boolean
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createRouteHandlerClient(request)
   const { data: { user } } = await supabase.auth.getUser()
@@ -24,7 +32,7 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const updates: Partial<NotificationPreferences> = {}
+  const updates: NotificationPrefsPatch = {}
   if (typeof body.notify_new_message === 'boolean') updates.notify_new_message = body.notify_new_message
   if (typeof body.notify_new_subscriber === 'boolean') updates.notify_new_subscriber = body.notify_new_subscriber
   if (typeof body.notify_new_tip === 'boolean') updates.notify_new_tip = body.notify_new_tip

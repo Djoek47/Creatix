@@ -119,7 +119,7 @@ export function RightDrawer({ conversation, onOpenFanProfile, fanContext }: Righ
                 </span>
               ) : null}
             </div>
-            {churnQuiet ? (
+            {showChurnHint ? (
               <p className="mt-3 text-[11px] leading-snug text-muted-foreground/78">
                 Churn risk{' '}
                 <span className="font-medium capitalize text-foreground/85">{churn}</span>

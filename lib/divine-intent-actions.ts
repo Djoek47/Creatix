@@ -135,7 +135,10 @@ export async function executeMassDm(
         const api = createOnlyFansAPI(connection.access_token)
         const result = await api.sendMassMessage({
           text: message,
-          mediaIds: params.mediaIds,
+          mediaFiles:
+            Array.isArray(params.mediaIds) && params.mediaIds.length > 0
+              ? params.mediaIds.map((id) => (typeof id === 'number' ? id : String(id)))
+              : undefined,
           price: params.price,
         })
         results.onlyfans = {
@@ -277,7 +280,10 @@ export async function executeSendMessage(
       const api = createFanslyAPI()
       const result = await api.sendMessage(connection.platform_user_id, String(fanId), {
         text: message.trim(),
-        mediaIds: Array.isArray(mediaIds) && mediaIds.length > 0 ? mediaIds : undefined,
+        mediaIds:
+          Array.isArray(mediaIds) && mediaIds.length > 0
+            ? mediaIds.map((id) => String(id))
+            : undefined,
       })
       const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM, {
         reasonCode: 'message_send_platform',

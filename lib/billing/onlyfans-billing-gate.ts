@@ -253,6 +253,7 @@ export function onlyFansPartnerAccountIdFromRow(row: PlatformConnectionObservedR
 }
 
 export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
+  if (!row) return null
   const id = onlyFansPartnerAccountIdFromRow(row)
   if (!id) return null
   return {
@@ -264,7 +265,8 @@ export function scopedObservationFromOnlyFansRow(row: PlatformConnectionObserved
 }
 
 export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRow): ScopedPlatformObservation | null {
-  const id = row?.access_token ?? row?.platform_user_id
+  if (!row) return null
+  const id = row.access_token ?? row.platform_user_id
   if (id == null || String(id).trim() === '') return null
   return {
     partnerAccountId: String(id),

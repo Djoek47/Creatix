@@ -11,7 +11,7 @@ import { FooterSupportSocial } from '@/components/marketing/footer-support-socia
 import { MarketingFooterThemeIcon } from '@/components/marketing/marketing-footer-theme-icon'
 import { MarketingLocaleSwitcher } from '@/components/marketing/marketing-locale-switcher'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { ArrowRight, Menu } from 'lucide-react'
+import { ArrowRight, LogIn, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 
@@ -54,16 +54,28 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-background constellation-bg">
+    <div className="relative min-h-screen min-w-0 bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/75 backdrop-blur-xl">
-        <nav className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:h-16 sm:px-6">
+      <header className="fixed top-0 left-0 right-0 z-50 overflow-visible border-b border-border/40 bg-background/75 backdrop-blur-xl">
+        <nav
+          className={cn(
+            'relative mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-2 sm:h-16 sm:gap-4',
+            'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+            'sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]',
+          )}
+        >
           <IntlLink
             href="/"
-            className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60 sm:gap-3"
+            className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60 sm:gap-3"
           >
-            <MarketingBrandLogo width={36} height={36} className="shrink-0 sm:h-10 sm:w-10" variant="header" priority />
+            <MarketingBrandLogo
+              width={36}
+              height={36}
+              className="size-8 shrink-0 sm:size-10"
+              variant="header"
+              priority
+            />
             <span className="hidden truncate font-serif text-[0.9375rem] font-semibold leading-none tracking-[0.12em] text-primary sm:inline sm:text-base sm:tracking-[0.1em]">
               CIRCE ET VENUS
             </span>
@@ -91,10 +103,33 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
               )
             })}
           </div>
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-0.5 sm:gap-2">
             <div className="hidden md:flex">
               <MarketingLocaleSwitcher variant="header" />
             </div>
+            <Link
+              href="/auth/login"
+              className="hidden max-[379px]:inline-flex items-center md:hidden"
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 text-foreground/85 hover:bg-muted/50"
+                aria-label={tCommon('signIn')}
+              >
+                <LogIn className="h-5 w-5" aria-hidden />
+              </Button>
+            </Link>
+            <Link href="/auth/login" className="hidden min-[380px]:inline-flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 shrink-0 px-1.5 text-[12px] font-medium text-foreground/85 hover:bg-transparent hover:text-foreground sm:px-3 sm:text-sm"
+              >
+                {tCommon('signIn')}
+              </Button>
+            </Link>
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -150,26 +185,24 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
               </SheetContent>
             </Sheet>
 
-            <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-foreground/85 hover:bg-transparent hover:text-foreground">
-                {tCommon('signIn')}
-              </Button>
-            </Link>
-            <Link href="/auth/sign-up">
+            <Link href="/auth/sign-up" className="shrink-0">
               <Button
                 size="sm"
-                className="h-9 gap-1.5 rounded-lg bg-gradient-to-r from-primary via-primary to-circe/90 px-3.5 text-[13px] font-medium tracking-[-0.01em] text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] sm:px-4"
+                className="h-9 gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-primary via-primary to-circe/90 px-2.5 text-[12px] font-medium tracking-[-0.01em] text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] min-[400px]:gap-1.5 min-[400px]:px-3.5 min-[400px]:text-[13px] sm:px-4"
               >
                 <span className="hidden sm:inline">{tCommon('getStarted')}</span>
                 <span className="sm:hidden">{tCommon('start')}</span>
-                <ArrowRight className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                <ArrowRight
+                  className="h-3.5 w-3.5 shrink-0 opacity-90 max-[360px]:hidden"
+                  aria-hidden
+                />
               </Button>
             </Link>
           </div>
         </nav>
       </header>
 
-      {children}
+      <div className="min-w-0 overflow-x-hidden">{children}</div>
 
       <footer className="relative z-10 border-t border-border/35 bg-background/30 px-4 py-12 backdrop-blur-[2px] sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">

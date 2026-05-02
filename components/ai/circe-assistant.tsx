@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport, type UIMessage } from 'ai'
+import { textFromUiMessage } from '@/lib/ai/ui-message-text'
 
 interface ChurnRiskFan {
   id: string
@@ -99,15 +101,25 @@ export function CirceAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null)
   
   const [input, setInput] = useState('')
-  const { messages, sendMessage, status } = useChat({
-    api: '/api/ai/circe',
-    initialMessages: [
+  const circeTransport = useMemo(() => new DefaultChatTransport({ api: '/api/ai/circe' }), [])
+  const circeWelcomeMessages = useMemo(
+    () => [
       {
         id: 'welcome',
-        role: 'assistant',
-        content: "Greetings, creator. I am Circe, guardian of your realm. Like the enchantress of old, I shall help you keep your admirers captivated and protect what is yours. What wisdom do you seek?"
-      }
-    ]
+        role: 'assistant' as const,
+        parts: [
+          {
+            type: 'text' as const,
+            text: "Greetings, creator. I am Circe, guardian of your realm. Like the enchantress of old, I shall help you keep your admirers captivated and protect what is yours. What wisdom do you seek?",
+          },
+        ],
+      },
+    ],
+    [],
+  )
+  const { messages, sendMessage, status } = useChat({
+    transport: circeTransport,
+    messages: circeWelcomeMessages,
   })
   const isLoading = status === 'streaming' || status === 'submitted'
 
@@ -115,7 +127,7 @@ export function CirceAssistant() {
     e.preventDefault()
     const text = input.trim()
     if (!text || isLoading) return
-    sendMessage(text)
+    void sendMessage({ text })
     setInput('')
   }
   
@@ -156,7 +168,7 @@ export function CirceAssistant() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div ref={scrollRef} className="h-[300px] overflow-y-auto space-y-4 rounded-lg bg-gradient-to-b from-circe/5 to-transparent p-4">
-              {messages.map((msg) => (
+              {messages.map((msg: UIMessage) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     msg.role === 'user' 
@@ -166,7 +178,7 @@ export function CirceAssistant() {
                     {msg.role === 'assistant' && (
                       <div className="text-xs font-medium text-circe-light mb-1">Circe</div>
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{textFromUiMessage(msg)}</p>
                   </div>
                 </div>
               ))}

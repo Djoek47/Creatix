@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Sparkles } from 'lucide-react'
@@ -13,6 +14,7 @@ const LIVE_TOUR_HREF = '/dashboard/welcome?openTour=1'
  * Same entry as Guide “Launch live tour”: navigates to Welcome with ?openTour=1 so the full-app tour auto-starts.
  */
 export function StartTourButton({ className }: { className?: string }) {
+  const t = useTranslations('dashboard')
   const completed = useTourCompleted(fullAppWelcomeTour.tourId)
 
   return (
@@ -26,9 +28,7 @@ export function StartTourButton({ className }: { className?: string }) {
       )}
       data-tour="header-start-tour"
       title={
-        completed
-          ? 'Run the full live app tour again (navigates real pages with highlights)'
-          : 'Start the full live app tour (navigates real pages with highlights)'
+        completed ? t('startTour.linkTitleCompleted') : t('startTour.linkTitleNotCompleted')
       }
     >
       <Link href={LIVE_TOUR_HREF} className="flex items-center gap-2">
@@ -36,7 +36,7 @@ export function StartTourButton({ className }: { className?: string }) {
           className="h-4 w-4 shrink-0 text-amber-700 motion-safe:animate-pulse dark:text-amber-200"
           aria-hidden
         />
-        {completed ? 'Launch live tour' : 'Start live tour'}
+        {completed ? t('startTour.launchLiveTour') : t('startTour.startLiveTour')}
       </Link>
     </Button>
   )

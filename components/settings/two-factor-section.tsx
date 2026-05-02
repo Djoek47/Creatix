@@ -15,19 +15,20 @@ import {
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ShieldCheck, Copy, Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 function qrSrc(raw: string): string {
   return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
 }
 
-function sessionAssuranceLabel(level: string): string {
-  const key = level.toLowerCase()
-  if (key === 'aal2') return 'Authenticator verified'
-  if (key === 'aal1') return 'Password only'
-  return level
-}
-
 export function TwoFactorSection() {
+  const t = useTranslations('settings')
+  const sessionAssuranceLabel = (level: string): string => {
+    const key = level.toLowerCase()
+    if (key === 'aal2') return t('mfa.sessionAal2')
+    if (key === 'aal1') return t('mfa.sessionAal1')
+    return level
+  }
   const supabase = createClient()
   const [totpFactors, setTotpFactors] = useState<Factor[]>([])
   const [aal, setAal] = useState<string | null>(null)
@@ -50,11 +51,19 @@ export function TwoFactorSection() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: lf, error: lfErr } = await supabase.auth.mfa.listFactors()
-      if (!lfErr && lf?.data?.totp) {
-        setTotpFactors([...lf.data.totp])
-      } else if (!lfErr && lf?.data?.all) {
-        setTotpFactors(lf.data.all.filter((f) => f.factor_type === 'totp' && f.status === 'verified'))
+      const { data: factors, error: lfErr } = await supabase.auth.mfa.listFactors()
+      if (!lfErr && factors) {
+        const totpList =
+          'totp' in factors && Array.isArray((factors as { totp: Factor[] }).totp)
+            ? (factors as { totp: Factor[] }).totp
+            : null
+        if (totpList?.length) {
+          setTotpFactors([...totpList])
+        } else if (Array.isArray(factors.all)) {
+          setTotpFactors(factors.all.filter((f) => f.factor_type === 'totp' && f.status === 'verified'))
+        } else {
+          setTotpFactors([])
+        }
       } else {
         setTotpFactors([])
       }
@@ -109,14 +118,12 @@ export function TwoFactorSection() {
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'Authenticator app',
+        friendlyName: t('mfa.friendlyApiName'),
       })
       if (error || !data) {
         setSurfaceMessage({
           type: 'err',
-          text:
-            error?.message ??
-            'Multi-factor enrollment is not available for this account right now. Try again later.',
+          text: error?.message ?? t('mfa.err.enrollUnavailable'),
         })
         setEnrollBusy(false)
         return
@@ -126,7 +133,7 @@ export function TwoFactorSection() {
       if (data.totp?.secret) setSecretBackup(data.totp.secret)
       setDialogOpen(true)
     } catch {
-      setSurfaceMessage({ type: 'err', text: 'Enrollment could not start. Try again shortly.' })
+      setSurfaceMessage({ type: 'err', text: t('mfa.err.enrollStart') })
     } finally {
       setEnrollBusy(false)
     }
@@ -145,7 +152,7 @@ export function TwoFactorSection() {
       if (error) {
         setDialogMessage({
           type: 'err',
-          text: error.message || 'Incorrect code.',
+          text: error.message || t('mfa.err.incorrectCode'),
         })
         setVerifyBusy(false)
         return
@@ -154,10 +161,10 @@ export function TwoFactorSection() {
       await supabase.auth.refreshSession()
       resetEnrollmentUi()
       setDialogOpen(false)
-      setSurfaceMessage({ type: 'ok', text: 'Authenticator linked.' })
+      setSurfaceMessage({ type: 'ok', text: t('mfa.success.linked') })
       void refresh()
     } catch {
-      setDialogMessage({ type: 'err', text: 'Verification failed unexpectedly.' })
+      setDialogMessage({ type: 'err', text: t('mfa.err.verifyUnexpected') })
     } finally {
       setVerifyBusy(false)
     }
@@ -171,14 +178,14 @@ export function TwoFactorSection() {
       if (error) {
         setSurfaceMessage({
           type: 'err',
-          text: error.message || 'Could not remove this device. Sign in again and try once more.',
+          text: error.message || t('mfa.err.removeDetailed'),
         })
       } else {
-        setSurfaceMessage({ type: 'ok', text: 'Authenticator removed.' })
+        setSurfaceMessage({ type: 'ok', text: t('mfa.success.removed') })
         void refresh()
       }
     } catch {
-      setSurfaceMessage({ type: 'err', text: 'Could not remove factor.' })
+      setSurfaceMessage({ type: 'err', text: t('mfa.err.removeGeneric') })
     } finally {
       setRemoveId(null)
     }
@@ -200,7 +207,7 @@ export function TwoFactorSection() {
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[15px] font-semibold tracking-tight text-foreground">Two-factor authentication</p>
+              <p className="text-[15px] font-semibold tracking-tight text-foreground">{t('mfa.title')}</p>
               {loading ? null : (
                 <Badge
                   variant={hasTotp ? 'outline' : 'secondary'}
@@ -210,17 +217,14 @@ export function TwoFactorSection() {
                       : 'rounded-md px-2 py-0 text-[11px] font-medium uppercase tracking-wide'
                   }
                 >
-                  {hasTotp ? 'On' : 'Off'}
+                  {hasTotp ? t('mfa.on') : t('mfa.off')}
                 </Badge>
               )}
             </div>
-            <p className="mt-1 max-w-xl text-[13px] leading-snug text-muted-foreground">
-              Enter a short code from an authenticator app after your password. Passphrases you use elsewhere in the app
-              for encrypted data are separate from this step.
-            </p>
+            <p className="mt-1 max-w-xl text-[13px] leading-snug text-muted-foreground">{t('mfa.description')}</p>
             {!loading && aal ? (
               <p className="mt-2 text-[10px] font-normal tracking-wide text-muted-foreground/65">
-                Session · {sessionAssuranceLabel(aal)}
+                {t('mfa.sessionPrefix')} {sessionAssuranceLabel(aal)}
               </p>
             ) : null}
           </div>
@@ -234,7 +238,7 @@ export function TwoFactorSection() {
             onClick={() => void handleStartEnroll()}
           >
             {enrollBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Add authenticator
+            {t('mfa.addAuthenticator')}
           </Button>
         ) : null}
       </div>
@@ -247,7 +251,9 @@ export function TwoFactorSection() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/15 px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-[13px] font-medium text-foreground">{f.friendly_name || 'Authenticator'}</p>
+                <p className="truncate text-[13px] font-medium text-foreground">
+                  {f.friendly_name || t('mfa.factorDefaultName')}
+                </p>
               </div>
               <Button
                 type="button"
@@ -257,7 +263,7 @@ export function TwoFactorSection() {
                 disabled={removeId !== null}
                 onClick={() => void handleRemoveFactor(f.id)}
               >
-                {removeId === f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remove'}
+                {removeId === f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t('mfa.remove')}
               </Button>
             </li>
           ))}
@@ -272,9 +278,9 @@ export function TwoFactorSection() {
       <Dialog open={dialogOpen} onOpenChange={(o) => void handleDialogOpenChange(o)}>
         <DialogContent className="max-w-[min(100vw-2rem,24rem)]">
           <DialogHeader>
-            <DialogTitle className="text-[17px] font-semibold tracking-tight">Link authenticator</DialogTitle>
+            <DialogTitle className="text-[17px] font-semibold tracking-tight">{t('mfa.dialogTitle')}</DialogTitle>
             <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
-              Scan this QR code, then enter the six-digit code your app generates.
+              {t('mfa.dialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-2">
@@ -285,14 +291,12 @@ export function TwoFactorSection() {
                 <img src={qrSrc(qrCode)} alt="" width={176} height={176} className="h-[176px] w-[176px] object-contain" />
               </div>
             ) : (
-              <p className="text-[13px] text-muted-foreground">Preparing…</p>
+              <p className="text-[13px] text-muted-foreground">{t('mfa.preparing')}</p>
             )}
 
             {secretBackup ? (
               <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Cannot scan? Enter manually
-                </p>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('mfa.manualEntry')}</p>
                 <button
                   type="button"
                   className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-left hover:bg-muted/50"
@@ -311,14 +315,12 @@ export function TwoFactorSection() {
             ) : null}
 
             <div className="space-y-3">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Confirmation code
-              </label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('mfa.confirmationCode')}</label>
               <InputOTP
                 maxLength={6}
                 value={otp}
                 onChange={setOtp}
-                aria-label="Six-digit authentication code"
+                aria-label={t('mfa.otpAria')}
                 containerClassName="justify-center"
               >
                 <InputOTPGroup>
@@ -336,7 +338,7 @@ export function TwoFactorSection() {
               className="min-h-11 sm:justify-self-start"
               onClick={() => void handleDialogOpenChange(false)}
             >
-              Cancel
+              {t('mfa.cancel')}
             </Button>
             <Button
               type="button"
@@ -346,7 +348,7 @@ export function TwoFactorSection() {
               onClick={() => void handleVerify()}
             >
               {verifyBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-              Verify
+              {t('mfa.verify')}
             </Button>
           </DialogFooter>
         </DialogContent>

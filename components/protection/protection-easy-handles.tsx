@@ -1,9 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { AtSign, History, Plug } from 'lucide-react'
 import type { ScanIdentityHandleRow } from '@/hooks/use-scan-identity'
-import { scanSourcePlatformDisplayName, scanSourcePlatformKey } from '@/lib/scan-identity'
+import { scanSourcePlatformKey } from '@/lib/scan-identity'
+import { translatedScanSourcePlatformDisplayName } from '@/lib/scan-identity-i18n'
 import { scanIdentityBrandMarkForSource, type ScanIdentityBrandMark } from '@/lib/scan-identity-ui'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { cn } from '@/lib/utils'
@@ -46,6 +48,8 @@ function IdentityBrandMark({ mark, className }: { mark: ScanIdentityBrandMark; c
  * Advanced identity (former names, extras, title hints) lives in Pro mode.
  */
 export function ProtectionEasyHandles({ handles }: Props) {
+  const t = useTranslations('dashboard')
+
   if (handles.length === 0) {
     return (
       <div
@@ -56,19 +60,21 @@ export function ProtectionEasyHandles({ handles }: Props) {
           <Plug className="h-5 w-5" aria-hidden />
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">Connect a social account first</p>
+          <p className="text-sm font-medium text-foreground">{t('protectionEasyHandles.emptyTitle')}</p>
           <p className="text-xs text-muted-foreground">
-            Easy mode runs a leak scan using the usernames from your linked platforms—nothing else to configure.
+            {t('protectionEasyHandles.emptyBody')}
           </p>
         </div>
         <Link
           href="/dashboard/settings?tab=integrations"
           className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Open Integrations
+          {t('protectionEasyHandles.openIntegrations')}
         </Link>
         <p className="text-[11px] text-muted-foreground">
-          Need stage names, old @handles, or title hints? Switch to <span className="text-foreground/80">Pro</span> above.
+          {t.rich('protectionEasyHandles.proHint', {
+            pro: (chunks) => <span className="text-foreground/80">{chunks}</span>,
+          })}
         </p>
       </div>
     )
@@ -107,7 +113,7 @@ export function ProtectionEasyHandles({ handles }: Props) {
         {handles.map((h) => {
           const key = scanSourcePlatformKey(h.source)
           const mark = scanIdentityBrandMarkForSource(h.source)
-          const platformName = scanSourcePlatformDisplayName(h.source)
+          const platformName = translatedScanSourcePlatformDisplayName(h.source, t)
           const skipLeadingLogo =
             showOfAndFanslyRow && (key === 'onlyfans' || key === 'fansly') && mark.kind === 'image'
 
@@ -125,11 +131,15 @@ export function ProtectionEasyHandles({ handles }: Props) {
         })}
       </ul>
       <p className="mt-3 text-sm text-foreground">
-        {handles.length === 1 ? 'This identity' : 'These identities'} will be included in this scan—press{' '}
-        <span className="font-medium">Invoke Scan</span> when you&apos;re ready.
+        {t.rich(
+          handles.length === 1 ? 'protectionEasyHandles.scanReadySingle' : 'protectionEasyHandles.scanReadyPlural',
+          {
+            invoke: (chunks) => <span className="font-medium">{chunks}</span>,
+          },
+        )}
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        Extras (aliases, former names, title phrases) are available in Pro mode.
+        {t('protectionEasyHandles.extrasNote')}
       </p>
     </div>
   )

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
 
+/** Minimum gap between break nudges once the client has already passed the 4h15 visible streak. */
 const DEDUPE_MS = 85 * 60 * 1000
 const METADATA_KIND = 'wellbeing_break_nudge'
 
 /**
  * Creates a gentle in-app (Divine tab) reminder to take a short break.
- * Deduplicated per user using recent notifications with the same metadata kind.
+ * The client only calls this after ~4h15 of uninterrupted visible-tab time; server dedupes recent rows.
  */
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)

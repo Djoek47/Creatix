@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { resolveProductMode, resolveWorkspaceCapabilities } from '@/lib/plan-capabilities'
 
-const envDefault = { CREATIX_PRODUCT_MODE: undefined } as NodeJS.ProcessEnv
-const envNonApi = { CREATIX_PRODUCT_MODE: 'non_api_protection' } as NodeJS.ProcessEnv
+const envDefault = { CREATIX_PRODUCT_MODE: undefined } as unknown as NodeJS.ProcessEnv
+const envNonApi = { CREATIX_PRODUCT_MODE: 'non_api_protection' } as unknown as NodeJS.ProcessEnv
 
 assert.equal(resolveProductMode(envDefault), 'default')
 assert.equal(resolveProductMode(envNonApi), 'non_api_protection')

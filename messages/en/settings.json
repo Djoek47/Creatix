@@ -1,7 +1,610 @@
 {
+  "tabs": {
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "security": "Security",
+    "billing": "Billing",
+    "usage": "Usage",
+    "integrations": "Integrations",
+    "dataPrivacy": "Data & Privacy",
+    "preferences": "Preferences"
+  },
+  "shell": {
+    "sidebarNavAria": "Settings navigation",
+    "loadingAria": "Loading settings",
+    "resources": "Resources",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "support": "Support",
+    "appTour": "App tour"
+  },
   "preferencesLocale": "Language",
   "preferencesDateFormat": "Date format",
   "preferencesCurrency": "Currency",
   "savePreferences": "Save preferences",
-  "savedToast": "Preferences saved."
+  "savedToast": "Preferences saved.",
+  "preferences": {
+    "title": "Preferences",
+    "description": "Locale, drafts, and gentle in-app guidance.",
+    "fanDrafts": {
+      "title": "Fan-facing drafts (Mimic)",
+      "body": "Lets Mimic draft replies for review in Divine and Messages. Review-first unless you change policy in Divine tools.",
+      "tailBefore": "For best results, finish the ",
+      "tailLink": "Mimic test",
+      "tailAfter": " in Divine Manager.",
+      "saved": "Mimic setting saved.",
+      "saveFailed": "Could not save Mimic setting."
+    },
+    "autoSave": {
+      "title": "Auto-save drafts",
+      "hint": "Save while you type"
+    },
+    "sound": {
+      "title": "Sound",
+      "hint": "UI sounds for notices"
+    },
+    "cosmic": {
+      "title": "Cosmic guidance",
+      "ai": "AI"
+    },
+    "beta": "Beta",
+    "tipPopups": {
+      "body": "Short insights while you browse the dashboard — turn off to stop random pop-ups (you can still open the archive anytime). Full list: {count} tips on the Circe daily page.",
+      "title": "Tip popups"
+    },
+    "openTips": "Open tips",
+    "preview": "Preview",
+    "localeOption": {
+      "en": "English",
+      "es": "Spanish",
+      "pt": "Portuguese",
+      "fr": "French"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "Name, photo, and how the app addresses you.",
+    "photoHint": {
+      "before": "JPEG or PNG, up to 2 MB — or pull your public avatar from a linked account in ",
+      "link": "Integrations",
+      "after": "."
+    },
+    "changePhoto": "Change photo",
+    "fromPlatform": "From platform",
+    "fullName": "Full name",
+    "namePlaceholder": "Your name",
+    "email": "Email",
+    "gender": {
+      "label": "Gender identity ",
+      "optional": "(optional)",
+      "placeholder": "Select gender identity",
+      "hint": "Used so Circe, Venus, and Flirt refer to you correctly.",
+      "option": {
+        "unspecified": "Prefer not to say",
+        "woman": "Woman",
+        "man": "Man",
+        "non-binary": "Non-binary",
+        "trans-woman": "Trans woman",
+        "trans-man": "Trans man",
+        "agender": "Agender",
+        "other": "Other / describe in bio"
+      }
+    },
+    "pronounsLabel": "Pronouns",
+    "pronouns": {
+      "placeholder": "Select pronouns",
+      "hint": "Shown in the product and in AI-generated copy.",
+      "customPlaceholder": "e.g. fae/faer",
+      "option": {
+        "unspecified": "Prefer not to say",
+        "she/her": "She / Her",
+        "he/him": "He / Him",
+        "they/them": "They / Them",
+        "she/they": "She / They",
+        "he/they": "He / They",
+        "custom": "Custom"
+      }
+    },
+    "timezone": "Timezone",
+    "selectTimezone": "Select timezone",
+    "timezoneFootnote": "For calendars and reminders only. It does not switch light vs dark — that is Appearance below or the header control.",
+    "appearance": {
+      "title": "Appearance",
+      "followingDark": "Following device — Circe (dark)",
+      "followingLight": "Following device — Venus (light)",
+      "pinnedDark": "Pinned — Circe (dark)",
+      "pinnedLight": "Pinned — Venus (light)",
+      "systemNote": "OS light/dark only. Calendar times still use the timezone you set above — not this preview.",
+      "pinVenusLight": "Pin Venus (light)",
+      "pinCirceDark": "Pin Circe (dark)",
+      "matchDevice": "Match device instead"
+    },
+    "signOut": "Sign out",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "timezones": {
+      "america_los_angeles": "Pacific Time (PT)",
+      "america_denver": "Mountain Time (MT)",
+      "america_chicago": "Central Time (CT)",
+      "america_new_york": "Eastern Time (ET)",
+      "europe_london": "London (GMT)",
+      "europe_paris": "Paris (CET)",
+      "asia_tokyo": "Tokyo (JST)",
+      "australia_sydney": "Sydney (AEST)"
+    }
+  },
+  "securityCard": {
+    "title": "Security",
+    "description": "Protect your Circe identity and integrations",
+    "passwordHeading": "Sign-in password",
+    "currentPasswordPlaceholder": "Current password",
+    "newPasswordPlaceholder": "New password",
+    "updatePassword": "Update password",
+    "errors": {
+      "fillBoth": "Enter current and new password.",
+      "newTooShort": "New password must be at least 6 characters.",
+      "noEmail": "No email on account.",
+      "currentWrong": "Current password is wrong.",
+      "updateFailed": "Failed to update password."
+    },
+    "successUpdated": "Password updated."
+  },
+  "locationVault": {
+    "title": "Golden Hour Location Vault",
+    "description": "Save one optional location to power sunset glow predictions and positioning recommendations.",
+    "encryptedBadge": "Encrypted",
+    "encryptionNote": "Stored encrypted at rest and used server-side to generate derived weather/light insights. Raw coordinates are not exposed in the well-being UI.",
+    "loading": "Loading location vault...",
+    "useCurrent": "Use my current location",
+    "gpsHint": "Prefer not to share device GPS? Pick a city preset below.",
+    "quickPicks": "Quick picks",
+    "preset": {
+      "montreal": "Montreal, Canada",
+      "la": "Los Angeles, US",
+      "miami": "Miami, US",
+      "london": "London, UK"
+    },
+    "searchPlaceholder": "Optional: city search (e.g. Montreal, Canada)",
+    "searchHint": "Manual search is optional. Most people can use current location or a quick pick.",
+    "savedLine": "Saved location:",
+    "save": "Save location",
+    "remove": "Remove",
+    "successSaved": "Location saved securely for glow insights.",
+    "successRemoved": "Location removed from vault.",
+    "errors": {
+      "saveFailed": "Failed to save location",
+      "queryTooShort": "Choose a preset, use your current location, or enter a city.",
+      "geoUnavailable": "Geolocation is not available on this device.",
+      "permissionDenied": "Location permission was denied. Please allow access and try again.",
+      "timeout": "Location request timed out. Try again.",
+      "genericGeo": "Could not read your current location.",
+      "deleteFailed": "Failed to delete location"
+    }
+  },
+  "birthdayVault": {
+    "title": "Cosmic Birthday Vault",
+    "badge": "Zero-Knowledge Encrypted",
+    "description": "Your birth data powers personalized astrological insights. Encrypted so only you can access it.",
+    "securityTitle": "Zero-Knowledge Security",
+    "securityBody": "Your birthday is encrypted on your device before being stored. Even we cannot see it. Only you, with your passphrase, can decrypt and view your birth data.",
+    "emptyTitle": "Unlock Your Cosmic Potential",
+    "emptyBody": "Add your birthday for personalized astrological readings, timing advice, and cosmic insights.",
+    "setupCta": "Set Up Cosmic Birthday",
+    "dialogSetupTitle": "Enter Your Birth Details",
+    "dialogSetupDescription": "Your data will be encrypted with your passphrase before storage.",
+    "birthDateLabel": "Birth Date *",
+    "includeTime": "Include birth time for day/night precision",
+    "birthTimePlaceholder": "Birth time (optional)",
+    "birthTimeHintOn": "Birth time enables day/night readings and more precise cosmic guidance.",
+    "birthTimeHintOff": "Birth time is optional but provides more accurate readings.",
+    "previewPrefix": "Preview:",
+    "previewElement": "Element",
+    "previewModality": "Modality",
+    "previewLifePath": "Life Path",
+    "dayBorn": "Day-born (Solar energy)",
+    "nightBorn": "Night-born (Lunar energy)",
+    "passphraseLabel": "Encryption Passphrase *",
+    "passphrasePlaceholder": "Create a strong passphrase",
+    "confirmPassphraseLabel": "Confirm Passphrase *",
+    "confirmPassphrasePlaceholder": "Confirm your passphrase",
+    "passphraseWarnTitle": "Important:",
+    "passphraseWarnBody": "We cannot recover your passphrase. If you forget it, you will need to delete and re-enter your birthday data.",
+    "cancel": "Cancel",
+    "encrypting": "Encrypting...",
+    "encryptSave": "Encrypt & Save",
+    "lockedTitle": "Birthday Data Locked",
+    "lockedHint": "Enter your passphrase to unlock cosmic insights",
+    "unlock": "Unlock",
+    "dialogUnlockTitle": "Unlock Your Cosmic Data",
+    "dialogUnlockDescription": "Enter your passphrase to decrypt and view your birthday data.",
+    "unlockPassphraseLabel": "Passphrase",
+    "unlockPassphrasePlaceholder": "Enter your passphrase",
+    "decrypting": "Decrypting...",
+    "forgotPassphrase": "Forgot your passphrase?",
+    "deleteStartOver": "Delete & Start Over",
+    "dialogDeleteTitle": "Delete Birthday Data",
+    "dialogDeleteDescription": "This will permanently delete your encrypted birthday data. You can set it up again afterward.",
+    "dialogDeleteDescriptionShort": "This will permanently delete your encrypted birthday data.",
+    "deleting": "Deleting...",
+    "deletePermanently": "Delete Permanently",
+    "lock": "Lock",
+    "delete": "Delete",
+    "tabOverview": "Overview",
+    "tabNumerology": "Numerology",
+    "tabTiming": "Timing",
+    "tabCosmic": "Cosmic",
+    "dayBornSoul": "Day-Born Soul",
+    "nightBornSoul": "Night-Born Soul",
+    "birthTimeUnknown": "Birth Time Unknown",
+    "labelRulingPlanet": "Ruling Planet",
+    "labelLuckyDay": "Lucky Day",
+    "keyTraits": "Key Traits",
+    "compatibleSigns": "Compatible Signs",
+    "lifePathNumber": "Life Path Number",
+    "personalYearLabel": "Personal Year ({year})",
+    "chineseZodiac": "Chinese Zodiac",
+    "luckyNumbers": "Lucky Numbers",
+    "bestPostingDays": "Best Posting Days",
+    "luckyPostingHours": "Lucky Posting Hours",
+    "monthlyPowerDays": "Monthly Power Days",
+    "monthlyPowerHint": "These dates each month align with your cosmic energy",
+    "retrogradeTitle": "Retrograde Advisory",
+    "dayBornLabel": "Day Born",
+    "seasonBornLabel": "Season Born",
+    "birthstoneLabel": "Birthstone",
+    "birthFlowerLabel": "Birth Flower",
+    "moonPhaseTitle": "Moon Phase at Birth",
+    "cosmicAdviceTitle": "Personalized Cosmic Advice",
+    "atTime": " at ",
+    "err": {
+      "cryptoUnsupported": "Your browser does not support the required encryption features.",
+      "noBirthDate": "Please enter your birth date",
+      "passphraseShort": "Passphrase must be at least 8 characters",
+      "passphraseMismatch": "Passphrases do not match",
+      "saveFailed": "Failed to save birthday. Please try again.",
+      "needPassphrase": "Please enter your passphrase",
+      "wrongPassphrase": "Incorrect passphrase. Please try again.",
+      "unlockFailed": "Failed to unlock. Check your passphrase.",
+      "deleteFailed": "Failed to delete birthday data."
+    },
+    "successStored": "Your cosmic birthday has been securely stored!",
+    "successDeleted": "Birthday data has been permanently deleted."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Choose what you want to hear about.",
+    "alertsHeading": "Alerts",
+    "email": {
+      "title": "Email notifications",
+      "hint": "Account updates by email"
+    },
+    "leak": {
+      "title": "Leak alerts"
+    },
+    "reputation": {
+      "title": "Reputation alerts"
+    },
+    "platform": {
+      "intro": "In-app notices when something changes on connected platforms (for example OnlyFans or Fansly).",
+      "heading": "Platform activity"
+    },
+    "everyMessage": {
+      "title": "Every new message",
+      "hint": "Notify for each new DM"
+    },
+    "everySubscriber": {
+      "title": "Every new subscriber",
+      "hint": "When someone subscribes"
+    },
+    "newTips": {
+      "title": "New tips",
+      "hint": "e.g. $50+ tips"
+    },
+    "subExpired": {
+      "title": "Subscription expired",
+      "hint": "When a fan's subscription lapses"
+    },
+    "subRenewed": {
+      "title": "Subscription renewed",
+      "hint": "When a fan renews"
+    },
+    "messages": {
+      "heading": "Messages",
+      "onlyfansNote": "OnlyFans can mark chats read on their servers when you open threads here — only if you opt in. You can still change read state per thread.",
+      "autoMark": {
+        "title": "Auto-mark read when I open a thread",
+        "hint": "Off by default so previews do not clear unread until you choose"
+      }
+    },
+    "reports": {
+      "heading": "Reports & updates"
+    },
+    "digest": {
+      "title": "Daily digest",
+      "hint": "Summary of your activity"
+    },
+    "weekly": {
+      "title": "Weekly report",
+      "hint": "Analytics and highlights"
+    },
+    "features": {
+      "title": "New features",
+      "hint": "Product announcements"
+    },
+    "marketing": {
+      "title": "Marketing email",
+      "hint": "Offers and updates from us"
+    }
+  },
+  "sessions": {
+    "title": "Active sessions",
+    "description": "Devices where you are signed in.",
+    "thisDevice": "This device",
+    "sampleMeta": "Chrome on macOS · Los Angeles",
+    "activeBadge": "Active",
+    "signOutOthers": "Sign out other sessions"
+  },
+  "integrations": {
+    "apiTitle": "API & integrations",
+    "viewPlans": "View plans"
+  },
+  "data": {
+    "yours": {
+      "title": "Your data",
+      "desc": "Export or refresh what we store for you."
+    },
+    "export": {
+      "title": "Export",
+      "hint": "Download a copy of your data",
+      "cta": "Request export"
+    },
+    "sync": {
+      "title": "Sync",
+      "hint": "Last synced 2 hours ago",
+      "cta": "Sync now"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "desc": "How we use telemetry and personalization."
+    },
+    "analytics": {
+      "title": "Analytics",
+      "hint": "Anonymous usage to improve the product"
+    },
+    "aiPersonal": {
+      "title": "Personalized AI",
+      "hint": "Learn from your preferences"
+    }
+  },
+  "danger": {
+    "title": "Danger zone",
+    "desc": "Irreversible actions — proceed only if you mean it.",
+    "deleteData": {
+      "title": "Delete data",
+      "hint": "Remove stored data, keep your account",
+      "cta": "Delete data"
+    },
+    "deleteAccount": {
+      "title": "Delete account",
+      "hint": "Permanently remove your account",
+      "cta": "Delete account"
+    }
+  },
+  "errors": {
+    "prefsSaveFailed": "Could not save preferences.",
+    "deleteAccountCancelled": "Delete cancelled."
+  },
+  "confirm": {
+    "deleteAccount": "Are you sure you want to delete your account? This action cannot be undone."
+  },
+  "avatar": {
+    "photoUpdated": "Profile photo updated from {platform}.",
+    "loadFailed": "Could not load photo from platform."
+  },
+  "mfa": {
+    "title": "Two-factor authentication",
+    "on": "On",
+    "off": "Off",
+    "description": "Enter a short code from an authenticator app after your password. Passphrases you use elsewhere in the app for encrypted data are separate from this step.",
+    "sessionPrefix": "Session ·",
+    "sessionAal2": "Authenticator verified",
+    "sessionAal1": "Password only",
+    "addAuthenticator": "Add authenticator",
+    "factorDefaultName": "Authenticator",
+    "friendlyApiName": "Authenticator app",
+    "remove": "Remove",
+    "dialogTitle": "Link authenticator",
+    "dialogDescription": "Scan this QR code, then enter the six-digit code your app generates.",
+    "preparing": "Preparing…",
+    "manualEntry": "Cannot scan? Enter manually",
+    "confirmationCode": "Confirmation code",
+    "otpAria": "Six-digit authentication code",
+    "cancel": "Cancel",
+    "verify": "Verify",
+    "err": {
+      "enrollUnavailable": "Multi-factor enrollment is not available for this account right now. Try again later.",
+      "enrollStart": "Enrollment could not start. Try again shortly.",
+      "incorrectCode": "Incorrect code.",
+      "verifyUnexpected": "Verification failed unexpectedly.",
+      "removeDetailed": "Could not remove this device. Sign in again and try once more.",
+      "removeGeneric": "Could not remove factor."
+    },
+    "success": {
+      "linked": "Authenticator linked.",
+      "removed": "Authenticator removed."
+    }
+  },
+  "housekeeping": {
+    "title": "Arrangements (smart lists)",
+    "description": "Smart classify fans by spend, DM/thread activity, cold engagement, and freeloader buckets — then sync to OnlyFans lists and Fansly tags. Configure under Fans → Arrangements.",
+    "cta": "Open Arrangements"
+  },
+  "social": {
+    "title": "Social",
+    "description": "Accounts used for reputation monitoring. Only you can connect or disconnect them.",
+    "twitter": "Twitter/X",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "connected": "Connected",
+    "notLinked": "Not linked",
+    "disconnect": "Disconnect",
+    "connect": "Connect"
+  },
+  "usageCredits": {
+    "title": "Usage & credits",
+    "subtitle": "Included allowance plus top-ups. Top-ups stay available into the next cycle.",
+    "available": "Available",
+    "creditsWord": "credits",
+    "balanceAria": "Balance mix: {includedPct}% included, {purchasedPct}% purchased",
+    "included": "Included",
+    "purchased": "Purchased",
+    "thisCycle": "This billing cycle: {used} / {limit} included used",
+    "spendTitle": "Spend intelligence",
+    "spendDescription": "Production-grade activity: see which products draw credits and review every ledger line — pick a timeframe.",
+    "tierBadge": "Tiered leaderboard for clarity",
+    "openPlannerFull": "Open full planner view",
+    "weekToggle": "This week",
+    "monthToggle": "This month",
+    "periodSpend": "Period spend",
+    "creditsDebited": "credits debited",
+    "ledgerLines": "Ledger lines",
+    "visibleWindow": "visible in this window",
+    "topMover": "Top mover",
+    "topMoverSubtitle": "Highest debit category",
+    "catLeaderboard": "Category leaderboard",
+    "noDebitYet": "No debit activity this period yet — automation and AI tools appear here automatically.",
+    "rankPrimaryDriver": "Primary driver of spend",
+    "rankByDebit": "Ranked by credits debited",
+    "activityFeed": "Activity feed",
+    "feed": {
+      "none": "No transactions",
+      "entries": "{count, plural, one {# entry} other {# entries}}",
+      "emptyBody": "No transactions in this window — your ledger will populate as soon as credits move."
+    },
+    "allocationTitle": "Allocation planner",
+    "allocationDescription": "The same playbook that lives in Tools — surfaced here beside your real spend.",
+    "loadingCredits": "Loading credits",
+    "ledger": {
+      "debit": "Debit",
+      "credit": "Credit",
+      "expireAdjustment": "Cycle"
+    },
+    "periodCaption": {
+      "weekFallback": "Trailing 7 days",
+      "monthFallback": "Calendar month to date"
+    }
+  },
+  "billing": {
+    "planSectionTitle": "Plan & billing",
+    "planSectionDescription": "Current subscription, credits, and quick actions.",
+    "divineTrial": "Divine Trial",
+    "active": "Active",
+    "free": "Free",
+    "trial": "Trial",
+    "trialEnds": "Ends {date}",
+    "trialEnded": "Ended {date}",
+    "trialExpired": "Trial expired",
+    "trialRedeemed": "Trial redeemed",
+    "renews": "Renews {date}",
+    "renewsSoon": "Renews soon",
+    "viewPlansBelow": "View plans below",
+    "perMonth": "per month",
+    "manageBilling": "Manage billing",
+    "paymentMethod": "Payment method",
+    "cancelSubscription": "Cancel subscription",
+    "viewPlans": "View plans",
+    "period": "Period",
+    "daysLeft": "days left",
+    "daysUntilEnd": "days until end",
+    "aiCreditsLabel": "AI credits",
+    "includedPurchasedMix": "{included} included · {purchased} purchased",
+    "trialPool": "Trial pool: {n} credits (card verified).",
+    "activateAfterStripe": "Credits activate after card setup in Stripe.",
+    "creditsPerUsd": "{n} credits per $1.",
+    "storageLabel": "Storage",
+    "messagesLabel": "Messages",
+    "messagesSubtitle": "this month (est.)",
+    "subscriptionEnding": "Subscription ending",
+    "subscriptionEndingBody": "Access continues through {date}.",
+    "periodEndFallback": "the end of the period",
+    "resumeBilling": "Resume billing",
+    "payCompleteTitle": "Payment complete",
+    "payPendingTitle": "Payment recorded",
+    "payFinalizingTitle": "Finalizing",
+    "syncingCredits": "Payment confirmed. Syncing your latest credits...",
+    "paySuccessMsg": "Payment successful — your credits are now updated.",
+    "payReconcileMsg": "Payment is confirmed. Final reconciliation is in progress and will update shortly.",
+    "refreshBalance": "Refresh balance",
+    "walletUpdated": "Wallet updated",
+    "notSyncedYet": "Not synced yet",
+    "syncTitle": "Sync",
+    "topUpTitle": "Top Up Credits",
+    "topUpDescription": "Fast top-ups for peak demand. Purchased credits roll one extra month.",
+    "customAmount": "Custom amount",
+    "customMinCheckout": "Minimum ${min} for checkout ({perUsd} credits per $1)",
+    "purchaseCredits": "Purchase credits",
+    "creditsUsdLine": "${usd} · {credits} credits",
+    "enterAtLeast": "Enter at least ${min}",
+    "creditsStarterLine": "500 credits",
+    "creditsStarterPrice": "$5",
+    "creditsMidLine": "1,000 credits",
+    "creditsMidPrice": "$10",
+    "creditsPlusLine": "2,500 credits",
+    "creditsPlusPrice": "$25",
+    "plannerCardTitle": "Credits planner",
+    "plannerCardSubtitle": "Day-by-day planning lives on the dashboard.",
+    "openPlanner": "Open planner",
+    "pricingPlansTitle": "Plans & pricing",
+    "pricingPlansDescriptionLead": "Same tiers as the",
+    "publicPricingLink": "public pricing page",
+    "pricingPlansDescriptionTrail": "Checkout uses the total shown in the estimate below.",
+    "manyvidsCheckboxAria": "Include anti-piracy coverage for other storefronts with Bundled plan. {credits, number} AI credits per billing cycle.",
+    "antipiracyOtherPlatformsTitle": "Anti-piracy coverage for other platforms",
+    "coverageInfoTrigger": "Coverage",
+    "antipiracyPopoverStorefrontsTitle": "Storefronts",
+    "antipiracyPopoverStorefrontsBody": "Same coverage family as the multi-platform row on pricing (Clips4Sale, Fanvue, Loyalfans, MYM, and similar). Bundled into your workspace total—not a separate subscription.",
+    "antipiracyPopoverStandaloneRich": "Broader standalone Protection (separate bill) is <highlight>coming soon</highlight> from the Protection card below—we are not enrolling new plans yet.",
+    "antipiracyPopoverStandaloneAvailable": "For standalone protection across more sites, use the Protection add-on below (separate bill).",
+    "antipiracySrOnlyLead": "Anti-piracy coverage for additional storefronts with Bundled plan only. {credits, number} AI credits per billing cycle. Price follows your revenue band.",
+    "antipiracySrOnlyComingSoon": "Standalone Multiplatform Protection below is coming soon for new subscriptions.",
+    "antipiracySrOnlySeparate": "Protection add-on below is billed separately.",
+    "estimateAntiPiracyAddon": "Anti-piracy add-on",
+    "estimateFocusTotal": "Focus total",
+    "estimateAddon": "Add-on estimate",
+    "perMoAbbrev": "/mo",
+    "fullRevenueBandMatrix": "Full revenue band matrix",
+    "showAllTiers": "Show all tiers",
+    "matrixColRevenue": "Revenue",
+    "matrixColOnlyfans": "OnlyFans",
+    "matrixColFansly": "Fansly",
+    "matrixColBundled": "Bundled (OnlyFans + Fansly)",
+    "protectionStandaloneEyebrow": "Stand alone",
+    "protectionPlanFallbackName": "Protection & Anti-Piracy",
+    "comingSoonBadge": "Coming soon",
+    "protectionDescComingSoon": "Standalone anti-piracy for extra fan and clip storefronts will be available as its own Protection subscription—we are not enrolling new plans yet. ManyVids Bundled add-on above stays on your main subscription when selected.",
+    "protectionDescLive": "Standalone monthly anti-piracy for extra fan and clip storefronts—leak checks, takedown help, and a dedicated Protection hub. Separate bill from single-platform and Bundled plans: ManyVids on the Bundled plan above is part of that subscription; Protection is its own subscription for broader storefront coverage.",
+    "protectionActiveOnAccount": "Active on your account.",
+    "protectionEnrollmentClosed": "New subscriptions are not open yet. We will enable checkout on this card when Multiplatform Protection enrollment launches.",
+    "monthlyEyebrow": "Monthly",
+    "protectionUpdatePayment": "Update payment",
+    "protectionSubscribeCta": "Subscribe — {price}{period}",
+    "trialCardEyebrow": "Trial",
+    "trialUnlockHeading": "Unlock trial access",
+    "trialUnlockBody": "Add a card on file—no charge until the trial ends. Trial credits activate once Stripe confirms your payment method.",
+    "trialDueToday": "Due today",
+    "trialPoolActiveLine": "{credits, number} AI credits in the trial pool while your trial is active.",
+    "trialAddCardCta": "Add card · start trial",
+    "trialFinePrint": "Billing begins when the trial window ends unless you cancel beforehand. You authorize future charges by completing Stripe Checkout.",
+    "documentsEyebrow": "Documents",
+    "invoicesHeading": "Invoices",
+    "invoicesDescription": "Hosted by Stripe—the same ledger and receipts as Checkout and your billing portal.",
+    "viewInvoices": "View invoices",
+    "opensStripePortal": "Opens Stripe Customer Portal",
+    "invoicesNothingYet": "Nothing yet",
+    "invoicesSubscribeHint": "Subscribe and your invoice PDFs will show up here—delivered through Stripe automatically.",
+    "antipiracyBundledWorkspace": "Bundled workspace",
+    "storageTooltipVault": "Creatix vault: {quotaMb} MB cap ({quotaSource}). Usage from Supabase Storage.",
+    "storageTooltipFallback": "Storage cap: {capMb} MB. Connect to load live usage from the vault."
+  }
 }

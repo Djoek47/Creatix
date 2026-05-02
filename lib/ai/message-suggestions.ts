@@ -341,7 +341,7 @@ ${instruction}`
   const { text, usage } = await generateText({
     model: gateway(selectedModel),
     temperature: ctx.mode === 'scan' ? 0.35 : 0.62,
-    maxTokens: 800,
+    maxOutputTokens: 800,
     prompt: userPrompt,
   })
 

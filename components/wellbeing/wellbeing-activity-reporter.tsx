@@ -32,8 +32,9 @@ async function postActivity(body: Record<string, unknown>) {
 export function WellbeingActivityReporter() {
   const pathname = usePathname()
   const pendingKind = useRef<'primary_click' | null>(null)
-  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pathTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Browser timers are numeric ids; avoid NodeJS.Timeout vs number mismatch under @types/node. */
+  const flushTimer = useRef<number | null>(null)
+  const pathTimer = useRef<number | null>(null)
   const lastPath = useRef<string | null>(null)
 
   const scheduleFlush = useCallback(() => {

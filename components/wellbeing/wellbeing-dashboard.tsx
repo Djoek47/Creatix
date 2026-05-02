@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ArrowUpRight, ChevronDown, ExternalLink, Gift, Info } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -23,10 +24,10 @@ import type { PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 import { WellbeingLunarCalendar } from '@/components/wellbeing/wellbeing-lunar-calendar'
 import { useFlowEnergyAwayRecovery } from '@/hooks/use-flow-energy-away-recovery'
 
-function severityLabel(s: PulseSeverity): string {
-  if (s === 'steady') return 'Steady'
-  if (s === 'attend') return 'Attend'
-  return 'Intervene'
+function severityLabel(s: PulseSeverity, t: (key: string) => string): string {
+  if (s === 'steady') return t('severitySteady')
+  if (s === 'attend') return t('severityAttend')
+  return t('severityIntervene')
 }
 
 function severityBadgeClass(s: PulseSeverity): string {
@@ -55,6 +56,8 @@ function QuietBanner({ children, tone = 'neutral' }: { children: ReactNode; tone
 }
 
 export function WellbeingDashboard() {
+  const tStrip = useTranslations('wellbeing.stateStrip')
+  const tDash = useTranslations('wellbeing.dashboard')
   const { pulse, loading: pulseLoading, refresh } = useDashboardPulse()
   const [insight, setInsight] = useState<GlowInsightsPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +77,7 @@ export function WellbeingDashboard() {
         const insightJson = (await insightRes.json().catch(() => ({}))) as Record<string, unknown>
         if (!cancelled) {
           if (!insightRes.ok) {
-            setError(typeof insightJson?.error === 'string' ? insightJson.error : 'Glow insights unavailable.')
+            setError(typeof insightJson?.error === 'string' ? insightJson.error : tDash('glowInsightsError'))
             setInsight(null)
           } else {
             setInsight(insightJson as GlowInsightsPayload)
@@ -87,7 +90,7 @@ export function WellbeingDashboard() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [tDash])
 
   const pageLoading = pulseLoading && !pulse
 
@@ -97,10 +100,10 @@ export function WellbeingDashboard() {
   const baselineNote = useMemo(() => {
     if (!insight?.insightSource || insight.insightSource === 'location') return null
     if (insight.insightSource === 'birthday') {
-      return 'Birthday-based lighting. Add location in Settings for weather-aware golden hour.'
+      return tDash('baselineBirthday')
     }
-    return 'Rough lighting until you add birthday or location in Settings.'
-  }, [insight])
+    return tDash('baselineRough')
+  }, [insight, tDash])
 
   const flowUnavailable = !pulseLoading && !pulseFlow
 
@@ -111,9 +114,9 @@ export function WellbeingDashboard() {
           className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
           style={{ animationDuration: '0.85s' }}
           role="status"
-          aria-label="Loading"
+          aria-label={tDash('loadingAria')}
         />
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{tDash('loading')}</p>
       </div>
     )
   }
@@ -125,7 +128,7 @@ export function WellbeingDashboard() {
       <AmbientLayer glowScore={glowScoreForAmbient} />
       <div className="relative z-10 space-y-7 sm:space-y-8">
         <header className="text-center sm:text-left">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem]">Well-being</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem]">{tDash('title')}</h1>
         </header>
 
         <WellbeingStateStrip
@@ -148,10 +151,10 @@ export function WellbeingDashboard() {
                 variant="outline"
                 className={cn('rounded-full text-[10px] font-semibold uppercase tracking-wide', severityBadgeClass(pulse.severity))}
               >
-                {severityLabel(pulse.severity)}
+                {severityLabel(pulse.severity, tStrip)}
               </Badge>
               {pulse.narrativeSource === 'ai' ? (
-                <span className="text-[10px] text-muted-foreground/75">AI-refined</span>
+                <span className="text-[10px] text-muted-foreground/75">{tDash('aiRefined')}</span>
               ) : null}
             </div>
             <h2 className="text-balance text-2xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-[1.625rem]">
@@ -177,7 +180,7 @@ export function WellbeingDashboard() {
 
             <Collapsible className="rounded-2xl border border-border/30 bg-background/35">
               <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-                <span>Signals</span>
+                <span>{tDash('signals')}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
               </CollapsibleTrigger>
               <CollapsibleContent className="border-t border-border/20 px-4 pb-4 pt-2">
@@ -194,7 +197,7 @@ export function WellbeingDashboard() {
           </motion.section>
         ) : (
           <motion.section {...fadeInUp} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-snug text-muted-foreground">Pulse couldn&apos;t load.</p>
+            <p className="text-sm leading-snug text-muted-foreground">{tDash('pulseLoadError')}</p>
             <Button
               type="button"
               variant="outline"
@@ -202,7 +205,7 @@ export function WellbeingDashboard() {
               className="h-9 shrink-0 self-start rounded-full sm:self-auto"
               onClick={() => void refresh(true)}
             >
-              Retry
+              {tDash('retry')}
             </Button>
           </motion.section>
         )}
@@ -228,7 +231,7 @@ export function WellbeingDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/30 bg-background/50">
                 <Gift className="h-4 w-4 text-muted-foreground" aria-hidden />
               </div>
-              <span className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">Gift wishlist</span>
+              <span className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">{tDash('giftWishlist')}</span>
             </Link>
             <Popover>
               <PopoverTrigger asChild>
@@ -237,17 +240,14 @@ export function WellbeingDashboard() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 shrink-0 rounded-full text-muted-foreground"
-                  aria-label="About Gift wishlist"
+                  aria-label={tDash('aboutGiftWishlistAria')}
                 >
                   <Info className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] text-sm leading-relaxed" align="end" sideOffset={6}>
-                <p className="font-medium text-foreground">Wishlist</p>
-                <p className="mt-2 text-muted-foreground">
-                  Save links you like—we pull title and price when possible. Agents can use them for gifting context.
-                  Editing the list is free; running Gift Suggester uses credits.
-                </p>
+                <p className="font-medium text-foreground">{tDash('wishlist')}</p>
+                <p className="mt-2 text-muted-foreground">{tDash('wishlistPopoverBody')}</p>
               </PopoverContent>
             </Popover>
           </div>
@@ -256,7 +256,7 @@ export function WellbeingDashboard() {
         <motion.section {...fadeInUp}>
           <Collapsible defaultOpen className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]">
             <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-              <span>Flow</span>
+              <span>{tDash('flow')}</span>
               <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -275,11 +275,11 @@ export function WellbeingDashboard() {
           <motion.div {...fadeInUp}>
             <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-background/30 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm leading-snug text-muted-foreground">
-                {error || 'Environment details missing.'}
+                {error || tDash('envMissing')}
               </p>
               <Button asChild variant="secondary" className="h-9 shrink-0 rounded-full self-start sm:self-auto">
                 <Link href="/dashboard/settings?tab=profile">
-                  Open settings
+                  {tDash('openSettings')}
                   <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -294,7 +294,7 @@ export function WellbeingDashboard() {
               className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]"
             >
               <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
-                <span>Light</span>
+                <span>{tDash('light')}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-6 border-t border-border/20 p-4 sm:p-5 sm:space-y-7">
@@ -302,7 +302,7 @@ export function WellbeingDashboard() {
                 <GoldenHourTimeline timeline={insight.timeline} />
                 <PerfectShotCarousel days={insight.perfectShotDays} />
                 <div className="space-y-3 pt-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Suggestions</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{tDash('suggestions')}</h3>
                   <FloatingActionCapsules actions={insight.actionCapsules} />
                 </div>
               </CollapsibleContent>

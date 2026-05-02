@@ -19,7 +19,7 @@ import {
   adultPlatformBillingGateWhenEitherConnected,
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
 } from '@/lib/onlyfans-api-route'
-import { fetchOnlyFansInboxChatsCached } from '@/lib/onlyfans-inbox-chats-cache'
+import { fetchOnlyFansInboxChatsCached, type InboxCachedOfConv } from '@/lib/onlyfans-inbox-chats-cache'
 
 export const maxDuration = 60
 
@@ -32,7 +32,7 @@ type RawConv = {
   crm?: InboxCrmPayload | null
 }
 
-function normalizeOfChat(chat: any): RawConv | null {
+function normalizeOfChat(chat: any): InboxCachedOfConv | null {
   const user = chat?.user || chat?.fan
   if (!user?.id) return null
   const lm = chat?.lastMessage

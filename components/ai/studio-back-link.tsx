@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 /** Shared control: quiet surface, chevron (iOS-style), soft focus — matches AI tool headers. */
@@ -19,9 +22,11 @@ type StudioBackLinkProps = {
   className?: string
 }
 
-export function StudioBackLink({ href, 'aria-label': ariaLabel = 'Back', className }: StudioBackLinkProps) {
+export function StudioBackLink({ href, 'aria-label': ariaLabel, className }: StudioBackLinkProps) {
+  const t = useTranslations('ai-tools')
+  const label = ariaLabel ?? t('chrome.back')
   return (
-    <Link href={href} aria-label={ariaLabel} className={cn(studioBackLinkClassName, className)}>
+    <Link href={href} aria-label={label} className={cn(studioBackLinkClassName, className)}>
       <ChevronLeft className="size-[18px] opacity-[0.92]" strokeWidth={2} aria-hidden />
     </Link>
   )
@@ -35,12 +40,14 @@ type StudioBackButtonProps = {
 }
 
 /** Same chrome as `StudioBackLink` for in-place dismiss (e.g. closing tool workspace without leaving the app). */
-export function StudioBackButton({ onClick, 'aria-label': ariaLabel = 'Back', className }: StudioBackButtonProps) {
+export function StudioBackButton({ onClick, 'aria-label': ariaLabel, className }: StudioBackButtonProps) {
+  const t = useTranslations('ai-tools')
+  const label = ariaLabel ?? t('chrome.back')
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel}
+      aria-label={label}
       className={cn(studioBackLinkClassName, className)}
     >
       <ChevronLeft className="size-[18px] opacity-[0.92]" strokeWidth={2} aria-hidden />

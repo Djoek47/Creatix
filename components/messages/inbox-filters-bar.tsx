@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,12 +13,12 @@ import {
 import { cn } from '@/lib/utils'
 import type { InboxSegment, InboxSort, InboxPlatformFilter } from '@/lib/messages/inbox-crm'
 
-const SEGMENTS: { id: InboxSegment; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-  { id: 'whales', label: 'Whales' },
-  { id: 'creators', label: 'Creators' },
-  { id: 'fans', label: 'Fans' },
+const SEGMENT_IDS: { id: InboxSegment; labelKey: 'segmentAll' | 'segmentUnread' | 'segmentWhales' | 'segmentCreators' | 'segmentFans' }[] = [
+  { id: 'all', labelKey: 'segmentAll' },
+  { id: 'unread', labelKey: 'segmentUnread' },
+  { id: 'whales', labelKey: 'segmentWhales' },
+  { id: 'creators', labelKey: 'segmentCreators' },
+  { id: 'fans', labelKey: 'segmentFans' },
 ]
 
 type InboxFiltersBarProps = {
@@ -43,10 +44,12 @@ export function InboxFiltersBar({
   onTagChange,
   className,
 }: InboxFiltersBarProps) {
+  const t = useTranslations('messages.inbox')
+
   return (
     <div className={cn('flex flex-col gap-3 border-b border-border/60 pb-3', className)}>
       <div className="flex flex-wrap gap-1">
-        {SEGMENTS.map(({ id, label }) => (
+        {SEGMENT_IDS.map(({ id, labelKey }) => (
           <Button
             key={id}
             type="button"
@@ -55,33 +58,33 @@ export function InboxFiltersBar({
             className="h-7 shrink-0 whitespace-nowrap rounded-full px-2.5 text-[11px] font-medium"
             onClick={() => onSegmentChange(id)}
           >
-            {label}
+            {t(labelKey)}
           </Button>
         ))}
       </div>
       <div className="flex min-w-0 flex-col gap-2">
         <Select value={platform} onValueChange={(v) => onPlatformChange(v as InboxPlatformFilter)}>
           <SelectTrigger className="h-9 w-full min-w-0 rounded-xl text-xs">
-            <SelectValue placeholder="Platform" />
+            <SelectValue placeholder={t('platformPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All platforms</SelectItem>
+            <SelectItem value="all">{t('allPlatforms')}</SelectItem>
             <SelectItem value="onlyfans">OnlyFans</SelectItem>
             <SelectItem value="fansly">Fansly</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => onSortChange(v as InboxSort)}>
           <SelectTrigger className="h-9 w-full min-w-0 rounded-xl text-xs">
-            <SelectValue placeholder="Sort" />
+            <SelectValue placeholder={t('sortPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="recent">Recent</SelectItem>
-            <SelectItem value="spend">Spend</SelectItem>
-            <SelectItem value="unread">Unread first</SelectItem>
+            <SelectItem value="recent">{t('sortRecent')}</SelectItem>
+            <SelectItem value="spend">{t('sortSpend')}</SelectItem>
+            <SelectItem value="unread">{t('sortUnreadFirst')}</SelectItem>
           </SelectContent>
         </Select>
         <Input
-          placeholder="Tag or note…"
+          placeholder={t('tagPlaceholder')}
           className="h-9 min-w-0 w-full rounded-xl text-xs"
           value={tag}
           onChange={(e) => onTagChange(e.target.value)}

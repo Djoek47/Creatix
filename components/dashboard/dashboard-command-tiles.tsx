@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import {
   MessageSquare,
   Sparkles,
@@ -13,43 +14,48 @@ import {
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
 
+type HomeTileKey = 'messages' | 'aiStudio' | 'protection' | 'wellBeing' | 'creditsPlanner'
+
+function homeTileTitle(t: (key: string) => string, key: HomeTileKey): string {
+  return t(`${key}.title`)
+}
+
+function homeTileDescription(t: (key: string) => string, key: HomeTileKey): string {
+  return t(`${key}.description`)
+}
+
 const tiles = [
   {
     href: '/dashboard/messages',
-    title: 'Messages',
-    description: 'Conversations and mass outreach',
+    tileKey: 'messages' as const satisfies HomeTileKey,
     icon: MessageSquare,
     accent: 'from-circe/20 to-circe/5 border-circe/25 hover:border-circe/45',
     iconClass: 'text-circe',
   },
   {
     href: '/dashboard/ai-studio',
-    title: 'AI Studio',
-    description: 'Tools, churn insight, and creative edge',
+    tileKey: 'aiStudio' as const satisfies HomeTileKey,
     icon: Sparkles,
     accent: 'from-gold/15 to-amber-500/5 border-gold/25 hover:border-gold/45',
     iconClass: 'text-gold',
   },
   {
     href: '/dashboard/protection',
-    title: 'Protection',
-    description: 'Leaks, watermarks, and peace of mind',
+    tileKey: 'protection' as const satisfies HomeTileKey,
     icon: Shield,
     accent: 'from-primary/15 to-primary/5 border-primary/20 hover:border-primary/40',
     iconClass: 'text-primary',
   },
   {
     href: '/dashboard/well-being',
-    title: 'Well-being',
-    description: 'Rhythm, pressure, and balance',
+    tileKey: 'wellBeing' as const satisfies HomeTileKey,
     icon: HeartPulse,
     accent: 'from-venus/15 to-venus/5 border-venus/25 hover:border-venus/45',
     iconClass: 'text-venus',
   },
   {
     href: '/dashboard/credits-planner',
-    title: 'Credits Planner',
-    description: 'Smart premium credit allocation',
+    tileKey: 'creditsPlanner' as const satisfies HomeTileKey,
     icon: BarChart3,
     accent: 'from-gold/15 to-purple-500/5 border-gold/25 hover:border-gold/45',
     iconClass: 'text-gold',
@@ -72,6 +78,7 @@ const tileItem = {
 }
 
 export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier = false }: DashboardCommandTilesProps) {
+  const t = useTranslations('dashboard.homeTiles')
   const reduce = useReducedMotion()
   const tilesActive = nonApiProtectionTier
     ? tiles.filter((t) => t.href !== '/dashboard/messages' && t.href !== '/dashboard/ai-studio')
@@ -126,8 +133,12 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
                   <tile.icon className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0 pt-0.5">
-                  <p className="text-[15px] font-semibold tracking-tight text-foreground">{tile.title}</p>
-                  <p className="mt-1 text-[13px] leading-snug text-muted-foreground/90">{tile.description}</p>
+                  <p className="text-[15px] font-semibold tracking-tight text-foreground">
+                    {homeTileTitle(t, tile.tileKey)}
+                  </p>
+                  <p className="mt-1 text-[13px] leading-snug text-muted-foreground/90">
+                    {homeTileDescription(t, tile.tileKey)}
+                  </p>
                 </div>
               </div>
             </Link>
@@ -142,7 +153,7 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
             className="inline-flex items-center gap-2 rounded-full border border-border/35 bg-background/50 px-3.5 py-1.5 text-[12px] font-medium text-muted-foreground shadow-sm backdrop-blur-md transition-colors duration-200 hover:border-border/55 hover:bg-background/65 hover:text-foreground dark:border-white/[0.10] dark:bg-white/[0.05]"
           >
             <LayoutDashboard className="h-3.5 w-3.5" aria-hidden />
-            Divine Manager
+            {t('divineManager')}
           </Link>
         </div>
       ) : null}

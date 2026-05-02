@@ -1,7 +1,8 @@
 /**
  * Run AI Studio tools by id + args (same routes as the dashboard library; uses session cookie).
  */
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { englishToolDescription, englishToolName } from '@/lib/ai/ai-tools-english-copy'
+import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { runDivineAiToolServer, isDivineAiToolId, type DivineAiToolId } from '@/lib/divine/run-ai-tool-core'
 
 /** Build a prompt for /api/ai/tool-run when no dedicated API mapping exists. */
@@ -71,22 +72,24 @@ export async function runAiStudioToolServer(
   args: Record<string, unknown>,
   cookie: string,
 ): Promise<RunAiStudioToolResult> {
-  const meta = getToolMeta(toolId)
+  const canonical = resolveCanonicalToolId(toolId)
+  const meta = getToolMeta(canonical)
   if (!meta) {
     return { success: false, error: `Unknown tool id: ${toolId}` }
   }
+  const displayName = englishToolName(canonical)
   if (meta.comingSoon) {
-    return { success: false, error: `${meta.name} is not available yet.` }
+    return { success: false, error: `${displayName} is not available yet.` }
   }
   if (!meta.hasRunner) {
     return {
       success: false,
-      error: `Tool "${meta.name}" has no API runner in AI Studio. Use a listed tool id with hasRunner.`,
+      error: `Tool "${displayName}" has no API runner in AI Studio. Use a listed tool id with hasRunner.`,
     }
   }
   const a = args ?? {}
 
-  if (toolId === 'commenter') {
+  if (canonical === 'commenter') {
     return {
       success: true,
       result: {
@@ -96,7 +99,7 @@ export async function runAiStudioToolServer(
     }
   }
 
-  if (toolId === 'housekeeping') {
+  if (canonical === 'housekeeping') {
     return {
       success: true,
       result: {
@@ -106,11 +109,11 @@ export async function runAiStudioToolServer(
     }
   }
 
-  if (isDivineAiToolId(toolId)) {
-    return runDivineAiToolServer(toolId as DivineAiToolId, a, cookie)
+  if (isDivineAiToolId(canonical)) {
+    return runDivineAiToolServer(canonical as DivineAiToolId, a, cookie)
   }
 
-  switch (toolId) {
+  switch (canonical) {
     case 'fantasy-writer':
       return postAi('fantasy-writer', {
         scenario: a.scenario ?? a.contentDescription ?? a.description ?? '',
@@ -215,8 +218,8 @@ export async function runAiStudioToolServer(
       }
     default: {
       const fromArgs = buildGenericToolRunPrompt(a).trim()
-      const fallback = `The creator is using Divine Manager. Help them with "${meta.name}" (${meta.description}). Give concrete, actionable output they can use today.`
-      return postAi('tool-run', { toolId, prompt: fromArgs || fallback }, cookie)
+      const fallback = `The creator is using Divine Manager. Help them with "${displayName}" (${englishToolDescription(canonical)}). Give concrete, actionable output they can use today.`
+      return postAi('tool-run', { toolId: canonical, prompt: fromArgs || fallback }, cookie)
     }
   }
 }

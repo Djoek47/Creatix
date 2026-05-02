@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { VoiceInputButton } from '@/components/voice-input-button'
@@ -11,12 +12,13 @@ export type DefaultToolRunnerInputsProps = {
 }
 
 export function DefaultToolRunnerInputs({ easy, contentDescription, setContentDescription }: DefaultToolRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.shared')
   if (easy) {
     return (
       <div className="space-y-2">
-        <Label>What do you need?</Label>
+        <Label>{t('whatDoYouNeed')}</Label>
         <Textarea
-          placeholder="Describe it in plain language…"
+          placeholder={t('describePlain')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"
@@ -29,7 +31,7 @@ export function DefaultToolRunnerInputs({ easy, contentDescription, setContentDe
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Input</Label>
+          <Label>{t('input')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -37,7 +39,7 @@ export function DefaultToolRunnerInputs({ easy, contentDescription, setContentDe
           />
         </div>
         <Textarea
-          placeholder="Enter your request..."
+          placeholder={t('enterRequest')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"

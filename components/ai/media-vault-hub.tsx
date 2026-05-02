@@ -29,6 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Archive, Clapperboard, Download, Loader2, ImageIcon, Link2, Mic, Save, Shield, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { VaultQuickAdd } from '@/components/ai/vault-quick-add'
+import { uploadVaultVideoDirect } from '@/lib/vault-upload-video-direct'
 import { VaultHoverPlayVideo } from '@/components/ai/vault-hover-cinema-video'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
@@ -37,6 +38,7 @@ import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { toast } from '@/components/ui/use-toast'
+import { useTranslations } from 'next-intl'
 
 /** Billing id matches `POST /api/ai/photo-edit-intent` (`requireAiToolSessionAndCredits`). */
 const VAULT_PHOTO_AI_TOOL_ID = 'photo-enhancer' as const
@@ -44,6 +46,7 @@ const VAULT_PHOTO_AI_TOOL_ID = 'photo-enhancer' as const
 const SETTINGS_INTEGRATIONS_HREF = '/dashboard/settings?tab=integrations'
 
 function VaultPlatformConnectEmpty({ platform }: { platform: 'onlyfans' | 'fansly' }) {
+  const tm = useTranslations('ai-tools.mediaVault')
   const isOf = platform === 'onlyfans'
   const label = isOf ? 'OnlyFans' : 'Fansly'
 
@@ -51,12 +54,10 @@ function VaultPlatformConnectEmpty({ platform }: { platform: 'onlyfans' | 'fansl
     <div className="flex min-h-[min(52vh,460px)] flex-col items-center justify-center gap-8 px-4 py-12 text-center sm:px-6">
       <div className="max-w-[28ch] space-y-2">
         <h3 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground sm:text-lg">
-          Connect {label}
+          {isOf ? tm('connectTitleOnlyfans') : tm('connectTitleFansly')}
         </h3>
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          {isOf
-            ? 'Link your creator account to pull posts into Creatix and add them to your vault.'
-            : 'Link your Fansly account in Settings. Post browse here will follow the same flow as OnlyFans.'}
+          {isOf ? tm('connectBodyOnlyfans') : tm('connectBodyFansly')}
         </p>
       </div>
 
@@ -79,10 +80,10 @@ function VaultPlatformConnectEmpty({ platform }: { platform: 'onlyfans' | 'fansl
           )}
         />
         <span className="text-[14px] font-semibold tracking-[-0.015em] text-foreground">
-          Sign in with {label}
+          {tm('signInWith', { label })}
         </span>
         <span className="max-w-[22ch] text-[11px] leading-snug text-muted-foreground">
-          Opens Settings → Integrations to finish connecting securely.
+          {tm('opensIntegrationsHint')}
         </span>
       </Link>
     </div>
@@ -180,9 +181,10 @@ function VaultPreviewSurface({
   /** When true, video tiles play on hover (respects reduced motion). */
   hoverPlayVideo?: boolean
 }) {
+  const tm = useTranslations('ai-tools.mediaVault')
   const media = resolveVaultPreviewMedia(row)
   const placeholderCls = placeholderIconClass ?? 'h-10 w-10 text-muted-foreground'
-  const titleLabel = row.title.trim() || 'Vault video preview'
+  const titleLabel = row.title.trim() || tm('defaultVideoPreviewTitle')
 
   if (media.kind === 'video') {
     const poster = httpVaultUrl(row.thumbnail_url)
@@ -214,6 +216,8 @@ function VaultPreviewSurface({
 }
 
 export function MediaVaultHub() {
+  const tm = useTranslations('ai-tools.mediaVault')
+  const tAi = useTranslations('ai-tools')
   const supabase = createClient()
   const [rows, setRows] = useState<VaultContentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -286,7 +290,11 @@ export function MediaVaultHub() {
           )
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
-        data = fb.data
+        data =
+          (fb.data ?? []).map((row) => ({
+            ...row,
+            vault_storage_path: null as string | null,
+          })) ?? null
         error = fb.error
       }
 
@@ -319,7 +327,7 @@ export function MediaVaultHub() {
       const json = (await res.json()) as { posts?: OfPost[]; error?: string; total?: number }
       if (!res.ok) {
         setOfNeedsConnect(false)
-        setOfError(json.error || 'Failed to load')
+        setOfError(json.error || tm('errorFailedToLoad'))
         setOfPosts([])
         return
       }
@@ -333,12 +341,12 @@ export function MediaVaultHub() {
       setOfPosts(Array.isArray(json.posts) ? json.posts : [])
     } catch {
       setOfNeedsConnect(false)
-      setOfError('Network error')
+      setOfError(tm('errorNetwork'))
       setOfPosts([])
     } finally {
       setOfLoading(false)
     }
-  }, [])
+  }, [tm])
 
   const refreshFanslyConnection = useCallback(async () => {
     const {
@@ -420,7 +428,7 @@ export function MediaVaultHub() {
   const deleteVaultRow = async (r: VaultContentRow) => {
     if (
       !window.confirm(
-        `Delete "${r.title.trim() || 'Untitled'}"? Stored vault media (if any) will be removed. This cannot be undone.`,
+        tm('deleteConfirm', { title: r.title.trim() || tm('deleteUntitled') }),
       )
     ) {
       return
@@ -433,11 +441,11 @@ export function MediaVaultHub() {
       })
       const j = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) {
-        const msg = j.error || `Delete failed (${res.status})`
+        const msg = j.error || tm('deleteFailedWithStatus', { status: String(res.status) })
         console.warn(msg)
         toast({
           variant: 'destructive',
-          title: 'Could not delete vault item',
+          title: tm('toastDeleteFailedTitle'),
           description: msg,
         })
         return
@@ -609,7 +617,7 @@ export function MediaVaultHub() {
             requiredCredits: vaultPhotoAiCost,
             used: typeof json.used === 'number' ? json.used : undefined,
             limit: typeof json.limit === 'number' ? json.limit : undefined,
-            contextLabel: 'Vault · Photo AI touch-up',
+            contextLabel: tm('touchUpContextLabel'),
           })
           void refreshCreditWallet()
           return
@@ -636,8 +644,8 @@ export function MediaVaultHub() {
     r.content_type === 'photo' || (r.content_type !== 'video' && !r.content_type?.includes('video'))
 
   const isVideoRow = (r: VaultContentRow) => {
-    const t = (r.content_type || '').toLowerCase()
-    return t === 'video' || t.includes('video')
+    const ctype = (r.content_type || '').toLowerCase()
+    return ctype === 'video' || ctype.includes('video')
   }
 
   const hasVaultVideoFile = (r: VaultContentRow) => {
@@ -660,7 +668,7 @@ export function MediaVaultHub() {
       }
       if (!res.ok) {
         if (row) openRow(row, { resetFrameMsg: false })
-        setFrameMsg(j.error || 'Could not start editor session')
+        setFrameMsg(j.error || tm('frameSessionFailed'))
         return
       }
       const open = j.frameLaunchUrl || j.assetProxyUrl
@@ -673,7 +681,7 @@ export function MediaVaultHub() {
       }
     } catch {
       if (row) openRow(row, { resetFrameMsg: false })
-      setFrameMsg('Network error')
+      setFrameMsg(tm('errorNetwork'))
     } finally {
       setFrameBusy(false)
     }
@@ -684,28 +692,23 @@ export function MediaVaultHub() {
     setReplaceBusy(true)
     setFrameMsg(null)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch(`/api/content/vault/${selected.id}/frame-export`, { method: 'POST', body: fd })
-      const j = (await res.json()) as { error?: string; content?: { id: string } }
+      const res = await uploadVaultVideoDirect(selected.id, file)
       if (!res.ok) {
-        setFrameMsg(typeof j.error === 'string' ? j.error : 'Upload failed')
+        setFrameMsg(res.error || tm('uploadFailed'))
         return
       }
       await loadVault()
       await loadQuota({ bust: true })
-      if (j.content?.id) {
-        const { data } = await supabase
-          .from('content')
-          .select(
-            'id, title, description, content_type, status, thumbnail_url, file_url, vault_storage_path, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
-          )
-          .eq('id', j.content.id)
-          .single()
-        if (data) setSelected(data as VaultContentRow)
-      }
+      const { data } = await supabase
+        .from('content')
+        .select(
+          'id, title, description, content_type, status, thumbnail_url, file_url, vault_storage_path, sales_notes, teaser_tags, spoiler_level, source_platform, external_post_id, external_preview_url, scheduled_at, updated_at',
+        )
+        .eq('id', selected.id)
+        .single()
+      if (data) setSelected(data as VaultContentRow)
     } catch {
-      setFrameMsg('Upload failed')
+      setFrameMsg(tm('uploadFailed'))
     } finally {
       setReplaceBusy(false)
     }
@@ -720,7 +723,7 @@ export function MediaVaultHub() {
             className="flex flex-1 flex-col gap-1 rounded-full px-3 py-2 text-center text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none sm:min-w-[5.5rem] sm:text-sm"
           >
             <Archive className="mx-auto h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} aria-hidden />
-            <span>Vault</span>
+            <span>{tm('tabVault')}</span>
           </TabsTrigger>
           <TabsTrigger
             value="onlyfans"
@@ -733,7 +736,7 @@ export function MediaVaultHub() {
               alt=""
               className="mx-auto h-3.5 w-auto max-w-[3.25rem] object-contain opacity-90 dark:opacity-[0.92]"
             />
-            <span>OnlyFans</span>
+            <span>{tm('tabOnlyfans')}</span>
           </TabsTrigger>
           <TabsTrigger
             value="fansly"
@@ -745,7 +748,7 @@ export function MediaVaultHub() {
               alt=""
               className="mx-auto h-3.5 w-auto max-w-[2.85rem] object-contain opacity-90 dark:opacity-[0.92]"
             />
-            <span>Fansly</span>
+            <span>{tm('tabFansly')}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -753,9 +756,9 @@ export function MediaVaultHub() {
           <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-1">
             {(
               [
-                ['all', 'All'],
-                ['app', 'Uploads'],
-                ['of', 'Linked'],
+                ['all', tm('filterAll')],
+                ['app', tm('filterUploads')],
+                ['of', tm('filterLinked')],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -777,10 +780,10 @@ export function MediaVaultHub() {
           <section className="rounded-[1.25rem] border border-black/[0.06] bg-card/85 p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_12px_40px_-28px_rgba(0,0,0,0.14)] backdrop-blur-[2px] dark:border-white/[0.09] dark:bg-card/70 dark:shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_16px_48px_-32px_rgba(0,0,0,0.45)] sm:p-8">
             <header className="max-w-[52ch] space-y-2 border-b border-border/40 pb-6 dark:border-white/[0.06]">
               <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground sm:text-lg">
-                New item
+                {tm('newItemTitle')}
               </h2>
               <p className="text-[13px] leading-relaxed text-muted-foreground/88">
-                Name it, choose video or photo, add a file now or from the detail sheet.
+                {tm('newItemBody')}
               </p>
             </header>
             <div className="pt-6">
@@ -800,17 +803,17 @@ export function MediaVaultHub() {
                 className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
                 style={{ animationDuration: '0.85s' }}
                 role="status"
-                aria-label="Loading vault"
+                aria-label={tm('ariaLoadingVault')}
               />
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/80 py-14 text-center">
               <p className="text-sm text-muted-foreground">
-                Nothing here yet.{' '}
+                {tm('emptyVault')}{' '}
                 <Link href="/dashboard/content?view=schedule" className="font-medium text-foreground underline-offset-4 hover:underline">
-                  Open calendar
+                  {tm('openCalendar')}
                 </Link>{' '}
-                or add an item above.
+                {tm('emptyVaultSuffix')}
               </p>
             </div>
           ) : (
@@ -837,7 +840,7 @@ export function MediaVaultHub() {
                             : 'bg-background/85 text-muted-foreground shadow-sm',
                         )}
                       >
-                        {r.source_platform === 'onlyfans' ? 'OF' : 'App'}
+                        {r.source_platform === 'onlyfans' ? tm('badgeOf') : tm('badgeApp')}
                       </span>
                     </div>
                     <div className="space-y-1 p-3.5">
@@ -853,7 +856,9 @@ export function MediaVaultHub() {
                     className={cn(
                       'absolute left-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-destructive/45 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
                     )}
-                    aria-label={`Delete ${r.title.trim() || 'vault item'}`}
+                    aria-label={tm('deleteAria', {
+                      title: r.title.trim() || tm('deleteFallbackItem'),
+                    })}
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
@@ -879,7 +884,7 @@ export function MediaVaultHub() {
                 className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
                 style={{ animationDuration: '0.85s' }}
                 role="status"
-                aria-label="Loading feed"
+                aria-label={tm('ariaLoadingFeed')}
               />
             </div>
           ) : ofError ? (
@@ -893,7 +898,7 @@ export function MediaVaultHub() {
               {ofPosts.length === 0 ? (
                 <div className="flex min-h-[min(52vh,480px)] flex-col items-center justify-center gap-3 px-4 py-14 text-center">
                   <p className="max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
-                    No posts returned yet. When your feed syncs, they will appear here.
+                    {tm('ofNoPosts')}
                   </p>
                   <Button
                     type="button"
@@ -902,7 +907,7 @@ export function MediaVaultHub() {
                     className="rounded-full text-[13px] text-foreground"
                     onClick={() => void loadOfPosts()}
                   >
-                    Refresh
+                    {tm('refresh')}
                   </Button>
                 </div>
               ) : (
@@ -917,12 +922,12 @@ export function MediaVaultHub() {
                               <Image src={prev} alt="" fill className="object-cover" unoptimized />
                             ) : (
                               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                                Text
+                                {tm('postTextOnly')}
                               </div>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="line-clamp-2 text-sm">{p.text || '(no caption)'}</p>
+                            <p className="line-clamp-2 text-sm">{p.text || tm('postNoCaption')}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {new Date(p.createdAt).toLocaleDateString()}
                             </p>
@@ -938,7 +943,7 @@ export function MediaVaultHub() {
                               ) : (
                                 <Link2 className="h-3 w-3" />
                               )}
-                              Add to vault
+                              {tm('addToVault')}
                             </Button>
                           </div>
                         </CardContent>
@@ -958,7 +963,7 @@ export function MediaVaultHub() {
                 className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
                 style={{ animationDuration: '0.85s' }}
                 role="status"
-                aria-label="Checking Fansly connection"
+                aria-label={tm('ariaCheckingFansly')}
               />
             </div>
           ) : !fanslyConnected ? (
@@ -968,9 +973,7 @@ export function MediaVaultHub() {
           ) : (
             <div className="rounded-[1.25rem] border border-border/80 bg-muted/[0.12] px-6 py-14 text-center dark:bg-muted/[0.08]">
               <p className="mx-auto max-w-[36ch] text-[13px] leading-relaxed text-muted-foreground">
-                Fansly is connected. Post browsing in this library is not wired yet — use the{' '}
-                <span className="font-medium text-foreground">Vault</span> tab to add media, or check back after a future
-                release.
+                {tm('fanslyConnectedStub')}
               </p>
             </div>
           )}
@@ -980,12 +983,12 @@ export function MediaVaultHub() {
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <SheetContent className="flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-l border-border/30 bg-background p-0 sm:max-w-md">
           <SheetHeader className="shrink-0 space-y-1 border-b border-border/25 px-6 pb-4 pt-14 text-left">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vault</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{tm('sheetEyebrow')}</p>
             <SheetTitle className="font-sans text-[1.3125rem] font-semibold leading-snug tracking-[-0.02em] text-foreground">
-              Details
+              {tm('sheetTitle')}
             </SheetTitle>
             <SheetDescription className="text-[13px] leading-relaxed text-muted-foreground">
-              Private to you. Feeds Circe, Venus, and Divine context.
+              {tm('sheetDescription')}
             </SheetDescription>
           </SheetHeader>
           {selected && (
@@ -1003,7 +1006,7 @@ export function MediaVaultHub() {
                 <div className="space-y-5 px-6 py-6">
                   <div className="space-y-1.5">
                     <Label htmlFor="vault-sheet-title" className="text-[12px] font-medium text-foreground/90">
-                      Title
+                      {tm('labelTitle')}
                     </Label>
                     <Input
                       id="vault-sheet-title"
@@ -1014,7 +1017,7 @@ export function MediaVaultHub() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="vault-sheet-desc" className="text-[12px] font-medium text-foreground/90">
-                      Description
+                      {tm('labelDescription')}
                     </Label>
                     <Textarea
                       id="vault-sheet-desc"
@@ -1026,32 +1029,32 @@ export function MediaVaultHub() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="vault-sheet-sales" className="text-[12px] font-medium text-foreground/90">
-                      Sales notes
+                      {tm('labelSalesNotes')}
                     </Label>
                     <Textarea
                       id="vault-sheet-sales"
                       value={draftSales}
                       onChange={(e) => setDraftSales(e.target.value)}
-                      placeholder="Hook, buyer, tone, boundaries…"
+                      placeholder={tm('placeholderSalesNotes')}
                       rows={3}
                       className="resize-none rounded-xl border-border/45 bg-muted/10 px-3.5 py-3 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="vault-sheet-tags" className="text-[12px] font-medium text-foreground/90">
-                      Tags
+                      {tm('labelTags')}
                     </Label>
                     <Input
                       id="vault-sheet-tags"
                       value={draftTags}
                       onChange={(e) => setDraftTags(e.target.value)}
-                      placeholder="Comma-separated"
+                      placeholder={tm('placeholderTags')}
                       className="h-11 rounded-xl border-border/45 bg-muted/10 px-3.5 text-[15px] shadow-sm placeholder:text-muted-foreground/55"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="vault-sheet-spoiler" className="text-[12px] font-medium text-foreground/90">
-                      Spoiler
+                      {tm('labelSpoiler')}
                     </Label>
                     <Select value={draftSpoiler} onValueChange={setDraftSpoiler}>
                       <SelectTrigger
@@ -1061,9 +1064,9 @@ export function MediaVaultHub() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="mild">Mild</SelectItem>
-                        <SelectItem value="explicit">Explicit</SelectItem>
+                        <SelectItem value="none">{tm('spoilerNone')}</SelectItem>
+                        <SelectItem value="mild">{tm('spoilerMild')}</SelectItem>
+                        <SelectItem value="explicit">{tm('spoilerExplicit')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1073,20 +1076,9 @@ export function MediaVaultHub() {
                   <div className="space-y-4 border-t border-border/25 px-6 pb-8 pt-5">
                     <div className="flex items-center gap-2">
                       <Clapperboard className="h-4 w-4 text-muted-foreground" aria-hidden />
-                      <p className="text-[13px] font-semibold tracking-tight text-foreground">Video</p>
+                      <p className="text-[13px] font-semibold tracking-tight text-foreground">{tm('videoSectionTitle')}</p>
                     </div>
-                    <p className="text-[12px] leading-relaxed text-muted-foreground">
-                      Open in{' '}
-                      <a
-                        href="https://github.com/aregrid/frame"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-foreground underline decoration-border underline-offset-[3px] transition-colors hover:decoration-foreground"
-                      >
-                        Frame
-                      </a>{' '}
-                      or replace the file below. Keep local copies—hosted files may rotate.
-                    </p>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">{tm('videoHelp')}</p>
                     {frameMsg ? (
                       <p className="rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2.5 text-[12px] leading-snug text-amber-950 dark:text-amber-100/95">
                         {frameMsg}
@@ -1100,22 +1092,22 @@ export function MediaVaultHub() {
                           size="sm"
                           className="h-10 cursor-not-allowed gap-1.5 rounded-xl opacity-80"
                           disabled
-                          aria-label="Edit in Frame — coming soon"
-                          title="Coming soon"
+                          aria-label={tm('ariaEditFrameComingSoon')}
+                          title={tAi('chrome.comingSoon')}
                         >
                           <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
-                          <span>Edit in Frame</span>
+                          <span>{tm('editInFrame')}</span>
                           <Badge
                             variant="secondary"
                             className="border-border/50 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
                           >
-                            Coming soon
+                            {tAi('chrome.comingSoon')}
                           </Badge>
                         </Button>
                         <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 rounded-xl" asChild>
                           <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4" />
-                            Download
+                            {tm('download')}
                           </a>
                         </Button>
                         <Button
@@ -1124,26 +1116,24 @@ export function MediaVaultHub() {
                           size="sm"
                           className="h-10 cursor-not-allowed gap-1.5 rounded-xl opacity-80"
                           disabled
-                          aria-label="Ariadne Trace — coming soon"
-                          title="Coming soon"
+                          aria-label={tm('ariaAriadneComingSoon')}
+                          title={tAi('chrome.comingSoon')}
                         >
                           <Shield className="h-4 w-4 shrink-0" aria-hidden />
-                          <span>Ariadne Trace</span>
+                          <span>{tm('ariadneTrace')}</span>
                           <Badge
                             variant="secondary"
                             className="border-border/50 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
                           >
-                            Coming soon
+                            {tAi('chrome.comingSoon')}
                           </Badge>
                         </Button>
                       </div>
                     ) : (
-                      <p className="text-[12px] text-muted-foreground">
-                        Upload an MP4 here to unlock Frame—a preview‑only linked post isn’t enough.
-                      </p>
+                      <p className="text-[12px] text-muted-foreground">{tm('unlockMp4Hint')}</p>
                     )}
                     <div className="space-y-1.5">
-                      <Label className="text-[12px] font-medium text-foreground/90">Replace file</Label>
+                      <Label className="text-[12px] font-medium text-foreground/90">{tm('replaceFile')}</Label>
                       <Input
                         type="file"
                         accept="video/*,.mp4,.mov,.webm"
@@ -1157,7 +1147,7 @@ export function MediaVaultHub() {
                       />
                       {replaceBusy ? (
                         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden /> Uploading…
+                          <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden /> {tm('uploading')}
                         </p>
                       ) : null}
                     </div>
@@ -1168,19 +1158,17 @@ export function MediaVaultHub() {
                   <div className="space-y-4 border-t border-border/25 px-6 pb-10 pt-5">
                     <div className="flex items-center gap-2">
                       <Wand2 className="h-4 w-4 text-muted-foreground" aria-hidden />
-                      <p className="text-[13px] font-semibold tracking-tight text-foreground">Photo touch-up</p>
+                      <p className="text-[13px] font-semibold tracking-tight text-foreground">{tm('photoSectionTitle')}</p>
                     </div>
-                    <p className="text-[12px] leading-relaxed text-muted-foreground">
-                      Safe adjustments only—blur, exposure, emoji. Add a JPEG/PNG below if CDN blocks preview.
-                    </p>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">{tm('photoHelp')}</p>
                     <div className="space-y-3 rounded-2xl border border-border/40 bg-muted/[0.2] p-4">
                       <div className="flex items-center gap-2">
                         <Mic className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                        <p className="text-[12px] font-medium text-foreground/90">AI instruction</p>
+                        <p className="text-[12px] font-medium text-foreground/90">{tm('aiInstruction')}</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Textarea
-                          placeholder="e.g. more blur along the doorway"
+                          placeholder={tm('aiInstructionPlaceholder')}
                           value={touchAiInstruction}
                           onChange={(e) => setTouchAiInstruction(e.target.value)}
                           rows={2}
@@ -1198,20 +1186,17 @@ export function MediaVaultHub() {
                       {vaultPhotoAiCreditsInsufficient ? (
                         <InsufficientCreditsCallout
                           requiredCredits={vaultPhotoAiCost}
-                          actionContext="vault photo AI touch-up"
+                          actionContext={tm('insufficientCreditsAction')}
                           className="py-2"
                         />
                       ) : (
                         <p className="text-[11px] leading-snug text-muted-foreground">
                           {creditWalletLoading ? (
-                            'Checking credits…'
+                            tm('checkingCredits')
                           ) : (
-                            <>
-                              <span className="font-medium text-foreground/85">
-                                {formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID)}
-                              </span>{' '}
-                              per successful run — charged only after the edit completes.
-                            </>
+                            tm('creditsPerRunLine', {
+                              cost: formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID),
+                            })
                           )}
                         </p>
                       )}
@@ -1231,7 +1216,7 @@ export function MediaVaultHub() {
                         ) : (
                           <Sparkles className="h-4 w-4" />
                         )}
-                        Apply with AI ({formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID)})
+                        {tm('applyWithAi', { cost: formatToolCreditCost(VAULT_PHOTO_AI_TOOL_ID) })}
                       </Button>
                     </div>
                     <Select value={touchOp} onValueChange={(v) => setTouchOp(v as typeof touchOp)}>
@@ -1239,9 +1224,9 @@ export function MediaVaultHub() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="blur">Blur</SelectItem>
-                        <SelectItem value="lighting">Lighting</SelectItem>
-                        <SelectItem value="emoji">Emoji overlay</SelectItem>
+                        <SelectItem value="blur">{tm('opBlur')}</SelectItem>
+                        <SelectItem value="lighting">{tm('opLighting')}</SelectItem>
+                        <SelectItem value="emoji">{tm('opEmoji')}</SelectItem>
                       </SelectContent>
                     </Select>
                     {touchOp === 'blur' && (
@@ -1288,12 +1273,12 @@ export function MediaVaultHub() {
                       onClick={() => void runTouchUp()}
                     >
                       {touchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Run touch-up
+                      {tm('runTouchUp')}
                     </Button>
                     {touchPreview ? (
                       <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-2xl border border-border/30 bg-muted/20">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={touchPreview} alt="Preview" className="h-full w-full object-contain" />
+                        <img src={touchPreview} alt={tm('previewAlt')} className="h-full w-full object-contain" />
                       </div>
                     ) : null}
                   </div>
@@ -1308,7 +1293,7 @@ export function MediaVaultHub() {
                   className="h-11 w-full gap-2 rounded-xl bg-foreground text-[15px] font-medium text-background shadow-sm hover:bg-foreground/90 dark:hover:bg-foreground/92"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-                  Save changes
+                  {tm('saveChanges')}
                 </Button>
               </div>
             </>

@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AIToolsSelector } from '@/components/ai/ai-tools-selector'
+import { ToolRunnerLoadingFallback } from '@/components/ai/tool-runner-loading-fallback'
 import { getToolMeta } from '@/lib/ai-tools-data'
 
 function ToolRunnerInner() {
@@ -92,13 +93,7 @@ function ToolRunnerInner() {
 
 export default function ToolRunnerPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-          Loading tool…
-        </div>
-      }
-    >
+    <Suspense fallback={<ToolRunnerLoadingFallback />}>
       <ToolRunnerInner />
     </Suspense>
   )

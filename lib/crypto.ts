@@ -15,7 +15,7 @@
 function stringToArrayBuffer(str: string): ArrayBuffer {
   const encoder = new TextEncoder()
   const u8 = encoder.encode(str)
-  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
+  return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer
 }
 
 // Convert ArrayBuffer to Base64
@@ -169,7 +169,7 @@ export interface BirthChartReading {
   lifePathMeaning: string
   personalYear: number
   personalYearMeaning: string
-  chineseZodiac: { animal: string; element: string; symbol: string }
+  chineseZodiac: { animal: string; element: string; symbol: string; traits: string[] }
   birthstone: string
   birthFlower: string
   dayOfWeek: string

@@ -40,7 +40,12 @@ function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
 }
 
 /** Realtime API uses `call_id` on function_call items to pair with function_call_output; `id` is the item id. */
-function extractRealtimeFunctionCallId(item: { call_id?: string; id?: string }): string | undefined {
+function extractRealtimeFunctionCallId(item: {
+  call_id?: string
+  id?: string
+  name?: string
+  arguments?: string
+}): string | undefined {
   const cid = item.call_id ?? item.id
   return typeof cid === 'string' && cid.length > 0 ? cid : undefined
 }
@@ -104,8 +109,8 @@ export type VoiceSessionContextValue = {
   sendBriefingQuestion: (text: string, opts?: { allowHangupAfterMs?: number }) => Promise<void>
   remoteVoiceStream: MediaStream | null
   localVoiceStream: MediaStream | null
-  voiceVizRef: React.RefObject<HTMLCanvasElement>
-  userVoiceVizRef: React.RefObject<HTMLCanvasElement>
+  voiceVizRef: React.RefObject<HTMLCanvasElement | null>
+  userVoiceVizRef: React.RefObject<HTMLCanvasElement | null>
   focusedFanForVoice: FocusedFan | null
   setFocusedFanForVoice: (fan: FocusedFan | null) => void
   /** From Divine Manager settings; when after_closing_prompt, End is gated until voice_allow_user_hangup runs. */

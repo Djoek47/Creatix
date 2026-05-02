@@ -22,6 +22,10 @@ export interface AIToolMeta {
   hiddenFromFeatured?: boolean
   /** Shown in the library but not runnable yet (no API / runner) */
   comingSoon?: boolean
+  /** Optional help content for the tool help dialog */
+  helpSteps?: string[]
+  helpTips?: string[]
+  relatedLinks?: Array<{ href: string; label: string }>
 }
 
 // Icon names only; actual icons are resolved in the component that renders (tools page / library)

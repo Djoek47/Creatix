@@ -331,10 +331,8 @@ export async function executeDivineIntentPost(
     }
     case 'get_message_engagement': {
       const ch = body.channel
-      const fallback =
-        body.type === 'direct' || body.type === 'mass' ? (body.type as 'direct' | 'mass') : undefined
       const params: GetMessageEngagementParams = {
-        type: ch === 'direct' || ch === 'mass' ? ch : fallback,
+        type: ch === 'direct' || ch === 'mass' ? ch : undefined,
         limit: typeof body.limit === 'number' ? body.limit : undefined,
         offset: typeof body.offset === 'number' ? body.offset : undefined,
         startDate: body.startDate as string | undefined,
@@ -410,35 +408,45 @@ export async function executeDivineIntentPost(
               : type === 'send_message'
                 ? 'Divine: DM sent'
                 : 'Divine Manager'
-    await insertDivineNotification(supabase, user.id, notifTitle, result.summary, {
+    await insertDivineNotification(supabase, user.id, notifTitle, result.summary, '/dashboard/divine-manager', {
       intent_type: type,
     })
   }
 
   if (result.success && type === 'publish_queue_item') {
-    await insertDivineNotification(supabase, user.id, 'Divine: Queue item published', result.summary, {
-      intent_type: 'publish_queue_item',
-    })
+    await insertDivineNotification(
+      supabase,
+      user.id,
+      'Divine: Queue item published',
+      result.summary,
+      '/dashboard/divine-manager',
+      {
+        intent_type: 'publish_queue_item',
+      },
+    )
   }
+
+  const r = result as Record<string, unknown>
+  const bodyOut: Record<string, unknown> = {
+    status: 'executed',
+    success: result.success,
+    summary: result.summary,
+  }
+  if (r.results != null) bodyOut.results = r.results
+  if (r.stats != null) bodyOut.stats = r.stats
+  if (r.taskId != null) bodyOut.task_id = r.taskId
+  if (r.fans != null) bodyOut.fans = r.fans
+  if (r.followings != null) bodyOut.followings = r.followings
+  if (r.history != null) bodyOut.history = r.history
+  if (r.message != null) bodyOut.message = r.message
+  if (r.buyers != null) bodyOut.buyers = r.buyers
+  if (r.messages != null) bodyOut.messages = r.messages
+  if (r.chart != null) bodyOut.chart = r.chart
+  if (r.counts != null) bodyOut.counts = r.counts
+  if (r.notifications != null) bodyOut.notifications = r.notifications
 
   return {
     status: 200,
-    body: {
-      status: 'executed',
-      success: result.success,
-      summary: result.summary,
-      ...(result.results && { results: result.results }),
-      ...(result.stats && { stats: result.stats }),
-      ...(result.taskId && { task_id: result.taskId }),
-      ...(result.fans != null && { fans: result.fans }),
-      ...(result.followings != null && { followings: result.followings }),
-      ...(result.history != null && { history: result.history }),
-      ...(result.message != null && { message: result.message }),
-      ...(result.buyers != null && { buyers: result.buyers }),
-      ...(result.messages != null && { messages: result.messages }),
-      ...(result.chart != null && { chart: result.chart }),
-      ...(result.counts != null && { counts: result.counts }),
-      ...(result.notifications != null && { notifications: result.notifications }),
-    },
+    body: bodyOut,
   }
 }

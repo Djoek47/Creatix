@@ -117,5 +117,538 @@
       "title": "Workspace",
       "subtitle": "Your creator cockpit — choose a star from the sidebar."
     }
+  },
+  "home": {
+    "eyebrow": "Command centre",
+    "titleLead": "Your command ",
+    "titleAccent": "centre",
+    "subtitleMinimal": "Signal over noise — keep the essentials in view.",
+    "subtitleCreative": "Ideas, tools, and rhythm when you are building the next drop.",
+    "subtitleDefault": "Revenue, fans, and protection in one rhythm — move fast where it matters.",
+    "nonApiUpgrade": "Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put.",
+    "nonApiUpgradeLink": "Upgrade to full Creatix",
+    "connectPlatforms": "Connect your platforms",
+    "connectPlatformsSuffix": "to unlock live stats and sync.",
+    "trialCtaTitle": "Add a payment method to start your free trial",
+    "trialCtaAria": "Add a payment method to start your free trial",
+    "trialCtaLabel": "Start trial",
+    "planPrefix": "Plan:",
+    "connectedPlatforms": "Connected platforms"
+  },
+  "homeTiles": {
+    "messages": {
+      "title": "Messages",
+      "description": "Conversations and mass outreach"
+    },
+    "aiStudio": {
+      "title": "AI Studio",
+      "description": "Tools, churn insight, and creative edge"
+    },
+    "protection": {
+      "title": "Protection",
+      "description": "Leaks, watermarks, and peace of mind"
+    },
+    "wellBeing": {
+      "title": "Well-being",
+      "description": "Rhythm, pressure, and balance"
+    },
+    "creditsPlanner": {
+      "title": "Credits Planner",
+      "description": "Smart premium credit allocation"
+    },
+    "divineManager": "Divine Manager"
+  },
+  "welcomeTour": {
+    "title": "Live app tour",
+    "description": "The live tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with highlights. Use <start>Start live tour</start> or <launch>Launch live tour</launch> in the header for the same full pass from any page.",
+    "startTour": "Start live tour",
+    "launchTour": "Launch live tour",
+    "goDashboard": "Go to dashboard",
+    "guideLink": "Guide",
+    "settingsLink": "Settings"
+  },
+  "widgetsLayout": {
+    "modules": {
+      "signalOverview": "Signal overview",
+      "featuredToolFallback": "Featured tool",
+      "recentFans": "Recent fans",
+      "socialReputation": "Social & reputation",
+      "circeAegis": "Circe Aegis",
+      "revenueRhythm": "Revenue & rhythm",
+      "platformsQuickActions": "Platforms & quick actions",
+      "revenue": "Revenue",
+      "conversations": "Conversations",
+      "alertsOnlyFansFansly": "Alerts · OnlyFans & Fansly"
+    },
+    "options": {
+      "stats": { "label": "Overview stats" },
+      "standardAttraction": {
+        "label": "Featured AI Studio tool",
+        "hint": "Pin any runnable tool from the card below."
+      },
+      "revenue": { "label": "Revenue chart" },
+      "quickColumn": { "label": "Platforms & quick actions" },
+      "messageActivity": { "label": "Conversations" },
+      "alertsColumn": { "label": "Alerts · OnlyFans & Fansly" },
+      "recentFans": { "label": "Recent fans" },
+      "socialRep": {
+        "label": "Social hub (summary)",
+        "hint": "Full scans and handles live on Social."
+      },
+      "aegis": {
+        "label": "Circe Aegis",
+        "hint": "Protection / leak scans"
+      }
+    },
+    "blocksButton": "Blocks",
+    "visibleBlocksTitle": "Visible blocks",
+    "visibleBlocksSubtitle": "Toggle sections, then order them in layout mode.",
+    "optionalBadge": "optional",
+    "resetAll": "Reset all",
+    "resetOrderSplits": "Reset order & splits",
+    "divinePreset": "Divine preset",
+    "layoutMode": "Layout mode",
+    "done": "Done",
+    "customizeHint": "Drag sections by the grip. <pair>Pair with next</pair> for a split row; drag the <gold>gold</gold> / <violet>violet</violet> handle to resize. Saved on this device.",
+    "dragSectionAria": "Drag to reorder section",
+    "pairRevenuePlatforms": "Revenue and Platforms pair automatically when adjacent.",
+    "pairConversationsAlerts": "Conversations and Alerts pair automatically when adjacent.",
+    "pairWithNext": "Pair with next block (side by side on medium+)"
+  },
+  "statsCards": {
+    "totalRevenue": "Total Revenue",
+    "totalFans": "Total Fans",
+    "activeConversations": "Active Conversations",
+    "scheduledContent": "Scheduled Content",
+    "vsLastMonth": "vs last month",
+    "noPriorPeriod": "No prior period yet",
+    "connectToTrack": "Connect platforms to track"
+  },
+  "revenueChart": {
+    "title": "Revenue",
+    "descOnlyfans": "Estimated earnings from synced OnlyFans snapshots.",
+    "descFansly": "Estimated earnings from synced Fansly snapshots.",
+    "descConnect": "Connect a platform to see earnings over time.",
+    "platformSwitcherAria": "Revenue platform",
+    "onlyfans": "OnlyFans",
+    "onlyfansNotConnected": "OnlyFans not connected",
+    "fansly": "Fansly",
+    "fanslyNotConnected": "Fansly not connected",
+    "emptyTitle": "No revenue data yet",
+    "emptyBody": "Connect OnlyFans or Fansly to start tracking earnings on this chart.",
+    "syncHint": "No revenue in this window yet — numbers appear as your platforms sync. Check back after the next sync.",
+    "tooltipLine": "{platform}: {value}"
+  },
+  "quickActions": {
+    "title": "Quick actions",
+    "subtitle": "Common tasks at your fingertips",
+    "upload": { "label": "Upload Content", "description": "Add new photos or videos" },
+    "fans": { "label": "Fans", "description": "Subscribers synced from OnlyFans & Fansly" },
+    "massMessage": { "label": "Mass Message", "description": "Send to multiple fans" },
+    "reports": { "label": "View Reports", "description": "Detailed analytics" },
+    "wellBeing": { "label": "Well-being", "description": "Pressure, mimic profile & cosmic rhythm" },
+    "creditsPlanner": { "label": "Credits Planner", "description": "Allocation strategy for monthly usage" }
+  },
+  "alertsWidget": {
+    "title": "Alerts & Monitoring",
+    "subtitle": "Stay on top of important updates",
+    "emptyTitle": "No Alerts Yet",
+    "emptyBody": "Connect your platforms to start monitoring for leaks and mentions.",
+    "tabLeaks": "Leaks",
+    "tabMentions": "Mentions",
+    "viewAllAlerts": "View All Alerts",
+    "viewAllMentions": "View All Mentions",
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    }
+  },
+  "recentFans": {
+    "title": "Recent Fans",
+    "subtitle": "Latest subscribers across platforms",
+    "viewAll": "View All",
+    "emptyNoneTitle": "No Fans Detected Yet",
+    "emptyNoneBody": "Connect and sync your creator platforms to import your fans into Creatix.",
+    "emptySyncingTitle": "Fans Detected, Syncing Details",
+    "emptySyncingBody": "We see approximately {count} fans from your connected platforms. Detailed fan profiles are still syncing — they'll appear here after your next sync.",
+    "emptySyncingHint": "Use <strong>Connected platforms</strong> at the top of this page: click your OnlyFans or Fansly icon to run a sync and import fan profiles.",
+    "goPlatformSync": "Go to platform sync",
+    "spent": "{amount} spent",
+    "tier": {
+      "whale": "Whale",
+      "regular": "Regular",
+      "new": "New",
+      "inactive": "Inactive"
+    }
+  },
+  "messageActivity": {
+    "title": "Active Conversations",
+    "descUnread": "{count} unread messages",
+    "descRecent": "Recent message activity",
+    "viewAll": "View All",
+    "loadErrorTitle": "Unable to Load Messages",
+    "tryAgain": "Try Again",
+    "emptyTitle": "No Conversations Yet",
+    "emptyBody": "Connect your platforms to see your messages here.",
+    "mediaMessage": "Media message",
+    "unknownUser": "Unknown",
+    "timeNow": "now",
+    "timeMinutes": "{n}m",
+    "timeHours": "{n}h",
+    "timeDays": "{n}d",
+    "fetchFailed": "Failed to fetch conversations",
+    "loadFailed": "Failed to load conversations"
+  },
+  "onlyfansNotifications": {
+    "title": "OnlyFans notifications",
+    "subtitle": "Live alerts from your OnlyFans account",
+    "clear": "Clear",
+    "loading": "Loading notifications…",
+    "unreadLabel": "Unread:",
+    "fallbackItem": "Notification",
+    "emptyList": "No recent notifications from OnlyFans.",
+    "errorSoft": "OnlyFans is having a temporary issue loading notifications. Try again in a minute.",
+    "errorGeneric": "Failed to load OnlyFans notifications",
+    "partialHint": "OnlyFans had a temporary glitch on one feed — counts or list may be incomplete. Try again in a minute.",
+    "markReadFailed": "Failed to mark notifications as read"
+  },
+  "aegisPromo": {
+    "title": "Circe Aegis",
+    "description": "Leak scans, DMCA drafts, and protection cadence — tune scans from one place.",
+    "openLeakQueue": "Open leak queue (priority)",
+    "aegisSettings": "Aegis settings"
+  },
+  "featuredTool": {
+    "pinnedLabel": "Pinned tool",
+    "choosePlaceholder": "Choose a tool",
+    "proSuffix": " (Pro)",
+    "proBadge": "Pro",
+    "openTool": "Open tool"
+  },
+  "socialReputation": {
+    "creditContextReputationScan": "Reputation scan",
+    "compactTitle": "Social & reputation",
+    "compactDescription": "Scans, mentions, and handles — open the full hub to work the full funnel.",
+    "statHandles": "Handles",
+    "statTracked": "Tracked",
+    "statOnlyfans": "OnlyFans",
+    "statFansly": "Fansly",
+    "statOn": "On",
+    "statDash": "—",
+    "unreviewedMentions": "{count, plural, one {# mention to review in Venus’ watch.} other {# mentions to review in Venus’ watch.}}",
+    "noUnreviewed": "No unreviewed mentions right now.",
+    "openSocialHub": "Open Social hub",
+    "integrations": "Integrations",
+    "mainTitle": "Social Media Reputation",
+    "mainSubtitle": "Track your presence and reputation across social platforms",
+    "scanNewsWeb": "News & web",
+    "scanNewsWebTitle": "News, magazines, and general web",
+    "scanSocial": "Scan social",
+    "scanSocialTitle": "X, Instagram, TikTok, Reddit-style discovery",
+    "scanBoth": "Scan both",
+    "fullScanPro": "Full Scan (Pro)",
+    "cancel": "Cancel",
+    "addProfile": "Add Profile",
+    "oauthHint": "Use OAuth usernames from Settings (X, Instagram, TikTok, OnlyFans, Fansly…). Former handles come from Protection when saved.",
+    "openIntegrations": "Open Integrations",
+    "scanSummaryChannels": " ({web} web, {social} social)",
+    "scanSummaryEnriched": ", {n} enriched by Venus",
+    "scanSummary": "Scan complete: {inserted} new mentions, {skipped} already known{channelPart}{enrichedPart}.",
+    "errors": {
+      "noUsernamesScan": "No usernames to scan. Connect a platform in Settings → Integrations or add a social handle below.",
+      "selectHandles": "Select at least one handle, or choose “All identities”.",
+      "addProfileFailed": "Failed to add profile",
+      "analyzeFailed": "Failed to analyze reputation",
+      "noUsernamesAnalyze": "No usernames to analyze. Connect a platform or add a social profile first.",
+      "scanReputationFailed": "Failed to scan reputation"
+    },
+    "connectedAccountsTitle": "Connected Creator Accounts (used for reputation search):",
+    "usernameLabel": "Username",
+    "usernamePlaceholder": "Enter username (without @)",
+    "connect": "Connect",
+    "emptyTrackTitle": "Track Your Social Reputation",
+    "emptyTrackBody": "Add your social media profiles to monitor engagement, followers, and reputation across the web.",
+    "followers": "Followers",
+    "posts": "Posts",
+    "avgLikes": "Avg Likes",
+    "engagement": "Engagement",
+    "reputationScore": "Reputation Score",
+    "analyze": "Analyze",
+    "aiAnalysisTitle": "AI Reputation Analysis",
+    "close": "Close",
+    "overall": "Overall",
+    "scoreLabel": "Score: {score}/100",
+    "positiveCount": "Positive: {n}",
+    "neutralCount": "Neutral: {n}",
+    "negativeCount": "Negative: {n}",
+    "recentMentionsTitle": "Recent Mentions Found:",
+    "socialPlatforms": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "twitter": "X (Twitter)"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    },
+    "adultPlatforms": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly"
+    }
+  },
+  "platformConnector": {
+    "overlay": {
+      "title": "Complete sign-in in the OnlyFans window",
+      "securedBy": "Secured by OnlyFansAPI.com",
+      "paused": "This page is paused until you finish or close the sign-in window.",
+      "vpnHint": "Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails."
+    },
+    "platforms": {
+      "onlyfans": {
+        "name": "OnlyFans",
+        "description": "Fans, messages, and revenue in one place."
+      },
+      "fansly": {
+        "name": "Fansly",
+        "description": "Subscribers and performance data."
+      }
+    },
+    "bareConnect": {
+      "openBilling": "Open billing",
+      "srConnectOnlyfans": "Connect OnlyFans",
+      "srConnectFansly": "Connect Fansly",
+      "moreInSettings": "More in Settings"
+    },
+    "unifiedUpgrade": {
+      "title": "Unified plan required",
+      "notNow": "Not now",
+      "openBilling": "Open billing",
+      "bodyNoBand": "Your subscription is Focus for the adult billing platform(s) you selected. Adding Fansly (or another platform outside that Focus) requires Unified, priced by your revenue tier. Upgrade under Billing, then connect again.",
+      "bodyWithBand": "Your subscription is Focus for the adult billing platform(s) you selected. Adding Fansly (or another platform outside that Focus) requires Unified, priced by your revenue tier (your band: {band}). Upgrade under Billing, then connect again."
+    },
+    "compact": {
+      "title": "Creator Platforms",
+      "subtitle": "Connect to import your data",
+      "connectedBadge": "{count} Connected",
+      "notConnectedBadge": "Not Connected",
+      "comingSoon": "Coming soon",
+      "integrationInProgress": "Integration in progress",
+      "connected": "Connected",
+      "clickToConnect": "Click to connect",
+      "available": "Available",
+      "syncData": "Sync data",
+      "disconnect": "Disconnect",
+      "connect": "Connect",
+      "manageAll": "Manage All Platforms",
+      "billingLink": "Billing"
+    },
+    "statusEditor": {
+      "label": "Status on this platform",
+      "choosePlaceholder": "Choose status",
+      "dnd": "Do not disturb",
+      "detailCustom": "Type custom status...",
+      "detailOptional": "Optional detail (e.g. back at 6pm)",
+      "noStatus": "No status set",
+      "save": "Save"
+    },
+    "statusPreset": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "custom": "Custom"
+    },
+    "full": {
+      "connectedLabel": "Connected",
+      "notLinked": "Not linked",
+      "pageType": "Page type",
+      "choosePlaceholder": "Choose",
+      "pageFree": "Free page — PPV, tips, messages",
+      "pagePaid": "Paid subscription page",
+      "pageUnknown": "Let Circe infer when possible",
+      "pageInferredHint": "Inferred from your account — correct above if needed.",
+      "whyWeAsk": "Why we ask",
+      "whyWeAskBody": "Free pages monetize with PPV and tips; paid pages use subscriptions. We use this so AI replies match how you earn — separate from per-fan CRM tiers.",
+      "reviewBilling": "Review billing",
+      "billingAlertSuffix": ", or disconnect until your plan matches.",
+      "nicheSummary": "Content niche & boundaries",
+      "nicheHint": "Shapes tone and guardrails for AI replies.",
+      "sync": "Sync",
+      "disconnect": "Disconnect",
+      "connectNamed": "Connect {name}",
+      "lastSynced": "Last synced {date}",
+      "openBilling": "Open billing"
+    },
+    "fanslyDialog": {
+      "title": "Connect Fansly",
+      "fallbackEmail": "your email",
+      "desc2fa": "Enter the code sent to {email}",
+      "descSignIn": "Sign in with your Fansly credentials",
+      "email": "Email",
+      "password": "Password",
+      "emailPlaceholder": "your@email.com",
+      "passwordPlaceholder": "Enter your password",
+      "verificationCode": "Verification Code",
+      "codePlaceholder": "Enter 6-digit code",
+      "codeHint": "Check your email or authenticator app for the code",
+      "submit2fa": "Verify & Connect",
+      "submitConnect": "Connect Fansly",
+      "credentialsNote": "Your credentials are securely encrypted and never stored locally"
+    },
+    "errors": {
+      "subscriptionRequired": "Subscription required.",
+      "customStatusDetail": "Custom status requires a detail message.",
+      "savePageTypeFailed": "Failed to save page type",
+      "saveStatusFailed": "Failed to save platform status",
+      "onlyfansAlreadyConnected": "OnlyFans is already connected. Disconnect in Settings if you want to link a different account.",
+      "onlyfansAlreadyConnectedShort": "OnlyFans is already connected.",
+      "fanslyAlreadyConnected": "Fansly is already connected. Disconnect in Settings if you want to link a different account.",
+      "fanslyAlreadyConnectedShort": "Fansly is already connected.",
+      "onlyfansWorkspaceTaken": "This OnlyFans account is already connected to another Circe et Venus workspace. If you believe this is a mistake, please contact support.",
+      "saveConnectionFailed": "Failed to save connection",
+      "getSessionFailed": "Failed to get session",
+      "noSessionToken": "No session token",
+      "startOnlyfansFailed": "Failed to start OnlyFans sign-in",
+      "fanslyFocusUpgrade": "Your plan is Focus for OnlyFans only. Upgrade to Unified under Billing to connect Fansly.",
+      "connectFanslyFailed": "Failed to connect Fansly",
+      "onlyfansSessionExpired": "Your OnlyFans password or session changed. To keep your data safe, we disconnected your OnlyFans account. Please reconnect (use a fresh login; you can try a different proxy if it was stuck).",
+      "syncFailed": "Sync failed",
+      "disconnectFailed": "Failed to disconnect",
+      "disconnectGeneric": "Failed to disconnect",
+      "onlyfansSignInCancelled": "OnlyFans sign-in was cancelled",
+      "onlyfansSignInFailedOrCancelled": "OnlyFans sign-in was cancelled or failed",
+      "onlyfansSignInPopupBlocked": "OnlyFans sign-in window did not open (popup blocked?). Please allow popups and try again."
+    },
+    "success": {
+      "pageTypeSaved": "OnlyFans page type saved for AI & automations.",
+      "onlyfansConnected": "OnlyFans connected as @{username}!",
+      "onlyfansConnectedSyncing": "OnlyFans connected as @{username}! Syncing data...",
+      "onlyfansSynced": "OnlyFans synced! Your revenue data is now available.",
+      "onlyfansConnectedClickSync": "OnlyFans connected! Click Sync to import your data.",
+      "savedStatus": "Saved {platform} status.",
+      "platformDisconnected": "Platform disconnected successfully"
+    }
+  },
+  "scanIdentity": {
+    "allIdentities": "All identities",
+    "manualParen": "manual",
+    "labelFormer": "Former @{handle}",
+    "labelManualSearch": "Manual search @{handle}",
+    "labelSocialProfile": "{platform} ({manual}) @{handle}",
+    "labelPlatformAt": "{platform} @{handle}",
+    "sources": {
+      "former": "Former name",
+      "manual": "Manual"
+    },
+    "platforms": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly",
+      "manyvids": "ManyVids",
+      "loyalfans": "LoyalFans",
+      "twitter": "X",
+      "instagram": "Instagram",
+      "tiktok": "TikTok"
+    }
+  },
+  "protectionEasyHandles": {
+    "emptyTitle": "Connect a social account first",
+    "emptyBody": "Easy mode runs a leak scan using the usernames from your linked platforms—nothing else to configure.",
+    "openIntegrations": "Open Integrations",
+    "proHint": "Need stage names, old @handles, or title phrases? Switch to <pro>Pro</pro> above.",
+    "scanReadySingle": "This identity will be included in this scan—press <invoke>Invoke Scan</invoke> when you're ready.",
+    "scanReadyPlural": "These identities will be included in this scan—press <invoke>Invoke Scan</invoke> when you're ready.",
+    "extrasNote": "Extras (aliases, former names, title phrases) are available in Pro mode."
+  },
+  "messagesChrome": {
+    "aiStudioToolsTitle": "AI Studio tools",
+    "aiStudioToolsAria": "AI Studio tools"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markTabRead": "Mark tab read",
+    "tabLive": "Live",
+    "tabLiveSubtitle": "OnlyFans & Fansly inbox",
+    "tabLiveHint": "Tips · messages · new subscribers",
+    "tabDivine": "Divine",
+    "tabDivineHint": "Leaks · reputation · whales · calendar",
+    "pullDismissed": "{count, plural, one {# platform alert hidden. Restore them below when you want them back in this list.} other {# platform alerts hidden. Restore them below when you want them back in this list.}}",
+    "showAgain": "Show again",
+    "liveEmptyTitle": "No live notifications",
+    "liveEmptyBody": "New messages, tips, and subscriber activity from your connected accounts show up here as they arrive.",
+    "divineEmptyTitle": "No Divine notifications",
+    "divineEmptyBody": "DMCA and leak scans, reputation mentions, whale watch for followed fans, billing, and Divine Manager actions show here.",
+    "briefingLoading": "Briefing…",
+    "briefingButton": "Divine realtime briefing",
+    "briefingHelpAria": "How Divine realtime briefing works",
+    "briefingTooltip": "Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you confirm it is handled. Uses saved unread in this tab only.",
+    "briefingBannerLabel": "Divine",
+    "footerSettings": "View all settings",
+    "bellAria": "Notifications",
+    "bellAriaUnread": "Notifications, {count} unread",
+    "pullNotInInbox": "Not saved to your inbox yet",
+    "fallbackOnlyFansTitle": "OnlyFans notification",
+    "fallbackFanslyTitle": "Fansly notification",
+    "platformAltOnlyFans": "OnlyFans",
+    "platformAltFansly": "Fansly",
+    "briefingNoUnreadSaved": "No unread saved notifications in this tab.",
+    "briefingPullOnlyUnread": "This walkthrough only uses saved inbox items. Open or clear the rows above first, or wait until they sync into your inbox.",
+    "briefingPanelUnavailable": "Divine panel is unavailable — refresh the page and try again.",
+    "briefingFailed": "Briefing failed"
+  },
+  "refresh": {
+    "title": "Sync all connected platforms, then reload (mentions, leaks, dashboard)",
+    "label": "Refresh data",
+    "syncing": "Syncing…"
+  },
+  "startTour": {
+    "linkTitleCompleted": "Run the full live app tour again (navigates real pages with highlights)",
+    "linkTitleNotCompleted": "Start the full live app tour (navigates real pages with highlights)",
+    "launchLiveTour": "Launch live tour",
+    "startLiveTour": "Start live tour"
+  },
+  "platformStatus": {
+    "sectionTitle": "Platform status",
+    "loading": "Loading connections…",
+    "emptyLead": "No connected platforms. ",
+    "connectInSettings": "Connect in Settings",
+    "errorLoad": "Could not load platforms",
+    "errorCustomDetail": "Custom status needs a short message.",
+    "errorSave": "Save failed",
+    "placeholderCustom": "Custom message (required)",
+    "placeholderOptional": "Optional note (e.g. back at 6pm)",
+    "save": "Save",
+    "srPreset": "Status preset for {platform}",
+    "srDetail": "Optional status detail for {platform}",
+    "customTemplatesLead": "Save custom note templates in ",
+    "customTemplatesTrail": ".",
+    "footnoteLead": "More options in ",
+    "footnoteTrail": ".",
+    "settingsIntegrationsPhrase": "Settings → Integrations",
+    "previewWithDetail": "{preset} - {detail}",
+    "customFallback": "Custom",
+    "presets": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "dnd": "Do not disturb",
+      "custom": "Custom"
+    }
+  },
+  "theme": {
+    "toggleSrOnly": "Toggle theme",
+    "venusTitle": "Venus",
+    "venusSubtitle": "Light appearance",
+    "circeTitle": "Circe",
+    "circeSubtitle": "Dark appearance",
+    "systemRowTitle": "Automatically uses light or dark to match your device.",
+    "matchDeviceTitle": "Match device",
+    "matchDeviceSubtitle": "OS light/dark only—not your profile timezone"
   }
 }

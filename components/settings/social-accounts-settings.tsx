@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 const SURFACE = cn(
   'text-card-foreground flex flex-col overflow-hidden rounded-2xl border border-border/55 bg-card',
@@ -46,13 +47,13 @@ type SocialKey = 'twitter' | 'instagram' | 'tiktok'
 
 const ROWS: {
   key: SocialKey
-  name: string
+  nameKey: 'social.twitter' | 'social.instagram' | 'social.tiktok'
   Icon: ComponentType<{ className?: string }>
   iconClass: string
 }[] = [
-  { key: 'twitter', name: 'Twitter/X', Icon: TwitterXGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
-  { key: 'instagram', name: 'Instagram', Icon: InstagramGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
-  { key: 'tiktok', name: 'TikTok', Icon: TikTokGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
+  { key: 'twitter', nameKey: 'social.twitter', Icon: TwitterXGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
+  { key: 'instagram', nameKey: 'social.instagram', Icon: InstagramGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
+  { key: 'tiktok', nameKey: 'social.tiktok', Icon: TikTokGlyph, iconClass: 'h-[1.125rem] w-[1.125rem]' },
 ]
 
 export type SocialConnections = Record<SocialKey, boolean>
@@ -64,17 +65,16 @@ export function SocialAccountsSettings({
   connected: SocialConnections
   onConnectedChange: (key: SocialKey, value: boolean) => void
 }) {
+  const t = useTranslations('settings')
   return (
     <Card className={SURFACE}>
       <CardHeader className={HEADER}>
-        <CardTitle className={TITLE}>Social</CardTitle>
-        <CardDescription className={DESCRIPTION}>
-          Accounts used for reputation monitoring. Only you can connect or disconnect them.
-        </CardDescription>
+        <CardTitle className={TITLE}>{t('social.title')}</CardTitle>
+        <CardDescription className={DESCRIPTION}>{t('social.description')}</CardDescription>
       </CardHeader>
       <CardContent className={CONTENT}>
         <ul className="divide-y divide-border/35" role="list">
-          {ROWS.map(({ key, name, Icon, iconClass }) => {
+          {ROWS.map(({ key, nameKey, Icon, iconClass }) => {
             const isOn = connected[key]
             return (
               <li key={key}>
@@ -91,11 +91,9 @@ export function SocialAccountsSettings({
                       <Icon className={iconClass} />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[0.9375rem] font-medium tracking-[-0.01em] text-foreground">
-                        {name}
-                      </p>
+                      <p className="truncate text-[0.9375rem] font-medium tracking-[-0.01em] text-foreground">{t(nameKey)}</p>
                       <p className="mt-0.5 text-[0.8125rem] leading-snug text-muted-foreground">
-                        {isOn ? 'Connected' : 'Not linked'}
+                        {isOn ? t('social.connected') : t('social.notLinked')}
                       </p>
                     </div>
                   </div>
@@ -120,7 +118,7 @@ export function SocialAccountsSettings({
                       }
                     }}
                   >
-                    {isOn ? 'Disconnect' : 'Connect'}
+                    {isOn ? t('social.disconnect') : t('social.connect')}
                     {!isOn ? (
                       <ChevronRight
                         className="h-3.5 w-3.5 opacity-40 transition-opacity group-hover/action:opacity-70"

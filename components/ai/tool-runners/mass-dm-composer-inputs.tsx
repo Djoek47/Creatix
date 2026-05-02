@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -34,43 +35,44 @@ export function MassDmComposerRunnerInputs({
   audienceSegment,
   setAudienceSegment,
 }: MassDmComposerRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.mass-dm-composer')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>What&apos;s this blast for?</Label>
+          <Label>{t('blastFor')}</Label>
           <Input
-            placeholder="e.g. win-back lapsed subs, tease new PPV…"
+            placeholder={t('blastPlaceholder')}
             value={campaignGoal}
             onChange={(e) => setCampaignGoal(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Tone</Label>
+          <Label>{ts('tone')}</Label>
           <Select value={contentType} onValueChange={setContentType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="friendly">Friendly</SelectItem>
-              <SelectItem value="flirty">Flirty</SelectItem>
-              <SelectItem value="urgent">Urgent / FOMO</SelectItem>
-              <SelectItem value="exclusive">Exclusive / VIP</SelectItem>
+              <SelectItem value="friendly">{t('toneFriendly')}</SelectItem>
+              <SelectItem value="flirty">{t('toneFlirty')}</SelectItem>
+              <SelectItem value="urgent">{t('toneUrgent')}</SelectItem>
+              <SelectItem value="exclusive">{t('toneExclusive')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>What should they do after reading? (optional)</Label>
+          <Label>{t('afterReadingOptional')}</Label>
           <Textarea
-            placeholder="e.g. reply with an emoji, unlock the bundle…"
+            placeholder={t('afterReadingPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[72px]"
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Pro mode: audience segment (whales, expiring, etc.) and full campaign fields.
-        </p>
+        <p className="text-[11px] text-muted-foreground">{t('proAudienceHint')}</p>
       </div>
     )
   }
@@ -79,47 +81,47 @@ export function MassDmComposerRunnerInputs({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Audience Segment</Label>
+          <Label>{t('audienceSegment')}</Label>
           <Select value={audienceSegment} onValueChange={setAudienceSegment}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subscribers</SelectItem>
-              <SelectItem value="new">New Fans (Last 7 days)</SelectItem>
-              <SelectItem value="inactive">Inactive (30+ days)</SelectItem>
-              <SelectItem value="whales">Top Spenders</SelectItem>
-              <SelectItem value="expiring">Expiring Soon</SelectItem>
+              <SelectItem value="all">{t('segAll')}</SelectItem>
+              <SelectItem value="new">{t('segNew')}</SelectItem>
+              <SelectItem value="inactive">{t('segInactive')}</SelectItem>
+              <SelectItem value="whales">{t('segWhales')}</SelectItem>
+              <SelectItem value="expiring">{t('segExpiring')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Tone</Label>
+          <Label>{ts('tone')}</Label>
           <Select value={contentType} onValueChange={setContentType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="friendly">Friendly</SelectItem>
-              <SelectItem value="flirty">Flirty</SelectItem>
-              <SelectItem value="urgent">Urgent/FOMO</SelectItem>
-              <SelectItem value="exclusive">Exclusive/VIP</SelectItem>
+              <SelectItem value="friendly">{t('toneFriendly')}</SelectItem>
+              <SelectItem value="flirty">{t('toneFlirty')}</SelectItem>
+              <SelectItem value="urgent">{t('toneUrgentPro')}</SelectItem>
+              <SelectItem value="exclusive">{t('toneExclusivePro')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Campaign Goal</Label>
+        <Label>{t('campaignGoal')}</Label>
         <Input
-          placeholder="e.g., Promote new PPV, Re-engage inactive fans..."
+          placeholder={t('campaignGoalPlaceholder')}
           value={campaignGoal}
           onChange={(e) => setCampaignGoal(e.target.value)}
         />
       </div>
       <div className="space-y-2">
-        <Label>Call to Action</Label>
+        <Label>{t('callToAction')}</Label>
         <Textarea
-          placeholder="What do you want fans to do after reading?"
+          placeholder={t('ctaPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[60px]"

@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { uploadVaultVideoDirect } from '@/lib/vault-upload-video-direct'
 
 export type VaultQuotaStrip = {
   usageBytes: number
@@ -196,12 +197,9 @@ export function VaultQuickAdd({
       }
 
       if (kind === 'video' && file) {
-        const fd = new FormData()
-        fd.append('file', file)
-        const up = await fetch(`/api/content/vault/${id}/frame-export`, { method: 'POST', body: fd })
-        const uj = (await up.json()) as { error?: string }
+        const up = await uploadVaultVideoDirect(id, file)
         if (!up.ok) {
-          setErr(uj.error || 'Item was created but the video upload failed.')
+          setErr(up.error || 'Item was created but the video upload failed.')
           await Promise.resolve(onSuccess?.())
           return
         }

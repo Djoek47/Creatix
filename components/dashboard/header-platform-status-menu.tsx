@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Loader2, Settings2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,8 +11,6 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenuLabel } from '@/components/ui/dropdown-menu'
 import {
   CREATOR_STATUS_PRESETS,
-  formatCreatorStatusLabel,
-  getCreatorStatusPresetLabel,
   normalizeCreatorStatusDetail,
   normalizeCreatorStatusPreset,
   type CreatorStatusPreset,
@@ -39,7 +38,45 @@ function draftFromRow(row: Row): Draft {
   }
 }
 
+function translateCreatorStatusPreset(
+  preset: CreatorStatusPreset,
+  t: ReturnType<typeof useTranslations<'dashboard'>>,
+): string {
+  switch (preset) {
+    case 'available':
+      return t('platformStatus.presets.available')
+    case 'away':
+      return t('platformStatus.presets.away')
+    case 'busy':
+      return t('platformStatus.presets.busy')
+    case 'dnd':
+      return t('platformStatus.presets.dnd')
+    case 'custom':
+      return t('platformStatus.presets.custom')
+    default:
+      return preset
+  }
+}
+
+/** Mirrors `formatCreatorStatusLabel` using translated preset labels (DB preset enums unchanged). */
+function formatHeaderCreatorStatusPreview(
+  presetValue: unknown,
+  detailValue: unknown,
+  t: ReturnType<typeof useTranslations<'dashboard'>>,
+): string | null {
+  const preset = normalizeCreatorStatusPreset(presetValue)
+  const detail = normalizeCreatorStatusDetail(detailValue)
+  const presetLabel = translateCreatorStatusPreset(preset, t)
+
+  if (preset === 'custom') {
+    return detail ?? t('platformStatus.customFallback')
+  }
+
+  return detail ? t('platformStatus.previewWithDetail', { preset: presetLabel, detail }) : presetLabel
+}
+
 export function HeaderPlatformStatusMenuSection() {
+  const t = useTranslations('dashboard')
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
@@ -96,7 +133,7 @@ export function HeaderPlatformStatusMenuSection() {
         await load()
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Could not load platforms')
+          setError(e instanceof Error ? e.message : t('platformStatus.errorLoad'))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -105,7 +142,7 @@ export function HeaderPlatformStatusMenuSection() {
     return () => {
       cancelled = true
     }
-  }, [load])
+  }, [load, t])
 
   const patchDraft = (platform: string, patch: Partial<Draft>) => {
     setDrafts((prev) => {
@@ -124,7 +161,7 @@ export function HeaderPlatformStatusMenuSection() {
     const preset = normalizeCreatorStatusPreset(draft.preset)
     const detail = normalizeCreatorStatusDetail(draft.detail)
     if (preset === 'custom' && !detail) {
-      setError('Custom status needs a short message.')
+      setError(t('platformStatus.errorCustomDetail'))
       return
     }
     setError(null)
@@ -143,7 +180,7 @@ export function HeaderPlatformStatusMenuSection() {
       await load()
       router.refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      setError(e instanceof Error ? e.message : t('platformStatus.errorSave'))
     } finally {
       setSaving((s) => ({ ...s, [platform]: false }))
     }
@@ -161,7 +198,7 @@ export function HeaderPlatformStatusMenuSection() {
   return (
     <>
       <DropdownMenuLabel className="px-3.5 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/75">
-        Platform status
+        {t('platformStatus.sectionTitle')}
       </DropdownMenuLabel>
       <div
         className="flex cursor-default flex-col items-stretch gap-3 rounded-xl px-2 pb-2 pt-0.5"
@@ -171,17 +208,17 @@ export function HeaderPlatformStatusMenuSection() {
         {loading ? (
           <div className="flex items-center justify-center gap-2.5 py-5 text-[13px] font-normal text-muted-foreground/80">
             <Loader2 className="size-4 shrink-0 animate-spin opacity-65" aria-hidden />
-            <span>Loading connections…</span>
+            <span>{t('platformStatus.loading')}</span>
           </div>
         ) : rows.length === 0 ? (
           <p className="px-1.5 py-2 text-[12px] leading-relaxed text-muted-foreground/88">
-            No connected platforms.{' '}
+            {t('platformStatus.emptyLead')}
             <Link
               href="/dashboard/settings?tab=integrations"
               className="font-medium text-foreground/75 underline decoration-border/50 underline-offset-4 transition-colors hover:text-foreground"
               onPointerDown={(e) => e.stopPropagation()}
             >
-              Connect in Settings
+              {t('platformStatus.connectInSettings')}
             </Link>
           </p>
         ) : (
@@ -231,7 +268,7 @@ export function HeaderPlatformStatusMenuSection() {
               const draft = drafts[row.platform] ?? draftFromRow(row)
               const isCustom = draft.preset === 'custom'
               const busy = saving[row.platform] === true
-              const preview = formatCreatorStatusLabel(draft.preset, draft.detail)
+              const preview = formatHeaderCreatorStatusPreview(draft.preset, draft.detail, t)
 
               return (
                 <div
@@ -258,7 +295,7 @@ export function HeaderPlatformStatusMenuSection() {
                     </div>
                   </div>
                   <label className="sr-only" htmlFor={`header-status-preset-${row.platform}`}>
-                    Status preset for {ui.label}
+                    {t('platformStatus.srPreset', { platform: ui.label })}
                   </label>
                   <select
                     id={`header-status-preset-${row.platform}`}
@@ -277,12 +314,12 @@ export function HeaderPlatformStatusMenuSection() {
                   >
                     {CREATOR_STATUS_PRESETS.map((p) => (
                       <option key={p} value={p}>
-                        {getCreatorStatusPresetLabel(p)}
+                        {translateCreatorStatusPreset(p, t)}
                       </option>
                     ))}
                   </select>
                   <label className="sr-only" htmlFor={`header-status-detail-${row.platform}`}>
-                    Optional status detail for {ui.label}
+                    {t('platformStatus.srDetail', { platform: ui.label })}
                   </label>
                   <Input
                     id={`header-status-detail-${row.platform}`}
@@ -294,7 +331,7 @@ export function HeaderPlatformStatusMenuSection() {
                       patchDraft(row.platform, { detail: e.target.value.slice(0, 120) })
                     }
                     placeholder={
-                      isCustom ? 'Custom message (required)' : 'Optional note (e.g. back at 6pm)'
+                      isCustom ? t('platformStatus.placeholderCustom') : t('platformStatus.placeholderOptional')
                     }
                     className="mb-2 h-8 text-xs"
                     disabled={busy}
@@ -302,15 +339,15 @@ export function HeaderPlatformStatusMenuSection() {
                   />
                   {isCustom ? (
                     <p className="mb-2 text-[11px] text-muted-foreground/88">
-                      Save custom note templates in{' '}
+                      {t('platformStatus.customTemplatesLead')}
                       <Link
                         href="/dashboard/settings?tab=integrations"
                         className="font-medium text-foreground/75 underline decoration-border/45 underline-offset-3 transition-colors hover:text-foreground"
                         onPointerDown={(e) => e.stopPropagation()}
                       >
-                        Settings → Integrations
+                        {t('platformStatus.settingsIntegrationsPhrase')}
                       </Link>
-                      .
+                      {t('platformStatus.customTemplatesTrail')}
                     </p>
                   ) : null}
                   <div className="flex justify-end">
@@ -327,22 +364,22 @@ export function HeaderPlatformStatusMenuSection() {
                       ) : (
                         <Settings2 className="h-3.5 w-3.5" aria-hidden />
                       )}
-                      Save
+                      {t('platformStatus.save')}
                     </Button>
                   </div>
                 </div>
               )
             })() : null}
             <p className="text-[11px] leading-snug text-muted-foreground/85">
-              More options in{' '}
+              {t('platformStatus.footnoteLead')}
               <Link
                 href="/dashboard/settings?tab=integrations"
                 className="font-medium text-foreground/75 underline decoration-border/45 underline-offset-3 transition-colors hover:text-foreground"
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                Settings → Integrations
+                {t('platformStatus.settingsIntegrationsPhrase')}
               </Link>
-              .
+              {t('platformStatus.footnoteTrail')}
             </p>
           </div>
         )}

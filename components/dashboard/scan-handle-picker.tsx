@@ -1,9 +1,11 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import type { ScanIdentityHandleRow } from '@/hooks/use-scan-identity'
+import { formatScanIdentityHandleLabel } from '@/lib/scan-identity-i18n'
 
 type Props = {
   handles: ScanIdentityHandleRow[]
@@ -27,6 +29,7 @@ export function ScanHandlePicker({
   allCheckboxClassName,
   className,
 }: Props) {
+  const t = useTranslations('dashboard')
   if (handles.length === 0) return null
 
   return (
@@ -44,7 +47,7 @@ export function ScanHandlePicker({
           className={cn(allCheckboxClassName)}
         />
         <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer text-[13px] font-medium leading-snug">
-          All identities
+          {t('scanIdentity.allIdentities')}
         </Label>
       </div>
       {!useAll && (
@@ -60,7 +63,7 @@ export function ScanHandlePicker({
                 htmlFor={`${idPrefix}-${h.value}`}
                 className="cursor-pointer text-[13px] font-normal leading-snug"
               >
-                {h.label}
+                {formatScanIdentityHandleLabel(h, t)}
               </Label>
             </div>
           ))}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapPin, Save, Loader2, Trash2, Shield, Sparkles, Navigation } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,12 +8,24 @@ import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { clearSessionSkyContextCache } from '@/lib/stellar/sky-context-client'
+import { useTranslations } from 'next-intl'
 
 type Props = {
   userId: string
 }
 
 export function LocationVaultSettings({ userId }: Props) {
+  const t = useTranslations('settings')
+  const presets = useMemo(
+    () =>
+      [
+        { labelKey: 'locationVault.preset.montreal' as const, query: 'Montreal, Canada' },
+        { labelKey: 'locationVault.preset.la' as const, query: 'Los Angeles, United States' },
+        { labelKey: 'locationVault.preset.miami' as const, query: 'Miami, United States' },
+        { labelKey: 'locationVault.preset.london' as const, query: 'London, United Kingdom' },
+      ] as const,
+    [],
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -23,13 +35,6 @@ export function LocationVaultSettings({ userId }: Props) {
   const [locationHint, setLocationHint] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const presets = [
-    { label: 'Montreal, Canada', query: 'Montreal, Canada' },
-    { label: 'Los Angeles, US', query: 'Los Angeles, United States' },
-    { label: 'Miami, US', query: 'Miami, United States' },
-    { label: 'London, UK', query: 'London, United Kingdom' },
-  ]
 
   useEffect(() => {
     let cancelled = false
@@ -68,14 +73,14 @@ export function LocationVaultSettings({ userId }: Props) {
         locationHint?: string
       }
       if (!res.ok) {
-        setError(data.error || 'Failed to save location')
+        setError(data.error || t('locationVault.errors.saveFailed'))
         return
       }
       clearSessionSkyContextCache()
       setHasLocationSet(Boolean(data.hasLocationSet))
       setLocationHint(data.locationHint ?? null)
       setQuery('')
-      setMessage('Location saved securely for glow insights.')
+      setMessage(t('locationVault.successSaved'))
     } finally {
       setSaving(false)
     }
@@ -86,7 +91,7 @@ export function LocationVaultSettings({ userId }: Props) {
     setMessage(null)
     const cleaned = query.trim()
     if (cleaned.length < 2) {
-      setError('Choose a preset, use your current location, or enter a city.')
+      setError(t('locationVault.errors.queryTooShort'))
       return
     }
     await saveLocation({ query: cleaned, source: 'manual' })
@@ -102,7 +107,7 @@ export function LocationVaultSettings({ userId }: Props) {
     setError(null)
     setMessage(null)
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setError('Geolocation is not available on this device.')
+      setError(t('locationVault.errors.geoUnavailable'))
       return
     }
     setLocating(true)
@@ -126,10 +131,10 @@ export function LocationVaultSettings({ userId }: Props) {
           : null
       const message =
         code === 1
-          ? 'Location permission was denied. Please allow access and try again.'
+          ? t('locationVault.errors.permissionDenied')
           : code === 3
-            ? 'Location request timed out. Try again.'
-          : 'Could not read your current location.'
+            ? t('locationVault.errors.timeout')
+            : t('locationVault.errors.genericGeo')
       setError(message)
     } finally {
       setLocating(false)
@@ -146,13 +151,13 @@ export function LocationVaultSettings({ userId }: Props) {
         credentials: 'include',
       })
       if (!res.ok) {
-        setError('Failed to delete location')
+        setError(t('locationVault.errors.deleteFailed'))
         return
       }
       clearSessionSkyContextCache()
       setHasLocationSet(false)
       setLocationHint(null)
-      setMessage('Location removed from vault.')
+      setMessage(t('locationVault.successRemoved'))
     } finally {
       setDeleting(false)
     }
@@ -164,32 +169,27 @@ export function LocationVaultSettings({ userId }: Props) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            <CardTitle className="font-semibold">Golden Hour Location Vault</CardTitle>
+            <CardTitle className="font-semibold">{t('locationVault.title')}</CardTitle>
           </div>
           {hasLocationSet ? (
             <Badge variant="outline" className="border-primary/50 text-primary">
               <Shield className="mr-1 h-3 w-3" />
-              Encrypted
+              {t('locationVault.encryptedBadge')}
             </Badge>
           ) : null}
         </div>
-        <CardDescription>
-          Save one optional location to power sunset glow predictions and positioning recommendations.
-        </CardDescription>
+        <CardDescription>{t('locationVault.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert className="border-primary/25 bg-primary/5">
           <Sparkles className="h-4 w-4 text-primary" />
-          <AlertDescription>
-            Stored encrypted at rest and used server-side to generate derived weather/light insights. Raw
-            coordinates are not exposed in the well-being UI.
-          </AlertDescription>
+          <AlertDescription>{t('locationVault.encryptionNote')}</AlertDescription>
         </Alert>
 
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading location vault...
+            {t('locationVault.loading')}
           </div>
         ) : (
           <>
@@ -200,26 +200,26 @@ export function LocationVaultSettings({ userId }: Props) {
                 ) : (
                   <Navigation className="h-4 w-4" />
                 )}
-                Use my current location
+                {t('locationVault.useCurrent')}
               </Button>
               <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                Prefer not to share device GPS? Pick a city preset below.
+                {t('locationVault.gpsHint')}
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Quick picks</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('locationVault.quickPicks')}</p>
               <div className="flex flex-wrap gap-2">
                 {presets.map((preset) => (
                   <Button
-                    key={preset.label}
+                    key={preset.labelKey}
                     type="button"
                     size="sm"
                     variant="outline"
                     disabled={saving || locating}
                     onClick={() => void handlePresetPick(preset.query)}
                   >
-                    {preset.label}
+                    {t(preset.labelKey)}
                   </Button>
                 ))}
               </div>
@@ -229,17 +229,18 @@ export function LocationVaultSettings({ userId }: Props) {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Optional: city search (e.g. Montreal, Canada)"
+                placeholder={t('locationVault.searchPlaceholder')}
                 className="bg-input"
               />
               <p className="text-xs text-muted-foreground">
-                Manual search is optional. Most people can use current location or a quick pick.
+                {t('locationVault.searchHint')}
               </p>
             </div>
 
             {locationHint ? (
               <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-                Saved location: <span className="font-medium">{locationHint}</span>
+                {t('locationVault.savedLine')}{' '}
+                <span className="font-medium">{locationHint}</span>
               </div>
             ) : null}
 
@@ -249,7 +250,7 @@ export function LocationVaultSettings({ userId }: Props) {
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleSave} disabled={saving || locating} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save location
+                {t('locationVault.save')}
               </Button>
               {hasLocationSet ? (
                 <Button
@@ -263,7 +264,7 @@ export function LocationVaultSettings({ userId }: Props) {
                   ) : (
                     <Trash2 className="h-4 w-4" />
                   )}
-                  Remove
+                  {t('locationVault.remove')}
                 </Button>
               ) : null}
             </div>

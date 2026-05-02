@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,20 +42,23 @@ export function CaptionGeneratorRunnerInputs({
   contentDescription,
   setContentDescription,
 }: CaptionGeneratorRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.caption-generator')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
         <div className="space-y-2">
-          <Label>Upload a photo (or describe below)</Label>
+          <Label>{t('easyUploadLabel')}</Label>
           {captionImageDataUrl ? (
             <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
               <img
                 src={captionImageDataUrl}
-                alt="Preview for caption"
+                alt={t('previewAlt')}
                 className="max-h-40 w-full object-contain"
               />
               <Button
@@ -64,7 +68,7 @@ export function CaptionGeneratorRunnerInputs({
                 className="absolute right-2 top-2"
                 onClick={() => setCaptionImageDataUrl(null)}
               >
-                Remove
+                {ts('remove')}
               </Button>
             </div>
           ) : (
@@ -99,7 +103,7 @@ export function CaptionGeneratorRunnerInputs({
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>What should the post say? (optional if you added a photo)</Label>
+            <Label>{t('easyPostLabel')}</Label>
             <VoiceInputButton
               onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
               size="sm"
@@ -108,7 +112,7 @@ export function CaptionGeneratorRunnerInputs({
             />
           </div>
           <Textarea
-            placeholder="e.g. flirty gym selfie, teasing PPV drop tonight…"
+            placeholder={t('easyPostPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[88px]"
@@ -122,32 +126,32 @@ export function CaptionGeneratorRunnerInputs({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Content Type</Label>
+          <Label>{ts('contentType')}</Label>
           <Select value={contentType} onValueChange={setContentType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="photo">Photo</SelectItem>
-              <SelectItem value="video">Video</SelectItem>
-              <SelectItem value="photoset">Photo Set</SelectItem>
-              <SelectItem value="story">Story</SelectItem>
-              <SelectItem value="livestream">Livestream</SelectItem>
+              <SelectItem value="photo">{t('typePhoto')}</SelectItem>
+              <SelectItem value="video">{t('typeVideo')}</SelectItem>
+              <SelectItem value="photoset">{t('typePhotoset')}</SelectItem>
+              <SelectItem value="story">{t('typeStory')}</SelectItem>
+              <SelectItem value="livestream">{t('typeLivestream')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Upload photo or video (AI sees the frame)</Label>
+        <Label>{t('uploadMediaLabel')}</Label>
         {captionImageDataUrl ? (
           <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
             <img
               src={captionImageDataUrl}
-              alt="Preview for caption"
+              alt={t('previewAlt')}
               className="max-h-48 w-full object-contain"
             />
             <Button
@@ -157,7 +161,7 @@ export function CaptionGeneratorRunnerInputs({
               className="absolute right-2 top-2"
               onClick={() => setCaptionImageDataUrl(null)}
             >
-              Remove
+              {ts('remove')}
             </Button>
           </div>
         ) : (
@@ -189,14 +193,11 @@ export function CaptionGeneratorRunnerInputs({
             }}
           />
         )}
-        <p className="text-xs text-muted-foreground">
-          For video we use one representative frame. In the box below you can ask for post copy—or a short script
-          structure (hook, beats, on-screen text, CTA) for Reels/teasers.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('videoHint')}</p>
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Describe your content (optional if you uploaded media)</Label>
+          <Label>{t('describeLabel')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -205,7 +206,7 @@ export function CaptionGeneratorRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="Optional: tone and angle for captions — or ask for a tight video outline (hook → beats → CTA). Example: “30s Reels teaser, flirty, end with PPV link…”"
+          placeholder={t('describePlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"

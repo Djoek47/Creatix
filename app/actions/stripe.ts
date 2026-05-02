@@ -10,10 +10,10 @@ import {
   type SubscriptionRowForCredits,
 } from '@/lib/billing/credit-economics'
 import { PAID_PLAN_ID, isPaidPlanId } from '@/lib/billing/access'
+import { checkoutProductDescriptionForLocale, checkoutProductNameForLocale } from '@/lib/billing/checkout-product-intl'
+import { resolveCheckoutLocaleForUser } from '@/lib/i18n/resolve-checkout-locale'
 import {
   TIER_COUNT,
-  checkoutProductDescription,
-  checkoutProductName,
   getMonthlyPriceCents,
   getTierByIndex,
   focusPlatformsShortLabel,
@@ -403,10 +403,21 @@ export async function startPaidSubscriptionCheckout(params: {
   }
 
   const customerId = await findOrCreateStripeCustomer({ userId: user.id, email: user.email })
+  const checkoutLocale = await resolveCheckoutLocaleForUser(supabase, user.id)
   const meta = paidCheckoutMetadata(user.id, variant, tierIndex, focusPlatforms, seats)
   const unitAmount = getMonthlyPriceCents(variant, tierIndex, focusPlatforms ?? undefined)
-  const productTitle = checkoutProductName(variant, tierIndex, focusPlatforms ?? undefined)
-  const productDescription = checkoutProductDescription(variant, tierIndex, focusPlatforms ?? undefined)
+  const productTitle = await checkoutProductNameForLocale(
+    checkoutLocale,
+    variant,
+    tierIndex,
+    focusPlatforms ?? undefined,
+  )
+  const productDescription = await checkoutProductDescriptionForLocale(
+    checkoutLocale,
+    variant,
+    tierIndex,
+    focusPlatforms ?? undefined,
+  )
   const focusKey =
     variant === 'single' && focusPlatforms?.length
       ? sortFocusPlatforms(focusPlatforms).join(',')

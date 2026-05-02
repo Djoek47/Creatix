@@ -9,7 +9,8 @@ import { PROTECTION_PLAN_ID } from '@/lib/billing/access'
 
 const TIER_COUNT = PRICING_TIERS.length
 
-const protectionProduct = getProduct('cev-protection') ?? { priceMonthly: 25, name: 'Protection' }
+export const protectionProduct =
+  getProduct('cev-protection') ?? { priceMonthly: 25, name: 'Protection' }
 
 function firstTier() {
   return PRICING_TIERS[0]
@@ -19,26 +20,40 @@ function lastTier() {
   return PRICING_TIERS[TIER_COUNT - 1]
 }
 
-/** Meta / OG description: concrete USD ranges from the live matrix. */
-export function buildPricingMetaDescription(): string {
+/** Numeric context for translating pricing SEO sentences (next-intl `t(...)`). */
+export function getPricingSeoInterpolation() {
   const low = firstTier()
   const high = lastTier()
-  const ofMin = low.prices.of
-  const ofMax = high.prices.of
-  const bMin = low.prices.of_fl
-  const bMax = high.prices.of_fl
   const prot = protectionProduct.priceMonthly ?? 25
+  const minMonthly = Math.min(low.prices.of, low.prices.fl)
+  const maxMonthly = high.prices.of_fl
+  return {
+    ofMin: low.prices.of,
+    ofMax: high.prices.of,
+    bMin: low.prices.of_fl,
+    bMax: high.prices.of_fl,
+    prot,
+    minOf: low.prices.of,
+    maxBundled: high.prices.of_fl,
+    protection: prot,
+    minMonthly,
+    maxMonthly,
+  }
+}
+
+/** Meta / OG description: concrete USD ranges from the live matrix (English fallback). */
+export function buildPricingMetaDescription(): string {
+  const { ofMin, ofMax, bMin, bMax, prot } = getPricingSeoInterpolation()
   return `Creator CRM pricing by monthly revenue: OnlyFans $${ofMin}–$${ofMax}/mo, Fansly line per band, Bundled (OnlyFans + Fansly) $${bMin}–$${bMax}/mo. Protection & Anti-Piracy (non-API platforms) $${prot}/mo add-on. 2-day trial (card required), per-seat billing on main plans.`
 }
 
-/** Short line for landing / cross-links (keep under ~120 chars). */
+/** Short line for landing / cross-links (English fallback). */
 export function buildHomePricingTeaserLine(): string {
-  const minOf = firstTier().prices.of
-  const maxBundled = lastTier().prices.of_fl
-  return `Transparent pricing from $${minOf}/mo (OnlyFans single-platform) to $${maxBundled}/mo (Bundled). Protection add-on from $${protectionProduct.priceMonthly}/mo.`
+  const { minOf, maxBundled, protection } = getPricingSeoInterpolation()
+  return `Transparent pricing from $${minOf}/mo (OnlyFans single-platform) to $${maxBundled}/mo (Bundled). Protection add-on from $${protection}/mo.`
 }
 
-/** Extra keywords including current entry price for long-tail queries. */
+/** Extra keywords including current entry price for long-tail queries (English fallback). */
 export function buildPricingKeywords(): string[] {
   const minOf = firstTier().prices.of
   return [
@@ -66,12 +81,16 @@ export function buildPricingKeywords(): string[] {
  * `aggregateRating` / `review` when a product is merchandised; we have no public review feed.
  * `SoftwareApplication` matches a web SaaS subscription and avoids that Product-snippet profile.
  */
-export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<string, unknown>[] {
-  const low = firstTier()
-  const high = lastTier()
-  const minMonthly = Math.min(low.prices.of, low.prices.fl)
-  const maxMonthly = high.prices.of_fl
-  const prot = protectionProduct.priceMonthly ?? 25
+export type PricingSoftwareOfferCopy = {
+  applicationDescription: string
+  aggregateOfferDescription: string
+}
+
+export function buildPricingSoftwareOfferGraph(
+  pricingPageUrl: string,
+  copy?: PricingSoftwareOfferCopy,
+): Record<string, unknown>[] {
+  const { minMonthly, maxMonthly, prot } = getPricingSeoInterpolation()
 
   return [
     {
@@ -80,7 +99,7 @@ export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<s
       name: 'Circe et Venus',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
-      description: buildPricingMetaDescription(),
+      description: copy?.applicationDescription ?? buildPricingMetaDescription(),
       url: pricingPageUrl,
       provider: {
         '@type': 'Organization',
@@ -92,7 +111,9 @@ export function buildPricingSoftwareOfferGraph(pricingPageUrl: string): Record<s
         lowPrice: minMonthly,
         highPrice: maxMonthly,
         offerCount: TIER_COUNT,
-        description: `Main plans ${minMonthly}–${maxMonthly} USD/mo; Protection add-on ${prot} USD/mo (stackable)`,
+        description:
+          copy?.aggregateOfferDescription ??
+          `Main plans ${minMonthly}–${maxMonthly} USD/mo; Protection add-on ${prot} USD/mo (stackable)`,
         url: pricingPageUrl,
         availability: 'https://schema.org/InStock',
       },

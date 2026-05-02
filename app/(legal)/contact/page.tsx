@@ -3,15 +3,21 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, MessageSquare, Loader2, Check } from 'lucide-react'
-import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
+import { ArrowLeft, Loader2, Check } from 'lucide-react'
+import { FooterSupportSocial, SUPPORT_EMAIL } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
+
+const fieldClass =
+  'h-12 rounded-xl border-border/50 bg-background/80 text-[15px] shadow-none transition-[border-color,box-shadow] duration-200 focus-visible:border-border focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+
+const textareaClass =
+  'min-h-[10.5rem] rounded-xl border-border/50 bg-background/80 py-3 text-[15px] leading-relaxed shadow-none transition-[border-color,box-shadow] duration-200 focus-visible:border-border focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
 export default function ContactPage() {
   const router = useRouter()
@@ -25,8 +31,8 @@ export default function ContactPage() {
     message: '',
   })
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
+  function handleBack() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back()
     } else {
       router.push('/')
@@ -48,8 +54,9 @@ export default function ContactPage() {
 
       if (!res.ok) {
         setError(
-          data?.error ||
-            'We could not send your message right now. Please try again or email us directly.',
+          typeof data?.error === 'string'
+            ? data.error
+            : 'Message could not be sent. Try again or use the email address above.',
         )
       } else {
         setSent(true)
@@ -59,188 +66,204 @@ export default function ContactPage() {
       setError(
         err instanceof Error
           ? err.message
-          : 'We could not send your message right now. Please try again or email us directly.',
+          : 'Message could not be sent. Try again or use the email address above.',
       )
     } finally {
       setSending(false)
     }
   }
 
-  const contactOptions = [
-    {
-      icon: MessageSquare,
-      title: 'Support',
-      description: 'Questions about the platform, billing, or account help',
-      email: 'support@circeetvenus.com',
-    },
-  ]
-
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <ThemedLogo width={32} height={32} className="rounded-full" priority />
-            <span className="font-serif text-lg font-semibold text-primary">CIRCE ET VENUS</span>
-          </Link>
-          <Button variant="ghost" onClick={handleBack} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen min-w-0 bg-background text-foreground antialiased">
+      <header className="sticky top-0 z-40 border-b border-border/25 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75">
+        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-5 sm:px-8">
+          <Button
+            type="button"
+            variant="ghost"
+            className="-ml-2 h-10 gap-2 rounded-full px-3 text-[15px] font-normal text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
             Back
           </Button>
+          <Link
+            href="/"
+            className="rounded-full p-0.5 outline-offset-4 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
+            aria-label="Home"
+          >
+            <ThemedLogo width={28} height={28} className="rounded-full" priority />
+          </Link>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <div className="text-center">
-          <h1 className="font-serif text-3xl font-bold">Contact Us</h1>
-          <p className="mt-2 text-muted-foreground">
-            We&apos;re here to help. Reach out to our divine support team.
+      <main className="mx-auto max-w-xl px-5 pb-28 pt-14 sm:px-8 sm:pt-16 md:max-w-lg">
+        <div className="space-y-5 sm:space-y-6">
+          <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-foreground sm:text-[2.375rem]">
+            Contact
+          </h1>
+          <p className="max-w-[40ch] text-[1.0625rem] leading-[1.5] text-muted-foreground sm:text-[1.125rem] sm:leading-relaxed">
+            Account, billing, or product questions—write here or email us directly.
+          </p>
+          <p>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="inline text-[0.9375rem] font-medium text-foreground underline decoration-border/80 underline-offset-[5px] transition-colors hover:decoration-primary hover:text-primary sm:text-[15px]"
+            >
+              {SUPPORT_EMAIL}
+            </a>
           </p>
         </div>
 
-        <div className="mt-12 grid gap-8 lg:grid-cols-3">
-          {/* Contact Options */}
-          <div className="space-y-4 lg:col-span-1">
-            {contactOptions.map((option) => (
-              <Card key={option.title} className="border-border bg-card">
-                <CardContent className="flex items-start gap-3 pt-6">
-                  <option.icon className="h-5 w-5 text-primary" />
-                  <div>
-                    <h3 className="font-semibold">{option.title}</h3>
-                    <p className="text-sm text-muted-foreground">{option.description}</p>
-                    <a
-                      href={`mailto:${option.email}`}
-                      className="mt-1 text-sm text-primary hover:underline"
-                    >
-                      {option.email}
-                    </a>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <section className="mt-14 sm:mt-16" aria-labelledby="contact-form-label">
+          <span id="contact-form-label" className="sr-only">
+            Contact form
+          </span>
 
-          {/* Contact Form */}
-          <Card className="border-border bg-card lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Send a Message</CardTitle>
-              <CardDescription>
-                Fill out the form below and we&apos;ll get back to you within 24 hours.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {sent ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                    <Check className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold">Message Sent!</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Thank you for reaching out. We&apos;ll respond to your inquiry soon.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-6"
-                    onClick={() => setSent(false)}
-                  >
-                    Send Another Message
-                  </Button>
+          <div className="rounded-2xl border border-border/35 bg-muted/[0.08] p-7 sm:p-9">
+            {sent ? (
+              <div className="flex flex-col items-center py-10 text-center sm:py-12">
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/[0.07]"
+                  aria-hidden
+                >
+                  <Check className="h-5 w-5 text-primary" strokeWidth={2.25} />
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && (
-                    <p className="text-sm text-destructive">
-                      {error}
-                    </p>
-                  )}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="Your name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                        className="bg-input"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required
-                        className="bg-input"
-                      />
-                    </div>
-                  </div>
+                <p className="mt-6 text-[1.125rem] font-medium tracking-[-0.02em] text-foreground">Message received</p>
+                <p className="mt-2 max-w-[32ch] text-[0.9375rem] leading-relaxed text-muted-foreground">
+                  We&apos;ll reply by email. If it&apos;s urgent, send a follow-up to the address above.
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-8 h-10 rounded-full px-5 text-[15px] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  onClick={() => setSent(false)}
+                >
+                  Send another message
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-7 sm:space-y-8">
+                {error ? (
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-destructive/25 bg-destructive/[0.07] px-4 py-3 text-[0.9375rem] leading-snug text-destructive"
+                  >
+                    {error}
+                  </p>
+                ) : null}
+
+                <div className="grid gap-7 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-0">
                   <div className="space-y-2">
-                    <Label htmlFor="subject">Subject</Label>
-                    <Select
-                      value={formData.subject}
-                      onValueChange={(value) => setFormData({ ...formData, subject: value })}
-                    >
-                      <SelectTrigger className="bg-input">
-                        <SelectValue placeholder="Select a topic" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="general">General Inquiry</SelectItem>
-                        <SelectItem value="support">Technical Support</SelectItem>
-                        <SelectItem value="billing">Billing Question</SelectItem>
-                        <SelectItem value="partnership">Partnership Opportunity</SelectItem>
-                        <SelectItem value="press">Press & Media</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="message">Message</Label>
-                    <Textarea
-                      id="message"
-                      placeholder="How can we help you?"
-                      rows={5}
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    <Label htmlFor="contact-name" className="text-[13px] font-medium text-foreground/90">
+                      Name
+                    </Label>
+                    <Input
+                      id="contact-name"
+                      autoComplete="name"
+                      placeholder=""
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="bg-input"
+                      className={fieldClass}
                     />
                   </div>
-                  <Button type="submit" className="w-full gap-2" disabled={sending}>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-email" className="text-[13px] font-medium text-foreground/90">
+                      Email
+                    </Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder=""
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contact-subject" className="text-[13px] font-medium text-foreground/90">
+                    Topic <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Select
+                    value={formData.subject || undefined}
+                    onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                  >
+                    <SelectTrigger id="contact-subject" className={cn(fieldClass, 'h-12 w-full')}>
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="support">Technical</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="partnership">Partnership</SelectItem>
+                      <SelectItem value="press">Press</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contact-message" className="text-[13px] font-medium text-foreground/90">
+                    Message
+                  </Label>
+                  <Textarea
+                    id="contact-message"
+                    placeholder=""
+                    rows={6}
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    required
+                    className={textareaClass}
+                  />
+                </div>
+
+                <div className="pt-1">
+                  <Button
+                    type="submit"
+                    disabled={sending}
+                    className="h-12 w-full rounded-xl text-[15px] font-semibold tracking-[-0.01em] shadow-none"
+                  >
                     {sending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin opacity-80" aria-hidden />
+                        Sending…
+                      </span>
                     ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Send Message
-                      </>
+                      'Send'
                     )}
                   </Button>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                </div>
+              </form>
+            )}
+          </div>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-5xl px-4">
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
-            <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
-            <Link href="/cookies" className="hover:text-primary">Cookie Policy</Link>
-            <Link href="/about" className="hover:text-primary">About Us</Link>
-          </div>
-          <FooterSupportSocial className="mt-4" />
+      <footer className="border-t border-border/25 py-10 sm:py-12">
+        <div className="mx-auto max-w-2xl px-5 sm:px-8">
+          <nav
+            className="flex flex-wrap justify-center gap-x-9 gap-y-3 text-[13px] text-muted-foreground"
+            aria-label="Legal"
+          >
+            <Link href="/terms" className="transition-colors hover:text-foreground">
+              Terms
+            </Link>
+            <Link href="/privacy" className="transition-colors hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href="/cookies" className="transition-colors hover:text-foreground">
+              Cookies
+            </Link>
+            <Link href="/about" className="transition-colors hover:text-foreground">
+              About
+            </Link>
+          </nav>
+          <FooterSupportSocial className="mt-8 text-[13px]" />
         </div>
       </footer>
     </div>

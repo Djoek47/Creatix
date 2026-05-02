@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,7 @@ import {
   BarChart3,
   Info,
 } from 'lucide-react'
-import { ALL_TOOLS_META, type AIToolCategory } from '@/lib/ai-tools-data'
+import { ALL_TOOLS_META, type AIToolCategory, type AIToolMeta } from '@/lib/ai-tools-data'
 import { createClient } from '@/lib/supabase/client'
 import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
@@ -61,14 +62,12 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'credits-planner': BarChart3,
 }
 
-const CATEGORIES: { id: 'all' | AIToolCategory; name: string }[] = [
-  { id: 'all', name: 'All' },
-  { id: 'content', name: 'Content' },
-  { id: 'engagement', name: 'Engage' },
-  { id: 'analytics', name: 'Analytics' },
-  { id: 'protection', name: 'Shield' },
-  { id: 'premium', name: 'Premium' },
-]
+type LibraryToolRow = AIToolMeta & {
+  name: string
+  description: string
+  longDescription: string
+  badge?: string
+}
 
 const TOOL_CARD_CLASS = cn(
   'relative h-full overflow-hidden rounded-xl border border-white/40 bg-white/50 py-0 shadow-[0_12px_36px_-18px_rgba(15,23,42,0.2)] backdrop-blur-2xl backdrop-saturate-150 transition-[border-color,box-shadow] duration-200 ease-out',
@@ -85,6 +84,7 @@ interface AIToolsLibraryProps {
 }
 
 export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) {
+  const t = useTranslations('ai-tools')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<'all' | AIToolCategory>('all')
   const [creditSnapshot, setCreditSnapshot] = useState<{
@@ -141,7 +141,26 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
     load()
   }, [])
 
-  const libraryTools = ALL_TOOLS_META.filter((t) => !t.hiddenFromLibrary)
+  const libraryTools: LibraryToolRow[] = useMemo(
+    () =>
+      ALL_TOOLS_META.filter((row) => !row.hiddenFromLibrary).map((row) => ({
+        ...row,
+        name: t(`tools.${row.id}.name`),
+        description: t(`tools.${row.id}.description`),
+        longDescription: t(`tools.${row.id}.longDescription`),
+        ...(t.has(`tools.${row.id}.badge`) ? { badge: t(`tools.${row.id}.badge`) } : {}),
+      })),
+    [t],
+  )
+
+  const categories = useMemo(
+    () =>
+      (['all', 'content', 'engagement', 'analytics', 'protection', 'premium'] as const).map((id) => ({
+        id: id === 'all' ? ('all' as const) : id,
+        name: t(`categories.${id}`),
+      })),
+    [t],
+  )
 
   const filteredTools = libraryTools.filter((tool) => {
     const matchesSearch =
@@ -152,20 +171,24 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
     return matchesSearch && matchesCategory
   })
 
-  const categoryCounts = CATEGORIES.map((c) => ({
-    ...c,
-    count:
-      c.id === 'all'
-        ? libraryTools.length
-        : libraryTools.filter((t) => t.category === c.id).length,
-  }))
+  const categoryCounts = useMemo(
+    () =>
+      categories.map((c) => ({
+        ...c,
+        count:
+          c.id === 'all'
+            ? libraryTools.length
+            : libraryTools.filter((row) => row.category === c.id).length,
+      })),
+    [categories, libraryTools],
+  )
 
   return (
     <div className="min-w-0 space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {showBackButton ? (
-            <StudioBackLink href="/dashboard/ai-studio" aria-label="Back to AI Studio" />
+            <StudioBackLink href="/dashboard/ai-studio" aria-label={t('chrome.backToStudio')} />
           ) : null}
           <div className="relative min-w-0 flex-1 sm:max-w-md">
             <Search
@@ -173,7 +196,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
               aria-hidden
             />
             <Input
-              placeholder="Search by name or topic…"
+              placeholder={t('chrome.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-11 rounded-xl border-border/35 bg-background/45 pl-10 shadow-sm backdrop-blur-md transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 focus-visible:ring-1"
@@ -188,10 +211,11 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
             <Zap className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             {creditSnapshot ? (
               <span>
-                <span className="font-medium text-foreground">{creditSnapshot.totalRemaining}</span> credits
+                <span className="font-medium text-foreground">{creditSnapshot.totalRemaining}</span>{' '}
+                {t('chrome.creditsWord')}
               </span>
             ) : (
-              <span>Credits</span>
+              <span>{t('chrome.creditsShort')}</span>
             )}
           </div>
           {!isPro ? (
@@ -202,7 +226,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
             >
               <Link href="/dashboard/settings?tab=billing">
                 <Crown className="h-3.5 w-3.5" aria-hidden />
-                Upgrade
+                {t('chrome.upgrade')}
               </Link>
             </Button>
           ) : null}
@@ -255,7 +279,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                       variant="ghost"
                       size="icon"
                       className="absolute bottom-2 right-2 z-10 h-8 w-8 rounded-full border border-border/40 bg-background/85 text-muted-foreground shadow-sm backdrop-blur-md transition-[background-color,color,box-shadow] duration-200 hover:bg-background hover:text-foreground"
-                      aria-label={`What ${tool.name} does — hover or focus to read`}
+                      aria-label={t('chrome.hoverAria', { name: tool.name })}
                     >
                       <Info className="h-3.5 w-3.5" strokeWidth={2} />
                     </Button>
@@ -265,7 +289,7 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                     <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">{tool.longDescription}</p>
                     {!comingSoon ? (
                       <p className="mt-4 border-t border-border/35 pt-3 text-[12px] text-muted-foreground">
-                        <span className="font-medium text-foreground">Credits: </span>
+                        <span className="font-medium text-foreground">{t('chrome.creditsPrefix')}</span>
                         {formatToolCreditCost(tool.id)}
                       </p>
                     ) : null}
@@ -275,7 +299,30 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
 
               const cardInner = (
                 <CardContent className="flex h-full min-h-0 flex-1 flex-col justify-center p-3 pb-11 sm:p-3.5 sm:pb-11">
-                  <div className="flex items-center gap-2.5">
+                  {comingSoon ? (
+                    <div className="mb-2.5 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="border-border/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                      >
+                        {t('chrome.comingSoon')}
+                      </Badge>
+                    </div>
+                  ) : tool.isPro && !isPro ? (
+                    <div className="mb-2.5 shrink-0 border-b border-border/25 pb-2.5">
+                      <p className="flex items-center gap-2 text-[11px] font-medium leading-snug text-foreground/90">
+                        <Crown
+                          className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400/95"
+                          aria-hidden
+                        />
+                        {t('chrome.proUpsellTitle')}
+                      </p>
+                      <p className="mt-1 text-[10px] font-normal leading-snug text-muted-foreground">
+                        {t('chrome.proUpsellBody')}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="flex min-h-0 items-center gap-2.5">
                     <div
                       className={cn(
                         'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/15 bg-gradient-to-br from-amber-500/15 to-purple-600/15 ring-1 ring-amber-500/10 backdrop-blur-sm transition-[background,box-shadow,filter] duration-300 ease-out',
@@ -315,29 +362,6 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                       ) : null}
                     </div>
                   </div>
-                  {comingSoon ? (
-                    <div className="absolute left-2 top-2 z-10">
-                      <Badge
-                        variant="outline"
-                        className="border-border/45 px-2 py-0 text-[10px] font-medium leading-tight tracking-tight text-muted-foreground"
-                      >
-                        Coming soon
-                      </Badge>
-                    </div>
-                  ) : tool.isPro && !isPro ? (
-                    <div className="absolute left-2 top-2 z-10 flex max-w-[11rem] flex-col gap-1">
-                      <span
-                        className="inline-flex h-7 w-fit items-center gap-1 rounded-full bg-foreground px-2.5 text-[11px] font-semibold tracking-tight text-background shadow-sm"
-                        aria-hidden
-                      >
-                        <Crown className="h-3 w-3 shrink-0" />
-                        Upgrade
-                      </span>
-                      <span className="block text-[9px] font-medium leading-tight tracking-tight text-muted-foreground">
-                        Unavailable on free trial
-                      </span>
-                    </div>
-                  ) : null}
                 </CardContent>
               )
 
@@ -345,7 +369,10 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
                 <div key={tool.id} className="group relative h-full min-h-[6.5rem]">
                   {toolInfoHover}
                   {comingSoon ? (
-                    <div className="block h-full cursor-not-allowed" aria-label={`${tool.name} — coming soon`}>
+                    <div
+                      className="block h-full cursor-not-allowed"
+                      aria-label={t('chrome.comingSoonCardAria', { name: tool.name })}
+                    >
                       <Card
                         className={cn(
                           TOOL_CARD_CLASS,
@@ -383,9 +410,9 @@ export function AIToolsLibrary({ showBackButton = false }: AIToolsLibraryProps) 
               )}
             >
               <Search className="mb-4 h-10 w-10 text-muted-foreground/60" aria-hidden />
-              <p className="text-[15px] font-medium text-foreground">No tools match</p>
+              <p className="text-[15px] font-medium text-foreground">{t('chrome.noToolsTitle')}</p>
               <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
-                Try a different search or category.
+                {t('chrome.noToolsBody')}
               </p>
             </div>
           ) : null}

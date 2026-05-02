@@ -16,6 +16,8 @@ type Props = {
 
 /** External MarkIt trace lab (beta). */
 const MARKIT_EXTERNAL_TRACE_URL = 'https://markit-fawn.vercel.app/trace'
+/** When false, no `<a href>` to the hosted lab (banner + “Test it out”). */
+const MARKIT_EXTERNAL_TRACE_LINK_ENABLED = false
 
 /**
  * In-app upload still runs through our API — keep blocked until the dual-layer pipeline is fully wired.
@@ -86,8 +88,9 @@ export function MarkitAttributionPanel({ className }: Props) {
                 ) : null}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Upload a re-uploaded image or video from a leak site. We scan for in-file forensic markers and microdot
-                patterns to tie the sample to your traces — then you can use it as evidence in a DMCA draft.
+                Add an image or clip you saved from a suspect listing. MarkIt searches for embedded markers and
+                microdot-style signals, connects any hits to traces you have on file, and gives you clear language to
+                support a DMCA notice.
               </p>
             </div>
           </div>
@@ -97,23 +100,39 @@ export function MarkitAttributionPanel({ className }: Props) {
           <div className="mb-4 space-y-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2 text-foreground">
               <Lock className="h-4 w-4 shrink-0 text-violet-300" aria-hidden />
-              <span className="font-medium">In-dashboard analysis is paused for this beta.</span>
+              <span className="font-medium">Upload and analyze are not available in this workspace yet.</span>
             </div>
             <p className="text-muted-foreground">
-              Use the standalone MarkIt trace lab to test forensic matching while we finish the full Creatix integration.
+              {MARKIT_EXTERNAL_TRACE_LINK_ENABLED ? (
+                <>
+                  Until it ships here, you can open MarkIt’s hosted trace tool and run the same trace-based check. When
+                  analysis is enabled in this workspace, your evidence steps stay the same.
+                </>
+              ) : (
+                <>
+                  Hosted tracing is not linked from this screen in this release. When upload and analysis are enabled
+                  here, your evidence steps stay the same.
+                </>
+              )}
             </p>
-            <a
-              href={MARKIT_EXTERNAL_TRACE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 font-medium text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
-            >
-              Open MarkIt trace (beta)
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            </a>
+            {MARKIT_EXTERNAL_TRACE_LINK_ENABLED ? (
+              <a
+                href={MARKIT_EXTERNAL_TRACE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-medium text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+              >
+                Open hosted trace on MarkIt
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              </a>
+            ) : (
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Hosted trace link is turned off in this release.
+              </span>
+            )}
             <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Full in-app integration
+              <span className="text-xs font-medium tracking-tight text-muted-foreground">
+                Estimated in-dashboard availability
               </span>
               <div
                 className="flex flex-wrap gap-2 font-mono text-sm tabular-nums text-foreground"
@@ -175,16 +194,19 @@ export function MarkitAttributionPanel({ className }: Props) {
             />
           </label>
           {blocked ? (
-            <Button asChild className="shrink-0 gap-2">
-              <a
-                href={MARKIT_EXTERNAL_TRACE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4" />
+            MARKIT_EXTERNAL_TRACE_LINK_ENABLED ? (
+              <Button asChild className="shrink-0 gap-2">
+                <a href={MARKIT_EXTERNAL_TRACE_URL} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" aria-hidden />
+                  Test it out
+                </a>
+              </Button>
+            ) : (
+              <Button type="button" disabled className="shrink-0 gap-2" title="External lab link disabled in this build">
+                <ExternalLink className="h-4 w-4 opacity-50" aria-hidden />
                 Test it out
-              </a>
-            </Button>
+              </Button>
+            )
           ) : (
             <Button
               type="button"

@@ -826,11 +826,14 @@ class OnlyFansAPI {
   async getMessages(chatId: string, params?: {
     limit?: number
     id?: string
+    /** Pagination cursor (mapped to `id` query param for older-only pages). */
+    before?: string
     order?: 'desc' | 'asc'
   }): Promise<{ messages: Message[] }> {
     const queryParams = new URLSearchParams()
     if (params?.limit) queryParams.set('limit', params.limit.toString())
-    if (params?.id) queryParams.set('id', params.id)
+    const cursorId = params?.id ?? params?.before
+    if (cursorId) queryParams.set('id', cursorId)
     if (params?.order) queryParams.set('order', params.order)
     
     const response = await this.request<{ data: any[] }>(`/chats/${chatId}/messages?${queryParams.toString()}`)

@@ -1,6 +1,9 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useTranslations } from 'next-intl'
+import Image from 'next/image'
+import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ConversationList, conversationRowKey, type Conversation } from './conversation-list'
@@ -8,7 +11,7 @@ import { ConversationRail } from './conversation-rail'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { ChatWindow } from './chat-window'
 import { MessagingLayout } from './MessagingLayout'
-import { MassMessageDialog } from './mass-message-dialog'
+import { MassMessageDialog, MassMessageLaunchControl } from './mass-message-dialog'
 import { MessageEngagementInsights } from './message-engagement-insights'
 import { RightDrawer } from './RightDrawer'
 import { Button } from '@/components/ui/button'
@@ -28,6 +31,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   RefreshCw,
   Loader2,
   ArrowLeft,
@@ -39,6 +49,13 @@ import {
   Maximize2,
   Minimize2,
   SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Inbox,
+  Link2,
+  MoreHorizontal,
+  Megaphone,
 } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useMessagesFocusChrome } from '@/components/messages/messages-focus-chrome-context'
@@ -47,6 +64,7 @@ import type {
   InboxSort,
   InboxPlatformFilter,
 } from '@/lib/messages/inbox-crm'
+import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 
 type MessagesView = 'conversations' | 'insights'
 type InboxMeta = {
@@ -99,6 +117,25 @@ const SEGMENT_LABEL: Record<InboxSegment, string> = {
   fans: 'Fans',
 }
 
+function conversationMobileSubtitle(c: Conversation): string {
+  const platform = c.platform === 'onlyfans' ? 'OF' : 'Fansly'
+  const badge = c.crm?.audienceBadges?.[0]?.label
+  const tier = c.crm?.tier?.trim()
+  const segment = badge || tier || 'Fan'
+  return `${platform} · ${segment}`
+}
+
+const mobileSegBtnBase =
+  'h-8 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out'
+
+const mobileSegBtnClass = (active: boolean) =>
+  cn(
+    mobileSegBtnBase,
+    active
+      ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+      : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+  )
+
 interface MessagesLayoutProps {
   userId: string
   /** From server: `?fanId=` (voice/Divine) or `?chat=` (dashboard links) on first paint. */
@@ -134,14 +171,15 @@ function WorkspaceKpiPanel({
   workspaceTagVisibility: Record<string, boolean>
   setWorkspaceTagVisibility: Dispatch<SetStateAction<Record<string, boolean>>>
 }) {
+  const t = useTranslations('messages.layout')
   const metrics = [
-    { label: 'Conversations', value: workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—' },
+    { label: t('kpiConversations'), value: workspaceStats?.kpis.totalConversations?.toLocaleString() ?? '—' },
     {
-      label: 'Response rate',
+      label: t('kpiResponseRate'),
       value: workspaceStats?.kpis.responseRate != null ? `${workspaceStats.kpis.responseRate}%` : '—',
     },
-    { label: 'Avg. response', value: workspaceStats?.kpis.avgResponseTimeLabel ?? '—' },
-    { label: 'Messages today', value: workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—' },
+    { label: t('kpiAvgResponse'), value: workspaceStats?.kpis.avgResponseTimeLabel ?? '—' },
+    { label: t('messagesToday'), value: workspaceStats?.kpis.messagesToday?.toLocaleString() ?? '—' },
   ] as const
 
   return (
@@ -198,12 +236,159 @@ function WorkspaceKpiPanel({
   )
 }
 
+const inboxToolbarRowClass =
+  'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-snug tracking-[-0.01em] sm:text-[13px]'
+
+function ThreadCountChip({ count }: { count: number }) {
+  const label = `${count} thread${count === 1 ? '' : 's'}`
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center rounded-full border border-border/40 bg-muted/30 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground/90',
+        'shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] dark:bg-white/[0.06]',
+      )}
+    >
+      {label}
+    </span>
+  )
+}
+
+function ToolbarSep() {
+  return (
+    <span className="inline-flex shrink-0 select-none text-muted-foreground/40" aria-hidden>
+      ·
+    </span>
+  )
+}
+
+function PlatformConnectChips() {
+  const chip =
+    'inline-flex items-center gap-1 rounded-md border border-border/35 bg-background/40 px-1.5 py-0.5 ring-1 ring-primary/[0.08] dark:bg-white/[0.04]'
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+      <span className="font-medium text-muted-foreground/90">Connect</span>
+      <span className={chip}>
+        <Image
+          src={ONLYFANS_LOGO_SRC}
+          alt=""
+          width={13}
+          height={13}
+          className="rounded-[3px]"
+        />
+        <span className="text-[11px] font-medium text-foreground/88">OnlyFans</span>
+      </span>
+      <span className="text-[11px] text-muted-foreground/55">or</span>
+      <span className={chip}>
+        <Image src={FANSLY_LOGO_SRC} alt="" width={13} height={13} className="rounded-[3px]" />
+        <span className="text-[11px] font-medium text-foreground/88">Fansly</span>
+      </span>
+    </span>
+  )
+}
+
+function MessagesInboxToolbarSubtitle({
+  view,
+  conversationsLength,
+  hasFanPlatformConnected,
+  inboxNarrowingActive,
+}: {
+  view: MessagesView
+  conversationsLength: number
+  hasFanPlatformConnected: boolean
+  inboxNarrowingActive: boolean
+}): ReactNode {
+  const t = useTranslations('messages.layout')
+  if (view === 'insights') {
+    return (
+      <div className={inboxToolbarRowClass}>
+        <BarChart3 className="h-3.5 w-3.5 shrink-0 text-violet-400/90" aria-hidden />
+        <span className="font-semibold text-foreground/90">Insights</span>
+        <ToolbarSep />
+        <span className="text-muted-foreground/88">direct & mass performance</span>
+      </div>
+    )
+  }
+
+  const n = conversationsLength
+
+  if (n === 0 && !hasFanPlatformConnected) {
+    return (
+      <div className={inboxToolbarRowClass}>
+        <ThreadCountChip count={n} />
+        <ToolbarSep />
+        <PlatformConnectChips />
+      </div>
+    )
+  }
+
+  if (n === 0 && inboxNarrowingActive) {
+    return (
+      <div className={inboxToolbarRowClass}>
+        <ThreadCountChip count={n} />
+        <ToolbarSep />
+        <Filter className="h-3.5 w-3.5 shrink-0 text-amber-400/85" aria-hidden />
+        <span className="text-muted-foreground/88">None match this filter</span>
+      </div>
+    )
+  }
+
+  if (n === 0) {
+    return (
+      <div className={inboxToolbarRowClass}>
+        <ThreadCountChip count={n} />
+        <ToolbarSep />
+        <Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground/65" aria-hidden />
+        <span className="text-muted-foreground/88">{t('inboxEmpty')}</span>
+      </div>
+    )
+  }
+
+  if (inboxNarrowingActive) {
+    return (
+      <div className={inboxToolbarRowClass}>
+        <ThreadCountChip count={n} />
+        <ToolbarSep />
+        <Filter className="h-3.5 w-3.5 shrink-0 text-amber-400/85" aria-hidden />
+        <span className="font-medium text-foreground/85">Filtered</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={inboxToolbarRowClass}>
+      <ThreadCountChip count={n} />
+      <ToolbarSep />
+      <Link2 className="h-3.5 w-3.5 shrink-0 text-primary/75" aria-hidden />
+      <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground/88">
+        <span className="font-medium text-foreground/80">CRM segments</span>
+        <ToolbarSep />
+        <span className="inline-flex items-center gap-1 rounded-md border border-border/30 bg-background/35 px-1.5 py-0.5 dark:bg-white/[0.04]">
+          <Image
+            src={ONLYFANS_LOGO_SRC}
+            alt=""
+            width={12}
+            height={12}
+            className="rounded-[2px]"
+          />
+          <span className="text-[11px] font-medium text-foreground/85">OnlyFans</span>
+        </span>
+        <span className="text-muted-foreground/50">&</span>
+        <span className="inline-flex items-center gap-1 rounded-md border border-border/30 bg-background/35 px-1.5 py-0.5 dark:bg-white/[0.04]">
+          <Image src={FANSLY_LOGO_SRC} alt="" width={12} height={12} className="rounded-[2px]" />
+          <span className="text-[11px] font-medium text-foreground/85">Fansly</span>
+        </span>
+      </span>
+    </div>
+  )
+}
+
 function MessagesLayoutContent({
   userId,
   initialFanId,
   initialPlatform,
   hasFanPlatformConnected = false,
 }: MessagesLayoutProps) {
+  const tLayout = useTranslations('messages.layout')
   const { reduced } = useUiMotionPreferences()
   const fadeTransition = uiFadeTransition(reduced)
   const panelTransition = uiPanelTransition(reduced)
@@ -233,11 +418,14 @@ function MessagesLayoutContent({
   const [fanProfileOpen, setFanProfileOpen] = useState(false)
   /** Desktop: false = avatar-only rail; true = expanded with names + last message. */
   const [chatsRailExpanded, setChatsRailExpanded] = useState(false)
-  const { focusMode, setFocusMode } = useMessagesFocusChrome()
+  const { focusMode, setFocusMode, workspaceBarCollapsed, setWorkspaceBarCollapsed } =
+    useMessagesFocusChrome()
   const [rightDrawerOpen, setRightDrawerOpen] = useState(true)
   const [kpiStripVisible, setKpiStripVisible] = useState(true)
   /** Mobile: workspace KPIs open in a sheet (never the bottom strip). */
   const [kpiStatsSheetOpen, setKpiStatsSheetOpen] = useState(false)
+  /** Mass Message dialog (single instance; mobile row + desktop toolbar open via this state). */
+  const [massDialogOpen, setMassDialogOpen] = useState(false)
   const [workspaceStats, setWorkspaceStats] = useState<WorkspaceStatsPayload | null>(null)
   const [workspaceStatsLoading, setWorkspaceStatsLoading] = useState(false)
   const [workspaceTagVisibility, setWorkspaceTagVisibility] = useState<Record<string, boolean>>({})
@@ -272,6 +460,10 @@ function MessagesLayoutContent({
       // ignore local preference write issues
     }
   }, [rightDrawerOpen, chatsRailExpanded, kpiStripVisible])
+
+  useEffect(() => {
+    if (view !== 'conversations') setMassDialogOpen(false)
+  }, [view])
 
   const [segment, setSegment] = useState<InboxSegment>('all')
   const [sort, setSort] = useState<InboxSort>('recent')
@@ -632,10 +824,10 @@ function MessagesLayoutContent({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium">Failed to Load Messages</h3>
+          <h3 className="text-lg font-medium">{tLayout('failedLoadTitle')}</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">{error}</p>
           <Button onClick={() => void loadInbox()} className="mt-4">
-            Try Again
+            {tLayout('tryAgain')}
           </Button>
         </div>
       </div>
@@ -647,27 +839,6 @@ function MessagesLayoutContent({
     inboxPlatform !== 'all' ||
     Boolean(tag.trim()) ||
     Boolean(searchDebounced)
-
-  const conversationsSubtitle =
-    view === 'insights'
-      ? 'Insights · direct & mass performance'
-      : (() => {
-          const n = conversations.length
-          const threadPart = `${n} thread${n === 1 ? '' : 's'}`
-          if (n === 0) {
-            if (!hasFanPlatformConnected) {
-              return `${threadPart} · connect OnlyFans or Fansly`
-            }
-            if (inboxNarrowingActive) {
-              return `${threadPart} · none match this filter`
-            }
-            return `${threadPart} · inbox empty`
-          }
-          if (inboxNarrowingActive) {
-            return `${threadPart} · filtered`
-          }
-          return `${threadPart} · CRM segments · OnlyFans & Fansly`
-        })()
 
   const emptyInboxChatTitle =
     conversations.length === 0
@@ -694,13 +865,68 @@ function MessagesLayoutContent({
   const hideMessagesToolbar = focusMode && !isMobile
   const showMobileFocusStrip = focusMode && isMobile
 
-  const showKpiStripInline = !focusMode && kpiStripVisible && !isMobile
+  /** Mobile: message-first chrome (not scaled-down desktop icons). */
+  const showMobileMessagesChrome = isMobile && !focusMode
+  /** Desktop: KPI strip mounts here so collapse can animate; visibility is `kpiStripVisible`. */
+  const showDesktopKpiStripSlot = !focusMode && !isMobile
 
   const toolbarIconBtn =
     'border border-border/25 bg-background/25 text-muted-foreground shadow-none backdrop-blur-sm transition-[background-color,border-color,color] duration-150 ease-out hover:bg-muted/35 hover:text-foreground dark:border-white/[0.08] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]'
 
+  const mobileOverflowConversationsItems = (
+    <>
+      <DropdownMenuItem
+        onClick={() => {
+          void loadInbox({ refresh: true })
+        }}
+        disabled={refreshing}
+      >
+        <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+        Refresh inbox
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => setFocusMode((v) => !v)}>
+        {focusMode ? <Minimize2 className="mr-2 h-4 w-4" /> : <Maximize2 className="mr-2 h-4 w-4" />}
+        {focusMode ? 'Exit focus mode' : 'Focus mode'}
+      </DropdownMenuItem>
+      {!focusMode ? (
+        <DropdownMenuItem onClick={() => setWorkspaceBarCollapsed((v) => !v)}>
+          {workspaceBarCollapsed ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronUp className="mr-2 h-4 w-4" />}
+          {workspaceBarCollapsed ? 'Show workspace bar' : 'Hide workspace bar'}
+        </DropdownMenuItem>
+      ) : null}
+      {!focusMode ? (
+        <DropdownMenuItem
+          onClick={() => {
+            setKpiStatsSheetOpen(true)
+          }}
+        >
+          <SlidersHorizontal className="mr-2 h-4 w-4" />
+          Workspace stats
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuItem onClick={() => openChatsMenu()}>
+        <PanelLeft className="mr-2 h-4 w-4" />
+        {selectedConversation ? 'Conversation list' : 'Open inbox'}
+      </DropdownMenuItem>
+      {selectedConversation ? (
+        <DropdownMenuItem onClick={() => setFanProfileOpen(true)}>
+          <User className="mr-2 h-4 w-4" />
+          Fan profile
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/messages/mass" className="flex items-center">
+          <Megaphone className="mr-2 h-4 w-4" />
+          Mass page (Pro)
+        </Link>
+      </DropdownMenuItem>
+    </>
+  )
+
   return (
     <div className="flex w-full min-h-0 flex-1 flex-col px-0 sm:px-0.5">
+      <MassMessageDialog open={massDialogOpen} onOpenChange={setMassDialogOpen} showTrigger={false} />
       {showMobileFocusStrip && view === 'conversations' ? (
         <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2 sm:mb-3">
           <div className="flex items-center gap-2">
@@ -732,176 +958,338 @@ function MessagesLayoutContent({
         </div>
       ) : null}
 
-      {!hideMessagesToolbar ? (
-      <div className="mb-2 flex min-h-[2.5rem] flex-shrink-0 flex-wrap items-center justify-between gap-3 sm:mb-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {selectedConversation && view === 'conversations' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden h-9 w-9 flex-shrink-0 rounded-lg"
-              onClick={openChatsMenu}
-              aria-label="Back to conversations"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
-          {view === 'conversations' && (!selectedConversation || !isMobile) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground md:hidden hover:bg-muted/30 hover:text-foreground"
-              onClick={openChatsMenu}
-            >
-              <PanelLeft className="h-3.5 w-3.5" />
-              Chats
-            </Button>
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-[12px] font-normal leading-snug tracking-[-0.01em] text-muted-foreground/88 sm:text-[13px]">
-              {conversationsSubtitle}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-1 sm:gap-1.5">
-          <div className="hidden rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07] sm:inline-flex">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
-                view === 'conversations'
-                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
-                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
-              )}
-              onClick={() => setView('conversations')}
-            >
-              <MessageSquare className="h-3.5 w-3.5 opacity-80" />
-              Chats
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
-                view === 'insights'
-                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
-                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
-              )}
-              onClick={() => setView('insights')}
-            >
-              <BarChart3 className="h-3.5 w-3.5 opacity-80" />
-              Insights
-            </Button>
-          </div>
-          <div className="inline-flex rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07] sm:hidden">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-8 w-8 rounded-md transition-[background-color,color] duration-150 ease-out',
-                view === 'conversations'
-                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
-                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
-              )}
-              onClick={() => setView('conversations')}
-              aria-label="Chats"
-              title="Chats"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-8 w-8 rounded-md transition-[background-color,color] duration-150 ease-out',
-                view === 'insights'
-                  ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
-                  : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
-              )}
-              onClick={() => setView('insights')}
-              aria-label="Insights"
-              title="Insights"
-            >
-              <BarChart3 className="h-4 w-4" />
-            </Button>
-          </div>
-          {view === 'conversations' && (
+      {!hideMessagesToolbar && showMobileMessagesChrome ? (
+        <div className="mb-2 flex flex-shrink-0 flex-col gap-2 sm:mb-3">
+          {view === 'conversations' ? (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn('hidden md:flex', toolbarIconBtn)}
-                onClick={openChatsMenu}
-                aria-label="Open conversations menu"
-                title="Open conversations menu"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={toolbarIconBtn}
-                onClick={() => void loadInbox({ refresh: true })}
-                disabled={refreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={toolbarIconBtn}
-                onClick={() => setFocusMode((v) => !v)}
-                title={focusMode ? 'Exit focus mode' : 'Focus mode'}
-              >
-                {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-              {!focusMode ? (
+              <div className="flex min-h-[2.75rem] items-center gap-2">
+                {selectedConversation ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0"
+                      onClick={openChatsMenu}
+                      aria-label="Back to conversations"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-0.5 text-left transition-colors hover:bg-muted/25"
+                      onClick={() => setFanProfileOpen(true)}
+                    >
+                      <Avatar className="h-10 w-10 shrink-0 border border-border/40">
+                        <AvatarImage
+                          src={proxyImageUrl(selectedConversation.user.avatar || undefined) || undefined}
+                          alt=""
+                        />
+                        <AvatarFallback className="text-xs">
+                          {(selectedConversation.user.name || selectedConversation.user.username || '?').slice(0, 1)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-semibold leading-tight text-foreground">
+                          {selectedConversation.user.name || selectedConversation.user.username || 'Fan'}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {conversationMobileSubtitle(selectedConversation)}
+                        </p>
+                      </div>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5" onClick={openChatsMenu}>
+                      <PanelLeft className="h-3.5 w-3.5" />
+                      Chats
+                    </Button>
+                    <div className="min-w-0 flex-1">
+                      <MessagesInboxToolbarSubtitle
+                        view={view}
+                        conversationsLength={conversations.length}
+                        hasFanPlatformConnected={hasFanPlatformConnected}
+                        inboxNarrowingActive={inboxNarrowingActive}
+                      />
+                    </div>
+                  </>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0"
+                      aria-label="More inbox actions"
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {mobileOverflowConversationsItems}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-1 rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07]">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(mobileSegBtnClass(true), 'flex-1')}
+                    onClick={() => setView('conversations')}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 opacity-80" />
+                    Chats
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={cn(mobileSegBtnClass(false), 'flex-1')}
+                    onClick={() => setView('insights')}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5 opacity-80" />
+                    Insights
+                  </Button>
+                </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    toolbarIconBtn,
-                    (isMobile ? kpiStatsSheetOpen : kpiStripVisible) &&
-                      'border-border/40 bg-muted/30 text-foreground',
-                  )}
-                  onClick={() => {
-                    if (isMobile) setKpiStatsSheetOpen(true)
-                    else setKpiStripVisible((v) => !v)
-                  }}
-                  title={
-                    isMobile
-                      ? 'Workspace stats'
-                      : kpiStripVisible
-                        ? 'Hide workspace stats strip'
-                        : 'Show workspace stats strip'
-                  }
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1.5 px-3"
+                  onClick={() => setMassDialogOpen(true)}
                 >
-                  <SlidersHorizontal className="h-4 w-4" />
+                  <Megaphone className="h-3.5 w-3.5" />
+                  Mass Message
                 </Button>
-              ) : null}
-              {!isMobile && selectedConversation && !focusMode ? (
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex min-h-[2.5rem] items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <MessagesInboxToolbarSubtitle
+                    view={view}
+                    conversationsLength={conversations.length}
+                    hasFanPlatformConnected={hasFanPlatformConnected}
+                    inboxNarrowingActive={inboxNarrowingActive}
+                  />
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0" aria-label="More actions">
+                      <MoreHorizontal className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => void loadInbox({ refresh: true })} disabled={refreshing}>
+                      <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      Refresh inbox
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWorkspaceBarCollapsed((v) => !v)}>
+                      {workspaceBarCollapsed ? <ChevronDown className="mr-2 h-4 w-4" /> : <ChevronUp className="mr-2 h-4 w-4" />}
+                      {workspaceBarCollapsed ? 'Show workspace bar' : 'Hide workspace bar'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setKpiStatsSheetOpen(true)}>
+                      <SlidersHorizontal className="mr-2 h-4 w-4" />
+                      Workspace stats
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07]">
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
-                  className={cn(
-                    'hidden h-8 rounded-lg px-3 text-xs font-medium lg:inline-flex',
-                    rightDrawerOpen
-                      ? 'bg-muted/40 text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground',
-                  )}
-                  onClick={() => setRightDrawerOpen((v) => !v)}
+                  className={cn(mobileSegBtnClass(false), 'flex-1')}
+                  onClick={() => setView('conversations')}
                 >
-                  Profile
+                  <MessageSquare className="h-3.5 w-3.5 opacity-80" />
+                  Chats
                 </Button>
-              ) : null}
-              <MassMessageDialog />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(mobileSegBtnClass(true), 'flex-1')}
+                  onClick={() => setView('insights')}
+                >
+                  <BarChart3 className="h-3.5 w-3.5 opacity-80" />
+                  Insights
+                </Button>
+              </div>
             </>
           )}
         </div>
-      </div>
+      ) : null}
+
+      {!hideMessagesToolbar && !showMobileMessagesChrome ? (
+        <div className="mb-2 flex min-h-[2.5rem] flex-shrink-0 flex-wrap items-center justify-between gap-3 sm:mb-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="min-w-0 flex-1">
+              <MessagesInboxToolbarSubtitle
+                view={view}
+                conversationsLength={conversations.length}
+                hasFanPlatformConnected={hasFanPlatformConnected}
+                inboxNarrowingActive={inboxNarrowingActive}
+              />
+            </div>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-1 sm:gap-1.5">
+            <div className="hidden rounded-lg bg-muted/30 p-0.5 ring-1 ring-border/15 dark:bg-white/[0.04] dark:ring-white/[0.07] sm:inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
+                  view === 'conversations'
+                    ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                    : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+                )}
+                onClick={() => setView('conversations')}
+              >
+                <MessageSquare className="h-3.5 w-3.5 opacity-80" />
+                Chats
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-7 gap-1.5 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 ease-out',
+                  view === 'insights'
+                    ? 'bg-background/95 text-foreground shadow-sm dark:bg-slate-950/75'
+                    : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+                )}
+                onClick={() => setView('insights')}
+              >
+                <BarChart3 className="h-3.5 w-3.5 opacity-80" />
+                Insights
+              </Button>
+            </div>
+            {view === 'conversations' && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('hidden md:flex', toolbarIconBtn)}
+                  onClick={openChatsMenu}
+                  aria-label="Open conversations menu"
+                  title="Open conversations menu"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={toolbarIconBtn}
+                  onClick={() => void loadInbox({ refresh: true })}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={toolbarIconBtn}
+                  onClick={() => setFocusMode((v) => !v)}
+                  title={focusMode ? 'Exit focus mode' : 'Focus mode'}
+                >
+                  {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+                {!focusMode ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(toolbarIconBtn, workspaceBarCollapsed && 'text-foreground')}
+                    onClick={() => setWorkspaceBarCollapsed((v) => !v)}
+                    title={
+                      workspaceBarCollapsed
+                        ? 'Show top workspace bar (search, account, tools)'
+                        : 'Hide top workspace bar for more chat space'
+                    }
+                    aria-expanded={!workspaceBarCollapsed}
+                    aria-controls="dashboard-workspace-header"
+                  >
+                    {workspaceBarCollapsed ? (
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <ChevronUp className="h-4 w-4" aria-hidden />
+                    )}
+                    <span className="sr-only">
+                      {workspaceBarCollapsed ? 'Show workspace bar' : 'Hide workspace bar'}
+                    </span>
+                  </Button>
+                ) : null}
+                {!isMobile && selectedConversation && !focusMode ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'hidden h-8 rounded-lg px-3 text-xs font-medium lg:inline-flex',
+                      rightDrawerOpen
+                        ? 'bg-muted/40 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground',
+                    )}
+                    onClick={() => setRightDrawerOpen((v) => !v)}
+                  >
+                    Profile
+                  </Button>
+                ) : null}
+                {!focusMode ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      toolbarIconBtn,
+                      'relative overflow-hidden',
+                      (isMobile ? kpiStatsSheetOpen : kpiStripVisible) &&
+                        'border-border/40 bg-muted/30 text-foreground',
+                    )}
+                    onClick={() => {
+                      if (isMobile) setKpiStatsSheetOpen(true)
+                      else setKpiStripVisible((v) => !v)
+                    }}
+                    aria-expanded={isMobile ? kpiStatsSheetOpen : kpiStripVisible}
+                    aria-controls={isMobile ? undefined : 'workspace-kpi-panel'}
+                    title={
+                      isMobile
+                        ? 'Workspace stats'
+                        : kpiStripVisible
+                          ? 'Hide workspace stats strip'
+                          : 'Show workspace stats strip'
+                    }
+                  >
+                    <motion.span
+                      className="inline-flex will-change-transform"
+                      initial={false}
+                      animate={{
+                        rotate: isMobile ? 0 : kpiStripVisible ? 0 : -90,
+                        scale: isMobile ? 1 : kpiStripVisible ? 1 : 0.9,
+                      }}
+                      transition={
+                        reduced
+                          ? { duration: 0 }
+                          : { type: 'spring', stiffness: 420, damping: 28, mass: 0.75 }
+                      }
+                    >
+                      <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                    </motion.span>
+                    <span className="sr-only">
+                      {isMobile
+                        ? 'Open workspace stats'
+                        : kpiStripVisible
+                          ? 'Hide workspace stats strip'
+                          : 'Show workspace stats strip'}
+                    </span>
+                  </Button>
+                ) : null}
+                <MassMessageLaunchControl onOpen={() => setMassDialogOpen(true)} />
+              </>
+            )}
+          </div>
+        </div>
       ) : null}
 
       {view === 'conversations' && inboxMeta?.degraded ? (
@@ -1031,6 +1419,9 @@ function MessagesLayoutContent({
                     nullConversationTitle={emptyInboxChatTitle}
                     nullConversationDescription={emptyInboxChatDescription}
                     showPlatformConnectActions={conversations.length === 0 && !hasFanPlatformConnected}
+                    compactMobileChrome={
+                      isMobile && !focusMode && Boolean(selectedConversation) && view === 'conversations'
+                    }
                   />
                 }
                 rightPane={
@@ -1049,20 +1440,42 @@ function MessagesLayoutContent({
                 }
               />
             </motion.div>
-            {showKpiStripInline ? (
-              <WorkspaceKpiPanel
-                workspaceStats={workspaceStats}
-                workspaceStatsLoading={workspaceStatsLoading}
-                workspaceTagVisibility={workspaceTagVisibility}
-                setWorkspaceTagVisibility={setWorkspaceTagVisibility}
-              />
+            {showDesktopKpiStripSlot ? (
+              <motion.div
+                id="workspace-kpi-panel"
+                role="region"
+                aria-label="Workspace KPI metrics"
+                initial={false}
+                animate={{
+                  marginTop: kpiStripVisible ? 0 : '-0.75rem',
+                  maxHeight: kpiStripVisible ? 480 : 0,
+                  opacity: kpiStripVisible ? 1 : 0,
+                }}
+                transition={
+                  reduced
+                    ? { duration: 0 }
+                    : {
+                        marginTop: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        maxHeight: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
+                        opacity: { duration: 0.22, ease: 'easeOut' },
+                      }
+                }
+                className={cn('overflow-hidden', !kpiStripVisible && 'pointer-events-none')}
+              >
+                <WorkspaceKpiPanel
+                  workspaceStats={workspaceStats}
+                  workspaceStatsLoading={workspaceStatsLoading}
+                  workspaceTagVisibility={workspaceTagVisibility}
+                  setWorkspaceTagVisibility={setWorkspaceTagVisibility}
+                />
+              </motion.div>
             ) : null}
             {isMobile && !focusMode && (
               <Sheet open={kpiStatsSheetOpen} onOpenChange={setKpiStatsSheetOpen}>
                 <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
                   <SheetHeader className="shrink-0 border-b border-border px-3 pt-4">
-                    <SheetTitle>Workspace stats</SheetTitle>
-                    <SheetDescription>Response and volume metrics for this inbox.</SheetDescription>
+                    <SheetTitle>{tLayout('workspaceStatsTitle')}</SheetTitle>
+                    <SheetDescription>{tLayout('sheetStatsDescription')}</SheetDescription>
                   </SheetHeader>
                   <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 pt-2">
                     <WorkspaceKpiPanel
@@ -1079,10 +1492,8 @@ function MessagesLayoutContent({
               <Sheet open={conversationMenuOpen} onOpenChange={setConversationMenuOpen}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-md flex flex-col">
                   <SheetHeader className="border-b border-border shrink-0 px-3 pt-4">
-                    <SheetTitle>Messages</SheetTitle>
-                    <SheetDescription>
-                      Segments, search, then pick a thread.
-                    </SheetDescription>
+                    <SheetTitle>{tLayout('sheetTitle')}</SheetTitle>
+                    <SheetDescription>{tLayout('sheetMessagesDescription')}</SheetDescription>
                   </SheetHeader>
                   <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 pb-3">
                     <InboxFiltersBar
@@ -1100,7 +1511,7 @@ function MessagesLayoutContent({
                       <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         ref={mobileSearchInputRef}
-                        placeholder="Search name…"
+                        placeholder={tLayout('searchNamePlaceholder')}
                         className="h-9 bg-input pl-8 text-sm"
                         value={inboxSearch}
                         onChange={(e) => setInboxSearch(e.target.value)}

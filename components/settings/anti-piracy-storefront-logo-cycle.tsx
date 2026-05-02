@@ -13,6 +13,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE } from '@/lib/billing/clip-focus-addon-carousel'
 import { BundledAntipiracyStorefrontLogoMark } from '@/components/billing/bundled-antipiracy-storefront-mark'
+import { useTranslations } from 'next-intl'
 
 const ROTATE_MS = 2600
 
@@ -81,6 +82,7 @@ export function AntiPiracyBundledWorkspaceCaption({
   creditsPerCycle: number
   className?: string
 }) {
+  const t = useTranslations('settings')
   const reduceMotion = useReducedMotion()
   const { activeIndex } = useAntiPiracyStorefrontCycle()
   const slide =
@@ -102,8 +104,9 @@ export function AntiPiracyBundledWorkspaceCaption({
           {slide.displayLabel}
         </span>
       </motion.span>{' '}
-      · Bundled workspace ·{' '}
-      <span className="tabular-nums text-foreground/90">{creditsPerCycle.toLocaleString()}</span> credits per cycle.
+      · {t('billing.antipiracyBundledWorkspace')} ·{' '}
+      <span className="tabular-nums text-foreground/90">{creditsPerCycle.toLocaleString()}</span>{' '}
+      {t('billing.antipiracyCreditsPerCycleSuffix')}
     </p>
   )
 }

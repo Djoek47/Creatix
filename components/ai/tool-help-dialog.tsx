@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CircleHelp } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatToolCreditCost } from '@/lib/billing/credit-economics'
-import { getToolMeta, resolveCanonicalToolId, type AIToolMeta } from '@/lib/ai-tools-data'
+import { resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { cn } from '@/lib/utils'
 
 function stripSimpleMarkdown(input: string): string {
@@ -29,12 +30,29 @@ export function ToolHelpDialog({
   toolId: string
   triggerClassName?: string
 }) {
+  const t = useTranslations('ai-tools')
   const canonical = resolveCanonicalToolId(toolId)
-  const meta = getToolMeta(canonical)
   const [open, setOpen] = useState(false)
 
-  const title = meta?.name ?? canonical
-  const overview = useMemo(() => (meta ? overviewParagraphs(meta.longDescription) : []), [meta])
+  const nameKey = `tools.${canonical}.name`
+  const longKey = `tools.${canonical}.longDescription`
+  const title = t.has(nameKey) ? t(nameKey) : canonical
+  const longDescription = t.has(longKey) ? t(longKey) : ''
+  const overview = useMemo(() => overviewParagraphs(longDescription), [longDescription])
+  const hasOverview = overview.length > 0
+
+  const helpStepsKey = `tools.${canonical}.helpSteps`
+  const helpTipsKey = `tools.${canonical}.helpTips`
+  const relatedLinksKey = `tools.${canonical}.relatedLinks`
+
+  const helpSteps =
+    t.has(helpStepsKey) && Array.isArray(t.raw(helpStepsKey)) ? (t.raw(helpStepsKey) as string[]) : null
+  const helpTips =
+    t.has(helpTipsKey) && Array.isArray(t.raw(helpTipsKey)) ? (t.raw(helpTipsKey) as string[]) : null
+  const relatedLinks =
+    t.has(relatedLinksKey) && Array.isArray(t.raw(relatedLinksKey))
+      ? (t.raw(relatedLinksKey) as Array<{ href: string; label: string }>)
+      : null
 
   return (
     <>
@@ -43,7 +61,7 @@ export function ToolHelpDialog({
         variant="ghost"
         size="icon"
         className={cn('shrink-0 text-muted-foreground hover:text-foreground', triggerClassName)}
-        aria-label={`How ${title} works`}
+        aria-label={t('helpDialog.ariaHow', { title })}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -53,53 +71,65 @@ export function ToolHelpDialog({
         <CircleHelp className="h-4 w-4" aria-hidden />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[min(90dvh,720px)] gap-0 overflow-y-auto sm:max-w-lg" showCloseButton>
-        <DialogHeader>
-          <DialogTitle className="pr-8 text-left text-lg leading-snug">{title}</DialogTitle>
-          <DialogDescription className="sr-only">
-            How this tool works, credit cost, and tips.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-5 pt-1">
-          <ToolHelpBody meta={meta} overview={overview} toolId={canonical} />
-        </div>
-      </DialogContent>
-    </Dialog>
+        <DialogContent className="max-h-[min(90dvh,720px)] gap-0 overflow-y-auto sm:max-w-lg" showCloseButton>
+          <DialogHeader>
+            <DialogTitle className="pr-8 text-left text-lg leading-snug">{title}</DialogTitle>
+            <DialogDescription className="sr-only">{t('helpDialog.dialogDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 pt-1">
+            <ToolHelpBody
+              overview={overview}
+              toolId={canonical}
+              hasOverview={hasOverview}
+              helpSteps={helpSteps}
+              helpTips={helpTips}
+              relatedLinks={relatedLinks}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
 
 function ToolHelpBody({
-  meta,
   overview,
   toolId,
+  hasOverview,
+  helpSteps,
+  helpTips,
+  relatedLinks,
 }: {
-  meta: AIToolMeta | undefined
   overview: string[]
   toolId: string
+  hasOverview: boolean
+  helpSteps: string[] | null
+  helpTips: string[] | null
+  relatedLinks: Array<{ href: string; label: string }> | null
 }) {
+  const t = useTranslations('ai-tools')
+  const cost = formatToolCreditCost(toolId)
+
   return (
     <>
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">Overview</h2>
-        {meta ? (
+        <h2 className="text-sm font-semibold text-foreground">{t('helpDialog.overview')}</h2>
+        {hasOverview ? (
           <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
             {overview.map((p, i) => (
               <p key={i}>{p}</p>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No detailed description is available for this tool id yet.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('helpDialog.noDescription')}</p>
         )}
       </section>
 
-      {meta?.helpSteps && meta.helpSteps.length > 0 ? (
+      {helpSteps && helpSteps.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">How to use</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('helpDialog.howToUse')}</h2>
           <ol className="list-decimal space-y-1.5 pl-4 text-sm text-muted-foreground">
-            {meta.helpSteps.map((step, i) => (
+            {helpSteps.map((step, i) => (
               <li key={i} className="leading-relaxed">
                 {stripSimpleMarkdown(step)}
               </li>
@@ -109,17 +139,15 @@ function ToolHelpBody({
       ) : null}
 
       <section className="space-y-1">
-        <h2 className="text-sm font-semibold text-foreground">Credits</h2>
-        <p className="text-sm text-muted-foreground">
-          {formatToolCreditCost(toolId)} per run (where applicable).
-        </p>
+        <h2 className="text-sm font-semibold text-foreground">{t('helpDialog.credits')}</h2>
+        <p className="text-sm text-muted-foreground">{t('helpDialog.creditsPerRun', { cost })}</p>
       </section>
 
-      {meta?.helpTips && meta.helpTips.length > 0 ? (
+      {helpTips && helpTips.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Tips</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('helpDialog.tips')}</h2>
           <ul className="list-disc space-y-1.5 pl-4 text-sm text-muted-foreground">
-            {meta.helpTips.map((tip, i) => (
+            {helpTips.map((tip, i) => (
               <li key={i} className="leading-relaxed">
                 {stripSimpleMarkdown(tip)}
               </li>
@@ -128,11 +156,11 @@ function ToolHelpBody({
         </section>
       ) : null}
 
-      {meta?.relatedLinks && meta.relatedLinks.length > 0 ? (
+      {relatedLinks && relatedLinks.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Links</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t('helpDialog.links')}</h2>
           <ul className="space-y-1.5 text-sm">
-            {meta.relatedLinks
+            {relatedLinks
               .filter((l) => l.href.startsWith('/'))
               .map((l) => (
                 <li key={l.href + l.label}>

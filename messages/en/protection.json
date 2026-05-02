@@ -1,0 +1,15 @@
+{
+  "page": {
+    "activeSignals": "Active signals",
+    "activeSignalsHint": "Needs review or DMCA",
+    "closedCases": "Closed cases",
+    "closedCasesHint": "Resolved, scam, FP…",
+    "vaultItems": "Vault items",
+    "vaultItemsHint": "Fingerprinted library",
+    "dmcaClaims": "DMCA claims",
+    "dmcaDraftsHint": "drafts included",
+    "dmcaFiledPrefix": "{count, number} filed · ",
+    "runScanHeading": "Run a scan",
+    "loadingTools": "Loading protection tools…"
+  }
+}

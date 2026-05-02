@@ -1,6 +1,7 @@
 'use client'
 
 import type { MutableRefObject } from 'react'
+import { useTranslations } from 'next-intl'
 import { Loader2, Mic } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,16 +30,19 @@ export function PhotoEnhancerRunnerInputs({
   voiceSession,
   photoVoiceImageRef,
 }: PhotoEnhancerRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.photo-enhancer')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Photo</Label>
+          <Label>{t('easyPhotoLabel')}</Label>
           {photoEditImageDataUrl ? (
             <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
               <img
                 src={photoEditImageDataUrl}
-                alt="Photo to edit"
+                alt={t('photoToEditAlt')}
                 className="max-h-48 w-full object-contain"
               />
               <Button
@@ -48,7 +52,7 @@ export function PhotoEnhancerRunnerInputs({
                 className="absolute right-2 top-2"
                 onClick={() => setPhotoEditImageDataUrl(null)}
               >
-                Remove
+                {ts('remove')}
               </Button>
             </div>
           ) : (
@@ -72,14 +76,14 @@ export function PhotoEnhancerRunnerInputs({
           )}
         </div>
         <div className="space-y-2">
-          <Label>What should change?</Label>
+          <Label>{t('easyWhatChange')}</Label>
           <Textarea
-            placeholder="e.g. blur background, brighten face, add subtle glow…"
+            placeholder={t('easyChangePlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[88px]"
           />
-          <p className="text-[11px] text-muted-foreground">Pro mode adds voice touch-up and more controls.</p>
+          <p className="text-[11px] text-muted-foreground">{t('easyProHint')}</p>
         </div>
       </div>
     )
@@ -88,10 +92,10 @@ export function PhotoEnhancerRunnerInputs({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Upload photo (JPEG / PNG)</Label>
+        <Label>{t('uploadLabel')}</Label>
         {photoEditImageDataUrl ? (
           <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-            <img src={photoEditImageDataUrl} alt="Photo to edit" className="max-h-56 w-full object-contain" />
+            <img src={photoEditImageDataUrl} alt={t('photoToEditAlt')} className="max-h-56 w-full object-contain" />
             <Button
               type="button"
               variant="secondary"
@@ -99,7 +103,7 @@ export function PhotoEnhancerRunnerInputs({
               className="absolute right-2 top-2"
               onClick={() => setPhotoEditImageDataUrl(null)}
             >
-              Remove
+              {ts('remove')}
             </Button>
           </div>
         ) : (
@@ -121,20 +125,18 @@ export function PhotoEnhancerRunnerInputs({
             }}
           />
         )}
-        <p className="text-xs text-muted-foreground">
-          Describe what to change in plain language — blur, brighten, stickers, and similar edits work well.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('describeChangesHint')}</p>
       </div>
       {voiceSession && (
         <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="min-w-0 text-sm text-muted-foreground">
-              <span className="sr-only">OpenAI Realtime voice. </span>
+              <span className="sr-only">{ts('voiceSrOnly')}</span>
               <span className="tabular-nums capitalize" aria-live="polite">
-                {voiceSession.status === 'idle' && 'Ready'}
-                {voiceSession.status === 'connecting' && 'Connecting'}
-                {voiceSession.status === 'connected' && 'Live'}
-                {voiceSession.status === 'error' && 'Error'}
+                {voiceSession.status === 'idle' && ts('voiceReady')}
+                {voiceSession.status === 'connecting' && ts('voiceConnecting')}
+                {voiceSession.status === 'connected' && ts('voiceLive')}
+                {voiceSession.status === 'error' && ts('voiceError')}
               </span>
             </p>
             <div className="flex shrink-0 items-center gap-1">
@@ -150,10 +152,10 @@ export function PhotoEnhancerRunnerInputs({
                 }
                 aria-label={
                   voiceSession.status === 'connecting'
-                    ? 'Connecting voice session'
+                    ? ts('voiceAriaConnecting')
                     : voiceSession.status === 'connected'
-                      ? 'Voice session active'
-                      : 'Start OpenAI Realtime voice session'
+                      ? ts('voiceAriaActive')
+                      : ts('voiceAriaStart')
                 }
                 onClick={() =>
                   void voiceSession.startVoiceCall({
@@ -177,10 +179,10 @@ export function PhotoEnhancerRunnerInputs({
                 variant="ghost"
                 className="h-9 px-2 text-muted-foreground hover:text-foreground"
                 disabled={voiceSession.status !== 'connected'}
-                aria-label="End voice session"
+                aria-label={ts('voiceAriaEnd')}
                 onClick={() => voiceSession.endVoiceCall()}
               >
-                End
+                {ts('end')}
               </Button>
             </div>
           </div>
@@ -188,7 +190,7 @@ export function PhotoEnhancerRunnerInputs({
       )}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>How should we touch up this photo?</Label>
+          <Label>{t('touchUpLabel')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -197,7 +199,7 @@ export function PhotoEnhancerRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="e.g. Soften the whole image for privacy, brighten slightly, add a sparkle emoji near the corner…"
+          placeholder={t('touchUpPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[100px]"

@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -27,30 +30,32 @@ export function PricingOptimizerInputsEasy({
   niche,
   setNiche,
 }: Props) {
+  const t = useTranslations('ai-tools.runners.pricing-optimizer')
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>What are you pricing?</Label>
+        <Label>{t('whatPricing')}</Label>
         <Select value={contentType} onValueChange={setContentType}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="photo">Photos / sets</SelectItem>
-            <SelectItem value="video">Videos</SelectItem>
-            <SelectItem value="ppv">PPV bundles</SelectItem>
-            <SelectItem value="subscription">Subscription</SelectItem>
-            <SelectItem value="custom">Custom / other</SelectItem>
+            <SelectItem value="photo">{t('typePhotoSets')}</SelectItem>
+            <SelectItem value="video">{t('typeVideos')}</SelectItem>
+            <SelectItem value="ppv">{t('typePpv')}</SelectItem>
+            <SelectItem value="subscription">{t('typeSubscription')}</SelectItem>
+            <SelectItem value="custom">{t('typeCustom')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Current price (if any)</Label>
-        <Input placeholder="e.g. 15 or 15–25" value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} />
+        <Label>{t('currentPriceIfAny')}</Label>
+        <Input placeholder={t('currentPricePlaceholder')} value={currentPrice} onChange={(e) => setCurrentPrice(e.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>Niche</Label>
-        <Input placeholder="e.g. GFE, fitness…" value={niche} onChange={(e) => setNiche(e.target.value)} />
+        <Label>{t('nicheLabel')}</Label>
+        <Input placeholder={t('nichePlaceholderEasy')} value={niche} onChange={(e) => setNiche(e.target.value)} />
       </div>
     </div>
   )
@@ -66,28 +71,30 @@ export function PricingOptimizerInputsPro({
   fanMessage,
   setFanMessage,
 }: Props) {
+  const t = useTranslations('ai-tools.runners.pricing-optimizer')
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Content type</Label>
+          <Label>{t('contentTypePro')}</Label>
           <Select value={contentType} onValueChange={setContentType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="photo">Photos / sets</SelectItem>
-              <SelectItem value="video">Videos</SelectItem>
-              <SelectItem value="ppv">PPV bundles</SelectItem>
-              <SelectItem value="subscription">Subscription</SelectItem>
-              <SelectItem value="custom">Custom / other</SelectItem>
+              <SelectItem value="photo">{t('typePhotoSets')}</SelectItem>
+              <SelectItem value="video">{t('typeVideos')}</SelectItem>
+              <SelectItem value="ppv">{t('typePpv')}</SelectItem>
+              <SelectItem value="subscription">{t('typeSubscription')}</SelectItem>
+              <SelectItem value="custom">{t('typeCustom')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Current price</Label>
+          <Label>{t('currentPricePro')}</Label>
           <Input
-            placeholder="e.g. 12, or a range"
+            placeholder={t('currentPricePlaceholderPro')}
             value={currentPrice}
             onChange={(e) => setCurrentPrice(e.target.value)}
           />
@@ -95,13 +102,13 @@ export function PricingOptimizerInputsPro({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Niche</Label>
-          <Input placeholder="e.g. cosplay, domme…" value={niche} onChange={(e) => setNiche(e.target.value)} />
+          <Label>{t('nicheLabel')}</Label>
+          <Input placeholder={t('nichePlaceholderPro')} value={niche} onChange={(e) => setNiche(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>Subscriber count hint (optional)</Label>
+          <Label>{t('subscriberHint')}</Label>
           <Input
-            placeholder="Rough count or tier"
+            placeholder={t('subscriberPlaceholder')}
             value={fanMessage}
             onChange={(e) => setFanMessage(e.target.value)}
           />

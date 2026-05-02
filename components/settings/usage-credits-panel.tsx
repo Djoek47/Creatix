@@ -8,10 +8,16 @@ import Link from 'next/link'
 import { ArrowUpRight, ChevronDown, Trophy } from 'lucide-react'
 import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
 import { cn } from '@/lib/utils'
-import { creditLedgerLineLabel, labelForCreditReason } from '@/lib/billing/credit-reason-label'
+import {
+  creditLedgerLineLabel,
+  labelForCreditReason,
+  serviceDisplayForBillingTool,
+} from '@/lib/billing/credit-reason-label'
+import { resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { CreditAllocationPlanner } from '@/components/billing/credit-allocation-planner'
 import { CreditAutoTopupSettings } from '@/components/billing/credit-auto-topup-settings'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { useTranslations } from 'next-intl'
 
 type CreditTimelineRow = {
   id: string
@@ -97,31 +103,6 @@ const USAGE_INSIGHT = cn(
   'dark:border-white/[0.045] dark:bg-white/[0.02]',
 )
 
-function formatLedgerKind(kind: CreditTimelineRow['kind']): string {
-  switch (kind) {
-    case 'debit':
-      return 'Debit'
-    case 'credit':
-      return 'Credit'
-    case 'expire_adjustment':
-      return 'Cycle'
-    default:
-      return kind
-  }
-}
-
-function formatSpendPeriodCaption(meta: InsightPeriodMeta | null, period: CreditInsightPeriod): string {
-  if (!meta?.startsAt) {
-    return period === 'week' ? 'Trailing 7 days' : 'Calendar month to date'
-  }
-  const start = new Date(meta.startsAt)
-  const end = new Date(meta.endsAt)
-  if (period === 'week') {
-    return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString(undefined, { weekday: undefined, month: 'short', day: 'numeric' })}`
-  }
-  return `${start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} – ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
-}
-
 function leaderboardRankAccent(rank: number): string {
   switch (rank) {
     case 1:
@@ -136,13 +117,14 @@ function leaderboardRankAccent(rank: number): string {
 }
 
 function UsageCreditsPanelSkeleton() {
+  const t = useTranslations('settings')
   const block = (
     cls: string,
     key?: string,
   ): ReactNode => <div key={key} className={cn('rounded-lg bg-muted/30', cls)} aria-hidden />
 
   return (
-    <div className="space-y-10 pt-2" role="status" aria-label="Loading credits">
+    <div className="space-y-10 pt-2" role="status" aria-label={t('usageCredits.loadingCredits')}>
       {[0, 1, 2].map((i) => (
         <div key={i} className={cn(USAGE_SURFACE, 'overflow-hidden')}>
           <div className="space-y-3 px-8 pb-12 pt-12 animate-pulse sm:px-10 sm:pb-14 sm:pt-14">
@@ -224,6 +206,23 @@ function UsageCreditsPanelBody({
   data: UsageDashboard
   onDashboardSaved: () => void | Promise<void>
 }) {
+  const t = useTranslations('settings')
+  const tAi = useTranslations('ai-tools')
+
+  const creditLedgerOpts = useMemo(
+    () => ({
+      resolveToolDisplayName: (billingToolId: string) => {
+        const c = resolveCanonicalToolId(billingToolId)
+        const toolKey = `tools.${c}.name`
+        if (tAi.has(toolKey)) return tAi(toolKey)
+        const extraKey = `extraLedgerTools.${c}`
+        if (tAi.has(extraKey)) return tAi(extraKey)
+        return serviceDisplayForBillingTool(billingToolId)
+      },
+    }),
+    [tAi],
+  )
+
   const [creditTopCategories, setCreditTopCategories] = useState<
     Array<{ reasonKey?: string; reason: string; amount: number }>
   >([])
@@ -261,6 +260,39 @@ function UsageCreditsPanelBody({
       setLedgerLoading(false)
     }
   }, [activityPeriod])
+
+  const ledgerKindLabel = useCallback(
+    (kind: CreditTimelineRow['kind']) => {
+      switch (kind) {
+        case 'debit':
+          return t('usageCredits.ledger.debit')
+        case 'credit':
+          return t('usageCredits.ledger.credit')
+        case 'expire_adjustment':
+          return t('usageCredits.ledger.expireAdjustment')
+        default:
+          return kind
+      }
+    },
+    [t],
+  )
+
+  const spendPeriodCaptionFn = useCallback(
+    (meta: InsightPeriodMeta | null, period: CreditInsightPeriod) => {
+      if (!meta?.startsAt) {
+        return period === 'week'
+          ? t('usageCredits.periodCaption.weekFallback')
+          : t('usageCredits.periodCaption.monthFallback')
+      }
+      const start = new Date(meta.startsAt)
+      const end = new Date(meta.endsAt)
+      if (period === 'week') {
+        return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString(undefined, { weekday: undefined, month: 'short', day: 'numeric' })}`
+      }
+      return `${start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} – ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+    },
+    [t],
+  )
 
   useEffect(() => {
     void refreshInsights()
@@ -310,17 +342,15 @@ function UsageCreditsPanelBody({
               aria-hidden
             />
             <div className="min-w-0 space-y-2">
-              <CardTitle className={USAGE_CARD_TITLE}>Usage &amp; credits</CardTitle>
-              <CardDescription className={USAGE_CARD_DESC}>
-                Included allowance plus top-ups. Top-ups stay available into the next cycle.
-              </CardDescription>
+              <CardTitle className={USAGE_CARD_TITLE}>{t('usageCredits.title')}</CardTitle>
+              <CardDescription className={USAGE_CARD_DESC}>{t('usageCredits.subtitle')}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className={cn(USAGE_CONTENT_LOOSE, 'relative z-10 sm:pt-9')}>
           <div className="space-y-4" {...DASHBOARD_CREDIT_SUMMARY_MARK}>
             <p className="text-[11px] font-medium uppercase tracking-[0.13em] text-teal-900/72 dark:text-teal-300/78">
-              Available
+              {t('usageCredits.available')}
             </p>
             <p
               className={cn(
@@ -331,7 +361,7 @@ function UsageCreditsPanelBody({
             >
               {wallet.totalRemaining.toLocaleString()}
             </p>
-            <p className="text-[0.9375rem] font-normal text-muted-foreground/95">credits</p>
+            <p className="text-[0.9375rem] font-normal text-muted-foreground/95">{t('usageCredits.creditsWord')}</p>
           </div>
 
           <div className="space-y-5">
@@ -342,7 +372,10 @@ function UsageCreditsPanelBody({
                 'shadow-[inset_0_1px_2px_rgba(15,23,42,0.15)] ring-1 ring-inset ring-white/25 dark:from-white/[0.05] dark:via-white/[0.09] dark:to-white/[0.05]',
               )}
               role="img"
-              aria-label={`Balance mix: ${Math.round(includedBar)}% included, ${Math.round(purchasedBar)}% purchased`}
+              aria-label={t('usageCredits.balanceAria', {
+                    includedPct: Math.round(includedBar),
+                    purchasedPct: Math.round(purchasedBar),
+                  })}
             >
               <div
                 className="h-full bg-gradient-to-r from-teal-400/[0.95] to-teal-500/[0.88] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.36)] transition-[width] duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)] dark:from-teal-400/95 dark:to-emerald-600/92"
@@ -355,13 +388,13 @@ function UsageCreditsPanelBody({
             </div>
             <div className="grid grid-cols-2 gap-8 border-t border-border/25 pt-7 text-[15px]">
               <div className="min-w-0 space-y-1.5 border-r border-transparent pr-6 sm:border-border/35 sm:pr-8">
-                <p className="text-[13px] font-medium text-teal-800/92 dark:text-teal-400/88">Included</p>
+                <p className="text-[13px] font-medium text-teal-800/92 dark:text-teal-400/88">{t('usageCredits.included')}</p>
                 <p className="tabular-nums text-[1.0625rem] font-semibold leading-none tracking-tight text-teal-950 dark:text-neutral-50">
                   {wallet.includedRemaining.toLocaleString()}
                 </p>
               </div>
               <div className="min-w-0 space-y-1.5 text-right">
-                <p className="text-[13px] font-medium text-violet-800/92 dark:text-violet-300/88">Purchased</p>
+                <p className="text-[13px] font-medium text-violet-800/92 dark:text-violet-300/88">{t('usageCredits.purchased')}</p>
                 <p className="tabular-nums text-[1.0625rem] font-semibold leading-none tracking-tight text-indigo-950 dark:text-neutral-50">
                   {wallet.purchasedRemaining.toLocaleString()}
                 </p>
@@ -371,11 +404,10 @@ function UsageCreditsPanelBody({
 
           {aiCreditsLimitEffective > 0 ? (
             <p className="border-t border-border/25 pt-7 text-[13px] leading-relaxed text-muted-foreground">
-              This billing cycle:{' '}
-              <span className="tabular-nums text-foreground">{aiCreditsUsed.toLocaleString()}</span>
-              <span className="text-muted-foreground"> / </span>
-              <span className="tabular-nums text-foreground">{aiCreditsLimitEffective.toLocaleString()}</span>
-              <span className="text-muted-foreground"> included used</span>
+              {t('usageCredits.thisCycle', {
+                used: aiCreditsUsed.toLocaleString(),
+                limit: aiCreditsLimitEffective.toLocaleString(),
+              })}
               {includedPct > 0 ? (
                 <span className="tabular-nums text-muted-foreground"> · {includedPct}%</span>
               ) : null}
@@ -393,21 +425,18 @@ function UsageCreditsPanelBody({
           )}
         >
           <div className="min-w-0 space-y-2">
-            <CardTitle className={USAGE_CARD_TITLE}>Spend intelligence</CardTitle>
-            <CardDescription className={USAGE_CARD_DESC}>
-              Production-grade activity: see which products draw credits and review every ledger line — pick a timeframe
-              to match how you weigh spend.
-            </CardDescription>
+            <CardTitle className={USAGE_CARD_TITLE}>{t('usageCredits.spendTitle')}</CardTitle>
+            <CardDescription className={USAGE_CARD_DESC}>{t('usageCredits.spendDescription')}</CardDescription>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-[12px] text-muted-foreground">
               <span className="inline-flex items-center gap-2">
                 <Trophy className="h-3.5 w-3.5 text-amber-500/90" aria-hidden />
-                Tiered leaderboard for clarity
+                {t('usageCredits.tierBadge')}
               </span>
               <Link
                 href="/dashboard/credits-planner"
                 className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 transition-colors hover:text-teal-600 dark:hover:text-teal-300"
               >
-                Open full planner view <ArrowUpRight className="h-3.5 w-3.5 opacity-70" aria-hidden />
+                {t('usageCredits.openPlannerFull')} <ArrowUpRight className="h-3.5 w-3.5 opacity-70" aria-hidden />
               </Link>
             </div>
           </div>
@@ -424,17 +453,17 @@ function UsageCreditsPanelBody({
                 value="week"
                 className="min-w-[5.75rem] rounded-full px-4 py-2 text-[13px] data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
               >
-                This week
+                {t('usageCredits.weekToggle')}
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="month"
                 className="min-w-[5.75rem] rounded-full px-4 py-2 text-[13px] data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
               >
-                This month
+                {t('usageCredits.monthToggle')}
               </ToggleGroupItem>
             </ToggleGroup>
             <p className="text-center text-[11px] text-muted-foreground sm:text-right">
-              {formatSpendPeriodCaption(periodMeta, activityPeriod)}
+              {spendPeriodCaptionFn(periodMeta, activityPeriod)}
             </p>
           </div>
         </CardHeader>
@@ -449,32 +478,32 @@ function UsageCreditsPanelBody({
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-[22px] border border-teal-500/25 bg-gradient-to-br from-teal-500/[0.1] via-background/70 to-transparent p-6 dark:from-teal-400/[0.08]">
                     <p className="text-[11px] font-medium uppercase tracking-[0.13em] text-teal-800/85 dark:text-teal-200/80">
-                      Period spend
+                      {t('usageCredits.periodSpend')}
                     </p>
                     <p className="mt-2 text-[2rem] font-semibold tabular-nums tracking-tight text-foreground">
                       {periodMeta.totalDebitCredits.toLocaleString()}
                     </p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">credits debited</p>
+                    <p className="mt-1 text-[12px] text-muted-foreground">{t('usageCredits.creditsDebited')}</p>
                   </div>
                   <div className="rounded-[22px] border border-border/35 bg-muted/[0.04] p-6 dark:bg-white/[0.02]">
                     <p className="text-[11px] font-medium uppercase tracking-[0.13em] text-muted-foreground/85">
-                      Ledger lines
+                      {t('usageCredits.ledgerLines')}
                     </p>
                     <p className="mt-2 text-[2rem] font-semibold tabular-nums tracking-tight">
                       {creditTimeline.length.toLocaleString()}
                     </p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">visible in this window</p>
+                    <p className="mt-1 text-[12px] text-muted-foreground">{t('usageCredits.visibleWindow')}</p>
                   </div>
                   <div className="rounded-[22px] border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.1] via-background/70 to-transparent p-6 dark:from-violet-500/[0.08]">
                     <p className="text-[11px] font-medium uppercase tracking-[0.13em] text-violet-800/90 dark:text-violet-200/85">
-                      Top mover
+                      {t('usageCredits.topMover')}
                     </p>
                     <p className="mt-2 line-clamp-2 text-[1.0625rem] font-semibold leading-snug text-foreground">
                       {creditTopCategories[0]
                         ? labelForCreditReason(creditTopCategories[0].reasonKey ?? creditTopCategories[0].reason)
                         : '—'}
                     </p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">Highest debit category</p>
+                    <p className="mt-1 text-[12px] text-muted-foreground">{t('usageCredits.topMoverSubtitle')}</p>
                   </div>
                 </div>
               ) : null}
@@ -483,13 +512,11 @@ function UsageCreditsPanelBody({
                 <section className={USAGE_INSIGHT}>
                   <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/90">
-                      Category leaderboard
+                      {t('usageCredits.catLeaderboard')}
                     </p>
                   </div>
                   {creditTopCategories.length === 0 ? (
-                    <p className="text-[15px] leading-relaxed text-muted-foreground">
-                      No debit activity this period yet — automation and AI tools appear here automatically.
-                    </p>
+                    <p className="text-[15px] leading-relaxed text-muted-foreground">{t('usageCredits.noDebitYet')}</p>
                   ) : (
                     <ul className="space-y-0">
                       {creditTopCategories.map((row, i) => {
@@ -516,7 +543,7 @@ function UsageCreditsPanelBody({
                                 {labelForCreditReason(row.reasonKey ?? row.reason)}
                               </p>
                               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                                {rank === 1 ? 'Primary driver of spend' : 'Ranked by credits debited'}
+                                {rank === 1 ? t('usageCredits.rankPrimaryDriver') : t('usageCredits.rankByDebit')}
                               </p>
                             </div>
                             <span className="shrink-0 tabular-nums text-[1.0625rem] font-semibold text-foreground/95">
@@ -538,12 +565,12 @@ function UsageCreditsPanelBody({
                     >
                       <div className="min-w-0 space-y-0.5">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/90">
-                          Activity feed
+                          {t('usageCredits.activityFeed')}
                         </p>
                         <p className="text-[12px] text-muted-foreground">
                           {creditTimeline.length === 0
-                            ? 'No transactions'
-                            : `${creditTimeline.length.toLocaleString()} ${creditTimeline.length === 1 ? 'entry' : 'entries'}`}
+                            ? t('usageCredits.feed.none')
+                            : t('usageCredits.feed.entries', { count: creditTimeline.length })}
                         </p>
                       </div>
                       <ChevronDown
@@ -553,9 +580,7 @@ function UsageCreditsPanelBody({
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-4 min-h-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0">
                       {creditTimeline.length === 0 ? (
-                        <p className="text-[15px] leading-relaxed text-muted-foreground">
-                          No transactions in this window — your ledger will populate as soon as credits move.
-                        </p>
+                        <p className="text-[15px] leading-relaxed text-muted-foreground">{t('usageCredits.feed.emptyBody')}</p>
                       ) : (
                         <ul
                           className={cn(
@@ -579,10 +604,10 @@ function UsageCreditsPanelBody({
                                 </time>
                                 <div className="min-w-0">
                                   <p className="text-[15px] font-medium leading-snug text-foreground">
-                                    {formatLedgerKind(row.kind)}
+                                    {ledgerKindLabel(row.kind)}
                                     <span className="font-normal text-muted-foreground"> · </span>
                                     <span className="font-normal text-muted-foreground">
-                                      {creditLedgerLineLabel(row.reason_code, row.metadata)}
+                                      {creditLedgerLineLabel(row.reason_code, row.metadata, creditLedgerOpts)}
                                     </span>
                                   </p>
                                 </div>
@@ -605,11 +630,8 @@ function UsageCreditsPanelBody({
 
       <Card className={cn(USAGE_SURFACE, 'overflow-hidden')}>
         <CardHeader className={cn(USAGE_HEADER_LEDGER, 'border-b border-border/25 pb-8 dark:border-white/[0.06]')}>
-          <CardTitle className={USAGE_CARD_TITLE}>Allocation planner</CardTitle>
-          <CardDescription className={USAGE_CARD_DESC}>
-            The same playbook that lives in Tools — surfaced here beside your real spend pattern so budgeting stays one
-            click away from history.
-          </CardDescription>
+          <CardTitle className={USAGE_CARD_TITLE}>{t('usageCredits.allocationTitle')}</CardTitle>
+          <CardDescription className={USAGE_CARD_DESC}>{t('usageCredits.allocationDescription')}</CardDescription>
         </CardHeader>
         <CardContent className={cn('px-8 pb-10 pt-2 sm:px-10 sm:pb-12')}>
           <CreditAllocationPlanner embedded className="-mx-2" />

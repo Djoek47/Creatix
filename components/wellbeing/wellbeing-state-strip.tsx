@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'framer-motion'
 import { HeartPulse, CircleHelp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,21 +14,18 @@ import type { PulsePayload, PulseSeverity } from '@/lib/wellbeing/pulse-engine'
 
 const stripTransition = { duration: 0.4, ease: sereneEase }
 
-/** Compact help surfaces — small footprint, calm type, no essay blocks. */
 const stripHelpPopoverClass =
   'w-[min(15rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-xl border-border/35 px-3 py-3 text-[13px] leading-snug shadow-md'
 
-/** Matches `header-wellbeing-heartbeat` base cadence in `globals.css` (2.4s). */
 const pulseStripLabelClass =
   'truncate text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground'
 
-function severityLabel(s: PulseSeverity): string {
-  if (s === 'steady') return 'Steady'
-  if (s === 'attend') return 'Attend'
-  return 'Intervene'
+function severityLabel(s: PulseSeverity, t: (key: string) => string): string {
+  if (s === 'steady') return t('severitySteady')
+  if (s === 'attend') return t('severityAttend')
+  return t('severityIntervene')
 }
 
-/** Same animation + hues as dashboard header wellbeing control (`globals.css`). No animation when Pulse is paused. */
 function pulseHeartbeatIconClasses(
   pulse: PulsePayload | null,
   pulseLoading: boolean,
@@ -57,14 +55,6 @@ function pulseHeartbeatIconClasses(
   )
 }
 
-const MOOD: Record<FlowStatePayload['mood'], string> = {
-  calm: 'Calm',
-  creative: 'Creative',
-  charged: 'Charged',
-  fragile: 'Fragile',
-  focused: 'Focused',
-}
-
 type Props = {
   pulse: PulsePayload | null
   pulseLoading: boolean
@@ -83,22 +73,21 @@ function Cell({
   title,
   kickerNormalCase = false,
   help,
+  heroSub = false,
 }: {
   kicker: string
-  main: string
+  main?: string
   sub?: string
   empty?: boolean
   delay?: number
-  /** Subtle cue on hover/long-press — e.g. metric order */
   title?: string
-  /** When true, kicker keeps sentence casing (e.g. “Sun glow”). */
   kickerNormalCase?: boolean
-  /** Optional ? popover (e.g. Flow methodology). */
   help?: {
     ariaLabel: string
     title: string
     description: ReactNode
   }
+  heroSub?: boolean
 }) {
   const reduce = useReducedMotion()
   const kickerClass = cn(
@@ -143,8 +132,20 @@ function Cell({
       ) : (
         <p className={kickerClass}>{kicker}</p>
       )}
-      <p className="mt-1.5 text-lg font-semibold tracking-tight text-foreground sm:text-xl">{main}</p>
-      {sub ? <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{sub}</p> : null}
+      {main != null && main !== '' ? (
+        <p className="mt-1.5 text-lg font-semibold tracking-tight text-foreground sm:text-xl">{main}</p>
+      ) : null}
+      {sub ? (
+        <p
+          className={cn(
+            heroSub
+              ? 'mt-2 select-none text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl sm:leading-snug'
+              : 'mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground',
+          )}
+        >
+          {sub}
+        </p>
+      ) : null}
     </motion.div>
   )
 }
@@ -165,8 +166,15 @@ function PulseStripCell({
   delay: number
 }) {
   const reduce = useReducedMotion()
+  const t = useTranslations('wellbeing.stateStrip')
   const live = pulseLoading || !!pulse
   const hbClasses = pulseHeartbeatIconClasses(pulse, pulseLoading, !!reduce)
+
+  const pulseHelpBody = t.rich('pulseHelpRich', {
+    steady: (chunks) => <span className="font-medium text-foreground/88">{chunks}</span>,
+    attend: (chunks) => <span className="font-medium text-foreground/88">{chunks}</span>,
+    intervene: (chunks) => <span className="font-medium text-foreground/88">{chunks}</span>,
+  })
 
   return (
     <motion.div
@@ -196,10 +204,10 @@ function PulseStripCell({
                 ease: 'easeInOut',
               }}
             >
-              Pulse
+              {t('pulse')}
             </motion.p>
           ) : (
-            <p className={pulseStripLabelClass}>Pulse</p>
+            <p className={pulseStripLabelClass}>{t('pulse')}</p>
           )}
         </div>
         <Popover>
@@ -209,22 +217,15 @@ function PulseStripCell({
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground [&_svg]:text-current"
-              aria-label="What is Pulse?"
+              aria-label={t('pulseHelpAria')}
             >
               <CircleHelp className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className={stripHelpPopoverClass} align="end" sideOffset={6}>
-            <p className="text-[13px] font-semibold tracking-tight text-foreground">Pulse</p>
-            <p className="mt-2 text-muted-foreground">
-              Workload band from activity:{' '}
-              <span className="font-medium text-foreground/88">Steady</span>,{' '}
-              <span className="font-medium text-foreground/88">Attend</span>,{' '}
-              <span className="font-medium text-foreground/88">Intervene</span>.
-            </p>
-            <p className="mt-2 text-[11px] leading-normal text-muted-foreground/75">
-              Same cue as the header. Not medical advice.
-            </p>
+            <p className="text-[13px] font-semibold tracking-tight text-foreground">{t('pulse')}</p>
+            <p className="mt-2 text-muted-foreground">{pulseHelpBody}</p>
+            <p className="mt-2 text-[11px] leading-normal text-muted-foreground/75">{t('pulseHelpDisclaimer')}</p>
           </PopoverContent>
         </Popover>
       </div>
@@ -243,39 +244,57 @@ export function WellbeingStateStrip({
   glowLoading,
 }: Props) {
   const reduce = useReducedMotion()
+  const t = useTranslations('wellbeing.stateStrip')
 
   const pulseMain = pulse
-    ? severityLabel(pulse.severity)
+    ? severityLabel(pulse.severity, t)
     : pulseLoading
-      ? '…'
-      : '—'
-  const pulseSub = pulse ? undefined : pulseLoading ? 'Reading' : 'Paused'
+      ? t('ellipsis')
+      : t('dash')
+  const pulseSub = pulse ? undefined : pulseLoading ? t('reading') : t('paused')
 
-  const flowMain = flow ? MOOD[flow.mood] : pulseLoading ? '…' : '—'
+  const flowMain = flow ? undefined : pulseLoading ? t('ellipsis') : t('dash')
   const flowSub = flow
     ? `⚡ ${Math.round(flow.energy)} · 🧘 ${Math.round(flow.stress)} · 🎯 ${Math.round(flow.focus)}`
     : pulseLoading
-      ? 'Reading'
+      ? t('reading')
       : flowUnavailable
-        ? 'Unavailable'
+        ? t('unavailable')
         : undefined
 
   const glowNum = insight?.glowScore ?? pulse?.glowScore
-  const glowMain = glowLoading && !insight ? '…' : typeof glowNum === 'number' ? String(glowNum) : '—'
+  const glowMain = glowLoading && !insight ? t('ellipsis') : typeof glowNum === 'number' ? String(glowNum) : t('dash')
   const glowSub = insight
     ? `${insight.nextGoldenHour.start}–${insight.nextGoldenHour.end} · ${insight.nextGoldenHour.minutesUntil}m`
     : glowLoading
-      ? 'Reading'
+      ? t('reading')
       : typeof glowNum === 'number'
-        ? 'Ambient'
-        : 'Incomplete'
+        ? t('ambient')
+        : t('incomplete')
+
+  const flowHelpDescription = (
+    <div className="space-y-2.5">
+      <p>{t('flowHelpP1')}</p>
+      <ul className="grid gap-1 border-t border-border/30 pt-2.5">
+        {(
+          [
+            [t('flowListEnergy'), t('flowListEnergyGloss')],
+            [t('flowListStress'), t('flowListStressGloss')],
+            [t('flowListFocus'), t('flowListFocusGloss')],
+          ] as const
+        ).map(([label, gloss]) => (
+          <li key={label} className="flex items-baseline justify-between gap-3">
+            <span className="shrink-0 font-medium text-foreground/88">{label}</span>
+            <span className="min-w-0 text-right text-[12px] text-muted-foreground">{gloss}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] leading-normal text-muted-foreground/75">{t('flowFootnote')}</p>
+    </div>
+  )
 
   return (
-    <div
-      className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-      role="group"
-      aria-label="At-a-glance well-being signals"
-    >
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" role="group" aria-label={t('groupAria')}>
       <PulseStripCell
         pulse={pulse}
         pulseLoading={pulseLoading}
@@ -285,42 +304,21 @@ export function WellbeingStateStrip({
         sub={pulseSub}
       />
       <Cell
-        kicker="Flow"
-        title={flow ? 'Energy · Stress · Focus' : undefined}
+        kicker={t('flow')}
+        title={flow ? t('flowTitleHint') : undefined}
         help={{
-          ariaLabel: 'How Flow is calculated',
-          title: 'Flow',
-          description: (
-            <div className="space-y-2.5">
-              <p>
-                Mood plus three scores inferred from workspace rhythm: messages, queues, Sun glow, and recent
-                actions—not physiology.
-              </p>
-              <ul className="grid gap-1 border-t border-border/30 pt-2.5">
-                {[
-                  ['Energy', 'Headroom'],
-                  ['Stress', 'Perceived load'],
-                  ['Focus', 'Attention steadiness'],
-                ].map(([label, gloss]) => (
-                  <li key={label} className="flex items-baseline justify-between gap-3">
-                    <span className="shrink-0 font-medium text-foreground/88">{label}</span>
-                    <span className="min-w-0 text-right text-[12px] text-muted-foreground">{gloss}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-[11px] leading-normal text-muted-foreground/75">
-                Roughly 0–100 each · Refines when your snapshot is processed · Not clinical
-              </p>
-            </div>
-          ),
+          ariaLabel: t('flowHelpAria'),
+          title: t('flowHelpTitle'),
+          description: flowHelpDescription,
         }}
         main={flowMain}
         sub={flowSub}
+        heroSub={!!flow}
         empty={!flow && flowUnavailable}
         delay={reduce ? 0 : 0.04}
       />
       <Cell
-        kicker="Sun glow"
+        kicker={t('sunGlow')}
         kickerNormalCase
         main={glowMain}
         sub={glowSub}

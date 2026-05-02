@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +24,7 @@ const textareaClass = cn(
 )
 
 export function MobileLaunchListForm() {
+  const t = useTranslations('marketing')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +40,7 @@ export function MobileLaunchListForm() {
     setError(null)
     setSending(true)
     try {
+      // English-only body for ops / inbox routing (subject stays `mobile_launch_list`).
       const payloadMessage = [
         'Mobile Launch List Signup',
         form.handle ? `Creator handle: ${form.handle}` : '',
@@ -60,14 +63,14 @@ export function MobileLaunchListForm() {
 
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof data?.error === 'string' ? data.error : 'Unable to join launch list right now.')
+        setError(typeof data?.error === 'string' ? data.error : t('launchList.form.errorFallback'))
         return
       }
 
       setSent(true)
       setForm({ name: '', email: '', handle: '', message: '' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unexpected error while submitting form.')
+      setError(err instanceof Error ? err.message : t('launchList.form.errorUnexpected'))
     } finally {
       setSending(false)
     }
@@ -83,10 +86,10 @@ export function MobileLaunchListForm() {
           <CheckCircle2 className="h-5 w-5 text-foreground/70" strokeWidth={1.75} />
         </div>
         <h3 className="mt-5 font-serif text-[1.375rem] font-semibold leading-tight tracking-[-0.03em] text-foreground sm:text-[1.5rem]">
-          You are on the list
+          {t('launchList.form.successTitle')}
         </h3>
         <p className="mx-auto mt-2 max-w-[28ch] text-[14px] leading-relaxed text-muted-foreground">
-          We will email you when mobile access opens.
+          {t('launchList.form.successBody')}
         </p>
       </div>
     )
@@ -102,12 +105,12 @@ export function MobileLaunchListForm() {
       <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
         <div className="space-y-1.5">
           <Label htmlFor="launch-name" className={fieldLabelClass}>
-            Name
+            {t('launchList.form.name')}
           </Label>
           <Input
             id="launch-name"
             required
-            placeholder="Your name"
+            placeholder={t('launchList.form.placeholderName')}
             value={form.name}
             className={fieldControlClass}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -115,13 +118,13 @@ export function MobileLaunchListForm() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="launch-email" className={fieldLabelClass}>
-            Email
+            {t('launchList.form.email')}
           </Label>
           <Input
             id="launch-email"
             type="email"
             required
-            placeholder="you@example.com"
+            placeholder={t('launchList.form.placeholderEmail')}
             value={form.email}
             className={fieldControlClass}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -130,12 +133,14 @@ export function MobileLaunchListForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="launch-handle" className={fieldLabelClass}>
-          Creator handle{' '}
-          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">(optional)</span>
+          {t('launchList.form.handle')}{' '}
+          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">
+            {t('launchList.form.optional')}
+          </span>
         </Label>
         <Input
           id="launch-handle"
-          placeholder="@yourhandle"
+          placeholder={t('launchList.form.placeholderHandle')}
           value={form.handle}
           className={fieldControlClass}
           onChange={(e) => setForm((prev) => ({ ...prev, handle: e.target.value }))}
@@ -143,13 +148,15 @@ export function MobileLaunchListForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="launch-message" className={fieldLabelClass}>
-          Notes{' '}
-          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">(optional)</span>
+          {t('launchList.form.notes')}{' '}
+          <span className="font-normal normal-case tracking-normal text-muted-foreground/80">
+            {t('launchList.form.optional')}
+          </span>
         </Label>
         <Textarea
           id="launch-message"
           rows={4}
-          placeholder="Requests, priorities, or context for the team."
+          placeholder={t('launchList.form.placeholderNotes')}
           value={form.message}
           className={textareaClass}
           onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
@@ -167,7 +174,7 @@ export function MobileLaunchListForm() {
         )}
       >
         {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-        {sending ? 'Joining…' : 'Join launch list'}
+        {sending ? t('launchList.form.submitting') : t('launchList.form.submit')}
       </Button>
     </form>
   )

@@ -54,6 +54,7 @@ import {
   isCryptoSupported,
   type BirthChartReading
 } from '@/lib/crypto'
+import { useLocale, useTranslations } from 'next-intl'
 
 interface BirthdaySettingsProps {
   userId: string
@@ -61,6 +62,8 @@ interface BirthdaySettingsProps {
 }
 
 export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }: BirthdaySettingsProps) {
+  const t = useTranslations('settings')
+  const locale = useLocale()
   const [hasBirthdaySet, setHasBirthdaySet] = useState(initialHasBirthday)
   const [showSetupDialog, setShowSetupDialog] = useState(false)
   const [showUnlockDialog, setShowUnlockDialog] = useState(false)
@@ -113,22 +116,22 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
     setSuccess('')
     
     if (!isCryptoSupported()) {
-      setError('Your browser does not support the required encryption features.')
+      setError(t('birthdayVault.err.cryptoUnsupported'))
       return
     }
     
     if (!birthDate) {
-      setError('Please enter your birth date')
+      setError(t('birthdayVault.err.noBirthDate'))
       return
     }
     
     if (passphrase.length < 8) {
-      setError('Passphrase must be at least 8 characters')
+      setError(t('birthdayVault.err.passphraseShort'))
       return
     }
     
     if (passphrase !== confirmPassphrase) {
-      setError('Passphrases do not match')
+      setError(t('birthdayVault.err.passphraseMismatch'))
       return
     }
     
@@ -158,7 +161,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
       
       if (dbError) throw dbError
       
-      setSuccess('Your cosmic birthday has been securely stored!')
+      setSuccess(t('birthdayVault.successStored'))
       setHasBirthdaySet(true)
       setShowSetupDialog(false)
       
@@ -169,7 +172,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
       setConfirmPassphrase('')
       setIncludeTime(false)
     } catch (err) {
-      setError('Failed to save birthday. Please try again.')
+      setError(t('birthdayVault.err.saveFailed'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -180,7 +183,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
     setError('')
     
     if (!unlockPassphrase) {
-      setError('Please enter your passphrase')
+      setError(t('birthdayVault.err.needPassphrase'))
       return
     }
     
@@ -201,7 +204,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
       // Verify passphrase hash
       const enteredHash = await hashPassphrase(unlockPassphrase, userId)
       if (enteredHash !== data.birthday_passphrase_hash) {
-        setError('Incorrect passphrase. Please try again.')
+        setError(t('birthdayVault.err.wrongPassphrase'))
         setIsLoading(false)
         return
       }
@@ -215,7 +218,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
       setShowUnlockDialog(false)
       setUnlockPassphrase('')
     } catch (err) {
-      setError('Failed to unlock. Check your passphrase.')
+      setError(t('birthdayVault.err.unlockFailed'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -250,9 +253,9 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
       setBirthChart(null)
       setIsUnlocked(false)
       setShowDeleteDialog(false)
-      setSuccess('Birthday data has been permanently deleted.')
+      setSuccess(t('birthdayVault.successDeleted'))
     } catch (err) {
-      setError('Failed to delete birthday data.')
+      setError(t('birthdayVault.err.deleteFailed'))
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -265,28 +268,23 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Star className="h-5 w-5 text-primary" />
-            <CardTitle className="font-semibold">Cosmic Birthday Vault</CardTitle>
+            <CardTitle className="font-semibold">{t('birthdayVault.title')}</CardTitle>
           </div>
           {hasBirthdaySet && (
             <Badge variant="outline" className="border-primary/50 text-primary">
               <Shield className="mr-1 h-3 w-3" />
-              Zero-Knowledge Encrypted
+              {t('birthdayVault.badge')}
             </Badge>
           )}
         </div>
-        <CardDescription>
-          Your birth data powers personalized astrological insights. Encrypted so only you can access it.
-        </CardDescription>
+        <CardDescription>{t('birthdayVault.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Security Notice */}
         <Alert className="border-primary/30 bg-primary/5">
           <Shield className="h-4 w-4 text-primary" />
-          <AlertTitle className="font-semibold">Zero-Knowledge Security</AlertTitle>
-          <AlertDescription className="text-sm">
-            Your birthday is encrypted on your device before being stored. Even we cannot see it.
-            Only you, with your passphrase, can decrypt and view your birth data.
-          </AlertDescription>
+          <AlertTitle className="font-semibold">{t('birthdayVault.securityTitle')}</AlertTitle>
+          <AlertDescription className="text-sm">{t('birthdayVault.securityBody')}</AlertDescription>
         </Alert>
 
         {error && (
@@ -308,32 +306,28 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
           <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-primary/30 p-6 text-center">
             <Sparkles className="h-10 w-10 text-primary/60" />
             <div>
-              <p className="font-medium">Unlock Your Cosmic Potential</p>
-              <p className="text-sm text-muted-foreground">
-                Add your birthday for personalized astrological readings, timing advice, and cosmic insights.
-              </p>
+              <p className="font-medium">{t('birthdayVault.emptyTitle')}</p>
+              <p className="text-sm text-muted-foreground">{t('birthdayVault.emptyBody')}</p>
             </div>
             <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Calendar className="h-4 w-4" />
-                  Set Up Cosmic Birthday
+                  {t('birthdayVault.setupCta')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 font-semibold">
                     <Star className="h-5 w-5 text-primary" />
-                    Enter Your Birth Details
+                    {t('birthdayVault.dialogSetupTitle')}
                   </DialogTitle>
-                  <DialogDescription>
-                    Your data will be encrypted with your passphrase before storage.
-                  </DialogDescription>
+                  <DialogDescription>{t('birthdayVault.dialogSetupDescription')}</DialogDescription>
                 </DialogHeader>
                 
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="birthDate">Birth Date *</Label>
+                    <Label htmlFor="birthDate">{t('birthdayVault.birthDateLabel')}</Label>
                     <Input
                       id="birthDate"
                       type="date"
@@ -353,7 +347,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                         className="rounded border-primary/30"
                       />
                       <Label htmlFor="includeTime" className="text-sm cursor-pointer">
-                        Include birth time for day/night precision
+                        {t('birthdayVault.includeTime')}
                       </Label>
                     </div>
                     {includeTime && (
@@ -363,13 +357,13 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                         value={birthTime}
                         onChange={(e) => setBirthTime(e.target.value)}
                         className="border-primary/30"
-                        placeholder="Birth time (optional)"
+                        placeholder={t('birthdayVault.birthTimePlaceholder')}
                       />
                     )}
                     <p className="text-xs text-muted-foreground">
                       {includeTime 
-                        ? 'Birth time enables day/night readings and more precise cosmic guidance.'
-                        : 'Birth time is optional but provides more accurate readings.'}
+                        ? t('birthdayVault.birthTimeHintOn')
+                        : t('birthdayVault.birthTimeHintOff')}
                     </p>
                   </div>
 
@@ -378,11 +372,17 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                     <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
                       <p className="text-sm font-medium flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        Preview: {previewBirthChart.sunSign.symbol} {previewBirthChart.sunSign.sign}
+                        {t('birthdayVault.previewPrefix')} {previewBirthChart.sunSign.symbol}{' '}
+                        {previewBirthChart.sunSign.sign}
                       </p>
                       <div className="text-xs text-muted-foreground space-y-1">
-                        <p>Element: {previewBirthChart.sunSign.element} | Modality: {previewBirthChart.sunSign.modality}</p>
-                        <p>Life Path: {previewBirthChart.lifePathNumber}</p>
+                        <p>
+                          {t('birthdayVault.previewElement')}: {previewBirthChart.sunSign.element} |{' '}
+                          {t('birthdayVault.previewModality')}: {previewBirthChart.sunSign.modality}
+                        </p>
+                        <p>
+                          {t('birthdayVault.previewLifePath')}: {previewBirthChart.lifePathNumber}
+                        </p>
                         {includeTime && birthTime && (
                           <p className="flex items-center gap-1">
                             {previewBirthChart.birthTime === 'day' ? (
@@ -390,7 +390,9 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                             ) : (
                               <Moon className="h-3 w-3 text-blue-400" />
                             )}
-                            {previewBirthChart.birthTime === 'day' ? 'Day-born (Solar energy)' : 'Night-born (Lunar energy)'}
+                            {previewBirthChart.birthTime === 'day'
+                              ? t('birthdayVault.dayBorn')
+                              : t('birthdayVault.nightBorn')}
                           </p>
                         )}
                       </div>
@@ -398,14 +400,14 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="passphrase">Encryption Passphrase *</Label>
+                    <Label htmlFor="passphrase">{t('birthdayVault.passphraseLabel')}</Label>
                     <div className="relative">
                       <Input
                         id="passphrase"
                         type={showPassphrase ? 'text' : 'password'}
                         value={passphrase}
                         onChange={(e) => setPassphrase(e.target.value)}
-                        placeholder="Create a strong passphrase"
+                        placeholder={t('birthdayVault.passphrasePlaceholder')}
                         className="border-primary/30 pr-10"
                       />
                       <Button
@@ -421,13 +423,13 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassphrase">Confirm Passphrase *</Label>
+                    <Label htmlFor="confirmPassphrase">{t('birthdayVault.confirmPassphraseLabel')}</Label>
                     <Input
                       id="confirmPassphrase"
                       type="password"
                       value={confirmPassphrase}
                       onChange={(e) => setConfirmPassphrase(e.target.value)}
-                      placeholder="Confirm your passphrase"
+                      placeholder={t('birthdayVault.confirmPassphrasePlaceholder')}
                       className="border-primary/30"
                     />
                   </div>
@@ -435,21 +437,23 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   <Alert className="border-amber-500/30 bg-amber-500/10">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
                     <AlertDescription className="text-xs text-amber-600 dark:text-amber-400">
-                      <strong>Important:</strong> We cannot recover your passphrase. If you forget it, 
-                      you will need to delete and re-enter your birthday data.
+                      <span className="font-semibold">{t('birthdayVault.passphraseWarnTitle')}</span>{' '}
+                      {t('birthdayVault.passphraseWarnBody')}
                     </AlertDescription>
                   </Alert>
                 </div>
                 
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowSetupDialog(false)}>
-                    Cancel
+                    {t('birthdayVault.cancel')}
                   </Button>
                   <Button onClick={handleSetupBirthday} disabled={isLoading} className="gap-2">
-                    {isLoading ? 'Encrypting...' : (
+                    {isLoading ? (
+                      t('birthdayVault.encrypting')
+                    ) : (
                       <>
                         <Lock className="h-4 w-4" />
-                        Encrypt & Save
+                        {t('birthdayVault.encryptSave')}
                       </>
                     )}
                   </Button>
@@ -468,35 +472,33 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   <Lock className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Birthday Data Locked</p>
-                  <p className="text-sm text-muted-foreground">Enter your passphrase to unlock cosmic insights</p>
+                  <p className="font-medium">{t('birthdayVault.lockedTitle')}</p>
+                  <p className="text-sm text-muted-foreground">{t('birthdayVault.lockedHint')}</p>
                 </div>
               </div>
               <Dialog open={showUnlockDialog} onOpenChange={setShowUnlockDialog}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="gap-2">
                     <Eye className="h-4 w-4" />
-                    Unlock
+                    {t('birthdayVault.unlock')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle className="font-semibold">Unlock Your Cosmic Data</DialogTitle>
-                    <DialogDescription>
-                      Enter your passphrase to decrypt and view your birthday data.
-                    </DialogDescription>
+                    <DialogTitle className="font-semibold">{t('birthdayVault.dialogUnlockTitle')}</DialogTitle>
+                    <DialogDescription>{t('birthdayVault.dialogUnlockDescription')}</DialogDescription>
                   </DialogHeader>
                   
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="unlockPassphrase">Passphrase</Label>
+                      <Label htmlFor="unlockPassphrase">{t('birthdayVault.unlockPassphraseLabel')}</Label>
                       <div className="relative">
                         <Input
                           id="unlockPassphrase"
                           type={showUnlockPassphrase ? 'text' : 'password'}
                           value={unlockPassphrase}
                           onChange={(e) => setUnlockPassphrase(e.target.value)}
-                          placeholder="Enter your passphrase"
+                          placeholder={t('birthdayVault.unlockPassphrasePlaceholder')}
                           className="border-primary/30 pr-10"
                           onKeyDown={(e) => e.key === 'Enter' && handleUnlockBirthday()}
                         />
@@ -515,10 +517,10 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setShowUnlockDialog(false)}>
-                      Cancel
+                      {t('birthdayVault.cancel')}
                     </Button>
                     <Button onClick={handleUnlockBirthday} disabled={isLoading}>
-                      {isLoading ? 'Decrypting...' : 'Unlock'}
+                      {isLoading ? t('birthdayVault.decrypting') : t('birthdayVault.unlock')}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -527,26 +529,24 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
 
             {/* Delete option for forgot passphrase */}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Forgot your passphrase?</span>
+              <span className="text-muted-foreground">{t('birthdayVault.forgotPassphrase')}</span>
               <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogTrigger asChild>
                   <Button variant="link" className="h-auto p-0 text-destructive">
-                    Delete & Start Over
+                    {t('birthdayVault.deleteStartOver')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle className="font-semibold text-destructive">Delete Birthday Data</DialogTitle>
-                    <DialogDescription>
-                      This will permanently delete your encrypted birthday data. You can set it up again afterward.
-                    </DialogDescription>
+                    <DialogTitle className="font-semibold text-destructive">{t('birthdayVault.dialogDeleteTitle')}</DialogTitle>
+                    <DialogDescription>{t('birthdayVault.dialogDeleteDescription')}</DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                      Cancel
+                      {t('birthdayVault.cancel')}
                     </Button>
                     <Button variant="destructive" onClick={handleDeleteBirthday} disabled={isLoading}>
-                      {isLoading ? 'Deleting...' : 'Delete Permanently'}
+                      {isLoading ? t('birthdayVault.deleting') : t('birthdayVault.deletePermanently')}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -565,19 +565,20 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 <div>
                   <p className="font-semibold text-lg">{birthChart.sunSign.sign}</p>
                   <p className="text-sm text-muted-foreground">
-                    {decryptedBirthday?.date && new Date(decryptedBirthday.date).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}
-                    {decryptedBirthday?.time && ` at ${decryptedBirthday.time}`}
+                    {decryptedBirthday?.date &&
+                      new Date(decryptedBirthday.date).toLocaleDateString(locale, {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    {decryptedBirthday?.time && `${t('birthdayVault.atTime')}${decryptedBirthday.time}`}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleLockBirthday} className="gap-1">
                   <Lock className="h-4 w-4" />
-                  Lock
+                  {t('birthdayVault.lock')}
                 </Button>
                 <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                   <DialogTrigger asChild>
@@ -587,15 +588,15 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle className="font-semibold text-destructive">Delete Birthday Data</DialogTitle>
-                      <DialogDescription>
-                        This will permanently delete your encrypted birthday data.
-                      </DialogDescription>
+                      <DialogTitle className="font-semibold text-destructive">{t('birthdayVault.dialogDeleteTitle')}</DialogTitle>
+                      <DialogDescription>{t('birthdayVault.dialogDeleteDescriptionShort')}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                        {t('birthdayVault.cancel')}
+                      </Button>
                       <Button variant="destructive" onClick={handleDeleteBirthday} disabled={isLoading}>
-                        {isLoading ? 'Deleting...' : 'Delete'}
+                        {isLoading ? t('birthdayVault.deleting') : t('birthdayVault.delete')}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -606,10 +607,10 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
             {/* Tabs for different readings */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="numerology">Numerology</TabsTrigger>
-                <TabsTrigger value="timing">Timing</TabsTrigger>
-                <TabsTrigger value="cosmic">Cosmic</TabsTrigger>
+                <TabsTrigger value="overview">{t('birthdayVault.tabOverview')}</TabsTrigger>
+                <TabsTrigger value="numerology">{t('birthdayVault.tabNumerology')}</TabsTrigger>
+                <TabsTrigger value="timing">{t('birthdayVault.tabTiming')}</TabsTrigger>
+                <TabsTrigger value="cosmic">{t('birthdayVault.tabCosmic')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4 mt-4">
@@ -624,8 +625,11 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                       <Clock className="h-5 w-5 text-muted-foreground" />
                     )}
                     <span className="font-medium">
-                      {birthChart.birthTime === 'day' ? 'Day-Born Soul' : 
-                       birthChart.birthTime === 'night' ? 'Night-Born Soul' : 'Birth Time Unknown'}
+                      {birthChart.birthTime === 'day'
+                        ? t('birthdayVault.dayBornSoul')
+                        : birthChart.birthTime === 'night'
+                          ? t('birthdayVault.nightBornSoul')
+                          : t('birthdayVault.birthTimeUnknown')}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">{birthChart.dayOrNightBorn}</p>
@@ -634,26 +638,26 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 {/* Sun Sign Details */}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Element</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.previewElement')}</p>
                     <p className="font-medium">{birthChart.sunSign.elementSymbol} {birthChart.sunSign.element}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Modality</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.previewModality')}</p>
                     <p className="font-medium">{birthChart.sunSign.modality}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Ruling Planet</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.labelRulingPlanet')}</p>
                     <p className="font-medium">{birthChart.sunSign.planetSymbol} {birthChart.sunSign.rulingPlanet}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Lucky Day</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.labelLuckyDay')}</p>
                     <p className="font-medium">{birthChart.sunSign.luckyDay}</p>
                   </div>
                 </div>
 
                 {/* Traits */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Key Traits</p>
+                  <p className="text-sm font-medium">{t('birthdayVault.keyTraits')}</p>
                   <div className="flex flex-wrap gap-2">
                     {birthChart.sunSign.traits.map((trait, i) => (
                       <Badge key={i} variant="outline">{trait}</Badge>
@@ -663,7 +667,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
 
                 {/* Compatible Signs */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Compatible Signs</p>
+                  <p className="text-sm font-medium">{t('birthdayVault.compatibleSigns')}</p>
                   <div className="flex flex-wrap gap-2">
                     {birthChart.sunSign.compatibleSigns.map((sign, i) => (
                       <Badge key={i} variant="secondary">{sign}</Badge>
@@ -676,7 +680,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 {/* Life Path */}
                 <div className="rounded-lg border p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">Life Path Number</span>
+                    <span className="font-medium">{t('birthdayVault.lifePathNumber')}</span>
                     <span className="text-2xl font-bold text-primary">{birthChart.lifePathNumber}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{birthChart.lifePathMeaning}</p>
@@ -685,7 +689,9 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 {/* Personal Year */}
                 <div className="rounded-lg border p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">Personal Year (2026)</span>
+                    <span className="font-medium">
+                      {t('birthdayVault.personalYearLabel', { year: new Date().getFullYear() })}
+                    </span>
                     <span className="text-2xl font-bold text-venus">{birthChart.personalYear}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{birthChart.personalYearMeaning}</p>
@@ -697,7 +703,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                     <span className="text-2xl">{birthChart.chineseZodiac.symbol}</span>
                     <div>
                       <p className="font-medium">{birthChart.chineseZodiac.element} {birthChart.chineseZodiac.animal}</p>
-                      <p className="text-xs text-muted-foreground">Chinese Zodiac</p>
+                      <p className="text-xs text-muted-foreground">{t('birthdayVault.chineseZodiac')}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -709,7 +715,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
 
                 {/* Lucky Numbers */}
                 <div className="rounded-lg border p-4 space-y-2">
-                  <p className="font-medium">Lucky Numbers</p>
+                  <p className="font-medium">{t('birthdayVault.luckyNumbers')}</p>
                   <div className="flex gap-2">
                     {birthChart.sunSign.luckyNumbers.map((num, i) => (
                       <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-medium">
@@ -723,7 +729,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
               <TabsContent value="timing" className="space-y-4 mt-4">
                 {/* Best Posting Days */}
                 <div className="rounded-lg border p-4 space-y-2">
-                  <p className="font-medium">Best Posting Days</p>
+                  <p className="font-medium">{t('birthdayVault.bestPostingDays')}</p>
                   <div className="flex flex-wrap gap-2">
                     {birthChart.contentTiming.bestPostingDays.map((day, i) => (
                       <Badge key={i} className="bg-green-500/20 text-green-600 dark:text-green-400">{day}</Badge>
@@ -733,7 +739,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
 
                 {/* Lucky Hours */}
                 <div className="rounded-lg border p-4 space-y-2">
-                  <p className="font-medium">Lucky Posting Hours</p>
+                  <p className="font-medium">{t('birthdayVault.luckyPostingHours')}</p>
                   <div className="flex flex-wrap gap-2">
                     {birthChart.contentTiming.luckyHours.map((hour, i) => (
                       <Badge key={i} variant="outline">{hour}</Badge>
@@ -743,7 +749,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
 
                 {/* Monthly Power Days */}
                 <div className="rounded-lg border p-4 space-y-2">
-                  <p className="font-medium">Monthly Power Days</p>
+                  <p className="font-medium">{t('birthdayVault.monthlyPowerDays')}</p>
                   <div className="flex flex-wrap gap-2">
                     {birthChart.contentTiming.monthlyPowerDays.map((day, i) => (
                       <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-medium">
@@ -751,13 +757,15 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">These dates each month align with your cosmic energy</p>
+                  <p className="text-xs text-muted-foreground">{t('birthdayVault.monthlyPowerHint')}</p>
                 </div>
 
                 {/* Retrograde Warning */}
                 <Alert className="border-amber-500/30 bg-amber-500/10">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle className="font-semibold text-amber-600 dark:text-amber-400">Retrograde Advisory</AlertTitle>
+                  <AlertTitle className="font-semibold text-amber-600 dark:text-amber-400">
+                    {t('birthdayVault.retrogradeTitle')}
+                  </AlertTitle>
                   <AlertDescription className="text-sm text-amber-600/80 dark:text-amber-400/80">
                     {birthChart.contentTiming.retrogradeWarning}
                   </AlertDescription>
@@ -768,21 +776,21 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 {/* Birth Details */}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Day Born</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.dayBornLabel')}</p>
                     <p className="font-medium">{birthChart.dayOfWeek}</p>
                     <p className="text-xs text-muted-foreground mt-1">{birthChart.dayMeaning}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Season Born</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.seasonBornLabel')}</p>
                     <p className="font-medium">{birthChart.seasonBorn.split(' - ')[0]}</p>
                     <p className="text-xs text-muted-foreground mt-1">{birthChart.seasonBorn.split(' - ')[1]}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Birthstone</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.birthstoneLabel')}</p>
                     <p className="font-medium">{birthChart.birthstone}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Birth Flower</p>
+                    <p className="text-xs text-muted-foreground">{t('birthdayVault.birthFlowerLabel')}</p>
                     <p className="font-medium">{birthChart.birthFlower}</p>
                   </div>
                 </div>
@@ -791,7 +799,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 <div className="rounded-lg border p-4 space-y-2">
                   <p className="font-medium flex items-center gap-2">
                     <Moon className="h-4 w-4" />
-                    Moon Phase at Birth
+                    {t('birthdayVault.moonPhaseTitle')}
                   </p>
                   <p className="text-sm">{birthChart.moonPhaseAtBirth.split(' - ')[0]}</p>
                   <p className="text-xs text-muted-foreground">{birthChart.moonPhaseAtBirth.split(' - ')[1]}</p>
@@ -801,7 +809,7 @@ export function BirthdaySettings({ userId, hasBirthdaySet: initialHasBirthday }:
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
                   <p className="font-medium flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-primary" />
-                    Personalized Cosmic Advice
+                    {t('birthdayVault.cosmicAdviceTitle')}
                   </p>
                   <ul className="space-y-2">
                     {birthChart.cosmicAdvice.map((advice, i) => (

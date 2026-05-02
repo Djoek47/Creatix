@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Reorder, useReducedMotion, motion } from 'framer-motion'
 import { Columns2, GripVertical, LayoutGrid, RotateCcw, Shield, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,7 @@ import { DashboardAegisWidget } from '@/components/dashboard/dashboard-aegis-wid
 import { DashboardFeaturedToolWidget } from '@/components/dashboard/dashboard-featured-tool-widget'
 import { DEFAULT_FEATURED_TOOL_ID, listFeaturedToolCandidates } from '@/lib/dashboard/featured-tool-options'
 import { mergeDashboardVisibility } from '@/lib/dashboard/dashboard-preset'
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
 
@@ -61,22 +62,6 @@ function applyNonApiDashboardVisibility(vis: Record<string, boolean>, nonApi: bo
   return next
 }
 
-const WIDGET_OPTIONS: { id: string; label: string; hint?: string; optional?: boolean }[] = [
-  { id: 'stats', label: 'Overview stats' },
-  {
-    id: 'standardAttraction',
-    label: 'Featured AI Studio tool',
-    hint: 'Pin any runnable tool from the card below.',
-  },
-  { id: 'revenue', label: 'Revenue chart' },
-  { id: 'quickColumn', label: 'Platforms & quick actions' },
-  { id: 'messageActivity', label: 'Conversations' },
-  { id: 'alertsColumn', label: 'Alerts · OnlyFans & Fansly' },
-  { id: 'recentFans', label: 'Recent fans' },
-  { id: 'socialRep', label: 'Social hub (summary)', hint: 'Full scans and handles live on Social.' },
-  { id: 'aegis', label: 'Circe Aegis', hint: 'Protection / leak scans', optional: true },
-]
-
 const SECTION_ORDER_DEFAULT = [
   'stats',
   'standardAttraction',
@@ -90,6 +75,18 @@ const SECTION_ORDER_DEFAULT = [
 ] as const
 
 type SectionId = (typeof SECTION_ORDER_DEFAULT)[number]
+
+const WIDGET_OPTION_DEFS: { id: SectionId; optional?: boolean }[] = [
+  { id: 'stats' },
+  { id: 'standardAttraction' },
+  { id: 'revenue' },
+  { id: 'quickColumn' },
+  { id: 'messageActivity' },
+  { id: 'alertsColumn' },
+  { id: 'recentFans' },
+  { id: 'socialRep' },
+  { id: 'aegis', optional: true },
+]
 
 const isSectionId = (s: string): s is SectionId =>
   (SECTION_ORDER_DEFAULT as readonly string[]).includes(s)
@@ -293,6 +290,52 @@ export function DashboardWidgetsGrid({
   const [resetNonce, setResetNonce] = useState(0)
   const [featuredToolId, setFeaturedToolIdState] = useState(DEFAULT_FEATURED_TOOL_ID)
   const reduceMotion = useReducedMotion()
+  const t = useTranslations('dashboard.widgetsLayout')
+  const tAi = useTranslations('ai-tools')
+
+  const widgetOptionLabel = useCallback(
+    (id: SectionId) => {
+      switch (id) {
+        case 'stats':
+          return t('options.stats.label')
+        case 'standardAttraction':
+          return t('options.standardAttraction.label')
+        case 'revenue':
+          return t('options.revenue.label')
+        case 'quickColumn':
+          return t('options.quickColumn.label')
+        case 'messageActivity':
+          return t('options.messageActivity.label')
+        case 'alertsColumn':
+          return t('options.alertsColumn.label')
+        case 'recentFans':
+          return t('options.recentFans.label')
+        case 'socialRep':
+          return t('options.socialRep.label')
+        case 'aegis':
+          return t('options.aegis.label')
+        default:
+          return id
+      }
+    },
+    [t],
+  )
+
+  const widgetOptionHint = useCallback(
+    (id: SectionId): string | null => {
+      switch (id) {
+        case 'standardAttraction':
+          return t('options.standardAttraction.hint')
+        case 'socialRep':
+          return t('options.socialRep.hint')
+        case 'aegis':
+          return t('options.aegis.hint')
+        default:
+          return null
+      }
+    },
+    [t],
+  )
 
   const setFeaturedToolId = useCallback(
     (id: string) => {
@@ -592,32 +635,37 @@ export function DashboardWidgetsGrid({
   const widgetBody = useMemo(() => {
     return {
       stats: (
-        <DashboardModule heading="Signal overview">
+        <DashboardModule heading={t('modules.signalOverview')}>
           <StatsCards stats={stats} />
         </DashboardModule>
       ),
       standardAttraction: (
-        <DashboardModule heading={getToolMeta(featuredToolId)?.name ?? 'Featured tool'}>
+        <DashboardModule
+          heading={(() => {
+            const c = resolveCanonicalToolId(featuredToolId)
+            return tAi.has(`tools.${c}.name`) ? tAi(`tools.${c}.name`) : t('modules.featuredToolFallback')
+          })()}
+        >
           <DashboardFeaturedToolWidget toolId={featuredToolId} onToolIdChange={setFeaturedToolId} />
         </DashboardModule>
       ),
       recentFans: (
-        <DashboardModule heading="Recent fans">
+        <DashboardModule heading={t('modules.recentFans')}>
           <RecentFans fans={fans} totalFans={totalFans} />
         </DashboardModule>
       ),
       socialRep: (
-        <DashboardModule heading="Social & reputation">
+        <DashboardModule heading={t('modules.socialReputation')}>
           <SocialReputationWidget variant="compact" />
         </DashboardModule>
       ),
       aegis: (
-        <DashboardModule heading="Circe Aegis">
+        <DashboardModule heading={t('modules.circeAegis')}>
           <DashboardAegisWidget />
         </DashboardModule>
       ),
     }
-  }, [stats, fans, totalFans, featuredToolId, setFeaturedToolId])
+  }, [stats, fans, totalFans, featuredToolId, setFeaturedToolId, t, tAi])
 
   const quickColumnBody = useMemo(
     () => (
@@ -641,7 +689,7 @@ export function DashboardWidgetsGrid({
 
   const renderRevenueSolo = () => (
     <div className="w-full">
-      <DashboardModule heading="Revenue & rhythm">
+      <DashboardModule heading={t('modules.revenueRhythm')}>
         <RevenueChart
           analytics={analytics}
           hasConnectedPlatforms={hasConnectedPlatforms}
@@ -654,7 +702,7 @@ export function DashboardWidgetsGrid({
 
   const renderQuickSolo = () => (
     <div className="w-full">
-      <DashboardModule heading="Platforms & quick actions">{quickColumnBody}</DashboardModule>
+      <DashboardModule heading={t('modules.platformsQuickActions')}>{quickColumnBody}</DashboardModule>
     </div>
   )
 
@@ -665,7 +713,7 @@ export function DashboardWidgetsGrid({
     if (!showR || !showQ) return null
     const [a, b] = panelState.main
     const revenueBlock = (
-      <DashboardModule heading="Revenue" className="h-full min-h-0">
+      <DashboardModule heading={t('modules.revenue')} className="h-full min-h-0">
         <RevenueChart
           analytics={analytics}
           hasConnectedPlatforms={hasConnectedPlatforms}
@@ -675,7 +723,7 @@ export function DashboardWidgetsGrid({
       </DashboardModule>
     )
     const quickBlock = (
-      <DashboardModule heading="Platforms & quick actions" className="h-full min-h-0">
+      <DashboardModule heading={t('modules.platformsQuickActions')} className="h-full min-h-0">
         {quickColumnBody}
       </DashboardModule>
     )
@@ -722,13 +770,13 @@ export function DashboardWidgetsGrid({
         return visible.quickColumn !== false ? renderQuickSolo() : null
       case 'messageActivity':
         return visible.messageActivity !== false ? (
-          <DashboardModule heading="Conversations">
+          <DashboardModule heading={t('modules.conversations')}>
             <MessageActivity />
           </DashboardModule>
         ) : null
       case 'alertsColumn':
         return visible.alertsColumn !== false ? (
-          <DashboardModule heading="Alerts · OnlyFans & Fansly">{alertsStack}</DashboardModule>
+          <DashboardModule heading={t('modules.alertsOnlyFansFansly')}>{alertsStack}</DashboardModule>
         ) : null
       case 'recentFans':
         return visible.recentFans !== false ? widgetBody.recentFans : null
@@ -747,12 +795,12 @@ export function DashboardWidgetsGrid({
     if (!showM || !showA) return null
     const [ea, eb] = panelState.engage
     const messageBlock = (
-      <DashboardModule heading="Conversations" className="h-full min-h-0">
+      <DashboardModule heading={t('modules.conversations')} className="h-full min-h-0">
         <MessageActivity />
       </DashboardModule>
     )
     const alertsBlock = (
-      <DashboardModule heading="Alerts · OnlyFans & Fansly" className="h-full min-h-0">
+      <DashboardModule heading={t('modules.alertsOnlyFansFansly')} className="h-full min-h-0">
         {alertsStack}
       </DashboardModule>
     )
@@ -856,10 +904,11 @@ export function DashboardWidgetsGrid({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         {customize ? (
           <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground/90">
-            Drag sections by the grip.{' '}
-            <span className="font-medium text-foreground/90">Pair with next</span> for a split row; drag the{' '}
-            <span className="whitespace-nowrap text-amber-200/90">gold</span> /{' '}
-            <span className="whitespace-nowrap text-violet-200/90">violet</span> handle to resize. Saved on this device.
+            {t.rich('customizeHint', {
+              pair: (chunks) => <span className="font-medium text-foreground/90">{chunks}</span>,
+              gold: (chunks) => <span className="whitespace-nowrap text-amber-200/90">{chunks}</span>,
+              violet: (chunks) => <span className="whitespace-nowrap text-violet-200/90">{chunks}</span>,
+            })}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -876,7 +925,7 @@ export function DashboardWidgetsGrid({
             onClick={() => setCustomize((c) => !c)}
           >
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-            {customize ? 'Done' : 'Layout mode'}
+            {customize ? t('done') : t('layoutMode')}
           </Button>
           <Popover open={customizeOpen} onOpenChange={setCustomizeOpen}>
             <PopoverTrigger asChild>
@@ -887,16 +936,18 @@ export function DashboardWidgetsGrid({
                 className="h-9 gap-2 rounded-full border border-border/35 bg-background/50 px-4 shadow-sm backdrop-blur-sm dark:border-white/[0.10] dark:bg-white/[0.06]"
               >
                 <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-                Blocks
+                {t('blocksButton')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0" align="end">
               <div className="border-b border-border/60 px-3 py-2.5">
-                <p className="text-sm font-medium">Visible blocks</p>
-                <p className="text-xs text-muted-foreground">Toggle sections, then order them in layout mode.</p>
+                <p className="text-sm font-medium">{t('visibleBlocksTitle')}</p>
+                <p className="text-xs text-muted-foreground">{t('visibleBlocksSubtitle')}</p>
               </div>
               <div className="max-h-[min(60vh,420px)] space-y-0 overflow-y-auto px-3 py-2">
-                {WIDGET_OPTIONS.map((w) => (
+                {WIDGET_OPTION_DEFS.map((w) => {
+                  const hint = widgetOptionHint(w.id)
+                  return (
                   <div key={w.id}>
                     <Label className="flex cursor-pointer items-start gap-3 rounded-md py-2 hover:bg-muted/40">
                       <Checkbox
@@ -907,21 +958,24 @@ export function DashboardWidgetsGrid({
                       <span className="grid gap-0.5">
                         <span className="flex items-center gap-1.5 text-sm leading-tight">
                           {w.id === 'aegis' ? <Shield className="h-3.5 w-3.5 text-circe" aria-hidden /> : null}
-                          {w.label}
+                          {widgetOptionLabel(w.id)}
                           {w.optional ? (
-                            <span className="text-[10px] font-normal uppercase text-muted-foreground">optional</span>
+                            <span className="text-[10px] font-normal uppercase text-muted-foreground">
+                              {t('optionalBadge')}
+                            </span>
                           ) : null}
                         </span>
-                        {w.hint ? <span className="text-[11px] font-normal text-muted-foreground">{w.hint}</span> : null}
+                        {hint ? <span className="text-[11px] font-normal text-muted-foreground">{hint}</span> : null}
                       </span>
                     </Label>
                   </div>
-                ))}
+                  )
+                })}
               </div>
               <Separator />
               <div className="flex justify-end gap-2 px-3 py-2">
                 <Button type="button" variant="ghost" size="sm" onClick={resetAll}>
-                  Reset all
+                  {t('resetAll')}
                 </Button>
               </div>
             </PopoverContent>
@@ -934,7 +988,7 @@ export function DashboardWidgetsGrid({
             onClick={resetLayout}
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            Reset order & splits
+            {t('resetOrderSplits')}
           </Button>
           <Button
             type="button"
@@ -944,7 +998,7 @@ export function DashboardWidgetsGrid({
             onClick={resetToDivinePreset}
           >
             <Sparkles className="h-3.5 w-3.5 text-gold" aria-hidden />
-            Divine preset
+            {t('divinePreset')}
           </Button>
         </div>
       </div>
@@ -988,12 +1042,12 @@ export function DashboardWidgetsGrid({
                           {builtInRq ? (
                             <span className="flex items-center gap-1.5">
                               <Columns2 className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
-                              Revenue and Platforms pair automatically when adjacent.
+                              {t('pairRevenuePlatforms')}
                             </span>
                           ) : builtInEng ? (
                             <span className="flex items-center gap-1.5">
                               <Columns2 className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
-                              Conversations and Alerts pair automatically when adjacent.
+                              {t('pairConversationsAlerts')}
                             </span>
                           ) : (
                             <Label
@@ -1018,7 +1072,7 @@ export function DashboardWidgetsGrid({
                                 }}
                               />
                               <Columns2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                              <span>Pair with next block (side by side on medium+)</span>
+                              <span>{t('pairWithNext')}</span>
                             </Label>
                           )}
                         </div>

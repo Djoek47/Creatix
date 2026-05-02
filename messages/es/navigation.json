@@ -1,40 +1,40 @@
 {
   "sidebar": {
-    "analytics": "Analytics",
-    "protection": "Protection",
-    "retention": "Retention",
+    "analytics": "Analítica",
+    "protection": "Protección",
+    "retention": "Retención",
     "fans": "Fans",
-    "mentions": "Mentions",
+    "mentions": "Menciones",
     "fanAtlas": "Fan Atlas",
-    "dashboard": "Dashboard",
+    "dashboard": "Panel",
     "divineManager": "Divine Manager",
-    "content": "Content",
-    "wellbeing": "Well-being",
-    "messages": "Messages",
+    "content": "Contenido",
+    "wellbeing": "Bienestar",
+    "messages": "Mensajes",
     "social": "Social",
     "aiStudio": "AI Studio",
-    "guide": "Guide",
-    "settings": "Settings",
+    "guide": "Guía",
+    "settings": "Ajustes",
     "circeSection": "Circe",
     "venusSection": "Venus",
     "systemStripTitle": "Estado y avisos",
-    "systemStripStatus": "Servicios en funcionamiento",
-    "systemStripHint": "Novedades: Guía · Ajustes."
+    "systemStripStatus": "Servicios operativos",
+    "systemStripHint": "Novedades del producto: Guía · Ajustes."
   },
   "marketingNav": {
-    "home": "Home",
-    "features": "Features",
+    "home": "Inicio",
+    "features": "Funciones",
     "demo": "Demo",
-    "mobileApp": "Mobile App",
-    "pricing": "Pricing"
+    "mobileApp": "App móvil",
+    "pricing": "Precios"
   },
   "footerNav": {
-    "about": "About",
-    "privacy": "Privacy",
-    "terms": "Terms"
+    "about": "Acerca de",
+    "privacy": "Privacidad",
+    "terms": "Términos"
   },
   "localeSwitcher": {
-    "label": "Language"
+    "label": "Idioma"
   },
-  "wellbeingUnread": "{count} unread"
+  "wellbeingUnread": "{count} sin leer"
 }

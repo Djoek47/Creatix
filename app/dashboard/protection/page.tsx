@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertTriangle, CheckCircle, FileWarning, Layers } from 'lucide-react'
@@ -9,6 +10,7 @@ import { MarkitAttributionPanel } from '@/components/protection/markit-attributi
 import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 
 export default async function ProtectionPage() {
+  const t = await getTranslations('protection.page')
   const supabase = await createClient()
   const {
     data: { user },
@@ -51,9 +53,9 @@ export default async function ProtectionPage() {
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Active signals</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('activeSignals')}</p>
               <p className="text-2xl font-bold tabular-nums">{activeAlerts.length}</p>
-              <p className="text-[11px] text-muted-foreground">Needs review or DMCA</p>
+              <p className="text-[11px] text-muted-foreground">{t('activeSignalsHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -63,9 +65,9 @@ export default async function ProtectionPage() {
               <CheckCircle className="h-5 w-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Closed cases</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('closedCases')}</p>
               <p className="text-2xl font-bold tabular-nums">{resolvedLeaks.length}</p>
-              <p className="text-[11px] text-muted-foreground">Resolved, scam, FP…</p>
+              <p className="text-[11px] text-muted-foreground">{t('closedCasesHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -75,9 +77,9 @@ export default async function ProtectionPage() {
               <Layers className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vault items</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('vaultItems')}</p>
               <p className="text-2xl font-bold tabular-nums">{protectedContentCount ?? 0}</p>
-              <p className="text-[11px] text-muted-foreground">Fingerprinted library</p>
+              <p className="text-[11px] text-muted-foreground">{t('vaultItemsHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -87,11 +89,11 @@ export default async function ProtectionPage() {
               <FileWarning className="h-5 w-5 text-amber-400" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">DMCA claims</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('dmcaClaims')}</p>
               <p className="text-2xl font-bold tabular-nums">{dmcaTotalCount ?? 0}</p>
               <p className="text-[11px] text-muted-foreground">
-                {dmcaNonDraft > 0 ? `${dmcaNonDraft} filed · ` : ''}
-                drafts included
+                {dmcaNonDraft > 0 ? t('dmcaFiledPrefix', { count: dmcaNonDraft }) : ''}
+                {t('dmcaDraftsHint')}
               </p>
             </div>
           </CardContent>
@@ -103,9 +105,9 @@ export default async function ProtectionPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="px-0.5 text-sm font-medium text-foreground sm:text-base">Run a scan</h2>
+        <h2 className="px-0.5 text-sm font-medium text-foreground sm:text-base">{t('runScanHeading')}</h2>
         <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm backdrop-blur-sm sm:p-6 dark:bg-card/20">
-          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading protection tools…</p>}>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">{t('loadingTools')}</p>}>
             <ProtectionDashboard
               activeAlerts={activeAlerts as LeakAlert[]}
               suggestedAlias={profile?.full_name?.trim() || null}

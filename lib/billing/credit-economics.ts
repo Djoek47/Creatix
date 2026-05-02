@@ -72,13 +72,25 @@ export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
 export const DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD = 100
 
 /**
- * Premium Divine realtime voice: credits debited per **wall-clock second** while the WebRTC session is live.
- * Used in launcher UI; keep aligned with product billing if server-side debits change.
+ * Premium Divine realtime voice (beta): **50 credits per wall-clock minute** while live.
+ * Telemetry debits from whole seconds via {@link divineVoiceCreditsForWholeSeconds}; keep UI in sync.
  */
-export const DIVINE_VOICE_CREDITS_PER_SECOND = 2
+export const DIVINE_VOICE_CREDITS_PER_MINUTE = 50
+
+/** Two-decimal credits/sec for display (50 ÷ 60). */
+export function formatDivineVoiceCreditsPerSecond(): string {
+  return (DIVINE_VOICE_CREDITS_PER_MINUTE / 60).toFixed(2)
+}
 
 export function divineVoiceCreditsPerMinute(): number {
-  return DIVINE_VOICE_CREDITS_PER_SECOND * 60
+  return DIVINE_VOICE_CREDITS_PER_MINUTE
+}
+
+/** Bill whole seconds of live voice at the per-minute rate (ceil). */
+export function divineVoiceCreditsForWholeSeconds(wholeSeconds: number): number {
+  const s = Math.max(0, Math.floor(wholeSeconds))
+  if (s <= 0) return 0
+  return Math.ceil((s * DIVINE_VOICE_CREDITS_PER_MINUTE) / 60)
 }
 
 /** Wallet-equivalent USD per minute at {@link CREDIT_USD_VALUE} (informational). */

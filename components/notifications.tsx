@@ -26,7 +26,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { createClient } from '@/lib/supabase/client'
+import type { Locale as DateFnsLocale } from 'date-fns'
 import { formatDistanceToNow } from 'date-fns'
+import { enUS } from 'date-fns/locale/en-US'
+import { es } from 'date-fns/locale/es'
+import { fr } from 'date-fns/locale/fr'
+import { ptBR } from 'date-fns/locale/pt-BR'
+import { useLocale, useTranslations } from 'next-intl'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { CRM_NOTIFICATION_ID_RE } from '@/lib/notification-briefing-types'
@@ -107,6 +113,12 @@ function isDivineProductNotification(n: Notification): boolean {
 }
 
 export function Notifications() {
+  const t = useTranslations('dashboard')
+  const intlLocale = useLocale()
+  const dateFnsLocale = useMemo<DateFnsLocale>(() => {
+    const map: Record<string, DateFnsLocale> = { en: enUS, es, fr, pt: ptBR }
+    return map[intlLocale] ?? enUS
+  }, [intlLocale])
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const [dbNotifications, setDbNotifications] = useState<Notification[]>([])
@@ -172,7 +184,7 @@ export function Notifications() {
             ? n.title
             : typeof n.type === 'string'
               ? n.type
-              : 'OnlyFans notification',
+              : t('notifications.fallbackOnlyFansTitle'),
         ),
         description: stripHtml(
           typeof n.text === 'string' && n.text.trim().length
@@ -203,7 +215,7 @@ export function Notifications() {
     } catch {
       setOfPullNotifications([])
     }
-  }, [])
+  }, [t])
 
   const loadFanslyPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
     const force = opts?.force === true
@@ -234,7 +246,7 @@ export function Notifications() {
               ? n.title
               : typeof n.type === 'string'
                 ? n.type
-                : 'Fansly notification',
+                : t('notifications.fallbackFanslyTitle'),
           ),
           description: stripHtml(
             typeof n.text === 'string' && n.text.trim().length
@@ -265,7 +277,7 @@ export function Notifications() {
     } catch {
       setFanslyPullNotifications([])
     }
-  }, [])
+  }, [t])
 
   const loadNotifications = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -395,8 +407,8 @@ export function Notifications() {
       if (unreadUuids.length === 0) {
         setBriefingText(
           pullOnlyUnread > 0
-            ? 'This walkthrough only uses saved inbox items. Open or clear the rows above first, or wait until they sync into your inbox.'
-            : 'No unread saved notifications in this tab.',
+            ? t('notifications.briefingPullOnlyUnread')
+            : t('notifications.briefingNoUnreadSaved'),
         )
         return
       }
@@ -407,7 +419,7 @@ export function Notifications() {
       }
 
       if (!divinePanel) {
-        setBriefingText('Divine panel is unavailable — refresh the page and try again.')
+        setBriefingText(t('notifications.briefingPanelUnavailable'))
         return
       }
 
@@ -423,7 +435,7 @@ export function Notifications() {
         setBriefingText(result.error)
       }
     } catch {
-      setBriefingText('Briefing failed')
+      setBriefingText(t('notifications.briefingFailed'))
     } finally {
       setBriefingLoading(false)
     }
@@ -550,7 +562,12 @@ export function Notifications() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className={bellTriggerClass} aria-label="Notifications">
+      <Button
+        variant="ghost"
+        size="icon"
+        className={bellTriggerClass}
+        aria-label={hasUnread ? t('notifications.bellAriaUnread', { count: unreadCount }) : t('notifications.bellAria')}
+      >
         <Bell className="h-5 w-5" aria-hidden />
         {hasUnread ? (
           <span
@@ -580,9 +597,7 @@ export function Notifications() {
           size="icon"
           className={bellTriggerClass}
           aria-label={
-            hasUnread
-              ? `Notifications, ${unreadCount} unread`
-              : 'Notifications'
+            hasUnread ? t('notifications.bellAriaUnread', { count: unreadCount }) : t('notifications.bellAria')
           }
         >
           <Bell className="h-5 w-5" aria-hidden />
@@ -614,7 +629,7 @@ export function Notifications() {
           <div className="flex flex-shrink-0 flex-col gap-3 border-b border-border/35 bg-foreground/[0.02] px-5 pb-4 pt-5 backdrop-blur-sm">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-[1.0625rem] font-semibold leading-none tracking-tight text-foreground">
-                Notifications
+                {t('notifications.title')}
               </h3>
               {channelUnread > 0 && (
                 <Button
@@ -623,7 +638,7 @@ export function Notifications() {
                   className="h-8 shrink-0 rounded-full border border-border/45 bg-background/45 px-3 text-[11px] font-medium text-foreground shadow-none transition-[background-color,border-color] duration-200 ease-out hover:bg-background/70"
                   onClick={markAllAsRead}
                 >
-                  Mark tab read
+                  {t('notifications.markTabRead')}
                 </Button>
               )}
             </div>
@@ -636,13 +651,13 @@ export function Notifications() {
                   'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
                 )}
               >
-                <span className="text-[13px] font-semibold tracking-tight">Live</span>
+                <span className="text-[13px] font-semibold tracking-tight">{t('notifications.tabLive')}</span>
                 <span className="flex min-w-0 flex-col gap-0.5 text-left">
                   <span className="text-[11px] font-medium leading-snug text-foreground/78">
-                    OnlyFans & Fansly inbox
+                    {t('notifications.tabLiveSubtitle')}
                   </span>
                   <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
-                    Saved webhooks
+                    {t('notifications.tabLiveHint')}
                   </span>
                 </span>
               </TabsTrigger>
@@ -654,9 +669,9 @@ export function Notifications() {
                   'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
                 )}
               >
-                <span className="text-[13px] font-semibold tracking-tight">Divine</span>
+                <span className="text-[13px] font-semibold tracking-tight">{t('notifications.tabDivine')}</span>
                 <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
-                  Leaks · reputation · whales · calendar
+                  {t('notifications.tabDivineHint')}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -667,8 +682,7 @@ export function Notifications() {
               {userId && pullDismissedCount > 0 ? (
                 <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-foreground/[0.025] px-4 py-2.5 backdrop-blur-sm">
                   <p className="text-[11px] leading-snug text-muted-foreground">
-                    {pullDismissedCount} platform alert{pullDismissedCount === 1 ? '' : 's'} hidden. Restore them
-                    below when you want them back in this list.
+                    {t('notifications.pullDismissed', { count: pullDismissedCount })}
                   </p>
                   <Button
                     type="button"
@@ -681,17 +695,16 @@ export function Notifications() {
                       void loadFanslyPull(userId, { force: true })
                     }}
                   >
-                    Show again
+                    {t('notifications.showAgain')}
                   </Button>
                 </div>
               ) : null}
               {liveList.length === 0 ? (
                 <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
                   <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
-                  <p className="text-[15px] font-medium text-muted-foreground">No live notifications</p>
+                  <p className="text-[15px] font-medium text-muted-foreground">{t('notifications.liveEmptyTitle')}</p>
                   <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
-                    New messages, tips, and subscriber activity from your connected accounts show up here as they
-                    arrive.
+                    {t('notifications.liveEmptyBody')}
                   </p>
                 </div>
               ) : (
@@ -701,6 +714,7 @@ export function Notifications() {
                       key={notification.id}
                       notification={notification}
                       mounted={mounted}
+                      dateFnsLocale={dateFnsLocale}
                       markAsRead={markAsRead}
                       removeNotification={removeNotification}
                     />
@@ -712,9 +726,9 @@ export function Notifications() {
               {divineList.length === 0 ? (
                 <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
                   <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
-                  <p className="text-[15px] font-medium text-muted-foreground">No Divine notifications</p>
+                  <p className="text-[15px] font-medium text-muted-foreground">{t('notifications.divineEmptyTitle')}</p>
                   <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
-                    DMCA and leak scans, reputation mentions, whale watch for followed fans, billing, and Divine Manager actions show here.
+                    {t('notifications.divineEmptyBody')}
                   </p>
                 </div>
               ) : (
@@ -724,6 +738,7 @@ export function Notifications() {
                       key={notification.id}
                       notification={notification}
                       mounted={mounted}
+                      dateFnsLocale={dateFnsLocale}
                       markAsRead={markAsRead}
                       removeNotification={removeNotification}
                     />
@@ -736,7 +751,9 @@ export function Notifications() {
 
         {briefingText && (
           <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border/40 bg-foreground/[0.02] px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm">
-            <p className="text-[11px] font-semibold tracking-tight text-foreground">Divine</p>
+            <p className="text-[11px] font-semibold tracking-tight text-foreground">
+              {t('notifications.briefingBannerLabel')}
+            </p>
             <p className="mt-1.5 whitespace-pre-wrap leading-relaxed">{briefingText}</p>
           </div>
         )}
@@ -754,11 +771,11 @@ export function Notifications() {
               onClick={() => void runBriefing()}
             >
               {briefingLoading ? (
-                'Briefing…'
+                t('notifications.briefingLoading')
               ) : (
                 <>
                   <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
-                  Divine realtime briefing
+                  {t('notifications.briefingButton')}
                 </>
               )}
             </Button>
@@ -767,7 +784,7 @@ export function Notifications() {
                 <button
                   type="button"
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/45 bg-background/50 text-muted-foreground shadow-sm transition-[background-color,color,border-color] duration-200 hover:bg-background/75 hover:text-foreground"
-                  aria-label="How Divine realtime briefing works"
+                  aria-label={t('notifications.briefingHelpAria')}
                 >
                   <CircleHelp className="h-5 w-5" aria-hidden />
                 </button>
@@ -778,8 +795,7 @@ export function Notifications() {
                 sideOffset={8}
                 className="max-w-[18rem] px-3 py-3 text-left text-[11px] leading-relaxed text-background"
               >
-                Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
-                confirm it is handled. Uses saved unread in this tab only.
+                {t('notifications.briefingTooltip')}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -789,7 +805,7 @@ export function Notifications() {
             onClick={() => setOpen(false)}
             asChild
           >
-            <a href="/dashboard/settings">View all settings</a>
+            <a href="/dashboard/settings">{t('notifications.footerSettings')}</a>
           </Button>
         </div>
       </PopoverContent>
@@ -800,14 +816,19 @@ export function Notifications() {
 function NotificationRow({
   notification,
   mounted,
+  dateFnsLocale,
   markAsRead,
   removeNotification,
 }: {
   notification: Notification
   mounted: boolean
+  dateFnsLocale: DateFnsLocale
   markAsRead: (id: string) => void
   removeNotification: (id: string) => void
 }) {
+  const t = useTranslations('dashboard')
+  const onlyFansAlt = t('notifications.platformAltOnlyFans')
+  const fanslyAlt = t('notifications.platformAltFansly')
   return (
     <div
       data-notification-id={notification.id}
@@ -833,9 +854,9 @@ function NotificationRow({
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted ring-2 ring-border">
                 {notification.platform === 'onlyfans' ? (
-                  <img src={ONLYFANS_LOGO_SRC} alt="OnlyFans" className="h-5 w-auto max-w-[4.5rem] object-contain object-left" />
+                  <img src={ONLYFANS_LOGO_SRC} alt={onlyFansAlt} className="h-5 w-auto max-w-[4.5rem] object-contain object-left" />
                 ) : (
-                  <img src={FANSLY_LOGO_SRC} alt="Fansly" className="h-5 w-auto max-w-[3.5rem] object-contain object-left" />
+                  <img src={FANSLY_LOGO_SRC} alt={fanslyAlt} className="h-5 w-auto max-w-[3.5rem] object-contain object-left" />
                 )}
               </div>
             )}
@@ -862,7 +883,7 @@ function NotificationRow({
           <p className={cn('text-sm', !notification.read && 'font-medium')}>{stripHtml(notification.title)}</p>
           <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{stripHtml(notification.description)}</p>
           {notification.origin === 'platform_pull' && (
-            <p className="mt-0.5 text-[10px] text-muted-foreground/70">Not saved to your inbox yet</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground/70">{t('notifications.pullNotInInbox')}</p>
           )}
           {isDivineOrigin(notification.origin) && typeof notification.metadata?.kind === 'string' && (
             <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
@@ -870,7 +891,12 @@ function NotificationRow({
             </p>
           )}
           <p className="mt-1 text-xs text-muted-foreground/70">
-            {mounted ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }) : ''}
+            {mounted
+              ? formatDistanceToNow(new Date(notification.created_at), {
+                  addSuffix: true,
+                  locale: dateFnsLocale,
+                })
+              : ''}
           </p>
         </a>
       </div>

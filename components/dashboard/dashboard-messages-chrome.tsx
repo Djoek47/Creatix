@@ -2,8 +2,12 @@
 
 import type { ReactNode } from 'react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { ChevronDown, Sparkles } from 'lucide-react'
 import { DashboardHeader } from '@/components/dashboard/header'
+import { Button } from '@/components/ui/button'
 import type { Profile } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { useMessagesFocusChrome } from '@/components/messages/messages-focus-chrome-context'
@@ -16,18 +20,20 @@ type Props = {
 }
 
 export function DashboardMessagesChrome({ user, profile, children }: Props) {
+  const t = useTranslations('dashboard')
   const pathname = usePathname() ?? ''
-  const { focusMode } = useMessagesFocusChrome()
+  const { focusMode, workspaceBarCollapsed, setWorkspaceBarCollapsed, setFocusMode } =
+    useMessagesFocusChrome()
   const pulseOptional = useDashboardPulseOptional()
   const pulseSeverity = pulseOptional?.pulse?.severity
   const isMessagesInbox =
     (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) &&
     !pathname.startsWith('/dashboard/messages/mass')
-  const zenMessages = focusMode && isMessagesInbox
+  const hideWorkspaceHeader = isMessagesInbox && (focusMode || workspaceBarCollapsed)
 
   return (
     <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
-      {!zenMessages ? (
+      {!hideWorkspaceHeader ? (
         <div className="relative z-20 shrink-0">
           <DashboardHeader user={user} profile={profile} />
           <div
@@ -41,7 +47,40 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
             aria-hidden
           />
         </div>
-      ) : null}
+      ) : (
+        <div
+          className="relative z-[25] flex h-9 shrink-0 items-center justify-center gap-2 border-b border-border/20 bg-background/35 px-2 backdrop-blur-md dark:bg-background/25"
+          role="region"
+          aria-label="Collapsed workspace bar"
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setWorkspaceBarCollapsed(false)
+              setFocusMode(false)
+            }}
+            aria-expanded={false}
+          >
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+            Show workspace bar
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+            asChild
+            title={t('messagesChrome.aiStudioToolsTitle')}
+          >
+            <Link href="/dashboard/ai-studio/tools" aria-label={t('messagesChrome.aiStudioToolsAria')}>
+              <Sparkles className="h-4 w-4" aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      )}
       <main
         className={cn(
           /* Vertical scroll only on this node. Horizontal padding lives on an inner wrapper so route

@@ -64,7 +64,7 @@ export function AdminCostSimulatorGame({
   const [reputationRunsDaily, setReputationRunsDaily] = useState(0.2)
   const [leakRunsDaily, setLeakRunsDaily] = useState(0.15)
 
-  const focusPlatforms = useMemo(() => {
+  const focusPlatforms = useMemo((): CostSimulatorInput['focusPlatforms'] => {
     return FOCUS_PRESETS.find((p) => p.id === focusPresetId)?.platforms ?? ['onlyfans']
   }, [focusPresetId])
 

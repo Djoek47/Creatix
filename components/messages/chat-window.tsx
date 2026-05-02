@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +49,7 @@ import {
   ChevronRight,
   ChevronsDown,
   MessageCircle,
+  Shield,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
@@ -56,7 +59,7 @@ import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-ma
 import { stripHtml } from '@/lib/html-utils'
 import type { NormalizedChatMessage } from '@/lib/ai/message-suggestions'
 import { createClient } from '@/lib/supabase/client'
-import { isBoundaryNiche, NICHE_LABELS } from '@/lib/niches'
+import { isBoundaryNiche } from '@/lib/niches'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
@@ -107,27 +110,20 @@ function PlatformViewElsewhereHint({
   platform: 'onlyfans' | 'fansly'
   compact?: boolean
 }) {
+  const t = useTranslations('messages.chat')
   return (
     <div className={cn('space-y-1', compact ? 'text-left' : 'text-center')}>
       <p className="text-sm text-muted-foreground">
-        {platform === 'fansly' ? (
-          <>
-            Couldn&apos;t load this here. Full video and some content may only be available in the{' '}
-            <span className="font-medium text-foreground">Fansly</span> app or on fansly.com.
-          </>
-        ) : (
-          <>
-            Couldn&apos;t load this here. Full video and some content are only available in the{' '}
-            <span className="font-medium text-foreground">OnlyFans</span> app or at{' '}
-            <span className="font-medium text-foreground">onlyfans.com</span>.
-          </>
-        )}
+        {platform === 'fansly' ? t('platformElsewhereFansly') : t('platformElsewhereOnlyfans')}
       </p>
     </div>
   )
 }
 
-function creatorBubbleStyles(source: DmSendSource): {
+function creatorBubbleStyles(
+  source: DmSendSource,
+  tChat: ReturnType<typeof useTranslations<'messages.chat'>>,
+): {
   bubble: string
   timestamp: string
   badgeLabel: string
@@ -140,7 +136,7 @@ function creatorBubbleStyles(source: DmSendSource): {
         bubble:
           'border border-pink-400/45 bg-gradient-to-br from-pink-700/95 to-fuchsia-900/80 text-pink-50 shadow-[0_0_0_1px_rgba(244,114,182,0.25)]',
         timestamp: 'text-pink-100/80',
-        badgeLabel: 'AI-assisted · Flirt',
+        badgeLabel: tChat('badges.flirt'),
         badgeMuted: 'text-pink-200/95',
         bodyMuted: 'text-pink-200/80',
       }
@@ -149,7 +145,7 @@ function creatorBubbleStyles(source: DmSendSource): {
         bubble:
           'border border-violet-400/50 bg-violet-950/45 text-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]',
         timestamp: 'text-violet-200/70',
-        badgeLabel: 'AI-assisted · Circe',
+        badgeLabel: tChat('badges.circe'),
         badgeMuted: 'text-violet-200/90',
         bodyMuted: 'text-violet-200/80',
       }
@@ -158,7 +154,7 @@ function creatorBubbleStyles(source: DmSendSource): {
         bubble:
           'border border-amber-400/45 bg-gradient-to-br from-amber-400 to-amber-600 text-amber-950 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]',
         timestamp: 'text-amber-950/80',
-        badgeLabel: 'AI-assisted · Venus',
+        badgeLabel: tChat('badges.venus'),
         badgeMuted: 'text-amber-950/90',
         bodyMuted: 'text-amber-950/85',
       }
@@ -167,7 +163,7 @@ function creatorBubbleStyles(source: DmSendSource): {
         bubble:
           'border border-sky-400/45 bg-gradient-to-br from-sky-500/85 to-cyan-700/85 text-sky-50 shadow-[0_0_0_1px_rgba(56,189,248,0.35)]',
         timestamp: 'text-sky-100/80',
-        badgeLabel: 'AI-assisted · Mimic (beta)',
+        badgeLabel: tChat('badges.mimic'),
         badgeMuted: 'text-sky-100/90',
         bodyMuted: 'text-sky-100/80',
       }
@@ -177,7 +173,7 @@ function creatorBubbleStyles(source: DmSendSource): {
         bubble:
           'border border-violet-400/50 bg-violet-950/35 text-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]',
         timestamp: 'text-violet-200/70',
-        badgeLabel: 'AI-assisted · Divine',
+        badgeLabel: tChat('badges.divine'),
         badgeMuted: 'text-violet-200/90',
         bodyMuted: 'text-violet-200/80',
       }
@@ -273,6 +269,8 @@ interface ChatWindowProps {
   nullConversationDescription?: string
   /** Empty inbox + no platform: show OnlyFans / Fansly connect actions instead of settings-only copy. */
   showPlatformConnectActions?: boolean
+  /** Mobile message-first: flatten card chrome; fan title lives in inbox header. */
+  compactMobileChrome?: boolean
 }
 
 function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>): string[] {
@@ -288,6 +286,7 @@ function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>
 }
 
 function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'onlyfans' | 'fansly' }) {
+  const tChat = useTranslations('messages.chat')
   const pres = useMemo(() => getProxiedMediaPresentation(media as RawOnlyFansMedia), [
     media.id,
     media.type,
@@ -334,7 +333,7 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
   if (!media.canView && media.canView !== undefined) {
     return (
       <div className="relative rounded-lg bg-muted/50 p-4 text-center">
-        <p className="text-sm text-muted-foreground">Locked media</p>
+        <p className="text-sm text-muted-foreground">{tChat('lockedMedia')}</p>
       </div>
     )
   }
@@ -346,8 +345,8 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
         {openOriginalHref && /^https?:\/\//i.test(openOriginalHref) && (
           <p className="text-center">
             <a href={openOriginalHref} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">
-              Try opening link
-              {platform === 'fansly' ? ' (may still require Fansly)' : ' (may still require OnlyFans)'}
+              {tChat('mediaTryOpenLink')}
+              {platform === 'fansly' ? tChat('mediaMayRequireFansly') : tChat('mediaMayRequireOnlyfans')}
             </a>
           </p>
         )}
@@ -373,7 +372,6 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
         controls
         playsInline
         className="rounded-lg max-w-full object-contain w-full max-h-[62vh] bg-black/30"
-        referrerPolicy="no-referrer"
         onError={() => {
           if (videoIdx < videoChain.length - 1) {
             setVideoIdx((i) => i + 1)
@@ -396,7 +394,7 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
   return (
     <img
       src={imgSrc}
-      alt="Media"
+      alt={tChat('mediaAlt')}
       className="rounded-lg max-w-full h-auto object-contain max-h-[62vh]"
       referrerPolicy="no-referrer"
       loading="lazy"
@@ -419,6 +417,7 @@ function ChatPreviewImage({
   rawUrl: string
   platform: 'onlyfans' | 'fansly'
 }) {
+  const tChat = useTranslations('messages.chat')
   const chain = useMemo(() => {
     const proxied = proxyImageUrl(rawUrl) || rawUrl
     const o: string[] = []
@@ -448,7 +447,7 @@ function ChatPreviewImage({
   return (
     <img
       src={src}
-      alt="Preview"
+      alt={tChat('previewAlt')}
       className="rounded-lg max-w-full h-auto object-contain max-h-[62vh]"
       referrerPolicy="no-referrer"
       loading="lazy"
@@ -470,7 +469,9 @@ export function ChatWindow({
   nullConversationTitle,
   nullConversationDescription,
   showPlatformConnectActions = false,
+  compactMobileChrome = false,
 }: ChatWindowProps) {
+  const tChat = useTranslations('messages.chat')
   const { reduced } = useUiMotionPreferences()
   const fadeTransition = uiFadeTransition(reduced)
   const [message, setMessage] = useState('')
@@ -524,6 +525,12 @@ export function ChatWindow({
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const reserveDivineCrownSpace = pathname?.startsWith('/dashboard/messages') === true
+  const padComposerForDivineFab =
+    reserveDivineCrownSpace &&
+    (!isMobile || Boolean(voiceSession && voiceSession.status !== 'idle'))
+  const openDivineVoiceLauncher = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('creatix:open-divine-voice-launcher'))
+  }, [])
   /** OnlyFans message id → send attribution (from divine_dm_send_events + optimistic sends). */
   const [dmSendSourceByMessageId, setDmSendSourceByMessageId] = useState<Record<string, DmSendSource>>({})
   /** Next send after inserting Circe/Venus/Flirt/Mimic suggestion (Divine panel wins if set). */
@@ -964,6 +971,8 @@ export function ChatWindow({
       const data = await res.json() as {
         error?: string
         code?: string
+        insights?: { insights?: string[]; riskFlags?: string[]; suggestedAngles?: string[] }
+        suggestions?: Array<{ text?: string }>
       }
       if (!res.ok || data.error) {
         const rateLimited = res.status === 429 || data.code === 'ONLYFANS_RATE_LIMIT'
@@ -972,20 +981,17 @@ export function ChatWindow({
         }
         throw new Error(
           data.error ||
-            (rateLimited
-              ? 'OnlyFans is temporarily limiting requests. Wait a minute, then try Mimic again.'
-              : 'Failed to generate suggestions'),
+            (rateLimited ? tChat('errorRateLimitedMimic') : tChat('errorGenerateSuggestions')),
         )
       }
 
       if (mode === 'scan') {
-        setScanInsights(
-          data.insights || {
-            insights: [],
-            riskFlags: [],
-            suggestedAngles: [],
-          }
-        )
+        const ins = data.insights
+        setScanInsights({
+          insights: ins?.insights ?? [],
+          riskFlags: ins?.riskFlags ?? [],
+          suggestedAngles: ins?.suggestedAngles ?? [],
+        })
         // Persist thread snapshot + profile for fan modal (Scan only hit message-suggestions before).
         void fetch('/api/divine/refresh-thread-insight', {
           method: 'POST',
@@ -1014,7 +1020,7 @@ export function ChatWindow({
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate suggestions')
+      setError(err instanceof Error ? err.message : tChat('errorGenerateSuggestions'))
     } finally {
       setSuggestionsLoading(null)
       void refreshCreditSnapshot()
@@ -1056,14 +1062,14 @@ export function ChatWindow({
         setChatDeleteDialogOpen(false)
         onMessageSent?.()
       } else {
-        setError('Could not delete this chat. Try again.')
+        setError(tChat('deleteChatFailedRetry'))
       }
     } catch {
-      setError('Could not delete this chat.')
+      setError(tChat('deleteChatFailed'))
     } finally {
       setChatDeleteBusy(false)
     }
-  }, [conversation, onMessageSent])
+  }, [conversation, onMessageSent, tChat])
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -1097,7 +1103,7 @@ export function ChatWindow({
         if (conversation.platform !== 'onlyfans') {
           if (seq !== onlyFansLoadThreadSeqRef.current) return
           setMessages([])
-          setError('Fansly thread view is not available yet on web messages.')
+          setError(tChat('fanslyThreadViewUnavailable'))
           return
         }
         const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
@@ -1126,10 +1132,10 @@ export function ChatWindow({
           throw new Error(
             data.error ||
               (rateLimited
-                ? 'OnlyFans is temporarily limiting requests. Wait a minute, then try again.'
+                ? tChat('errorRateLimited')
                 : upstreamGlitch
-                  ? 'OnlyFans had a temporary glitch. Wait a minute, then try again.'
-                  : 'Failed to load messages'),
+                  ? tChat('errorUpstreamGlitch')
+                  : tChat('errorLoadFailed')),
           )
         }
 
@@ -1145,7 +1151,7 @@ export function ChatWindow({
         setMessages(normalized)
         lastGoodMessagesByConversationRef.current[conversationKey] = normalized
         if (data.stale === true || data.source === 'cache') {
-          setThreadStaleReason('Showing cached messages while OnlyFans refreshes in the background.')
+          setThreadStaleReason(tChat('threadStaleCached'))
         } else {
           setThreadStaleReason(null)
         }
@@ -1182,9 +1188,9 @@ export function ChatWindow({
           .catch(() => undefined)
       } catch (err) {
         if (seq !== onlyFansLoadThreadSeqRef.current) return
-        setError(err instanceof Error ? err.message : 'Failed to load messages')
+        setError(err instanceof Error ? err.message : tChat('errorLoadFailed'))
         if (Array.isArray(cachedMessages) && cachedMessages.length > 0) {
-          setThreadStaleReason('Showing last known messages because live refresh failed.')
+          setThreadStaleReason(tChat('threadStaleLastKnown'))
         }
       } finally {
         if (seq === onlyFansLoadThreadSeqRef.current) {
@@ -1197,7 +1203,7 @@ export function ChatWindow({
     // Prefer id + platform over full `conversation` so parents that pass inline objects
     // (or stale memo) cannot retrigger this effect every render (React #185).
     // Do not depend on `onMessageSent` — parent identity changes must not wipe the thread.
-  }, [conversation?.user?.id, conversation?.platform])
+  }, [conversation?.user?.id, conversation?.platform, tChat])
 
   // After paint: snap to bottom when opening; follow new messages when opted in; otherwise only if near bottom.
   useLayoutEffect(() => {
@@ -1324,17 +1330,17 @@ export function ChatWindow({
         if (data.id) setAttachedMediaIds((prev) => [...prev, data.id])
       }
     } catch {
-      setError('Failed to upload media')
+      setError(tChat('uploadMediaFailed'))
     } finally {
       setUploadingMedia(false)
       e.target.value = ''
     }
-  }, [conversation?.platform])
+  }, [conversation?.platform, tChat])
 
   const handleSendMessage = useCallback(async () => {
     if ((!message.trim() && attachedMediaIds.length === 0) || !conversation || sending) return
     if (conversation.platform !== 'onlyfans') {
-      setError('Sending Fansly messages from this page is not available yet.')
+      setError(tChat('fanslySendNotAvailable'))
       return
     }
 
@@ -1388,7 +1394,7 @@ export function ChatWindow({
       }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to send message')
+        throw new Error(data.error || tChat('errorSendMessage'))
       }
 
       if (data.message) {
@@ -1411,7 +1417,7 @@ export function ChatWindow({
             credentials: 'include',
             body: JSON.stringify({
               fan_id: String(conversation.user.id),
-              platform: conversation.platform === 'fansly' ? 'fansly' : 'onlyfans',
+              platform: 'onlyfans',
               body_preview: messageText.slice(0, 2000),
               source,
               ...(mid ? { onlyfans_message_id: mid } : {}),
@@ -1428,7 +1434,7 @@ export function ChatWindow({
         credentials: 'include',
         body: JSON.stringify({
           fanId: String(conversation.user.id),
-          platform: conversation.platform === 'fansly' ? 'fansly' : 'onlyfans',
+          platform: 'onlyfans',
           force: true,
         }),
       }).catch(() => undefined)
@@ -1446,7 +1452,7 @@ export function ChatWindow({
 
       onMessageSent?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message')
+      setError(err instanceof Error ? err.message : tChat('errorSendMessage'))
       setMessage(messageText)
       setAttachedMediaIds(mediaIdsToSend)
       if (priceToSend != null) setPpvPrice(String(priceToSend))
@@ -1462,6 +1468,7 @@ export function ChatWindow({
     divinePanel,
     onMessageSent,
     scrollMessagesListToBottomAfterSend,
+    tChat,
   ])
 
   useEffect(() => {
@@ -1469,7 +1476,7 @@ export function ChatWindow({
   }, [handleSendMessage])
 
   if (!conversation) {
-    const title = nullConversationTitle ?? 'Select a conversation'
+    const title = nullConversationTitle ?? tChat('selectConversation')
     const description = nullConversationDescription
     return (
       <Card
@@ -1493,13 +1500,13 @@ export function ChatWindow({
               <p className="mt-3 max-w-sm text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
             ) : (
               <p className="mt-3 max-w-sm text-[0.9375rem] leading-relaxed text-muted-foreground">
-                Sign in with OnlyFans or Fansly to load your inbox.
+                {tChat('signInPlatformsHint')}
               </p>
             )
           ) : description ? (
             <p className="mt-3 text-[0.9375rem] leading-relaxed text-muted-foreground">{description}</p>
           ) : (
-            <p className="mt-2 text-[0.9375rem] text-muted-foreground">to start messaging</p>
+            <p className="mt-2 text-[0.9375rem] text-muted-foreground">{tChat('toStartMessaging')}</p>
           )}
           {showPlatformConnectActions ? (
             <div className="mt-8 w-full max-w-md">
@@ -1524,13 +1531,16 @@ export function ChatWindow({
       className={cn(
         'flex min-h-0 flex-1 flex-col gap-0 overflow-hidden rounded-2xl border border-white/40 bg-white/55 py-0 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.3)] backdrop-blur-2xl backdrop-saturate-150',
         'dark:border-white/[0.10] dark:bg-slate-950/48 dark:shadow-[0_24px_68px_-30px_rgba(0,0,0,0.55)]',
+        compactMobileChrome &&
+          'rounded-none border-x-0 border-t border-b-0 border-white/25 shadow-none sm:rounded-2xl sm:border-x sm:border-white/40 sm:shadow-[0_22px_60px_-28px_rgba(15,23,42,0.3)] dark:sm:border-white/[0.10]',
       )}
     >
-      {/* Label + thread actions (menu only — no separate “Thread tools” bar) */}
+      {/* Label + thread actions — hidden on compact mobile (identity is in inbox header). */}
+      {!compactMobileChrome ? (
       <div className="z-10 shrink-0 border-b border-border/35 bg-background/25 px-3.5 py-2.5 backdrop-blur-md sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase leading-normal tracking-[0.14em] text-muted-foreground">
-            Fan conversation
+            {tChat('fanConversation')}
           </p>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1544,7 +1554,7 @@ export function ChatWindow({
                   'transition-shadow duration-300 hover:shadow-[0_0_17px_-3px_rgba(167,139,250,0.48)]',
                 )}
                 aria-haspopup="menu"
-                aria-label="Thread tools"
+                aria-label={tChat('threadToolsAria')}
               >
                 <span
                   className={cn(
@@ -1560,7 +1570,7 @@ export function ChatWindow({
               <DropdownMenuItem asChild>
                 <a href="/dashboard/divine-manager" className="flex items-center">
                   <Crown className="mr-2 h-4 w-4" />
-                  Open Divine Manager
+                  {tChat('openDivineManager')}
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -1570,12 +1580,12 @@ export function ChatWindow({
                 }}
               >
                 <User className="mr-2 h-4 w-4" />
-                View Profile
+                {tChat('viewProfile')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
                   if (conversation.platform !== 'onlyfans') {
-                    setError('Fansly thread refresh is not available yet on web messages.')
+                    setError(tChat('fanslyRefreshNotAvailable'))
                     return
                   }
                   setLoading(true)
@@ -1588,9 +1598,7 @@ export function ChatWindow({
                         `${conversation.platform}:${String(conversation.user.id)}`
                       ] = normalized
                       if (data.stale === true || data.source === 'cache') {
-                        setThreadStaleReason(
-                          'Showing cached messages while OnlyFans refreshes in the background.',
-                        )
+                        setThreadStaleReason(tChat('threadStaleCached'))
                       } else {
                         setThreadStaleReason(null)
                       }
@@ -1599,7 +1607,7 @@ export function ChatWindow({
                 }}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh Messages
+                {tChat('refreshMessages')}
               </DropdownMenuItem>
               {conversation.platform === 'onlyfans' && (
                 <>
@@ -1609,16 +1617,14 @@ export function ChatWindow({
                     className="flex items-center justify-between gap-3 px-2 py-2.5"
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <span className="text-[13px] font-medium leading-tight text-foreground">Stay on latest</span>
+                    <span className="text-[13px] font-medium leading-tight text-foreground">{tChat('stayOnLatest')}</span>
                     <Switch
                       checked={followThreadLatest}
                       onCheckedChange={(v) => persistFollowLatest(v)}
-                      aria-label="Scroll to latest when new messages arrive"
+                      aria-label={tChat('scrollLatestAria')}
                     />
                   </div>
-                  <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">
-                    When on, new messages pull the view to the bottom. Turn off to read earlier without being moved.
-                  </p>
+                  <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">{tChat('stayOnLatestHelp')}</p>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={async () => {
@@ -1627,7 +1633,7 @@ export function ChatWindow({
                     }}
                   >
                     <CheckCheck className="mr-2 h-4 w-4" />
-                    Mark as read
+                    {tChat('markAsRead')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={async () => {
@@ -1636,14 +1642,12 @@ export function ChatWindow({
                     }}
                   >
                     <Mail className="mr-2 h-4 w-4" />
-                    Mark as unread
+                    {tChat('markAsUnread')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <div className="px-2 pb-1 pt-1.5">
-                    <p className="text-[11px] font-medium text-foreground">Mark read when opening</p>
-                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                      OnlyFans server read state. Default is under Settings → Messages.
-                    </p>
+                    <p className="text-[11px] font-medium text-foreground">{tChat('markReadWhenOpening')}</p>
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{tChat('markReadWhenOpeningHelp')}</p>
                   </div>
                   <DropdownMenuItem
                     onSelect={(e) => {
@@ -1653,10 +1657,13 @@ export function ChatWindow({
                     className={cn('cursor-pointer', onlyFansChatReadMode === 'inherit' && 'bg-accent/70')}
                   >
                     <span className="flex w-full flex-col gap-0.5">
-                      <span className="text-[13px] font-medium leading-tight">Account default</span>
+                      <span className="text-[13px] font-medium leading-tight">{tChat('accountDefault')}</span>
                       <span className="text-[11px] text-muted-foreground">
-                        Messaging preference is{' '}
-                        {messagingReadPrefs?.auto_mark_on_open ? 'on' : 'off'}
+                        {tChat('messagingPrefLabel', {
+                          state: messagingReadPrefs?.auto_mark_on_open
+                            ? tChat('messagingPrefOn')
+                            : tChat('messagingPrefOff'),
+                        })}
                       </span>
                     </span>
                   </DropdownMenuItem>
@@ -1667,7 +1674,7 @@ export function ChatWindow({
                     }}
                     className={cn('cursor-pointer', onlyFansChatReadMode === 'auto' && 'bg-accent/70')}
                   >
-                    <span className="text-[13px] font-medium">Always for this thread</span>
+                    <span className="text-[13px] font-medium">{tChat('alwaysThisThread')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={(e) => {
@@ -1676,7 +1683,7 @@ export function ChatWindow({
                     }}
                     className={cn('cursor-pointer', onlyFansChatReadMode === 'never' && 'bg-accent/70')}
                   >
-                    <span className="text-[13px] font-medium">Never for this thread</span>
+                    <span className="text-[13px] font-medium">{tChat('neverThisThread')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -1684,7 +1691,7 @@ export function ChatWindow({
                     onClick={() => setChatDeleteDialogOpen(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete chat
+                    {tChat('deleteChat')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -1692,6 +1699,7 @@ export function ChatWindow({
           </DropdownMenu>
         </div>
       </div>
+      ) : null}
 
       {/* Scroll: thread + Divine AI — composer stays pinned below so send/input never clip */}
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -1699,7 +1707,11 @@ export function ChatWindow({
           ref={messagesContainerRef}
           className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
         >
-        <div className="p-3.5 sm:p-4">
+        <div
+          className={cn(
+            compactMobileChrome ? 'px-1.5 py-2 sm:px-3.5 sm:py-3.5' : 'p-3.5 sm:p-4',
+          )}
+        >
         {threadStaleReason ? (
           <div className="mb-2 rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             {threadStaleReason}
@@ -1718,7 +1730,7 @@ export function ChatWindow({
               className="mt-2"
               onClick={() => {
                 if (conversation.platform !== 'onlyfans') {
-                  setError('Fansly thread view is not available yet on web messages.')
+                  setError(tChat('fanslyThreadViewUnavailable'))
                   return
                 }
                 setError(null)
@@ -1732,22 +1744,24 @@ export function ChatWindow({
                       `${conversation.platform}:${String(conversation.user.id)}`
                     ] = normalized
                     if (data.stale === true || data.source === 'cache') {
-                      setThreadStaleReason('Showing cached messages while OnlyFans refreshes in the background.')
+                      setThreadStaleReason(tChat('threadStaleCached'))
                     } else {
                       setThreadStaleReason(null)
                     }
                   })
-                  .catch(e => setError(e.message))
+                  .catch((e) =>
+                    setError(e instanceof Error ? e.message : tChat('errorRefreshThread')),
+                  )
                   .finally(() => setLoading(false))
               }}
             >
-              Try Again
+              {tChat('tryAgain')}
             </Button>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex min-h-[200px] flex-col items-center justify-center text-center sm:min-h-[240px]">
-            <p className="text-sm text-muted-foreground">No messages yet</p>
-            <p className="text-xs text-muted-foreground">Start the conversation!</p>
+            <p className="text-sm text-muted-foreground">{tChat('noMessagesYet')}</p>
+            <p className="text-xs text-muted-foreground">{tChat('startConversation')}</p>
           </div>
         ) : (
           <div className="space-y-5">
@@ -1760,7 +1774,7 @@ export function ChatWindow({
               const mid = String(msg.id)
               const sendSource = isCreator ? resolveDmSendSource(dmSendSourceByMessageId, mid) : 'user'
               const isAiAssisted = isCreator && sendSource !== 'user'
-              const creatorStyles = isCreator ? creatorBubbleStyles(sendSource) : null
+              const creatorStyles = isCreator ? creatorBubbleStyles(sendSource, tChat) : null
               const fanSavedDeletedOnOF =
                 !isCreator && Boolean(msg._creatix?.removedFromPlatformAt)
               return (
@@ -1773,7 +1787,10 @@ export function ChatWindow({
                 >
                   <div
                     className={cn(
-                      'max-w-[96%] md:max-w-[90%] rounded-2xl px-4 py-2',
+                      compactMobileChrome
+                        ? 'max-w-[min(92vw,100%)] sm:max-w-[96%] md:max-w-[90%]'
+                        : 'max-w-[96%] md:max-w-[90%]',
+                      'rounded-2xl px-4 py-2',
                       fanSavedDeletedOnOF
                         ? 'border-2 border-red-500/55 bg-red-950/55 text-red-50 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] dark:bg-red-950/70'
                         : isCreator && creatorStyles
@@ -1830,8 +1847,8 @@ export function ChatWindow({
                           )}
                         >
                           {fanSavedDeletedOnOF
-                            ? 'Fan deleted this on OnlyFans — we kept a red copy in your saved inbox.'
-                            : 'Removed on OnlyFans — still in your saved inbox.'}
+                            ? tChat('fanDeletedOnPlatformNote')
+                            : tChat('removedOnPlatformNote')}
                         </p>
                         {fanSavedDeletedOnOF && conversation.platform === 'onlyfans' ? (
                           <Button
@@ -1843,7 +1860,7 @@ export function ChatWindow({
                             onClick={() => {
                               const mid = String(msg.id)
                               if (!conversation?.user?.id) return
-                              if (!window.confirm('Remove this saved copy from your inbox? This cannot be undone.')) return
+                              if (!window.confirm(tChat('confirmRemoveSavedCopy'))) return
                               setPurgingCacheIds((prev) => new Set(prev).add(mid))
                               void fetch(
                                 `/api/onlyfans/messages/${encodeURIComponent(String(conversation.user.id))}/cache/${encodeURIComponent(mid)}`,
@@ -1852,12 +1869,16 @@ export function ChatWindow({
                                 .then(async (res) => {
                                   if (!res.ok) {
                                     const j = await res.json().catch(() => ({}))
-                                    throw new Error(typeof j.error === 'string' ? j.error : 'Could not remove')
+                                    throw new Error(
+                                      typeof j.error === 'string' ? j.error : tChat('errorCouldNotRemoveSaved'),
+                                    )
                                   }
                                   setMessages((prev) => prev.filter((m) => String(m.id) !== mid))
                                 })
                                 .catch((err) => {
-                                  setError(err instanceof Error ? err.message : 'Could not remove saved message')
+                                  setError(
+                                    err instanceof Error ? err.message : tChat('errorCouldNotRemoveSaved'),
+                                  )
                                 })
                                 .finally(() => {
                                   setPurgingCacheIds((prev) => {
@@ -1873,7 +1894,7 @@ export function ChatWindow({
                             ) : (
                               <Trash2 className="mr-1 h-3.5 w-3.5" />
                             )}
-                            Remove saved copy
+                            {tChat('removeSavedCopyButton')}
                           </Button>
                         ) : null}
                       </div>
@@ -1881,7 +1902,7 @@ export function ChatWindow({
                     {msg.price != null && Number(msg.price) > 0 && !msg.isPaid && (
                       <Badge className="mt-2 bg-chart-4/20 text-chart-4">
                         <DollarSign className="mr-1 h-3 w-3" />
-                        PPV ${msg.price}
+                        {tChat('ppvWithPrice', { price: `$${msg.price}` })}
                       </Badge>
                     )}
                     <p
@@ -1916,12 +1937,12 @@ export function ChatWindow({
             type="button"
             className={cn(
               'messages-scroll-latest-fab absolute z-20 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-opacity duration-300 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card',
-              reserveDivineCrownSpace
+              padComposerForDivineFab
                 ? 'bottom-3 right-[5.25rem] sm:right-[5.75rem]'
                 : 'bottom-3 right-3',
             )}
-            aria-label="Scroll to latest messages"
-            title="Scroll to latest messages"
+            aria-label={tChat('scrollToLatestMessages')}
+            title={tChat('scrollToLatestMessages')}
             onClick={() => smoothScrollThreadToBottom()}
           >
             <span
@@ -1940,13 +1961,13 @@ export function ChatWindow({
         {/* Divine AI scrolls with the thread so the composer below never gets pushed off-screen */}
         <div className="shrink-0 border-t border-border/70 bg-card/95">
           <Collapsible open={aiSectionOpen} onOpenChange={setAiSectionOpen}>
-            <div className="flex items-center gap-2 border-b border-border/60 px-2 py-1.5 sm:px-3">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-2 py-1.5 sm:px-3">
               <CollapsibleTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-9 min-w-0 flex-1 justify-start gap-2 px-2 text-left text-xs font-medium sm:flex-none"
+                  className="h-auto min-h-9 min-w-0 flex-1 justify-start gap-2 px-2 py-1.5 text-left text-xs font-medium sm:h-9 sm:py-0 sm:flex-none"
                 >
                   {aiSectionOpen ? (
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
@@ -1954,37 +1975,44 @@ export function ChatWindow({
                     <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
                   )}
                   <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span className="truncate">Divine AI — scan & suggestions</span>
+                  <span className="flex min-w-0 flex-col items-start gap-0">
+                    <span className="truncate">{tChat('divineAiCollapsibleTitle')}</span>
+                    <span className="text-[10px] font-normal leading-snug text-muted-foreground md:hidden">
+                      {tChat('divineAiCollapsibleSubtitleMobile')}
+                    </span>
+                  </span>
                 </Button>
               </CollapsibleTrigger>
-              <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">Not sent to fan</span>
+              <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
+                {tChat('notSentToFan')}
+              </span>
               <Badge
                 variant="outline"
-                className="shrink-0 gap-1 border-amber-500/30 bg-amber-500/[0.08] text-[10px]"
+                className="hidden shrink-0 gap-1 border-amber-500/30 bg-amber-500/[0.08] text-[10px] sm:inline-flex"
                 {...DASHBOARD_CREDIT_SUMMARY_MARK}
               >
                 <Sparkles className="h-3 w-3 text-amber-500" />
-                {creditSnapshot ? `${creditSnapshot.totalRemaining} credits left` : 'AI credits'}
+                {creditSnapshot
+                  ? tChat('aiCreditsRemaining', { count: creditSnapshot.totalRemaining })
+                  : tChat('aiCreditsLabel')}
               </Badge>
             </div>
             <CollapsibleContent>
               <div className="space-y-2 overflow-y-auto bg-muted/15 px-3 py-2 pb-3 sm:px-4 sm:py-3">
-              <p className="text-[10px] leading-snug text-muted-foreground/90">
-                Each Scan, Circe, Venus, Flirt, or Mimic run uses 1 credit (about one-third of a standard messaging pass).
-              </p>
+              <p className="text-[10px] leading-snug text-muted-foreground/90">{tChat('creditRunBlurb')}</p>
               {scanInsights && (
                 <div className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 font-medium text-primary">
                       <Sparkles className="h-3 w-3" />
-                      Thread scan insights
+                      {tChat('threadScanInsightsTitle')}
                     </div>
                     <button
                       type="button"
                       className="text-[10px] text-primary/70 hover:underline"
                       onClick={() => setScanInsights(null)}
                     >
-                      Clear
+                      {tChat('clearScanInsights')}
                     </button>
                   </div>
                   {scanInsights.insights?.length > 0 && (
@@ -1996,7 +2024,9 @@ export function ChatWindow({
                   )}
                   {scanInsights.riskFlags?.length > 0 && (
                     <p className="text-destructive/80">
-                      Risks: {scanInsights.riskFlags.slice(0, 3).join('; ')}
+                      {tChat('scanRisksLine', {
+                        flags: scanInsights.riskFlags.slice(0, 3).join('; '),
+                      })}
                     </p>
                   )}
                 </div>
@@ -2015,7 +2045,7 @@ export function ChatWindow({
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  Scan
+                  {tChat('btnScan')}
                 </Button>
                 <Button
                   variant="outline"
@@ -2029,7 +2059,7 @@ export function ChatWindow({
                   ) : (
                     <Moon className="h-3 w-3" />
                   )}
-                  Circe
+                  {tChat('btnCirce')}
                 </Button>
                 <Button
                   variant="outline"
@@ -2043,7 +2073,7 @@ export function ChatWindow({
                   ) : (
                     <Sun className="h-3 w-3" />
                   )}
-                  Venus
+                  {tChat('btnVenus')}
                 </Button>
                 <Button
                   variant="outline"
@@ -2057,7 +2087,7 @@ export function ChatWindow({
                   ) : (
                     <Heart className="h-3 w-3" />
                   )}
-                  Flirt
+                  {tChat('btnFlirt')}
                 </Button>
                 <Button
                   variant="outline"
@@ -2067,8 +2097,8 @@ export function ChatWindow({
                   onClick={() => callSuggestionApi('mimic')}
                   title={
                     isOnlyFansConversation
-                      ? 'Mimic suggestions in your creator voice'
-                      : 'Mimic (beta) is available for OnlyFans threads'
+                      ? tChat('mimicTooltipOnlyfans')
+                      : tChat('mimicTooltipUnavailable')
                   }
                 >
                   {suggestionsLoading === 'mimic' ? (
@@ -2076,9 +2106,9 @@ export function ChatWindow({
                   ) : (
                     <Sparkles className="h-3 w-3" />
                   )}
-                  Mimic
+                  {tChat('btnMimic')}
                   <Badge className="ml-1 border border-sky-400/40 bg-sky-500/20 px-1.5 py-0 text-[9px] uppercase tracking-wide text-sky-100">
-                    Beta
+                    {tChat('mimicBetaBadge')}
                   </Badge>
                 </Button>
               </div>
@@ -2091,19 +2121,19 @@ export function ChatWindow({
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium">
                       {activePanel === 'circe'
-                        ? 'Circe suggestions'
+                        ? tChat('suggestionsHeadingCirce')
                         : activePanel === 'venus'
-                          ? 'Venus suggestions'
+                          ? tChat('suggestionsHeadingVenus')
                           : activePanel === 'flirt'
-                            ? 'Flirt suggestions'
-                            : 'Mimic suggestions (beta)'}
+                            ? tChat('suggestionsHeadingFlirt')
+                            : tChat('suggestionsHeadingMimic')}
                     </span>
                     <button
                       type="button"
                       className="text-[10px] text-muted-foreground hover:underline"
                       onClick={() => setActivePanel(null)}
                     >
-                      Close
+                      {tChat('closePanel')}
                     </button>
                   </div>
                   <div className="space-y-1">
@@ -2134,18 +2164,153 @@ export function ChatWindow({
                         </button>
                       ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Tap to insert — edit before sending.
-                  </p>
+                  <p className="text-[10px] text-muted-foreground">{tChat('suggestionsTapHint')}</p>
                 </div>
               ) : null}
 
-              <p className="text-[10px] leading-snug text-muted-foreground/90">
-                Only the fan thread above is visible to fans. Scan & suggestions stay in Creatix until you send.
-              </p>
+              <p className="text-[10px] leading-snug text-muted-foreground/90">{tChat('fanVisibleThreadNote')}</p>
             </div>
             </CollapsibleContent>
           </Collapsible>
+          {isOnlyFansConversation ? (
+            <>
+              <div className="border-t border-border/50 md:hidden">
+                <Collapsible open={aridaneMobileOpen} onOpenChange={setAriadneMobileOpen}>
+                  <div className="overflow-hidden bg-muted/10">
+                    <div className="flex items-stretch gap-1.5 px-2 py-2">
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-auto min-h-0 flex-1 flex-col items-start gap-0.5 px-2 py-1.5 text-left"
+                          aria-expanded={aridaneMobileOpen}
+                        >
+                          <span className="flex w-full items-center gap-1.5">
+                            <Shield className="h-3.5 w-3.5 shrink-0 text-violet-400" aria-hidden />
+                            {aridaneMobileOpen ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+                            )}
+                            <span className="text-xs font-medium text-foreground">{tChat('ariadneTraceTitle')}</span>
+                          </span>
+                          <span className="pl-7 text-[10px] text-muted-foreground">
+                            {traceEnabled ? tChat('ariadneTraceStatusOn') : tChat('ariadneTraceStatusOff')}
+                          </span>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <Button
+                        type="button"
+                        variant={traceEnabled ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="shrink-0 self-center"
+                        onClick={() => setTraceEnabled((v) => !v)}
+                      >
+                        {traceEnabled ? tChat('toggleShortOn') : tChat('toggleShortOff')}
+                      </Button>
+                    </div>
+                    <CollapsibleContent>
+                      <div className="space-y-2 border-t border-border/50 px-2 pb-2 pt-1">
+                        <p className="text-[11px] text-muted-foreground">{tChat('ariadneTraceBillingNote')}</p>
+                        {traceEnabled ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label className="text-[11px]">{tChat('traceSourceVideoLabel')}</Label>
+                              <Select value={traceContentId} onValueChange={setTraceContentId}>
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue
+                                    placeholder={
+                                      traceVaultLoading
+                                        ? tChat('traceVaultLoadingPlaceholder')
+                                        : tChat('traceSelectVideoPlaceholder')
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {traceVaultRows.map((row) => (
+                                    <SelectItem key={row.id} value={row.id}>
+                                      {(row.title || tChat('untitledVideo')).slice(0, 46)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px]">{tChat('traceRecipientKeyLabel')}</Label>
+                              <Input
+                                value={traceRecipientKey}
+                                onChange={(e) => setTraceRecipientKey(e.target.value)}
+                                className="h-8 text-xs"
+                                placeholder={conversation.user.username || String(conversation.user.id)}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              </div>
+              <div className="hidden border-t border-border/50 md:block">
+                <div className="p-2">
+                  <div className="rounded-md border border-border bg-muted/20 p-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">{tChat('ariadneBeforeSendTitle')}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {traceEnabled
+                            ? tChat('ariadneBeforeSendBillingEnabled')
+                            : tChat('ariadneBeforeSendBillingDisabled')}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={traceEnabled ? 'secondary' : 'outline'}
+                        size="sm"
+                        onClick={() => setTraceEnabled((v) => !v)}
+                      >
+                        {traceEnabled ? tChat('traceToggleOn') : tChat('traceToggleOff')}
+                      </Button>
+                    </div>
+                    {traceEnabled ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">{tChat('traceSourceVideoLabel')}</Label>
+                          <Select value={traceContentId} onValueChange={setTraceContentId}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue
+                                placeholder={
+                                  traceVaultLoading
+                                    ? tChat('traceVaultLoadingPlaceholder')
+                                    : tChat('traceSelectVideoPlaceholder')
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {traceVaultRows.map((row) => (
+                                <SelectItem key={row.id} value={row.id}>
+                                  {(row.title || tChat('untitledVideo')).slice(0, 46)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">{tChat('traceRecipientKeyLabel')}</Label>
+                          <Input
+                            value={traceRecipientKey}
+                            onChange={(e) => setTraceRecipientKey(e.target.value)}
+                            className="h-8 text-xs"
+                            placeholder={conversation.user.username || String(conversation.user.id)}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
 
       {/* Composer + send: fixed to bottom of chat card (always visible) */}
@@ -2159,8 +2324,7 @@ export function ChatWindow({
         <div
           className={cn(
             'space-y-2.5 px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-4 sm:pb-3',
-            /* Fixed Divine crown (~3.5rem) + edge inset — keep mic + send clear */
-            reserveDivineCrownSpace && 'pb-1 pr-[5rem] sm:pr-[6rem]',
+            padComposerForDivineFab && 'pb-1 pr-[5rem] sm:pr-[6rem]',
           )}
         >
           <input
@@ -2175,217 +2339,120 @@ export function ChatWindow({
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {attachedMediaIds.length > 0 && (
                 <span className="text-muted-foreground">
-                  {attachedMediaIds.length} attachment{attachedMediaIds.length > 1 ? 's' : ''}
+                  {tChat('attachmentCount', { count: attachedMediaIds.length })}
                 </span>
               )}
               {ppvPrice && (
                 <Badge className="bg-chart-4/20 text-chart-4">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  PPV ${ppvPrice}
+                  {tChat('ppvWithPrice', { price: `$${ppvPrice}` })}
                 </Badge>
               )}
             </div>
           )}
 
-          {isOnlyFansConversation ? (
-            isMobile ? (
-              <Collapsible open={aridaneMobileOpen} onOpenChange={setAriadneMobileOpen}>
-                <div className="overflow-hidden rounded-md border border-border bg-muted/20">
-                  <div className="flex items-stretch gap-1.5 p-2">
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-auto min-h-0 flex-1 flex-col items-start gap-0.5 px-2 py-1.5 text-left"
-                        aria-expanded={aridaneMobileOpen}
-                      >
-                        <span className="flex w-full items-center gap-1.5">
-                          {aridaneMobileOpen ? (
-                            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
-                          )}
-                          <span className="text-xs font-medium text-foreground">Ariadne trace</span>
+          {isMobile ? (
+            <>
+              <div className="flex min-w-0 items-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  disabled={!isOnlyFansConversation || uploadingMedia}
+                  onClick={() => chatFileInputRef.current?.click()}
+                  title={
+                    isOnlyFansConversation ? tChat('attachMediaTooltipOf') : tChat('attachMediaTooltipNotOf')
+                  }
+                >
+                  {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+                </Button>
+
+                <div className="relative min-w-0 max-w-full flex-1">
+                  {(divineTyping || divineScheduleSeconds != null) && (
+                    <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-amber-200/95 dark:text-amber-300/90">
+                      {divineTyping ? (
+                        <>
+                          <span className="inline-flex gap-0.5">
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+                            <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:300ms]" />
+                          </span>
+                          <span className="tracking-tight">{tChat('divineIsTyping')}</span>
+                        </>
+                      ) : (
+                        <span className="tracking-tight tabular-nums text-violet-200/95 dark:text-violet-300/90">
+                          {tChat('sendingInSeconds', { seconds: divineScheduleSeconds ?? 0 })}
                         </span>
-                        <span className="pl-5 text-[10px] text-muted-foreground">
-                          {traceEnabled ? 'Enabled · expand for video' : 'Off — expand for details'}
-                        </span>
-                      </Button>
-                    </CollapsibleTrigger>
+                      )}
+                    </div>
+                  )}
+                  <Textarea
+                    placeholder={tChat('messagePlaceholderMobile')}
+                    value={message}
+                    onChange={(e) => {
+                      if (divineTyping) {
+                        composerTypeAbortRef.current?.abort()
+                        composerTypeAbortRef.current = null
+                        setDivineTyping(false)
+                      }
+                      setMessage(e.target.value)
+                    }}
+                    rows={1}
+                    className={cn(
+                      'max-h-[min(28dvh,220px)] min-h-[44px] resize-none rounded-xl bg-input pr-3 text-sm leading-relaxed',
+                      divineComposerHighlight &&
+                        'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
+                    )}
+                    disabled={sending || !isOnlyFansConversation}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (message.trim() || attachedMediaIds.length > 0) handleSendMessage()
+                      }
+                    }}
+                  />
+                </div>
+
+                <Button
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !isOnlyFansConversation}
+                  onClick={handleSendMessage}
+                >
+                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </Button>
+              </div>
+
+              <div className="flex gap-1.5 overflow-x-auto border-t border-border/25 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <Popover>
+                  <PopoverTrigger asChild>
                     <Button
                       type="button"
-                      variant={traceEnabled ? 'secondary' : 'outline'}
+                      variant="outline"
                       size="sm"
-                      className="shrink-0 self-center"
-                      onClick={() => setTraceEnabled((v) => !v)}
+                      className="h-9 shrink-0 gap-1 px-2.5"
+                      disabled={!isOnlyFansConversation}
                     >
-                      {traceEnabled ? 'On' : 'Off'}
+                      <DollarSign className="h-3.5 w-3.5" />
+                      {ppvPrice
+                        ? tChat('ppvWithPrice', { price: `$${ppvPrice}` })
+                        : tChat('ppvInputShortPlaceholder')}
                     </Button>
-                  </div>
-                  <CollapsibleContent>
-                    <div className="space-y-2 border-t border-border/50 px-2 pb-2 pt-1">
-                      <p className="text-[11px] text-muted-foreground">
-                        Per-recipient trace run — billed separately from send.
-                      </p>
-                      {traceEnabled ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label className="text-[11px]">Trace source video</Label>
-                            <Select value={traceContentId} onValueChange={setTraceContentId}>
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {traceVaultRows.map((row) => (
-                                  <SelectItem key={row.id} value={row.id}>
-                                    {(row.title || 'Untitled').slice(0, 46)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px]">Recipient key override (optional)</Label>
-                            <Input
-                              value={traceRecipientKey}
-                              onChange={(e) => setTraceRecipientKey(e.target.value)}
-                              className="h-8 text-xs"
-                              placeholder={conversation.user.username || String(conversation.user.id)}
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            ) : (
-              <div className="rounded-md border border-border bg-muted/20 p-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">Ariadne trace before send</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Per-recipient trace run ({traceEnabled ? 'enabled' : 'disabled'}) — billed separately.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant={traceEnabled ? 'secondary' : 'outline'}
-                    size="sm"
-                    onClick={() => setTraceEnabled((v) => !v)}
-                  >
-                    {traceEnabled ? 'Trace ON' : 'Trace OFF'}
-                  </Button>
-                </div>
-                {traceEnabled ? (
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Trace source video</Label>
-                      <Select value={traceContentId} onValueChange={setTraceContentId}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder={traceVaultLoading ? 'Loading vault…' : 'Select video'} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {traceVaultRows.map((row) => (
-                            <SelectItem key={row.id} value={row.id}>
-                              {(row.title || 'Untitled').slice(0, 46)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Recipient key override (optional)</Label>
-                      <Input
-                        value={traceRecipientKey}
-                        onChange={(e) => setTraceRecipientKey(e.target.value)}
-                        className="h-8 text-xs"
-                        placeholder={conversation.user.username || String(conversation.user.id)}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            )
-          ) : null}
-
-          <div className="flex min-w-0 items-end gap-2">
-            <div className="flex shrink-0 flex-col gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                disabled={!isOnlyFansConversation || uploadingMedia}
-                onClick={() => chatFileInputRef.current?.click()}
-                title={
-                  isOnlyFansConversation
-                    ? 'Attach photo or video (PPV)'
-                    : 'Media only for OnlyFans'
-                }
-              >
-                {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-              </Button>
-              <div className="flex items-center gap-0.5">
-                <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  placeholder="PPV"
-                  value={ppvPrice}
-                  onChange={(e) => setPpvPrice(e.target.value)}
-                  className="h-8 w-[3.25rem] px-1.5 text-xs"
-                  title="Optional PPV price"
-                />
-              </div>
-            </div>
-
-            <div className="relative min-w-0 max-w-full flex-1">
-              {(divineTyping || divineScheduleSeconds != null) && (
-                <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-amber-200/95 dark:text-amber-300/90">
-                  {divineTyping ? (
-                    <>
-                      <span className="inline-flex gap-0.5">
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
-                        <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:300ms]" />
-                      </span>
-                      <span className="tracking-tight">Divine is typing…</span>
-                    </>
-                  ) : (
-                    <span className="tracking-tight tabular-nums text-violet-200/95 dark:text-violet-300/90">
-                      Sending in {divineScheduleSeconds}s…
-                    </span>
-                  )}
-                </div>
-              )}
-              <Textarea
-                placeholder="Message… (Shift+Enter for new line)"
-                value={message}
-                onChange={(e) => {
-                  if (divineTyping) {
-                    composerTypeAbortRef.current?.abort()
-                    composerTypeAbortRef.current = null
-                    setDivineTyping(false)
-                  }
-                  setMessage(e.target.value)
-                }}
-                rows={1}
-                className={cn(
-                  'min-h-[80px] resize-y rounded-xl bg-input pr-11 text-sm leading-relaxed sm:pr-12 sm:text-sm',
-                  divineComposerHighlight &&
-                    'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
-                )}
-                disabled={sending || !isOnlyFansConversation}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    if (message.trim() || attachedMediaIds.length > 0) handleSendMessage()
-                  }
-                }}
-              />
-              <div className="absolute bottom-2 right-2">
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-3" align="start">
+                    <Label className="text-xs">{tChat('ppvPriceLabel')}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={ppvPrice}
+                      onChange={(e) => setPpvPrice(e.target.value)}
+                      className="mt-2 h-9"
+                      placeholder={tChat('placeholderZero')}
+                    />
+                  </PopoverContent>
+                </Popover>
                 <VoiceInputButton
                   onTranscript={(text) => {
                     if (divineTyping) {
@@ -2396,26 +2463,150 @@ export function ChatWindow({
                     setMessage((prev) => prev + (prev ? ' ' : '') + text)
                   }}
                   size="sm"
-                  variant="ghost"
+                  variant="outline"
+                  className="h-9 shrink-0 px-3"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1 px-2.5"
+                  disabled={!isOnlyFansConversation}
+                  onClick={() => setAriadneMobileOpen(true)}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  {tChat('toolbarTrace')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1 px-2.5"
+                  onClick={() => setAiSectionOpen(true)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {tChat('toolbarAi')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 gap-1 px-2.5"
+                  onClick={openDivineVoiceLauncher}
+                  title={tChat('divineVoiceSessionTitle')}
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-500" />
+                  {tChat('toolbarDivine')}
+                </Button>
               </div>
-            </div>
+            </>
+          ) : (
+            <div className="flex min-w-0 items-end gap-2">
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11"
+                  disabled={!isOnlyFansConversation || uploadingMedia}
+                  onClick={() => chatFileInputRef.current?.click()}
+                  title={
+                    isOnlyFansConversation ? tChat('attachMediaTooltipOf') : tChat('attachMediaTooltipNotOf')
+                  }
+                >
+                  {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+                </Button>
+                <div className="flex items-center gap-0.5">
+                  <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder={tChat('ppvInputShortPlaceholder')}
+                    value={ppvPrice}
+                    onChange={(e) => setPpvPrice(e.target.value)}
+                    className="h-8 w-[3.25rem] px-1.5 text-xs"
+                    title={tChat('optionalPpvPriceTitle')}
+                  />
+                </div>
+              </div>
 
-            <Button
-              size="icon"
-              className="h-11 w-11 shrink-0"
-              disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !isOnlyFansConversation}
-              onClick={handleSendMessage}
-            >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </Button>
-          </div>
+              <div className="relative min-w-0 max-w-full flex-1">
+                {(divineTyping || divineScheduleSeconds != null) && (
+                  <div className="pointer-events-none absolute inset-x-0 -top-5 z-10 flex items-center gap-1.5 text-[11px] font-medium text-amber-200/95 dark:text-amber-300/90">
+                    {divineTyping ? (
+                      <>
+                        <span className="inline-flex gap-0.5">
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-amber-400 [animation-delay:300ms]" />
+                        </span>
+                        <span className="tracking-tight">{tChat('divineIsTyping')}</span>
+                      </>
+                    ) : (
+                      <span className="tracking-tight tabular-nums text-violet-200/95 dark:text-violet-300/90">
+                        {tChat('sendingInSeconds', { seconds: divineScheduleSeconds ?? 0 })}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <Textarea
+                  placeholder={tChat('messagePlaceholderDesktop')}
+                  value={message}
+                  onChange={(e) => {
+                    if (divineTyping) {
+                      composerTypeAbortRef.current?.abort()
+                      composerTypeAbortRef.current = null
+                      setDivineTyping(false)
+                    }
+                    setMessage(e.target.value)
+                  }}
+                  rows={1}
+                  className={cn(
+                    'min-h-[80px] resize-y rounded-xl bg-input pr-11 text-sm leading-relaxed sm:pr-12 sm:text-sm',
+                    divineComposerHighlight &&
+                      'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
+                  )}
+                  disabled={sending || !isOnlyFansConversation}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (message.trim() || attachedMediaIds.length > 0) handleSendMessage()
+                    }
+                  }}
+                />
+                <div className="absolute bottom-2 right-2">
+                  <VoiceInputButton
+                    onTranscript={(text) => {
+                      if (divineTyping) {
+                        composerTypeAbortRef.current?.abort()
+                        composerTypeAbortRef.current = null
+                        setDivineTyping(false)
+                      }
+                      setMessage((prev) => prev + (prev ? ' ' : '') + text)
+                    }}
+                    size="sm"
+                    variant="ghost"
+                  />
+                </div>
+              </div>
+
+              <Button
+                size="icon"
+                className="h-11 w-11 shrink-0"
+                disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !isOnlyFansConversation}
+                onClick={handleSendMessage}
+              >
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              </Button>
+            </div>
+          )}
 
           <p className="hidden text-[10px] text-muted-foreground sm:block">
-            PPV: set price and/or attach media. Fan only sees the conversation above.
+            {tChat('composerPpvHintDesktop')}
           </p>
           <p className="text-[10px] text-muted-foreground sm:hidden">
-            Scroll the thread for older messages; type and send stay fixed here.
+            {tChat('composerPpvHintMobile')}
           </p>
         </div>
       </div>
@@ -2434,10 +2625,8 @@ export function ChatWindow({
       <AlertDialog open={chatDeleteDialogOpen} onOpenChange={setChatDeleteDialogOpen}>
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-            <AlertDialogDescription>
-              OnlyFans removes this conversation on their servers. You can&apos;t restore it afterward.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{tChat('deleteChatConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{tChat('deleteChatConfirmDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button
@@ -2446,7 +2635,7 @@ export function ChatWindow({
               disabled={chatDeleteBusy}
               onClick={() => setChatDeleteDialogOpen(false)}
             >
-              Cancel
+              {tChat('dialogCancel')}
             </Button>
             <Button
               variant="destructive"
@@ -2456,7 +2645,7 @@ export function ChatWindow({
               onClick={() => void confirmDeleteOnlyFansChat()}
             >
               {chatDeleteBusy ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /> : null}
-              Delete chat
+              {tChat('deleteChat')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

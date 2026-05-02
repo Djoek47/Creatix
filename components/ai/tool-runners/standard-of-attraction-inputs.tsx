@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,14 +32,17 @@ export function StandardOfAttractionRunnerInputs({
   contentDescription,
   setContentDescription,
 }: StandardOfAttractionRunnerInputsProps) {
+  const t = useTranslations('ai-tools.runners.standard-of-attraction')
+  const ts = useTranslations('ai-tools.runners.shared')
+
   if (easy) {
     return (
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Photo (or describe below)</Label>
+          <Label>{t('easyPhotoOrDescribe')}</Label>
           {attractionImage ? (
             <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-              <img src={attractionImage} alt="Upload" className="max-h-40 w-full object-contain" />
+              <img src={attractionImage} alt={t('uploadAlt')} className="max-h-40 w-full object-contain" />
               <Button
                 type="button"
                 variant="secondary"
@@ -46,7 +50,7 @@ export function StandardOfAttractionRunnerInputs({
                 className="absolute right-2 top-2"
                 onClick={() => setAttractionImage(null)}
               >
-                Remove
+                {ts('remove')}
               </Button>
             </div>
           ) : (
@@ -70,18 +74,18 @@ export function StandardOfAttractionRunnerInputs({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Niche (optional)</Label>
-            <Input placeholder="e.g. fitness, cosplay…" value={niche} onChange={(e) => setNiche(e.target.value)} />
+            <Label>{ts('nicheOptional')}</Label>
+            <Input placeholder={t('proNichePlaceholder')} value={niche} onChange={(e) => setNiche(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Platform</Label>
+            <Label>{ts('platform')}</Label>
             <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Describe the shot (optional if you uploaded)</Label>
+          <Label>{t('describeShot')}</Label>
           <Textarea
-            placeholder="Setting, outfit, vibe — helps the judges…"
+            placeholder={t('shotPlaceholder')}
             value={contentDescription}
             onChange={(e) => setContentDescription(e.target.value)}
             className="min-h-[80px]"
@@ -95,23 +99,23 @@ export function StandardOfAttractionRunnerInputs({
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Your Niche (optional)</Label>
+          <Label>{t('proYourNicheOptional')}</Label>
           <Input
-            placeholder="e.g., fitness, cosplay, GFE..."
+            placeholder={t('proNichePlaceholder')}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Platform</Label>
+          <Label>{ts('platform')}</Label>
           <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Upload your photo (Grok rates if you&apos;re up to market standards)</Label>
+        <Label>{t('uploadRatingLabel')}</Label>
         {attractionImage ? (
           <div className="relative rounded-lg border border-border bg-muted/30 overflow-hidden">
-            <img src={attractionImage} alt="Uploaded for rating" className="max-h-48 w-full object-contain" />
+            <img src={attractionImage} alt={t('uploadedForRatingAlt')} className="max-h-48 w-full object-contain" />
             <Button
               type="button"
               variant="secondary"
@@ -119,7 +123,7 @@ export function StandardOfAttractionRunnerInputs({
               className="absolute top-2 right-2"
               onClick={() => setAttractionImage(null)}
             >
-              Remove
+              {ts('remove')}
             </Button>
           </div>
         ) : (
@@ -143,14 +147,11 @@ export function StandardOfAttractionRunnerInputs({
             />
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          Upload a photo and Grok will judge commercial attractiveness and whether you meet market standards. Or describe
-          below.
-        </p>
+        <p className="text-xs text-muted-foreground">{t('uploadHint')}</p>
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Or describe your content (optional if you uploaded a photo)</Label>
+          <Label>{t('describeOrLabel')}</Label>
           <VoiceInputButton
             onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
             size="sm"
@@ -158,7 +159,7 @@ export function StandardOfAttractionRunnerInputs({
           />
         </div>
         <Textarea
-          placeholder="Describe the content you want rated: setting, outfit, mood, type (photo/video), what’s in frame... The more detail, the better Venus and Circe can judge commercial appeal."
+          placeholder={t('describeLongPlaceholder')}
           value={contentDescription}
           onChange={(e) => setContentDescription(e.target.value)}
           className="min-h-[80px]"

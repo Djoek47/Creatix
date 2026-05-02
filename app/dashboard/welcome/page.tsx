@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BookOpen, Sparkles } from 'lucide-react'
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils'
  * Open with ?openTour=1 to auto-start the tour (e.g. from onboarding or Guide).
  */
 export default function WelcomeTourPage() {
+  const t = useTranslations('dashboard.welcomeTour')
   const searchParams = useSearchParams()
   const { startTour } = useTour() ?? {}
   const startedRef = useRef(false)
@@ -41,13 +43,13 @@ export default function WelcomeTourPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Sparkles className="h-6 w-6 text-amber-500" aria-hidden />
-            Live app tour
+            {t('title')}
           </CardTitle>
           <CardDescription>
-            The live tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with
-            highlights. Use <strong className="text-foreground">Start live tour</strong> or{' '}
-            <strong className="text-foreground">Launch live tour</strong> in the header for the same full pass from any
-            page.
+            {t.rich('description', {
+              start: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+              launch: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -57,20 +59,20 @@ export default function WelcomeTourPage() {
             onClick={() => startTour?.()}
           >
             <BookOpen className="h-4 w-4" aria-hidden />
-            {fullTourDone ? 'Launch live tour' : 'Start live tour'}
+            {fullTourDone ? t('launchTour') : t('startTour')}
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/dashboard">Go to dashboard</Link>
+            <Link href="/dashboard">{t('goDashboard')}</Link>
           </Button>
         </CardContent>
       </Card>
       <p className="text-center text-xs text-muted-foreground">
         <Link href="/dashboard/guide" className="text-primary underline hover:no-underline">
-          Guide
+          {t('guideLink')}
         </Link>
         {' · '}
         <Link href="/dashboard/settings" className="text-primary underline hover:no-underline">
-          Settings
+          {t('settingsLink')}
         </Link>
       </p>
     </div>

@@ -2,6 +2,7 @@
  * Human-facing labels for `credit_transactions.reason_code` (+ optional metadata) in Settings → Usage.
  */
 
+import { englishToolName } from '@/lib/ai/ai-tools-english-copy'
 import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 
 /** Merged onto `credit_transactions.metadata` when debiting via the wallet RPC. */
@@ -57,8 +58,8 @@ const LEDGER_REASON_LABELS: Record<string, string> = {
   // OnlyFans helpers
   'onlyfans bio serper fallback': 'OnlyFans bio enrichment',
 
-  // Guidance
-  'dmca claim': 'DMCA claim draft',
+  // Guidance (draft flow — distinct ledger key from generic `dmca claim`)
+  'dmca claim draft': 'DMCA claim draft',
   'retention churn digest': 'Retention digest (Churn)',
 
   // Wallet credits (shown as positive lines)
@@ -94,8 +95,7 @@ export function serviceDisplayForBillingTool(billingToolId: string): string {
   const canonical = resolveCanonicalToolId(id)
   const routed = ROUTE_TOOL_DISPLAY[id] ?? ROUTE_TOOL_DISPLAY[canonical]
   if (routed) return routed
-  const meta = getToolMeta(canonical)
-  if (meta?.name?.trim()) return meta.name.trim()
+  if (getToolMeta(canonical)) return englishToolName(canonical)
   return titleCaseWords(canonical.replace(/-/g, ' '))
 }
 
@@ -130,11 +130,16 @@ function readBillingToolId(metadata: Record<string, unknown> | null | undefined)
   return null
 }
 
-function inferToolServiceName(reasonCodeRaw: string): string | null {
+function inferToolServiceName(reasonCodeRaw: string, options?: CreditLedgerLabelOptions): string | null {
   const trimmed = reasonCodeRaw.trim()
   const m = /^tool_(.+)$/i.exec(trimmed)
   if (!m) return null
   const slugHyphen = m[1].replace(/_/g, '-')
+  const canonical = resolveCanonicalToolId(slugHyphen)
+  if (options?.resolveToolDisplayName) {
+    const v = options.resolveToolDisplayName(canonical).trim()
+    if (v) return v
+  }
   return serviceDisplayForBillingTool(slugHyphen)
 }
 
@@ -142,9 +147,15 @@ function inferToolServiceName(reasonCodeRaw: string): string | null {
  * One line shown after "Debit ·" / "Credit ·" using DB reason + merged metadata when present.
  * Prefers the **exact billed tool** (catalog title) when `billing_tool_id` or `tool_*` reason is available.
  */
+export type CreditLedgerLabelOptions = {
+  /** When set, overrides English catalog names for AI Studio tool ids in the UI. */
+  resolveToolDisplayName?: (billingToolId: string) => string
+}
+
 export function creditLedgerLineLabel(
   reasonCode: string,
   metadata?: Record<string, unknown> | null,
+  options?: CreditLedgerLabelOptions,
 ): string {
   const meta = metadata ?? undefined
   const fromMeta = readMetadataDisplay(meta)
@@ -154,8 +165,10 @@ export function creditLedgerLineLabel(
   }
 
   const toolId = readBillingToolId(meta)
-  const fromToolId = toolId ? serviceDisplayForBillingTool(toolId) : null
-  const fromReasonTool = inferToolServiceName(reasonCode)
+  const fromToolId = toolId
+    ? options?.resolveToolDisplayName?.(toolId) ?? serviceDisplayForBillingTool(toolId)
+    : null
+  const fromReasonTool = inferToolServiceName(reasonCode, options)
   const toolTitle = fromToolId ?? fromReasonTool
 
   if (toolTitle) {

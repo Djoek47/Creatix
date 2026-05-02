@@ -46,6 +46,13 @@ const railBodyLane = cn(
   'dark:border-violet-500/20 dark:from-violet-950/38 dark:via-slate-950/22 dark:to-fuchsia-950/28',
 )
 
+/** Scrollable task list — frosted inset panel (reads over body lane gradient). */
+const railTaskListGlassScroll = cn(
+  'mx-2 mb-2 mt-0.5 rounded-xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.48)] backdrop-blur-lg backdrop-saturate-[1.15]',
+  'border-white/42 bg-white/[0.38]',
+  'dark:border-violet-400/16 dark:bg-slate-950/40 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]',
+)
+
 const railProtocolsChip = cn(
   'rounded-xl border shadow-sm backdrop-blur-xl transition-colors duration-200',
   'border-violet-300/35 bg-gradient-to-br from-violet-500/[0.08] to-fuchsia-500/[0.06] hover:from-violet-500/12 hover:to-fuchsia-500/10',
@@ -437,8 +444,13 @@ export function DivineProtocolTaskRail({
                   Could not load tasks ({error}). Run DB migration 046.
                 </p>
               ) : null}
-              <div className="min-h-0 min-w-0 max-h-[min(52dvh,calc(100dvh-20rem))] shrink touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain pr-2 [scrollbar-gutter:stable]">
-                <div className="flex flex-col gap-2 p-3">
+              <div
+                className={cn(
+                  railTaskListGlassScroll,
+                  'min-h-0 min-w-0 max-h-[min(52dvh,calc(100dvh-20rem))] shrink touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 py-2 [scrollbar-gutter:stable]',
+                )}
+              >
+                <div className="flex flex-col gap-2 px-1 py-0.5">
                   {loading && !openTasks.length ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-8">
                       <Loader2 className="h-5 w-5 animate-spin text-violet-400/50 dark:text-muted-foreground/50" aria-hidden />

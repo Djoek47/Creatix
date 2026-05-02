@@ -455,24 +455,30 @@ function NavLink({
         />
       )}
       {isAiStudio ? (
-        <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
-          <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
-            <AiStudioNavStar
-              gradientSlot="sidebar-desktop"
-              className={cn(
-                'relative z-[1] shrink-0',
-                navEase,
-                compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
-              )}
-            />
+        <>
+          <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
+            <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
+              <AiStudioNavStar
+                gradientSlot="sidebar-desktop"
+                className={cn(
+                  'relative z-[1] shrink-0',
+                  navEase,
+                  compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox,
+                )}
+              />
+            </span>
           </span>
-        </span>
+          {labelBlock}
+        </>
       ) : isDivineManager ? (
-        <SidebarDivineManagerCrown
-          gradientSlot="sidebar-desktop"
-          navEase={navEase}
-          iconBoxClass={compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox}
-        />
+        <>
+          <SidebarDivineManagerCrown
+            gradientSlot="sidebar-desktop"
+            navEase={navEase}
+            iconBoxClass={compactDensity ? SIDEBAR_SIZE.compact.iconBox : SIDEBAR_SIZE.cozy.iconBox}
+          />
+          {labelBlock}
+        </>
       ) : messagesUnreadAccent ? (
         <span className={messagesAccentWrapClass}>
           <MessagesNavUnreadSweep unreadTotal={messagesUnreadCount} />

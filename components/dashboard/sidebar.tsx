@@ -484,7 +484,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
   const caps = useWorkspaceCapabilities()
   const messagesNavUnread = useMessagesNavUnreadTotal(caps.canUseMessaging)
   const pathname = usePathname()
-  const tNavSections = useTranslations('navigation')
+  const tNav = useTranslations('navigation')
   const [collapsed, setCollapsed] = useState(false)
   const [compactDensity, setCompactDensity] = useState(false)
   const [verticalDensity, setVerticalDensity] = useState<SidebarVerticalDensity>('normal')
@@ -627,7 +627,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
                   compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
-                {tNavSections('sidebar.circeSection')}
+                {tNav('sidebar.circeSection')}
               </span>
             </div>
           )}
@@ -665,7 +665,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
                   compactDensity ? 'text-[0.6rem]' : 'text-[0.625rem]',
                 )}
               >
-                {tNavSections('sidebar.venusSection')}
+                {tNav('sidebar.venusSection')}
               </span>
             </div>
           )}
@@ -702,7 +702,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
             <div
               className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/18 px-3 py-2.5 transition-colors duration-200 dark:bg-sidebar-accent/12"
               role="note"
-              aria-label={`${tNavSections('sidebar.systemStripTitle')}: ${tNavSections('sidebar.systemStripStatus')}`}
+              aria-label={`${tNav('sidebar.systemStripTitle')}: ${tNav('sidebar.systemStripStatus')}`}
             >
               <div className="flex items-start gap-2.5">
                 <Activity
@@ -711,13 +711,13 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
                 />
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
-                    {tNavSections('sidebar.systemStripTitle')}
+                    {tNav('sidebar.systemStripTitle')}
                   </p>
                   <p className={cn('truncate text-[12px] font-medium leading-snug text-sidebar-foreground/88', SIDEBAR_SIZE.cozy.linkText)}>
-                    {tNavSections('sidebar.systemStripStatus')}
+                    {tNav('sidebar.systemStripStatus')}
                   </p>
                   <p className="truncate text-[10px] leading-snug text-sidebar-foreground/48">
-                    {tNavSections('sidebar.systemStripHint')}
+                    {tNav('sidebar.systemStripHint')}
                   </p>
                 </div>
                 <ChevronDown
@@ -737,6 +737,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
         variant="ghost"
         size="icon"
         className="absolute -right-3 top-10 z-30 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar shadow-sm"
+        aria-label={collapsed ? tNav('sidebar.expandSidebar') : tNav('sidebar.collapseSidebar')}
         onClick={() => {
           const next = !collapsed
           setCollapsed(next)

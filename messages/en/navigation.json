@@ -19,7 +19,10 @@
     "venusSection": "Venus",
     "systemStripTitle": "Status & notices",
     "systemStripStatus": "Services operational",
-    "systemStripHint": "Product updates: Guide · Settings."
+    "systemStripHint": "Product updates: Guide · Settings.",
+    "brandRealmReload": "Reload dashboard with realm entrance",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
   },
   "marketingNav": {
     "home": "Home",

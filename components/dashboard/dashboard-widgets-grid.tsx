@@ -1031,7 +1031,7 @@ export function DashboardWidgetsGrid({
                   <div className="flex w-full min-w-0 gap-2.5">
                     <div
                       className="mt-1 flex h-9 w-9 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-xl border border-amber-500/18 bg-amber-500/[0.09] text-amber-700 shadow-sm backdrop-blur-sm active:cursor-grabbing dark:text-amber-300"
-                      aria-label="Drag to reorder section"
+                      aria-label={t('dragSectionAria')}
                     >
                       <GripVertical className="h-4 w-4" aria-hidden />
                     </div>

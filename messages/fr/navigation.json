@@ -19,7 +19,10 @@
     "venusSection": "Venus",
     "systemStripTitle": "État et avis",
     "systemStripStatus": "Services opérationnels",
-    "systemStripHint": "Nouveautés produit : Guide · Paramètres."
+    "systemStripHint": "Nouveautés produit : Guide · Paramètres.",
+    "brandRealmReload": "Recharger le tableau de bord avec l’entrée du royaume",
+    "collapseSidebar": "Réduire la barre latérale",
+    "expandSidebar": "Développer la barre latérale"
   },
   "marketingNav": {
     "home": "Accueil",

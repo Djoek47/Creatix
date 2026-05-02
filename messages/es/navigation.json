@@ -19,7 +19,10 @@
     "venusSection": "Venus",
     "systemStripTitle": "Estado y avisos",
     "systemStripStatus": "Servicios operativos",
-    "systemStripHint": "Novedades del producto: Guía · Ajustes."
+    "systemStripHint": "Novedades del producto: Guía · Ajustes.",
+    "brandRealmReload": "Recargar el panel con la entrada del reino",
+    "collapseSidebar": "Contraer la barra lateral",
+    "expandSidebar": "Expandir la barra lateral"
   },
   "marketingNav": {
     "home": "Inicio",

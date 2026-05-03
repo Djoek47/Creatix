@@ -5,11 +5,14 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { MessageSquare, Mic, Moon, Shield, Sparkles, Sun, type LucideIcon } from 'lucide-react'
 
+import type { SignupEntranceMode } from '@/components/marketing/trial-signup-transition'
 import { cn } from '@/lib/utils'
 
 const FEATURE_ROTATE_MS = 5000
 
-export function SignUpFeatureShowcase() {
+type ShowcaseProps = { entranceMode?: SignupEntranceMode }
+
+export function SignUpFeatureShowcase({ entranceMode = 'off' }: ShowcaseProps) {
   const t = useTranslations('auth')
   const [index, setIndex] = useState(0)
   const reduceMotion = useReducedMotion()
@@ -39,8 +42,26 @@ export function SignUpFeatureShowcase() {
     ? { duration: 0.15 }
     : { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }
 
+  const instantEntrance = entranceMode === 'off' || reduceMotion
+  const staged = entranceMode === 'staged'
+
   return (
-    <div className="relative z-10 hidden min-h-0 flex-1 flex-col justify-center overflow-hidden border-l border-white/10 px-6 py-14 sm:px-10 lg:flex">
+    <motion.div
+      initial={instantEntrance ? { x: 0, opacity: 1 } : { x: 64, opacity: 0 }}
+      animate={
+        instantEntrance
+          ? { x: 0, opacity: 1 }
+          : staged
+            ? { x: 64, opacity: 0 }
+            : { x: 0, opacity: 1 }
+      }
+      transition={{
+        duration: instantEntrance ? 0 : 0.62,
+        delay: instantEntrance ? 0 : 0.18,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="relative z-10 hidden min-h-0 flex-1 flex-col justify-center overflow-hidden border-l border-white/10 px-6 py-14 sm:px-10 lg:flex"
+    >
       <div
         className={cn(
           'absolute inset-0 z-[1] bg-background/10 backdrop-blur-[2px] dark:bg-black/25 dark:backdrop-blur-[3px]',
@@ -155,6 +176,6 @@ export function SignUpFeatureShowcase() {
           {t('signUpShowcaseRotateHint', { seconds: Math.round(FEATURE_ROTATE_MS / 1000) })}
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }

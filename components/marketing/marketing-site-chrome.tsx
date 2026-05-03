@@ -1,6 +1,7 @@
 'use client'
 
 import { MarketingConversionClickListener } from '@/components/marketing/marketing-conversion-click-listener'
+import { useTrialSignupTransition } from '@/components/marketing/trial-signup-transition'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -19,6 +20,7 @@ import type { ReactNode } from 'react'
 const MAIN_NAV_HREFS = ['/', '/features', '/demo', '/mobile-app', '/pricing'] as const
 
 export function MarketingSiteChrome({ children }: { children: ReactNode }) {
+  const { beginSignupTransition, isTransitioning } = useTrialSignupTransition()
   const tNav = useTranslations('navigation')
   const tf = useTranslations('navigation.footerNav')
   const tCommon = useTranslations('common')
@@ -175,31 +177,35 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                     </Link>
                   </Button>
                   <Button
+                    type="button"
                     className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-primary via-primary to-circe/90 text-primary-foreground shadow-lg shadow-primary/25 hover:opacity-[0.97]"
-                    asChild
+                    disabled={isTransitioning}
+                    onClick={() => {
+                      setMobileNavOpen(false)
+                      beginSignupTransition('/auth/sign-up')
+                    }}
                   >
-                    <Link href="/auth/sign-up" onClick={() => setMobileNavOpen(false)}>
-                      {tCommon('getStarted')} <ArrowRight className="h-4 w-4 opacity-90" aria-hidden />
-                    </Link>
+                    {tCommon('getStarted')} <ArrowRight className="h-4 w-4 opacity-90" aria-hidden />
                   </Button>
                   <MarketingLocaleSwitcher variant="footer" />
                 </div>
               </SheetContent>
             </Sheet>
 
-            <Link href="/auth/sign-up" className="shrink-0">
-              <Button
-                size="sm"
-                className="h-9 gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-primary via-primary to-circe/90 px-2.5 text-[12px] font-medium tracking-[-0.01em] text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] min-[400px]:gap-1.5 min-[400px]:px-3.5 min-[400px]:text-[13px] sm:px-4"
-              >
-                <span className="hidden sm:inline">{tCommon('getStarted')}</span>
-                <span className="sm:hidden">{tCommon('start')}</span>
-                <ArrowRight
-                  className="h-3.5 w-3.5 shrink-0 opacity-90 max-[360px]:hidden"
-                  aria-hidden
-                />
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isTransitioning}
+              className="h-9 shrink-0 gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-primary via-primary to-circe/90 px-2.5 text-[12px] font-medium tracking-[-0.01em] text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] min-[400px]:gap-1.5 min-[400px]:px-3.5 min-[400px]:text-[13px] sm:px-4"
+              onClick={() => beginSignupTransition('/auth/sign-up')}
+            >
+              <span className="hidden sm:inline">{tCommon('getStarted')}</span>
+              <span className="sm:hidden">{tCommon('start')}</span>
+              <ArrowRight
+                className="h-3.5 w-3.5 shrink-0 opacity-90 max-[360px]:hidden"
+                aria-hidden
+              />
+            </Button>
           </div>
         </nav>
       </header>

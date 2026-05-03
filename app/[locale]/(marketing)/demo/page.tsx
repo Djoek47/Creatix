@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import { Link } from '@/lib/i18n/navigation'
+import Link from 'next/link'
 import type { Phase1Locale } from '@/lib/i18n/routing'
 import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
 import {

@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { Link } from '@/lib/i18n/navigation'
+import Link from 'next/link'
 
 /** BOFU enterprise + trust reinforcement below pricing calculator — server-rendered for SEO crawl. */
 export async function PricingEnterpriseTrust({ locale }: { locale: string }) {

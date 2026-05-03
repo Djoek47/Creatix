@@ -1,10 +1,9 @@
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
 import { HomeDiscoverLinks } from '@/components/marketing/home-discover-links'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
-import { ArrowRight, Shield, TrendingUp, Moon, Sun } from 'lucide-react'
+import { Shield, TrendingUp, Moon, Sun } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { Phase1Locale } from '@/lib/i18n/routing'
 import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
@@ -14,10 +13,10 @@ import { HomePricingSwitch } from '@/components/marketing/home-pricing-switch'
 import { HomeHeroUpcoming } from '@/components/marketing/home-hero-upcoming'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { getTranslations } from 'next-intl/server'
-import { Link } from '@/lib/i18n/navigation'
 import { getPricingSeoInterpolation } from '@/lib/seo/pricing-seo'
 import { fmtUsd } from '@/lib/marketing/fmt-usd'
 import { cn } from '@/lib/utils'
+import { MarketingHeroTrialCta } from '@/components/marketing/marketing-hero-trial-cta'
 
 type PageProps = { params: Promise<{ locale: string }> }
 
@@ -120,16 +119,7 @@ export default async function LandingPage({ params }: PageProps) {
               />
               <div className="relative flex flex-col items-center">
                 <span className="cta-trial-rainbow-shell inline-flex rounded-full shadow-sm">
-                  <Button
-                    asChild
-                    size="lg"
-                    className="cta-trial-cta-button h-12 gap-2.5 rounded-full bg-gradient-to-r from-primary to-circe/90 px-11 text-base font-semibold text-primary-foreground shadow-[0_22px_48px_-14px] shadow-primary/40 ring-1 ring-foreground/10 hover:brightness-[1.04] sm:h-14 sm:gap-3 sm:px-14 sm:text-lg sm:shadow-[0_28px_56px_-16px] sm:shadow-primary/45"
-                  >
-                    <Link href="/auth/sign-up">
-                      <span className="cta-trial-rainbow-label">{t('home.hero.ctaTrial')}</span>
-                      <ArrowRight className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" aria-hidden />
-                    </Link>
-                  </Button>
+                  <MarketingHeroTrialCta label={t('home.hero.ctaTrial')} />
                 </span>
                 <p className="mt-4 max-w-md text-pretty text-center text-xs leading-relaxed text-muted-foreground sm:mt-3.5 sm:text-sm">
                   {t('pricing.model.trialLine')}

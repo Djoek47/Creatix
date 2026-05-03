@@ -16,6 +16,8 @@ export default async function FansPage() {
 
   if (!user) return null
 
+  const t = await getTranslations('fans')
+
   const [{ data: rows }, { data: connections }, { data: analytics }, { data: insightRows }] = await Promise.all([
     supabase.from('fans').select('*').eq('user_id', user.id).order('total_spent', { ascending: false }),
     supabase

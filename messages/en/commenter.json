@@ -19,8 +19,11 @@
   "empty": {
     "fetching": "Fetching comments…",
     "noCommentsYet": "No comments yet.",
-    "connectOnlyfans": "Connect OnlyFans to load comments.",
-    "settings": "Settings",
+    "connectPlatformsEntitled": "Connect OnlyFans or Fansly under Integrations so Creatix can sync post comments here.",
+    "connectPlatformsNeedPlan": "You need an active plan or Divine trial (creator API access) before you can link OnlyFans or Fansly. Open Billing to upgrade, then connect under Integrations.",
+    "ctaBilling": "Billing",
+    "ctaIntegrations": "Connect platforms",
+    "fanslyOnlyNeedOf": "Fansly is linked, but comment sync for this view still pulls from your OnlyFans posts. Add OnlyFans under Integrations to load comments, or use Sync after both are connected.",
     "feedLoadErrorBefore": "Couldn't load your OnlyFans feed. Tap ",
     "feedLoadErrorAfter": " to try again.",
     "noOnlyfansPosts": "You don't have any posts on OnlyFans yet. Publish a post first—comments will show up here when fans engage.",
@@ -30,7 +33,7 @@
   "header": {
     "backAiStudio": "AI Studio",
     "title": "Commenter",
-    "subtitle": "Fan comments on your posts—draft replies here, then paste on OnlyFans."
+    "subtitle": "Fan comments on your posts—draft replies here, then paste on OnlyFans or Fansly."
   },
   "actions": {
     "sync": "Sync",

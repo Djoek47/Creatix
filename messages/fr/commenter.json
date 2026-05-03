@@ -19,8 +19,11 @@
   "empty": {
     "fetching": "Récupération des commentaires…",
     "noCommentsYet": "Pas encore de commentaires.",
-    "connectOnlyfans": "Connectez OnlyFans pour charger les commentaires.",
-    "settings": "Paramètres",
+    "connectPlatformsEntitled": "Connectez OnlyFans ou Fansly dans Intégrations pour que Creatix synchronise ici les commentaires de vos publications.",
+    "connectPlatformsNeedPlan": "Un forfait actif ou l’essai Divine (accès API créateur) est requis avant de lier OnlyFans ou Fansly. Ouvrez Facturation pour passer à un forfait payant, puis connectez-vous sous Intégrations.",
+    "ctaBilling": "Facturation",
+    "ctaIntegrations": "Connecter les plateformes",
+    "fanslyOnlyNeedOf": "Fansly est lié, mais la synchronisation des commentaires pour cette vue s’appuie encore sur vos publications OnlyFans. Ajoutez OnlyFans dans Intégrations pour charger les commentaires, ou utilisez Synchroniser une fois les deux connectés.",
     "feedLoadErrorBefore": "Impossible de charger votre fil OnlyFans. Appuyez sur ",
     "feedLoadErrorAfter": " pour réessayer.",
     "noOnlyfansPosts": "Vous n'avez pas encore de publications sur OnlyFans. Publiez d'abord un post — les commentaires apparaîtront ici lorsque les fans interagiront.",
@@ -30,7 +33,7 @@
   "header": {
     "backAiStudio": "Studio IA",
     "title": "Commenter",
-    "subtitle": "Commentaires des fans sur vos publications — rédigez des réponses ici, puis collez-les sur OnlyFans."
+    "subtitle": "Commentaires des fans sur vos publications — rédigez des réponses ici, puis collez-les sur OnlyFans ou Fansly."
   },
   "actions": {
     "sync": "Synchroniser",

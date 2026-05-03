@@ -1,8 +1,7 @@
-import { Button } from '@/components/ui/button'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
+import { DemoTrialSignupButton } from '@/components/marketing/demo-trial-signup-button'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import Link from 'next/link'
 import type { Phase1Locale } from '@/lib/i18n/routing'
 import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
 import {
@@ -85,22 +84,7 @@ export default async function DemoPage({ params }: PageProps) {
                 </p>
               </div>
               <div className="mx-auto flex min-w-0 w-[min(100%,21.5rem)] flex-col items-stretch gap-2 text-center sm:w-[min(100%,24rem)]">
-                <div className="demo-trial-cta-shell my-2 w-full">
-                  <div
-                    className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-full"
-                    aria-hidden
-                  >
-                    <span className="demo-trial-cta-aurora" />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="demo-trial-cta-edge relative z-[1] h-10 w-full min-h-[2.625rem] shrink-0 rounded-full border-primary/40 bg-card/55 px-4 text-sm font-semibold tracking-[-0.02em] shadow-[0_10px_26px_-11px] shadow-primary/20 ring-1 ring-violet-400/20 backdrop-blur-sm transition-[border-color,background-color,box-shadow] hover:border-primary/55 hover:bg-primary/[0.08] hover:shadow-[0_12px_28px_-10px] hover:shadow-primary/25 sm:h-11 sm:min-h-[2.75rem] sm:px-5 sm:text-base"
-                    asChild
-                  >
-                    <Link href="/auth/sign-up">{t('demo.ctaTrial')}</Link>
-                  </Button>
-                </div>
+                <DemoTrialSignupButton label={t('demo.ctaTrial')} />
                 <p className="min-h-[2.25rem] text-pretty text-center text-[11px] leading-snug text-muted-foreground sm:min-h-[2.5rem] sm:text-xs">
                   {t('demo.ctaTrialHint')}
                 </p>

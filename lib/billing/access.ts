@@ -54,14 +54,6 @@ export function isTrialPlanId(planId: string | null | undefined): boolean {
   return !planId || planId.toLowerCase() === TRIAL_PLAN_ID
 }
 
-/** Active Divine Trial (card on file): full app shell, not protection-only. */
-export function hasActiveDivineTrial(row: SubscriptionLike | null | undefined): boolean {
-  if (!row?.plan_id) return false
-  const st = (row.status || '').toLowerCase()
-  if (st !== 'active' && st !== 'trialing') return false
-  return isTrialPlanId(row.plan_id)
-}
-
 /** Stripe customer row fields used only for trial-offer UI (billing settings). */
 export type TrialOfferFields = SubscriptionLike & {
   stripe_subscription_id?: string | null
@@ -70,12 +62,16 @@ export type TrialOfferFields = SubscriptionLike & {
   current_period_end?: string | null
 }
 
-/** Prefer `trial_ends_at`; else trialing divine-trial window end from `current_period_end` (Stripe-shaped rows). */
+/**
+ * Prefer `trial_ends_at`; else `divine-trial` window end from `current_period_end` for Stripe-shaped rows
+ * (`trialing`, `active`, or `past_due` while the row is still the trial SKU).
+ */
 export function effectiveDivineTrialEndIso(row: TrialOfferFields | null | undefined): string | null {
   if (!row) return null
   if (row.trial_ends_at?.trim()) return String(row.trial_ends_at).trim()
   const st = (row.status || '').toLowerCase()
-  if (row.plan_id?.toLowerCase() === TRIAL_PLAN_ID && st === 'trialing' && row.current_period_end?.trim()) {
+  if (row.plan_id?.toLowerCase() !== TRIAL_PLAN_ID || !row.current_period_end?.trim()) return null
+  if (st === 'trialing' || st === 'active' || st === 'past_due') {
     return String(row.current_period_end).trim()
   }
   return null
@@ -86,6 +82,20 @@ function trialClockEndMs(row: TrialOfferFields | null | undefined): number | nul
   if (!iso) return null
   const ms = Date.parse(iso)
   return Number.isFinite(ms) ? ms : null
+}
+
+/**
+ * Active Divine Trial (card on file): full app shell, not protection-only.
+ * Trial clock beats stale `trialing` / `active` rows once `trial_ends_at` or `current_period_end` is in the past.
+ */
+export function hasActiveDivineTrial(row: SubscriptionLike | null | undefined): boolean {
+  if (!row?.plan_id) return false
+  const st = (row.status || '').toLowerCase()
+  if (st !== 'active' && st !== 'trialing') return false
+  if (!isTrialPlanId(row.plan_id)) return false
+  const endMs = trialClockEndMs(row as TrialOfferFields)
+  if (endMs != null && endMs < Date.now()) return false
+  return true
 }
 
 /**
@@ -115,7 +125,7 @@ export function shouldShowDivineTrialStartCard(row: TrialOfferFields | null | un
 
   if (row.plan_id && isFreePlanId(row.plan_id)) return false
 
-  if (['canceled', 'unpaid', 'incomplete_expired'].includes(st)) return false
+  if (['canceled', 'unpaid', 'incomplete_expired', 'past_due', 'paused'].includes(st)) return false
 
   const endMs = trialClockEndMs(row)
   if (endMs != null && endMs < Date.now() && !isPaidSubscription(row)) return false

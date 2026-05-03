@@ -9,6 +9,9 @@
     "openMenu": "Open menu",
     "wellbeingAria": "Well-being",
     "creditChipLoading": "…",
+    "creditsUnavailable": "—",
+    "headerCreditsLinkTitle": "AI credits — Billing",
+    "headerCreditsLinkAria": "AI credits balance, opens Billing",
     "credits": "credits",
     "userAvatarAlt": "User",
     "creatorFallback": "Creator",
@@ -133,7 +136,8 @@
     "trialCtaAria": "Add a payment method to start your free trial",
     "trialCtaLabel": "Start trial",
     "planPrefix": "Plan:",
-    "connectedPlatforms": "Connected platforms"
+    "connectedPlatforms": "Connected platforms",
+    "connectedPlatformsAria": "OnlyFans and Fansly connection status"
   },
   "connectedPlatformsWidget": {
     "platformOnlyfans": "OnlyFans",

@@ -7,6 +7,10 @@ import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
 import { extractDashboardPreset } from '@/lib/dashboard/dashboard-preset'
 import { resolveWorkspaceCapabilities } from '@/lib/plan-capabilities'
 import { shouldShowDivineTrialStartCard } from '@/lib/billing/access'
+import {
+  onlyFansPartnerAccountIdFromRow,
+  type PlatformConnectionObservedRow,
+} from '@/lib/billing/onlyfans-billing-gate'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -45,9 +49,12 @@ export default async function DashboardPage() {
 
   const dashboardPreset = extractDashboardPreset(divineRow?.automation_rules ?? null)
 
-  // Check if user has any connected platforms
+  // Check if user has any connected platforms (OF row must match ConnectedPlatforms usable filter)
   const hasConnectedPlatforms = (platformConnections?.length || 0) > 0
-  const connectedOnlyFans = platformConnections?.some((c) => c.platform === 'onlyfans') ?? false
+  const onlyfansConn = platformConnections?.find((c) => c.platform === 'onlyfans')
+  const connectedOnlyFans =
+    onlyfansConn != null &&
+    onlyFansPartnerAccountIdFromRow(onlyfansConn as PlatformConnectionObservedRow) != null
   const connectedFansly = platformConnections?.some((c) => c.platform === 'fansly') ?? false
 
   const planLabel = getDashboardPlanLabel(subscription ?? null)
@@ -113,6 +120,8 @@ export default async function DashboardPage() {
         <DashboardHero
           planLabel={planLabel}
           hasConnectedPlatforms={hasConnectedPlatforms}
+          connectedOnlyFans={connectedOnlyFans}
+          connectedFansly={connectedFansly}
           mood={dashboardPreset?.mood}
           accent={dashboardPreset?.accent}
           tierIndex={revenueTier}

@@ -23,6 +23,8 @@ type AnalysisJson = {
 
 type CommenterListMeta = {
   onlyfans_connected: boolean
+  fansly_connected: boolean
+  connect_entitlement_ok: boolean
   feed_post_count: number | null
   posts_with_comments: number | null
 }
@@ -87,12 +89,44 @@ function EmptyCommenterMessage({
   if (!meta) {
     return <p>{tc('empty.noCommentsYet')}</p>
   }
-  if (!meta.onlyfans_connected) {
+  const noAdultPlatform = !meta.onlyfans_connected && !meta.fansly_connected
+  if (noAdultPlatform) {
+    const entitled = meta.connect_entitlement_ok
     return (
-      <div className="space-y-3">
-        <p>{tc('empty.connectOnlyfans')}</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/settings">{tc('empty.settings')}</Link>
+      <div className="space-y-4">
+        <p className="text-pretty text-muted-foreground">
+          {entitled ? tc('empty.connectPlatformsEntitled') : tc('empty.connectPlatformsNeedPlan')}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {entitled ? (
+            <>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=billing">{tc('empty.ctaBilling')}</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=billing">{tc('empty.ctaBilling')}</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+  if (meta.fansly_connected && !meta.onlyfans_connected) {
+    return (
+      <div className="space-y-4">
+        <p className="text-pretty text-muted-foreground">{tc('empty.fanslyOnlyNeedOf')}</p>
+        <Button variant="default" size="sm" asChild>
+          <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
         </Button>
       </div>
     )
@@ -144,12 +178,14 @@ export default function CommenterPage() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : tc('errors.loadFailed'))
       let list = Array.isArray(data.comments) ? data.comments : []
-      let m: CommenterListMeta =
-        (data.meta as CommenterListMeta | undefined) ?? {
-          onlyfans_connected: false,
-          feed_post_count: null,
-          posts_with_comments: null,
-        }
+      const rawMeta = data.meta as Partial<CommenterListMeta> | undefined
+      let m: CommenterListMeta = {
+        onlyfans_connected: Boolean(rawMeta?.onlyfans_connected),
+        fansly_connected: Boolean(rawMeta?.fansly_connected),
+        connect_entitlement_ok: Boolean(rawMeta?.connect_entitlement_ok),
+        feed_post_count: rawMeta?.feed_post_count ?? null,
+        posts_with_comments: rawMeta?.posts_with_comments ?? null,
+      }
 
       if (
         list.length === 0 &&
@@ -173,8 +209,14 @@ export default function CommenterPage() {
             const data2 = await res2.json().catch(() => ({}))
             if (res2.ok) {
               list = Array.isArray(data2.comments) ? data2.comments : []
-              m =
-                (data2.meta as CommenterListMeta | undefined) ?? m
+              const raw2 = data2.meta as Partial<CommenterListMeta> | undefined
+              m = {
+                onlyfans_connected: Boolean(raw2?.onlyfans_connected),
+                fansly_connected: Boolean(raw2?.fansly_connected),
+                connect_entitlement_ok: Boolean(raw2?.connect_entitlement_ok),
+                feed_post_count: raw2?.feed_post_count ?? null,
+                posts_with_comments: raw2?.posts_with_comments ?? null,
+              }
             }
           } else {
             setSyncResult(

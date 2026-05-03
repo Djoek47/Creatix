@@ -9,6 +9,9 @@
     "openMenu": "Ouvrir le menu",
     "wellbeingAria": "Bien-être",
     "creditChipLoading": "…",
+    "creditsUnavailable": "—",
+    "headerCreditsLinkTitle": "Crédits IA — Facturation",
+    "headerCreditsLinkAria": "Solde des crédits IA, ouvre Facturation",
     "credits": "crédits",
     "userAvatarAlt": "Utilisateur",
     "creatorFallback": "Créatrice",
@@ -133,7 +136,8 @@
     "trialCtaAria": "Ajoutez un moyen de paiement pour démarrer l’essai gratuit",
     "trialCtaLabel": "Démarrer l’essai",
     "planPrefix": "Forfait :",
-    "connectedPlatforms": "Plateformes connectées"
+    "connectedPlatforms": "Plateformes connectées",
+    "connectedPlatformsAria": "État de connexion OnlyFans et Fansly"
   },
   "connectedPlatformsWidget": {
     "platformOnlyfans": "OnlyFans",

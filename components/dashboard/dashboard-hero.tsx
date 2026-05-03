@@ -1,15 +1,24 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { ConnectedPlatforms } from '@/components/dashboard/connected-platforms'
 import { RainbowSparklePill } from '@/components/dashboard/rainbow-sparkle-pill'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { cn } from '@/lib/utils'
 import type { DivineDashboardPreset } from '@/lib/divine-manager'
+
+/** Brand blues — match `ConnectedPlatforms` / official marks */
+const ONLYFANS_BRAND_HEX = '#00AFF0'
+const FANSLY_BRAND_HEX = '#009FFF'
 
 interface DashboardHeroProps {
   planLabel: string | null
   hasConnectedPlatforms: boolean
+  /** Per-platform connection (hero marks); OF also requires usable partner billing id in `ConnectedPlatforms`. */
+  connectedOnlyFans?: boolean
+  connectedFansly?: boolean
   mood?: DivineDashboardPreset['mood']
   accent?: DivineDashboardPreset['accent']
   tierIndex?: number | null
@@ -32,9 +41,53 @@ function titleGradient(accent: DivineDashboardPreset['accent'] | undefined): str
   return 'from-circe via-foreground to-gold'
 }
 
+function HeroPlatformLogoMark({
+  connected,
+  src,
+  alt,
+  brandHex,
+  width,
+  height,
+}: {
+  connected: boolean
+  src: string
+  alt: string
+  brandHex: string
+  width: number
+  height: number
+}) {
+  return (
+    <div
+      className={cn(
+        'relative flex h-9 w-[4.25rem] shrink-0 items-center justify-center rounded-lg px-2 transition-[opacity,filter,box-shadow,border-color]',
+        connected
+          ? 'opacity-100 [filter:none]'
+          : 'opacity-[0.42] grayscale contrast-[0.92]',
+      )}
+      style={
+        connected
+          ? {
+              boxShadow: `0 0 0 1px ${brandHex}4d, 0 0 12px -1px ${brandHex}8c, 0 0 20px -4px ${brandHex}59`,
+            }
+          : { boxShadow: 'inset 0 0 0 1px oklch(0.5 0.01 84 / 0.12)' }
+      }
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className="h-[1.125rem] w-auto max-w-[3.5rem] object-contain dark:brightness-[1.05]"
+      />
+    </div>
+  )
+}
+
 export function DashboardHero({
   planLabel,
   hasConnectedPlatforms,
+  connectedOnlyFans = false,
+  connectedFansly = false,
   mood,
   accent,
   tierIndex,
@@ -42,6 +95,7 @@ export function DashboardHero({
   showStartTrialBillingCta = false,
 }: DashboardHeroProps) {
   const t = useTranslations('dashboard.home')
+  const tPlatforms = useTranslations('dashboard.connectedPlatformsWidget')
   const bg = heroGradient(accent)
   const title = titleGradient(accent)
   const subtitle =
@@ -127,9 +181,33 @@ export function DashboardHero({
             ) : null}
             {!nonApiProtectionTier ? (
               <div className="flex flex-col items-end gap-2">
-                <span className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75 sm:block">
-                  {t('connectedPlatforms')}
-                </span>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div
+                    className="flex items-center justify-end gap-2.5"
+                    role="group"
+                    aria-label={t('connectedPlatformsAria')}
+                  >
+                    <HeroPlatformLogoMark
+                      connected={connectedOnlyFans}
+                      src={ONLYFANS_LOGO_SRC}
+                      alt={tPlatforms('onlyfansLogoAlt')}
+                      brandHex={ONLYFANS_BRAND_HEX}
+                      width={120}
+                      height={24}
+                    />
+                    <HeroPlatformLogoMark
+                      connected={connectedFansly}
+                      src={FANSLY_LOGO_SRC}
+                      alt={tPlatforms('fanslyLogoAlt')}
+                      brandHex={FANSLY_BRAND_HEX}
+                      width={100}
+                      height={24}
+                    />
+                  </div>
+                  <span className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75 sm:block">
+                    {t('connectedPlatforms')}
+                  </span>
+                </div>
                 <ConnectedPlatforms />
               </div>
             ) : null}

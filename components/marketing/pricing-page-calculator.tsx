@@ -57,6 +57,10 @@ import {
 import { CLIP_FOCUS_ADDON_CAROUSEL, BUNDLED_ANTIPIRACY_STOREFRONT_CYCLE } from '@/lib/billing/clip-focus-addon-carousel'
 import { BundledAntipiracyStorefrontLogoMark } from '@/components/billing/bundled-antipiracy-storefront-mark'
 import { useTranslations } from 'next-intl'
+import {
+  DEFAULT_TRIAL_SIGNUP_HREF,
+  useTrialSignupTransition,
+} from '@/components/marketing/trial-signup-transition'
 
 const FOCUS_PLATFORMS: AdultBillingPlatform[] = ['onlyfans', 'fansly']
 
@@ -194,6 +198,7 @@ export function PricingPageCalculator({
 
   const isControlled = controlled != null
   const reduceMotion = useReducedMotion()
+  const { beginSignupTransition, isTransitioning } = useTrialSignupTransition()
   const revenueBandLocked = surface === 'settings' && lockRevenueBand
 
   const [revenueInput, setRevenueInput] = useState('5000')
@@ -1108,11 +1113,14 @@ export function PricingPageCalculator({
 
           {showMarketingChrome ? (
             <div className="mt-14 flex flex-col gap-3 sm:mt-16 sm:flex-row sm:items-stretch">
-              <Button asChild className={BILLING_PRIMARY_TRIAL_CTA_CLASS}>
-                <Link href="/auth/sign-up" className="inline-flex items-center">
-                  <Sparkles className="h-4 w-4 opacity-95" />
-                  {tm('pricingCalculator.marketing.startTrial')}
-                </Link>
+              <Button
+                type="button"
+                className={BILLING_PRIMARY_TRIAL_CTA_CLASS}
+                disabled={isTransitioning}
+                onClick={() => beginSignupTransition(DEFAULT_TRIAL_SIGNUP_HREF)}
+              >
+                <Sparkles className="h-4 w-4 opacity-95" />
+                {tm('pricingCalculator.marketing.startTrial')}
               </Button>
               <Button
                 asChild

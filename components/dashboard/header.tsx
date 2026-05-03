@@ -28,7 +28,6 @@ import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 import { DashboardRefreshButton } from '@/components/dashboard/dashboard-refresh-button'
 import { HeaderPlatformStatusMenuSection } from '@/components/dashboard/header-platform-status-menu'
 import { dashboardHeroTitleKeyFromPath } from '@/lib/dashboard-page-meta'
-import { isDashboardCreditSummaryVisible } from '@/lib/dashboard-credit-summary-marker'
 import type { CreditWalletSnapshot } from '@/hooks/use-credit-snapshot'
 import { cn } from '@/lib/utils'
 import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
@@ -69,20 +68,20 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('')
   /** For avatar: extra emphasis when no photo and OnlyFans not linked */
   const [onlyfansLinked, setOnlyfansLinked] = useState<boolean | null>(null)
-  const [avatarHovered, setAvatarHovered] = useState(false)
-  const [avatarCreditChipAllowed, setAvatarCreditChipAllowed] = useState(false)
-  const [avatarChipWallet, setAvatarChipWallet] = useState<CreditWalletSnapshot | null>(null)
-  const [avatarChipLoading, setAvatarChipLoading] = useState(false)
-  const avatarChipWalletRef = useRef<CreditWalletSnapshot | null>(null)
-  const avatarChipFetchInFlightRef = useRef(false)
+  const [headerWallet, setHeaderWallet] = useState<CreditWalletSnapshot | null>(null)
+  const [headerWalletLoading, setHeaderWalletLoading] = useState(false)
+  const headerWalletRequestId = useRef(0)
 
-  const loadAvatarChipWallet = useCallback(async () => {
-    if (avatarChipWalletRef.current !== null || avatarChipFetchInFlightRef.current) return
-    avatarChipFetchInFlightRef.current = true
-    setAvatarChipLoading(true)
+  const refreshHeaderWallet = useCallback(async () => {
+    const id = ++headerWalletRequestId.current
+    setHeaderWalletLoading(true)
     try {
       const res = await fetch('/api/billing/credit-snapshot', { credentials: 'include' })
-      if (!res.ok) return
+      if (headerWalletRequestId.current !== id) return
+      if (!res.ok) {
+        setHeaderWalletLoading(false)
+        return
+      }
       const data = (await res.json().catch(() => ({}))) as {
         wallet?: {
           totalRemaining?: number
@@ -98,13 +97,12 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         purchasedRemaining: Number(w?.purchasedRemaining ?? 0),
         bankedTrialCredits: Math.max(0, Math.floor(Number(w?.bankedTrialCredits ?? 0))),
       }
-      avatarChipWalletRef.current = snap
-      setAvatarChipWallet(snap)
+      if (headerWalletRequestId.current !== id) return
+      setHeaderWallet(snap)
     } catch {
-      // best-effort; chip falls back to label-only on next hover after ref reset if we add it later
+      if (headerWalletRequestId.current !== id) return
     } finally {
-      avatarChipFetchInFlightRef.current = false
-      setAvatarChipLoading(false)
+      if (headerWalletRequestId.current === id) setHeaderWalletLoading(false)
     }
   }, [])
 
@@ -114,6 +112,25 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  /** Prefetch + keep wallet fresh on navigation and while the tab is visible (no one-shot cache). */
+  useEffect(() => {
+    if (!mounted) return
+    void refreshHeaderWallet()
+    const intervalMs = 45_000
+    const tick = () => {
+      if (document.visibilityState === 'visible') void refreshHeaderWallet()
+    }
+    const iv = window.setInterval(tick, intervalMs)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refreshHeaderWallet()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [mounted, pathname, refreshHeaderWallet])
 
   useEffect(() => {
     let alive = true
@@ -151,12 +168,6 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
   const showAvatarImage = Boolean(profile?.avatar_url)
   const avatarFallbackEmphasis = !showAvatarImage && onlyfansLinked === false
-
-  const showAvatarCreditHoverChip =
-    avatarHovered &&
-    !userMenuOpen &&
-    avatarCreditChipAllowed &&
-    (avatarChipLoading || avatarChipWallet !== null)
 
   return (
     <header
@@ -257,6 +268,30 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
         <Notifications />
 
+        <Link
+          href="/dashboard/settings?tab=billing"
+          className={cn(
+            'flex min-w-0 max-w-[11rem] shrink-0 items-center gap-1 rounded-full border border-amber-400/30 bg-popover/90 px-2 py-1 text-[11px] font-semibold tabular-nums tracking-tight text-foreground/95 shadow-sm ring-1 ring-white/10 backdrop-blur-md transition-colors hover:border-amber-400/50 hover:bg-popover sm:max-w-[13rem] sm:px-2.5 sm:py-1.5 sm:text-xs',
+            'dark:border-amber-300/25 dark:bg-slate-950/90 dark:text-amber-50/95 dark:ring-amber-400/12 dark:hover:border-amber-300/45',
+          )}
+          title={tDash('header.headerCreditsLinkTitle')}
+          aria-label={tDash('header.headerCreditsLinkAria')}
+        >
+          <Zap className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-300" aria-hidden />
+          <span className="min-w-0 truncate">
+            {headerWalletLoading && !headerWallet ? (
+              <span className="text-muted-foreground">{tDash('header.creditChipLoading')}</span>
+            ) : headerWallet ? (
+              <>
+                {headerWallet.totalRemaining.toLocaleString()}{' '}
+                <span className="font-medium text-muted-foreground/90">{tDash('header.credits')}</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">{tDash('header.creditsUnavailable')}</span>
+            )}
+          </span>
+        </Link>
+
         <span
           className="mx-0.5 hidden h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-primary/35 to-transparent dark:via-venus/35 sm:block"
           aria-hidden
@@ -264,37 +299,20 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
 
         {/* User menu */}
         {mounted ? (
-          <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen} modal={false}>
+          <DropdownMenu
+            open={userMenuOpen}
+            onOpenChange={(open) => {
+              setUserMenuOpen(open)
+              if (open) void refreshHeaderWallet()
+            }}
+            modal={false}
+          >
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full hover:bg-muted/35 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                 data-tour="header-user-menu"
-                onPointerEnter={() => {
-                  setAvatarHovered(true)
-                  const allowed = !isDashboardCreditSummaryVisible()
-                  setAvatarCreditChipAllowed(allowed)
-                  if (allowed) void loadAvatarChipWallet()
-                }}
-                onPointerLeave={() => setAvatarHovered(false)}
               >
-                <span
-                  className={cn(
-                    'pointer-events-none absolute bottom-0 left-1/2 z-30 flex -translate-x-1/2 translate-y-[calc(100%+8px)] items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/30 bg-popover/95 px-2.5 py-1 text-[11px] font-semibold tabular-nums tracking-tight text-foreground/95 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-xl transition-opacity duration-200 ease-out dark:border-amber-300/22 dark:bg-slate-950/94 dark:text-amber-50/95 dark:ring-amber-400/15',
-                    showAvatarCreditHoverChip ? 'opacity-100' : 'opacity-0',
-                  )}
-                  aria-hidden
-                >
-                  <Zap className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-300" />
-                  {avatarChipLoading ? (
-                    <span className="text-muted-foreground">{tDash('header.creditChipLoading')}</span>
-                  ) : avatarChipWallet ? (
-                    <span>
-                      {avatarChipWallet.totalRemaining.toLocaleString()}{' '}
-                      <span className="font-medium text-muted-foreground/90">{tDash('header.credits')}</span>
-                    </span>
-                  ) : null}
-                </span>
                 <Avatar
                   className={cn(
                     'relative z-10 h-8 w-8 sm:h-9 sm:w-9',

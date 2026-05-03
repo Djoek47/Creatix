@@ -155,12 +155,17 @@ export async function runAiStudioToolServer(
         subscriberCount: a.subscriberCount ?? a.fanMessage ?? '',
       }, cookie)
     case 'mass-dm-composer':
-      return postAi('mass-dm-composer', {
-        campaign: a.campaign ?? a.campaignGoal ?? '',
-        audienceSegment: a.audienceSegment ?? 'all',
-        tone: a.tone ?? a.contentType ?? 'friendly',
-        callToAction: a.callToAction ?? a.description ?? '',
-      }, cookie)
+      return postAi(
+        'mass-dm-composer',
+        {
+          campaign: a.campaign ?? a.campaignGoal ?? '',
+          audienceSegment: a.audienceSegment ?? 'all',
+          tone: a.tone ?? a.contentType ?? 'friendly',
+          callToAction: a.callToAction ?? a.description ?? '',
+          ...(process.env.OPENAI_WEBHOOK_SECRET?.trim() ? { backgroundJob: true } : {}),
+        },
+        cookie,
+      )
     case 'venus-cupid':
       return postAi('venus-cupid', {
         tagForChurn: a.tagForChurn !== false,

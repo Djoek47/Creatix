@@ -1,8 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadOnlyFansMessagingContext } from '@/lib/divine/onlyfans-messaging-context'
 import { parseMimicProfile, DEFAULT_MIMIC_PROFILE } from '@/lib/divine/mimic-types'
+import { createOpenAiBackgroundJob } from '@/lib/openai/background-jobs'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
+/** Responses / chat — queue background when webhook + prompts are expensive. */
+const MIMIC_BG_MIN_CHARS = 4200
+
+export type DraftFanReplyWithMimicResult =
+  | { ok: true; text: string; note: string }
+  | { ok: true; pending: true; jobId: string; note: string }
+  | { ok: false; error: string }
 
 function formatOpenAiErrorResponse(status: number, bodyText: string): string {
   const raw = bodyText.trim()
@@ -33,7 +41,7 @@ export async function draftFanReplyWithMimic(opts: {
   userId: string
   fanId: string
   mimicRaw: unknown
-}): Promise<{ ok: true; text: string; note: string } | { ok: false; error: string }> {
+}): Promise<DraftFanReplyWithMimicResult> {
   const mimic = parseMimicProfile(opts.mimicRaw) ?? DEFAULT_MIMIC_PROFILE
 
   if (!mimic.consentFanFacingDrafts) {
@@ -98,6 +106,35 @@ Recent thread (newest context at end):
 ${thread.slice(0, 8000)}
 
 Write one reply that fits the thread and the mimic profile.`
+
+  const webhookSecret = process.env.OPENAI_WEBHOOK_SECRET?.trim()
+  const totalChars = user.length + system.length
+  if (webhookSecret && totalChars >= MIMIC_BG_MIN_CHARS) {
+    const bg = await createOpenAiBackgroundJob({
+      userId: opts.userId,
+      feature: 'mimic_test',
+      model: OPENAI_MODEL,
+      instructions: system,
+      input: user,
+      requestMetadata: {
+        fanId: opts.fanId,
+        mimic_never_review: mimic.neverSendWithoutReview !== false,
+      },
+    })
+    if (bg.ok && bg.jobId) {
+      const baseNote =
+        mimic.neverSendWithoutReview !== false
+          ? 'Draft only—review before sending.'
+          : 'Review recommended before sending.'
+      return {
+        ok: true,
+        pending: true,
+        jobId: bg.jobId,
+        note: `${baseNote} Reply is composing in the background (job …${bg.jobId.slice(-8)}). Check Preferences → Background AI jobs or ask Divine for get_background_job.`,
+      }
+    }
+    // Fallback to sync chat when queue fails or key missing downstream
+  }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

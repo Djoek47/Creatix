@@ -96,6 +96,8 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
   'get_reputation_briefing',
   'list_reputation_briefings',
   'get_task_status',
+  'get_recent_failures',
+  'get_background_job',
   'list_vault_for_dm',
   'get_content_sales_metadata',
   'list_recent_comment_analyses',
@@ -794,6 +796,9 @@ export async function runContextTool(
         mimicRaw: (st as { mimic_profile?: unknown } | null)?.mimic_profile,
       })
       if (!result.ok) return result.error
+      if ('pending' in result && result.pending) {
+        return `Queued background Mimic draft (job ${result.jobId}). ${result.note}`
+      }
       return `${result.text}\n\n— ${result.note}`
     }
     if (name === 'get_dm_thread_and_suggestions') {
@@ -1332,6 +1337,61 @@ export async function runContextTool(
         `navigation: ${JSON.stringify(nav)}`,
       ].join('\n')
       return summary.slice(0, 3800)
+    }
+    if (name === 'get_recent_failures') {
+      if (!ctx) return 'Context unavailable.'
+      const limRaw = typeof args.limit === 'number' ? args.limit : 8
+      const limit = Math.max(1, Math.min(20, Math.floor(limRaw) || 8))
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+      const { data: fails, error: failErr } = await ctx.supabase
+        .from('divine_manager_tasks')
+        .select('id,type,status,payload,created_at,source,category')
+        .eq('user_id', ctx.userId)
+        .eq('status', 'failed')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      const { data: errs, error: errLogErr } = await ctx.supabase
+        .from('api_error_logs')
+        .select('id,route,http_status,message,created_at')
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since)
+        .ilike('route', '%divine-manager%')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      const parts: string[] = []
+      parts.push(`window: last 24h`)
+      if (failErr) parts.push(`divine_manager_tasks query error: ${failErr.message}`)
+      else parts.push(`divine_manager_tasks_failed: ${JSON.stringify(fails ?? [])}`)
+      if (errLogErr) parts.push(`api_error_logs query error: ${errLogErr.message}`)
+      else parts.push(`api_error_logs_divine_routes: ${JSON.stringify(errs ?? [])}`)
+      return parts.join('\n').slice(0, 6000)
+    }
+    if (name === 'get_background_job') {
+      if (!ctx) return 'Context unavailable.'
+      const jobId =
+        typeof args.job_id === 'string'
+          ? args.job_id.trim()
+          : typeof (args as { jobId?: string }).jobId === 'string'
+            ? String((args as { jobId?: string }).jobId).trim()
+            : ''
+      if (!jobId || !/^[0-9a-f-]{36}$/i.test(jobId)) {
+        return 'Provide job_id (UUID from openai_jobs row).'
+      }
+      const { data: job, error } = await ctx.supabase
+        .from('openai_jobs')
+        .select(
+          'id,response_id,feature,model,status,error_code,error_message,divine_manager_task_id,request_metadata,result_summary,usage_input_tokens,usage_output_tokens,usage_total_tokens,estimated_usd,created_at,completed_at',
+        )
+        .eq('user_id', ctx.userId)
+        .eq('id', jobId)
+        .maybeSingle()
+      if (error) return `Could not read job: ${error.message}`
+      if (!job) return 'Background job not found.'
+      return JSON.stringify(job).slice(0, 8000)
     }
     if (name === 'apply_dashboard_preset') {
       if (!ctx) return 'Context unavailable.'

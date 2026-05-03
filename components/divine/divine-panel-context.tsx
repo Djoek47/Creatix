@@ -47,7 +47,12 @@ export type NotificationSecretarySession = {
   index: number
 }
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string }
+export type ChatMessage = {
+  role: 'user' | 'assistant'
+  content: string
+  /** When true, Divine text sheet shows a Retry chip for this failed assistant turn */
+  showRetryOffer?: boolean
+}
 
 export type FocusedFan = {
   id: string
@@ -94,6 +99,8 @@ export type DivinePanelContextValue = {
   fanLookupHint: string | null
   setFanLookupHint: (hint: string | null) => void
   sendChat: () => Promise<void>
+  /** Re-run last failed streamed turn using the stored message snapshot (does not duplicate user bubble). */
+  retryLastDivineTurn: () => Promise<void>
   generatedText: string | null
   setGeneratedText: (text: string | null) => void
   generatePrompt: string
@@ -183,6 +190,10 @@ export function DivinePanelProvider({
   const scheduledEndRef = useRef<number | null>(null)
   const scheduledFanRef = useRef<string | null>(null)
   const dmSendSourceRef = useRef<DmSendAttributionSource>('user')
+  /** Messages sent to `/divine-manager-chat` before assistant streaming bubble (retry uses this snapshot). */
+  const chatRetryPayloadRef = useRef<{ messages: ChatMessage[]; focusedFan: FocusedFan | null } | null>(
+    null,
+  )
 
   const focusedFanIdRef = useRef<string | null>(null)
   focusedFanIdRef.current = focusedFan?.id ?? null
@@ -591,35 +602,62 @@ export function DivinePanelProvider({
     }
   }, [applyDivineUiActionsWithBridge])
 
-  const sendChat = useCallback(async () => {
-    const trimmed = chatInput.trim()
-    if (!trimmed || chatLoading) return
-    setFanLookupHint(null)
-    const nextMessages: ChatMessage[] = [
-      ...chatMessages,
-      { role: 'user', content: trimmed },
-    ]
-    setChatMessages(nextMessages)
-    setChatInput('')
-    setChatLoading(true)
-    setChatWorkingHint('Thinking…')
-    try {
+  const streamingAssistErrorCopy = useCallback((detail: string) => {
+    const d = typeof detail === 'string' && detail.trim() ? detail.trim() : 'Something went wrong.'
+    return `I hit an error finishing that: ${d}\n\nWant me to try again? Tap Retry below—or send another message.`
+  }, [])
+
+  const finalizeStreamAssistFailure = useCallback(
+    (detail: string) => {
+      setChatMessages((prev) => {
+        const copy = [...prev]
+        const idx = copy.length - 1
+        if (idx >= 0 && copy[idx]?.role === 'assistant') {
+          copy[idx] = {
+            role: 'assistant',
+            content: streamingAssistErrorCopy(detail),
+            showRetryOffer: true,
+          }
+          return copy
+        }
+        return [
+          ...copy,
+          {
+            role: 'assistant',
+            content: streamingAssistErrorCopy(detail),
+            showRetryOffer: true,
+          },
+        ]
+      })
+    },
+    [streamingAssistErrorCopy],
+  )
+
+  const executeDivineStreamedTurn = useCallback(
+    async (requestMessages: ChatMessage[], ff: FocusedFan | null) => {
+      try {
+      const bodyMessages = requestMessages.map(({ role, content }) => ({ role, content }))
+      chatRetryPayloadRef.current = { messages: bodyMessages, focusedFan: ff }
+
       const res = await fetch('/api/ai/divine-manager-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
-          focusedFan,
+          messages: bodyMessages,
+          focusedFan: ff,
           stream: true,
           divine_session_id: getOrCreateDivineSessionId(),
         }),
       })
+
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as {
           error?: string
           code?: string
+          retryable?: boolean
         }
-        let assistantMsg = typeof err.error === 'string' && err.error.trim() ? err.error.trim() : 'Chat request failed.'
+        let assistantMsg =
+          typeof err.error === 'string' && err.error.trim() ? err.error.trim() : 'Chat request failed.'
         if (res.status === 403 && err.code === 'subscription_required') {
           assistantMsg = DIVINE_FULL_UPGRADE_MESSAGE
         } else if (res.status === 402 || err.code === 'ai_credits_exhausted') {
@@ -631,16 +669,60 @@ export function DivinePanelProvider({
           })
           return
         }
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: assistantMsg }])
+        const showRetry = err.retryable === true || res.status === 502 || res.status === 503 || res.status === 504
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: assistantMsg + (showRetry ? '\n\nTap Retry to try again.' : ''),
+            showRetryOffer: showRetry,
+          },
+        ])
         return
       }
+
       const ct = res.headers.get('content-type') || ''
-      if (ct.includes('text/event-stream') && res.body) {
-        setChatMessages((prev) => [...prev, { role: 'assistant', content: '' }])
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        let assembled = ''
+      if (!(ct.includes('text/event-stream') && res.body)) {
+        try {
+          const data = (await res.json()) as {
+            reply?: string
+            error?: string
+            ui_actions?: DivineUiAction[]
+            lookup_meta?: DivineLookupMeta[]
+            retryable?: boolean
+          }
+          if (data.error) throw new Error(data.error)
+          if (data.reply != null && data.reply !== '') {
+            chatRetryPayloadRef.current = null
+            setChatMessages((prev) => [...prev, { role: 'assistant', content: String(data.reply) }])
+          }
+          applyDivineUiActionsWithBridge(data.ui_actions)
+          if (data.lookup_meta?.length) {
+            setFanLookupHint(formatFanLookupHint(data.lookup_meta[0]) ?? null)
+          }
+        } catch (e) {
+          const detail = e instanceof Error ? e.message : 'Unexpected response.'
+          finalizeStreamAssistFailure(detail)
+        }
+        return
+      }
+
+      setChatMessages((prev) => {
+        const copy = [...prev]
+        const last = copy[copy.length - 1]
+        if (last?.role === 'assistant' && (last.showRetryOffer || last.content.trim() === '')) {
+          copy.pop()
+        }
+        return [...copy, { role: 'assistant', content: '' }]
+      })
+
+      let sawDone = false
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let assembled = ''
+
+      try {
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
@@ -652,6 +734,8 @@ export function DivinePanelProvider({
             if (!line.startsWith('data: ')) continue
             let payload: {
               type?: string
+              stage?: string
+              tools?: string[]
               text?: string
               actions?: unknown
               ui_actions?: DivineUiAction[]
@@ -662,6 +746,15 @@ export function DivinePanelProvider({
               payload = JSON.parse(line.slice(6)) as typeof payload
             } catch {
               continue
+            }
+            if (
+              payload.type === 'tool_phase' &&
+              payload.stage === 'started' &&
+              Array.isArray(payload.tools) &&
+              payload.tools.length > 0
+            ) {
+              const label = `Working: ${payload.tools.slice(0, 5).join(', ')}`
+              setChatWorkingHint(label.length > 140 ? `${label.slice(0, 137)}…` : label)
             }
             if (payload.type === 'tools_done') {
               const lm = payload.lookup_meta
@@ -680,12 +773,18 @@ export function DivinePanelProvider({
                 const copy = [...prev]
                 const last = copy[copy.length - 1]
                 if (last?.role === 'assistant') {
-                  copy[copy.length - 1] = { role: 'assistant', content: assembled }
+                  copy[copy.length - 1] = {
+                    role: 'assistant',
+                    content: assembled,
+                    showRetryOffer: false,
+                  }
                 }
                 return copy
               })
             }
             if (payload.type === 'done') {
+              sawDone = true
+              chatRetryPayloadRef.current = null
               applyDivineUiActionsWithBridge(payload.ui_actions)
               const lm = payload.lookup_meta
               if (lm?.length) {
@@ -693,43 +792,80 @@ export function DivinePanelProvider({
               }
             }
             if (payload.type === 'error') {
-              throw new Error(payload.message || 'Stream error')
+              const msg = typeof payload.message === 'string' && payload.message.trim() ? payload.message : 'Stream error'
+              finalizeStreamAssistFailure(msg)
+              return
             }
           }
         }
-        if (!assembled.trim()) {
-          setChatMessages((prev) => {
-            const copy = [...prev]
-            const last = copy[copy.length - 1]
-            if (last?.role === 'assistant' && !last.content.trim()) {
-              copy.pop()
-            }
-            return copy
-          })
-        }
-      } else {
-        const data = (await res.json()) as {
-          reply?: string
-          error?: string
-          ui_actions?: DivineUiAction[]
-          lookup_meta?: DivineLookupMeta[]
-        }
-        if (data.error) throw new Error(data.error)
-        if (data.reply != null && data.reply !== '') {
-          setChatMessages((prev) => [...prev, { role: 'assistant', content: String(data.reply) }])
-        }
-        applyDivineUiActionsWithBridge(data.ui_actions)
-        if (data.lookup_meta?.length) {
-          setFanLookupHint(formatFanLookupHint(data.lookup_meta[0]) ?? null)
-        }
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : 'Stream failed unexpectedly.'
+        finalizeStreamAssistFailure(detail)
+        return
       }
-    } catch (e) {
-      console.error(e)
+
+      if (!sawDone) {
+        if (!assembled.trim()) {
+          finalizeStreamAssistFailure(
+            'The reply never arrived (connection may have dropped). Tap Retry.',
+          )
+        } else {
+          finalizeStreamAssistFailure(
+            'The reply was interrupted before finishing. Tap Retry if you want a clean pass.',
+          )
+        }
+      } else if (!assembled.trim()) {
+        finalizeStreamAssistFailure(
+          'No follow-up wording arrived after tools ran. Tap Retry to try again.',
+        )
+      }
+      } catch (e) {
+        const detail =
+          e instanceof Error ? e.message : typeof e === 'string' ? e : 'Could not reach the server.'
+        finalizeStreamAssistFailure(detail)
+      }
+    },
+    [
+      applyDivineUiActionsWithBridge,
+      finalizeStreamAssistFailure,
+      openCreditInsufficientModal,
+      setFanLookupHint,
+      setChatMessages,
+      setChatWorkingHint,
+    ],
+  )
+
+  const sendChat = useCallback(async () => {
+    const trimmed = chatInput.trim()
+    if (!trimmed || chatLoading) return
+    setFanLookupHint(null)
+    const historyCleaned = chatMessages.map(({ role, content }) => ({ role, content }))
+    const nextMessages: ChatMessage[] = [...historyCleaned, { role: 'user', content: trimmed }]
+    setChatMessages(nextMessages)
+    setChatInput('')
+    setChatLoading(true)
+    setChatWorkingHint('Thinking…')
+    try {
+      await executeDivineStreamedTurn(nextMessages, focusedFan)
     } finally {
       setChatLoading(false)
       setChatWorkingHint(null)
     }
-  }, [chatInput, chatMessages, chatLoading, focusedFan, applyDivineUiActionsWithBridge, openCreditInsufficientModal])
+  }, [chatInput, chatMessages, chatLoading, focusedFan, executeDivineStreamedTurn])
+
+  const retryLastDivineTurn = useCallback(async () => {
+    const snap = chatRetryPayloadRef.current
+    if (!snap || chatLoading) return
+    setFanLookupHint(null)
+    setChatLoading(true)
+    setChatWorkingHint('Thinking…')
+    try {
+      await executeDivineStreamedTurn(snap.messages, snap.focusedFan)
+    } finally {
+      setChatLoading(false)
+      setChatWorkingHint(null)
+    }
+  }, [chatLoading, executeDivineStreamedTurn])
 
   const requestGenerate = useCallback(async () => {
     const prompt = generatePrompt.trim()
@@ -804,6 +940,7 @@ export function DivinePanelProvider({
     fanLookupHint,
     setFanLookupHint,
     sendChat,
+    retryLastDivineTurn,
     generatedText,
     setGeneratedText,
     generatePrompt,

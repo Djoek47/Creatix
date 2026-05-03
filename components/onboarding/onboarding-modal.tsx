@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckoutEmbed } from '@/components/stripe/checkout'
+import { CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE } from '@/app/actions/stripe'
 import { TRIAL_PLAN_ID } from '@/lib/billing/access'
 import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -93,16 +94,72 @@ function WalletCreditsPanel({
   )
 }
 
-/** Second trial prompt: Stripe embed until checkout, then animated wallet + hint to continue to Connect. */
+/** Second trial prompt: redeemed → celebration; completed checkout → animated wallet; else Stripe until checkout / bypass / error continue. */
 function OnboardingTrialWalletStep({
+  trialBillingAttachedLive,
   checkoutFinished,
+  embedBypassed,
+  checkoutHadSecretError,
+  onCheckoutSecretFetchStarted,
   onCheckoutSuccess,
+  onCheckoutSecretTerminalError,
+  onEmbedBypass,
 }: {
+  trialBillingAttachedLive: boolean
   checkoutFinished: boolean
+  embedBypassed: boolean
+  checkoutHadSecretError: boolean
+  onCheckoutSecretFetchStarted: () => void
   onCheckoutSuccess: () => void
+  onCheckoutSecretTerminalError: (_message: string, code?: string) => void
+  onEmbedBypass: () => void
 }) {
   const router = useRouter()
   const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
+
+  if (trialBillingAttachedLive) {
+    return (
+      <div className="relative space-y-7 text-center">
+        <div
+          className={cn(
+            'relative mx-auto max-w-[24rem] overflow-hidden rounded-[1.25rem] border border-emerald-500/[0.2] px-7 py-9',
+            'motion-safe:bg-gradient-to-b motion-safe:from-emerald-500/[0.1] motion-safe:via-transparent motion-safe:to-transparent',
+            'motion-safe:shadow-[0_18px_50px_-22px_rgba(16,185,129,0.35)]',
+            'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-[0.97] motion-safe:duration-[900ms]',
+            'motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+          )}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(52,211,153,0.14),transparent_58%)]" />
+          <div className="pointer-events-none absolute inset-[-20%] motion-safe:animate-pulse motion-reduce:hidden">
+            <div className="absolute left-[12%] top-[18%] size-2 rounded-full bg-amber-400/70 blur-[0.5px]" />
+            <div className="absolute right-[16%] top-[26%] size-2.5 rounded-full bg-purple-400/65 blur-[0.5px]" />
+            <div className="absolute bottom-[28%] left-[42%] size-1.5 rounded-full bg-emerald-400/75 blur-[0.5px]" />
+          </div>
+          <div className="relative space-y-2">
+            <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-full border border-emerald-500/[0.25] bg-emerald-500/[0.12] shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-700">
+              <Sparkles className="size-7 text-emerald-700 dark:text-emerald-300" strokeWidth={1.85} aria-hidden />
+            </div>
+            <h3 className="font-serif text-[1.4375rem] font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-[1.5625rem]">
+              Congratulations
+            </h3>
+            <p className="mx-auto mt-2 max-w-[22rem] text-[14px] leading-relaxed text-muted-foreground">
+              Here are your{' '}
+              <span className="tabular-nums font-semibold text-foreground">{creditsFormatted}</span> trial credits — yours to
+              explore the workspace.
+            </p>
+          </div>
+        </div>
+
+        <WalletCreditsPanel
+          entranceMotion
+          className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:delay-150 motion-safe:duration-700"
+        />
+        <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
+          Next, link your platforms so Circe can work with your accounts — read-only, credentials stay with your providers.
+        </p>
+      </div>
+    )
+  }
 
   if (checkoutFinished) {
     return (
@@ -110,6 +167,17 @@ function OnboardingTrialWalletStep({
         <WalletCreditsPanel entranceMotion />
         <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
           Next, link your platforms so Circe can work with your accounts — read-only, credentials stay with your providers.
+        </p>
+      </div>
+    )
+  }
+
+  if (embedBypassed) {
+    return (
+      <div className="space-y-5 text-center">
+        <p className={cn(obBody)}>
+          Continuing without adding a card. You can add a payment method anytime in Billing to activate the trial credits
+          when you&apos;re ready.
         </p>
       </div>
     )
@@ -127,12 +195,27 @@ function OnboardingTrialWalletStep({
           rootId="onboarding-trial-checkout"
           productId={TRIAL_PLAN_ID}
           className="min-h-[18rem] w-full"
+          onClientSecretFetchStarted={onCheckoutSecretFetchStarted}
+          onClientSecretError={(message, code) => {
+            onCheckoutSecretTerminalError(message, code)
+          }}
           onComplete={() => {
             onCheckoutSuccess()
             void router.refresh()
           }}
         />
       </div>
+      {checkoutHadSecretError ? (
+        <div className="space-y-2 text-center">
+          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onEmbedBypass}>
+            Continue without card
+          </Button>
+          <p className="mx-auto max-w-[20rem] text-[12px] leading-relaxed text-muted-foreground">
+            If Stripe won&apos;t load, you can still finish onboarding — add a payment method later in Billing when you&apos;re
+            ready.
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -231,7 +314,42 @@ export function OnboardingModal({
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
   const [trialCheckoutFinishedSession, setTrialCheckoutFinishedSession] = useState(false)
+  const [trialWalletEmbedBypassed, setTrialWalletEmbedBypassed] = useState(false)
+  const [trialCheckoutSecretHadError, setTrialCheckoutSecretHadError] = useState(false)
   const openedSoftRefreshDoneRef = useRef(false)
+
+  const trialBillingSnapshotRef = useRef<boolean | null>(null)
+  const prevOpenSnapshotRef = useRef(false)
+  if (!open && prevOpenSnapshotRef.current) {
+    trialBillingSnapshotRef.current = null
+  }
+  if (open && !prevOpenSnapshotRef.current) {
+    trialBillingSnapshotRef.current = trialBillingAttached
+  }
+  prevOpenSnapshotRef.current = open
+
+  const trialBillingForStepsLayout =
+    open && trialBillingSnapshotRef.current !== null ? trialBillingSnapshotRef.current : false
+
+  const handleTrialCheckoutSuccess = useCallback(() => {
+    setTrialCheckoutFinishedSession(true)
+  }, [])
+
+  const handleTrialSecretFetchStarted = useCallback(() => {
+    setTrialCheckoutSecretHadError(false)
+  }, [])
+
+  const handleTrialSecretTerminalError = useCallback((msg: string, code?: string) => {
+    if (code !== CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE) {
+      setTrialCheckoutSecretHadError(true)
+    }
+    void router.refresh()
+  }, [router])
+
+  const handleTrialEmbedBypass = useCallback(() => {
+    setTrialWalletEmbedBypassed(true)
+    void router.refresh()
+  }, [router])
 
   const steps: OnboardingStep[] = useMemo(() => {
     const welcome: OnboardingStep = {
@@ -602,8 +720,14 @@ export function OnboardingModal({
       iconColor: 'text-primary',
       content: (
         <OnboardingTrialWalletStep
+          trialBillingAttachedLive={trialBillingAttached}
           checkoutFinished={trialCheckoutFinishedSession}
-          onCheckoutSuccess={() => setTrialCheckoutFinishedSession(true)}
+          embedBypassed={trialWalletEmbedBypassed}
+          checkoutHadSecretError={trialCheckoutSecretHadError}
+          onCheckoutSecretFetchStarted={handleTrialSecretFetchStarted}
+          onCheckoutSuccess={handleTrialCheckoutSuccess}
+          onCheckoutSecretTerminalError={handleTrialSecretTerminalError}
+          onEmbedBypass={handleTrialEmbedBypass}
         />
       ),
     }
@@ -624,12 +748,24 @@ export function OnboardingModal({
 
     const coreAfterDashboard = [divineManager, aiStudio, features]
 
-    if (trialBillingAttached) {
+    if (trialBillingForStepsLayout) {
       return [welcome, dashboard, connect, ...coreAfterDashboard, celebrationEarly]
     }
 
     return [welcome, dashboard, ...coreAfterDashboard, trialWallet, connect, celebrationLate]
-  }, [userName, onComplete, trialBillingAttached, trialCheckoutFinishedSession])
+  }, [
+    userName,
+    onComplete,
+    trialBillingForStepsLayout,
+    trialBillingAttached,
+    trialCheckoutFinishedSession,
+    trialWalletEmbedBypassed,
+    trialCheckoutSecretHadError,
+    handleTrialCheckoutSuccess,
+    handleTrialSecretFetchStarted,
+    handleTrialSecretTerminalError,
+    handleTrialEmbedBypass,
+  ])
 
   const totalSteps = steps.length
   const lastStepIndex = totalSteps - 1
@@ -639,6 +775,8 @@ export function OnboardingModal({
     if (!open) {
       openedSoftRefreshDoneRef.current = false
       setTrialCheckoutFinishedSession(false)
+      setTrialWalletEmbedBypassed(false)
+      setTrialCheckoutSecretHadError(false)
       return
     }
     setCurrentStep(0)
@@ -689,11 +827,15 @@ export function OnboardingModal({
     currentStepData.id === 'celebration' ||
     currentStepData.id === 'trial-wallet'
 
-  const trialWalletNeedsCheckout =
-    currentStepData.id === 'trial-wallet' && !trialCheckoutFinishedSession
+  const trialTrialStepUnblocked =
+    trialBillingAttached || trialCheckoutFinishedSession || trialWalletEmbedBypassed
 
-  /** Late path: no dismiss until trial card capture completes (matches footer Next lock). */
-  const skipLockedUntilCard = !trialBillingAttached && !trialCheckoutFinishedSession
+  const trialWalletNeedsCheckout =
+    currentStepData.id === 'trial-wallet' && !trialTrialStepUnblocked
+
+  /** Late path: Skip hidden until billing attached, checkout completes, or user bypasses the embed. */
+  const skipLockedUntilCard =
+    !trialBillingAttached && !trialCheckoutFinishedSession && !trialWalletEmbedBypassed
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>

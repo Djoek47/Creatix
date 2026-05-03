@@ -38,6 +38,59 @@ function pkgToResultPayload(
   }
 }
 
+export async function runDmThreadScanWork(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: {
+    taskId: string
+    fanId: string
+    highlightPanel: ReturnType<typeof openPanelToHighlightPanel>
+    createdAt: string
+  },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const pkg = await fetchDmReplySuggestionsPackage(supabase, userId, { fanId: opts.fanId })
+    if ('error' in pkg && pkg.error) {
+      const failTask: DivineVoiceTask = {
+        id: opts.taskId,
+        kind: 'dm_thread_scan',
+        status: 'error',
+        fanId: opts.fanId,
+        error: pkg.error,
+        createdAt: opts.createdAt,
+        completedAt: new Date().toISOString(),
+      }
+      await patchVoiceMemory(supabase, userId, { tasksUpsert: [failTask] })
+      return { ok: false, error: pkg.error }
+    }
+    const resultPayload = pkgToResultPayload(opts.fanId, pkg, opts.highlightPanel)
+    const doneTask: DivineVoiceTask = {
+      id: opts.taskId,
+      kind: 'dm_thread_scan',
+      status: 'done',
+      fanId: opts.fanId,
+      createdAt: opts.createdAt,
+      completedAt: new Date().toISOString(),
+      resultPayload: resultPayload ?? undefined,
+    }
+    await patchVoiceMemory(supabase, userId, { tasksUpsert: [doneTask] })
+    return { ok: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Thread scan failed'
+    const failTask: DivineVoiceTask = {
+      id: opts.taskId,
+      kind: 'dm_thread_scan',
+      status: 'error',
+      fanId: opts.fanId,
+      error: msg,
+      createdAt: opts.createdAt,
+      completedAt: new Date().toISOString(),
+    }
+    await patchVoiceMemory(supabase, userId, { tasksUpsert: [failTask] })
+    return { ok: false, error: msg }
+  }
+}
+
 /**
  * Queue a background DM thread scan (full reply package). Returns immediately; work runs in after().
  * Registers a pending task + navigation barrier (scan task + optional stats task slot).
@@ -78,47 +131,36 @@ export async function queueThreadScanBackgroundJob(
     return { taskId: '', message: `Could not save task: ${error}` }
   }
 
+  const webhookMode = Boolean(process.env.OPENAI_WEBHOOK_SECRET?.trim())
+
+  if (webhookMode) {
+    const { createOpenAiBackgroundJob } = await import('@/lib/openai/background-jobs')
+    const bg = await createOpenAiBackgroundJob({
+      userId,
+      feature: 'divine_thread_scan',
+      input: 'COMPLETE',
+      instructions: 'Respond with exactly: OK',
+      requestMetadata: {
+        voiceTaskId: taskId,
+        fanId,
+        highlightPanel,
+        createdAt: now,
+      },
+    })
+    if (!bg.ok) {
+      /** Fall back to in-process continuation if Responses queue fails */
+      console.warn('[thread-scan-async] webhook job failed; falling back to after()', bg.error)
+    } else {
+      return {
+        taskId,
+        message: `Background thread scan queued (OpenAI webhook) for fan ${fanId}. Task ${taskId.slice(0, 8)}…`,
+      }
+    }
+  }
+
   after(async () => {
     const sb = await createClient()
-    try {
-      const pkg = await fetchDmReplySuggestionsPackage(sb, userId, { fanId })
-      if ('error' in pkg && pkg.error) {
-        const failTask: DivineVoiceTask = {
-          id: taskId,
-          kind: 'dm_thread_scan',
-          status: 'error',
-          fanId,
-          error: pkg.error,
-          createdAt: now,
-          completedAt: new Date().toISOString(),
-        }
-        await patchVoiceMemory(sb, userId, { tasksUpsert: [failTask] })
-        return
-      }
-      const resultPayload = pkgToResultPayload(fanId, pkg, highlightPanel)
-      const doneTask: DivineVoiceTask = {
-        id: taskId,
-        kind: 'dm_thread_scan',
-        status: 'done',
-        fanId,
-        createdAt: now,
-        completedAt: new Date().toISOString(),
-        resultPayload: resultPayload ?? undefined,
-      }
-      await patchVoiceMemory(sb, userId, { tasksUpsert: [doneTask] })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Thread scan failed'
-      const failTask: DivineVoiceTask = {
-        id: taskId,
-        kind: 'dm_thread_scan',
-        status: 'error',
-        fanId,
-        error: msg,
-        createdAt: now,
-        completedAt: new Date().toISOString(),
-      }
-      await patchVoiceMemory(sb, userId, { tasksUpsert: [failTask] })
-    }
+    await runDmThreadScanWork(sb, userId, { taskId, fanId, highlightPanel, createdAt: now })
   })
 
   return {

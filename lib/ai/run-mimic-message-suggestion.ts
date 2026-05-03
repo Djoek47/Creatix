@@ -34,6 +34,14 @@ export async function runMimicMessageSuggestion({
     return { ok: false, error: result.error }
   }
 
+  if ('pending' in result && result.pending) {
+    return {
+      ok: true,
+      suggestions: [],
+      note: `${result.note} Job id: ${result.jobId}.`,
+    }
+  }
+
   return {
     ok: true,
     suggestions: [

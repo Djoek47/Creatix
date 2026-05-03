@@ -23,14 +23,87 @@ import { logAiUsageEvent } from '@/lib/usage/server-log'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
+import { createOpenAiBackgroundJob } from '@/lib/openai/background-jobs'
 
 const OPENAI_MODEL = 'gpt-4o-mini'
+
+const AI_CHATTER_BG_MIN_CHARS = 4200
 
 export type AiChatterRunResult =
   | { ok: true; action: 'skipped'; reason: string }
   | { ok: true; action: 'draft_queued'; outboxId?: string }
   | { ok: true; action: 'sent' }
+  | { ok: true; action: 'compose_queued'; jobId?: string }
   | { ok: false; error: string }
+
+export type AiChatterComposePromptOpts = {
+  mimic: MimicProfileV1
+  thread: string
+  scanBits: string
+  vaultSnippet: string
+  giftWishlistSnippet: string
+  whaleNurture: boolean
+  engagementProfile: AiChatterEngagementProfile
+  fanCommerceLine?: string
+  creatorPageLine?: string
+}
+
+export function buildAiChatterComposePrompts(opts: AiChatterComposePromptOpts): { system: string; user: string } {
+  const human = ['none', 'very rare small typos', 'occasional casual typos', 'more informal typos'][
+    Math.min(3, Math.max(0, opts.mimic.humanizationLevel ?? 1))
+  ]
+
+  let goal: string
+  if (opts.engagementProfile === 'whale_whisper') {
+    goal =
+      'VIP stewardship: they are a top supporter—make them feel uniquely seen and valued. Warmth and gratitude first. You may softly reference exclusive content or experiences only if the thread naturally invites it—never hard-sell or spam.'
+  } else if (opts.whaleNurture) {
+    goal =
+      'Gently deepen engagement and interest in exclusive / PPV content when natural—do not be pushy or spammy. Build rapport first.'
+  } else {
+    goal = 'Reply naturally and helpfully to keep the conversation warm.'
+  }
+
+  const system = `You write ONE short DM as the creator, matching their Mimic voice.
+Rules:
+- Stay within taboo topics and banned phrases; never use banned phrases.
+- Output ONLY the message text (no quotes, no preamble). Max ~600 characters unless the thread clearly needs a bit more.
+- Do not say you are an AI.
+- Humanization: ${human}.
+- ${goal}
+- Respect fan subscription context: free-page followers may not see paywalled feed posts; PPV items in the vault list may still need a separate unlock. Match explicitness to NSFW vs non-explicit vault labels.
+- If vault ideas are listed, you may subtly reference themes that fit the thread; do not invent prices or guarantees.
+- If gift wishlist ideas are listed, you may hint at gratitude or optional gift-style treats only when appropriate; never claim you already purchased anything.`
+
+  const user = `Mimic profile (JSON):
+${JSON.stringify(
+  {
+    toneWarmth: opts.mimic.toneWarmth,
+    flirtCeiling: opts.mimic.flirtCeiling,
+    humorLevel: opts.mimic.humorLevel,
+    tabooTopics: opts.mimic.tabooTopics,
+    bannedPhrases: opts.mimic.bannedPhrases,
+    signaturePhrases: opts.mimic.signaturePhrases,
+    exemplarReplies: (opts.mimic.exemplarReplies ?? []).slice(0, 5),
+    notes: opts.mimic.notes,
+  },
+  null,
+  2,
+)}
+
+${opts.creatorPageLine ? `Creator business model (OnlyFans page):\n${opts.creatorPageLine.slice(0, 1200)}\n` : ''}
+${opts.fanCommerceLine ? `Fan subscription / access (CRM):\n${opts.fanCommerceLine.slice(0, 1200)}\n` : ''}
+Recent thread:
+${opts.thread.slice(0, 8000)}
+
+${opts.scanBits ? `Context: ${opts.scanBits}\n` : ''}
+${opts.vaultSnippet ? `Vault / content ideas (teasers only, optional):\n${opts.vaultSnippet.slice(0, 4000)}\n` : ''}
+${opts.giftWishlistSnippet ? `Creator gift / treat ideas (optional references only):\n${opts.giftWishlistSnippet.slice(0, 3000)}\n` : ''}
+
+Write one reply.`
+
+  return { system, user }
+}
 
 type AutomationRow = {
   id: string
@@ -146,75 +219,13 @@ function scanRiskFlags(pkg: { scan?: { riskFlags?: string[] } | null }): string[
   return Array.isArray(rf) ? rf.filter((x): x is string => typeof x === 'string') : []
 }
 
-async function composeChatterMessage(opts: {
-  userId: string
-  mimic: MimicProfileV1
-  thread: string
-  scanBits: string
-  vaultSnippet: string
-  giftWishlistSnippet: string
-  whaleNurture: boolean
-  engagementProfile: AiChatterEngagementProfile
-  /** Free vs paid follower — avoids wrong assumptions about feed access. */
-  fanCommerceLine?: string
-  /** Creator OnlyFans page model (free vs paid sub page). */
-  creatorPageLine?: string
-}): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+async function composeChatterMessage(
+  opts: AiChatterComposePromptOpts & { userId: string },
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return { ok: false, error: 'OPENAI_API_KEY is not configured.' }
 
-  const human = ['none', 'very rare small typos', 'occasional casual typos', 'more informal typos'][
-    Math.min(3, Math.max(0, opts.mimic.humanizationLevel ?? 1))
-  ]
-
-  let goal: string
-  if (opts.engagementProfile === 'whale_whisper') {
-    goal =
-      'VIP stewardship: they are a top supporter—make them feel uniquely seen and valued. Warmth and gratitude first. You may softly reference exclusive content or experiences only if the thread naturally invites it—never hard-sell or spam.'
-  } else if (opts.whaleNurture) {
-    goal =
-      'Gently deepen engagement and interest in exclusive / PPV content when natural—do not be pushy or spammy. Build rapport first.'
-  } else {
-    goal = 'Reply naturally and helpfully to keep the conversation warm.'
-  }
-
-  const system = `You write ONE short DM as the creator, matching their Mimic voice.
-Rules:
-- Stay within taboo topics and banned phrases; never use banned phrases.
-- Output ONLY the message text (no quotes, no preamble). Max ~600 characters unless the thread clearly needs a bit more.
-- Do not say you are an AI.
-- Humanization: ${human}.
-- ${goal}
-- Respect fan subscription context: free-page followers may not see paywalled feed posts; PPV items in the vault list may still need a separate unlock. Match explicitness to NSFW vs non-explicit vault labels.
-- If vault ideas are listed, you may subtly reference themes that fit the thread; do not invent prices or guarantees.
-- If gift wishlist ideas are listed, you may hint at gratitude or optional gift-style treats only when appropriate; never claim you already purchased anything.`
-
-  const user = `Mimic profile (JSON):
-${JSON.stringify(
-  {
-    toneWarmth: opts.mimic.toneWarmth,
-    flirtCeiling: opts.mimic.flirtCeiling,
-    humorLevel: opts.mimic.humorLevel,
-    tabooTopics: opts.mimic.tabooTopics,
-    bannedPhrases: opts.mimic.bannedPhrases,
-    signaturePhrases: opts.mimic.signaturePhrases,
-    exemplarReplies: (opts.mimic.exemplarReplies ?? []).slice(0, 5),
-    notes: opts.mimic.notes,
-  },
-  null,
-  2,
-)}
-
-${opts.creatorPageLine ? `Creator business model (OnlyFans page):\n${opts.creatorPageLine.slice(0, 1200)}\n` : ''}
-${opts.fanCommerceLine ? `Fan subscription / access (CRM):\n${opts.fanCommerceLine.slice(0, 1200)}\n` : ''}
-Recent thread:
-${opts.thread.slice(0, 8000)}
-
-${opts.scanBits ? `Context: ${opts.scanBits}\n` : ''}
-${opts.vaultSnippet ? `Vault / content ideas (teasers only, optional):\n${opts.vaultSnippet.slice(0, 4000)}\n` : ''}
-${opts.giftWishlistSnippet ? `Creator gift / treat ideas (optional references only):\n${opts.giftWishlistSnippet.slice(0, 3000)}\n` : ''}
-
-Write one reply.`
+  const { system, user } = buildAiChatterComposePrompts(opts)
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -535,8 +546,7 @@ export async function runAiChatterForInboundMessage(
     ),
   )
 
-  const composed = await composeChatterMessage({
-    userId,
+  const composeCtx: AiChatterComposePromptOpts = {
     mimic,
     thread: pkg.threadPreview || '',
     scanBits,
@@ -546,6 +556,53 @@ export async function runAiChatterForInboundMessage(
     engagementProfile: settings.engagement_profile,
     fanCommerceLine,
     creatorPageLine,
+  }
+
+  const pr = buildAiChatterComposePrompts(composeCtx)
+  const useBg =
+    Boolean(process.env.OPENAI_WEBHOOK_SECRET?.trim()) &&
+    pr.system.length + pr.user.length >= AI_CHATTER_BG_MIN_CHARS
+
+  if (useBg) {
+    const queued = await createOpenAiBackgroundJob({
+      userId,
+      feature: 'ai_chatter',
+      instructions: pr.system,
+      input: pr.user,
+      model: OPENAI_MODEL,
+      requestMetadata: {
+        automationId: row.id,
+        platformFanId,
+        inboundMessageId,
+        repliesToday,
+        day,
+        isWhaleWhisper: settings.engagement_profile === 'whale_whisper',
+        fan_username: row.fan_username,
+        mimic,
+        settings,
+        beta_acknowledged_at: row.beta_acknowledged_at,
+      },
+    })
+    if (queued.ok && queued.jobId) {
+      await supabase
+        .from('ai_chatter_automations')
+        .update({
+          last_processed_message_id: inboundMessageId,
+          last_processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', row.id)
+      await logEvent(supabase, row.id, userId, 'compose_queued_background', {
+        job_id: queued.jobId,
+        inbound_message_id: inboundMessageId,
+      })
+      return { ok: true, action: 'compose_queued', jobId: queued.jobId }
+    }
+  }
+
+  const composed = await composeChatterMessage({
+    userId,
+    ...composeCtx,
   })
   if (!composed.ok) {
     await logEvent(supabase, row.id, userId, 'error', { error: composed.error })

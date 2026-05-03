@@ -16,7 +16,8 @@ import {
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
 import { personalityChatSuffix, resolveVoicePersonality } from '@/lib/divine/voice-personality'
-import { logUsageEvent } from '@/lib/usage/server-log'
+import { logApiError, logUsageEvent } from '@/lib/usage/server-log'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   consumeAiCredits,
   insufficientAiCreditsResponse,
@@ -27,12 +28,44 @@ import {
 } from '@/lib/billing/credit-economics'
 import { divineManagerDebitMetadata } from '@/lib/billing/divine-manager-ledger'
 import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
+import { appendMemory, getMemoryContext } from '@/lib/divine/divine-memory'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
 export const maxDuration = 60
 
 const OPENAI_MODEL = 'gpt-4o-mini'
+
+async function persistChatFollowupFailure(
+  supabase: SupabaseClient,
+  userId: string,
+  args: { error: string; model: string },
+) {
+  const safeMsg = String(args.error ?? 'unknown_error').slice(0, 2000)
+  logApiError({
+    userId,
+    route: '/api/ai/divine-manager-chat',
+    httpStatus: 502,
+    message: `[tool_followup] ${safeMsg.slice(0, 500)}`,
+    safeContext: { stage: 'tool_followup', model: args.model },
+  })
+  await supabase
+    .from('divine_manager_tasks')
+    .insert({
+      user_id: userId,
+      type: 'chat_followup_failed',
+      category: 'divine_chat',
+      status: 'failed',
+      source: 'divine_manager_chat',
+      payload: { error: safeMsg, model: args.model },
+    })
+    .then(
+      ({ error }) => {
+        if (error) console.warn('[divine-manager-chat] persist followup failure', error.message)
+      },
+      () => undefined,
+    )
+}
 
 function logDivineManagerChatUsage(
   userId: string,
@@ -232,7 +265,7 @@ const CHAT_TOOLS: Array<{
     function: {
       name: 'start_thread_scan_async',
       description:
-        'Queue a background DM thread scan (full Circe/Venus/Flirt package) without blocking. Use when the creator may switch screens or ask for stats while the scan runs. Use get_task_status for progress; the app can return them to Messages when barrier tasks complete.',
+        'Queue a BACKGROUND DM thread scan (Circe/Venus/Flirt work). Returns immediately—results are NOT ready in this turn. In your next message: say the scan is queued or in progress, NOT that panels or reply ideas are already filled. Tell the creator how to check: get_task_status, get_fan_thread_insights after a short wait, or get_background_job if an OpenAI-backed job id applies. Never claim full scan output exists until those tools confirm.',
       parameters: {
         type: 'object',
         properties: {
@@ -1162,6 +1195,38 @@ const CHAT_TOOLS: Array<{
   {
     type: 'function',
     function: {
+      name: 'get_recent_failures',
+      description:
+        'List recent Divine / OpenAI failures for this creator so you can explain what broke (e.g. after tools ran but the assistant reply failed). Includes failed divine_manager_tasks and recent api_error_logs rows for Divine routes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: {
+            type: 'number',
+            description: 'Max rows per category (default 8, max 20)',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_background_job',
+      description:
+        'Read one OpenAI background job row by id from openai_jobs (status, model, tokens, error, linked divine task id). Use when diagnosing long-running Responses + webhook tasks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          job_id: { type: 'string', description: 'openai_jobs.id UUID' },
+        },
+        required: ['job_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'run_ai_studio_tool',
       description:
         'Run any AI Studio tool by id (same tools as Dashboard → AI Studio). Use when the creator asks for a capability that matches a library tool and there is no more specific Divine tool (e.g. fantasy-writer, gift-suggester, competitor-analysis, mass-dm-composer, Circe/Venus premium tools, content-ideas, leak-scanner / Aegis setup guidance). Prefer generate_caption, predict_viral, get_retention_insights, get_whale_advice, analyze_content when they fit exactly. Args: pass prompt, description, contentDescription, niche, platform, fanId, message, budget, goals, etc. as appropriate for that tool.',
@@ -1326,10 +1391,12 @@ You know their tasks, rules, and analytics. Speak as a manager, not as the creat
 Never claim you have already sent messages, changed prices, or executed actions. You may only recommend or suggest actions or rule changes.
 Respect the creator's boundaries, niches, and all platform safety rules.
 Avoid explicit or illegal content entirely. Use clear, practical language.
-You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, run_ai_studio_tool (any AI Studio library tool—valid toolId values are listed in that function’s schema; use when no narrower tool fits, e.g. fantasy-writer, gift-suggester, competitor-analysis, mass-dm-composer, content-ideas, income-predictor, leak-scanner, dmca-automator, circe-protection-shield, ai-chatter, pricing-optimizer, price-optimizer, frame-studio, ariadne-trace, ariadne-detect, frame-ai-assist), get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, list_recent_comment_analyses (Commenter: public post/story/stream comments + safety), get_comment_reply_suggestions (Commenter drafts by persona), refresh_comment_analysis (re-run Commenter AI), sync_commenter_from_posts (pull comments from OnlyFans API), get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), notifications_panel (open/close bell, tab, scrollToId), creator_task_add (priority_tier 1=notifications 2=DMs 3=protection 4=content; incomplete tasks roll forward as leftovers), creator_task_set_status, protocol_complete_for_notification (remove CRM notification + complete linked tasks), divine_crm_notifications_mark_read (in-app Divine tab: mark read without deleting), divine_crm_notifications_remove (delete Divine-tab CRM rows from bell), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan, apply_dashboard_preset (Divine-stored /dashboard mood, accent, default widget visibility, optional featured tool; creator uses “Reset to Divine preset” on the dashboard to clear local layout). Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
+You have access to tools: analyze content, generate captions, predict viral, get retention insights, get whale advice, run_ai_studio_tool (any AI Studio library tool—valid toolId values are listed in that function’s schema; use when no narrower tool fits, e.g. fantasy-writer, gift-suggester, competitor-analysis, mass-dm-composer, content-ideas, income-predictor, leak-scanner, dmca-automator, circe-protection-shield, ai-chatter, pricing-optimizer, price-optimizer, frame-studio, ariadne-trace, ariadne-detect, frame-ai-assist), get_dm_conversations, get_dm_thread, get_reply_suggestions, get_dm_thread_and_suggestions (preferred for thread + replies), start_thread_scan_async (background scan while multitasking), get_task_status (pending/done tasks + navigation), get_recent_failures (diagnose failures: chat follow-up / API errors), get_background_job (OpenAI Responses background job by id), voice_allow_user_hangup (voice: unlock after asking anything else), lookup_fan (fast fanId by name), get_fan_thread_insights (stored snapshot + personality profile), refresh_fan_thread_scan (force rescan thread + profile), draft_fan_reply (fan-facing draft from Mimic Test—review only, never auto-sent), analyze_image_from_url (Supabase/storage image URLs only; Divine full), list_cosmic_calendar, get_scheduled_content_summary, list_leak_alerts, update_leak_alert_case, trigger_reputation_briefing, list_reputation_mentions, list_recent_comment_analyses (Commenter: public post/story/stream comments + safety), get_comment_reply_suggestions (Commenter drafts by persona), refresh_comment_analysis (re-run Commenter AI), sync_commenter_from_posts (pull comments from OnlyFans API), get_integrations_summary, ui_navigate, ui_focus_fan (subscriber: open app screens / focus a fan), notifications_panel (open/close bell, tab, scrollToId), creator_task_add (priority_tier 1=notifications 2=DMs 3=protection 4=content; incomplete tasks roll forward as leftovers), creator_task_set_status, protocol_complete_for_notification (remove CRM notification + complete linked tasks), divine_crm_notifications_mark_read (in-app Divine tab: mark read without deleting), divine_crm_notifications_remove (delete Divine-tab CRM rows from bell), send_message, prepare_dm, open_dm_overlay, switch_overlay_fan, list_vault_for_dm, get_content_sales_metadata, recommend_dm_bundle, upsert_content_sales_notes, list_content, mass_dm, get_stats, content_publish, create_task, send_notification, list_fans, get_fan_subscription_history, list_followings, get_top_message, get_message_engagement, publish_queue_item, run_leak_scan, apply_dashboard_preset (Divine-stored /dashboard mood, accent, default widget visibility, optional featured tool; creator uses “Reset to Divine preset” on the dashboard to clear local layout). Use the smallest set of API calls that answers the question. For mass_dm, content_publish, and publish_queue_item the app may ask them to confirm. For run_leak_scan, only use when they want to find leaked content or prepare DMCA review; it uses search API quota.
 Fans and engagement: list_fans (filter: active, expired, latest, top, expiring_soon + optional expiringWithinDays for CRM) for "who are my fans", "top spenders", "expired subs", "expiring soon"; get_fan_subscription_history for a fan's renewals; list_followings for who they follow; get_top_message for best-performing message and buyers; get_message_engagement (type direct or mass) for "how did my messages perform"; publish_queue_item to publish a saved post or saved mass message. Route: "who spent the most" → list_fans filter=top; "how did my mass message do" → get_message_engagement type=mass; "publish my saved post" → publish_queue_item.
 Commenter (public comments, not DMs): list_recent_comment_analyses for recent fan comments on posts; sync_commenter_from_posts to backfill from OnlyFans when webhooks missed history; get_comment_reply_suggestions for Circe/Venus/Flirt/Professional/Best draft text (review only—creator copies to OnlyFans); refresh_comment_analysis to regenerate. ui_navigate /dashboard/commenter for the full UI. High-risk comments may already have in-app notifications.
-When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. Prefer get_dm_thread_and_suggestions when they need both thread and reply ideas immediately. Use start_thread_scan_async when the scan should run in the background while they do other things (e.g. Analytics or get_stats); use get_task_status to see whether tasks finished. get_fan_thread_insights returns the stored thread snapshot and merged personality profile (updated in the background after messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. draft_fan_reply drafts a message in the creator's voice (Mimic Test); it does not send—creator reviews first. get_dm_thread lets you scan and read the full chat with a specific fan. get_reply_suggestions runs Scan Thread and returns Circe, Venus, and Flirt reply options; the app opens Messages for that fan and shows the same panels as the in-chat buttons—use openPanel (venus|circe|flirt|scan|all) when they only want one panel (e.g. "Venus reply"). send_message DEFAULT fills the Messages composer with typing animation and optional ~3s countdown auto-send (best for OnlyFans). Use direct_send: true or mode send_now|api only when the creator explicitly wants immediate server send without the composer. prepare_dm is an alias for composer-only. list_vault_for_dm lists Creatix vault rows; get_content_sales_metadata reads one row's saved sales fields; recommend_dm_bundle suggests DM/PPV bundle price and copy—pass content_ids to automatically include saved sales_notes/teaser_tags in the analysis; upsert_content_sales_notes saves structured sales/teaser metadata after bounded interview questions (respect flirty level and boundaries—no explicit sexual roleplay with the creator). open_dm_overlay and switch_overlay_fan control the multi-tab floating DM hub. If OnlyFans is disconnected, say clearly that DM/fan tools will not work until they reconnect and offer ui_navigate to /dashboard/settings?tab=integrations.
+When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. Prefer get_dm_thread_and_suggestions when they need both thread and reply ideas immediately. Use start_thread_scan_async when the scan should run in the background while they do other things (e.g. Analytics or get_stats); use get_task_status to see whether tasks finished. Use get_recent_failures when the creator asks what went wrong, whether something succeeded, or you need to reconcile a failed streamed reply after tools ran. Use get_background_job after you created or were told about a background OpenAI job id. get_fan_thread_insights returns the stored thread snapshot and merged personality profile (updated in the background after messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. draft_fan_reply drafts a message in the creator's voice (Mimic Test); it does not send—creator reviews first. get_dm_thread lets you scan and read the full chat with a specific fan. get_reply_suggestions runs Scan Thread and returns Circe, Venus, and Flirt reply options; the app opens Messages for that fan and shows the same panels as the in-chat buttons—use openPanel (venus|circe|flirt|scan|all) when they only want one panel (e.g. "Venus reply"). send_message DEFAULT fills the Messages composer with typing animation and optional ~3s countdown auto-send (best for OnlyFans). Use direct_send: true or mode send_now|api only when the creator explicitly wants immediate server send without the composer. prepare_dm is an alias for composer-only. list_vault_for_dm lists Creatix vault rows; get_content_sales_metadata reads one row's saved sales fields; recommend_dm_bundle suggests DM/PPV bundle price and copy—pass content_ids to automatically include saved sales_notes/teaser_tags in the analysis; upsert_content_sales_notes saves structured sales/teaser metadata after bounded interview questions (respect flirty level and boundaries—no explicit sexual roleplay with the creator). open_dm_overlay and switch_overlay_fan control the multi-tab floating DM hub. If OnlyFans is disconnected, say clearly that DM/fan tools will not work until they reconnect and offer ui_navigate to /dashboard/settings?tab=integrations.
+
+BACKGROUND SCAN NARRATIVE: If you invoke start_thread_scan_async or any queued thread scan tool, explicitly say work is queued or running in the background—not that Circe/Venus/Flirt panels are already populated. Tell the creator to use get_task_status and/or wait briefly then get_fan_thread_insights (or get_background_job when a background OpenAI job id exists). Prefer get_dm_thread_and_suggestions when they need synchronous thread+suggestions immediately.
 
 DM name lookup rules: Tool output begins with spellback ("I heard …") and ends with [divine_lookup_meta:…]. Follow next_step_hint. If resolved is fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, do not claim the chat is already open; ask the creator to confirm or pick a fanId. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn—if unclear, ask a clarifying question first. If resolved is exact, use that fanId for get_dm_thread / send_message.
 
@@ -1351,6 +1418,8 @@ Rules:
 - If Fansly is NOT CONNECTED, do not imply Fansly actions will work. Offer the same integrations navigation.
 - Analytics can still include stored snapshots. Do not claim live platform-linked analytics/fan data exists when required platforms are disconnected.`
 
+    const episodicBlock = await getMemoryContext(supabase, user.id)
+
     const userContext = `Creator persona:
 - Tone: ${persona.tone ?? 'friendly'}
 - Flirty level: ${persona.flirtyLevel ?? 'mild'}
@@ -1371,7 +1440,7 @@ ${analyticsSummary}
 You have access to analytics snapshots: fans, revenue, and platform breakdown; use this when they ask about performance, sales, or growth. Be explicit when data is historical vs live platform-linked.
 
 Content library (sales metadata for DMs): When they want to tag or describe vault items for better PPV/DM recommendations, use list_vault_for_dm for ids, then a short structured interview: hook/teaser angle, intended buyer, spoiler_level (none | mild | explicit), is_nsfw, fan_access_tier (free_feed | all_subscribers | ppv_or_locked | unknown), CTA, and 3–8 teaser_tags. Keep tone professional and platform-safe; respect their flirty level and boundaries above—do not engage in explicit sexual roleplay with the creator in-app. Summarize fan-facing sales angles only, then save with upsert_content_sales_notes. Use get_content_sales_metadata to read back one row before editing. For bundle pricing, call recommend_dm_bundle with goal, platform_fan_id when known, plus content_ids from the vault so saved metadata and fan free/paid context are used automatically.
-${platformConnectionContext}${focusedFanLine}`
+${platformConnectionContext}${focusedFanLine}${episodicBlock.trim() ? `\n\n${episodicBlock.trim()}` : ''}`
 
     const history = messages.slice(-6)
     const cookie = req.headers.get('cookie') || ''
@@ -1425,7 +1494,209 @@ ${platformConnectionContext}${focusedFanLine}`
     const toolCalls = firstChoice.tool_calls
     if (!toolCalls?.length) {
       const reply = (firstChoice.content ?? '').trim()
+      if (reply) {
+        void appendMemory(supabase, user.id, {
+          source: 'chat',
+          summary: reply,
+          metadata: { no_tools: true },
+        }).catch(() => undefined)
+      }
       return NextResponse.json({ reply })
+    }
+
+    const maxFollowTokens = divineFull ? 720 : 520
+    const toolNamesListed = toolCalls.map((tc) => tc.function.name)
+
+    if (stream) {
+      const encoder = new TextEncoder()
+      const sendLine = (obj: unknown) => encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)
+      const streamOut = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(
+            sendLine({
+              type: 'tool_phase',
+              stage: 'started',
+              tools: toolNamesListed,
+            }),
+          )
+
+          let followUpMessagesInner: typeof openAiMessages | null = null
+          let lookupMetasInner: DivineLookupMeta[] = []
+          let pendingConfirmInner: Array<{ type: string; intent_id: string; summary?: string }> = []
+          let allUiInner: DivineUiAction[] = []
+
+          try {
+            const toolOutputsInner = await Promise.all(
+              toolCalls.map((tc) => runToolCall(tc, { cookie, supabase, userId: user.id, divineFull })),
+            )
+            lookupMetasInner = toolOutputsInner
+              .map((o) => o.lookupMeta)
+              .filter((m): m is DivineLookupMeta => m != null)
+            const toolResultsInner: Array<{ role: 'tool'; tool_call_id: string; content: string }> =
+              toolOutputsInner.map((o) => ({
+                role: 'tool',
+                tool_call_id: o.tool_call_id,
+                content: o.content,
+              }))
+            pendingConfirmInner = toolOutputsInner.flatMap((o) => o.pendingConfirmations)
+            allUiInner = toolOutputsInner.flatMap((o) => o.uiActions)
+
+            followUpMessagesInner = [
+              ...openAiMessages,
+              {
+                role: 'assistant' as const,
+                content: null,
+                tool_calls: toolCalls.map((tc) => ({
+                  id: tc.id,
+                  type: 'function' as const,
+                  function: { name: tc.function.name, arguments: tc.function.arguments },
+                })),
+              },
+              ...toolResultsInner,
+            ]
+          } catch (toolRoundErr) {
+            const msg =
+              toolRoundErr instanceof Error
+                ? `Tool execution failed: ${toolRoundErr.message}`
+                : 'Tool execution failed unexpectedly.'
+            await persistChatFollowupFailure(supabase, user.id, {
+              error: msg,
+              model: OPENAI_MODEL,
+            })
+            controller.enqueue(
+              sendLine({
+                type: 'error',
+                message: msg,
+                retryable: true,
+              }),
+            )
+            controller.close()
+            return
+          }
+
+          controller.enqueue(
+            sendLine({
+              type: 'tools_done',
+              lookup_meta: lookupMetasInner.length ? lookupMetasInner : undefined,
+              tool_names: toolNamesListed,
+            }),
+          )
+
+          try {
+            const resStream = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: OPENAI_MODEL,
+                messages: followUpMessagesInner!,
+                max_tokens: maxFollowTokens,
+                temperature: 0.55,
+                stream: true,
+              }),
+            })
+            if (!resStream.ok || !resStream.body) {
+              const errText = await resStream.text().catch(() => '')
+              const msg = `OpenAI follow-up error: ${errText.slice(0, 200)}`
+              await persistChatFollowupFailure(supabase, user.id, { error: msg, model: OPENAI_MODEL })
+              controller.enqueue(
+                sendLine({
+                  type: 'error',
+                  message: msg,
+                  retryable: true,
+                }),
+              )
+              controller.close()
+              return
+            }
+            const reader = resStream.body.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            let tokensEmitted = 0
+            let assembledFollow = ''
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() ?? ''
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed.startsWith('data: ')) continue
+                const lineData = trimmed.slice(6)
+                if (lineData === '[DONE]') continue
+                try {
+                  const json = JSON.parse(lineData) as {
+                    choices?: Array<{ delta?: { content?: string } }>
+                  }
+                  const delta = json.choices?.[0]?.delta?.content
+                  if (delta) {
+                    tokensEmitted += 1
+                    assembledFollow += delta
+                    controller.enqueue(sendLine({ type: 'token', text: delta }))
+                  }
+                } catch {
+                  // ignore malformed chunks
+                }
+              }
+            }
+
+            if (tokensEmitted === 0) {
+              const msg = 'No follow-up wording was produced.'
+              await persistChatFollowupFailure(supabase, user.id, { error: msg, model: OPENAI_MODEL })
+              controller.enqueue(
+                sendLine({
+                  type: 'error',
+                  message: msg,
+                  retryable: true,
+                }),
+              )
+              controller.close()
+              return
+            }
+
+            controller.enqueue(
+              sendLine({
+                type: 'done',
+                actions: pendingConfirmInner.length ? pendingConfirmInner : undefined,
+                ui_actions: allUiInner.length ? allUiInner : undefined,
+                lookup_meta: lookupMetasInner.length ? lookupMetasInner : undefined,
+              }),
+            )
+            controller.close()
+
+            const summ = assembledFollow.trim()
+            if (summ.length > 0) {
+              void appendMemory(supabase, user.id, {
+                source: 'chat',
+                summary: summ,
+                metadata: { tools: toolNamesListed },
+              }).catch(() => undefined)
+            }
+          } catch (e) {
+            const msg =
+              e instanceof Error ? `Stream wrapper error: ${e.message}` : 'Stream wrapper failed unexpectedly.'
+            await persistChatFollowupFailure(supabase, user.id, { error: msg, model: OPENAI_MODEL })
+            controller.enqueue(
+              sendLine({
+                type: 'error',
+                message: msg,
+                retryable: true,
+              }),
+            )
+            controller.close()
+          }
+        },
+      })
+      return new Response(streamOut, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+        },
+      })
     }
 
     const toolOutputs = await Promise.all(
@@ -1456,99 +1727,6 @@ ${platformConnectionContext}${focusedFanLine}`
       ...toolResults,
     ]
 
-    const maxFollowTokens = divineFull ? 720 : 520
-
-    if (stream) {
-      const encoder = new TextEncoder()
-      const sendLine = (obj: unknown) => encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)
-      const streamOut = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          try {
-            controller.enqueue(
-              sendLine({
-                type: 'tools_done',
-                lookup_meta: lookupMetas.length ? lookupMetas : undefined,
-              }),
-            )
-            const resStream = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: OPENAI_MODEL,
-                messages: followUpMessages,
-                max_tokens: maxFollowTokens,
-                temperature: 0.55,
-                stream: true,
-              }),
-            })
-            if (!resStream.ok || !resStream.body) {
-              const errText = await resStream.text().catch(() => '')
-              controller.enqueue(
-                sendLine({
-                  type: 'error',
-                  message: `OpenAI follow-up error: ${errText.slice(0, 200)}`,
-                }),
-              )
-              controller.close()
-              return
-            }
-            const reader = resStream.body.getReader()
-            const decoder = new TextDecoder()
-            let buffer = ''
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              buffer += decoder.decode(value, { stream: true })
-              const lines = buffer.split('\n')
-              buffer = lines.pop() ?? ''
-              for (const line of lines) {
-                const trimmed = line.trim()
-                if (!trimmed.startsWith('data: ')) continue
-                const data = trimmed.slice(6)
-                if (data === '[DONE]') continue
-                try {
-                  const json = JSON.parse(data) as {
-                    choices?: Array<{ delta?: { content?: string } }>
-                  }
-                  const delta = json.choices?.[0]?.delta?.content
-                  if (delta) controller.enqueue(sendLine({ type: 'token', text: delta }))
-                } catch {
-                  // ignore malformed chunks
-                }
-              }
-            }
-            controller.enqueue(
-              sendLine({
-                type: 'done',
-                actions: pendingConfirmations.length ? pendingConfirmations : undefined,
-                ui_actions: allUiActions.length ? allUiActions : undefined,
-                lookup_meta: lookupMetas.length ? lookupMetas : undefined,
-              }),
-            )
-            controller.close()
-          } catch (e) {
-            controller.enqueue(
-              sendLine({
-                type: 'error',
-                message: e instanceof Error ? e.message : 'Stream failed',
-              }),
-            )
-            controller.close()
-          }
-        },
-      })
-      return new Response(streamOut, {
-        headers: {
-          'Content-Type': 'text/event-stream; charset=utf-8',
-          'Cache-Control': 'no-cache, no-transform',
-          Connection: 'keep-alive',
-        },
-      })
-    }
-
     const res2 = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -1565,7 +1743,9 @@ ${platformConnectionContext}${focusedFanLine}`
 
     if (!res2.ok) {
       const errText = await res2.text()
-      return NextResponse.json({ error: `OpenAI follow-up error: ${errText.slice(0, 200)}` }, { status: 502 })
+      const msg = `OpenAI follow-up error: ${errText.slice(0, 200)}`
+      await persistChatFollowupFailure(supabase, user.id, { error: msg, model: OPENAI_MODEL })
+      return NextResponse.json({ error: msg, retryable: true }, { status: 502 })
     }
 
     const data2 = (await res2.json()) as {
@@ -1576,6 +1756,14 @@ ${platformConnectionContext}${focusedFanLine}`
     logDivineManagerChatUsage(user.id, 'final_round', data2)
     const finalContent = data2.choices?.[0]?.message?.content ?? ''
     const reply = finalContent.trim()
+    const toolNamesListedSync = toolCalls.map((tc) => tc.function.name)
+    if (reply.length > 0) {
+      void appendMemory(supabase, user.id, {
+        source: 'chat',
+        summary: reply,
+        metadata: { tools: toolNamesListedSync },
+      }).catch(() => undefined)
+    }
 
     const response: {
       reply: string

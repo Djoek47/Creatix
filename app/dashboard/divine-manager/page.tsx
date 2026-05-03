@@ -48,6 +48,7 @@ import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
 import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
 import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
+import { BackgroundJobsList } from '@/components/divine/background-jobs-list'
 import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
 import { cn } from '@/lib/utils'
@@ -400,6 +401,8 @@ export default function DivineManagerPage() {
     window.speechSynthesis.speak(utterance)
   }
 
+  const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
   const runVoiceMode = async (mode: 'intro' | 'ongoing' | 'what_next') => {
     setVoiceLoading(true)
     setVoiceMode(mode)
@@ -426,21 +429,64 @@ export default function DivineManagerPage() {
         body: JSON.stringify({ mode }),
       })
       if (!res.ok) throw new Error('Failed to get voice script')
-      const data = (await res.json()) as { script?: string; audio?: string; error?: string }
-      if (data.script) setVoiceScript(data.script)
-      if (data.audio) {
-        const binary = atob(data.audio)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        const blob = new Blob([bytes], { type: 'audio/mpeg' })
-        const url = URL.createObjectURL(blob)
-        const audio = new Audio(url)
-        audio.onended = () => URL.revokeObjectURL(url)
-        audio.onerror = () => URL.revokeObjectURL(url)
-        await audio.play()
-      } else if (data.script) {
-        speak(data.script)
+      const data = (await res.json()) as {
+        script?: string
+        audio?: string
+        error?: string
+        pending?: boolean
+        jobId?: string
       }
+
+      const playBriefingPayload = async (payload: { script?: string | null; audio?: string | null }) => {
+        if (payload.script) setVoiceScript(payload.script)
+        if (payload.audio) {
+          const binary = atob(payload.audio)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          const blob = new Blob([bytes], { type: 'audio/mpeg' })
+          const url = URL.createObjectURL(blob)
+          const audio = new Audio(url)
+          audio.onended = () => URL.revokeObjectURL(url)
+          audio.onerror = () => URL.revokeObjectURL(url)
+          await audio.play()
+        } else if (payload.script) {
+          speak(payload.script)
+        }
+      }
+
+      if (data.pending && data.jobId) {
+        let attempts = 0
+        let lastErr: string | null = null
+        while (attempts < 90) {
+          await sleep(2000)
+          const pollRes = await fetch(
+            `/api/ai/divine-manager-voice?jobId=${encodeURIComponent(data.jobId)}&includeTts=1`,
+          )
+          if (!pollRes.ok) break
+          const poll = (await pollRes.json()) as {
+            status?: string
+            pending?: boolean
+            script?: string
+            audio?: string | null
+            error?: string
+          }
+          if (!poll.pending && poll.status === 'completed' && poll.script) {
+            await playBriefingPayload({ script: poll.script, audio: poll.audio ?? null })
+            break
+          }
+          if (!poll.pending && poll.status !== 'completed') {
+            lastErr = poll.error || poll.status || 'briefing_failed'
+            break
+          }
+          attempts += 1
+        }
+        if (lastErr) {
+          console.error('[voice briefing]', lastErr)
+        }
+        return
+      }
+
+      await playBriefingPayload({ script: data.script ?? null, audio: data.audio ?? null })
     } catch (e) {
       console.error(e)
     } finally {
@@ -2517,6 +2563,9 @@ export default function DivineManagerPage() {
                 />
               </div>
             </div>
+          </div>
+          <div className="border-t border-border pt-8">
+            <BackgroundJobsList />
           </div>
           <div className="space-y-10 border-t border-border/80 pt-10">
             <div className="space-y-2">

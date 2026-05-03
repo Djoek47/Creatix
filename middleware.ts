@@ -55,6 +55,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  if (request.nextUrl.pathname.startsWith('/api/openai/webhook')) {
+    return NextResponse.next()
+  }
+
   try {
     const sessionResponse = await updateSession(request)
     const pathname = request.nextUrl.pathname

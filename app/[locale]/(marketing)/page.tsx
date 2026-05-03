@@ -119,15 +119,16 @@ export default async function LandingPage({ params }: PageProps) {
               />
               <div className="relative flex flex-col items-center">
                 <span className="cta-trial-rainbow-shell inline-flex rounded-full shadow-sm">
-                  <Link href="/auth/sign-up" className="inline-flex rounded-full">
-                    <Button
-                      size="lg"
-                      className="h-12 gap-2.5 rounded-full bg-gradient-to-r from-primary to-circe/90 px-11 text-base font-semibold text-primary-foreground shadow-[0_22px_48px_-14px] shadow-primary/40 ring-1 ring-foreground/10 transition-[transform,filter] hover:brightness-[1.04] active:scale-[0.99] sm:h-14 sm:gap-3 sm:px-14 sm:text-lg sm:shadow-[0_28px_56px_-16px] sm:shadow-primary/45"
-                    >
-                      {t('home.hero.ctaTrial')}{' '}
+                  <Button
+                    asChild
+                    size="lg"
+                    className="cta-trial-cta-button h-12 gap-2.5 rounded-full bg-gradient-to-r from-primary to-circe/90 px-11 text-base font-semibold text-primary-foreground shadow-[0_22px_48px_-14px] shadow-primary/40 ring-1 ring-foreground/10 hover:brightness-[1.04] sm:h-14 sm:gap-3 sm:px-14 sm:text-lg sm:shadow-[0_28px_56px_-16px] sm:shadow-primary/45"
+                  >
+                    <Link href="/auth/sign-up">
+                      <span className="cta-trial-rainbow-label">{t('home.hero.ctaTrial')}</span>
                       <ArrowRight className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" aria-hidden />
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 </span>
                 <p className="mt-4 max-w-md text-pretty text-center text-xs leading-relaxed text-muted-foreground sm:mt-3.5 sm:text-sm">
                   {t('pricing.model.trialLine')}

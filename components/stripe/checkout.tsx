@@ -7,6 +7,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import {
+  CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE,
   startCheckoutSession,
   startCustomCreditTopupCheckout,
   startPaidSubscriptionCheckout,
@@ -31,13 +32,21 @@ const STRIPE_CONFIG_ERROR =
 /** Must sit above nested host dialogs (e.g. insufficient-credits modal at z-[100]). */
 const CHECKOUT_DIALOG_Z = 'z-[200]'
 
+export type CheckoutSecretError = Error & { checkoutCode?: string }
+
+function attachCheckoutCode(error: Error, code: string | undefined): CheckoutSecretError {
+  const e = error as CheckoutSecretError
+  e.checkoutCode = code
+  return e
+}
+
 async function checkoutClientSecret(
   resultPromise: Promise<string | CheckoutClientSecretResult>,
 ): Promise<string> {
   const r = await resultPromise
   if (typeof r === 'string') return r
   if (r.ok) return r.clientSecret
-  throw new Error(r.error)
+  throw attachCheckoutCode(new Error(r.error), r.code)
 }
 
 interface CheckoutProps {
@@ -217,6 +226,8 @@ export function CheckoutEmbed({
   focusPlatforms,
   seats = DEFAULT_BILLING_SEATS,
   onComplete,
+  onClientSecretError,
+  onClientSecretFetchStarted,
   className,
   rootId = 'checkout',
 }: {
@@ -227,10 +238,17 @@ export function CheckoutEmbed({
   seats?: number
   /** Fires when Stripe Embedded Checkout completes (e.g. trial card collected). */
   onComplete?: () => void | Promise<void>
+  /** When session creation fails before the iframe can load (recoverable UX in parents). */
+  onClientSecretError?: (message: string, checkoutCode?: string) => void
+  /** Invoked whenever a new client-secret fetch begins (retry or first load). Clears parents’ “fatal” flags. */
+  onClientSecretFetchStarted?: () => void
   className?: string
   /** Avoid duplicate `id="checkout"` when multiple embeds exist in the DOM. */
   rootId?: string
 }) {
+  const [fatalError, setFatalError] = useState<{ message: string; code?: string } | null>(null)
+  const [embedKey, setEmbedKey] = useState(0)
+
   if (!stripePromise) {
     return (
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
@@ -239,44 +257,95 @@ export function CheckoutEmbed({
     )
   }
 
-  const fetchClientSecret = useCallback(() => {
-    if (productId === PAID_PLAN_ID) {
-      if (billingVariant == null || tierIndex == null) {
-        return Promise.reject(new Error('Missing billing options'))
+  const fetchClientSecret = useCallback(async () => {
+    onClientSecretFetchStarted?.()
+    setFatalError(null)
+    try {
+      if (productId === PAID_PLAN_ID) {
+        if (billingVariant == null || tierIndex == null) {
+          throw new Error('Missing billing options')
+        }
+        return await checkoutClientSecret(
+          startPaidSubscriptionCheckout({
+            variant: billingVariant,
+            tierIndex,
+            focusPlatforms:
+              billingVariant === 'single'
+                ? focusPlatforms?.length
+                  ? focusPlatforms
+                  : ['onlyfans']
+                : billingVariant === 'multi' &&
+                    focusPlatforms?.length &&
+                    sortFocusPlatforms(focusPlatforms).includes('manyvids')
+                  ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
+                  : null,
+            seats,
+          }),
+        )
       }
-      return checkoutClientSecret(
-        startPaidSubscriptionCheckout({
-          variant: billingVariant,
-          tierIndex,
-          focusPlatforms:
-            billingVariant === 'single'
-              ? focusPlatforms?.length
-                ? focusPlatforms
-                : ['onlyfans']
-              : billingVariant === 'multi' &&
-                  focusPlatforms?.length &&
-                  sortFocusPlatforms(focusPlatforms).includes('manyvids')
-                ? (['onlyfans', 'fansly', 'manyvids'] as AdultBillingPlatform[])
-                : null,
-          seats,
-        }),
-      )
+      return await checkoutClientSecret(startCheckoutSession(productId))
+    } catch (e) {
+      const blocked = parsePaidCheckoutBlockedError(e)
+      const message = blocked
+        ? `Linked account activity requires at least ${blocked.bandLabel} (tier ${blocked.requiredMinTier}). Raise your tier in the estimate above, then try again—or disconnect a platform under Connections if it should not affect billing yet.`
+        : e instanceof Error
+          ? e.message
+          : 'Checkout failed'
+      const checkoutCode = (e as CheckoutSecretError).checkoutCode
+      setFatalError({ message, code: checkoutCode })
+      onClientSecretError?.(message, checkoutCode)
+      throw e
     }
-    return checkoutClientSecret(startCheckoutSession(productId))
-  }, [productId, billingVariant, tierIndex, focusPlatforms, seats])
+  }, [
+    productId,
+    billingVariant,
+    tierIndex,
+    focusPlatforms,
+    seats,
+    onClientSecretError,
+    onClientSecretFetchStarted,
+  ])
 
   const handleComplete = useCallback(() => {
     void onComplete?.()
   }, [onComplete])
 
   return (
-    <div id={rootId} className={className}>
-      <EmbeddedCheckoutProvider
-        stripe={stripePromise}
-        options={{ fetchClientSecret, onComplete: handleComplete }}
-      >
-        <EmbeddedCheckout />
-      </EmbeddedCheckoutProvider>
+    <div id={rootId} className={cn('space-y-3', className)}>
+      {fatalError ? (
+        <div className="space-y-3">
+          <Alert variant="destructive">
+            <AlertDescription>{fatalError.message}</AlertDescription>
+          </Alert>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-full"
+              onClick={() => {
+                setFatalError(null)
+                setEmbedKey((k) => k + 1)
+              }}
+            >
+              Retry checkout
+            </Button>
+            {fatalError.code === CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE ? (
+              <p className="w-full text-[13px] leading-relaxed text-muted-foreground">
+                You can continue — your trial is already set up for this account.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <EmbeddedCheckoutProvider
+          key={embedKey}
+          stripe={stripePromise}
+          options={{ fetchClientSecret, onComplete: handleComplete }}
+        >
+          <EmbeddedCheckout />
+        </EmbeddedCheckoutProvider>
+      )}
     </div>
   )
 }

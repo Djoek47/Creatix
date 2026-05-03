@@ -42,6 +42,10 @@ import {
 } from '@/lib/billing/stripe-paid-tier-subscription-update'
 import { getAppUrl } from '@/lib/site-url'
 import { stripeProductForInlinePriceData } from '@/lib/billing/stripe-dahlia-product'
+import { subscriptionRowHasTrialBillingAttached } from '@/lib/billing/trial-checkout-attached'
+
+/** Returned on `CheckoutClientSecretResult` when divine-trial is not available (mirror `hasTrialBillingAttached`). */
+export const CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE = 'trial_already_active'
 
 /** Must match `app/api/stripe/webhook/route.ts` trial subscription length. */
 const TRIAL_DURATION_DAYS = 2
@@ -56,7 +60,7 @@ const CHECKOUT_EMBEDDED_UI_MODE =
  */
 export type CheckoutClientSecretResult =
   | { ok: true; clientSecret: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; code?: string }
 
 function clampBillingSeats(n: number): number {
   if (!Number.isFinite(n)) return DEFAULT_BILLING_SEATS
@@ -170,11 +174,15 @@ export async function startCheckoutSession(productId: string): Promise<CheckoutC
     if (product.id === 'divine-trial') {
       const { data: trialSub } = await supabase
         .from('subscriptions')
-        .select('stripe_subscription_id')
+        .select('stripe_subscription_id,plan_id,status')
         .eq('user_id', user.id)
         .maybeSingle()
-      if (trialSub?.stripe_subscription_id) {
-        return { ok: false, error: 'Free trial is only available once per account.' }
+      if (subscriptionRowHasTrialBillingAttached(trialSub)) {
+        return {
+          ok: false,
+          error: 'Your trial is already active on this account.',
+          code: CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE,
+        }
       }
       const session = await stripe.checkout.sessions.create({
         ui_mode: CHECKOUT_EMBEDDED_UI_MODE,

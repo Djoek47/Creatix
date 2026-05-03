@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckoutEmbed } from '@/components/stripe/checkout'
-import { CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE } from '@/app/actions/stripe'
+import { CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE } from '@/lib/billing/trial-checkout-attached'
 import { TRIAL_PLAN_ID } from '@/lib/billing/access'
 import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'

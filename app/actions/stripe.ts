@@ -42,10 +42,10 @@ import {
 } from '@/lib/billing/stripe-paid-tier-subscription-update'
 import { getAppUrl } from '@/lib/site-url'
 import { stripeProductForInlinePriceData } from '@/lib/billing/stripe-dahlia-product'
-import { subscriptionRowHasTrialBillingAttached } from '@/lib/billing/trial-checkout-attached'
-
-/** Returned on `CheckoutClientSecretResult` when divine-trial is not available (mirror `hasTrialBillingAttached`). */
-export const CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE = 'trial_already_active'
+import {
+  CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE,
+  subscriptionRowHasTrialBillingAttached,
+} from '@/lib/billing/trial-checkout-attached'
 
 /** Must match `app/api/stripe/webhook/route.ts` trial subscription length. */
 const TRIAL_DURATION_DAYS = 2

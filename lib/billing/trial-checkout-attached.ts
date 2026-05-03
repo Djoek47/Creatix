@@ -1,5 +1,8 @@
 import { TRIAL_PLAN_ID } from '@/lib/billing/access'
 
+/** `CheckoutClientSecretResult.code` when `startCheckoutSession` blocks duplicate divine-trial (client-safe; not from a "use server" file). */
+export const CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE = 'trial_already_active' as const
+
 /** Minimal subscription row for “trial card captured?” (matches dashboard layout select). */
 export type TrialBillingSignalRow = {
   stripe_subscription_id?: string | null

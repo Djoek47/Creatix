@@ -7,12 +7,12 @@ import {
 } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import {
-  CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE,
   startCheckoutSession,
   startCustomCreditTopupCheckout,
   startPaidSubscriptionCheckout,
   type CheckoutClientSecretResult,
 } from '@/app/actions/stripe'
+import { CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE } from '@/lib/billing/trial-checkout-attached'
 import { parsePaidCheckoutBlockedError } from '@/lib/billing/paid-checkout-blocked'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'

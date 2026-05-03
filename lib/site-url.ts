@@ -8,7 +8,8 @@ function stripTrailingSlash(value: string): string {
 
 /**
  * Canonical public origin used for metadata/sitemaps/OAuth/webhook docs.
- * Crawlable URLs are defined in `lib/seo-public-paths.ts`; `/dashboard` is private.
+ * Crawlable URLs for sitemaps / robots are defined in {@link ./seo-public-paths};
+ * indexed marketing canonicals use `/en/…`; `/dashboard` is private.
  *
  * Precedence:
  * - APP_URL (server-only, preferred)

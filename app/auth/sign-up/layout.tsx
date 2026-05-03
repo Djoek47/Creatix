@@ -7,6 +7,7 @@ export const metadata: Metadata = buildPublicMetadata({
   description:
     'Create your Circe et Venus account — 2-day trial (credit card required). AI-powered creator OS: Divine Manager, Circe, Venus, CRM, and platform tools.',
   keywords: ['Circe et Venus sign up', 'Creatix free trial', 'creator platform register'],
+  index: false,
 })
 
 export default function SignUpLayout({ children }: { children: React.ReactNode }) {

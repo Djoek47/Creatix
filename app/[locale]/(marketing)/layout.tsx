@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { getTranslations } from 'next-intl/server'
 
 import { MarketingSiteChrome } from '@/components/marketing/marketing-site-chrome'
-import type { Phase1Locale } from '@/lib/i18n/routing'
+import { MarketingSiteWideJsonLd } from '@/components/marketing/marketing-site-wide-json-ld'
+import { SEO_PRIMARY_LOCALE } from '@/lib/seo-public-paths'
 import { SITE_NAME } from '@/lib/seo/marketing-metadata'
 
 type Props = { children: ReactNode; params: Promise<{ locale: string }> }
@@ -17,6 +18,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function MarketingLayout({ children }: { children: ReactNode }) {
-  return <MarketingSiteChrome>{children}</MarketingSiteChrome>
+export default async function MarketingLayout({ children, params }: Props) {
+  const { locale } = await params
+
+  return (
+    <MarketingSiteChrome>
+      {locale === SEO_PRIMARY_LOCALE ? <MarketingSiteWideJsonLd /> : null}
+      {children}
+    </MarketingSiteChrome>
+  )
 }

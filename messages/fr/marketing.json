@@ -314,6 +314,15 @@
       "antiPiracyBundle": "Pack anti-piratage",
       "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Prix mensuel de base par plateforme"
+    },
+    "discover": {
+      "title": "Explorer la plateforme",
+      "sub": "Tarifs guidés, démo produit et onboarding — le même espace de travail.",
+      "navAria": "Pages produit",
+      "demoLabel": "Démo",
+      "pricingLabel": "Tarifs",
+      "featuresLabel": "Fonctionnalités",
+      "howLabel": "Comment ça marche"
     }
   },
   "divineCommandCenter": {
@@ -348,6 +357,15 @@
       "lead": "Tout,",
       "accent": "au même endroit.",
       "subhead": "Commencez par l’essentiel, puis explorez les flux profonds derrière messagerie, rétention, analytics et protection."
+    },
+    "explore": {
+      "title": "Prochaines étapes",
+      "sub": "Comparez les tarifs, parcourez la démo guidée ou lisez comment démarrer.",
+      "navAria": "Pages liées",
+      "pricing": "Forfaits & tarifs",
+      "demo": "Démo produit",
+      "howItWorks": "Comment ça marche",
+      "home": "Accueil"
     },
     "cards": {
       "0": {
@@ -581,6 +599,16 @@
       "bundledCardBody": "Bundled = OnlyFans + Fansly. Les vitrines hors API (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) utilisent l’option Protection à {protectionPrice}/mois — voir Tarifs.",
       "ctaHomePricing": "Tarifs sur l’accueil",
       "ctaFullPricing": "Tarifs complets"
+    },
+    "enterprise": {
+      "heading": "Studios & équipes étendues",
+      "body": "Siège groupés, accords sur mesure, questionnaires sécurité ou volumes plus élevés ? Nous acheminons l’entreprise vers le même contact que partenariats et presse.",
+      "cta": "Contact",
+      "trustHeading": "Politiques et confiance",
+      "trustBody": "Consultez confidentialité, conditions et cookies avant de vous abonner — le paiement se finalise dans l’application via Stripe.",
+      "linkPrivacy": "Confidentialité",
+      "linkTerms": "Conditions",
+      "linkCookies": "Cookies"
     }
   }
 }

@@ -81,6 +81,15 @@
       "antiPiracyBundle": "Anti-piracy bundle",
       "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Base monthly price by platform"
+    },
+    "discover": {
+      "title": "Explore the platform",
+      "sub": "See pricing bands, walk the product demo, and connect how onboarding works — all pathways lead back to one creator workspace.",
+      "navAria": "Product destinations",
+      "demoLabel": "Demo",
+      "pricingLabel": "Pricing",
+      "featuresLabel": "Features",
+      "howLabel": "How it works"
     }
   },
   "divineCommandCenter": {
@@ -115,6 +124,15 @@
       "lead": "Everything,",
       "accent": "in one place.",
       "subhead": "Start with the essentials, then expand to see the deeper workflows powering messaging, retention, analytics, and protection."
+    },
+    "explore": {
+      "title": "Next steps",
+      "sub": "Compare pricing, walk a guided demo, or see how onboarding works — one workspace for creators on OnlyFans and Fansly.",
+      "navAria": "Related pages",
+      "pricing": "Plans & pricing",
+      "demo": "Product demo",
+      "howItWorks": "How it works",
+      "home": "Home"
     },
     "cards": {
       "0": {
@@ -348,6 +366,16 @@
       "bundledCardBody": "Bundled is OnlyFans + Fansly. Non-API stores (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) use the {protectionPrice}/mo Protection add-on — see Pricing.",
       "ctaHomePricing": "Pricing on home",
       "ctaFullPricing": "Full pricing"
+    },
+    "enterprise": {
+      "heading": "Studios & larger teams",
+      "body": "Need pooled seats, custom agreements, security questionnaires, or higher volumes? We route enterprise conversations through the same contact channel as partnerships and press.",
+      "cta": "Contact us",
+      "trustHeading": "Policies & billing trust",
+      "trustBody": "Review privacy, terms, and cookies before you subscribe — billing is finalized in-product with Stripe-backed checkout.",
+      "linkPrivacy": "Privacy Policy",
+      "linkTerms": "Terms of Service",
+      "linkCookies": "Cookies"
     }
   },
   "demo": {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { getCanonicalUrl } from '@/lib/site-url'
 import { routing } from '@/lib/i18n/routing'
 import type { Phase1Locale } from '@/lib/i18n/routing'
+import { SEO_PRIMARY_LOCALE } from '@/lib/seo-public-paths'
 
 /** Public brand name for titles and Open Graph. */
 export const SITE_NAME = 'Circe et Venus'
@@ -22,7 +23,10 @@ function ogLocaleForPhase1(locale: Phase1Locale): string {
 }
 
 /**
- * Indexable marketing pages under `/[locale]/…` — canonical + hreflang alternates.
+ * Marketing pages under `/[locale]/…` — canonical + hreflang alternates.
+ *
+ * {@link SEO_PRIMARY_LOCALE}: `index`; other locales remain discoverable links but **`noindex`**
+ * (see `SEO_PUBLIC_PATHS` / `SEO_SITEMAP_PATHS`).
  */
 export function buildMarketingLocaleMetadata(opts: {
   locale: Phase1Locale
@@ -42,6 +46,8 @@ export function buildMarketingLocaleMetadata(opts: {
   for (const l of routing.locales) {
     languages[l] = fullPathFor(l)
   }
+
+  const indexable = opts.locale === SEO_PRIMARY_LOCALE
 
   return {
     title: opts.title,
@@ -74,10 +80,10 @@ export function buildMarketingLocaleMetadata(opts: {
       images: [imageUrl],
     },
     robots: {
-      index: true,
+      index: indexable,
       follow: true,
       googleBot: {
-        index: true,
+        index: indexable,
         follow: true,
       },
     },
@@ -85,17 +91,21 @@ export function buildMarketingLocaleMetadata(opts: {
 }
 
 /**
- * Full Next.js metadata for indexable marketing/legal pages: canonical URL, Open Graph, Twitter, robots.
- * Use for **non-locale** routes (legal, auth shells) only.
+ * Legal, auth shells, etc. Uses English OG locale.
+ *
+ * Pass `index: false` for auth pages that should remain crawlable but out of SERPs.
  */
 export function buildPublicMetadata(opts: {
   path: string
   title: string
   description: string
   keywords?: string[]
+  /** Default `true` for legal/trust pages. Auth flows typically use `false`. */
+  index?: boolean
 }): Metadata {
   const url = getCanonicalUrl(opts.path)
   const imageUrl = getCanonicalUrl(PUBLIC_OG_IMAGE_PATH)
+  const indexable = opts.index !== false
 
   return {
     title: opts.title,
@@ -125,10 +135,10 @@ export function buildPublicMetadata(opts: {
       images: [imageUrl],
     },
     robots: {
-      index: true,
+      index: indexable,
       follow: true,
       googleBot: {
-        index: true,
+        index: indexable,
         follow: true,
       },
     },

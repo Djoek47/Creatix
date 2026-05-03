@@ -605,7 +605,7 @@
       "modeOptInTitle": "Envio automático opt-in",
       "modeOptInDesc": "Envia respostas só texto quando o Mimic permite (ou com bypass ativo). Requer confirmação beta.",
       "modeExperimentalTitle": "Automático experimental (não recomendado)",
-      "modeExperimentalDesc": "Requer confirmação beta e «ignorar porta de revisão do Mimic». Maior risco de falhas.",
+      "modeExperimentalDesc": "Replica o seu tom, vocabulário e padrões de mensagens de texto. (Atualmente em BETA)",
       "ackAutoRisk": "Compreendo os riscos do envio automático e as regras da plataforma; continuo responsável pelo conteúdo enviado.",
       "bypassMimic": "Ignorar «nunca enviar sem revisão» do Mimic (obrigatório para automático experimental; opcional para opt-in quando o Mimic bloqueia).",
       "notifyRisk": "Notificar sinais de risco ou escalação",

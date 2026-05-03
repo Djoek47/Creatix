@@ -1,4 +1,5 @@
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
+import { FeaturesExploreStrip } from '@/components/marketing/features-explore-strip'
 import {
   Shield,
   Users,
@@ -173,6 +174,8 @@ export default async function FeaturesPage({ params }: PageProps) {
           </MotionReveal>
         </div>
       </section>
+
+      <FeaturesExploreStrip locale={locale} />
     </main>
   )
 }

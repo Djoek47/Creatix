@@ -8,6 +8,7 @@ import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AuthPasswordField } from '@/components/auth/auth-password-field'
+import { LoginMfaChallenge } from '@/components/auth/login-mfa-challenge'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
@@ -15,9 +16,12 @@ import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
+type LoginStep = 'credentials' | 'mfa'
+
 export default function LoginPage() {
   const tAuth = useTranslations('auth')
   const tCommon = useTranslations('common')
+  const [step, setStep] = useState<LoginStep>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -30,19 +34,43 @@ export default function LoginPage() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: signError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
-      setError(error.message)
+    if (signError) {
+      setError(signError.message)
+      setLoading(false)
+      return
+    }
+
+    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aalError) {
+      setError(aalError.message)
+      setLoading(false)
+      return
+    }
+
+    if (aal?.nextLevel === 'aal2' && aal.currentLevel !== aal.nextLevel) {
+      setStep('mfa')
       setLoading(false)
       return
     }
 
     router.push('/dashboard')
     router.refresh()
+  }
+
+  function handleMfaVerified() {
+    router.push('/dashboard')
+    router.refresh()
+  }
+
+  function handleUseDifferentAccount() {
+    setStep('credentials')
+    setPassword('')
+    setError(null)
   }
 
   const badCredentials = Boolean(error?.toLowerCase().includes('invalid login credentials'))
@@ -82,13 +110,21 @@ export default function LoginPage() {
       >
         <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
           <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
-            {tAuth('loginTitle')}
+            {step === 'mfa' ? tAuth('mfaLoginTitle') : tAuth('loginTitle')}
           </CardTitle>
           <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
-            {tAuth('loginCardSubtitle')}
+            {step === 'mfa' ? tAuth('mfaLoginSubtitle') : tAuth('loginCardSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-8 pb-10 pt-8">
+          {step === 'mfa' ? (
+            <LoginMfaChallenge
+              email={email}
+              onVerified={handleMfaVerified}
+              onUseDifferentAccount={handleUseDifferentAccount}
+            />
+          ) : null}
+          {step === 'credentials' ? (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div
@@ -170,7 +206,9 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+          ) : null}
 
+          {step === 'credentials' ? (
           <p className="mt-8 text-center text-[15px] text-muted-foreground">
             {tAuth('loginNewHere')}{' '}
             <Link
@@ -180,6 +218,7 @@ export default function LoginPage() {
               {tAuth('loginCreateAccount')}
             </Link>
           </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>

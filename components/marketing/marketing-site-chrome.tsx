@@ -1,5 +1,6 @@
 'use client'
 
+import { MarketingConversionClickListener } from '@/components/marketing/marketing-conversion-click-listener'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -54,7 +55,8 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative min-h-screen min-w-0 bg-background constellation-bg">
+    <MarketingConversionClickListener>
+      <div className="relative min-h-screen min-w-0 bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
       <header className="fixed top-0 left-0 right-0 z-50 overflow-visible border-b border-border/40 bg-background/75 backdrop-blur-xl">
@@ -260,5 +262,6 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
         </div>
       </footer>
     </div>
+    </MarketingConversionClickListener>
   )
 }

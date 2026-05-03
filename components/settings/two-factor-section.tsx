@@ -276,14 +276,20 @@ export function TwoFactorSection() {
       {surfaceMessage?.type === 'err' ? <p className="text-[13px] text-destructive">{surfaceMessage.text}</p> : null}
 
       <Dialog open={dialogOpen} onOpenChange={(o) => void handleDialogOpenChange(o)}>
-        <DialogContent className="max-w-[min(100vw-2rem,24rem)]">
-          <DialogHeader>
-            <DialogTitle className="text-[17px] font-semibold tracking-tight">{t('mfa.dialogTitle')}</DialogTitle>
-            <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground">
+        <DialogContent
+          className={
+            'max-w-[min(100vw-2rem,26rem)] gap-0 overflow-hidden rounded-3xl border border-white/50 bg-white/70 p-0 shadow-[0_24px_80px_-20px_rgba(15,23,42,0.18)] backdrop-blur-2xl dark:border-white/[0.12] dark:bg-slate-950/55 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] sm:max-w-[min(100vw-2rem,26rem)]'
+          }
+        >
+          <DialogHeader className="space-y-2 px-8 pb-2 pt-8 pr-14 text-left sm:pr-16">
+            <DialogTitle className="font-serif text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground sm:text-[1.5rem]">
+              {t('mfa.dialogTitle')}
+            </DialogTitle>
+            <DialogDescription className="text-[15px] leading-relaxed text-muted-foreground">
               {t('mfa.dialogDescription')}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 py-2">
+          <div className="space-y-6 px-8 pb-2 pt-2">
             {dialogMessage?.type === 'err' ? <p className="text-[13px] text-destructive">{dialogMessage.text}</p> : null}
 
             {qrCode ? (
@@ -315,7 +321,7 @@ export function TwoFactorSection() {
             ) : null}
 
             <div className="space-y-3">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('mfa.confirmationCode')}</label>
+              <label className="text-[13px] font-medium text-foreground">{t('mfa.confirmationCode')}</label>
               <InputOTP
                 maxLength={6}
                 value={otp}
@@ -323,28 +329,31 @@ export function TwoFactorSection() {
                 aria-label={t('mfa.otpAria')}
                 containerClassName="justify-center"
               >
-                <InputOTPGroup>
+                <InputOTPGroup className="gap-2.5">
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <InputOTPSlot key={i} index={i} className="h-11 w-10 text-[17px]" />
+                    <InputOTPSlot
+                  key={i}
+                  index={i}
+                  className="h-12 w-11 rounded-xl border border-border/80 bg-background/70 text-[17px] font-medium tabular-nums shadow-none transition-[border-color,box-shadow] first:rounded-xl first:border-l last:rounded-xl data-[active=true]:border-foreground/25 data-[active=true]:ring-[3px] data-[active=true]:ring-foreground/15 dark:bg-black/25"
+                />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
             </div>
           </div>
-          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+          <DialogFooter className="flex-col-reverse gap-3 border-t border-border/40 px-8 py-6 sm:flex-row sm:justify-between">
             <Button
               type="button"
               variant="ghost"
-              className="min-h-11 sm:justify-self-start"
+              className="min-h-12 rounded-xl text-[15px] sm:justify-self-start"
               onClick={() => void handleDialogOpenChange(false)}
             >
               {t('mfa.cancel')}
             </Button>
             <Button
               type="button"
-              variant="secondary"
-              className="min-h-11 min-w-[8rem]"
               disabled={otp.length !== 6 || verifyBusy}
+              className="min-h-12 min-w-[8.5rem] rounded-xl text-[15px] font-medium tracking-tight shadow-none bg-foreground text-background hover:bg-foreground/88 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90"
               onClick={() => void handleVerify()}
             >
               {verifyBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}

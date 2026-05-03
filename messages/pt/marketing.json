@@ -314,6 +314,15 @@
       "antiPiracyBundle": "Pacote antipirataria",
       "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Preço mensal base por plataforma"
+    },
+    "discover": {
+      "title": "Explorar a plataforma",
+      "sub": "Preços guiados, demo do produto e como começar o onboarding — o mesmo espaço de trabalho.",
+      "navAria": "Destinos do produto",
+      "demoLabel": "Demo",
+      "pricingLabel": "Preços",
+      "featuresLabel": "Recursos",
+      "howLabel": "Como funciona"
     }
   },
   "divineCommandCenter": {
@@ -348,6 +357,15 @@
       "lead": "Tudo,",
       "accent": "num só lugar.",
       "subhead": "Comece pelo essencial e expanda para ver fluxos mais profundos de mensagens, retenção, analíticas e proteção."
+    },
+    "explore": {
+      "title": "Próximos passos",
+      "sub": "Compare preços, siga a demo guiada ou veja como funciona o onboarding.",
+      "navAria": "Páginas relacionadas",
+      "pricing": "Planos & preços",
+      "demo": "Demo do produto",
+      "howItWorks": "Como funciona",
+      "home": "Início"
     },
     "cards": {
       "0": {
@@ -581,6 +599,16 @@
       "bundledCardBody": "Bundled é OnlyFans + Fansly. Lojas sem API (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) usam o complemento Protection de {protectionPrice}/mês — ver Preços.",
       "ctaHomePricing": "Preços na página inicial",
       "ctaFullPricing": "Preços completos"
+    },
+    "enterprise": {
+      "heading": "Estúdios & equipes grandes",
+      "body": "Precisa de assentos agrupados, contratos personalizados, questionários de segurança ou maior volume? Direcionamos enterprise pelo mesmo canal que parcerias e imprensa.",
+      "cta": "Fale conosco",
+      "trustHeading": "Políticas e confiança",
+      "trustBody": "Consulte privacidade, termos e cookies antes de assinar — o pagamento é concluído no app via Stripe.",
+      "linkPrivacy": "Privacidade",
+      "linkTerms": "Termos",
+      "linkCookies": "Cookies"
     }
   }
 }

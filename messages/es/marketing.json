@@ -314,6 +314,15 @@
       "antiPiracyBundle": "Paquete antipiratería",
       "antiPiracyAbbrev": "AP",
       "ariaPlatformPrices": "Precio mensual base por plataforma"
+    },
+    "discover": {
+      "title": "Explora la plataforma",
+      "sub": "Precios guiados, demo del producto y cómo empieza el onboarding — mismo espacio de trabajo.",
+      "navAria": "Destinos del producto",
+      "demoLabel": "Demo",
+      "pricingLabel": "Precios",
+      "featuresLabel": "Funciones",
+      "howLabel": "Cómo funciona"
     }
   },
   "divineCommandCenter": {
@@ -348,6 +357,15 @@
       "lead": "Todo,",
       "accent": "en un solo lugar.",
       "subhead": "Empieza por lo esencial y amplía para ver los flujos profundos detrás de mensajes, retención, analíticas y protección."
+    },
+    "explore": {
+      "title": "Siguientes pasos",
+      "sub": "Compara precios, recorre la demo guiada o lee cómo funciona el onboarding.",
+      "navAria": "Páginas relacionadas",
+      "pricing": "Planes y precios",
+      "demo": "Demo del producto",
+      "howItWorks": "Cómo funciona",
+      "home": "Inicio"
     },
     "cards": {
       "0": {
@@ -581,6 +599,16 @@
       "bundledCardBody": "Bundled es OnlyFans + Fansly. Las tiendas sin API (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) usan el complemento Protection de {protectionPrice}/mes — ver Precios.",
       "ctaHomePricing": "Precios en inicio",
       "ctaFullPricing": "Precios completos"
+    },
+    "enterprise": {
+      "heading": "Estudios y equipos grandes",
+      "body": "¿Necesitas asientos agrupados, acuerdos a medida, cuestionarios de seguridad o mayor volumen? Encaminamos el enterprise por el mismo contacto que partnerships y prensa.",
+      "cta": "Contáctanos",
+      "trustHeading": "Políticas y confianza",
+      "trustBody": "Revisa privacidad, términos y cookies antes de suscribirte — el pago se finaliza en la app con Stripe.",
+      "linkPrivacy": "Privacidad",
+      "linkTerms": "Términos",
+      "linkCookies": "Cookies"
     }
   }
 }

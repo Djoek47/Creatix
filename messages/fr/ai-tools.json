@@ -605,7 +605,7 @@
       "modeOptInTitle": "Envoi auto opt-in",
       "modeOptInDesc": "Envoie des réponses texte uniquement lorsque Mimic l’autorise (ou si le contournement est activé). Accusé bêta requis.",
       "modeExperimentalTitle": "Auto expérimental (non recommandé)",
-      "modeExperimentalDesc": "Exige l’accusé bêta et le contournement de la barrière de relecture Mimic. Risque d’erreurs plus élevé.",
+      "modeExperimentalDesc": "Imite votre ton, votre vocabulaire et vos habitudes de texto. (Actuellement en BÊTA)",
       "ackAutoRisk": "Je comprends les risques d’envoi auto et les règles de la plateforme ; je reste responsable du contenu sortant.",
       "bypassMimic": "Contourner « ne jamais envoyer sans relecture » de Mimic (requis pour l’auto expérimental ; facultatif pour l’opt-in lorsque Mimic bloque).",
       "notifyRisk": "Notifier en cas de signaux de risque ou d’escalade",

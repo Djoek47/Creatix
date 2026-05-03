@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type { Phase1Locale } from '@/lib/i18n/routing'
+import { PricingEnterpriseTrust } from '@/components/marketing/pricing-enterprise-trust'
 import { PricingJsonLd } from '@/components/marketing/pricing-json-ld'
 import { buildMarketingLocaleMetadata } from '@/lib/seo/marketing-metadata'
 import { MarketingModeProvider } from '@/components/marketing/marketing-mode-context'
@@ -86,6 +87,8 @@ export default async function PricingPage({ params }: PageProps) {
     },
   ]
 
+  const pathnameForLd = `/${locale}/pricing`
+
   return (
     <>
       <PricingJsonLd
@@ -93,11 +96,13 @@ export default async function PricingPage({ params }: PageProps) {
         pageTitle={pageTitle}
         pageDescription={pageDescription}
         softwareOfferCopy={softwareOfferCopy}
+        canonicalPathname={pathnameForLd}
       />
       <main className="relative z-10 pt-14 sm:pt-16">
         <MarketingModeProvider>
           <MarketingPricingPageContent />
         </MarketingModeProvider>
+        <PricingEnterpriseTrust locale={locale} />
       </main>
     </>
   )

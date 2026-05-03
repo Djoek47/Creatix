@@ -2,28 +2,28 @@
 
 ## Public vs private (important)
 
-- **Indexed / in sitemap:** Marketing, pricing, features, legal, and auth **entry** pages only. The list lives in `lib/seo-public-paths.ts` and drives both `app/sitemap.ts` and `app/robots.ts` `Allow` rules.
-- **Not for Google (and other crawlers):** Everything under **`/dashboard`** (the signed-in product) and **`/api`**. These are:
-  - **`Disallow`** in `robots.txt`
-  - **Omitted** from `sitemap.xml`
-  - **`noindex, nofollow`** via `metadata.robots` on `app/dashboard/layout.tsx` (so leaked or redirected URLs still signal “do not index”).
+- **Indexed / in sitemap:** English-canonical marketing under **`/en/…`** (see `SEO_EN_MARKETING_CANONICAL_PATHS`); unprefixed **legal/trust** pages (`/about`, `/privacy`, `/terms`, `/cookies`, `/contact`). Listed in **`SEO_SITEMAP_PATHS`** / **`SEO_PUBLIC_PATHS`** in [`lib/seo-public-paths.ts`](lib/seo-public-paths.ts) — drives **`app/sitemap.ts`** and **`app/robots.ts`** `Allow` rules.
 
-Auth pages under `/auth/*` remain in the sitemap as **login/sign-up entry** URLs; they are not dashboard data.
+- **`noindex` / crawler blocks:** **`/dashboard`**, **`/api`**, **`/admin`**; non-English marketing locales (`es`, `fr`, `pt`) use `noindex` in `buildMarketingLocaleMetadata`.
+
+- **`/dashboard` protections:** **`Disallow`** in `robots.txt`, **omitted** from **`sitemap.xml`**, **`noindex, nofollow`** via `metadata.robots` on `app/dashboard/layout.tsx` (so leaked URLs still signal “do not index”).
+
+- **Auth `/auth/login` and `/auth/sign-up`:** Crawlable but **`noindex`** (organic landing should favour **`/en/…`** marketing + legal URLs).
 
 ## Technical SEO
 
 - [ ] `robots.txt` is served and `Host` points to `https://www.circeetvenus.com`
 - [ ] `robots.txt` references `https://www.circeetvenus.com/sitemap.xml`
-- [ ] `robots.txt` disallows `/dashboard` and `/api`, and allows only public paths from `seo-public-paths.ts`
-- [ ] `sitemap.xml` only lists public paths (no `/dashboard` routes)
-- [ ] Legal and marketing routes in sitemap are real public paths (`/about`, `/contact`, `/privacy`, `/cookies`, `/terms`)
+- [ ] `robots.txt` disallows `/dashboard`, `/api`, and `/admin`; allow list matches `SEO_PUBLIC_PATHS` (**includes `/en/…` marketing**)
+- [ ] `sitemap.xml` URLs match page canonicals (**`/en/pricing`**, not negotiated bare `/pricing`)
+- [ ] Legal and marketing routes in sitemap are real public paths (`/en`, `/en/features`, **`/about`**, **`/contact`**, etc.)
 - [ ] Root metadata uses canonical `metadataBase`
 - [ ] Organization JSON-LD uses canonical `url` and logo URL
 - [ ] Dashboard responses include `noindex` (verify in View Source or DevTools on a `/dashboard/*` page)
 
 ## Search Console
 
-- [ ] Add/verify Google Search Console property for `circeetvenus.com`
+- [ ] Add/verify Google Search Console property; filter or monitor **URL prefix `https://www.circeetvenus.com/en/`** as the primary indexed marketing surface (other locales are `noindex`)
 - [ ] Submit `https://www.circeetvenus.com/sitemap.xml`
 - [ ] Keep secondary property for `cetv.app` during migration for monitoring
 
@@ -71,7 +71,9 @@ Run this block **after** feature work is stable and you are ready to treat the s
 
 - [ ] **Google Search Console:** Coverage + experience reports clean; fix “Excluded” reasons that shouldn’t apply to public URLs.
 - [ ] **Bing Webmaster Tools** (optional): Submit same sitemap if Bing traffic matters.
-- [ ] **Analytics:** Vercel Analytics / other — confirm only **public** pages are the SEO concern; dashboard traffic is product analytics, not SEO.
+- [ ] **Marketing conversion events:** `MarketingConversionClickListener` forwards clicks on elements with **`data-marketing-conversion`**; events appear in **Vercel Analytics** as `marketing_{name}`
+
+- [ ] **Analytics:** Vercel Analytics / other — confirm **public** funnel events; dashboard traffic is product analytics, not SEO.
 - [ ] **Re-submit sitemap** after large content or route changes.
 
 ### Social & brand

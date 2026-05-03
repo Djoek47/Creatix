@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { HomeDiscoverLinks } from '@/components/marketing/home-discover-links'
 import { DivineCommandCenter } from '@/components/marketing/divine-command-center'
 import { MotionReveal, MotionStagger, MotionStaggerItem } from '@/components/marketing/motion-reveal'
 import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
@@ -186,6 +187,8 @@ export default async function LandingPage({ params }: PageProps) {
           </MotionReveal>
         </div>
       </section>
+
+      <HomeDiscoverLinks locale={locale} />
 
       <section className="px-4 py-12 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">

@@ -604,7 +604,7 @@
       "modeOptInTitle": "Opt-in auto-send",
       "modeOptInDesc": "Sends text-only replies when Mimic allows (or when bypass is enabled). Requires beta acknowledgment.",
       "modeExperimentalTitle": "Experimental auto (not recommended)",
-      "modeExperimentalDesc": "Requires beta acknowledgment and \"bypass Mimic review gate\". Higher misfire risk.",
+      "modeExperimentalDesc": "Mimics your own tone, vocabulary, and texting patterns. (Currently in BETA)",
       "ackAutoRisk": "I understand auto-send risks and platform rules; I remain responsible for outbound content.",
       "bypassMimic": "Bypass Mimic \"never send without review\" (required for experimental auto; optional for opt-in auto when Mimic blocks).",
       "notifyRisk": "Notify on risk / escalation signals",

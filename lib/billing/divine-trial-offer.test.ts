@@ -52,6 +52,17 @@ assert.equal(
 )
 
 assert.equal(
+  shouldShowDivineTrialStartCard({
+    plan_id: TRIAL_PLAN_ID,
+    status: 'trialing',
+    stripe_subscription_id: 'sub_123',
+    trial_ends_at: new Date(Date.now() - 86400000).toISOString(),
+  }),
+  false,
+  'trial end passed hides offer even if status still trialing (stale sync)',
+)
+
+assert.equal(
   isDivineTrialSeatHeld({
     plan_id: TRIAL_PLAN_ID,
     status: 'trial',
@@ -78,6 +89,41 @@ assert.equal(
     trial_ends_at: null,
   }),
   'expired',
+)
+
+assert.equal(
+  divineTrialSubtitleBadge({
+    plan_id: TRIAL_PLAN_ID,
+    status: 'trialing',
+    stripe_subscription_id: 'sub_1',
+    trial_ends_at: new Date(Date.now() - 3600000).toISOString(),
+  }),
+  'expired',
+  'after trial_end clock, badge is expired not redeemed',
+)
+
+assert.equal(
+  shouldShowDivineTrialStartCard({
+    plan_id: TRIAL_PLAN_ID,
+    status: 'trialing',
+    stripe_subscription_id: 'sub_123',
+    trial_ends_at: null,
+    current_period_end: new Date(Date.now() - 86400000).toISOString(),
+  }),
+  false,
+  'hide CTA when trial_ends_at missing but current_period_end (trialing window) is past',
+)
+
+assert.equal(
+  divineTrialSubtitleBadge({
+    plan_id: TRIAL_PLAN_ID,
+    status: 'trialing',
+    stripe_subscription_id: 'sub_1',
+    trial_ends_at: null,
+    current_period_end: new Date(Date.now() - 7200000).toISOString(),
+  }),
+  'expired',
+  'badge expired using current_period_end fallback',
 )
 
 console.log('divine-trial-offer.test.ts: ok')

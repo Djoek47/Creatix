@@ -524,6 +524,7 @@
     "includedPurchasedMix": "{included} incl. · {purchased} comprados",
     "trialPool": "Bolsa trial: {n} créditos (tarjeta verificada).",
     "activateAfterStripe": "Créditos al configurar tarjeta en Stripe.",
+    "bankedTrialCreditsApply": "{count, plural, one {# crédito de prueba se aplicará al mejorar tu plan} other {# créditos de prueba se aplicarán al mejorar tu plan}}",
     "creditsPerUsd": "{n} créditos por $1.",
     "storageLabel": "Almacenamiento",
     "messagesLabel": "Mensajes",

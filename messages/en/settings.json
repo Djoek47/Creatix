@@ -524,6 +524,7 @@
     "includedPurchasedMix": "{included} included · {purchased} purchased",
     "trialPool": "Trial pool: {n} credits (card verified).",
     "activateAfterStripe": "Credits activate after card setup in Stripe.",
+    "bankedTrialCreditsApply": "{count, plural, one {# trial credit applies when you upgrade} other {# trial credits apply when you upgrade}}",
     "creditsPerUsd": "{n} credits per $1.",
     "storageLabel": "Storage",
     "messagesLabel": "Messages",

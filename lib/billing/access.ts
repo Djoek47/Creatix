@@ -66,6 +66,26 @@ export function hasActiveDivineTrial(row: SubscriptionLike | null | undefined): 
 export type TrialOfferFields = SubscriptionLike & {
   stripe_subscription_id?: string | null
   trial_ends_at?: string | null
+  /** When `trial_ends_at` is unset, trialing + `divine-trial` often maps trial end to `current_period_end`. */
+  current_period_end?: string | null
+}
+
+/** Prefer `trial_ends_at`; else trialing divine-trial window end from `current_period_end` (Stripe-shaped rows). */
+export function effectiveDivineTrialEndIso(row: TrialOfferFields | null | undefined): string | null {
+  if (!row) return null
+  if (row.trial_ends_at?.trim()) return String(row.trial_ends_at).trim()
+  const st = (row.status || '').toLowerCase()
+  if (row.plan_id?.toLowerCase() === TRIAL_PLAN_ID && st === 'trialing' && row.current_period_end?.trim()) {
+    return String(row.current_period_end).trim()
+  }
+  return null
+}
+
+function trialClockEndMs(row: TrialOfferFields | null | undefined): number | null {
+  const iso = effectiveDivineTrialEndIso(row)
+  if (!iso) return null
+  const ms = Date.parse(iso)
+  return Number.isFinite(ms) ? ms : null
 }
 
 /**
@@ -97,10 +117,8 @@ export function shouldShowDivineTrialStartCard(row: TrialOfferFields | null | un
 
   if (['canceled', 'unpaid', 'incomplete_expired'].includes(st)) return false
 
-  if (row.trial_ends_at) {
-    const endMs = Date.parse(String(row.trial_ends_at))
-    if (!Number.isNaN(endMs) && endMs < Date.now() && st !== 'trialing') return false
-  }
+  const endMs = trialClockEndMs(row)
+  if (endMs != null && endMs < Date.now() && !isPaidSubscription(row)) return false
 
   return true
 }
@@ -109,8 +127,13 @@ export function shouldShowDivineTrialStartCard(row: TrialOfferFields | null | un
 export type DivineTrialSubtitleBadge = 'expired' | 'redeemed' | null
 
 export function divineTrialSubtitleBadge(row: TrialOfferFields | null | undefined): DivineTrialSubtitleBadge {
-  if (!row?.plan_id && !row?.status) return null
   if (isPaidSubscription(row)) return null
+
+  if (!row?.plan_id && !row?.status) {
+    const orphanEnd = row?.trial_ends_at ? Date.parse(String(row.trial_ends_at)) : NaN
+    if (Number.isFinite(orphanEnd) && orphanEnd < Date.now()) return 'expired'
+    return null
+  }
 
   const st = (row.status || '').toLowerCase()
 
@@ -119,9 +142,9 @@ export function divineTrialSubtitleBadge(row: TrialOfferFields | null | undefine
     isFreePlanId(row.plan_id) &&
     ['canceled', 'unpaid'].includes(st)
 
-  const trialEndMs = row.trial_ends_at ? Date.parse(String(row.trial_ends_at)) : NaN
-  const trialEndedByClock =
-    Number.isFinite(trialEndMs) && trialEndMs < Date.now() && !hasActiveDivineTrial(row)
+  const trialEndMs = trialClockEndMs(row)
+  /** Clock beats stale trialing/active rows: after trial end, not paid → expired (not “redeemed”). */
+  const trialEndedByClock = trialEndMs != null && trialEndMs < Date.now()
 
   if (lapsedToFree || trialEndedByClock) return 'expired'
 

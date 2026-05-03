@@ -19,7 +19,7 @@ import {
 } from '@/lib/billing/access'
 import { getSubscriptionPeriodSeconds } from '@/lib/billing/stripe-subscription'
 import { ADULT_BILLING_PLATFORMS, parseFocusPlatformsFromComma } from '@/lib/billing/platform-variant'
-import { grantPurchasedCredits } from '@/lib/billing/credit-wallet'
+import { grantPurchasedCredits, reconcileIncludedCreditsWallet } from '@/lib/billing/credit-wallet'
 import { creditAutoTopupMaxFailures } from '@/lib/billing/credit-auto-topup'
 import { checkoutProductDescriptionForLocale, checkoutProductNameForLocale } from '@/lib/billing/checkout-product-intl'
 import { resolveCheckoutLocaleForUser } from '@/lib/i18n/resolve-checkout-locale'
@@ -194,6 +194,13 @@ async function upsertSubscriptionByUserId(
     } as any,
     { onConflict: 'user_id' },
   )
+
+  try {
+    await reconcileIncludedCreditsWallet(supabase, userId)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn('[stripe webhook] reconcileIncludedCreditsWallet', userId, msg)
+  }
 }
 
 async function notifyPlanChange(

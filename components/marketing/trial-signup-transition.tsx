@@ -17,6 +17,9 @@ import { AUTH_SCENIC_BG_PATHS } from '@/lib/auth/scenic-backdrop-assets'
 
 export const TRIAL_SIGNUP_VIDEO_SRC = '/marketing/trial-launch-transition-final.mp4'
 
+/** Canonical auth path for trial onboarding (same for hero CTA and header “Get started”). */
+export const DEFAULT_TRIAL_SIGNUP_HREF = '/auth/sign-up' as const
+
 const FREEZE_MS = 100
 const EARLY_NAV_BEFORE_END_SEC = 0.58
 const GLASS_MS = 680
@@ -38,7 +41,7 @@ export function useTrialSignupTransition() {
   const ctx = useContext(TrialSignupTransitionContext)
   const nextRouter = useRouter()
   const pushFallback = useCallback(
-    (href = '/auth/sign-up') => {
+    (href = DEFAULT_TRIAL_SIGNUP_HREF) => {
       void nextRouter.push(href)
     },
     [nextRouter],
@@ -85,7 +88,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   const [videoGlassStyle, setVideoGlassStyle] = useState(false)
   const [signupEntranceMode, setSignupEntranceMode] = useState<SignupEntranceMode>('off')
   const videoRef = useRef<HTMLVideoElement>(null)
-  const hrefRef = useRef('/auth/sign-up')
+  const hrefRef = useRef<string>(DEFAULT_TRIAL_SIGNUP_HREF)
   const busyRef = useRef(false)
   const pushedRef = useRef(false)
   const glassStartedRef = useRef(false)
@@ -198,7 +201,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   }, [navigateFallback])
 
   const beginSignupTransition = useCallback(
-    (href = '/auth/sign-up') => {
+    (href = DEFAULT_TRIAL_SIGNUP_HREF) => {
       if (busyRef.current) return
       hrefRef.current = href
 

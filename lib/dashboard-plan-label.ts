@@ -11,22 +11,26 @@ export type SubscriptionRowForPlan = {
   billing_focus_platforms?: string[] | null
   stripe_subscription_id?: string | null
   trial_ends_at?: string | null
+  current_period_end?: string | null
 }
 
 /** Short label for dashboard hero chip (no PII). */
 export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undefined): string | null {
-  if (!row?.plan_id) return 'Trial'
-  const pid = row.plan_id.toLowerCase()
-  const st = (row.status || '').toLowerCase()
+  if (!row) return null
 
   const trialBadge = divineTrialSubtitleBadge({
     plan_id: row.plan_id,
     status: row.status,
     stripe_subscription_id: row.stripe_subscription_id,
     trial_ends_at: row.trial_ends_at,
+    current_period_end: row.current_period_end,
   })
   if (trialBadge === 'expired') return 'Trial expired'
   if (trialBadge === 'redeemed') return 'Trial redeemed'
+
+  if (!row.plan_id) return 'Trial'
+  const pid = row.plan_id.toLowerCase()
+  const st = (row.status || '').toLowerCase()
 
   const paidish = st === 'active' || st === 'trialing'
   if (paidish && isPaidPlanId(pid)) {

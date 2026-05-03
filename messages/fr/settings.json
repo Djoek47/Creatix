@@ -524,6 +524,7 @@
     "includedPurchasedMix": "{included} inclus · {purchased} payés",
     "trialPool": "Pool essai : {n} crédits (carte).",
     "activateAfterStripe": "Activation après paiement Stripe.",
+    "bankedTrialCreditsApply": "{count, plural, one {# crédit d’essai s’appliquera lors du passage à un plan payant} other {# crédits d’essai s’appliqueront lors du passage à un plan payant}}",
     "creditsPerUsd": "{n} crédits pour 1 USD.",
     "storageLabel": "Stockage",
     "messagesLabel": "Messages",

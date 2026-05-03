@@ -2068,14 +2068,14 @@
   animation: marketing-pulse-glow 4s ease-in-out infinite;
 }
 
-/* Divine Manager — calm surface (minimal lift from canvas; no decorative color wash) */
+/* Divine Manager — transparent so DashboardCelestialBackdrop stars show through main column */
 .divine-page-bg {
-  background: var(--background);
+  background: transparent;
   min-height: 100%;
 }
 
 .dark .divine-page-bg {
-  background: var(--background);
+  background: transparent;
   min-height: 100%;
 }
 

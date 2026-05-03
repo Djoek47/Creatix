@@ -88,6 +88,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
           totalRemaining?: number
           includedRemaining?: number
           purchasedRemaining?: number
+          bankedTrialCredits?: number
         }
       }
       const w = data.wallet
@@ -95,6 +96,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         totalRemaining: Number(w?.totalRemaining ?? 0),
         includedRemaining: Number(w?.includedRemaining ?? 0),
         purchasedRemaining: Number(w?.purchasedRemaining ?? 0),
+        bankedTrialCredits: Math.max(0, Math.floor(Number(w?.bankedTrialCredits ?? 0))),
       }
       avatarChipWalletRef.current = snap
       setAvatarChipWallet(snap)

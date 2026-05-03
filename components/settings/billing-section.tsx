@@ -66,6 +66,7 @@ import {
   shouldShowDivineTrialStartCard,
   isDivineTrialSeatHeld,
   divineTrialSubtitleBadge,
+  effectiveDivineTrialEndIso,
 } from '@/lib/billing/access'
 import {
   CREDIT_USD_VALUE,
@@ -140,6 +141,7 @@ type WalletSnapshot = {
   includedRemaining: number
   purchasedRemaining: number
   totalRemaining: number
+  bankedTrialCredits: number
 }
 
 type VaultBillingStorageSnapshot = {
@@ -307,12 +309,14 @@ export function BillingSection({ userId }: BillingSectionProps) {
             includedRemaining?: number
             purchasedRemaining?: number
             totalRemaining?: number
+            bankedTrialCredits?: number
           }
         }
         walletSnap = {
           includedRemaining: Number(snapshot.wallet?.includedRemaining ?? 0),
           purchasedRemaining: Number(snapshot.wallet?.purchasedRemaining ?? 0),
           totalRemaining: Number(snapshot.wallet?.totalRemaining ?? 0),
+          bankedTrialCredits: Math.max(0, Math.floor(Number(snapshot.wallet?.bankedTrialCredits ?? 0))),
         }
         if (prevTotalRef.current != null && walletSnap) {
           if (walletSnap.totalRemaining < prevTotalRef.current) setCreditPulse('consume')
@@ -500,7 +504,9 @@ export function BillingSection({ userId }: BillingSectionProps) {
     status: subData?.status ?? subscription?.status ?? null,
     stripe_subscription_id: subData?.stripe_subscription_id ?? null,
     trial_ends_at: subData?.trial_ends_at ?? null,
+    current_period_end: subData?.current_period_end ?? null,
   }
+  const trialEndDisplayIso = effectiveDivineTrialEndIso(trialOfferRow)
   const showTrialStartCard = !paidActive && shouldShowDivineTrialStartCard(trialOfferRow)
   const trialSubtitleBadge = divineTrialSubtitleBadge(trialOfferRow)
 
@@ -647,11 +653,11 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   ) : trialSubtitleBadge === 'expired' ? (
                     <>
                       <span className="text-foreground/75">{t('billing.trialExpired')}</span>
-                      {subData?.trial_ends_at ? (
+                      {trialEndDisplayIso ? (
                         <>
                           <span className="mx-1.5 text-border">·</span>
                           {t('billing.trialEnded', {
-                            date: new Date(subData.trial_ends_at).toLocaleDateString(),
+                            date: new Date(trialEndDisplayIso).toLocaleDateString(),
                           })}
                         </>
                       ) : null}
@@ -659,20 +665,20 @@ export function BillingSection({ userId }: BillingSectionProps) {
                   ) : trialSubtitleBadge === 'redeemed' ? (
                     <>
                       <span className="text-foreground/75">{t('billing.trialRedeemed')}</span>
-                      {subData?.trial_ends_at ? (
+                      {trialEndDisplayIso ? (
                         <>
                           <span className="mx-1.5 text-border">·</span>
                           {t('billing.trialEnds', {
-                            date: new Date(subData.trial_ends_at).toLocaleDateString(),
+                            date: new Date(trialEndDisplayIso).toLocaleDateString(),
                           })}
                         </>
                       ) : null}
                     </>
-                  ) : subData?.trial_ends_at ? (
+                  ) : trialEndDisplayIso ? (
                     <>
                       <span className="text-foreground/75">{t('billing.trial')}</span>
                       <span className="mx-1.5 text-border">·</span>
-                      {t('billing.trialEnds', { date: new Date(subData.trial_ends_at).toLocaleDateString() })}
+                      {t('billing.trialEnds', { date: new Date(trialEndDisplayIso).toLocaleDateString() })}
                     </>
                   ) : (
                     <>
@@ -782,6 +788,13 @@ export function BillingSection({ userId }: BillingSectionProps) {
                 {trialPendingCard ? (
                   <p className="text-xs text-amber-700 dark:text-amber-200/90">
                     {t('billing.activateAfterStripe')}
+                  </p>
+                ) : null}
+                {(wallet?.bankedTrialCredits ?? 0) > 0 ? (
+                  <p className="text-xs font-medium text-primary/90 dark:text-amber-200/85">
+                    {t('billing.bankedTrialCreditsApply', {
+                      count: wallet?.bankedTrialCredits ?? 0,
+                    })}
                   </p>
                 ) : null}
                 <p className="text-xs leading-snug text-muted-foreground">

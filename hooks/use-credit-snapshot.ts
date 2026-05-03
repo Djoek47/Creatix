@@ -6,6 +6,8 @@ export type CreditWalletSnapshot = {
   totalRemaining: number
   includedRemaining: number
   purchasedRemaining: number
+  /** Unused trial included credits banked until next paid/protection grant. */
+  bankedTrialCredits: number
 }
 
 type ApiShape = {
@@ -13,6 +15,7 @@ type ApiShape = {
     totalRemaining?: number
     includedRemaining?: number
     purchasedRemaining?: number
+    bankedTrialCredits?: number
   }
 }
 
@@ -39,6 +42,7 @@ export function useCreditSnapshot() {
         totalRemaining: Number(w?.totalRemaining ?? 0),
         includedRemaining: Number(w?.includedRemaining ?? 0),
         purchasedRemaining: Number(w?.purchasedRemaining ?? 0),
+        bankedTrialCredits: Math.max(0, Math.floor(Number(w?.bankedTrialCredits ?? 0))),
       })
     } catch {
       setError('Could not load credits')

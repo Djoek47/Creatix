@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isPaidPlanId, isProtectionPlanId, isTrialPlanId } from '@/lib/billing/access'
 import {
   effectiveMonthlyCreditLimit,
+  TRIAL_AI_CREDITS_LIMIT,
   type SubscriptionRowForCredits,
 } from '@/lib/billing/credit-economics'
 
@@ -10,6 +12,8 @@ type WalletRow = {
   purchased_credits_remaining: number
   included_cycle_start: string | null
   included_cycle_end: string | null
+  banked_trial_credits?: number | null
+  included_grant_plan_kind?: string | null
 }
 
 type SubscriptionCycleRow = SubscriptionRowForCredits & {
@@ -23,7 +27,10 @@ type SubscriptionCycleRow = SubscriptionRowForCredits & {
 export type CreditWalletState = {
   includedRemaining: number
   purchasedRemaining: number
+  /** Included + purchased (excludes {@link bankedTrialCredits}). */
   totalRemaining: number
+  /** Saved unused trial included credits while on free/ineligible; rolled into included on next paid/protection grant. */
+  bankedTrialCredits: number
   includedCycleStart: string | null
   includedCycleEnd: string | null
 }
@@ -86,7 +93,7 @@ async function readWalletRow(supabase: SupabaseClient, userId: string): Promise<
   const { data } = await supabase
     .from('credit_wallets')
     .select(
-      'user_id,included_credits_remaining,purchased_credits_remaining,included_cycle_start,included_cycle_end',
+      'user_id,included_credits_remaining,purchased_credits_remaining,included_cycle_start,included_cycle_end,banked_trial_credits,included_grant_plan_kind',
     )
     .eq('user_id', userId)
     .maybeSingle()
@@ -160,38 +167,123 @@ async function syncIncludedGrantIfNeeded(supabase: SupabaseClient, userId: strin
 
   if (!cycleNeedsReset) return
 
-  const limit =
-    !isCreditEligible ? 0 : sub != null ? effectiveMonthlyCreditLimit(sub) : 0
+  const prevIncluded = Math.max(0, Math.floor(Number(wallet?.included_credits_remaining ?? 0)))
+  const prevKind = wallet?.included_grant_plan_kind ?? null
+  let banked = Math.max(0, Math.floor(Number(wallet?.banked_trial_credits ?? 0)))
 
-  await supabase
-    .from('credit_wallets')
-    .upsert(
+  const planId = String(sub?.plan_id ?? '')
+  const isTrialAllowance =
+    isCreditEligible && sub != null && isTrialPlanId(sub.plan_id) && (status === 'active' || status === 'trialing')
+  const isPaidOrProtectionAllowance =
+    isCreditEligible &&
+    sub != null &&
+    (isPaidPlanId(planId) || isProtectionPlanId(planId)) &&
+    (status === 'active' || status === 'trialing')
+
+  if (!isCreditEligible) {
+    const shouldBankTrialRemainder =
+      prevIncluded > 0 &&
+      (prevKind === 'trial' ||
+        (prevKind == null && prevIncluded > 0 && prevIncluded <= TRIAL_AI_CREDITS_LIMIT))
+    if (shouldBankTrialRemainder) {
+      banked += prevIncluded
+    }
+
+    await supabase.from('credit_wallets').upsert(
       {
         user_id: userId,
         included_credits_remaining: 0,
+        banked_trial_credits: banked,
+        included_grant_plan_kind: null,
         included_cycle_start: start.toISOString(),
         included_cycle_end: end.toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' },
     )
+    return
+  }
 
-  if (limit <= 0) return
+  const limitRaw = sub != null ? effectiveMonthlyCreditLimit(sub) : 0
+  const limit = Math.max(0, Math.floor(limitRaw))
 
+  let grantTotal = 0
+  let nextKind: 'trial' | 'paid' | 'protection' | null = null
+  let bankedAfter = banked
+  /** Unused included balance from a trial-shaped pool when upgrading to paid (incl. legacy rows before `included_grant_plan_kind`). */
+  const trialLiveRollover =
+    prevIncluded > 0 &&
+    (prevKind === 'trial' ||
+      (prevKind == null && prevIncluded > 0 && prevIncluded <= TRIAL_AI_CREDITS_LIMIT))
+      ? prevIncluded
+      : 0
+
+  if (isTrialAllowance) {
+    grantTotal = limit
+    nextKind = 'trial'
+  } else if (isPaidOrProtectionAllowance) {
+    grantTotal = limit + banked + trialLiveRollover
+    bankedAfter = 0
+    nextKind = isProtectionPlanId(planId) ? 'protection' : 'paid'
+  } else if (limit > 0) {
+    grantTotal = limit
+    nextKind = 'trial'
+  } else {
+    await supabase.from('credit_wallets').upsert(
+      {
+        user_id: userId,
+        included_credits_remaining: 0,
+        banked_trial_credits: bankedAfter,
+        included_grant_plan_kind: null,
+        included_cycle_start: start.toISOString(),
+        included_cycle_end: end.toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    )
+    return
+  }
+
+  await supabase.from('credit_wallets').upsert(
+    {
+      user_id: userId,
+      included_credits_remaining: 0,
+      banked_trial_credits: bankedAfter,
+      included_grant_plan_kind: null,
+      included_cycle_start: start.toISOString(),
+      included_cycle_end: end.toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
+
+  if (grantTotal <= 0) return
+
+  const idempotencyKey = `included:${userId}:${start.toISOString().slice(0, 10)}`
   await supabase.rpc('grant_credit_wallet', {
     p_user_id: userId,
     p_source: 'included_monthly',
     p_bucket: 'included',
-    p_credits: Math.max(0, Math.floor(limit)),
+    p_credits: grantTotal,
     p_expires_at: end.toISOString(),
     p_reason_code: 'monthly_included_grant',
     p_reason_ref: `included:${userId}:${start.toISOString().slice(0, 10)}`,
-    p_idempotency_key: `included:${userId}:${start.toISOString().slice(0, 10)}`,
+    p_idempotency_key: idempotencyKey,
     p_metadata: {
       cycle_start: start.toISOString(),
       cycle_end: end.toISOString(),
+      included_grant_plan_kind: nextKind,
+      trial_bank_applied: banked,
+      trial_live_rollover_applied: trialLiveRollover,
     },
   })
+
+  if (nextKind) {
+    await supabase
+      .from('credit_wallets')
+      .update({ included_grant_plan_kind: nextKind, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+  }
 }
 
 /** Runs the same prelude as billing UI: wallet row exists, expiry applied, cycle matched to subscription grant. */
@@ -212,10 +304,12 @@ export async function getCreditWalletState(
   const wallet = await readWalletRow(supabase, userId)
   const includedRemaining = Number(wallet?.included_credits_remaining ?? 0)
   const purchasedRemaining = Number(wallet?.purchased_credits_remaining ?? 0)
+  const bankedTrialCredits = Math.max(0, Math.floor(Number(wallet?.banked_trial_credits ?? 0)))
   return {
     includedRemaining,
     purchasedRemaining,
     totalRemaining: includedRemaining + purchasedRemaining,
+    bankedTrialCredits,
     includedCycleStart: wallet?.included_cycle_start ?? null,
     includedCycleEnd: wallet?.included_cycle_end ?? null,
   }

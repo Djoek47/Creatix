@@ -32,6 +32,7 @@ import {
   Activity,
   X,
   CreditCard,
+  WalletMinimal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -64,10 +65,11 @@ interface OnboardingModalProps {
 function WalletCreditsPanel({
   className,
   entranceMotion,
+  tone = 'trial',
 }: {
   className?: string
-  /** Subtle emphasis when the panel appears after in-flow checkout completes. */
   entranceMotion?: boolean
+  tone?: 'trial' | 'muted'
 }) {
   const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
 
@@ -75,21 +77,110 @@ function WalletCreditsPanel({
     <div
       role="status"
       className={cn(
-        'rounded-2xl border border-emerald-500/[0.22] bg-emerald-500/[0.06] px-5 py-6 dark:border-emerald-400/[0.18] dark:bg-emerald-400/[0.05]',
+        tone === 'trial'
+          ? 'rounded-[1.25rem] border border-emerald-500/[0.16] bg-emerald-500/[0.045] px-6 py-7 dark:border-emerald-400/[0.12] dark:bg-emerald-400/[0.04]'
+          : 'rounded-[1.25rem] border border-border/60 bg-muted/[0.22] px-6 py-7 ring-1 ring-black/[0.04] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] dark:bg-muted/15 dark:ring-white/[0.05]',
         entranceMotion &&
-          'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-[0.98] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+          'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-[850ms] motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
         className,
       )}
     >
-      <div className="flex flex-col items-center gap-1 text-center">
-        <p className="font-serif text-[2rem] font-semibold tabular-nums tracking-[-0.03em] text-foreground sm:text-[2.125rem]">
-          {creditsFormatted}
-        </p>
-        <p className="text-[13px] font-medium tracking-tight text-foreground">Credits added to your wallet</p>
-        <p className="mt-2 max-w-[19rem] text-[12px] leading-relaxed text-muted-foreground">
-          Included with your trial. Use them in AI Studio and Divine — debits follow each tool.
-        </p>
+      <div className="flex flex-col items-center gap-5 text-center">
+        <div
+          className={cn(
+            'flex size-[3.75rem] items-center justify-center rounded-[1rem] bg-background/65 ring-1 ring-border/50',
+            'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-[700ms]',
+            tone === 'trial' ? 'shadow-[0_12px_40px_-28px_rgba(16,185,129,0.35)]' : 'shadow-sm',
+          )}
+          aria-hidden
+        >
+          <WalletMinimal className="size-[1.625rem] text-foreground/70" strokeWidth={1.65} />
+        </div>
+        <div className="space-y-3">
+          <p
+            className={cn(
+              'text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground',
+              'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:delay-120 motion-safe:duration-[700ms]',
+            )}
+          >
+            Credits added
+          </p>
+          <p className="font-serif text-[2.125rem] font-semibold tabular-nums tracking-[-0.035em] text-foreground sm:text-[2.25rem]">
+            {creditsFormatted}
+          </p>
+          <p className="text-[13px] font-normal leading-snug text-muted-foreground">to your workspace wallet</p>
+          <p
+            className={cn(
+              'mx-auto max-w-[17.75rem] text-[12px] leading-relaxed text-muted-foreground/90',
+              'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:delay-[200ms] motion-safe:duration-[720ms]',
+            )}
+          >
+            Included with your trial. Use them in AI Studio and Divine — debits follow each tool.
+          </p>
+        </div>
       </div>
+    </div>
+  )
+}
+
+function TrialCreditsReadyMoment({
+  tone,
+  creditsFormatted,
+}: {
+  tone: 'welcome' | 'resume'
+  creditsFormatted: string
+}) {
+  const isWelcome = tone === 'welcome'
+
+  return (
+    <div className="relative mx-auto max-w-[24rem] space-y-8 text-center">
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-[1.25rem] border border-border/55 bg-gradient-to-b from-muted/[0.35] via-background/40 to-background/70 px-7 py-[2.125rem]',
+          'ring-1 ring-black/[0.04] dark:from-muted/25 dark:to-background/85 dark:ring-white/[0.05]',
+          'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-[900ms] motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
+        )}
+      >
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.06),transparent_55%)]"
+          aria-hidden
+        />
+        <div className="relative space-y-4">
+          {isWelcome ? (
+            <>
+              <div
+                className={cn(
+                  'mx-auto flex size-[3.25rem] items-center justify-center rounded-full bg-muted/50 ring-1 ring-border/50',
+                  'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-[700ms]',
+                )}
+                aria-hidden
+              >
+                <Sparkles className="size-6 text-foreground/55" strokeWidth={1.6} />
+              </div>
+              <h3 className="font-serif text-[1.4375rem] font-medium tracking-[-0.02em] text-foreground sm:text-[1.5rem]">
+                Congratulations
+              </h3>
+              <p className="mx-auto max-w-[21rem] text-[15px] leading-[1.55] text-muted-foreground text-balance">
+                <span className="tabular-nums font-semibold text-foreground/95">{creditsFormatted}</span> trial credits are
+                ready in your workspace.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Trial</p>
+              <h3 className="font-serif text-[1.375rem] font-medium tracking-[-0.02em] text-foreground">Already active</h3>
+              <p className="mx-auto max-w-[21rem] text-[14px] leading-[1.6] text-muted-foreground text-balance">
+                No card needed on this step. Your credits are available — continue when ready.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      <WalletCreditsPanel tone={isWelcome ? 'trial' : 'muted'} entranceMotion />
+      <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground text-balance">
+        Next, link your platforms — read-only, credentials stay with your providers.
+      </p>
     </div>
   )
 }
@@ -97,6 +188,7 @@ function WalletCreditsPanel({
 /** Second trial prompt: redeemed → celebration; completed checkout → animated wallet; else Stripe until checkout / bypass / error continue. */
 function OnboardingTrialWalletStep({
   trialBillingAttachedLive,
+  trialWalletAlreadyResolvedByServer,
   checkoutFinished,
   embedBypassed,
   checkoutHadSecretError,
@@ -106,6 +198,7 @@ function OnboardingTrialWalletStep({
   onEmbedBypass,
 }: {
   trialBillingAttachedLive: boolean
+  trialWalletAlreadyResolvedByServer: boolean
   checkoutFinished: boolean
   embedBypassed: boolean
   checkoutHadSecretError: boolean
@@ -117,54 +210,18 @@ function OnboardingTrialWalletStep({
   const router = useRouter()
   const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
 
-  if (trialBillingAttachedLive) {
-    return (
-      <div className="relative space-y-7 text-center">
-        <div
-          className={cn(
-            'relative mx-auto max-w-[24rem] overflow-hidden rounded-[1.25rem] border border-emerald-500/[0.2] px-7 py-9',
-            'motion-safe:bg-gradient-to-b motion-safe:from-emerald-500/[0.1] motion-safe:via-transparent motion-safe:to-transparent',
-            'motion-safe:shadow-[0_18px_50px_-22px_rgba(16,185,129,0.35)]',
-            'motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-[0.97] motion-safe:duration-[900ms]',
-            'motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]',
-          )}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(52,211,153,0.14),transparent_58%)]" />
-          <div className="pointer-events-none absolute inset-[-20%] motion-safe:animate-pulse motion-reduce:hidden">
-            <div className="absolute left-[12%] top-[18%] size-2 rounded-full bg-amber-400/70 blur-[0.5px]" />
-            <div className="absolute right-[16%] top-[26%] size-2.5 rounded-full bg-purple-400/65 blur-[0.5px]" />
-            <div className="absolute bottom-[28%] left-[42%] size-1.5 rounded-full bg-emerald-400/75 blur-[0.5px]" />
-          </div>
-          <div className="relative space-y-2">
-            <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-full border border-emerald-500/[0.25] bg-emerald-500/[0.12] shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-700">
-              <Sparkles className="size-7 text-emerald-700 dark:text-emerald-300" strokeWidth={1.85} aria-hidden />
-            </div>
-            <h3 className="font-serif text-[1.4375rem] font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-[1.5625rem]">
-              Congratulations
-            </h3>
-            <p className="mx-auto mt-2 max-w-[22rem] text-[14px] leading-relaxed text-muted-foreground">
-              Here are your{' '}
-              <span className="tabular-nums font-semibold text-foreground">{creditsFormatted}</span> trial credits — yours to
-              explore the workspace.
-            </p>
-          </div>
-        </div>
+  const trialCreditsReadyUi = trialBillingAttachedLive || trialWalletAlreadyResolvedByServer
 
-        <WalletCreditsPanel
-          entranceMotion
-          className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:delay-150 motion-safe:duration-700"
-        />
-        <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
-          Next, link your platforms so Circe can work with your accounts — read-only, credentials stay with your providers.
-        </p>
-      </div>
-    )
+  if (trialCreditsReadyUi) {
+    const celebrationTone =
+      trialWalletAlreadyResolvedByServer && !trialBillingAttachedLive ? 'resume' : 'welcome'
+    return <TrialCreditsReadyMoment tone={celebrationTone} creditsFormatted={creditsFormatted} />
   }
 
   if (checkoutFinished) {
     return (
       <div className="space-y-7 text-center">
-        <WalletCreditsPanel entranceMotion />
+        <WalletCreditsPanel tone="trial" entranceMotion />
         <p className="mx-auto max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
           Next, link your platforms so Circe can work with your accounts — read-only, credentials stay with your providers.
         </p>
@@ -195,6 +252,7 @@ function OnboardingTrialWalletStep({
           rootId="onboarding-trial-checkout"
           productId={TRIAL_PLAN_ID}
           className="min-h-[18rem] w-full"
+          suppressDestructiveTrialAlreadyActive
           onClientSecretFetchStarted={onCheckoutSecretFetchStarted}
           onClientSecretError={(message, code) => {
             onCheckoutSecretTerminalError(message, code)
@@ -316,6 +374,7 @@ export function OnboardingModal({
   const [trialCheckoutFinishedSession, setTrialCheckoutFinishedSession] = useState(false)
   const [trialWalletEmbedBypassed, setTrialWalletEmbedBypassed] = useState(false)
   const [trialCheckoutSecretHadError, setTrialCheckoutSecretHadError] = useState(false)
+  const [trialWalletAlreadyResolvedByServer, setTrialWalletAlreadyResolvedByServer] = useState(false)
   const openedSoftRefreshDoneRef = useRef(false)
 
   const trialBillingSnapshotRef = useRef<boolean | null>(null)
@@ -340,7 +399,9 @@ export function OnboardingModal({
   }, [])
 
   const handleTrialSecretTerminalError = useCallback((msg: string, code?: string) => {
-    if (code !== CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE) {
+    if (code === CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE) {
+      setTrialWalletAlreadyResolvedByServer(true)
+    } else {
       setTrialCheckoutSecretHadError(true)
     }
     void router.refresh()
@@ -721,6 +782,7 @@ export function OnboardingModal({
       content: (
         <OnboardingTrialWalletStep
           trialBillingAttachedLive={trialBillingAttached}
+          trialWalletAlreadyResolvedByServer={trialWalletAlreadyResolvedByServer}
           checkoutFinished={trialCheckoutFinishedSession}
           embedBypassed={trialWalletEmbedBypassed}
           checkoutHadSecretError={trialCheckoutSecretHadError}
@@ -761,6 +823,7 @@ export function OnboardingModal({
     trialCheckoutFinishedSession,
     trialWalletEmbedBypassed,
     trialCheckoutSecretHadError,
+    trialWalletAlreadyResolvedByServer,
     handleTrialCheckoutSuccess,
     handleTrialSecretFetchStarted,
     handleTrialSecretTerminalError,
@@ -777,6 +840,7 @@ export function OnboardingModal({
       setTrialCheckoutFinishedSession(false)
       setTrialWalletEmbedBypassed(false)
       setTrialCheckoutSecretHadError(false)
+      setTrialWalletAlreadyResolvedByServer(false)
       return
     }
     setCurrentStep(0)
@@ -828,14 +892,13 @@ export function OnboardingModal({
     currentStepData.id === 'trial-wallet'
 
   const trialTrialStepUnblocked =
-    trialBillingAttached || trialCheckoutFinishedSession || trialWalletEmbedBypassed
+    trialBillingAttached ||
+    trialCheckoutFinishedSession ||
+    trialWalletEmbedBypassed ||
+    trialWalletAlreadyResolvedByServer
 
   const trialWalletNeedsCheckout =
     currentStepData.id === 'trial-wallet' && !trialTrialStepUnblocked
-
-  /** Late path: Skip hidden until billing attached, checkout completes, or user bypasses the embed. */
-  const skipLockedUntilCard =
-    !trialBillingAttached && !trialCheckoutFinishedSession && !trialWalletEmbedBypassed
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -870,28 +933,25 @@ export function OnboardingModal({
               >
                 Guide
               </Link>
-              {!skipLockedUntilCard ? (
-                <>
-                  <span className="select-none px-0.5 text-[11px] text-border" aria-hidden>
-                    ·
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSkip}
-                    className="-mr-2 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="Close onboarding"
-                  >
-                    <X className="size-4 stroke-[1.75]" aria-hidden />
-                  </button>
-                </>
-              ) : null}
+              <span className="select-none px-0.5 text-[11px] text-border" aria-hidden>
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={handleSkip}
+                title="Ends this walkthrough. Billing and connections stay available in Settings when you're ready."
+                className="rounded-md px-2.5 py-1.5 text-[13px] font-normal text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+              >
+                Not&nbsp;now
+              </button>
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="-mr-2 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Dismiss onboarding—you can reopen the Guide anytime."
+              >
+                <X className="size-4 stroke-[1.75]" aria-hidden />
+              </button>
             </div>
           </div>
           <div

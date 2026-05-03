@@ -230,6 +230,7 @@ export function CheckoutEmbed({
   onClientSecretFetchStarted,
   className,
   rootId = 'checkout',
+  suppressDestructiveTrialAlreadyActive = false,
 }: {
   productId: string
   billingVariant?: BillingVariant
@@ -245,6 +246,8 @@ export function CheckoutEmbed({
   className?: string
   /** Avoid duplicate `id="checkout"` when multiple embeds exist in the DOM. */
   rootId?: string
+  /** Omit destructive Alert when divine-trial is already consumed (parent shows calm UI). */
+  suppressDestructiveTrialAlreadyActive?: boolean
 }) {
   const [fatalError, setFatalError] = useState<{ message: string; code?: string } | null>(null)
   const [embedKey, setEmbedKey] = useState(0)
@@ -292,7 +295,11 @@ export function CheckoutEmbed({
           ? e.message
           : 'Checkout failed'
       const checkoutCode = (e as CheckoutSecretError).checkoutCode
-      setFatalError({ message, code: checkoutCode })
+      const deferDestructiveTrialUi =
+        suppressDestructiveTrialAlreadyActive && checkoutCode === CHECKOUT_TRIAL_ALREADY_ACTIVE_CODE
+      if (!deferDestructiveTrialUi) {
+        setFatalError({ message, code: checkoutCode })
+      }
       onClientSecretError?.(message, checkoutCode)
       throw e
     }
@@ -304,6 +311,7 @@ export function CheckoutEmbed({
     seats,
     onClientSecretError,
     onClientSecretFetchStarted,
+    suppressDestructiveTrialAlreadyActive,
   ])
 
   const handleComplete = useCallback(() => {

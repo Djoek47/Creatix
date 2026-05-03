@@ -16,16 +16,17 @@ import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
 import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import type { DivineVoiceDisconnectReason } from '@/lib/divine/voice-memory-types'
-import type { VoiceHangupPolicy } from '@/lib/divine-manager'
+import type { DivineVoicePersonalityStored, VoiceHangupPolicy } from '@/lib/divine-manager'
 import {
-  DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD,
-  DIVINE_VOICE_SILENCE_MS,
   DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS,
-  DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS,
   DIVINE_VOICE_SILENCE_PROMPT_FINAL,
   DIVINE_VOICE_SILENCE_PROMPT_FIRST,
+  buildVoiceSilenceConfig,
   isRealtimeUserSpeechEvent,
+  voiceSilenceProtocolTotalMs,
+  type VoiceSilenceTimingConfig,
 } from '@/lib/divine/voice-silence-prompts'
+import { getMicThreshold } from '@/lib/divine/voice-personality'
 
 /** Must stay below `voice-tool` route `maxDuration` so the client fails first with a clear message, not a generic hang. */
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
@@ -195,6 +196,9 @@ export function VoiceSessionProvider({
   const assistantSpeakingRef = useRef(false)
   const prevRemoteLoudRef = useRef(false)
   const idleMsRef = useRef<number | null>(null)
+  /** Silence ladder timing from Divine Manager patience slider (default = legacy 47s/60s). */
+  const silenceTimingRef = useRef<VoiceSilenceTimingConfig>(buildVoiceSilenceConfig(50))
+  const micEnergyThresholdRef = useRef(getMicThreshold(50))
   const lastPendingConfirmationsRef = useRef<
     Array<{ type: string; intent_id: string; summary?: string }>
   >([])
@@ -422,7 +426,7 @@ export function VoiceSessionProvider({
       silenceFailsafeTimerRef.current = null
       if (silenceGenRef.current !== genAtStart) return
       scheduleGracefulEndCallRef.current?.()
-    }, DIVINE_VOICE_SILENCE_MS.endCallFailsafe)
+    }, silenceTimingRef.current.endCallFailsafe)
   }, [])
 
   const startSilenceWatchdog = useCallback(() => {
@@ -433,6 +437,7 @@ export function VoiceSessionProvider({
     silenceSecondTimerRef.current = null
     silenceFailsafeTimerRef.current = null
 
+    const cfg = silenceTimingRef.current
     const gen = silenceGenRef.current
     silenceWatchdogEpochRef.current = Date.now()
     silenceFirstTimerRef.current = setTimeout(() => {
@@ -451,9 +456,9 @@ export function VoiceSessionProvider({
           if (silenceGenRef.current !== gen) return
           if (statusRef.current !== 'connected') return
           void runFinalSilenceClose(gen)
-        }, DIVINE_VOICE_SILENCE_MS.afterFirst)
+        }, cfg.afterFirst)
       })()
-    }, DIVINE_VOICE_SILENCE_MS.first)
+    }, cfg.first)
   }, [runFinalSilenceClose])
 
   const markUserSpeech = useCallback(() => {
@@ -476,25 +481,40 @@ export function VoiceSessionProvider({
     startSilenceWatchdogRef.current = startSilenceWatchdog
   }, [startSilenceWatchdog])
 
-  const refreshVoiceHangupPolicy = useCallback(async () => {
+  const refreshVoiceManagerClientSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/divine/manager-settings', { credentials: 'include' })
       const json = (await res.json().catch(() => ({}))) as {
         voice_hangup_policy?: VoiceHangupPolicy
+        voice_personality?: DivineVoicePersonalityStored
       }
       if (json.voice_hangup_policy === 'after_closing_prompt') {
         setVoiceHangupPolicy('after_closing_prompt')
       } else {
         setVoiceHangupPolicy('always')
       }
+      if (json.voice_personality && typeof json.voice_personality === 'object') {
+        const vp = json.voice_personality
+        silenceTimingRef.current = buildVoiceSilenceConfig(
+          typeof vp.silence_patience === 'number' ? vp.silence_patience : 50,
+        )
+        micEnergyThresholdRef.current = getMicThreshold(
+          typeof vp.mic_pickup === 'number' ? vp.mic_pickup : 50,
+        )
+      } else {
+        silenceTimingRef.current = buildVoiceSilenceConfig(50)
+        micEnergyThresholdRef.current = getMicThreshold(50)
+      }
     } catch {
       setVoiceHangupPolicy('always')
+      silenceTimingRef.current = buildVoiceSilenceConfig(50)
+      micEnergyThresholdRef.current = getMicThreshold(50)
     }
   }, [])
 
   useEffect(() => {
-    void refreshVoiceHangupPolicy()
-  }, [refreshVoiceHangupPolicy])
+    void refreshVoiceManagerClientSettings()
+  }, [refreshVoiceManagerClientSettings])
 
   const startVoiceCall = useCallback(async (opts?: {
     realtimePath?: string
@@ -517,7 +537,7 @@ export function VoiceSessionProvider({
     setError(null)
     setUserHangupAllowed(false)
     speechEventSeenRef.current = false
-    await refreshVoiceHangupPolicy()
+    await refreshVoiceManagerClientSettings()
     setStatus('connecting')
     try {
       if (typeof navigator === 'undefined') {
@@ -928,7 +948,7 @@ export function VoiceSessionProvider({
     status,
     divinePanel,
     sendBriefingQuestion,
-    refreshVoiceHangupPolicy,
+    refreshVoiceManagerClientSettings,
     divineVoicePremiumLive,
   ])
 
@@ -965,7 +985,7 @@ export function VoiceSessionProvider({
       a.getByteFrequencyData(buf)
       let sum = 0
       for (let i = 0; i < buf.length; i++) sum += buf[i]
-      if (sum / buf.length > DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD) {
+      if (sum / buf.length > micEnergyThresholdRef.current) {
         markUserSpeechRef.current()
       }
     }, 220)
@@ -1176,9 +1196,10 @@ export function VoiceSessionProvider({
     const epoch = silenceWatchdogEpochRef.current
     if (epoch == null) return false
     const elapsed = Date.now() - epoch
+    const protocolTotal = voiceSilenceProtocolTotalMs(silenceTimingRef.current)
     return (
-      elapsed >= DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS - DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS &&
-      elapsed < DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS
+      elapsed >= protocolTotal - DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS &&
+      elapsed < protocolTotal
     )
   }, [status, silenceProtocolTick])
 

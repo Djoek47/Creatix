@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
 import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
-import { getDivineVoice } from '@/lib/divine-manager'
+import { getDivineVoice, type DivineManagerAutomationRules } from '@/lib/divine-manager'
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
@@ -11,6 +11,7 @@ import {
   managerTalkativenessRealtimeBlock,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { personalityRealtimeBlock, resolveVoicePersonality } from '@/lib/divine/voice-personality'
 import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
 import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
 import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
@@ -209,6 +210,7 @@ export async function POST(req: NextRequest) {
     const goals = settings?.goals ?? {}
     const rules = settings?.automation_rules ?? {}
     const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
+    const resolvedVoicePersonality = resolveVoicePersonality(rules as DivineManagerAutomationRules)
     const notify = settings?.notification_settings ?? {}
     const archetype = settings?.manager_archetype || 'hermes'
     const archetypeFlavor = getArchetypeFlavor(archetype)
@@ -272,7 +274,7 @@ Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flir
 Goals: ${(goals.qualitativeGoals ?? []).join(', ') || 'general growth'}.
 Manager archetype: ${archetype}. ${archetypeFlavor}
 Mode: ${settings?.mode ?? 'suggest_only'}. Notifications: ${notify.level ?? 'daily_digest'}.
-Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.${managerTalkativenessRealtimeBlock(talkLevel)}
+Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.${managerTalkativenessRealtimeBlock(talkLevel)}${personalityRealtimeBlock(resolvedVoicePersonality)}
 
 Manager task queue (legacy suggestions):
 ${taskSummary}

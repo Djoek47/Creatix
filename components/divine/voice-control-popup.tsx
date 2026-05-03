@@ -846,17 +846,17 @@ export function VoiceControlPopup() {
           className={cn(
             'flex overflow-hidden transition-all duration-300 motion-reduce:transition-none',
             voiceDeckOpen
-              ? 'divine-voice-pill-expanded h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch rounded-[22px] ring-0'
+              ? 'divine-voice-pill-expanded relative h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch rounded-[22px] ring-0'
               : 'h-[4.125rem] min-h-[66px] w-[4.125rem] min-w-[66px] items-center rounded-full border-0 bg-transparent shadow-[0_16px_50px_-28px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] dark:ring-white/[0.055]',
           )}
         >
           <div
             className={cn(
-              'min-w-0 transition-all duration-300 motion-reduce:transition-none',
-              voiceDeckOpen ? 'flex-1 px-4 py-3 opacity-100' : 'w-0 px-0 py-0 opacity-0',
+              'relative z-[1] min-w-0 transition-all duration-300 motion-reduce:transition-none',
+              voiceDeckOpen ? 'flex-1 px-5 py-4 opacity-100' : 'w-0 px-0 py-0 opacity-0',
             )}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-4">
               <div
                 className={cn(
                   'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
@@ -873,13 +873,13 @@ export function VoiceControlPopup() {
                 <Mic className="h-[1.35rem] w-[1.35rem]" strokeWidth={1.75} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="text-[1.0625rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                  <span className="text-[1.0625rem] font-semibold leading-tight tracking-[-0.03em] text-foreground">
                     Divine voice
                   </span>
                   <span
                     className={cn(
-                      'text-[13px] font-medium tabular-nums tracking-[-0.01em]',
+                      'text-[13px] font-medium tabular-nums tracking-[-0.015em]',
                       status === 'error'
                         ? 'text-orange-600 dark:text-orange-300'
                         : status === 'connecting'
@@ -892,7 +892,7 @@ export function VoiceControlPopup() {
                     {primaryLabel}
                   </span>
                 </div>
-                <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{voicePillStatusSubtitle(status)}</p>
+                <p className="mt-1.5 text-[13px] leading-[1.45] text-muted-foreground">{voicePillStatusSubtitle(status)}</p>
                 <DivineWorkingLogo
                   variant={isActive ? voiceSurfaceState : 'idle'}
                   className="mt-1.5"
@@ -903,7 +903,7 @@ export function VoiceControlPopup() {
                 ref={voiceVizRef}
                 width={94}
                 height={33}
-                className="hidden shrink-0 self-center rounded-md bg-muted/60 sm:block"
+                className="hidden shrink-0 self-center rounded-lg border border-black/[0.06] bg-white/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.06] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:block"
               />
               {!isActive ? (
                 divineVoicePremium ? (
@@ -987,7 +987,7 @@ export function VoiceControlPopup() {
               )}
             </div>
             {voiceErrorPresentation ? (
-              <div className="mt-2.5 space-y-1 rounded-xl border border-border/50 bg-muted/25 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.04]">
+              <div className="mt-3 space-y-1 rounded-xl border border-black/[0.07] bg-white/[0.28] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-md dark:border-white/[0.1] dark:bg-white/[0.05] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                 <p className="text-[13px] leading-snug text-foreground/90">{voiceErrorPresentation.friendly}</p>
                 {voiceErrorPresentation.technical ? (
                   <p className="font-mono text-[10px] leading-relaxed text-muted-foreground/85 [overflow-wrap:anywhere]">

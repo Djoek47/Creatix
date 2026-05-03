@@ -1,5 +1,6 @@
 'use client'
 
+import { useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 /** Matches lucide-react `Star` path (filled star silhouette). */
@@ -8,16 +9,34 @@ const STAR_PATH =
 
 export type AiStudioNavStarGradientSlot = 'sidebar-desktop' | 'sidebar-mobile'
 
-const GRADIENT_ID: Record<AiStudioNavStarGradientSlot, string> = {
+/** Fill uses a fixed gradient; stroke uses a duplicate + SMIL so only the outline “shimmers” like `.sidebar-ai-studio-text`. */
+const FILL_GRADIENT_ID: Record<AiStudioNavStarGradientSlot, string> = {
   'sidebar-desktop': 'creatix-ai-studio-nav-star-fill-desktop',
   'sidebar-mobile': 'creatix-ai-studio-nav-star-fill-mobile',
+}
+const STROKE_GRADIENT_ID: Record<AiStudioNavStarGradientSlot, string> = {
+  'sidebar-desktop': 'creatix-ai-studio-nav-star-stroke-desktop',
+  'sidebar-mobile': 'creatix-ai-studio-nav-star-stroke-mobile',
 }
 
 type Props = { className?: string; gradientSlot?: AiStudioNavStarGradientSlot }
 
-/** Sidebar AI Studio rail: gradient fill aligned with `.sidebar-ai-studio-text` via CSS `--studio-grad-*` vars on `.ai-studio-sidebar-star`. */
+/** Sidebar AI Studio rail: same sliding gradient as `.sidebar-ai-studio-text` (`gradient-x` timing); stroke uses it when idle. */
 export function AiStudioNavStar({ className, gradientSlot = 'sidebar-desktop' }: Props) {
-  const gradId = GRADIENT_ID[gradientSlot]
+  const fillGradId = FILL_GRADIENT_ID[gradientSlot]
+  const strokeGradId = STROKE_GRADIENT_ID[gradientSlot]
+  const reduceMotion = useReducedMotion()
+
+  const gradientStops = (
+    <>
+      <stop offset="0%" stopColor="var(--studio-grad-0)" />
+      <stop offset="20%" stopColor="var(--studio-grad-1)" />
+      <stop offset="40%" stopColor="var(--studio-grad-2)" />
+      <stop offset="60%" stopColor="var(--studio-grad-3)" />
+      <stop offset="80%" stopColor="var(--studio-grad-4)" />
+      <stop offset="100%" stopColor="var(--studio-grad-5)" />
+    </>
+  )
 
   return (
     <svg
@@ -29,7 +48,7 @@ export function AiStudioNavStar({ className, gradientSlot = 'sidebar-desktop' }:
     >
       <defs>
         <linearGradient
-          id={gradId}
+          id={fillGradId}
           x1="-10%"
           y1="50%"
           x2="110%"
@@ -37,15 +56,46 @@ export function AiStudioNavStar({ className, gradientSlot = 'sidebar-desktop' }:
           gradientUnits="objectBoundingBox"
           gradientTransform="rotate(105 0.5 0.5)"
         >
-          <stop offset="0%" stopColor="var(--studio-grad-0)" />
-          <stop offset="20%" stopColor="var(--studio-grad-1)" />
-          <stop offset="40%" stopColor="var(--studio-grad-2)" />
-          <stop offset="60%" stopColor="var(--studio-grad-3)" />
-          <stop offset="80%" stopColor="var(--studio-grad-4)" />
-          <stop offset="100%" stopColor="var(--studio-grad-5)" />
+          {gradientStops}
+        </linearGradient>
+        <linearGradient
+          id={strokeGradId}
+          x1="-0.15"
+          y1="0.5"
+          x2="1.15"
+          y2="0.5"
+          gradientUnits="objectBoundingBox"
+          gradientTransform="rotate(105 0.5 0.5)"
+        >
+          {gradientStops}
+          {/* Same motion as `.sidebar-ai-studio-text`: `gradient-x`, 4.5s ease, wide band. */}
+          {!reduceMotion ? (
+            <>
+              <animate
+                attributeName="x1"
+                values="-0.15;0.1;-0.15"
+                dur="4.5s"
+                keyTimes="0;0.5;1"
+                calcMode="spline"
+                keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="x2"
+                values="1.15;1.4;1.15"
+                dur="4.5s"
+                keyTimes="0;0.5;1"
+                calcMode="spline"
+                keySplines="0.42 0 0.58 1;0.42 0 0.58 1"
+                repeatCount="indefinite"
+              />
+            </>
+          ) : null}
         </linearGradient>
       </defs>
-      <path fill={`url(#${gradId})`} d={STAR_PATH} />
+      {/* Fill: visible on row hover/focus or AI Studio (incl. tools) — see globals.css */}
+      <path className="ai-studio-star-fill" fill={`url(#${fillGradId})`} d={STAR_PATH} />
+      <path className="ai-studio-star-stroke" fill="none" stroke={`url(#${strokeGradId})`} d={STAR_PATH} />
     </svg>
   )
 }

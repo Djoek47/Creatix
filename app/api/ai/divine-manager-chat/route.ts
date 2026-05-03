@@ -15,6 +15,7 @@ import {
   managerTalkativenessChatSuffix,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { personalityChatSuffix, resolveVoicePersonality } from '@/lib/divine/voice-personality'
 import { logUsageEvent } from '@/lib/usage/server-log'
 import {
   consumeAiCredits,
@@ -25,6 +26,7 @@ import {
   DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD,
 } from '@/lib/billing/credit-economics'
 import { divineManagerDebitMetadata } from '@/lib/billing/divine-manager-ledger'
+import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -1295,6 +1297,7 @@ export async function POST(req: NextRequest) {
     const persona = settings.persona || {}
     const rules = settings.automation_rules || {}
     const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
+    const voicePersonality = resolveVoicePersonality(rules as DivineManagerAutomationRules)
     const notify = settings.notification_settings || {}
 
     const taskSummary =
@@ -1330,7 +1333,7 @@ When OnlyFans is connected, you can run DM tools end-to-end: get_dm_conversation
 
 DM name lookup rules: Tool output begins with spellback ("I heard …") and ends with [divine_lookup_meta:…]. Follow next_step_hint. If resolved is fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, do not claim the chat is already open; ask the creator to confirm or pick a fanId. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn—if unclear, ask a clarifying question first. If resolved is exact, use that fanId for get_dm_thread / send_message.
 
-Chat behavior (match voice Divine Manager): After any tool runs—including slow or heavy ones (analyze, pricing, publish, fan lists, notifications)—write a clear summary of what came back and what the creator should do next. Do not stop after a bare tool result or a single sentence if the user still needs context. When you have addressed their request, end with a short offer to help further, e.g. "Is there anything else you want me to look at?" Do not imply the conversation is "closed" or that you are hanging up; this is text chat and stays open until they send another message.${managerTalkativenessChatSuffix(talkLevel)}`
+Chat behavior (match voice Divine Manager): After any tool runs—including slow or heavy ones (analyze, pricing, publish, fan lists, notifications)—write a clear summary of what came back and what the creator should do next. Do not stop after a bare tool result or a single sentence if the user still needs context. When you have addressed their request, end with a short offer to help further, e.g. "Is there anything else you want me to look at?" Do not imply the conversation is "closed" or that you are hanging up; this is text chat and stays open until they send another message.${managerTalkativenessChatSuffix(talkLevel)}${personalityChatSuffix(voicePersonality)}`
 
     const focusedFanLine = focusedFan?.id
       ? `\n\nFocused DM fan (from UI): id=${focusedFan.id}, username=${focusedFan.username ?? 'unknown'}, name=${focusedFan.name ?? 'unknown'}.\nIf a focused fan is provided, assume all DM questions refer to this fan unless the creator names someone else. Do not run a broad search first. When using DM tools (get_dm_thread, get_reply_suggestions, send_message), use this fan's id directly unless the creator clearly asks for someone else.`

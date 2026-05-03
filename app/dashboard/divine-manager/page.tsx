@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -14,9 +14,16 @@ import {
   type DivineManagerMode,
   type DivineManagerPersona,
   type DivineManagerGoals,
+  type DivineVoicePersonalityInitiative,
   type DivineManagerAutomationRules,
   type DivineBackgroundOps,
 } from '@/lib/divine-manager'
+import {
+  applyVoicePersonalityToAutomationRules,
+  defaultVoicePersonality,
+  resolveVoicePersonality,
+  type ResolvedVoicePersonality,
+} from '@/lib/divine/voice-personality'
 import { isDivineManagerScrollSection, divineManagerScrollElementId } from '@/lib/divine-manager-deep-link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,6 +51,7 @@ import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
 import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
 import { cn } from '@/lib/utils'
+import { Slider } from '@/components/ui/slider'
 
 type WizardStep = 1 | 2 | 3 | 4
 
@@ -112,6 +120,7 @@ export default function DivineManagerPage() {
       min_interval_hours: 4,
     },
     divine_onboarding_checklist: {},
+    voice_personality: defaultVoicePersonality(),
   })
   const [selectedMode, setSelectedMode] = useState<DivineManagerMode>('suggest_only')
   const [managerArchetype, setManagerArchetype] = useState<string>('hermes')
@@ -198,7 +207,7 @@ export default function DivineManagerPage() {
           setPersona(s.persona ?? {})
           setGoals(s.goals ?? {})
           const merged = (s.automation_rules ?? {}) as DivineManagerAutomationRules
-          setAutomationRules({
+          const nextAutomation: DivineManagerAutomationRules = {
             autoPostSchedule: { enabled: false, maxPerDay: 2, ...merged.autoPostSchedule },
             autoWelcomeDm: { enabled: false, maxPerDay: 50, ...merged.autoWelcomeDm },
             autoFollowUpAfterTips: { enabled: false, maxPerDay: 20, ...merged.autoFollowUpAfterTips },
@@ -254,6 +263,14 @@ export default function DivineManagerPage() {
             divine_onboarding_checklist: {
               ...((merged.divine_onboarding_checklist ?? {}) as Record<string, boolean>),
             },
+            ...(merged.dashboard ? { dashboard: merged.dashboard } : {}),
+          }
+          setAutomationRules({
+            ...nextAutomation,
+            voice_personality: resolveVoicePersonality({
+              ...merged,
+              ...nextAutomation,
+            }),
           })
           setSelectedMode(s.mode)
           setManagerArchetype(s.manager_archetype || 'hermes')
@@ -330,6 +347,31 @@ export default function DivineManagerPage() {
       console.error(e)
     }
   }
+
+  const voicePersonalityResolved = resolveVoicePersonality(automationRules)
+
+  const patchVoicePersonality = (partial: Partial<ResolvedVoicePersonality>) => {
+    void persistAutomationRules(
+      applyVoicePersonalityToAutomationRules(automationRules, {
+        ...voicePersonalityResolved,
+        ...partial,
+      }),
+    )
+  }
+
+  const voicePersonalityKey =
+    automationRules.voice_personality != null
+      ? JSON.stringify(automationRules.voice_personality)
+      : String(automationRules.manager_talkativeness ?? 'balanced')
+
+  const [personalityDrag, setPersonalityDrag] = useState<Partial<ResolvedVoicePersonality>>({})
+  const voiceUi = useMemo(
+    () => ({ ...voicePersonalityResolved, ...personalityDrag }),
+    [voicePersonalityResolved, personalityDrag],
+  )
+  useEffect(() => {
+    setPersonalityDrag({})
+  }, [voicePersonalityKey])
 
   const handleRunManager = async () => {
     if (!userId) return
@@ -455,6 +497,7 @@ export default function DivineManagerPage() {
         },
         voice_fab_skip_launcher: false,
         manager_talkativeness: 'balanced',
+        voice_personality: defaultVoicePersonality(),
         divine_background_ops: {
           enabled: false,
           suggest_tasks: true,
@@ -1317,28 +1360,9 @@ export default function DivineManagerPage() {
                       </p>
                     </div>
                     <div className="space-y-2 pt-4">
-                      <Label>How chatty Divine is</Label>
-                      <Select
-                        value={automationRules.manager_talkativeness ?? 'balanced'}
-                        onValueChange={(v) =>
-                          setAutomationRules((r) => ({
-                            ...r,
-                            manager_talkativeness: v as 'low' | 'balanced' | 'high',
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Brief — short answers</SelectItem>
-                          <SelectItem value="balanced">Balanced</SelectItem>
-                          <SelectItem value="high">More expressive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Applies to voice and text. Brief keeps replies tight; More expressive adds warmth and context when
-                        helpful.
+                      <Label>Voice personality</Label>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        After setup, open Divine Manager · Preferences · <span className="font-medium text-foreground/90">Personality</span> to tune Talkativeness, momentum, silence timing, and who leads—voice and text Divine follow the same preset.
                       </p>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -2491,6 +2515,170 @@ export default function DivineManagerPage() {
                   }}
                   onBlur={() => void persistGoals(goalsRef.current)}
                 />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-10 border-t border-border/80 pt-10">
+            <div className="space-y-2">
+              <h3 className="text-[1.0625rem] font-semibold tracking-tight text-foreground">Personality</h3>
+              <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground">
+                Shape how Divine speaks and who leads the conversation—voice and Divine chat share this preset.
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <Label className="text-[13px] font-medium text-foreground">Talkativeness</Label>
+                  <span className="hidden text-[11px] text-muted-foreground sm:inline">Quiet · Expressive</span>
+                </div>
+                <Slider
+                  value={[voiceUi.talkativeness]}
+                  max={100}
+                  step={1}
+                  disabled={loading || saving || resetting}
+                  aria-label="Divine talkativeness"
+                  onValueChange={(v) =>
+                    setPersonalityDrag((d) => ({ ...d, talkativeness: v[0] ?? voiceUi.talkativeness }))
+                  }
+                  onValueCommit={(v) =>
+                    patchVoicePersonality({ talkativeness: v[0] ?? voiceUi.talkativeness })
+                  }
+                  className="py-2"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground sm:hidden">
+                  <span>Quiet</span>
+                  <span>Expressive</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Quieter keeps replies lean; fuller adds deliberate warmth—not rambling.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <Label className="text-[13px] font-medium text-foreground">Momentum</Label>
+                  <span className="hidden text-[11px] text-muted-foreground sm:inline">Reactive · Forward</span>
+                </div>
+                <Slider
+                  value={[voiceUi.proactivity]}
+                  max={100}
+                  step={1}
+                  disabled={loading || saving || resetting}
+                  aria-label="Divine momentum and narration"
+                  onValueChange={(v) =>
+                    setPersonalityDrag((d) => ({ ...d, proactivity: v[0] ?? voiceUi.proactivity }))
+                  }
+                  onValueCommit={(v) =>
+                    patchVoicePersonality({ proactivity: v[0] ?? voiceUi.proactivity })
+                  }
+                  className="py-2"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground sm:hidden">
+                  <span>Reactive</span>
+                  <span>Forward</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Reactive waits on you; Forward narrates briefly while tools run—never skipping confirmations on risky sends.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-[13px] font-medium text-foreground">Who leads</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: 'creator_led' as DivineVoicePersonalityInitiative, label: 'You direct' },
+                    { id: 'balanced' as DivineVoicePersonalityInitiative, label: 'Balanced' },
+                    { id: 'manager_led' as DivineVoicePersonalityInitiative, label: 'Divine directs' },
+                  ] as const
+                ).map(({ id, label }) => (
+                  <Button
+                    key={id}
+                    type="button"
+                    variant={voiceUi.initiative === id ? 'secondary' : 'outline'}
+                    className={cn(
+                      'h-11 rounded-xl text-[13px] font-normal shadow-none',
+                      voiceUi.initiative === id
+                        ? 'border-foreground/15 bg-muted/80 text-foreground'
+                        : 'border-border/60 text-muted-foreground hover:text-foreground',
+                    )}
+                    disabled={loading || saving || resetting}
+                    onClick={() => patchVoicePersonality({ initiative: id })}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Left: partner waits on your goals. Right: Divine proposes the plan—you stay in charge of risky actions.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-border/50 bg-muted/[0.15] px-5 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">Studio tuning</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    Silence ladders and microphone sensitivity apply on your next voice call.
+                  </p>
+                </div>
+                <Switch
+                  checked={voiceUi.pro_mode}
+                  disabled={loading || saving || resetting}
+                  onCheckedChange={(c) => patchVoicePersonality({ pro_mode: c })}
+                  aria-label="Enable studio tuning for voice"
+                />
+              </div>
+              <div
+                className={cn(
+                  'grid gap-8 overflow-hidden transition-all duration-300 ease-out',
+                  voiceUi.pro_mode ? 'max-h-[560px] opacity-100 pt-5' : 'max-h-0 opacity-0',
+                )}
+              >
+                <div className="space-y-3">
+                  <Label className="text-[13px] font-medium text-foreground">Silence patience</Label>
+                  <Slider
+                    value={[voiceUi.silence_patience]}
+                    max={100}
+                    step={1}
+                    disabled={loading || saving || resetting || !voiceUi.pro_mode}
+                    aria-label="Silence patience before check-in prompts"
+                    onValueChange={(v) =>
+                      setPersonalityDrag((d) => ({ ...d, silence_patience: v[0] ?? voiceUi.silence_patience }))
+                    }
+                    onValueCommit={(v) =>
+                      patchVoicePersonality({ silence_patience: v[0] ?? voiceUi.silence_patience })
+                    }
+                    className="py-2"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Quick check-ins</span>
+                    <span>Long pauses ok</span>
+                  </div>
+                </div>
+                <div className="space-y-3 pb-1">
+                  <Label className="text-[13px] font-medium text-foreground">Mic pickup</Label>
+                  <Slider
+                    value={[voiceUi.mic_pickup]}
+                    max={100}
+                    step={1}
+                    disabled={loading || saving || resetting || !voiceUi.pro_mode}
+                    aria-label="Microphone sensitivity for voice silence detection"
+                    onValueChange={(v) =>
+                      setPersonalityDrag((d) => ({ ...d, mic_pickup: v[0] ?? voiceUi.mic_pickup }))
+                    }
+                    onValueCommit={(v) =>
+                      patchVoicePersonality({ mic_pickup: v[0] ?? voiceUi.mic_pickup })
+                    }
+                    className="py-2"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Strict</span>
+                    <span>Sensitive</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

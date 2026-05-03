@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateTextWithOpenAI } from '@/lib/divine-openai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getDivineVoice } from '@/lib/divine-manager'
+import { getDivineVoice, type DivineManagerAutomationRules } from '@/lib/divine-manager'
 import {
   managerTalkativenessVoiceScriptLine,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { personalityVoiceScriptLine, resolveVoicePersonality } from '@/lib/divine/voice-personality'
 import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
 
 type VoiceMode = 'intro' | 'ongoing' | 'what_next'
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
     const persona = settings.persona || {}
     const rules = settings.automation_rules || {}
     const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
+    const voiceP = resolveVoicePersonality(rules as DivineManagerAutomationRules)
     const notify = settings.notification_settings || {}
 
     const taskSummary =
@@ -122,6 +124,7 @@ Now, in your spoken response:
 ${modeLine}
 
 ${managerTalkativenessVoiceScriptLine(talkLevel)}
+${personalityVoiceScriptLine(voiceP)}
 
 Speak directly to the creator, but in second person (\"you\"). Keep it actionable but advisory, not absolute. Do not read raw JSON or bullet syntax; speak like a human manager.`
 

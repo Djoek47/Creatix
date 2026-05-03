@@ -72,6 +72,23 @@ export interface DivineManagerAutomationJobs {
 /** When manual End call is allowed in the voice UI (see voice_allow_user_hangup tool). */
 export type VoiceHangupPolicy = 'always' | 'after_closing_prompt'
 
+/** Who leads the agenda in voice/text; separate from talkativeness sliders. */
+export type DivineVoicePersonalityInitiative = 'creator_led' | 'balanced' | 'manager_led'
+
+/** Fine-grained Divine voice persona (stored under `automation_rules.voice_personality`). */
+export interface DivineVoicePersonalityStored {
+  /** 0 = quiet/concise, 50 = balanced, 100 = expressive */
+  talkativeness: number
+  /** 0 = reactive, 100 = forward narration during tools */
+  proactivity: number
+  initiative: DivineVoicePersonalityInitiative
+  /** Pro: idle ladder timing (maps to silence ms server-side). */
+  silence_patience: number
+  /** Pro: mic energy sensitivity (higher = more sensitive). */
+  mic_pickup: number
+  pro_mode: boolean
+}
+
 /** How Divine focuses a fan from tools: full Messages route vs floating overlay. */
 export type DmFocusMode = 'navigate' | 'overlay'
 
@@ -141,8 +158,10 @@ export interface DivineManagerAutomationRules {
    * When false (default), crown opens a launcher with Voice as the primary action.
    */
   voice_fab_skip_launcher?: boolean
-  /** Voice + text: brief vs default vs more expressive (default balanced). */
+  /** Voice + text: brief vs default vs more expressive (legacy; synced from voice_personality on save when set). */
   manager_talkativeness?: 'low' | 'balanced' | 'high'
+  /** Creator-tuned Divine voice personality (Realtime + briefing + silence/mic tuning). */
+  voice_personality?: DivineVoicePersonalityStored
   /** Optional onboarding overrides (e.g. user marked "I've set up AI Chatter"). */
   divine_onboarding_checklist?: Record<string, boolean>
   divine_background_ops?: DivineBackgroundOps
@@ -155,6 +174,7 @@ export interface DivineManagerAutomationRules {
     | DivineManagerAutomationJobs
     | DivineBackgroundOps
     | DivineDashboardPreset
+    | DivineVoicePersonalityStored
     | Record<string, boolean>
     | VoiceHangupPolicy
     | DmFocusMode

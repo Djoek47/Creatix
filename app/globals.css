@@ -505,31 +505,12 @@
   box-shadow: 0 0 18px -3px oklch(0.55 0.2 295 / 0.38), 0 0 14px -2px oklch(0.78 0.12 85 / 0.26);
 }
 
-/* AI Studio nav: gradient ring only around the star on row hover (not the full link) */
+/* AI Studio nav: icon wrappers stay neutral — star motion is the SVG stroke gradient only. */
 .ai-studio-nav-star-slot {
   line-height: 0;
   border-radius: 0.5rem;
   padding: 0;
   background: transparent;
-  transition:
-    padding 0.18s ease-out,
-    box-shadow 0.18s ease-out,
-    background-color 0.18s ease-out;
-}
-
-/* Hover: no outer gradient ring / halo — reads as “fill outside”; star path handles accent alone */
-.group:hover .ai-studio-nav-star-slot,
-.group:focus-visible .ai-studio-nav-star-slot {
-  padding: 0;
-  background: transparent;
-  background-size: auto;
-  animation: none;
-  box-shadow: none;
-}
-
-.dark .group:hover .ai-studio-nav-star-slot,
-.dark .group:focus-visible .ai-studio-nav-star-slot {
-  box-shadow: none;
 }
 
 .ai-studio-nav-star-pad {
@@ -548,16 +529,24 @@
   background: transparent;
 }
 
-/* Row hover/focus/active: soften outer glow — star keeps same gradient fill as `.sidebar-ai-studio-text`. */
+/* Row hover/focus/current page: gradient fill + soft glow (stroke layer fades out). */
 .group:hover .ai-studio-sidebar-star,
 .group:focus-visible .ai-studio-sidebar-star,
 .group[aria-current='page'] .ai-studio-sidebar-star {
-  filter: none;
+  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--ai-studio-tone-1) 38%, transparent))
+    drop-shadow(0 0 5px color-mix(in oklch, var(--ai-studio-tone-2) 28%, transparent));
+}
+
+.dark .group:hover .ai-studio-sidebar-star,
+.dark .group:focus-visible .ai-studio-sidebar-star,
+.dark .group[aria-current='page'] .ai-studio-sidebar-star {
+  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--ai-studio-tone-1) 40%, transparent))
+    drop-shadow(0 0 6px color-mix(in oklch, var(--ai-studio-tone-0) 26%, transparent));
 }
 
 /**
- * Sidebar AI Studio star SVG: luminance echoes label `gradient-x` hues via inline defs + these stops
- * (`AiStudioNavStar`). Same oklch values as `.sidebar-ai-studio-text` / `.dark .sidebar-ai-studio-text`.
+ * Sidebar AI Studio star SVG: outline when idle; gradient fill on hover/focus/`aria-current="page"`
+ * (covers `/dashboard/ai-studio` and child routes such as tools). Same oklch stops as `.sidebar-ai-studio-text`.
  */
 .ai-studio-sidebar-star {
   --ai-studio-tone-0: oklch(0.62 0.18 78);
@@ -572,8 +561,7 @@
   --studio-grad-4: oklch(0.68 0.16 76);
   --studio-grad-5: oklch(0.62 0.18 78);
   overflow: visible;
-  filter: drop-shadow(0 0 2px color-mix(in oklch, var(--ai-studio-tone-1) 42%, transparent))
-    drop-shadow(0 0 5px color-mix(in oklch, var(--ai-studio-tone-2) 32%, transparent));
+  filter: none;
 }
 
 .dark .ai-studio-sidebar-star {
@@ -588,13 +576,34 @@
   --studio-grad-3: oklch(0.65 0.22 294);
   --studio-grad-4: oklch(0.86 0.13 80);
   --studio-grad-5: oklch(0.88 0.12 82);
-  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--ai-studio-tone-1) 45%, transparent))
-    drop-shadow(0 0 6px color-mix(in oklch, var(--ai-studio-tone-0) 28%, transparent));
 }
 
-.ai-studio-sidebar-star path {
-  stroke: none;
+.ai-studio-sidebar-star .ai-studio-star-fill {
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
   vector-effect: non-scaling-stroke;
+}
+
+.ai-studio-sidebar-star .ai-studio-star-stroke {
+  fill: none;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 1;
+  transition: opacity 0.15s ease-out;
+  vector-effect: non-scaling-stroke;
+}
+
+.group:hover .ai-studio-sidebar-star .ai-studio-star-fill,
+.group:focus-visible .ai-studio-sidebar-star .ai-studio-star-fill,
+.group[aria-current='page'] .ai-studio-sidebar-star .ai-studio-star-fill {
+  opacity: 1;
+}
+
+.group:hover .ai-studio-sidebar-star .ai-studio-star-stroke,
+.group:focus-visible .ai-studio-sidebar-star .ai-studio-star-stroke,
+.group[aria-current='page'] .ai-studio-sidebar-star .ai-studio-star-stroke {
+  opacity: 0;
 }
 
 .sidebar-ai-studio-text {
@@ -960,15 +969,10 @@
     background-position: 50% 50%;
   }
 
-  .group:hover .ai-studio-nav-star-slot,
-  .group:focus-visible .ai-studio-nav-star-slot {
-    animation: none;
-    background-position: 50% 50%;
-  }
-
-  /* AI Studio star: static gradient hues (motion layer is the label + optional future SMIL pan). */
-  .ai-studio-sidebar-star path {
-    animation: none;
+  /* AI Studio star: static gradient when visible (label handles motion). */
+  .ai-studio-sidebar-star .ai-studio-star-fill,
+  .ai-studio-sidebar-star .ai-studio-star-stroke {
+    transition: none;
   }
 
   .sidebar-ai-studio-text {
@@ -3213,56 +3217,65 @@
     0 10px 28px -10px oklch(0 0 0 / 0.72);
 }
 
-/* Expanded voice dock — same rim language as launcher + crown: gold (light), violet (dark) */
+/* Expanded voice dock — liquid glass (Apple-like): calm frosted face, same gold / violet rim + accent glows */
 .divine-voice-pill-expanded {
   position: relative;
   isolation: isolate;
+  border-radius: 22px;
   border: 1px solid transparent;
-  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(44px) saturate(1.14);
+  backdrop-filter: blur(44px) saturate(1.14);
   background:
     linear-gradient(
-      168deg,
-      color-mix(in oklch, var(--card) 93%, oklch(0.98 0.02 85 / 0.14)),
-      color-mix(in oklch, var(--card) 95%, oklch(0.96 0.03 300 / 0.1))
+      165deg,
+      color-mix(in oklch, var(--card) 78%, oklch(0.99 0.005 85 / 0.55)),
+      color-mix(in oklch, var(--card) 82%, oklch(0.97 0.02 300 / 0.38))
     )
       padding-box,
     linear-gradient(
       125deg,
-      oklch(0.9 0.07 78 / 0.72),
-      oklch(0.78 0.13 85 / 0.78),
-      oklch(0.93 0.06 82 / 0.68),
-      oklch(0.72 0.11 80 / 0.74),
-      oklch(0.86 0.09 76 / 0.7)
+      oklch(0.9 0.07 78 / 0.58),
+      oklch(0.78 0.13 85 / 0.64),
+      oklch(0.93 0.06 82 / 0.54),
+      oklch(0.72 0.11 80 / 0.6),
+      oklch(0.86 0.09 76 / 0.56)
     )
       border-box;
   box-shadow:
-    0 10px 36px -14px oklch(0 0 0 / 0.18),
-    0 0 32px -12px oklch(0.72 0.12 85 / 0.18),
-    0 0 0 1px color-mix(in oklch, oklch(0.68 0.1 82 / 0.12), transparent);
+    inset 0 1px 0 oklch(0.99 0.01 85 / 0.42),
+    inset 0 -1px 0 oklch(0.55 0.04 82 / 0.06),
+    0 1px 0 oklch(0.99 0.01 85 / 0.2),
+    0 18px 48px -20px oklch(0 0 0 / 0.14),
+    0 0 48px -18px oklch(0.72 0.12 85 / 0.14),
+    0 0 0 1px color-mix(in oklch, oklch(0.68 0.1 82 / 0.1), transparent);
 }
 
 .dark .divine-voice-pill-expanded {
-  backdrop-filter: blur(22px) saturate(1.08);
+  -webkit-backdrop-filter: blur(48px) saturate(1.1);
+  backdrop-filter: blur(48px) saturate(1.1);
   background:
     linear-gradient(
-      175deg,
-      color-mix(in oklch, var(--card) 88%, oklch(0.22 0.06 285 / 0.42)),
-      color-mix(in oklch, var(--card) 92%, oklch(0.18 0.05 300 / 0.32))
+      172deg,
+      color-mix(in oklch, var(--card) 72%, oklch(0.22 0.06 285 / 0.48)),
+      color-mix(in oklch, var(--card) 78%, oklch(0.18 0.05 300 / 0.36))
     )
       padding-box,
     linear-gradient(
       125deg,
-      oklch(0.42 0.15 295 / 0.65),
-      oklch(0.55 0.19 285 / 0.72),
-      oklch(0.46 0.17 305 / 0.68),
-      oklch(0.58 0.16 280 / 0.62),
-      oklch(0.48 0.15 292 / 0.66)
+      oklch(0.42 0.15 295 / 0.52),
+      oklch(0.55 0.19 285 / 0.58),
+      oklch(0.46 0.17 305 / 0.54),
+      oklch(0.58 0.16 280 / 0.5),
+      oklch(0.48 0.15 292 / 0.54)
     )
       border-box;
   box-shadow:
-    0 12px 40px -14px oklch(0 0 0 / 0.55),
-    0 0 40px -14px oklch(0.5 0.2 295 / 0.22),
-    0 0 0 1px color-mix(in oklch, oklch(0.55 0.16 295 / 0.28), transparent);
+    inset 0 1px 0 oklch(0.72 0.02 285 / 0.12),
+    inset 0 -1px 0 oklch(0.12 0.02 295 / 0.35),
+    0 1px 0 oklch(0.55 0.08 285 / 0.08),
+    0 22px 56px -22px oklch(0 0 0 / 0.5),
+    0 0 52px -20px oklch(0.5 0.2 295 / 0.18),
+    0 0 0 1px color-mix(in oklch, oklch(0.55 0.16 295 / 0.22), transparent);
 }
 
 /* Divine launcher popover — gold × violet gradient language (FAB crown), calm aurora motion */

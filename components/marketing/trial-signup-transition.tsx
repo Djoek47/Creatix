@@ -36,8 +36,15 @@ const TrialSignupTransitionContext = createContext<TrialCtx | null>(null)
 
 export function useTrialSignupTransition() {
   const ctx = useContext(TrialSignupTransitionContext)
+  const nextRouter = useRouter()
+  const pushFallback = useCallback(
+    (href = '/auth/sign-up') => {
+      void nextRouter.push(href)
+    },
+    [nextRouter],
+  )
   if (!ctx) {
-    throw new Error('useTrialSignupTransition must be used within TrialSignupTransitionProvider')
+    return { beginSignupTransition: pushFallback, isTransitioning: false }
   }
   return { beginSignupTransition: ctx.beginSignupTransition, isTransitioning: ctx.isTransitioning }
 }
@@ -84,9 +91,6 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   const glassStartedRef = useRef(false)
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const glassTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     if (!pathname?.startsWith('/auth/sign-up')) {
@@ -95,7 +99,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   }, [pathname])
 
   useEffect(() => {
-    if (!mounted || typeof document === 'undefined') return
+    if (typeof document === 'undefined') return
     const sel = `link[data-cev-trial-preload="1"]`
     if (document.querySelector(sel)) return
     const link = document.createElement('link')
@@ -107,9 +111,11 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
     return () => {
       link.remove()
     }
-  }, [mounted])
+  }, [])
 
   const resetPlayer = useCallback(() => {
+    if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+    if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
     const v = videoRef.current
     if (v) {
       v.pause()
@@ -178,6 +184,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
 
   const navigateFallback = useCallback(
     (href: string) => {
+      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
       if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
       router.push(href)
       resetPlayer()
@@ -201,6 +208,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
       }
 
       if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
+      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
       busyRef.current = true
       pushedRef.current = false
       glassStartedRef.current = false
@@ -221,7 +229,21 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
           const v = videoRef.current
           if (v) {
             v.currentTime = 0
-            void v.play().catch(() => navigateFallback(hrefRef.current))
+            v.volume = 1
+            const playPreferAudio = async () => {
+              v.muted = false
+              try {
+                await v.play()
+              } catch {
+                v.muted = true
+                try {
+                  await v.play()
+                } catch {
+                  navigateFallback(hrefRef.current)
+                }
+              }
+            }
+            void playPreferAudio()
           }
         })
       }, FREEZE_MS)
@@ -251,8 +273,10 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
     signupEntranceMode,
   }
 
+  const canUseDom = typeof document !== 'undefined'
+
   const overlay =
-    mounted && phase !== 'idle'
+    canUseDom && phase !== 'idle'
       ? createPortal(
           <div className="fixed inset-0" style={{ zIndex: Z_OVERLAY }} aria-hidden>
             <div
@@ -272,7 +296,6 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
                 filter: videoGlassStyle ? 'saturate(1.12) brightness(1.08) blur(1px)' : 'none',
                 transform: videoGlassStyle ? 'scale(1.03)' : 'scale(1)',
               }}
-              muted
               playsInline
               preload="auto"
               disablePictureInPicture

@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { AUTH_SCENIC_BG_PATHS } from '@/lib/auth/scenic-backdrop-assets'
 
-export const TRIAL_SIGNUP_VIDEO_SRC = '/marketing/trial-launch-transition.mp4'
+export const TRIAL_SIGNUP_VIDEO_SRC = '/marketing/trial-launch-transition-final.mp4'
 
 const FREEZE_MS = 100
 const EARLY_NAV_BEFORE_END_SEC = 0.58

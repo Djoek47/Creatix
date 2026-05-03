@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 import { CREDITS_FAN_WEB_BIO_SERPER_AI } from '@/lib/billing/credit-economics'
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    if (billingBlock) return billingBlock
 
     const body = (await req.json().catch(() => ({}))) as { fanId?: string; force?: boolean }
     const fanId = typeof body.fanId === 'string' ? body.fanId.trim() : ''

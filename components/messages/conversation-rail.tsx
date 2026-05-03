@@ -23,6 +23,7 @@ type ConversationRailProps = {
   onSortChange: (s: InboxSort) => void
   platform: InboxPlatformFilter
   onPlatformChange: (p: InboxPlatformFilter) => void
+  platformOptions?: InboxPlatformFilter[]
   tag: string
   onTagChange: (t: string) => void
   /** Controlled search (parent debounces for API). */
@@ -46,6 +47,7 @@ export function ConversationRail({
   onSortChange,
   platform,
   onPlatformChange,
+  platformOptions,
   tag,
   onTagChange,
   searchQuery,
@@ -121,6 +123,7 @@ export function ConversationRail({
             onSortChange={onSortChange}
             platform={platform}
             onPlatformChange={onPlatformChange}
+            platformOptions={platformOptions}
             tag={tag}
             onTagChange={onTagChange}
             className="shrink-0 px-3 pt-2"

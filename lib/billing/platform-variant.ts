@@ -1,3 +1,5 @@
+import type { InboxPlatformFilter } from '@/lib/messages/inbox-crm'
+
 /**
  * Focus (single) = 1–2 allowed adult platforms; Unified (multi) = all adult platforms in one workspace.
  */
@@ -78,6 +80,76 @@ const SUBSCRIPTION_STATUSES_ENFORCING_FOCUS: ReadonlySet<string> = new Set([
   'trialing',
   'past_due',
 ])
+
+/** True when Focus (single) platform limits apply for this subscription status. */
+export function subscriptionEnforcesFocusPlatforms(row: SubscriptionFocusFields | null | undefined): boolean {
+  if (!row) return false
+  const st = (row.status || '').toLowerCase()
+  if (!SUBSCRIPTION_STATUSES_ENFORCING_FOCUS.has(st)) return false
+  return effectiveBillingVariant(row) === 'single'
+}
+
+export type FocusConnectedPlatformsMismatch = {
+  code: 'FOCUS_CONNECTED_PLATFORM_MISMATCH'
+  message: string
+}
+
+/**
+ * Paid Focus plan lists allowed adult API platforms; if the user still has a *connected* platform
+ * outside that set (e.g. legacy / bad data), partner APIs should refuse until they disconnect or upgrade.
+ */
+export function focusConnectedPlatformsMismatch(
+  sub: SubscriptionFocusFields | null | undefined,
+  connections: PlatformConnectionLike[],
+): FocusConnectedPlatformsMismatch | null {
+  if (!sub || !subscriptionEnforcesFocusPlatforms(sub)) return null
+
+  const allowed = resolveAllowedFocusPlatforms(sub.billing_focus_platforms, sub.billing_focus_platform)
+  const allowedSet = new Set(allowed)
+  const connected = connectedAdultPlatforms(connections)
+  for (const c of connected) {
+    if (!allowedSet.has(c)) {
+      const label = (p: AdultBillingPlatform) =>
+        p === 'onlyfans' ? 'OnlyFans' : p === 'fansly' ? 'Fansly' : p
+      const names = allowed.map(label).join(' + ')
+      return {
+        code: 'FOCUS_CONNECTED_PLATFORM_MISMATCH',
+        message: `This subscription covers ${names}. Remove the other account in Settings, or change your plan in Billing.`,
+      }
+    }
+  }
+  return null
+}
+
+/** Inbox UI: which platform tabs to show under paid Focus vs Unified (server + client aligned with API clamp). */
+export function inboxPlatformFilterOptionsForSubscription(
+  sub: SubscriptionFocusFields | null | undefined,
+): InboxPlatformFilter[] {
+  if (!sub || !subscriptionEnforcesFocusPlatforms(sub)) {
+    return ['all', 'onlyfans', 'fansly']
+  }
+  const allowed = resolveAllowedFocusPlatforms(sub.billing_focus_platforms, sub.billing_focus_platform)
+  const ofOk = allowed.includes('onlyfans')
+  const fsOk = allowed.includes('fansly')
+  if (ofOk && fsOk) return ['all', 'onlyfans', 'fansly']
+  if (ofOk) return ['all', 'onlyfans']
+  if (fsOk) return ['all', 'fansly']
+  return ['all']
+}
+
+/**
+ * AI Studio pickers: under paid Focus with exactly one OF/Fansly entitlement, hide the other platform.
+ * Returns `undefined` when Unified or when both adult platforms are on the plan.
+ */
+export function allowedAdultPlatformsForFocusPicker(
+  sub: SubscriptionFocusFields | null | undefined,
+): ('onlyfans' | 'fansly')[] | undefined {
+  if (!sub || !subscriptionEnforcesFocusPlatforms(sub)) return undefined
+  const allowed = resolveAllowedFocusPlatforms(sub.billing_focus_platforms, sub.billing_focus_platform)
+  const pair = allowed.filter((p): p is 'onlyfans' | 'fansly' => p === 'onlyfans' || p === 'fansly')
+  if (pair.length !== 1) return undefined
+  return pair
+}
 
 /**
  * Focus vs Unified when `billing_variant` is missing on legacy rows: infer from focus columns;

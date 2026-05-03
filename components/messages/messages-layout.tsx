@@ -75,6 +75,8 @@ import type {
   InboxSort,
   InboxPlatformFilter,
 } from '@/lib/messages/inbox-crm'
+
+const DEFAULT_INBOX_PLATFORM_OPTIONS: InboxPlatformFilter[] = ['all', 'onlyfans', 'fansly']
 import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 
 type MessagesView = 'conversations' | 'insights'
@@ -189,6 +191,8 @@ interface MessagesLayoutProps {
   /** Used to tune degraded-inbox notices (optional; both set from messages page). */
   hasOnlyFansConnected?: boolean
   hasFanslyConnected?: boolean
+  /** Paid Focus vs Unified — which inbox platform tabs appear (from server). */
+  inboxPlatformOptions?: InboxPlatformFilter[]
 }
 
 function pickConversationForDeepLink(
@@ -455,6 +459,7 @@ function MessagesLayoutContent({
   hasFanPlatformConnected = false,
   hasOnlyFansConnected,
   hasFanslyConnected,
+  inboxPlatformOptions,
 }: MessagesLayoutProps) {
   const tLayout = useTranslations('messages.layout')
   const tInbox = useTranslations('messages.inbox')
@@ -541,12 +546,25 @@ function MessagesLayoutContent({
   const [segment, setSegment] = useState<InboxSegment>('all')
   const [sort, setSort] = useState<InboxSort>('recent')
   const [inboxPlatform, setInboxPlatform] = useState<InboxPlatformFilter>('all')
+  const resolvedInboxPlatformOptions = useMemo(
+    () =>
+      inboxPlatformOptions && inboxPlatformOptions.length > 0
+        ? inboxPlatformOptions
+        : DEFAULT_INBOX_PLATFORM_OPTIONS,
+    [inboxPlatformOptions],
+  )
   const [tag, setTag] = useState('')
   const [inboxSearch, setInboxSearch] = useState('')
   const [searchDebounced, setSearchDebounced] = useState('')
   const [hasMoreInbox, setHasMoreInbox] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const listOffsetRef = useRef(0)
+
+  useEffect(() => {
+    if (!resolvedInboxPlatformOptions.includes(inboxPlatform)) {
+      setInboxPlatform(resolvedInboxPlatformOptions[0] ?? 'all')
+    }
+  }, [resolvedInboxPlatformOptions, inboxPlatform])
 
   const platformDegradeFlagsKnown =
     typeof hasOnlyFansConnected === 'boolean' && typeof hasFanslyConnected === 'boolean'
@@ -715,6 +733,7 @@ function MessagesLayoutContent({
           conversations?: Conversation[]
           error?: string
           code?: string
+          reason?: string
           message?: string
           hasMore?: boolean
           nextOffset?: number
@@ -735,6 +754,13 @@ function MessagesLayoutContent({
             data.code === 'ONLYFANS_UPSTREAM'
           ) {
             setError(tLayout('errorRateLimitUpstream'))
+          } else if (data.code === 'BILLING_FOCUS_PLATFORM_DENIED') {
+            setError(tLayout('errorFocusPlatformDenied'))
+          } else if (
+            data.code === 'ONLYFANS_BILLING_BLOCKED' &&
+            data.reason === 'FOCUS_CONNECTED_PLATFORM_MISMATCH'
+          ) {
+            setError(tLayout('errorFocusPlanConnections'))
           } else {
             setError(msg)
           }
@@ -1533,6 +1559,7 @@ function MessagesLayoutContent({
                       onSortChange={setSort}
                       platform={inboxPlatform}
                       onPlatformChange={setInboxPlatform}
+                      platformOptions={resolvedInboxPlatformOptions}
                       tag={tag}
                       onTagChange={setTag}
                       searchQuery={inboxSearch}
@@ -1633,6 +1660,7 @@ function MessagesLayoutContent({
                       onSortChange={setSort}
                       platform={inboxPlatform}
                       onPlatformChange={setInboxPlatform}
+                      platformOptions={resolvedInboxPlatformOptions}
                       tag={tag}
                       onTagChange={setTag}
                       className="shrink-0 border-0 pb-0"

@@ -60,6 +60,9 @@ function resolveTrialTransitionVideoSrc(resolvedTheme: string | undefined): stri
 /** Canonical auth path for trial onboarding (same for hero CTA and header “Get started”). */
 export const DEFAULT_TRIAL_SIGNUP_HREF = '/auth/sign-up' as const
 
+/** Marketing “Sign in” → same day/night scenic transition as trial, then login. */
+export const DEFAULT_AUTH_SIGNIN_HREF = '/auth/login' as const
+
 const Z_OVERLAY = 2147483646
 
 export type SignupEntranceMode = 'off' | 'staged' | 'revealed'
@@ -136,9 +139,8 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   const glassTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!pathname?.startsWith('/auth/sign-up')) {
-      setSignupEntranceMode('off')
-    }
+    if (pathname?.startsWith('/auth/sign-up') || pathname?.startsWith('/auth/login')) return
+    setSignupEntranceMode('off')
   }, [pathname])
 
   useEffect(() => {
@@ -252,7 +254,11 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
     (href = DEFAULT_TRIAL_SIGNUP_HREF) => {
       if (busyRef.current) return
       hrefRef.current = href
-      setActiveTransitionVideoSrc(resolveTrialTransitionVideoSrc(resolvedTheme))
+      const videoSrc = resolveTrialTransitionVideoSrc(resolvedTheme)
+      const timingKind: keyof typeof TRIAL_TRANSITION_TIMING =
+        videoSrc === TRIAL_SIGNUP_VIDEO_SRC_DAY ? 'day' : 'night'
+      transitionTimingRef.current = TRIAL_TRANSITION_TIMING[timingKind]
+      setActiveTransitionVideoSrc(videoSrc)
 
       if (reducedMotion()) {
         router.push(href)

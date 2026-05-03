@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
+import { useAllowedAdultPlatformsForPicker } from '@/hooks/use-allowed-adult-platforms-for-picker'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { compressImageForVision } from '@/components/ai/caption-media-utils'
 
@@ -34,6 +35,7 @@ export function StandardOfAttractionRunnerInputs({
 }: StandardOfAttractionRunnerInputsProps) {
   const t = useTranslations('ai-tools.runners.standard-of-attraction')
   const ts = useTranslations('ai-tools.runners.shared')
+  const allowedAdultPlatforms = useAllowedAdultPlatformsForPicker()
 
   if (easy) {
     return (
@@ -79,7 +81,11 @@ export function StandardOfAttractionRunnerInputs({
           </div>
           <div className="space-y-2">
             <Label>{ts('platform')}</Label>
-            <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+            <OfFanslyPlatformSelect
+              value={platform}
+              onValueChange={setPlatform}
+              allowedAdultPlatforms={allowedAdultPlatforms}
+            />
           </div>
         </div>
         <div className="space-y-2">
@@ -108,7 +114,11 @@ export function StandardOfAttractionRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>{ts('platform')}</Label>
-          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+          <OfFanslyPlatformSelect
+            value={platform}
+            onValueChange={setPlatform}
+            allowedAdultPlatforms={allowedAdultPlatforms}
+          />
         </div>
       </div>
       <div className="space-y-2">

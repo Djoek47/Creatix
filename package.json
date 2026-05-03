@@ -30,6 +30,7 @@
     "test:dmca-host": "tsx lib/dmca/host-report-destinations.test.ts",
     "test:divine-manager-deep-link": "tsx lib/divine-manager-deep-link.test.ts",
     "test:partner-connect-gate": "tsx lib/billing/partner-connect-gate.test.ts",
+    "test:platform-focus": "tsx lib/billing/platform-variant-focus.test.ts",
     "test:product-gates-smoke": "tsx lib/divine-manager-deep-link.test.ts && tsx lib/billing/partner-connect-gate.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

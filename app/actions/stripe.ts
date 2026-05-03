@@ -696,6 +696,16 @@ function parseStripeSubscriptionMeta(sub: {
         billing_focus_platforms = ['onlyfans']
       }
     }
+  } else if (billing_variant === 'multi') {
+    const raw =
+      typeof m.focusPlatforms === 'string'
+        ? m.focusPlatforms.toLowerCase().trim()
+        : typeof m.focusPlatform === 'string'
+          ? m.focusPlatform.toLowerCase().trim()
+          : ''
+    if (raw === 'manyvids' || raw.split(',').some((s) => s.trim() === 'manyvids')) {
+      billing_focus_platforms = ['manyvids']
+    }
   }
 
   const billing_focus_platform = billing_focus_platforms?.[0] ?? null

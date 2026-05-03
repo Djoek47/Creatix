@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
 import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/observed-monthly-revenue'
@@ -45,11 +46,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('plan_id,status')
-      .eq('user_id', userId)
-      .maybeSingle()
+    const [{ data: subscription }, { data: connRows }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase.from('platform_connections').select('platform, is_connected').eq('user_id', userId),
+    ])
+
+    if (adultPlatformConnectBlockedByFocusPlan(connRows || [], subscription, 'onlyfans')) {
+      return NextResponse.json(
+        {
+          error:
+            'Your current plan is Focus for Fansly only. Upgrade to Unified (priced by your revenue tier) under Billing to connect OnlyFans.',
+          code: 'BILLING_FOCUS_UPGRADE_REQUIRED',
+        },
+        { status: 403 },
+      )
+    }
 
     if (!canConnectAdultPartnerPlatform(subscription)) {
       logPartnerConnectEntitlementDenied('POST /api/onlyfans/callback', userId)

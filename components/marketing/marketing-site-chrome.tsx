@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/button'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { MarketingFooterThemeIcon } from '@/components/marketing/marketing-footer-theme-icon'
 import { MarketingLocaleSwitcher } from '@/components/marketing/marketing-locale-switcher'
+import {
+  DEFAULT_AUTH_SIGNIN_HREF,
+  useTrialSignupTransition,
+} from '@/components/marketing/trial-signup-transition'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { LogIn, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -26,6 +30,11 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
   const tm = useTranslations('marketing')
   const pathname = usePathname() ?? '/'
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { beginSignupTransition, isTransitioning } = useTrialSignupTransition()
+
+  function goSignIn() {
+    beginSignupTransition(DEFAULT_AUTH_SIGNIN_HREF)
+  }
 
   const mainNavItems = MAIN_NAV_HREFS.map((href) => ({
     href,
@@ -110,29 +119,31 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
             <div className="hidden md:flex">
               <MarketingLocaleSwitcher variant="header" />
             </div>
-            <Link
-              href="/auth/login"
-              className="hidden max-[379px]:inline-flex items-center md:hidden"
-            >
+            <div className="hidden max-[379px]:inline-flex items-center md:hidden">
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
+                disabled={isTransitioning}
                 className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 text-foreground/85 hover:bg-muted/50"
                 aria-label={tCommon('signIn')}
+                onClick={goSignIn}
               >
                 <LogIn className="h-5 w-5" aria-hidden />
               </Button>
-            </Link>
-            <Link href="/auth/login" className="hidden min-[380px]:inline-flex items-center">
+            </div>
+            <div className="hidden min-[380px]:inline-flex items-center">
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
+                disabled={isTransitioning}
                 className="h-9 shrink-0 px-1.5 text-[12px] font-medium text-foreground/85 hover:bg-transparent hover:text-foreground sm:px-3 sm:text-sm"
+                onClick={goSignIn}
               >
                 {tCommon('signIn')}
               </Button>
-            </Link>
+            </div>
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -170,10 +181,17 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                   })}
                 </nav>
                 <div className="mt-auto space-y-2 border-t border-border/50 p-4">
-                  <Button variant="outline" className="h-11 w-full" asChild>
-                    <Link href="/auth/login" onClick={() => setMobileNavOpen(false)}>
-                      {tCommon('signIn')}
-                    </Link>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full"
+                    disabled={isTransitioning}
+                    onClick={() => {
+                      setMobileNavOpen(false)
+                      goSignIn()
+                    }}
+                  >
+                    {tCommon('signIn')}
                   </Button>
                   <MarketingHeroTrialCta
                     variant="nav"

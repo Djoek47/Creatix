@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
+import { useAllowedAdultPlatformsForPicker } from '@/hooks/use-allowed-adult-platforms-for-picker'
 
 export type ContentIdeasRunnerInputsProps = {
   easy: boolean
@@ -27,6 +28,7 @@ export function ContentIdeasRunnerInputs({
 }: ContentIdeasRunnerInputsProps) {
   const t = useTranslations('ai-tools.runners.content-ideas')
   const ts = useTranslations('ai-tools.runners.shared')
+  const allowedAdultPlatforms = useAllowedAdultPlatformsForPicker()
 
   if (easy) {
     return (
@@ -41,7 +43,11 @@ export function ContentIdeasRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>{ts('platform')}</Label>
-          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+          <OfFanslyPlatformSelect
+            value={platform}
+            onValueChange={setPlatform}
+            allowedAdultPlatforms={allowedAdultPlatforms}
+          />
         </div>
         <div className="space-y-2">
           <Label>{t('easyTrendingLabel')}</Label>
@@ -65,7 +71,11 @@ export function ContentIdeasRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>{ts('platform')}</Label>
-          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+          <OfFanslyPlatformSelect
+            value={platform}
+            onValueChange={setPlatform}
+            allowedAdultPlatforms={allowedAdultPlatforms}
+          />
         </div>
       </div>
       <div className="space-y-2">

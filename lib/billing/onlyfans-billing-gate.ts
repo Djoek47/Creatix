@@ -6,11 +6,18 @@ import {
   isPaidSubscription,
   type SubscriptionLike,
 } from '@/lib/billing/access'
+import {
+  focusConnectedPlatformsMismatch,
+  type PlatformConnectionLike,
+  type SubscriptionFocusFields,
+} from '@/lib/billing/platform-variant'
 import { tierIndexFromMonthlyRevenue } from '@/lib/pricing-matrix'
 
 export type OnlyFansBillingDenialCode =
   | 'SUBSCRIPTION_INACTIVE'
   | 'REVENUE_TIER_MISMATCH'
+  /** Focus plan does not cover a still-linked adult platform — disconnect or upgrade. */
+  | 'FOCUS_CONNECTED_PLATFORM_MISMATCH'
   /** No active paid plan or Divine trial — block new partner API connections (per-account cost). */
   | 'CONNECT_ENTITLEMENT_REQUIRED'
 
@@ -196,12 +203,30 @@ export function denialForRevenueTierUndershootMulti(args: {
 }
 
 export function evaluateAdultPlatformBillingDenial(args: {
-  subscription: SubscriptionLike | null | undefined
+  subscription: (SubscriptionLike & Partial<SubscriptionFocusFields>) | null | undefined
   onlyfans: ScopedPlatformObservation | null
   fansly: ScopedPlatformObservation | null
+  /** Prefer DB `is_connected` rows; else inferred from scoped observations. */
+  platformConnections?: PlatformConnectionLike[] | null
 }): OnlyFansBillingDenial | null {
+  const connections: PlatformConnectionLike[] =
+    args.platformConnections?.length != null && args.platformConnections.length > 0
+      ? args.platformConnections
+      : [
+          ...(args.onlyfans ? [{ platform: 'onlyfans' as const, is_connected: true as const }] : []),
+          ...(args.fansly ? [{ platform: 'fansly' as const, is_connected: true as const }] : []),
+        ]
+
+  const mismatch = focusConnectedPlatformsMismatch(
+    args.subscription as SubscriptionFocusFields | null | undefined,
+    connections,
+  )
+
   return (
     denialForInactivePaidSubscription(args.subscription) ??
+    (mismatch
+      ? { code: 'FOCUS_CONNECTED_PLATFORM_MISMATCH', message: mismatch.message }
+      : null) ??
     denialForAdultPlatformConnectEntitlement(args.subscription) ??
     denialForRevenueTierUndershootMulti({
       subscription: args.subscription,
@@ -335,8 +360,20 @@ export async function loadAdultPlatformBillingContext(
       .eq('platform', 'fansly')
       .eq('is_connected', true)
       .maybeSingle(),
-    supabase.from('subscriptions').select('plan_id,status,revenue_tier').eq('user_id', user.id).maybeSingle(),
+    supabase
+      .from('subscriptions')
+      .select('plan_id,status,revenue_tier,billing_variant,billing_focus_platform,billing_focus_platforms')
+      .eq('user_id', user.id)
+      .maybeSingle(),
   ])
+
+  const platformConnections: PlatformConnectionLike[] = []
+  if (ofConn?.is_connected === true) {
+    platformConnections.push({ platform: 'onlyfans', is_connected: true })
+  }
+  if (fsConn?.is_connected === true) {
+    platformConnections.push({ platform: 'fansly', is_connected: true })
+  }
 
   const onlyfansAccessToken = onlyFansPartnerAccountIdFromRow(ofConn)
   const fanslyAccessToken =
@@ -353,6 +390,7 @@ export async function loadAdultPlatformBillingContext(
     subscription,
     onlyfans: onlyfansObs,
     fansly: fanslyObs,
+    platformConnections,
   })
 
   const sampleRate = Number(process.env.REVENUE_BAND_EVAL_LOG_SAMPLE_RATE ?? '0')

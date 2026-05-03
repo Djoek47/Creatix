@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
+import { useAllowedAdultPlatformsForPicker } from '@/hooks/use-allowed-adult-platforms-for-picker'
 import { VoiceInputButton } from '@/components/voice-input-button'
 
 export type CompetitorAnalysisRunnerInputsProps = {
@@ -37,6 +38,7 @@ export function CompetitorAnalysisRunnerInputs({
 }: CompetitorAnalysisRunnerInputsProps) {
   const t = useTranslations('ai-tools.runners.competitor-analysis')
   const ts = useTranslations('ai-tools.runners.shared')
+  const allowedAdultPlatforms = useAllowedAdultPlatformsForPicker()
 
   const methodology = t.rich('methodologyLead', {
     cohort: (chunks) => <strong className="text-foreground">{chunks}</strong>,
@@ -55,7 +57,11 @@ export function CompetitorAnalysisRunnerInputs({
           </div>
           <div className="space-y-2">
             <Label>{ts('platform')}</Label>
-            <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+            <OfFanslyPlatformSelect
+              value={platform}
+              onValueChange={setPlatform}
+              allowedAdultPlatforms={allowedAdultPlatforms}
+            />
           </div>
         </div>
         <div className="space-y-2">
@@ -95,7 +101,11 @@ export function CompetitorAnalysisRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>{t('primaryPlatform')}</Label>
-          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+          <OfFanslyPlatformSelect
+            value={platform}
+            onValueChange={setPlatform}
+            allowedAdultPlatforms={allowedAdultPlatforms}
+          />
         </div>
       </div>
       <div className="space-y-2">

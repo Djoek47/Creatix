@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
+import { useAllowedAdultPlatformsForPicker } from '@/hooks/use-allowed-adult-platforms-for-picker'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import type { UpcomingCosmicEvent } from '@/lib/calendar/upcoming-cosmic-events'
 import { formatFantasyRunnerDate } from '@/lib/calendar/format-fantasy-runner-date'
@@ -77,6 +78,7 @@ export function FantasyWriterRunnerInputs({
 }: FantasyWriterRunnerInputsProps) {
   const t = useTranslations('ai-tools.runners.fantasy-writer')
   const ts = useTranslations('ai-tools.runners.shared')
+  const allowedAdultPlatforms = useAllowedAdultPlatformsForPicker()
 
   if (easy) {
     return (
@@ -99,7 +101,11 @@ export function FantasyWriterRunnerInputs({
           </div>
           <div className="space-y-2">
             <Label>{ts('platform')}</Label>
-            <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+            <OfFanslyPlatformSelect
+              value={platform}
+              onValueChange={setPlatform}
+              allowedAdultPlatforms={allowedAdultPlatforms}
+            />
           </div>
         </div>
         <div className="space-y-2">
@@ -136,7 +142,11 @@ export function FantasyWriterRunnerInputs({
         </div>
         <div className="space-y-2">
           <Label>{ts('platform')}</Label>
-          <OfFanslyPlatformSelect value={platform} onValueChange={setPlatform} />
+          <OfFanslyPlatformSelect
+            value={platform}
+            onValueChange={setPlatform}
+            allowedAdultPlatforms={allowedAdultPlatforms}
+          />
         </div>
       </div>
       <div className="space-y-2">

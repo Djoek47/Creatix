@@ -17,9 +17,14 @@ import { SignUpFeatureShowcase } from '@/components/auth/sign-up-feature-showcas
 import { createClient } from '@/lib/supabase/client'
 import { getEmailConfirmationRedirectUrlClient } from '@/lib/supabase/email-confirmation-redirect'
 import { cn } from '@/lib/utils'
-import { useSignupEntranceMode } from '@/components/marketing/trial-signup-transition'
+import {
+  DEFAULT_AUTH_SIGNIN_HREF,
+  useSignupEntranceMode,
+  useTrialSignupTransition,
+} from '@/components/marketing/trial-signup-transition'
 
 export default function SignUpPage() {
+  const { beginSignupTransition, isTransitioning: authNavBusy } = useTrialSignupTransition()
   const entranceMode = useSignupEntranceMode()
   const reduceEntranceMotion = useReducedMotion()
   const instantEntrance = entranceMode === 'off' || reduceEntranceMotion
@@ -248,12 +253,14 @@ export default function SignUpPage() {
 
             <p className="mt-8 text-center text-[15px] text-muted-foreground">
               {tAuth('signUpHaveAccount')}{' '}
-              <Link
-                href="/auth/login"
-                className="font-medium text-foreground underline-offset-4 transition-colors hover:underline"
+              <button
+                type="button"
+                disabled={authNavBusy}
+                className="font-medium text-foreground underline-offset-4 transition-colors hover:underline disabled:pointer-events-none disabled:opacity-50"
+                onClick={() => beginSignupTransition(DEFAULT_AUTH_SIGNIN_HREF)}
               >
                 {tAuth('signUpSignIn')}
-              </Link>
+              </button>
             </p>
           </CardContent>
         </Card>

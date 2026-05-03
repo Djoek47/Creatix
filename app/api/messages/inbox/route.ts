@@ -19,6 +19,11 @@ import {
   adultPlatformBillingGateWhenEitherConnected,
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
 } from '@/lib/onlyfans-api-route'
+import {
+  resolveAllowedFocusPlatforms,
+  subscriptionEnforcesFocusPlatforms,
+  type SubscriptionFocusFields,
+} from '@/lib/billing/platform-variant'
 import { fetchOnlyFansInboxChatsCached, type InboxCachedOfConv } from '@/lib/onlyfans-inbox-chats-cache'
 
 export const maxDuration = 60
@@ -118,6 +123,51 @@ export async function GET(request: NextRequest) {
       if (billingBlock) return billingBlock
     }
 
+    const { data: subFocus } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    let effectivePlatform: InboxPlatformFilter = platform
+    if (
+      (platform === 'onlyfans' || platform === 'fansly' || platform === 'all') &&
+      subFocus &&
+      subscriptionEnforcesFocusPlatforms(subFocus as SubscriptionFocusFields)
+    ) {
+      const allowed = resolveAllowedFocusPlatforms(
+        (subFocus as SubscriptionFocusFields).billing_focus_platforms,
+        (subFocus as SubscriptionFocusFields).billing_focus_platform,
+      )
+      const ofOk = allowed.includes('onlyfans')
+      const fsOk = allowed.includes('fansly')
+      if (platform === 'onlyfans' && !ofOk) {
+        return NextResponse.json(
+          {
+            error:
+              'OnlyFans is not on your current plan. Change plan in Billing, or choose the network your subscription includes.',
+            code: 'BILLING_FOCUS_PLATFORM_DENIED',
+          },
+          { status: 403 },
+        )
+      }
+      if (platform === 'fansly' && !fsOk) {
+        return NextResponse.json(
+          {
+            error:
+              'Fansly is not on your current plan. Change plan in Billing, or choose the network your subscription includes.',
+            code: 'BILLING_FOCUS_PLATFORM_DENIED',
+          },
+          { status: 403 },
+        )
+      }
+      if (platform === 'all') {
+        if (ofOk && fsOk) effectivePlatform = 'all'
+        else if (ofOk) effectivePlatform = 'onlyfans'
+        else if (fsOk) effectivePlatform = 'fansly'
+      }
+    }
+
     const errors: string[] = []
     const providerErrors: Partial<Record<'onlyfans' | 'fansly', string>> = {}
     const noteProviderError = (provider: 'onlyfans' | 'fansly', code: string) => {
@@ -177,7 +227,7 @@ export async function GET(request: NextRequest) {
     let raw: RawConv[] = []
     let hasMore = false
 
-    if (platform === 'onlyfans') {
+    if (effectivePlatform === 'onlyfans') {
       try {
         raw = await loadOnlyFans()
         hasMore = raw.length >= limit
@@ -221,7 +271,7 @@ export async function GET(request: NextRequest) {
         }
         throw e
       }
-    } else if (platform === 'fansly') {
+    } else if (effectivePlatform === 'fansly') {
       try {
         raw = await loadFansly()
       } catch {

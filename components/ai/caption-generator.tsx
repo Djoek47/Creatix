@@ -32,6 +32,7 @@ import {
   extractVideoFrameAsDataUrl,
 } from '@/components/ai/caption-media-utils'
 import { OfFanslyPlatformSelect } from '@/components/ai/of-fansly-platform-select'
+import { useAllowedAdultPlatformsForPicker } from '@/hooks/use-allowed-adult-platforms-for-picker'
 
 interface Caption {
   text: string
@@ -50,6 +51,7 @@ interface CaptionResult {
 }
 
 export function CaptionGenerator() {
+  const allowedAdultPlatforms = useAllowedAdultPlatformsForPicker()
   const [contentType, setContentType] = useState('photo')
   const [contentDescription, setContentDescription] = useState('')
   const [platform, setPlatform] = useState('onlyfans')
@@ -179,7 +181,12 @@ export function CaptionGenerator() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="platform">Platform</Label>
-            <OfFanslyPlatformSelect id="platform" value={platform} onValueChange={setPlatform} />
+            <OfFanslyPlatformSelect
+              id="platform"
+              value={platform}
+              onValueChange={setPlatform}
+              allowedAdultPlatforms={allowedAdultPlatforms}
+            />
           </div>
           <div className="space-y-2 md:col-span-1">
             <Label>&nbsp;</Label>

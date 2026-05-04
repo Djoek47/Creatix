@@ -47,7 +47,7 @@ export default async function DemoPage({ params }: PageProps) {
   const t = await getTranslations({ locale, namespace: 'marketing' })
 
   return (
-    <main className="relative z-10 pt-14 sm:pt-16">
+    <main className="marketing-main-offset relative z-10">
       <section className="relative px-4 pb-14 pt-14 sm:px-6 sm:pb-18 sm:pt-20">
         <div className="mx-auto max-w-4xl text-center">
           <MotionReveal>

@@ -36,11 +36,11 @@ export function DashboardRouteHero() {
           )}
         >
           <p className="text-sm font-normal text-muted-foreground">{eyebrow}</p>
-          <h1 className="mt-3 font-sans text-[2.5rem] font-semibold tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.75rem] sm:leading-[1.06]">
+          <h1 className="mt-3 text-balance break-words font-sans text-[clamp(1.75rem,6.5vw,2.5rem)] font-semibold tracking-[-0.03em] text-foreground sm:mt-4 sm:text-[2.75rem] sm:leading-[1.06]">
             {title}
           </h1>
           {subtitle.trim() !== '' ? (
-            <p className="mt-4 max-w-lg text-base font-normal leading-[1.55] text-muted-foreground sm:text-[1.0625rem]">
+            <p className="mt-4 max-w-lg text-balance break-words text-base font-normal leading-[1.55] text-muted-foreground sm:text-[1.0625rem]">
               {subtitle}
             </p>
           ) : null}
@@ -55,11 +55,11 @@ export function DashboardRouteHero() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/85 dark:text-muted-foreground/78">
           {eyebrow}
         </p>
-        <h1 className="mt-2.5 max-w-[22ch] text-balance font-serif text-2xl font-semibold tracking-[-0.02em] text-foreground sm:mt-3 sm:text-3xl md:text-4xl md:leading-[1.1] md:tracking-[-0.03em]">
+        <h1 className="mt-2.5 max-w-[min(22ch,100%)] text-balance break-words font-serif text-2xl font-semibold tracking-[-0.02em] text-foreground sm:mt-3 sm:text-3xl md:text-4xl md:leading-[1.1] md:tracking-[-0.03em]">
           {title}
         </h1>
         {subtitle.trim() !== '' ? (
-          <p className="mt-3 max-w-xl text-[15px] leading-[1.55] tracking-[-0.01em] text-muted-foreground sm:mt-[0.875rem] sm:text-[0.94875rem]">
+          <p className="mt-3 max-w-xl text-balance break-words text-[15px] leading-[1.55] tracking-[-0.01em] text-muted-foreground sm:mt-[0.875rem] sm:text-[0.94875rem]">
             {subtitle}
           </p>
         ) : null}

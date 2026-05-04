@@ -123,7 +123,7 @@ export default async function DashboardLayout({
                   <DashboardRealmEntrance />
                   <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />
                   <WellbeingBreakNudgeScheduler />
-                  <div className="relative flex h-dvh max-h-dvh min-h-0 overflow-hidden">
+                  <div className="relative flex h-dvh max-h-dvh min-h-0 max-w-full overflow-hidden">
                     <DashboardCelestialBackdrop />
                     {/* Desktop sidebar - hidden on mobile; h-full + min-h-0 so inner nav can scroll on short viewports */}
                     <div className="relative z-20 hidden h-full min-h-0 shrink-0 md:flex md:flex-col">

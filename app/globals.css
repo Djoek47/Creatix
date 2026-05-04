@@ -3561,13 +3561,26 @@
   box-shadow: 0 8px 32px -8px oklch(0.55 0.2 295 / 0.14);
 }
 
-/* Mobile: prevent horizontal scroll, safe min-height */
+/* Mobile: prevent horizontal scroll, safe min-height, notched devices */
 html {
   min-height: 100dvh;
+  overflow-x: hidden;
 }
 body {
   min-height: 100dvh;
   overflow-x: hidden;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Marketing locale pages: clear fixed header (h-14 sm:h-16) below status bar / notch */
+.marketing-main-offset {
+  padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 640px) {
+  .marketing-main-offset {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
 }
 
 /* Guide page — slow decorative orbit rings (rotate only; horizontal centering is on the element) */

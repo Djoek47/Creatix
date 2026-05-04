@@ -34,7 +34,7 @@ export default async function MobileAppPage({ params }: PageProps) {
   const pillars = [0, 1, 2].map((i) => t(`mobileApp.pillars.${i}`))
 
   return (
-    <main className="relative z-10 pt-14 sm:pt-16">
+    <main className="marketing-main-offset relative z-10">
       <section className="relative overflow-hidden px-4 pb-14 pt-14 sm:px-6 sm:pb-18 sm:pt-20">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/16 via-circe/8 to-transparent" />

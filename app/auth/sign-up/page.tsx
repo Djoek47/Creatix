@@ -75,7 +75,7 @@ export default function SignUpPage() {
 
       <div
         className={cn(
-          'relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16 sm:px-6',
+          'relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[calc(4rem+env(safe-area-inset-top))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]',
           staged && 'pointer-events-none select-none',
         )}
       >
@@ -93,7 +93,7 @@ export default function SignUpPage() {
             delay: instantEntrance ? 0 : 0.06,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="absolute left-5 top-5 z-10 sm:left-8 sm:top-8"
+          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-10 sm:left-8 sm:top-8"
         >
           <Link
             href="/"
@@ -156,7 +156,7 @@ export default function SignUpPage() {
             'dark:border-white/[0.12] dark:bg-slate-950/45 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] dark:backdrop-blur-2xl',
           )}
         >
-          <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
+          <CardHeader className="space-y-2 px-5 pb-0 pt-10 text-left sm:px-8">
             <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
               {tAuth('signUpTitle')}
             </CardTitle>
@@ -164,7 +164,7 @@ export default function SignUpPage() {
               {tAuth('signUpCardSubtitle')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-8 pb-10 pt-8">
+          <CardContent className="px-5 pb-10 pt-8 sm:px-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div

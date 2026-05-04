@@ -99,7 +99,7 @@ function PricingProSections() {
                 <span className="inline-flex items-center gap-2">{t('pricing.page.fullPriceTableToggle')}</span>
               </summary>
               <div className="border-t border-border/60 pb-4">
-                <div className="overflow-x-auto px-2 sm:px-4">
+                <div className="overflow-x-auto overscroll-x-contain px-2 [-webkit-overflow-scrolling:touch] sm:px-4">
                   <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
@@ -153,6 +153,7 @@ function PricingProSections() {
           </MotionReveal>
           <MotionReveal delay={0.08}>
             <div className="mt-8 overflow-hidden rounded-2xl border border-border/60">
+              <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
@@ -191,6 +192,7 @@ function PricingProSections() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </MotionReveal>
         </div>

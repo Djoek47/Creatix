@@ -353,7 +353,10 @@ export function FansTable({
         </p>
       ) : null}
       <CardContent className="p-0">
-        <div ref={scrollRef} className="max-h-[min(72vh,880px)] min-h-[280px] overflow-auto rounded-b-xl">
+        <div
+          ref={scrollRef}
+          className="max-h-[min(72vh,880px)] min-h-[280px] overflow-x-auto overflow-y-auto overscroll-x-contain rounded-b-xl [-webkit-overflow-scrolling:touch]"
+        >
           <Table className="relative min-w-[640px]">
             <TableHeader className="sticky top-0 z-[2] bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
               <TableRow className="border-border hover:bg-transparent">

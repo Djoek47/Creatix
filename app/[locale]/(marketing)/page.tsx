@@ -77,7 +77,7 @@ export default async function LandingPage({ params }: PageProps) {
   const venusBullets = [0, 1, 2].map((i) => t(`home.goddesses.venusBullets.${i}`))
 
   return (
-    <main className="relative z-10 pt-14 sm:pt-16">
+    <main className="marketing-main-offset relative z-10">
       <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-24 sm:pt-16 lg:pt-20">
         <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[min(100%,720px)] -translate-x-1/2 rounded-full bg-gradient-to-b from-primary/15 via-circe/10 to-transparent blur-3xl" />
         <div className="mx-auto max-w-5xl text-center">

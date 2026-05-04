@@ -18,7 +18,6 @@ import {
   Shield,
   TrendingUp,
   Settings,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Moon,
@@ -45,6 +44,7 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AiStudioNavStar } from '@/components/dashboard/ai-studio-nav-star'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
+import { SidebarSystemStatus } from '@/components/dashboard/sidebar-system-status'
 import { MessagesNavUnreadSweep } from '@/components/dashboard/messages-nav-unread-sweep'
 import { useMessagesNavUnreadTotal } from '@/hooks/use-messages-nav-unread-total'
 import {
@@ -769,33 +769,7 @@ export function DashboardSidebar({ profile: _profile }: SidebarProps) {
               verticalDensity === 'cramped' ? 'mt-2 pt-2' : verticalDensity === 'tight' ? 'mt-3 pt-3' : 'mt-4 pt-4',
             )}
           >
-            <div
-              className="rounded-xl border border-sidebar-border/40 bg-sidebar-accent/18 px-3 py-2.5 transition-colors duration-200 dark:bg-sidebar-accent/12"
-              role="note"
-              aria-label={`${tNav('sidebar.systemStripTitle')}: ${tNav('sidebar.systemStripStatus')}`}
-            >
-              <div className="flex items-start gap-2.5">
-                <Activity
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600/85 dark:text-emerald-400/90"
-                  aria-hidden
-                />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
-                    {tNav('sidebar.systemStripTitle')}
-                  </p>
-                  <p className={cn('truncate text-[12px] font-medium leading-snug text-sidebar-foreground/88', SIDEBAR_SIZE.cozy.linkText)}>
-                    {tNav('sidebar.systemStripStatus')}
-                  </p>
-                  <p className="truncate text-[10px] leading-snug text-sidebar-foreground/48">
-                    {tNav('sidebar.systemStripHint')}
-                  </p>
-                </div>
-                <ChevronDown
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 -rotate-90 text-sidebar-foreground/22"
-                  aria-hidden
-                />
-              </div>
-            </div>
+            <SidebarSystemStatus variant="sidebar" />
           </div>
         )}
         </div>

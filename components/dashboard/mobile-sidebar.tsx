@@ -20,7 +20,6 @@ import {
   Shield,
   TrendingUp,
   Settings,
-  ChevronDown,
   Moon,
   Sun,
   Star,
@@ -36,6 +35,7 @@ import {
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
+import { SidebarSystemStatus } from '@/components/dashboard/sidebar-system-status'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import { MessagesNavUnreadSweep } from '@/components/dashboard/messages-nav-unread-sweep'
 import { useMessagesNavUnreadTotal } from '@/hooks/use-messages-nav-unread-total'
@@ -422,25 +422,7 @@ export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
 
         {!compactMobile && (
           <div className="mt-4 border-t border-border/40 pt-4">
-            <div
-              className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5 dark:bg-muted/20"
-              role="note"
-              aria-label={`${tNav('sidebar.systemStripTitle')}: ${tNav('sidebar.systemStripStatus')}`}
-            >
-              <div className="flex items-start gap-2.5">
-                <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600/85 dark:text-emerald-400/90" aria-hidden />
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/45">
-                    {tNav('sidebar.systemStripTitle')}
-                  </p>
-                  <p className={cn('truncate text-[12px] font-medium leading-snug text-foreground/88', mobileNavText)}>
-                    {tNav('sidebar.systemStripStatus')}
-                  </p>
-                  <p className="truncate text-[10px] leading-snug text-foreground/48">{tNav('sidebar.systemStripHint')}</p>
-                </div>
-                <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 -rotate-90 text-foreground/22" aria-hidden />
-              </div>
-            </div>
+            <SidebarSystemStatus variant="mobile" />
           </div>
         )}
       </div>

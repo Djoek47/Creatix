@@ -98,7 +98,7 @@ export default async function PricingPage({ params }: PageProps) {
         softwareOfferCopy={softwareOfferCopy}
         canonicalPathname={pathnameForLd}
       />
-      <main className="relative z-10 pt-14 sm:pt-16">
+      <main className="marketing-main-offset relative z-10">
         <MarketingModeProvider>
           <MarketingPricingPageContent />
         </MarketingModeProvider>

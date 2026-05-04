@@ -161,7 +161,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   return (
     <header
       id="dashboard-workspace-header"
-      className="dashboard-header-chrome flex h-14 w-full min-w-0 items-center gap-2 px-4 supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:px-6"
+      className="dashboard-header-chrome flex h-14 w-full min-w-0 max-w-full items-center gap-1.5 overflow-x-hidden ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:ps-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]"
     >
       {/* AI Studio Tools — solitary lead control (start) */}
       <div className="flex shrink-0 items-center justify-start">
@@ -194,7 +194,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2 md:gap-3">
         {mounted ? (
           <Sheet>
             <SheetTrigger asChild>

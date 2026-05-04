@@ -24,9 +24,17 @@ import { supabase } from '@/lib/supabase'
 type Conv = {
   id?: string
   chatId?: string
+  platform?: 'onlyfans' | 'fansly'
   user?: { id?: string | number; username?: string; name?: string }
   lastMessage?: { text?: string; createdAt?: string }
   unreadCount?: number
+}
+
+function convSortTime(c: Conv): number {
+  const t = c.lastMessage?.createdAt
+  if (!t) return 0
+  const ms = Date.parse(t)
+  return Number.isNaN(ms) ? 0 : ms
 }
 
 type InboxSegment = 'chats' | 'insights'
@@ -55,19 +63,41 @@ export default function MessagesListScreen() {
 
   const load = useCallback(async () => {
     setError(null)
-    const res = await apiFetch('/api/onlyfans/conversations?limit=50')
-    const json = (await res.json()) as {
+    const [ofRes, fsRes] = await Promise.all([
+      apiFetch('/api/onlyfans/conversations?limit=50'),
+      apiFetch('/api/fansly/conversations?limit=50'),
+    ])
+    const ofJson = (await ofRes.json().catch(() => ({}))) as {
       conversations?: Conv[]
       error?: string
       message?: string
       code?: string
     }
-    if (!res.ok) {
-      setError(formatApiScreenError(res.status, json.error, json.message))
-      setItems([])
+    const fsJson = (await fsRes.json().catch(() => ({}))) as {
+      conversations?: Conv[]
+      error?: string
+      message?: string
+    }
+
+    const ofList: Conv[] = (ofJson.conversations ?? []).map((c) => ({ ...c, platform: 'onlyfans' as const }))
+    const fsList: Conv[] = (fsJson.conversations ?? []).map((c) => ({
+      ...c,
+      platform: 'fansly' as const,
+    }))
+    const merged = [...ofList, ...fsList].sort((a, b) => convSortTime(b) - convSortTime(a))
+
+    setItems(merged)
+
+    if (merged.length > 0) {
       return
     }
-    setItems(json.conversations ?? [])
+    if (!ofRes.ok && !fsRes.ok) {
+      setError(
+        [formatApiScreenError(ofRes.status, ofJson.error, ofJson.message), formatApiScreenError(fsRes.status, fsJson.error, fsJson.message)]
+          .filter(Boolean)
+          .join('\n\n'),
+      )
+    }
   }, [])
 
   useEffect(() => {
@@ -106,10 +136,14 @@ export default function MessagesListScreen() {
     )
   }
 
+  const ofChatCount = items.filter((i) => i.platform !== 'fansly').length
+  const fsChatCount = items.filter((i) => i.platform === 'fansly').length
   const subtitleChats =
     items.length === 0
-      ? 'OnlyFans — connect in Settings to load threads.'
-      : `${items.length} chat${items.length === 1 ? '' : 's'} · OnlyFans`
+      ? 'OnlyFans or Fansly — connect in Settings to load threads.'
+      : `${items.length} chat${items.length === 1 ? '' : 's'} · ${
+          ofChatCount > 0 && fsChatCount > 0 ? 'OnlyFans + Fansly' : fsChatCount > 0 ? 'Fansly' : 'OnlyFans'
+        }`
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -198,11 +232,16 @@ export default function MessagesListScreen() {
         <FlatList
           data={items}
           style={styles.list}
-          keyExtractor={(item, i) => String(item.chatId ?? item.user?.id ?? item.id ?? i)}
+          keyExtractor={(item, i) =>
+            `${item.platform === 'fansly' ? 'fs' : 'of'}:${String(item.chatId ?? item.user?.id ?? item.id ?? i)}`
+          }
+          removeClippedSubviews={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.gold} />}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              {error ? 'Fix the error above or connect OnlyFans in Settings.' : 'No conversations yet.'}
+              {error
+                ? 'Fix the errors above or connect OnlyFans or Fansly in Settings.'
+                : 'No conversations yet.'}
             </Text>
           }
           renderItem={({ item }) => (
@@ -210,11 +249,20 @@ export default function MessagesListScreen() {
               style={({ pressed }) => [styles.card, pressed && styles.pressed]}
               onPress={() => openThread(item)}
             >
-              <Text style={styles.cardTitle}>@{item.user?.username ?? item.user?.name ?? 'Fan'}</Text>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle}>@{item.user?.username ?? item.user?.name ?? 'Fan'}</Text>
+                {item.platform === 'fansly' ? (
+                  <View style={styles.platformBadgeFs}>
+                    <Text style={styles.platformBadgeFsText}>Fansly</Text>
+                  </View>
+                ) : (
+                  <View style={styles.platformBadgeOf}>
+                    <Text style={styles.platformBadgeOfText}>OF</Text>
+                  </View>
+                )}
+              </View>
               {item.lastMessage?.text ? (
-                <Text style={styles.body} numberOfLines={2}>
-                  {item.lastMessage.text}
-                </Text>
+                <Text style={styles.body}>{item.lastMessage.text}</Text>
               ) : null}
               {item.unreadCount ? <Text style={styles.unread}>{item.unreadCount} unread</Text> : null}
             </Pressable>
@@ -222,7 +270,8 @@ export default function MessagesListScreen() {
           ListFooterComponent={
             <View style={styles.footer}>
               <Text style={styles.footerHint}>
-                Mass targeting, PPV bundles, and full engagement charts live on the web inbox.
+                Mass targeting, PPV bundles, and full engagement charts for OnlyFans and Fansly live on the web
+                inbox.
               </Text>
               <Pressable
                 style={({ pressed }) => [styles.footerBtn, pressed && styles.pressed]}
@@ -421,8 +470,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
   },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: theme.text },
-  body: { fontSize: 14, color: theme.textMuted, marginTop: 6 },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    minWidth: 0,
+  },
+  cardTitle: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '600', color: theme.text },
+  platformBadgeOf: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 174, 239, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 174, 239, 0.35)',
+  },
+  platformBadgeOfText: { fontSize: 10, fontWeight: '800', color: '#00AEEF' },
+  platformBadgeFs: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+  },
+  platformBadgeFsText: { fontSize: 10, fontWeight: '800', color: '#3B82F6' },
+  body: {
+    fontSize: 14,
+    color: theme.textMuted,
+    marginTop: 6,
+    lineHeight: 20,
+    flexShrink: 1,
+  },
   unread: { fontSize: 12, color: theme.gold, marginTop: 6 },
   footer: { paddingHorizontal: 16, paddingVertical: 20, paddingBottom: 32 },
   footerHint: { fontSize: 12, color: theme.textDim, marginBottom: 10, lineHeight: 18 },

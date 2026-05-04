@@ -296,7 +296,7 @@ export default function MessageThreadScreen() {
                 @{displayName}
               </Text>
               <Text style={styles.fanSub} numberOfLines={1}>
-                OnlyFans · tap web for full profile
+                {platform === 'fansly' ? 'Fansly' : 'OnlyFans'} · tap web for full profile
               </Text>
             </View>
           </View>
@@ -317,6 +317,7 @@ export default function MessageThreadScreen() {
           style={styles.threadList}
           data={items}
           keyExtractor={(m) => String(m.id)}
+          removeClippedSubviews={false}
           inverted
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.gold} />}
@@ -589,7 +590,7 @@ const styles = StyleSheet.create({
   bannerErr: { color: theme.danger, paddingHorizontal: 12, paddingVertical: 6 },
   listContent: { paddingHorizontal: 10, paddingVertical: 8 },
   empty: { color: theme.textDim, textAlign: 'center', padding: 24 },
-  bubbleWrap: { marginBottom: 8, maxWidth: '96%' },
+  bubbleWrap: { marginBottom: 8, maxWidth: '96%', minWidth: 0 },
   bubbleAlignLeft: { alignSelf: 'flex-start' },
   bubbleAlignRight: { alignSelf: 'flex-end' },
   bubble: {
@@ -606,7 +607,13 @@ const styles = StyleSheet.create({
   bubbleMe: {
     backgroundColor: theme.circeMuted,
   },
-  bubbleText: { color: theme.text, fontSize: 15 },
+  bubbleText: {
+    color: theme.text,
+    fontSize: 15,
+    lineHeight: 21,
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
   meta: { color: theme.textDim, fontSize: 10, marginTop: 4 },
   intelStack: { paddingHorizontal: 10, paddingTop: 8, gap: 6 },
   intelPill: {

@@ -32,7 +32,7 @@ export default async function LaunchListPage({ params }: PageProps) {
   const t = await getTranslations({ locale, namespace: 'marketing' })
 
   return (
-    <main className="relative z-10 pt-14 sm:pt-16">
+    <main className="marketing-main-offset relative z-10">
       <section className="relative overflow-hidden px-4 pb-24 pt-12 sm:px-6 sm:pb-28 sm:pt-16">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />

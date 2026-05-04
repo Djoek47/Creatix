@@ -95,7 +95,9 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
         )}
       >
         {!isMessagesInbox ? (
-          <div className="min-w-0 w-full px-4 sm:px-6">{children}</div>
+          <div className="min-w-0 w-full max-w-full px-[max(1rem,env(safe-area-inset-left))] pe-[max(1rem,env(safe-area-inset-right))] sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]">
+            {children}
+          </div>
         ) : (
           children
         )}

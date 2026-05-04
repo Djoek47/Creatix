@@ -69,7 +69,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
       <div className="relative min-h-screen min-w-0 bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
-      <header className="fixed top-0 left-0 right-0 z-50 overflow-visible border-b border-border/40 bg-background/75 backdrop-blur-xl">
+      <header className="fixed top-0 left-0 right-0 z-50 overflow-visible border-b border-border/40 bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <nav
           className={cn(
             'relative mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-2 sm:h-16 sm:gap-4',
@@ -180,7 +180,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
                     )
                   })}
                 </nav>
-                <div className="mt-auto space-y-2 border-t border-border/50 p-4">
+                <div className="mt-auto space-y-2 border-t border-border/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <Button
                     type="button"
                     variant="outline"
@@ -219,7 +219,7 @@ export function MarketingSiteChrome({ children }: { children: ReactNode }) {
 
       <div className="min-w-0 overflow-x-hidden">{children}</div>
 
-      <footer className="relative z-10 border-t border-border/35 bg-background/30 px-4 py-12 backdrop-blur-[2px] sm:px-6 sm:py-16">
+      <footer className="relative z-10 border-t border-border/35 bg-background/30 pt-12 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(3rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:pt-16 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start lg:gap-16">
             <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">

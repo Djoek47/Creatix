@@ -614,8 +614,10 @@ export function Notifications() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        collisionPadding={12}
         className={cn(
-          'flex max-h-[min(85vh,560px)] min-h-[min(72vh,440px)] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96',
+          'flex max-h-[min(88dvh,560px)] w-[min(calc(100vw-1rem),20rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-96',
+          'min-h-0 min-[480px]:min-h-[min(58dvh,380px)] sm:min-h-[min(72dvh,440px)]',
           'rounded-2xl border border-white/45 bg-white/72 text-popover-foreground shadow-[0_24px_80px_-24px_rgba(15,23,42,0.32)] backdrop-blur-2xl backdrop-saturate-150',
           'dark:border-white/[0.10] dark:bg-slate-950/58 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.62)]',
         )}
@@ -880,8 +882,12 @@ function NotificationRow({
           }}
           className="block"
         >
-          <p className={cn('text-sm', !notification.read && 'font-medium')}>{stripHtml(notification.title)}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{stripHtml(notification.description)}</p>
+          <p className={cn('text-balance break-words text-sm', !notification.read && 'font-medium')}>
+            {stripHtml(notification.title)}
+          </p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
+            {stripHtml(notification.description)}
+          </p>
           {notification.origin === 'platform_pull' && (
             <p className="mt-0.5 text-[10px] text-muted-foreground/70">{t('notifications.pullNotInInbox')}</p>
           )}

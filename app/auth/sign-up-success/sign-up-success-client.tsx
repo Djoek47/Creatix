@@ -53,12 +53,12 @@ export function SignUpSuccessClient({
   const needsTrialCheckoutCard = phase === 'confirmed' && !showTrialSuccessUi
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-16 sm:px-6">
+    <div className="relative flex min-h-screen min-w-0 flex-col items-center justify-center overflow-hidden bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[calc(4rem+env(safe-area-inset-top))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
       <AuthScenicBackdrop />
 
       <Link
         href="/auth/sign-up"
-        className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:left-8 sm:top-8"
+        className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:left-8 sm:top-8"
       >
         <ArrowLeft className="h-4 w-4 opacity-70" />
         {tCommon('back')}
@@ -91,7 +91,7 @@ export function SignUpSuccessClient({
             'dark:border-white/[0.12] dark:bg-slate-950/45 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] dark:backdrop-blur-2xl',
           )}
         >
-          <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
+          <CardHeader className="space-y-2 px-5 pb-0 pt-10 text-left sm:px-8">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted/70 ring-1 ring-border/55">
               <Mail className="h-5 w-5 text-foreground/65" aria-hidden />
             </div>
@@ -102,7 +102,7 @@ export function SignUpSuccessClient({
               {tAuth('signUpSuccessInboxSubtitle')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6 px-8 pb-10 pt-8">
+          <CardContent className="space-y-6 px-5 pb-10 pt-8 sm:px-8">
             <p className="text-[15px] leading-relaxed text-muted-foreground">{tAuth('signUpSuccessInboxBody')}</p>
             <div className="rounded-2xl border border-border/45 bg-muted/[0.14] px-4 py-3.5 dark:bg-white/[0.03]">
               <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -127,7 +127,7 @@ export function SignUpSuccessClient({
             'dark:border-white/[0.12] dark:bg-slate-950/45 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] dark:backdrop-blur-2xl',
           )}
         >
-          <CardHeader className="space-y-2 px-8 pb-0 pt-10 text-left">
+          <CardHeader className="space-y-2 px-5 pb-0 pt-10 text-left sm:px-8">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/[0.12] ring-1 ring-emerald-500/25">
               <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden />
             </div>
@@ -138,7 +138,7 @@ export function SignUpSuccessClient({
               {tAuth('signUpSuccessConfirmedSubtitle')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6 px-8 pb-10 pt-8">
+          <CardContent className="space-y-6 px-5 pb-10 pt-8 sm:px-8">
             {needsTrialCheckoutCard ? (
               <>
                 <div className="rounded-2xl border border-border/45 bg-muted/[0.14] px-4 py-4 dark:bg-white/[0.03]">

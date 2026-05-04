@@ -12,6 +12,7 @@ import {
   extractFanslyChatMessagesArray,
   extractFanslyChatsArray,
   extractFanslyChatsNextCursor,
+  extractFanslyChatMessagesNextCursor,
   normalizeFanslyChatListItem,
 } from '@/lib/messages/fansly-thread-map'
 
@@ -1075,14 +1076,20 @@ class FanslyAPI {
   // ============ MESSAGES ============
 
   /**
-   * Get chat conversations (ApiFansly List Chats — cursor pagination only; `limit`/`offset` are applied client-side).
+   * Get chat conversations (ApiFansly List Chats).
+   * Upstream accepts **only** `cursor` (never `limit` / `offset`). Those are applied client-side.
    * @see https://docs.apifansly.com/api-reference/chats/list-chats
    */
   async getChats(params?: {
     limit?: number
     offset?: number
-    /** Optional first-page cursor (usually omit; we follow `nextCursor` until `offset+limit` satisfied). */
+    /** Starting cursor for the first upstream request (omit for first page). */
     cursor?: string | number
+    /**
+     * One `GET …/chats` only — matches vendor pagination (pass returned `nextCursor` as `cursor` for the next call).
+     * When false/omitted, we may walk multiple pages until `offset+limit` items are merged.
+     */
+    singlePage?: boolean
   }): Promise<{
     data: {
       id: string
@@ -1093,6 +1100,8 @@ class FanslyAPI {
     }[]
     total: number
     nextCursor?: string | null
+    /** Partner exposes another page after this response. */
+    hasMore?: boolean
   }> {
     if (!this.accountId) throw new Error('Account ID not set')
 
@@ -1100,18 +1109,53 @@ class FanslyAPI {
     const offset = Math.max(params?.offset ?? 0, 0)
     const targetEnd = offset + limit
 
-    const merged: {
+    type ChatRow = {
       id: string
       user: { id: string; username: string; displayName: string; avatar: string }
       lastMessage: string
       unreadCount: number
       updatedAt: string
-    }[] = []
+    }
 
-    let cursor: string | undefined =
+    const normalizeListChatsPage = (raw: unknown): { items: ChatRow[]; nextCursor: string | undefined } => {
+      const rows = extractFanslyChatsArray(raw)
+      const accounts = extractFanslyChatAggregationAccounts(raw)
+      const byId = new Map<string, Record<string, unknown>>()
+      for (const a of accounts) {
+        const id = a.id != null ? String(a.id) : ''
+        if (id) byId.set(id, a)
+      }
+      const items: ChatRow[] = []
+      for (const row of rows) {
+        const n = normalizeFanslyChatListItem(row, byId)
+        if (n) items.push(n)
+      }
+      return { items, nextCursor: extractFanslyChatsNextCursor(raw) ?? undefined }
+    }
+
+    let startCursor: string | undefined =
       params?.cursor != null && String(params.cursor).trim() !== ''
         ? String(params.cursor).trim()
         : undefined
+
+    if (params?.singlePage) {
+      const q = new URLSearchParams()
+      if (startCursor) q.set('cursor', startCursor)
+      const qs = q.toString()
+      const path = `/api/fansly/${encodeURIComponent(this.accountId)}/chats${qs ? `?${qs}` : ''}`
+      const raw = await this.requestGet<unknown>(path)
+      const { items, nextCursor } = normalizeListChatsPage(raw)
+      const data = items.slice(0, limit)
+      return {
+        data,
+        total: items.length,
+        nextCursor: nextCursor ?? null,
+        hasMore: Boolean(nextCursor),
+      }
+    }
+
+    const merged: ChatRow[] = []
+    let cursor = startCursor
     let lastNext: string | undefined
     let prevCursor: string | undefined
 
@@ -1129,20 +1173,11 @@ class FanslyAPI {
         throw err
       }
 
-      const rows = extractFanslyChatsArray(raw)
-      const accounts = extractFanslyChatAggregationAccounts(raw)
-      const byId = new Map<string, Record<string, unknown>>()
-      for (const a of accounts) {
-        const id = a.id != null ? String(a.id) : ''
-        if (id) byId.set(id, a)
-      }
-      for (const row of rows) {
-        const n = normalizeFanslyChatListItem(row, byId)
-        if (n) merged.push(n)
-      }
+      const { items, nextCursor } = normalizeListChatsPage(raw)
+      merged.push(...items)
 
-      lastNext = extractFanslyChatsNextCursor(raw)
-      if (!lastNext || rows.length === 0) break
+      lastNext = nextCursor
+      if (!lastNext || items.length === 0) break
       if (lastNext === prevCursor || lastNext === cursor) break
       prevCursor = cursor
       cursor = lastNext
@@ -1152,26 +1187,63 @@ class FanslyAPI {
       data: merged.slice(offset, targetEnd),
       total: merged.length,
       nextCursor: lastNext ?? null,
+      hasMore: Boolean(lastNext),
     }
   }
 
   /**
-   * Get messages in a chat
+   * Get messages in a chat (ApiFansly List Chat Messages).
+   * Upstream allows only `cursor` and `limit` (1–10 per request). We never send `before`.
+   * @see https://docs.apifansly.com/api-reference/chat-messages/list-chat-messages
    */
   async getMessages(chatId: string, params?: {
     limit?: number
+    /** Alias for upstream `cursor` (older messages). */
     before?: string
+    cursor?: string
   }): Promise<{ data: unknown[] }> {
     if (!this.accountId) throw new Error('Account ID not set')
 
-    const query = new URLSearchParams()
-    if (params?.limit) query.set('limit', params.limit.toString())
-    if (params?.before) query.set('before', params.before)
+    const wantTotal = Math.min(Math.max(params?.limit ?? 100, 1), 200)
+    const pageLimit = 10 // vendor max
+    const startCursor =
+      (params?.cursor != null && String(params.cursor).trim() !== ''
+        ? String(params.cursor).trim()
+        : undefined) ??
+      (params?.before != null && String(params.before).trim() !== ''
+        ? String(params.before).trim()
+        : undefined)
 
-    const raw = await this.request<unknown>(
-      `/api/fansly/${this.accountId}/chats/${encodeURIComponent(chatId)}/messages?${query.toString()}`,
-    )
-    return { data: extractFanslyChatMessagesArray(raw) }
+    const merged: unknown[] = []
+    let cursor: string | undefined = startCursor
+    let prevCursor: string | undefined
+
+    for (let page = 0; page < 40 && merged.length < wantTotal; page++) {
+      const q = new URLSearchParams()
+      q.set('limit', String(pageLimit))
+      if (cursor) q.set('cursor', cursor)
+      const qs = q.toString()
+      const path = `/api/fansly/${encodeURIComponent(this.accountId)}/chats/${encodeURIComponent(chatId)}/messages?${qs}`
+
+      let raw: unknown
+      try {
+        raw = await this.requestGet<unknown>(path)
+      } catch (err) {
+        if (page > 0 && merged.length > 0) break
+        throw err
+      }
+
+      const batch = extractFanslyChatMessagesArray(raw)
+      merged.push(...batch)
+
+      const next = extractFanslyChatMessagesNextCursor(raw)
+      if (!next || batch.length === 0) break
+      if (next === prevCursor || next === cursor) break
+      prevCursor = cursor
+      cursor = next
+    }
+
+    return { data: merged.slice(0, wantTotal) }
   }
 
   /**

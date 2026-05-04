@@ -1,7 +1,8 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronRight, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -66,6 +67,29 @@ export function SocialAccountsSettings({
   onConnectedChange: (key: SocialKey, value: boolean) => void
 }) {
   const t = useTranslations('settings')
+  const [connecting, setConnecting] = useState<SocialKey | null>(null)
+
+  async function startOAuthConnect(key: SocialKey) {
+    setConnecting(key)
+    try {
+      const res = await fetch(`/api/${key}/auth`, { credentials: 'include' })
+      const data = (await res.json().catch(() => ({}))) as { authUrl?: string; error?: string }
+      if (!res.ok) {
+        window.alert(typeof data.error === 'string' ? data.error : res.statusText || 'Could not start OAuth')
+        return
+      }
+      if (typeof data.authUrl === 'string' && data.authUrl.trim()) {
+        window.location.assign(data.authUrl.trim())
+        return
+      }
+      window.alert('Server did not return an authorization URL.')
+    } catch {
+      window.alert('Network error starting connection.')
+    } finally {
+      setConnecting(null)
+    }
+  }
+
   return (
     <Card className={SURFACE}>
       <CardHeader className={HEADER}>
@@ -101,6 +125,7 @@ export function SocialAccountsSettings({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    disabled={connecting === key}
                     className={cn(
                       'group/action inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-3 text-[0.8125rem] font-medium',
                       'text-foreground/80 hover:bg-foreground/[0.06] hover:text-foreground',
@@ -110,16 +135,22 @@ export function SocialAccountsSettings({
                     )}
                     onClick={() => {
                       if (isOn) {
-                        void fetch(`/api/${key}/disconnect`, { method: 'POST' }).then(() => {
+                        void fetch(`/api/${key}/disconnect`, { method: 'POST', credentials: 'include' }).then(() => {
                           onConnectedChange(key, false)
                         })
                       } else {
-                        window.location.href = `/api/${key}/auth`
+                        void startOAuthConnect(key)
                       }
                     }}
                   >
-                    {isOn ? t('social.disconnect') : t('social.connect')}
-                    {!isOn ? (
+                    {connecting === key ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    ) : isOn ? (
+                      t('social.disconnect')
+                    ) : (
+                      t('social.connect')
+                    )}
+                    {!isOn && connecting !== key ? (
                       <ChevronRight
                         className="h-3.5 w-3.5 opacity-40 transition-opacity group-hover/action:opacity-70"
                         aria-hidden

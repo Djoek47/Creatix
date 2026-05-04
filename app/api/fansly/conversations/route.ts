@@ -29,10 +29,15 @@ export async function GET(request: NextRequest) {
 
     const api = createFanslyAPI(connection.access_token)
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50))
+    const cursor = searchParams.get('cursor')?.trim() || undefined
 
-    const result = await api.getChats({ limit, offset })
+    // Vendor List Chats: one GET per request, cursor only on the wire (`limit` is client-side cap).
+    const result = await api.getChats({
+      singlePage: true,
+      ...(cursor ? { cursor } : {}),
+      limit,
+    })
     const chats = result.data || []
 
     const conversations = chats.map((chat: any) => ({
@@ -54,6 +59,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       conversations,
       total: result.total ?? conversations.length,
+      ...(result.nextCursor != null && result.nextCursor !== ''
+        ? { nextCursor: result.nextCursor }
+        : {}),
+      ...(typeof result.hasMore === 'boolean' ? { hasMore: result.hasMore } : {}),
     })
   } catch (error) {
     console.error('Fansly conversations error:', error)

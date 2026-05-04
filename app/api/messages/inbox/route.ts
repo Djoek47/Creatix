@@ -113,6 +113,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || undefined
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const forceRefreshInbox = searchParams.get('refresh') === 'true'
+    /** Fansly List Chats: pass previous `meta.fansly_next_cursor` for the next page (ApiFansly cursor pagination). */
+    const fanslyCursor = searchParams.get('fanslyCursor')?.trim() || undefined
 
     let onlyfansInboxStale = false
     let onlyfansInboxStaleReason: 'rate_limit' | 'min_refresh' | undefined
@@ -204,7 +206,11 @@ export async function GET(request: NextRequest) {
       return cached.conversations as RawConv[]
     }
 
-    async function loadFansly(): Promise<RawConv[]> {
+    async function loadFansly(): Promise<{
+      convs: RawConv[]
+      fanslyHasMore: boolean
+      fanslyNextCursor: string | null | undefined
+    }> {
       const { data: connection } = await supabase
         .from('platform_connections')
         .select('access_token')
@@ -215,17 +221,25 @@ export async function GET(request: NextRequest) {
 
       if (!connection?.access_token) {
         noteProviderError('fansly', 'fansly_disconnected')
-        return []
+        return { convs: [], fanslyHasMore: false, fanslyNextCursor: undefined }
       }
 
       const api = createFanslyAPI(connection.access_token)
-      const result = await api.getChats({ limit, offset })
+      const result = fanslyCursor
+        ? await api.getChats({ singlePage: true, cursor: fanslyCursor, limit })
+        : await api.getChats({ limit, offset })
       const chats = result.data || []
-      return chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null)
+      const convs = chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null)
+      return {
+        convs,
+        fanslyHasMore: Boolean(result.hasMore ?? result.nextCursor),
+        fanslyNextCursor: result.nextCursor,
+      }
     }
 
     let raw: RawConv[] = []
     let hasMore = false
+    let fanslyNextCursor: string | null | undefined
 
     if (effectivePlatform === 'onlyfans') {
       try {
@@ -273,12 +287,14 @@ export async function GET(request: NextRequest) {
       }
     } else if (effectivePlatform === 'fansly') {
       try {
-        raw = await loadFansly()
+        const pack = await loadFansly()
+        raw = pack.convs
+        fanslyNextCursor = pack.fanslyNextCursor
+        hasMore = pack.fanslyHasMore
       } catch {
         noteProviderError('fansly', 'fansly_fetch_failed')
         raw = []
       }
-      hasMore = raw.length >= limit
     } else {
       // Fixed pool size keeps OnlyFans inbox cache key stable across pagination (see inboxOnlyFansChatsCacheKey pool mode).
       const pool = 55
@@ -450,6 +466,11 @@ export async function GET(request: NextRequest) {
                 ? { onlyfans_inbox_retry_after_ms: onlyfansInboxRetryAfterMs }
                 : {}),
             }
+          : {}),
+        ...(effectivePlatform === 'fansly' &&
+        fanslyNextCursor != null &&
+        String(fanslyNextCursor).trim() !== ''
+          ? { fansly_next_cursor: String(fanslyNextCursor).trim() }
           : {}),
       },
     })

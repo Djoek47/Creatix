@@ -173,6 +173,26 @@ export function extractFanslyChatMessagesArray(raw: unknown): unknown[] {
   return []
 }
 
+/**
+ * Pagination cursor for List Chat Messages (`response.cursor` — next page of older messages).
+ * @see https://docs.apifansly.com/api-reference/chat-messages/list-chat-messages
+ */
+export function extractFanslyChatMessagesNextCursor(raw: unknown): string | undefined {
+  const root = digRecord(raw)
+  const d0 = digRecord(root?.data)
+  const inner = digRecord(d0?.data)
+  const resp = digRecord(inner?.response) ?? digRecord(d0?.response)
+  const c = resp?.cursor ?? inner?.cursor ?? d0?.cursor
+  if (typeof c === 'string') {
+    const t = c.trim()
+    if (t.length > 0) return t
+  }
+  if (typeof c === 'number' && Number.isFinite(c) && c !== 0) {
+    return String(c)
+  }
+  return undefined
+}
+
 function toIso(ts: unknown): string {
   if (typeof ts === 'string' && ts.trim()) {
     const t = Date.parse(ts)

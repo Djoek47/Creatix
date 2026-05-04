@@ -88,12 +88,17 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Fansly notifications error:', error)
+    const msg = error instanceof Error ? error.message : 'Failed to fetch Fansly notifications'
+    // Upstream List Chats can return 400 for cursor quirks; keep header polling from surfacing 500.
+    const upstreamSoft = /bad request|\(400\)/i.test(msg)
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : 'Failed to fetch Fansly notifications',
+        ...(upstreamSoft ? {} : { error: msg }),
         notifications: [] as unknown[],
+        source: 'fansly' as const,
+        derivedFrom: 'chats',
       },
-      { status: 500 },
+      { status: upstreamSoft ? 200 : 500 },
     )
   }
 }

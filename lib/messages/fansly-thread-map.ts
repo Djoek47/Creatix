@@ -40,9 +40,119 @@ export function extractFanslyChatsArray(raw: unknown): unknown[] {
   if (d0 && Array.isArray(d0.chats)) return d0.chats as unknown[]
   const d1 = digRecord(d0?.data as unknown)
   if (d1 && Array.isArray(d1.chats)) return d1.chats as unknown[]
-  const resp = digRecord(d0?.response as unknown)
+  const resp = digRecord(d0?.response as unknown) ?? digRecord(d1?.response as unknown)
   if (resp && Array.isArray(resp.chats)) return resp.chats as unknown[]
+  // ApiFansly List Chats: `response.data` is the chat row array (see docs.apifansly.com list-chats).
+  if (resp && Array.isArray(resp.data)) return resp.data as unknown[]
   return []
+}
+
+/** `aggregationData.accounts` from List Chats (peer profile rows keyed by account id). */
+export function extractFanslyChatAggregationAccounts(raw: unknown): Record<string, unknown>[] {
+  const root = digRecord(raw)
+  const d0 = digRecord(root?.data)
+  const inner = digRecord(d0?.data)
+  const resp = digRecord(inner?.response) ?? digRecord(d0?.response)
+  const agg = digRecord(resp?.aggregationData)
+  const list = agg && Array.isArray(agg.accounts) ? agg.accounts : []
+  const out: Record<string, unknown>[] = []
+  for (const x of list) {
+    const r = digRecord(x)
+    if (r) out.push(r)
+  }
+  return out
+}
+
+/** Pagination cursor for List Chats (`data.nextCursor` on partner envelope). */
+export function extractFanslyChatsNextCursor(raw: unknown): string | undefined {
+  const root = digRecord(raw)
+  const d0 = digRecord(root?.data)
+  const inner = digRecord(d0?.data)
+  const respInner = inner ? digRecord(inner.response as unknown) : null
+  const c =
+    d0?.nextCursor ??
+    d0?.next_cursor ??
+    inner?.nextCursor ??
+    inner?.next_cursor ??
+    respInner?.nextCursor ??
+    respInner?.next_cursor
+  if (typeof c === 'string') {
+    const t = c.trim()
+    if (t.length > 0) return t
+  }
+  if (typeof c === 'number' && Number.isFinite(c) && c !== 0) {
+    return String(c)
+  }
+  return undefined
+}
+
+function pickFanslyAccountAvatarUrl(acc: Record<string, unknown> | undefined): string {
+  if (!acc) return ''
+  if (typeof acc.avatar === 'string' && acc.avatar.trim()) return acc.avatar.trim()
+  const av = digRecord(acc.avatar)
+  if (av) {
+    const loc0 = typeof av.location === 'string' ? av.location.trim() : ''
+    if (loc0 && /^https?:\/\//i.test(loc0)) return loc0
+    const locs = Array.isArray(av.locations) ? av.locations : []
+    for (const L of locs) {
+      const lr = digRecord(L)
+      const u = typeof lr?.location === 'string' ? lr.location.trim() : ''
+      if (u && /^https?:\/\//i.test(u)) return u
+    }
+  }
+  return ''
+}
+
+/** Map List Chats `response.data[]` + aggregation accounts → inbox `normalizeFanslyChat` input shape. */
+export function normalizeFanslyChatListItem(
+  row: unknown,
+  accountsById: Map<string, Record<string, unknown>>,
+): {
+  id: string
+  user: { id: string; username: string; displayName: string; avatar: string }
+  lastMessage: string
+  unreadCount: number
+  updatedAt: string
+} | null {
+  const o = digRecord(row)
+  if (!o) return null
+  const chatId = o.groupId != null ? String(o.groupId) : o.id != null ? String(o.id) : ''
+  const peerId = o.partnerAccountId != null ? String(o.partnerAccountId) : ''
+  if (!chatId || !peerId) return null
+
+  const acc = accountsById.get(peerId)
+  const username =
+    (typeof acc?.username === 'string' && acc.username.trim()) ||
+    (typeof o.partnerUsername === 'string' && o.partnerUsername.trim()) ||
+    peerId
+  const displayName =
+    (typeof acc?.displayName === 'string' && acc.displayName.trim()) ||
+    (typeof acc?.display_name === 'string' && String(acc.display_name).trim()) ||
+    username
+
+  const lastSeen =
+    acc?.lastSeenAt != null
+      ? typeof acc.lastSeenAt === 'number'
+        ? acc.lastSeenAt
+        : Number(acc.lastSeenAt)
+      : null
+  const updatedAt =
+    lastSeen != null && Number.isFinite(lastSeen)
+      ? new Date(lastSeen < 1e12 ? lastSeen * 1000 : lastSeen).toISOString()
+      : new Date().toISOString()
+
+  return {
+    id: chatId,
+    user: {
+      id: peerId,
+      username,
+      displayName,
+      avatar: pickFanslyAccountAvatarUrl(acc),
+    },
+    lastMessage: '',
+    unreadCount: typeof o.unreadCount === 'number' ? Math.max(0, o.unreadCount) : 0,
+    updatedAt,
+  }
 }
 
 /** Extract raw message rows from nested ApiFansly envelopes. */

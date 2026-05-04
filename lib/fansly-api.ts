@@ -6,7 +6,14 @@
  */
 
 import { formatFanslyUpstreamError, sanitizeFanslyPartnerMessage } from '@/lib/fansly/fansly-upstream-error'
-import { digRecord, extractFanslyChatMessagesArray } from '@/lib/messages/fansly-thread-map'
+import {
+  digRecord,
+  extractFanslyChatAggregationAccounts,
+  extractFanslyChatMessagesArray,
+  extractFanslyChatsArray,
+  extractFanslyChatsNextCursor,
+  normalizeFanslyChatListItem,
+} from '@/lib/messages/fansly-thread-map'
 
 const FANSLY_API_BASE = 'https://v1.apifansly.com'
 
@@ -337,12 +344,18 @@ class FanslyAPI {
     this.accountId = options?.accountId || null
   }
 
-  /** JSON or empty body; always sets `Content-Type: application/json` unless overridden. */
+  /**
+   * JSON body for mutating methods; GET/HEAD must not send `Content-Type: application/json` (no body) —
+   * some upstreams return 400 Bad Request otherwise.
+   */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const method = (options.method ?? 'GET').toUpperCase()
     const headers: Record<string, string> = {
       'x-api-key': this.apiKey,
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
+      ...(options.headers as Record<string, string> | undefined),
+    }
+    if (!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD') {
+      headers['Content-Type'] = 'application/json'
     }
 
     const response = await fetch(`${FANSLY_API_BASE}${endpoint}`, {
@@ -853,9 +866,24 @@ class FanslyAPI {
     const q = new URLSearchParams()
     q.set('limit', String(params.limit))
     q.set('offset', String(params.offset))
-    if (params.before != null) q.set('before', String(params.before))
-    if (params.after != null) q.set('after', String(params.after))
-    const raw = await this.request<unknown>(
+    // Docs show `before` + `after` together; some deployments reject `after` alone.
+    let before = params.before
+    let after = params.after
+    if (after != null && before == null) {
+      before = Date.now()
+    }
+    // Upstream returns 400 if `after` >= `before` (client clock ahead of server, bad inputs, etc.).
+    if (before != null && after != null && after >= before) {
+      if (params.before == null && params.after != null) {
+        before = undefined
+        after = undefined
+      } else {
+        after = Math.min(after, before - 1)
+      }
+    }
+    if (before != null) q.set('before', String(before))
+    if (after != null) q.set('after', String(after))
+    const raw = await this.requestGet<unknown>(
       `/api/fansly/${encodeURIComponent(accountId)}/earnings/transactions?${q.toString()}`,
     )
     const resp = extractFanslyNestedResponseRecord(raw)
@@ -1047,11 +1075,14 @@ class FanslyAPI {
   // ============ MESSAGES ============
 
   /**
-   * Get chat conversations
+   * Get chat conversations (ApiFansly List Chats — cursor pagination only; `limit`/`offset` are applied client-side).
+   * @see https://docs.apifansly.com/api-reference/chats/list-chats
    */
   async getChats(params?: {
     limit?: number
     offset?: number
+    /** Optional first-page cursor (usually omit; we follow `nextCursor` until `offset+limit` satisfied). */
+    cursor?: string | number
   }): Promise<{
     data: {
       id: string
@@ -1061,14 +1092,67 @@ class FanslyAPI {
       updatedAt: string
     }[]
     total: number
+    nextCursor?: string | null
   }> {
     if (!this.accountId) throw new Error('Account ID not set')
-    
-    const query = new URLSearchParams()
-    if (params?.limit) query.set('limit', params.limit.toString())
-    if (params?.offset) query.set('offset', params.offset.toString())
-    
-    return this.request(`/api/fansly/${this.accountId}/chats?${query.toString()}`)
+
+    const limit = Math.min(Math.max(params?.limit ?? 50, 1), 200)
+    const offset = Math.max(params?.offset ?? 0, 0)
+    const targetEnd = offset + limit
+
+    const merged: {
+      id: string
+      user: { id: string; username: string; displayName: string; avatar: string }
+      lastMessage: string
+      unreadCount: number
+      updatedAt: string
+    }[] = []
+
+    let cursor: string | undefined =
+      params?.cursor != null && String(params.cursor).trim() !== ''
+        ? String(params.cursor).trim()
+        : undefined
+    let lastNext: string | undefined
+    let prevCursor: string | undefined
+
+    for (let page = 0; page < 40 && merged.length < targetEnd; page++) {
+      const q = new URLSearchParams()
+      if (cursor) q.set('cursor', cursor)
+      const qs = q.toString()
+      const path = `/api/fansly/${encodeURIComponent(this.accountId)}/chats${qs ? `?${qs}` : ''}`
+      let raw: unknown
+      try {
+        raw = await this.requestGet<unknown>(path)
+      } catch (err) {
+        // First page must surface errors; later pages can fail on cursor quirks — keep what we fetched.
+        if (page > 0 && merged.length > 0) break
+        throw err
+      }
+
+      const rows = extractFanslyChatsArray(raw)
+      const accounts = extractFanslyChatAggregationAccounts(raw)
+      const byId = new Map<string, Record<string, unknown>>()
+      for (const a of accounts) {
+        const id = a.id != null ? String(a.id) : ''
+        if (id) byId.set(id, a)
+      }
+      for (const row of rows) {
+        const n = normalizeFanslyChatListItem(row, byId)
+        if (n) merged.push(n)
+      }
+
+      lastNext = extractFanslyChatsNextCursor(raw)
+      if (!lastNext || rows.length === 0) break
+      if (lastNext === prevCursor || lastNext === cursor) break
+      prevCursor = cursor
+      cursor = lastNext
+    }
+
+    return {
+      data: merged.slice(offset, targetEnd),
+      total: merged.length,
+      nextCursor: lastNext ?? null,
+    }
   }
 
   /**

@@ -5,7 +5,8 @@ import { fanslyBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 /**
  * GET — Paginated earnings transactions (ApiFansly ledger).
- * Query: `limit` (1–50), `offset`, optional `before` / `after` (unix ms).
+ * Query: `limit` (1–50), `offset`, optional `before` / `after` (unix ms),
+ * optional `recentDays` (1–90, server clock) — sets `after`/`before` when neither is passed (avoids client skew).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -38,12 +39,22 @@ export async function GET(request: NextRequest) {
     const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
     const beforeRaw = searchParams.get('before')
     const afterRaw = searchParams.get('after')
-    const before =
+    let before =
       beforeRaw != null && beforeRaw !== '' && Number.isFinite(Number(beforeRaw))
         ? Number(beforeRaw)
         : undefined
-    const after =
+    let after =
       afterRaw != null && afterRaw !== '' && Number.isFinite(Number(afterRaw)) ? Number(afterRaw) : undefined
+
+    const recentDays = Math.min(
+      90,
+      Math.max(0, parseInt(searchParams.get('recentDays') || '0', 10)),
+    )
+    const now = Date.now()
+    if (recentDays > 0 && before == null && after == null) {
+      after = now - recentDays * 24 * 60 * 60 * 1000
+      before = now
+    }
 
     const api = createFanslyAPI(String(accountId))
     const { total, transactions } = await api.listEarningsTransactions(String(accountId), {

@@ -1,5 +1,5 @@
 import { createFanslyAPI } from '@/lib/fansly-api'
-import { digRecord, extractFanslyChatsArray } from '@/lib/messages/fansly-thread-map'
+import { digRecord } from '@/lib/messages/fansly-thread-map'
 
 type FanslyApiClient = ReturnType<typeof createFanslyAPI>
 
@@ -21,8 +21,8 @@ export async function resolveFanslyChat(
 ): Promise<{ chatId: string; peerUserId: string } | null> {
   const id = String(paramId).trim()
   if (!id) return null
-  const raw = await api.getChats({ limit: 200, offset: 0 })
-  const chats = extractFanslyChatsArray(raw)
+  const result = await api.getChats({ limit: 200, offset: 0 })
+  const chats = Array.isArray(result.data) ? result.data : []
   for (const c of chats) {
     const row = parseFanslyChatRow(c)
     if (row && row.id === id) {

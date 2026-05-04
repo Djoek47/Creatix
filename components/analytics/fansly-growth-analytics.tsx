@@ -93,8 +93,6 @@ export function FanslyGrowthAnalytics() {
     setSupporters({ loading: true })
     setFollowers({ loading: true })
 
-    const after = Date.now() - 30 * 24 * 60 * 60 * 1000
-
     const safe = async (setter: (s: BlockState) => void, url: string) => {
       try {
         const res = await fetch(url, { credentials: 'include' })
@@ -110,7 +108,7 @@ export function FanslyGrowthAnalytics() {
       }
     }
 
-    void safe(setLedger, `/api/fansly/earnings/transactions?limit=20&offset=0&after=${after}`)
+    void safe(setLedger, '/api/fansly/earnings/transactions?limit=20&offset=0&recentDays=30')
     void safe(setSupporters, '/api/fansly/top-supporters')
     void safe(setFollowers, '/api/fansly/followers')
   }, [])

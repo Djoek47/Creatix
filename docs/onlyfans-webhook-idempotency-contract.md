@@ -1,5 +1,7 @@
 # OnlyFans Webhook Idempotency Contract
 
+Operator setup (URL, signing secret, Vercel env, event checklist): **[onlyfans-api-webhook-setup.md](./onlyfans-api-webhook-setup.md)**.
+
 ## Ingest contract
 
 - Endpoint: `POST /api/onlyfans/webhook`

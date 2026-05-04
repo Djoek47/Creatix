@@ -1,4 +1,5 @@
 import type { InboxPlatformFilter } from '@/lib/messages/inbox-crm'
+import { isPaidSubscription } from '@/lib/billing/access'
 
 /**
  * Focus (single) = 1–2 allowed adult platforms; Unified (multi) = all adult platforms in one workspace.
@@ -69,6 +70,7 @@ export function resolveAllowedFocusPlatforms(
 
 /** Stripe / subscriptions row fields used for Focus vs Unified resolution. */
 export interface SubscriptionFocusFields {
+  plan_id?: string | null
   billing_variant?: string | null
   billing_focus_platforms?: string[] | null
   billing_focus_platform?: string | null
@@ -84,6 +86,7 @@ const SUBSCRIPTION_STATUSES_ENFORCING_FOCUS: ReadonlySet<string> = new Set([
 /** True when Focus (single) platform limits apply for this subscription status. */
 export function subscriptionEnforcesFocusPlatforms(row: SubscriptionFocusFields | null | undefined): boolean {
   if (!row) return false
+  if (!isPaidSubscription(row)) return false
   const st = (row.status || '').toLowerCase()
   if (!SUBSCRIPTION_STATUSES_ENFORCING_FOCUS.has(st)) return false
   return effectiveBillingVariant(row) === 'single'
@@ -203,6 +206,9 @@ export function focusUpgradeRequired(
 /**
  * Block dashboard “Connect” when an active subscription is Focus and the new platform is outside allowance.
  * (Unified = no block here; no subscription row = no block.)
+ *
+ * Divine trial and other non–cev-paid seats are not blocked: Focus vs Unified limits apply only once the
+ * creator is on a paid creator plan (`isPaidSubscription`).
  */
 export function adultPlatformConnectBlockedByFocusPlan(
   connections: PlatformConnectionLike[],
@@ -210,6 +216,7 @@ export function adultPlatformConnectBlockedByFocusPlan(
   platformIdToConnect: string,
 ): boolean {
   if (!sub) return false
+  if (!isPaidSubscription(sub)) return false
   const st = (sub.status || '').toLowerCase()
   if (!SUBSCRIPTION_STATUSES_ENFORCING_FOCUS.has(st)) return false
   const variant = effectiveBillingVariant(sub)

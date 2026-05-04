@@ -7,6 +7,7 @@ import {
 
 assert.deepEqual(
   inboxPlatformFilterOptionsForSubscription({
+    plan_id: 'cev-paid',
     status: 'active',
     billing_variant: 'single',
     billing_focus_platforms: ['onlyfans'],
@@ -27,6 +28,7 @@ assert.deepEqual(
 
 assert.deepEqual(
   allowedAdultPlatformsForFocusPicker({
+    plan_id: 'cev-paid',
     status: 'active',
     billing_variant: 'single',
     billing_focus_platforms: ['onlyfans'],
@@ -37,6 +39,7 @@ assert.deepEqual(
 
 assert.equal(
   allowedAdultPlatformsForFocusPicker({
+    plan_id: 'cev-paid',
     status: 'active',
     billing_variant: 'single',
     billing_focus_platforms: ['onlyfans', 'fansly'],
@@ -49,6 +52,7 @@ assert.equal(
 assert.equal(
   focusConnectedPlatformsMismatch(
     {
+      plan_id: 'cev-paid',
       status: 'active',
       billing_variant: 'single',
       billing_focus_platforms: ['onlyfans'],
@@ -66,6 +70,7 @@ assert.equal(
 assert.equal(
   focusConnectedPlatformsMismatch(
     {
+      plan_id: 'cev-paid',
       status: 'active',
       billing_variant: 'single',
       billing_focus_platforms: ['fansly'],
@@ -80,6 +85,7 @@ assert.equal(
 assert.equal(
   focusConnectedPlatformsMismatch(
     {
+      plan_id: 'cev-paid',
       status: 'active',
       billing_variant: 'single',
       billing_focus_platforms: ['onlyfans'],
@@ -94,6 +100,7 @@ assert.equal(
 assert.equal(
   focusConnectedPlatformsMismatch(
     {
+      plan_id: 'cev-paid',
       status: 'canceled',
       billing_variant: 'single',
       billing_focus_platforms: ['onlyfans'],

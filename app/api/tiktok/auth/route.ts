@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import crypto from 'crypto'
 import { getAppUrl } from '@/lib/site-url'
+import { TIKTOK_OAUTH_SCOPES } from '@/lib/tiktok-open-api'
 
 // TikTok Login Kit
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/')
     authUrl.searchParams.set('client_key', TIKTOK_CLIENT_KEY)
     authUrl.searchParams.set('response_type', 'code')
-    authUrl.searchParams.set('scope', 'user.info.basic,video.list')
+    authUrl.searchParams.set('scope', TIKTOK_OAUTH_SCOPES)
     authUrl.searchParams.set('redirect_uri', TIKTOK_REDIRECT_URI)
     authUrl.searchParams.set('state', state)
     authUrl.searchParams.set('code_challenge', codeChallenge)

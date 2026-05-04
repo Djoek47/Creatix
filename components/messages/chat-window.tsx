@@ -55,6 +55,7 @@ import {
   TrendingUp,
   AlertTriangle,
   MessageSquarePlus,
+  Lock,
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
@@ -66,7 +67,7 @@ import { stripHtml } from '@/lib/html-utils'
 import type { NormalizedChatMessage } from '@/lib/ai/message-suggestions'
 import { createClient } from '@/lib/supabase/client'
 import { isBoundaryNiche } from '@/lib/niches'
-import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { proxifyChatOrVaultMediaUrl } from '@/lib/proxy-image-url'
 import { getProxiedMediaPresentation, isVideoMedia, type RawOnlyFansMedia } from '@/lib/messages/of-media'
 import { FanProfileModal } from '@/components/messages/fan-profile-modal'
 import {
@@ -298,7 +299,26 @@ function buildMediaSrcChain(pres: ReturnType<typeof getProxiedMediaPresentation>
   return o
 }
 
-function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'onlyfans' | 'fansly' }) {
+function formatThreadPpvPriceUsd(n: number): string {
+  const r = Math.round(n * 100) / 100
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: r % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(r)
+}
+
+function ChatMediaItem({
+  media,
+  platform,
+  lockedOverlayPriceUsd,
+}: {
+  media: OnlyFansMedia
+  platform: 'onlyfans' | 'fansly'
+  /** When media is locked PPV, show price on the blur overlay (message-level max PPV). */
+  lockedOverlayPriceUsd?: number | null
+}) {
   const tChat = useTranslations('messages.chat')
   const pres = useMemo(() => getProxiedMediaPresentation(media as RawOnlyFansMedia), [
     media.id,
@@ -343,10 +363,82 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
     (media as RawOnlyFansMedia).url ||
     undefined
 
-  if (!media.canView && media.canView !== undefined) {
+  const isLocked = !media.canView && media.canView !== undefined
+  const video = isVideoMedia(media as RawOnlyFansMedia)
+  const hasLockedVisual = video ? Boolean(videoSrc || videoPoster) : Boolean(imgSrc)
+
+  if (isLocked) {
+    if (failed || !hasLockedVisual) {
+      return (
+        <div className="relative rounded-lg bg-muted/50 p-4 text-center space-y-2">
+          <p className="text-sm text-muted-foreground">{tChat('lockedMedia')}</p>
+          {lockedOverlayPriceUsd != null && lockedOverlayPriceUsd > 0 ? (
+            <Badge className="bg-chart-4/20 text-chart-4">
+              <DollarSign className="mr-1 h-3 w-3" />
+              {tChat('ppvWithPrice', { price: formatThreadPpvPriceUsd(lockedOverlayPriceUsd) })}
+            </Badge>
+          ) : null}
+        </div>
+      )
+    }
+
+    const priceStr =
+      lockedOverlayPriceUsd != null && lockedOverlayPriceUsd > 0
+        ? formatThreadPpvPriceUsd(lockedOverlayPriceUsd)
+        : null
+
     return (
-      <div className="relative rounded-lg bg-muted/50 p-4 text-center">
-        <p className="text-sm text-muted-foreground">{tChat('lockedMedia')}</p>
+      <div className="relative max-h-[62vh] w-full overflow-hidden rounded-lg bg-black/25">
+        {video && videoSrc && !videoPoster ? (
+          <video
+            src={videoSrc}
+            muted
+            playsInline
+            preload="metadata"
+            tabIndex={-1}
+            className="max-h-[62vh] w-full scale-110 object-contain opacity-70 blur-2xl pointer-events-none select-none"
+            aria-hidden
+            onError={() => {
+              if (videoIdx < videoChain.length - 1) {
+                setVideoIdx((i) => i + 1)
+              } else {
+                setFailed(true)
+              }
+            }}
+          />
+        ) : (
+          <img
+            src={video ? videoPoster || imgSrc : imgSrc}
+            alt=""
+            className="max-h-[62vh] w-full scale-110 object-contain opacity-70 blur-2xl"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            decoding="async"
+            onError={() => {
+              if (video) {
+                if (videoIdx < videoChain.length - 1) {
+                  setVideoIdx((i) => i + 1)
+                } else {
+                  setFailed(true)
+                }
+              } else if (imgIdx < imgChain.length - 1) {
+                setImgIdx((i) => i + 1)
+              } else {
+                setFailed(true)
+              }
+            }}
+          />
+        )}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-t from-black/55 via-black/35 to-black/25 px-3 text-center">
+          <Lock className="h-7 w-7 text-white drop-shadow" aria-hidden />
+          <p className="text-sm font-medium text-white drop-shadow">{tChat('lockedMedia')}</p>
+          {priceStr ? (
+            <Badge className="border-0 bg-chart-4/90 text-white shadow-md">
+              <DollarSign className="mr-1 h-3 w-3" />
+              {tChat('ppvWithPrice', { price: priceStr })}
+            </Badge>
+          ) : null}
+        </div>
       </div>
     )
   }
@@ -366,8 +458,6 @@ function ChatMediaItem({ media, platform }: { media: OnlyFansMedia; platform: 'o
       </div>
     )
   }
-
-  const video = isVideoMedia(media as RawOnlyFansMedia)
 
   if (video) {
     const src = videoSrc
@@ -432,7 +522,7 @@ function ChatPreviewImage({
 }) {
   const tChat = useTranslations('messages.chat')
   const chain = useMemo(() => {
-    const proxied = proxyImageUrl(rawUrl) || rawUrl
+    const proxied = proxifyChatOrVaultMediaUrl(rawUrl) || rawUrl
     const o: string[] = []
     if (proxied) o.push(proxied)
     if (rawUrl && rawUrl !== proxied) o.push(rawUrl)
@@ -632,9 +722,11 @@ export function ChatWindow({
     void refreshCreditSnapshot()
   }, [aiSectionOpen, refreshCreditSnapshot, conversation?.user?.id])
 
-  const onlyFansChatReadMode = useMemo(() => {
-    if (!conversation || conversation.platform !== 'onlyfans' || !messagingReadPrefs) return null
-    return effectiveChatReadMode(messagingReadPrefs, 'onlyfans', String(conversation.user.id))
+  const threadChatReadMode = useMemo(() => {
+    if (!conversation || !messagingReadPrefs) return null
+    const p = conversation.platform
+    if (p !== 'onlyfans' && p !== 'fansly') return null
+    return effectiveChatReadMode(messagingReadPrefs, p, String(conversation.user.id))
   }, [conversation, messagingReadPrefs])
 
   useEffect(() => {
@@ -1042,14 +1134,16 @@ export function ChatWindow({
 
   const setChatReadBehavior = useCallback(
     async (behavior: 'inherit' | 'auto' | 'never') => {
-      if (!conversation || conversation.platform !== 'onlyfans') return
+      if (!conversation) return
+      const p = conversation.platform
+      if (p !== 'onlyfans' && p !== 'fansly') return
       const res = await fetch('/api/user/messaging-read-preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           setChatOverride: {
-            platform: 'onlyfans',
+            platform: p,
             fanId: String(conversation.user.id),
             behavior,
           },
@@ -1063,19 +1157,22 @@ export function ChatWindow({
     [conversation],
   )
 
-  const confirmDeleteOnlyFansChat = useCallback(async () => {
-    if (!conversation || conversation.platform !== 'onlyfans') return
+  const confirmDeleteChat = useCallback(async () => {
+    if (!conversation || (conversation.platform !== 'onlyfans' && conversation.platform !== 'fansly')) return
     const cid = String(conversation.chatId || conversation.user.id)
     setChatDeleteBusy(true)
     try {
-      const res = await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}`, {
-        method: 'DELETE',
-      })
+      const url =
+        conversation.platform === 'onlyfans'
+          ? `/api/onlyfans/chats/${encodeURIComponent(cid)}`
+          : `/api/fansly/chats/${encodeURIComponent(cid)}`
+      const res = await fetch(url, { method: 'DELETE' })
       if (res.ok) {
         setChatDeleteDialogOpen(false)
         onMessageSent?.()
       } else {
-        setError(tChat('deleteChatFailedRetry'))
+        const j = (await res.json().catch(() => ({}))) as { error?: string }
+        setError(typeof j.error === 'string' ? j.error : tChat('deleteChatFailedRetry'))
       }
     } catch {
       setError(tChat('deleteChatFailed'))
@@ -1170,10 +1267,11 @@ export function ChatWindow({
           setThreadStaleReason(null)
         }
 
+        const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
+        const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
+        setMessagingReadPrefs(prefs)
+
         if (conversation.platform === 'onlyfans') {
-          const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
-          const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
-          setMessagingReadPrefs(prefs)
           if (shouldAutoMarkOnOpen(prefs, 'onlyfans', String(conversation.user.id))) {
             const cid = String(conversation.chatId || conversation.user.id)
             void fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' }).catch(
@@ -1201,9 +1299,14 @@ export function ChatWindow({
               },
             )
             .catch(() => undefined)
-        } else {
-          const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
-          setMessagingReadPrefs(mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null))
+        } else if (conversation.platform === 'fansly') {
+          if (shouldAutoMarkOnOpen(prefs, 'fansly', String(conversation.user.id))) {
+            const cid = String(conversation.chatId || conversation.user.id)
+            void fetch(`/api/fansly/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' }).catch(
+              () => undefined,
+            )
+            onMessageSent?.()
+          }
         }
       } catch (err) {
         if (seq !== onlyFansLoadThreadSeqRef.current) return
@@ -1636,7 +1739,7 @@ export function ChatWindow({
                 <RefreshCw className="text-foreground/80" aria-hidden />
                 {tChat('refreshMessages')}
               </DropdownMenuItem>
-              {conversation.platform === 'onlyfans' && (
+              {(conversation.platform === 'onlyfans' || conversation.platform === 'fansly') && (
                 <>
                   <DropdownMenuSeparator />
                   <div
@@ -1657,33 +1760,90 @@ export function ChatWindow({
                     {tChat('stayOnLatestHelp')}
                   </p>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className={threadToolsMenuItemClass}
-                    onClick={async () => {
-                      const cid = String(conversation.chatId || conversation.user.id)
-                      await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' })
-                    }}
-                  >
-                    <CheckCheck className="text-foreground/80" aria-hidden />
-                    {tChat('markAsRead')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={threadToolsMenuItemClass}
-                    onClick={async () => {
-                      const cid = String(conversation.chatId || conversation.user.id)
-                      await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/unread`, { method: 'POST' })
-                    }}
-                  >
-                    <Mail className="text-foreground/80" aria-hidden />
-                    {tChat('markAsUnread')}
-                  </DropdownMenuItem>
+                  {conversation.platform === 'onlyfans' ? (
+                    <>
+                      <DropdownMenuItem
+                        className={threadToolsMenuItemClass}
+                        onClick={async () => {
+                          const cid = String(conversation.chatId || conversation.user.id)
+                          await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' })
+                        }}
+                      >
+                        <CheckCheck className="text-foreground/80" aria-hidden />
+                        {tChat('markAsRead')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={threadToolsMenuItemClass}
+                        onClick={async () => {
+                          const cid = String(conversation.chatId || conversation.user.id)
+                          await fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/unread`, { method: 'POST' })
+                        }}
+                      >
+                        <Mail className="text-foreground/80" aria-hidden />
+                        {tChat('markAsUnread')}
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        className={threadToolsMenuItemClass}
+                        onClick={async () => {
+                          const cid = String(conversation.chatId || conversation.user.id)
+                          try {
+                            const res = await fetch(`/api/fansly/chats/${encodeURIComponent(cid)}/read`, {
+                              method: 'POST',
+                            })
+                            if (!res.ok) {
+                              const j = (await res.json().catch(() => ({}))) as { error?: string }
+                              setError(
+                                typeof j.error === 'string' ? j.error : tChat('fanslyChatMutationFailed'),
+                              )
+                            } else {
+                              onMessageSent?.()
+                            }
+                          } catch {
+                            setError(tChat('fanslyChatMutationFailed'))
+                          }
+                        }}
+                      >
+                        <CheckCheck className="text-foreground/80" aria-hidden />
+                        {tChat('markAsRead')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className={threadToolsMenuItemClass}
+                        onClick={async () => {
+                          const cid = String(conversation.chatId || conversation.user.id)
+                          try {
+                            const res = await fetch(`/api/fansly/chats/${encodeURIComponent(cid)}/unread`, {
+                              method: 'POST',
+                            })
+                            if (!res.ok) {
+                              const j = (await res.json().catch(() => ({}))) as { error?: string }
+                              setError(
+                                typeof j.error === 'string' ? j.error : tChat('fanslyChatMutationFailed'),
+                              )
+                            } else {
+                              onMessageSent?.()
+                            }
+                          } catch {
+                            setError(tChat('fanslyChatMutationFailed'))
+                          }
+                        }}
+                      >
+                        <Mail className="text-foreground/80" aria-hidden />
+                        {tChat('markAsUnread')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <div className="mx-0.5 px-3 pb-2 pt-1">
                     <p className="text-[12px] font-semibold tracking-[-0.01em] text-foreground/95">
                       {tChat('markReadWhenOpening')}
                     </p>
                     <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground/88">
-                      {tChat('markReadWhenOpeningHelp')}
+                      {conversation.platform === 'onlyfans'
+                        ? tChat('markReadWhenOpeningHelp')
+                        : tChat('markReadWhenOpeningHelpFansly')}
                     </p>
                   </div>
                   <DropdownMenuItem
@@ -1694,7 +1854,7 @@ export function ChatWindow({
                     className={cn(
                       threadToolsMenuItemClass,
                       'cursor-pointer',
-                      onlyFansChatReadMode === 'inherit' && threadToolsMenuItemSelectedClass,
+                      threadChatReadMode === 'inherit' && threadToolsMenuItemSelectedClass,
                     )}
                   >
                     <span className="flex w-full flex-col gap-1">
@@ -1718,7 +1878,7 @@ export function ChatWindow({
                     className={cn(
                       threadToolsMenuItemClass,
                       'cursor-pointer',
-                      onlyFansChatReadMode === 'auto' && threadToolsMenuItemSelectedClass,
+                      threadChatReadMode === 'auto' && threadToolsMenuItemSelectedClass,
                     )}
                   >
                     <span className="text-[14px] font-medium tracking-[-0.012em]">{tChat('alwaysThisThread')}</span>
@@ -1731,7 +1891,7 @@ export function ChatWindow({
                     className={cn(
                       threadToolsMenuItemClass,
                       'cursor-pointer',
-                      onlyFansChatReadMode === 'never' && threadToolsMenuItemSelectedClass,
+                      threadChatReadMode === 'never' && threadToolsMenuItemSelectedClass,
                     )}
                   >
                     <span className="text-[14px] font-medium tracking-[-0.012em]">{tChat('neverThisThread')}</span>
@@ -1865,9 +2025,21 @@ export function ChatWindow({
                     ) : null}
                     {msg.media && msg.media.length > 0 && (
                       <div className="mb-2 space-y-2">
-                        {msg.media.map((m) => (
-                          <ChatMediaItem key={m.id} media={m} platform={conversation.platform} />
-                        ))}
+                        {msg.media.map((m) => {
+                          const lockedPpv =
+                            msg.price != null &&
+                            Number(msg.price) > 0 &&
+                            msg.isPaid === false &&
+                            m.canView === false
+                          return (
+                            <ChatMediaItem
+                              key={m.id}
+                              media={m}
+                              platform={conversation.platform}
+                              lockedOverlayPriceUsd={lockedPpv ? Number(msg.price) : null}
+                            />
+                          )
+                        })}
                       </div>
                     )}
                     {/* Show preview images if media array is empty but previews exist */}
@@ -1953,12 +2125,18 @@ export function ChatWindow({
                         ) : null}
                       </div>
                     ) : null}
-                    {msg.price != null && Number(msg.price) > 0 && !msg.isPaid && (
+                    {msg.price != null && Number(msg.price) > 0 && !msg.isPaid ? (
                       <Badge className="mt-2 bg-chart-4/20 text-chart-4">
                         <DollarSign className="mr-1 h-3 w-3" />
-                        {tChat('ppvWithPrice', { price: `$${msg.price}` })}
+                        {tChat('ppvWithPrice', { price: formatThreadPpvPriceUsd(Number(msg.price)) })}
                       </Badge>
-                    )}
+                    ) : null}
+                    {msg.price != null && Number(msg.price) > 0 && msg.isPaid ? (
+                      <Badge className="mt-2 bg-muted text-foreground">
+                        <DollarSign className="mr-1 h-3 w-3" />
+                        {tChat('ppvPaidWithPrice', { price: formatThreadPpvPriceUsd(Number(msg.price)) })}
+                      </Badge>
+                    ) : null}
                     <p
                       className={cn(
                         'mt-1 text-xs',
@@ -2660,7 +2838,11 @@ export function ChatWindow({
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{tChat('deleteChatConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{tChat('deleteChatConfirmDescription')}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {conversation?.platform === 'fansly'
+                ? tChat('deleteChatConfirmDescriptionFansly')
+                : tChat('deleteChatConfirmDescription')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button
@@ -2676,7 +2858,7 @@ export function ChatWindow({
               type="button"
               disabled={chatDeleteBusy}
               className="gap-2"
-              onClick={() => void confirmDeleteOnlyFansChat()}
+              onClick={() => void confirmDeleteChat()}
             >
               {chatDeleteBusy ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /> : null}
               {tChat('deleteChat')}

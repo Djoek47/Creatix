@@ -104,3 +104,4 @@ Review `/tmp/creatix-all-migrations.sql`, then run it in the SQL Editor (or spli
 
 - Configure **Auth** redirect URLs and **Stripe** webhooks in the dashboard (not SQL).
 - Environment variables for the app are separate from these migrations.
+

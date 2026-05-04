@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getAppUrl } from '@/lib/site-url'
+import { TIKTOK_USER_INFO_URL } from '@/lib/tiktok-open-api'
 
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET
@@ -79,7 +80,10 @@ export async function GET(request: NextRequest) {
     await supabase.from('platform_connections').upsert({
       user_id: user.id,
       platform: 'tiktok',
-      platform_username: tiktokUser?.display_name || 'Connected',
+      platform_username:
+        (typeof tiktokUser?.username === 'string' && tiktokUser.username.trim()) ||
+        (typeof tiktokUser?.display_name === 'string' && tiktokUser.display_name.trim()) ||
+        'Connected',
       is_connected: true,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,

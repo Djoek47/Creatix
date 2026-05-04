@@ -32,6 +32,7 @@ import { cookies, headers } from 'next/headers'
 
 import { HtmlLangUpdater } from '@/components/i18n/html-lang-updater'
 import { LOCALE_COOKIE } from '@/lib/i18n/constants'
+import { readGeoFromHeaders } from '@/lib/i18n/locale-from-geo'
 import { resolveDashboardLocale } from '@/lib/i18n/resolve-locale'
 import type { UiPreferences } from '@/lib/types'
 import { fetchUsdFiatRates } from '@/lib/fx/fetch-usd-fiat-rates'
@@ -93,10 +94,12 @@ export default async function DashboardLayout({
   const cookieStore = await cookies()
   const hdrs = await headers()
   const uiPrefs = serializableProfile?.ui_preferences as UiPreferences | null
+  const geo = readGeoFromHeaders(hdrs)
   const locale = resolveDashboardLocale(
     uiPrefs?.locale ?? null,
     cookieStore.get(LOCALE_COOKIE)?.value ?? null,
     hdrs.get('accept-language'),
+    geo,
   )
   setRequestLocale(locale)
   const messages = await getMessages()

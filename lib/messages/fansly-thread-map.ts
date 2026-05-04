@@ -1,3 +1,5 @@
+import { normalizeFanslyIncomingPpvUsd } from '@/lib/fansly/ppv-send'
+
 /**
  * Normalize ApiFansly chat message payloads for the shared Messages UI
  * (same shape as OnlyFans thread messages from `/api/onlyfans/messages/[fanId]`).
@@ -306,11 +308,6 @@ function inferFanslyBlobMediaType(blob: Record<string, unknown>): 'photo' | 'vid
   return 'photo'
 }
 
-function numPriceUsd(v: unknown): number | null {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return null
-  return v > 0 ? v : null
-}
-
 function attachmentContentTypeGuess(ct: unknown): 'photo' | 'video' | undefined {
   if (typeof ct !== 'number') return undefined
   if (ct === 2 || ct >= 100) return 'video'
@@ -472,7 +469,7 @@ export function mapFanslyChatRowToThreadMessage(
       attachmentContentTypeGuess(ar.contentType ?? ar.content_type) ??
       inferFanslyBlobMediaType(pickTarget)
 
-    const rawPriceUsd = numPriceUsd(amEnv?.price ?? ar.price)
+    const rawPriceUsd = normalizeFanslyIncomingPpvUsd(amEnv?.price ?? ar.price)
     if (rawPriceUsd != null) {
       maxPpv = Math.max(maxPpv, rawPriceUsd)
       const unlocked =

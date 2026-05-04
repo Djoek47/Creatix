@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { routing } from '@/lib/i18n/routing'
 import { LOCALE_COOKIE } from '@/lib/i18n/constants'
 import { isBareMarketingPath } from '@/lib/i18n/marketing-paths'
+import { readGeoFromHeaders } from '@/lib/i18n/locale-from-geo'
 import { negotiatePublicLocale } from '@/lib/i18n/resolve-locale'
 import { updateSession } from '@/lib/supabase/middleware'
 
@@ -82,11 +83,13 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isBareMarketingPath(pathname)) {
+      const geo = readGeoFromHeaders(request.headers)
       const locale = negotiatePublicLocale(
         sessionResponse.cookies.get(LOCALE_COOKIE)?.value ??
           request.cookies.get(LOCALE_COOKIE)?.value ??
           null,
         request.headers.get('accept-language'),
+        geo,
       )
       const url = request.nextUrl.clone()
       url.pathname =

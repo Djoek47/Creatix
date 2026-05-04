@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { LOCALE_COOKIE } from '@/lib/i18n/constants'
+import { readGeoFromHeaders } from '@/lib/i18n/locale-from-geo'
 import { isPhase1Locale, negotiatePublicLocale } from '@/lib/i18n/resolve-locale'
 
 type UiPreferencesShape = {
@@ -48,9 +49,10 @@ export async function syncCreatixLocaleCookie(opts: {
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/auth')) {
     const existing = request.cookies.get(LOCALE_COOKIE)?.value ?? null
     if (!isPhase1Locale(existing)) {
+      const geo = readGeoFromHeaders(request.headers)
       response.cookies.set(
         LOCALE_COOKIE,
-        negotiatePublicLocale(existing, request.headers.get('accept-language')),
+        negotiatePublicLocale(existing, request.headers.get('accept-language'), geo),
         COOKIE_ATTRS,
       )
     }

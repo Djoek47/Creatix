@@ -34,7 +34,7 @@ import { VaultHoverPlayVideo } from '@/components/ai/vault-hover-cinema-video'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { cn } from '@/lib/utils'
-import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { proxifyChatOrVaultMediaUrl } from '@/lib/proxy-image-url'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
@@ -563,7 +563,7 @@ export function MediaVaultHub() {
   const linkFanslyPost = async (post: OfPost) => {
     const firstImg = post.media?.find((m) => m.type?.toLowerCase().includes('photo') || m.url)
     const raw = firstImg?.url || null
-    const preview = raw ? proxyImageUrl(raw) ?? raw : null
+    const preview = raw ? (proxifyChatOrVaultMediaUrl(raw) ?? raw) : null
     setLinking(post.id)
     try {
       const res = await fetch('/api/content/vault/import-fansly', {
@@ -1077,7 +1077,7 @@ export function MediaVaultHub() {
                 <div className="space-y-3">
                   {fanslyPosts.map((p) => {
                     const rawPrev = p.media?.[0]?.url
-                    const prev = rawPrev ? proxyImageUrl(rawPrev) ?? rawPrev : null
+                    const prev = rawPrev ? (proxifyChatOrVaultMediaUrl(rawPrev) ?? rawPrev) : null
                     return (
                       <Card key={p.id} className="rounded-2xl border-border/80 shadow-none">
                         <CardContent className="flex gap-3 p-3.5">

@@ -22,6 +22,22 @@ export function finalizeFanslyPpvUsd(price: number): number {
 }
 
 /**
+ * Normalize PPV `price` from Fansly list-messages / attachment payloads for display.
+ * Outbound sends use USD dollars; inbound may be dollars (incl. decimals) or whole cents when > 500.
+ */
+export function normalizeFanslyIncomingPpvUsd(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return null
+  if (!Number.isInteger(raw)) {
+    const r = Math.round(raw * 100) / 100
+    return r > 0 && r <= 500 ? r : null
+  }
+  const n = raw
+  if (n <= 500) return n
+  if (n <= 500 * 100) return Math.round(n) / 100
+  return null
+}
+
+/**
  * Returns an error message when PPV rules are violated; `null` when OK (including free sends).
  */
 export function validateFanslyPpvForSend(priceUsd: number | undefined, hasMedia: boolean): string | null {

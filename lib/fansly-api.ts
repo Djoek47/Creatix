@@ -358,7 +358,8 @@ class FanslyAPI {
       'x-api-key': this.apiKey,
       ...(options.headers as Record<string, string> | undefined),
     }
-    if (!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD') {
+    const hasBody = options.body != null && String(options.body) !== ''
+    if (!headers['Content-Type'] && method !== 'GET' && method !== 'HEAD' && hasBody) {
       headers['Content-Type'] = 'application/json'
     }
 
@@ -1310,6 +1311,73 @@ class FanslyAPI {
       data: merged.slice(0, wantTotal),
       accountMedia: dedupeFanslyChatAccountMediaRows(mergedAccountMedia),
     }
+  }
+
+  /**
+   * Mark chat as read (clear unread on vendor).
+   * Tries common partner paths; ApiFansly does not document this yet — may 404 until enabled.
+   */
+  async markChatAsRead(accountId: string, chatId: string): Promise<unknown> {
+    const encA = encodeURIComponent(accountId)
+    const encC = encodeURIComponent(chatId)
+    const paths = [
+      `/api/fansly/${encA}/chats/${encC}/read`,
+      `/api/fansly/${encA}/chats/${encC}/mark-as-read`,
+    ]
+    let last: Error | undefined
+    for (const path of paths) {
+      try {
+        return await this.request<unknown>(path, { method: 'POST', body: '{}' })
+      } catch (e) {
+        last = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+    throw last ?? new Error('Fansly mark read failed.')
+  }
+
+  /** Mark chat as unread (restore badge on vendor). Undocumented — may 404 until enabled. */
+  async markChatAsUnread(accountId: string, chatId: string): Promise<unknown> {
+    const encA = encodeURIComponent(accountId)
+    const encC = encodeURIComponent(chatId)
+    const paths = [
+      `/api/fansly/${encA}/chats/${encC}/unread`,
+      `/api/fansly/${encA}/chats/${encC}/mark-as-unread`,
+    ]
+    let last: Error | undefined
+    for (const path of paths) {
+      try {
+        return await this.request<unknown>(path, { method: 'POST', body: '{}' })
+      } catch (e) {
+        last = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+    throw last ?? new Error('Fansly mark unread failed.')
+  }
+
+  /**
+   * Hide or delete a 1:1 chat. Docs list “Hide Chat” as planned; tries DELETE then POST /hide /archive.
+   */
+  async hideOrDeleteChat(accountId: string, chatId: string): Promise<unknown> {
+    const encA = encodeURIComponent(accountId)
+    const encC = encodeURIComponent(chatId)
+    const base = `/api/fansly/${encA}/chats/${encC}`
+    const attempts: Array<{ method: 'DELETE' | 'POST'; path: string; body?: string }> = [
+      { method: 'DELETE', path: base },
+      { method: 'POST', path: `${base}/hide`, body: '{}' },
+      { method: 'POST', path: `${base}/archive`, body: '{}' },
+    ]
+    let last: Error | undefined
+    for (const a of attempts) {
+      try {
+        return await this.request<unknown>(a.path, {
+          method: a.method,
+          ...(a.body ? { body: a.body } : {}),
+        })
+      } catch (e) {
+        last = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+    throw last ?? new Error('Fansly delete/hide chat failed.')
   }
 
   /**

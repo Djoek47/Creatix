@@ -10,6 +10,7 @@ import {
   loadAppMessages,
   mergeEnglishFallback,
 } from '@/lib/i18n/load-messages'
+import { readGeoFromHeaders } from '@/lib/i18n/locale-from-geo'
 import { negotiatePublicLocale, isPhase1Locale } from '@/lib/i18n/resolve-locale'
 
 /** Accepts middleware-provided `[locale]` segment when present. */
@@ -29,7 +30,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
   if (segmentIncluded && isPhase1Locale(segmentLocale)) {
     locale = segmentLocale
   } else {
-    locale = negotiatePublicLocale(cookieLocale, acceptLang)
+    const geo = readGeoFromHeaders(hdrs)
+    locale = negotiatePublicLocale(cookieLocale, acceptLang, geo)
   }
 
   const [primary, englishBase] =

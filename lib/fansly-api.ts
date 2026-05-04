@@ -860,11 +860,38 @@ class FanslyAPI {
   }
 
   /**
+   * Profile analytics (views, visits, engagement, top media) — one GET; ApiFansly recommends this over
+   * hammering the paginated earnings ledger for dashboards.
+   * @see https://docs.apifansly.com/api-reference/profile-stats
+   */
+  async getProfileStats(
+    accountId: string,
+    params?: {
+      beforeDate?: number
+      afterDate?: number
+      period?: number
+      year?: number
+      month?: number
+    },
+  ): Promise<unknown> {
+    const q = new URLSearchParams()
+    if (params?.beforeDate != null) q.set('beforeDate', String(params.beforeDate))
+    if (params?.afterDate != null) q.set('afterDate', String(params.afterDate))
+    if (params?.period != null) q.set('period', String(params.period))
+    if (params?.year != null && params.year > 0) q.set('year', String(params.year))
+    if (params?.month != null && params.month > 0) q.set('month', String(params.month))
+    const qs = q.toString() ? `?${q.toString()}` : ''
+    return this.requestGet<unknown>(
+      `/api/fansly/${encodeURIComponent(accountId)}/analytics/profilestats${qs}`,
+    )
+  }
+
+  /**
    * Earnings transaction ledger (paginated).
    * GET /api/fansly/{accountId}/earnings/transactions
    *
-   * ApiFansly sometimes returns 400 for specific `before`/`after` pairs (e.g. wide windows). On 400 we retry
-   * a 7-day window, then `before` only, then bare `limit`/`offset` (per docs all filters are optional).
+   * ApiFansly sometimes returns 400 for specific `before`/`after` pairs. On 400 we retry once with bare
+   * `limit`/`offset` only (keeps upstream calls low to avoid 429).
    */
   async listEarningsTransactions(
     accountId: string,
@@ -888,7 +915,6 @@ class FanslyAPI {
       }
     }
 
-    const DAY_MS = 24 * 60 * 60 * 1000
     const makeQs = (b?: number, a?: number) => {
       const q = new URLSearchParams()
       q.set('limit', String(params.limit))
@@ -907,12 +933,6 @@ class FanslyAPI {
     }
 
     pushVariant(before, after)
-    if (before != null && after != null) {
-      pushVariant(nowMs, nowMs - 7 * DAY_MS)
-    }
-    if (before != null) {
-      pushVariant(before, undefined)
-    }
     pushVariant(undefined, undefined)
 
     const path = `/api/fansly/${encodeURIComponent(accountId)}/earnings/transactions`

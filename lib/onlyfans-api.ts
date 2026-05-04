@@ -12,8 +12,36 @@ const ONLYFANS_API_BASE = 'https://app.onlyfansapi.com/api'
 /** Partner caps paginated fan list `limit` at 20 per HTTP request (active/all/expired/latest/top). */
 const OF_FAN_LIST_PAGE_MAX = 20
 
+/**
+ * Partner caps `listUserLists` and `listUserListUsers` `limit` at 50 (OnlyFansAPI validation).
+ */
+export const ONLYFANS_USER_LIST_PAGE_MAX = 50
+
 function capOnlyFansFanListLimit(limit: number): number {
   return Math.min(OF_FAN_LIST_PAGE_MAX, Math.max(1, Math.floor(limit)))
+}
+
+function capOnlyFansUserListPageLimit(limit: number): number {
+  return Math.min(ONLYFANS_USER_LIST_PAGE_MAX, Math.max(1, Math.floor(limit)))
+}
+
+/** Normalize user-lists payloads from `/user-lists` (array under data, lists, items, or top-level array). */
+export function unwrapOnlyFansUserListsPayload(raw: unknown): Array<{ id: string; name?: string }> {
+  if (!raw || typeof raw !== 'object') return []
+  const o = raw as Record<string, unknown>
+  const arr = o.data ?? o.lists ?? o.items ?? raw
+  if (!Array.isArray(arr)) return []
+  const out: Array<{ id: string; name?: string }> = []
+  for (const row of arr) {
+    if (!row || typeof row !== 'object') continue
+    const r = row as Record<string, unknown>
+    const id = r.id ?? r.userListId
+    if (id == null) continue
+    const item: { id: string; name?: string } = { id: String(id) }
+    if (r.name != null) item.name = String(r.name)
+    out.push(item)
+  }
+  return out
 }
 
 /** Cloudflare / OnlyFans-API rate limit — callers should back off and show a friendly message. */
@@ -1473,10 +1501,27 @@ class OnlyFansAPI {
 
   async listUserLists(params?: { limit?: number; offset?: number }): Promise<unknown> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    const lim =
+      params?.limit != null ? capOnlyFansUserListPageLimit(params.limit) : ONLYFANS_USER_LIST_PAGE_MAX
+    q.set('limit', String(lim))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/user-lists${suffix}`)
+  }
+
+  /** All creator user lists — paginates with partner max {@link ONLYFANS_USER_LIST_PAGE_MAX} per request. */
+  async listUserListsCollectAll(opts?: { maxPages?: number }): Promise<Array<{ id: string; name?: string }>> {
+    const maxPages = Math.min(Math.max(opts?.maxPages ?? 60, 1), 200)
+    const aggregated: Array<{ id: string; name?: string }> = []
+    let offset = 0
+    for (let page = 0; page < maxPages; page++) {
+      const raw = await this.listUserLists({ limit: ONLYFANS_USER_LIST_PAGE_MAX, offset })
+      const batch = unwrapOnlyFansUserListsPayload(raw)
+      aggregated.push(...batch)
+      if (batch.length < ONLYFANS_USER_LIST_PAGE_MAX) break
+      offset += ONLYFANS_USER_LIST_PAGE_MAX
+    }
+    return aggregated
   }
 
   async createUserList(name: string): Promise<unknown> {
@@ -1488,7 +1533,9 @@ class OnlyFansAPI {
 
   async listUserListUsers(userListId: string, params?: { limit?: number; offset?: number }): Promise<unknown> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    const lim =
+      params?.limit != null ? capOnlyFansUserListPageLimit(params.limit) : ONLYFANS_USER_LIST_PAGE_MAX
+    q.set('limit', String(lim))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/user-lists/${encodeURIComponent(userListId)}/users${suffix}`)

@@ -3,6 +3,23 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { fanslyBillingGateResponse } from '@/lib/onlyfans-api-route'
 
+const EARNINGS_TX_CACHE_TTL_MS = 90_000
+const EARNINGS_TX_MAX_CACHE = 200
+
+type EarningsTxCacheRow = { expiresAt: number; payload: Record<string, unknown> }
+const earningsTxCache = new Map<string, EarningsTxCacheRow>()
+
+function pruneEarningsTxCache() {
+  const now = Date.now()
+  for (const [k, v] of earningsTxCache.entries()) {
+    if (v.expiresAt <= now) earningsTxCache.delete(k)
+  }
+  if (earningsTxCache.size <= EARNINGS_TX_MAX_CACHE) return
+  const sorted = [...earningsTxCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)
+  const drop = earningsTxCache.size - EARNINGS_TX_MAX_CACHE
+  for (let i = 0; i < drop; i += 1) earningsTxCache.delete(sorted[i][0])
+}
+
 /**
  * GET — Paginated earnings transactions (ApiFansly ledger).
  * Query: `limit` (1–50), `offset`, optional `before` / `after` (unix ms),
@@ -59,6 +76,13 @@ export async function GET(request: NextRequest) {
     if (before != null && before > now) before = now
     if (after != null && after > now) after = now
 
+    const cacheKey = `${user.id}::${String(accountId)}::${limit}::${offset}::${before ?? ''}::${after ?? ''}::${recentDays}`
+    pruneEarningsTxCache()
+    const hit = earningsTxCache.get(cacheKey)
+    if (hit && hit.expiresAt > Date.now()) {
+      return NextResponse.json({ ...hit.payload, cached: true })
+    }
+
     const api = createFanslyAPI(String(accountId))
     const { total, transactions } = await api.listEarningsTransactions(String(accountId), {
       limit,
@@ -67,7 +91,9 @@ export async function GET(request: NextRequest) {
       after,
     })
 
-    return NextResponse.json({ total, transactions, source: 'fansly' as const })
+    const body = { total, transactions, source: 'fansly' as const, cached: false }
+    earningsTxCache.set(cacheKey, { expiresAt: Date.now() + EARNINGS_TX_CACHE_TTL_MS, payload: body })
+    return NextResponse.json(body)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load transactions'
     return NextResponse.json({ error: message }, { status: 502 })

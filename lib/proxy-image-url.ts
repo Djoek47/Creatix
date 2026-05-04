@@ -7,15 +7,11 @@
  * which uses OnlyFansAPI's media/download path (same as upload pipeline) so the
  * bytes are fetched in an allowed context and streamed to the signed-in client.
  *
- * Fansly: unsigned URLs can use `/api/proxy/image` (referrer/hotlink). Signed
- * CloudFront URLs are tried via proxy when possible; the browser may still load
- * the raw URL as a fallback (see `buildMediaSrcChain` in chat-window).
+ * Fansly CDN (`cdn3.fansly.com`, etc.): bare paths 403 with `MissingKey-Pair-Id` from
+ * CloudFront. Route through ApiFansly partner download (server-side):
+ *   GET /api/fansly/media/download?cdnUrl=...
+ * @see https://docs.apifansly.com/api-reference/media/download-media
  */
-
-function isCloudFrontSigned(url: string): boolean {
-  const q = url.toLowerCase()
-  return q.includes('signature=') || q.includes('policy=') || q.includes('key-pair-id=')
-}
 
 function isOnlyFansCdnHost(url: string): boolean {
   try {
@@ -43,7 +39,6 @@ export function proxyImageUrl(url: string | null | undefined): string | undefine
 
   if (!isFanslyHost) return url
 
-  if (isCloudFrontSigned(url)) return url
-
-  return `/api/proxy/image?url=${encodeURIComponent(url)}`
+  // Partner download accepts signed URLs too; one path keeps `<img>` / `<video>` working.
+  return `/api/fansly/media/download?cdnUrl=${encodeURIComponent(url)}`
 }

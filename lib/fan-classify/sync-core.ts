@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  ONLYFANS_USER_LIST_PAGE_MAX,
+} from '@/lib/onlyfans-api'
 import type { FanClassifyConfig, FanClassifySegmentRule } from '@/lib/divine-manager'
 import {
   defaultFanClassifyListName,
@@ -9,24 +12,6 @@ import type { ClassifyFanRow } from '@/lib/fan-classify/evaluate'
 import { fanMatchesClassifySegment } from '@/lib/fan-classify/evaluate'
 
 type LegacySegmentKey = 'whale_spend' | 'active_chatter' | 'cold'
-
-function unwrapListPayload(raw: unknown): { id: string; name?: string }[] {
-  if (!raw || typeof raw !== 'object') return []
-  const o = raw as Record<string, unknown>
-  const arr = o.data ?? o.lists ?? o.items ?? raw
-  if (!Array.isArray(arr)) return []
-  const out: { id: string; name?: string }[] = []
-  for (const row of arr) {
-    if (!row || typeof row !== 'object') continue
-    const r = row as Record<string, unknown>
-    const id = r.id ?? r.userListId
-    if (id == null) continue
-    const item: { id: string; name?: string } = { id: String(id) }
-    if (r.name != null) item.name = String(r.name)
-    out.push(item)
-  }
-  return out
-}
 
 function unwrapUserIds(raw: unknown): string[] {
   if (!raw || typeof raw !== 'object') return []
@@ -63,7 +48,12 @@ function rowToClassifyFan(r: Record<string, unknown>): ClassifyFanRow | null {
     subscription_status: r.subscription_status != null ? String(r.subscription_status) : null,
     subscription_account_type: r.subscription_account_type != null ? String(r.subscription_account_type) : null,
     first_subscribed_at: r.first_subscribed_at != null ? String(r.first_subscribed_at) : null,
-    subscription_start: r.subscription_start != null ? String(r.subscription_start) : null,
+    subscription_start:
+      r.subscription_start != null
+        ? String(r.subscription_start)
+        : r.first_subscribed_at != null
+          ? String(r.first_subscribed_at)
+          : null,
     created_at: r.created_at != null ? String(r.created_at) : null,
     last_interaction_at: r.last_interaction_at != null ? String(r.last_interaction_at) : null,
     spend_tips: r.spend_tips != null ? Number(r.spend_tips) : null,
@@ -79,7 +69,7 @@ async function fetchAllListUserIds(
 ): Promise<Set<string>> {
   const ids = new Set<string>()
   let offset = 0
-  const page = 100
+  const page = ONLYFANS_USER_LIST_PAGE_MAX
   for (;;) {
     const res = await api.listUserListUsers(listId, { limit: page, offset })
     const chunk = unwrapUserIds(res)
@@ -253,7 +243,8 @@ export async function syncFanClassifyForUser(
   const { data: fanRows, error: fanErr } = await supabase
     .from('fans')
     .select(
-      'id, platform, platform_fan_id, total_spent, subscription_price, subscription_status, subscription_account_type, first_subscribed_at, subscription_start, created_at, last_interaction_at, spend_tips, spend_messages, spend_posts, spend_subscriptions',
+      // Omit subscription_start: many DBs only have first_subscribed_at (001); classify uses both in-memory below.
+      'id, platform, platform_fan_id, total_spent, subscription_price, subscription_status, subscription_account_type, first_subscribed_at, created_at, last_interaction_at, spend_tips, spend_messages, spend_posts, spend_subscriptions',
     )
     .eq('user_id', userId)
 
@@ -274,8 +265,7 @@ export async function syncFanClassifyForUser(
   if (ofToken) {
     api = createOnlyFansAPI()
     api.setAccountId(ofToken)
-    const listsPayload = await api.listUserLists({ limit: 100, offset: 0 })
-    existingLists = unwrapListPayload(listsPayload)
+    existingLists = await api.listUserListsCollectAll()
   }
 
   const autoCreate = config.auto_create_lists === true
@@ -451,8 +441,7 @@ async function reconcileActiveChat(
     const listId =
       ac.list_id ||
       (await (async () => {
-        const listsPayload = await api.listUserLists({ limit: 100, offset: 0 })
-        const lists = unwrapListPayload(listsPayload)
+        const lists = await api.listUserListsCollectAll()
         const found = lists.find((l) => l.name === wantName)
         if (found?.id) return found.id
         if (!config.auto_create_lists) return null

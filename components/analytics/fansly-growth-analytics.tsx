@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, Loader2, RefreshCw, Sparkles, Trophy, Receipt, Users } from 'lucide-react'
+import { Activity, ChevronDown, Loader2, RefreshCw, Sparkles, Trophy, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 type BlockState = {
@@ -82,14 +82,14 @@ function GrowthBlockCard({
   )
 }
 
-/** Live Fansly growth surfaces: transactions, top supporters, follower graph (session + billing gated). */
+/** Live Fansly growth surfaces: profile analytics (ApiFansly-recommended), top supporters, followers. */
 export function FanslyGrowthAnalytics() {
-  const [ledger, setLedger] = useState<BlockState>({ loading: true })
+  const [profileStats, setProfileStats] = useState<BlockState>({ loading: true })
   const [supporters, setSupporters] = useState<BlockState>({ loading: true })
   const [followers, setFollowers] = useState<BlockState>({ loading: true })
 
   const run = useCallback(async () => {
-    setLedger({ loading: true })
+    setProfileStats({ loading: true })
     setSupporters({ loading: true })
     setFollowers({ loading: true })
 
@@ -108,7 +108,10 @@ export function FanslyGrowthAnalytics() {
       }
     }
 
-    void safe(setLedger, '/api/fansly/earnings/transactions?limit=20&offset=0&recentDays=30')
+    void safe(
+      setProfileStats,
+      '/api/fansly/analytics/profile-stats?recentDays=30&period=86400000',
+    )
     void safe(setSupporters, '/api/fansly/top-supporters')
     void safe(setFollowers, '/api/fansly/followers')
   }, [])
@@ -132,8 +135,8 @@ export function FanslyGrowthAnalytics() {
               Live Fansly API data
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Transaction ledger, top supporters, and follower discovery from ApiFansly—useful for campaigns and CRM
-              depth. Each card loads independently.
+              Profile analytics (recommended by ApiFansly over heavy ledger polling), top supporters, and follower
+              discovery. Each card loads independently; analytics responses are cached briefly to reduce rate limits.
             </p>
           </div>
           <Button
@@ -151,10 +154,10 @@ export function FanslyGrowthAnalytics() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <GrowthBlockCard
-          title="Earnings transactions"
-          description="Recent ledger rows (last ~30 days window)."
-          icon={Receipt}
-          state={ledger}
+          title="Profile analytics"
+          description="Views, visits, engagement — GET …/analytics/profilestats (~30 days, daily buckets)."
+          icon={Activity}
+          state={profileStats}
         />
         <GrowthBlockCard
           title="Top supporters"

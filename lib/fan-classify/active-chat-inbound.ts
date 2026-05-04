@@ -3,24 +3,6 @@ import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import type { FanClassifyConfig } from '@/lib/divine-manager'
 import { FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME } from '@/lib/divine-manager'
 
-function unwrapListPayload(raw: unknown): { id: string; name?: string }[] {
-  if (!raw || typeof raw !== 'object') return []
-  const o = raw as Record<string, unknown>
-  const arr = o.data ?? o.lists ?? o.items ?? raw
-  if (!Array.isArray(arr)) return []
-  const out: { id: string; name?: string }[] = []
-  for (const row of arr) {
-    if (!row || typeof row !== 'object') continue
-    const r = row as Record<string, unknown>
-    const id = r.id ?? r.userListId
-    if (id == null) continue
-    const item: { id: string; name?: string } = { id: String(id) }
-    if (r.name != null) item.name = String(r.name)
-    out.push(item)
-  }
-  return out
-}
-
 async function ensureFanslyTag(supabase: SupabaseClient, userId: string, name: string): Promise<string | null> {
   const { data: existing } = await supabase
     .from('fan_tags')
@@ -74,8 +56,7 @@ export async function activeChatOnInboundOnlyFansMessage(
   const wantName = ac.list_name || FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME
   let listId = ac.list_id?.trim() || ''
   if (!listId) {
-    const listsPayload = await api.listUserLists({ limit: 100, offset: 0 })
-    const lists = unwrapListPayload(listsPayload)
+    const lists = await api.listUserListsCollectAll()
     const found = lists.find((l) => l.name === wantName)
     listId = found?.id || ''
   }

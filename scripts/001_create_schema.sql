@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.fans (
   total_spent DECIMAL(10, 2) DEFAULT 0,
   last_interaction_at TIMESTAMPTZ,
   first_subscribed_at TIMESTAMPTZ,
+  subscription_start TIMESTAMPTZ,
   notes TEXT,
   subscription_expires_at TIMESTAMPTZ,
   subscription_renews_on TIMESTAMPTZ,
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS public.fans (
 ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
 ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS subscription_renews_on TIMESTAMPTZ;
 ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS is_renewing BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.fans ADD COLUMN IF NOT EXISTS subscription_start TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_fans_user_subscription_expires
   ON public.fans (user_id, subscription_expires_at)
   WHERE subscription_status = 'active' AND subscription_expires_at IS NOT NULL;

@@ -21,7 +21,7 @@ export type ProxiedMediaPresentation = {
   displaySrc: string | undefined
   /** Second URL if display fails (e.g. thumb after full). */
   altSrc: string | undefined
-  /** Same as displaySrc/altSrc but never proxied — browser fallback when `/api/proxy/image` fails. */
+  /** Same as displaySrc/altSrc but never proxied — browser fallback when partner media proxy fails. */
   directSrc: string | undefined
   directAltSrc: string | undefined
   poster: string | undefined

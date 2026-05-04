@@ -31,25 +31,12 @@ export async function GET(req: NextRequest) {
 
     const api = createOnlyFansAPI()
     api.setAccountId(connection.access_token as string)
-    const raw = await api.listUserLists({ limit: 100, offset: 0 })
+    const collected = await api.listUserListsCollectAll()
 
-    const lists: { id: string; name: string }[] = []
-    if (raw && typeof raw === 'object') {
-      const o = raw as Record<string, unknown>
-      const arr = o.data ?? o.lists ?? o.items ?? raw
-      if (Array.isArray(arr)) {
-        for (const row of arr) {
-          if (!row || typeof row !== 'object') continue
-          const r = row as Record<string, unknown>
-          const id = r.id ?? r.userListId
-          if (id == null) continue
-          lists.push({
-            id: String(id),
-            name: r.name != null ? String(r.name) : String(id),
-          })
-        }
-      }
-    }
+    const lists: { id: string; name: string }[] = collected.map((row) => ({
+      id: row.id,
+      name: row.name != null ? String(row.name) : String(row.id),
+    }))
 
     return NextResponse.json({ lists })
   } catch (e) {

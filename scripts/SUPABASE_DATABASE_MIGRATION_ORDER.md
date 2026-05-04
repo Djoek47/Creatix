@@ -10,19 +10,23 @@ Use this on a **new** project (or an empty `public` schema) so the app matches t
 
 ## Do **not** run on a fresh install
 
-| File | Purpose |
-|------|---------|
-| `005_clear_mock_data.sql` | Deletes data — only if you need to wipe demo rows in an **existing** DB |
-| `035_optional_delete_legacy_seeded_notifications.sql` | Optional cleanup of old seeded notification titles |
+
+| File                                                  | Purpose                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| `005_clear_mock_data.sql`                             | Deletes data — only if you need to wipe demo rows in an **existing** DB |
+| `035_optional_delete_legacy_seeded_notifications.sql` | Optional cleanup of old seeded notification titles                      |
+
 
 ---
 
 ## Redundant / skip if already applied
 
-| File | Note |
-|------|------|
-| `000_bootstrap_profiles.sql` | Only if `profiles` is missing **and** you are **not** running `001` (001 creates `profiles`). |
-| `RUN_015_notifications_platform_avatar.sql` | Same columns as `015_notifications_platform_avatar.sql` — run **015** only. |
+
+| File                                        | Note                                                                                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `000_bootstrap_profiles.sql`                | Only if `profiles` is missing **and** you are **not** running `001` (001 creates `profiles`). |
+| `RUN_015_notifications_platform_avatar.sql` | Same columns as `015_notifications_platform_avatar.sql` — run **015** only.                   |
+
 
 ---
 
@@ -71,6 +75,7 @@ Use this on a **new** project (or an empty `public` schema) so the app matches t
 41. `040_subscriptions_billing_tiers.sql`
 42. `040_fan_thread_scan_automation.sql`
 43. `041_fans_crm_webhook.sql`
+44. *(catch-up)* `099_fans_subscription_start.sql` — adds `fans.subscription_start` if missing (required by some CRM selects / upserts)
 
 *(Optional after 034: `035_optional_delete_legacy_seeded_notifications.sql`)*
 

@@ -27,6 +27,17 @@ import {
 import { PlatformLogoChip } from '@/components/messages/platform-logo-chip'
 import { cn } from '@/lib/utils'
 import type { FanProfileType } from '@/lib/fans/profile-types'
+import { CREDITS_FAN_WEB_BIO_SERPER_AI } from '@/lib/billing/credit-economics'
+import { toast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 type FanProfileModalProps = {
   open: boolean
@@ -112,7 +123,8 @@ export function FanProfileModal({
   const [data, setData] = useState<UnifiedFanProfilePayload | null>(null)
   const [classificationDraft, setClassificationDraft] = useState('')
   const [savingClass, setSavingClass] = useState(false)
-  const [enrichAboutLoading, setEnrichAboutLoading] = useState(false)
+  const [enrichBioPhase, setEnrichBioPhase] = useState<null | 'soft' | 'force'>(null)
+  const [forceBioDialogOpen, setForceBioDialogOpen] = useState(false)
   const [treatFanSaving, setTreatFanSaving] = useState(false)
   const [profileTypeSaving, setProfileTypeSaving] = useState(false)
   /** Abort stale GET /fan-profile so a slow in-flight load cannot overwrite a completed PATCH. */
@@ -148,6 +160,79 @@ export function FanProfileModal({
     }
   }, [fanId, platform, t])
 
+  const runEnrichAbout = useCallback(
+    async (force: boolean) => {
+      if (!fanId) return
+      setEnrichBioPhase(force ? 'force' : 'soft')
+      setError(null)
+      try {
+        const res = await fetch('/api/onlyfans/fans/enrich-about', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ fanId, force }),
+        })
+        const json = (await res.json().catch(() => ({}))) as {
+          error?: string
+          code?: string
+          success?: boolean
+          state?: string
+          about?: string | null
+          likelyFellowCreator?: boolean | null
+        }
+        const exhausted = res.status === 402 || json.code === 'ai_credits_exhausted'
+        if (exhausted) {
+          toast({
+            variant: 'destructive',
+            title: t('errFetchBio'),
+            description: t('enrichInsufficientCredits'),
+          })
+          return
+        }
+        if (!res.ok) throw new Error(json.error || t('errFetchBio'))
+
+        if (json.success && json.state === 'cached') {
+          const creatorLine =
+            typeof json.likelyFellowCreator === 'boolean'
+              ? json.likelyFellowCreator
+                ? t('enrichDoneCreatorLikely')
+                : t('enrichDoneCreatorUnlikely')
+              : ''
+          const description = [t('enrichCachedDescription'), creatorLine].filter(Boolean).join('\n')
+          toast({ title: t('enrichCachedTitle'), description })
+          await load()
+          return
+        }
+        if (json.success && json.state === 'not_found') {
+          toast({ title: t('enrichNotFoundTitle'), description: t('enrichNotFoundDescription') })
+          await load()
+          return
+        }
+        if (json.success && json.state === 'serper_ai_used') {
+          const creatorLine =
+            typeof json.likelyFellowCreator === 'boolean'
+              ? json.likelyFellowCreator
+                ? t('enrichDoneCreatorLikely')
+                : t('enrichDoneCreatorUnlikely')
+              : ''
+          const bioLine = json.about?.trim() ? t('enrichDoneBioSaved') : t('enrichDoneBioEmpty')
+          const description = [creatorLine, bioLine].filter(Boolean).join('\n')
+          toast({ title: t('enrichDoneTitle'), description })
+          await load()
+          return
+        }
+
+        await load()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('errEnrichFailed'))
+      } finally {
+        setEnrichBioPhase(null)
+        setForceBioDialogOpen(false)
+      }
+    },
+    [fanId, load, t],
+  )
+
   useEffect(() => {
     return () => profileFetchAbortRef.current?.abort()
   }, [])
@@ -161,6 +246,8 @@ export function FanProfileModal({
     data?.core?.displayName || initialName || data?.core?.username || initialUsername || t('displayFallback')
   const username = data?.core?.username || initialUsername || t('usernamePlaceholder')
   const avatar = data?.core?.avatarUrl || initialAvatar || ''
+  const enrichingBio = enrichBioPhase !== null
+  const bioCreditLabel = String(CREDITS_FAN_WEB_BIO_SERPER_AI)
 
   /** Same effective type as the CRM grid: manual override wins, else backend-evolved profileType. */
   const audienceBadges = useMemo(() => {
@@ -488,41 +575,62 @@ export function FanProfileModal({
                   {t('bioFetchedAt', { dateTime: new Date(data.platformAboutFetchedAt).toLocaleString() })}
                 </p>
               ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-9 rounded-xl border-border/40 text-[13px] font-medium"
-                disabled={enrichAboutLoading || loading || !fanId}
-                onClick={async () => {
-                  setEnrichAboutLoading(true)
-                  setError(null)
-                  try {
-                    const res = await fetch('/api/onlyfans/fans/enrich-about', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({ fanId, force: true }),
-                    })
-                    const json = (await res.json().catch(() => ({}))) as { error?: string }
-                    if (!res.ok) throw new Error(json.error || t('errFetchBio'))
-                    await load()
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : t('errEnrichFailed'))
-                  } finally {
-                    setEnrichAboutLoading(false)
-                  }
-                }}
-              >
-                {enrichAboutLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    {t('fetchingBio')}
-                  </>
-                ) : (
-                  t('refreshBio')
-                )}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="default"
+                  className="h-9 rounded-xl px-4 text-[13px] font-medium"
+                  disabled={enrichingBio || loading || !fanId}
+                  onClick={() => void runEnrichAbout(false)}
+                >
+                  {enrichBioPhase === 'soft' ? (
+                    <>
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden />
+                      {t('fetchingBio')}
+                    </>
+                  ) : (
+                    t('updateFromWeb')
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9 rounded-xl border-border/40 text-[13px] font-medium"
+                  disabled={enrichingBio || loading || !fanId}
+                  onClick={() => setForceBioDialogOpen(true)}
+                >
+                  {enrichBioPhase === 'force' ? (
+                    <>
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden />
+                      {t('fetchingBio')}
+                    </>
+                  ) : (
+                    t('forceNewWebSearch', { credits: bioCreditLabel })
+                  )}
+                </Button>
+              </div>
+              <AlertDialog open={forceBioDialogOpen} onOpenChange={setForceBioDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('forceNewWebSearchConfirmTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t('forceNewWebSearchConfirmDescription', { credits: bioCreditLabel })}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('enrichDialogCancel')}</AlertDialogCancel>
+                    <Button
+                      type="button"
+                      disabled={enrichingBio}
+                      onClick={() => void runEnrichAbout(true)}
+                    >
+                      {t('forceConfirm')}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <div className="flex items-start justify-between gap-4 border-t border-border/20 pt-6 dark:border-white/[0.06]">
                 <div className="min-w-0 space-y-1">
                   <Label htmlFor="treat-as-fan-auto" className="text-[13px] font-medium text-foreground/90">

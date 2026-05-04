@@ -12,11 +12,23 @@ import {
   mergeCreatorDetectorIntoFanThreadInsight,
 } from '@/lib/divine/fan-web-bio-serper-ai'
 import { SerperProvider } from '@/lib/leaks/search-providers'
+import type { CreatorDetectorSignal } from '@/lib/divine/creator-detector'
 
 export const maxDuration = 60
 
 function isMissingFansColumnError(message: string): boolean {
   return /column .*fans\./i.test(message)
+}
+
+function creatorDetectorFromProfileJson(profileJson: unknown): Pick<CreatorDetectorSignal, 'is_creator_likely' | 'confidence'> | null {
+  if (!profileJson || typeof profileJson !== 'object') return null
+  const raw = (profileJson as Record<string, unknown>).creator_detector
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const isLikely = o.is_creator_likely === true
+  const c = typeof o.confidence === 'number' && Number.isFinite(o.confidence) ? o.confidence : null
+  if (c == null && !('is_creator_likely' in o)) return null
+  return { is_creator_likely: isLikely, confidence: c ?? (isLikely ? 1 : 0) }
 }
 
 /**
@@ -106,12 +118,23 @@ export async function POST(req: NextRequest) {
     if (!force && lastAt) {
       const t = new Date(lastAt).getTime()
       if (!Number.isNaN(t) && Date.now() - t < 24 * 60 * 60 * 1000) {
+        const { data: insRow } = await supabase
+          .from('fan_thread_insights')
+          .select('profile_json')
+          .eq('user_id', user.id)
+          .eq('platform', 'onlyfans')
+          .eq('platform_fan_id', fanId)
+          .maybeSingle()
+        const pj = insRow != null ? (insRow as { profile_json?: unknown }).profile_json : null
+        const det = creatorDetectorFromProfileJson(pj)
         return NextResponse.json({
           success: true,
           state: 'cached',
           source: resolvedFanRow.platform_about_source ?? 'none',
           about: resolvedFanRow.platform_about ?? null,
           reason: 'fetched_within_24h',
+          likelyFellowCreator: det?.is_creator_likely ?? null,
+          creatorConfidence: det?.confidence ?? null,
         })
       }
     }

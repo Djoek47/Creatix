@@ -860,14 +860,14 @@ class FanslyAPI {
   /**
    * Earnings transaction ledger (paginated).
    * GET /api/fansly/{accountId}/earnings/transactions
+   *
+   * ApiFansly sometimes returns 400 for specific `before`/`after` pairs (e.g. wide windows). On 400 we retry
+   * a 7-day window, then `before` only, then bare `limit`/`offset` (per docs all filters are optional).
    */
   async listEarningsTransactions(
     accountId: string,
     params: { before?: number; after?: number; limit: number; offset: number },
   ): Promise<{ total: number; transactions: unknown[] }> {
-    const q = new URLSearchParams()
-    q.set('limit', String(params.limit))
-    q.set('offset', String(params.offset))
     const nowMs = Date.now()
     // Docs: Unix ms. Partner returns 400 if `before` or `after` is in the future (client clock skew, stale URLs).
     let before = params.before != null ? Math.min(params.before, nowMs) : undefined
@@ -885,16 +885,52 @@ class FanslyAPI {
         after = Math.min(after, before - 1)
       }
     }
-    if (before != null) q.set('before', String(before))
-    if (after != null) q.set('after', String(after))
-    const raw = await this.requestGet<unknown>(
-      `/api/fansly/${encodeURIComponent(accountId)}/earnings/transactions?${q.toString()}`,
-    )
-    const resp = extractFanslyNestedResponseRecord(raw)
-    if (!resp) return { total: 0, transactions: [] }
-    const transactions = Array.isArray(resp.data) ? resp.data : []
-    const total = typeof resp.total === 'number' ? resp.total : transactions.length
-    return { total, transactions }
+
+    const DAY_MS = 24 * 60 * 60 * 1000
+    const makeQs = (b?: number, a?: number) => {
+      const q = new URLSearchParams()
+      q.set('limit', String(params.limit))
+      q.set('offset', String(params.offset))
+      if (b != null) q.set('before', String(b))
+      if (a != null) q.set('after', String(a))
+      return q.toString()
+    }
+    const seen = new Set<string>()
+    const variants: string[] = []
+    const pushVariant = (b?: number, a?: number) => {
+      const s = makeQs(b, a)
+      if (seen.has(s)) return
+      seen.add(s)
+      variants.push(s)
+    }
+
+    pushVariant(before, after)
+    if (before != null && after != null) {
+      pushVariant(nowMs, nowMs - 7 * DAY_MS)
+    }
+    if (before != null) {
+      pushVariant(before, undefined)
+    }
+    pushVariant(undefined, undefined)
+
+    const path = `/api/fansly/${encodeURIComponent(accountId)}/earnings/transactions`
+    let lastErr: Error | undefined
+    for (const qs of variants) {
+      try {
+        const raw = await this.requestGet<unknown>(`${path}?${qs}`)
+        const resp = extractFanslyNestedResponseRecord(raw)
+        if (!resp) return { total: 0, transactions: [] }
+        const transactions = Array.isArray(resp.data) ? resp.data : []
+        const total = typeof resp.total === 'number' ? resp.total : transactions.length
+        return { total, transactions }
+      } catch (e) {
+        const err = e instanceof Error ? e : new Error(String(e))
+        lastErr = err
+        const retry400 = /(\(400\)|\b400\b|Bad Request)/i.test(err.message)
+        if (!retry400) throw err
+      }
+    }
+    throw lastErr ?? new Error('Fansly earnings transactions request failed.')
   }
 
   /**

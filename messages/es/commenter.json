@@ -13,9 +13,6 @@
     "commentsAdded": "{count, plural, one {Se añadió # comentario.} other {Se añadieron # comentarios.}}",
     "upToDate": "Todo al día."
   },
-  "classify": {
-    "defaultSuccess": "Listas y etiquetas actualizadas desde tu CRM."
-  },
   "empty": {
     "fetching": "Obteniendo comentarios…",
     "noCommentsYet": "Aún no hay comentarios.",
@@ -73,6 +70,42 @@
     "editRules": "Editar reglas",
     "integrations": "Integraciones",
     "openArrangements": "Abrir Arreglos"
+  },
+  "classifyResult": {
+    "title": "Clasificación terminada",
+    "subtitle": "Se aplicaron tus reglas del CRM a listas de OnlyFans y etiquetas de Fansly.",
+    "emptyLog": "Sincronización lista. No hay detalle de líneas: puede que las reglas ya coincidan con los datos.",
+    "statAdded": "Añadidos",
+    "statRemoved": "Quitados",
+    "sectionChanges": "Qué cambió",
+    "sectionSkipped": "Omitidos",
+    "skippedSummary": "{count, plural, one {# segmento omitido.} other {# segmentos omitidos.}}",
+    "added": "Añadidos",
+    "removed": "Quitados",
+    "inPool": "En el segmento",
+    "skipDisabled": "Regla desactivada en Arreglos",
+    "skipNoListOnlyfans": "Sin lista OnlyFans—conecta OnlyFans o activa crear listas automáticamente",
+    "skipTagFansly": "No se pudo crear la etiqueta Fansly",
+    "skipOther": "{detail}",
+    "skipGeneric": "{detail}",
+    "channels": {
+      "fansly_tags": "Etiqueta Fansly",
+      "onlyfans_crm": "OnlyFans (CRM)",
+      "onlyfans_api": "OnlyFans (en vivo)",
+      "onlyfans_active_chat": "OnlyFans",
+      "unknown": "Otro"
+    },
+    "segments": {
+      "whale_spend": "Ballenas",
+      "active_chatter": "Chat activo",
+      "cold": "Fríos / poco engagement",
+      "freeloader_new": "Freeloaders (<45d)",
+      "freeloader_mature": "Freeloaders (45+d)",
+      "spenders": "Gastadores",
+      "subscriber_no_extra": "Suscriptores sin gasto extra",
+      "recent_sub_3d": "Nuevas suscripciones (3d)",
+      "active_chat": "Chat activo"
+    }
   },
   "voices": {
     "circe": "Circe",

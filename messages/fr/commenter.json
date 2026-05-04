@@ -13,9 +13,6 @@
     "commentsAdded": "{count, plural, one {# commentaire ajouté.} other {# commentaires ajoutés.}}",
     "upToDate": "À jour."
   },
-  "classify": {
-    "defaultSuccess": "Listes et étiquettes mises à jour depuis votre CRM."
-  },
   "empty": {
     "fetching": "Récupération des commentaires…",
     "noCommentsYet": "Pas encore de commentaires.",
@@ -73,6 +70,42 @@
     "editRules": "Modifier les règles",
     "integrations": "Intégrations",
     "openArrangements": "Ouvrir Arrangements"
+  },
+  "classifyResult": {
+    "title": "Classification terminée",
+    "subtitle": "Vos règles CRM ont été appliquées aux listes OnlyFans et aux étiquettes Fansly.",
+    "emptyLog": "Synchronisation terminée. Aucun détail à afficher — les règles correspondent peut-être déjà aux données.",
+    "statAdded": "Ajouts",
+    "statRemoved": "Retraits",
+    "sectionChanges": "Modifications",
+    "sectionSkipped": "Ignorés",
+    "skippedSummary": "{count, plural, one {# segment ignoré.} other {# segments ignorés.}}",
+    "added": "Ajouts",
+    "removed": "Retraits",
+    "inPool": "Dans le segment",
+    "skipDisabled": "Règle désactivée dans Arrangements",
+    "skipNoListOnlyfans": "Aucune liste OnlyFans — connectez OnlyFans ou activez la création auto des listes",
+    "skipTagFansly": "Impossible de créer l’étiquette Fansly",
+    "skipOther": "{detail}",
+    "skipGeneric": "{detail}",
+    "channels": {
+      "fansly_tags": "Étiquette Fansly",
+      "onlyfans_crm": "OnlyFans (CRM)",
+      "onlyfans_api": "OnlyFans (direct)",
+      "onlyfans_active_chat": "OnlyFans",
+      "unknown": "Autre"
+    },
+    "segments": {
+      "whale_spend": "Baleines",
+      "active_chatter": "Chat actif",
+      "cold": "Froids / faible engagement",
+      "freeloader_new": "Freeloaders (<45j)",
+      "freeloader_mature": "Freeloaders (45+j)",
+      "spenders": "Dépensiers",
+      "subscriber_no_extra": "Abonnés sans dépense extra",
+      "recent_sub_3d": "Nouveaux abonnés (3j)",
+      "active_chat": "Chat actif"
+    }
   },
   "voices": {
     "circe": "Circé",

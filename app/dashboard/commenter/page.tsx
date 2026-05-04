@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { ClassifySyncResultPanel } from '@/components/commenter/classify-sync-result-panel'
 
 type AnalysisJson = {
   sentiment?: string
@@ -166,7 +167,7 @@ export default function CommenterPage() {
   const [copied, setCopied] = useState<string | null>(null)
   const [meta, setMeta] = useState<CommenterListMeta | null>(null)
   const [classifyRunning, setClassifyRunning] = useState(false)
-  const [classifyMessage, setClassifyMessage] = useState<string | null>(null)
+  const [classifyDetails, setClassifyDetails] = useState<string[] | null>(null)
   const [classifyError, setClassifyError] = useState<string | null>(null)
   const autoSyncAttempted = useRef(false)
 
@@ -263,7 +264,7 @@ export default function CommenterPage() {
 
   const onRunClassify = async () => {
     setClassifyRunning(true)
-    setClassifyMessage(null)
+    setClassifyDetails(null)
     setClassifyError(null)
     try {
       const res = await fetch('/api/fans/classify/sync-now', {
@@ -284,9 +285,8 @@ export default function CommenterPage() {
         setClassifyError(data.error || data.message || tc('errors.classifyFailed'))
         return
       }
-      const details = Array.isArray(data.details) ? data.details.filter(Boolean) : []
-      const tail = details.length ? details.slice(-4).join(' · ') : tc('classify.defaultSuccess')
-      setClassifyMessage(tail)
+      const details = Array.isArray(data.details) ? data.details.map((x) => String(x).trim()).filter(Boolean) : []
+      setClassifyDetails(details)
     } catch {
       setClassifyError(tc('errors.classifyRunFailed'))
     } finally {
@@ -584,61 +584,76 @@ export default function CommenterPage() {
       <Card
         id="commenter-housekeeping"
         className={cn(
-          'border-border/80 bg-muted/15',
-          housekeepingSection && 'ring-2 ring-amber-500/35',
+          'overflow-hidden border-zinc-200/90 bg-zinc-50/40 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-zinc-800/90 dark:bg-zinc-950/30',
+          housekeepingSection && 'ring-2 ring-amber-500/30 dark:ring-amber-400/25',
         )}
       >
-        <CardHeader className="pb-2">
-          <CardTitle className="flex flex-wrap items-center gap-2 text-base font-semibold">
-            <ListTree className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        <CardHeader className="space-y-3 border-b border-zinc-100/90 pb-6 pt-8 dark:border-zinc-800/80 sm:px-8">
+          <CardTitle className="flex flex-wrap items-center gap-3 text-[1.125rem] font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-50">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:ring-zinc-800">
+              <ListTree className="h-[1.125rem] w-[1.125rem] text-zinc-500 dark:text-zinc-400" aria-hidden />
+            </span>
             {tc('fanAtlas.title')}
-            <Badge variant="outline" className="text-[10px] font-medium">
+            <Badge
+              variant="outline"
+              className="rounded-full border-zinc-200/90 px-2.5 py-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+            >
               {tc('fanAtlas.betaBadge')}
             </Badge>
           </CardTitle>
-          <CardDescription className="text-sm leading-relaxed">
+          <CardDescription className="max-w-2xl text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
             {tc('fanAtlas.descStart')}{' '}
-            <strong className="font-medium text-foreground">{tc('fanAtlas.subscriptionStatus')}</strong>,{' '}
-            <strong className="font-medium text-foreground">{tc('fanAtlas.lifetimeSpend')}</strong>{' '}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">{tc('fanAtlas.subscriptionStatus')}</strong>,{' '}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">{tc('fanAtlas.lifetimeSpend')}</strong>{' '}
             {tc('fanAtlas.descMid')}{' '}
-            <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/dashboard/fans#arrangements"
+              className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 transition-colors hover:decoration-zinc-500 dark:text-zinc-100 dark:decoration-zinc-600 dark:hover:decoration-zinc-400"
+            >
               {tc('fanAtlas.arrangementsLink')}
             </Link>{' '}
             {tc('fanAtlas.descEnd')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 pb-4">
-          <div className="flex flex-wrap gap-2">
+        <CardContent className="space-y-6 px-4 pb-8 pt-6 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               type="button"
-              size="sm"
-              className="gap-2"
+              size="default"
+              className="h-11 gap-2 rounded-xl bg-zinc-900 px-5 text-[15px] font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
               onClick={() => void onRunClassify()}
               disabled={classifyRunning}
             >
-              {classifyRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tags className="h-4 w-4" aria-hidden />}
+              {classifyRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Tags className="h-4 w-4 opacity-90" aria-hidden />
+              )}
               {tc('classifyPanel.classifyFansNow')}
             </Button>
-            <Button variant="secondary" size="sm" asChild className="gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              asChild
+              className="h-11 gap-2 rounded-xl border-zinc-200/90 bg-white px-5 text-[15px] font-medium text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
               <Link href="/dashboard/fans#arrangements">
-                <ListTree className="h-4 w-4" aria-hidden />
+                <ListTree className="h-4 w-4 text-zinc-500" aria-hidden />
                 {tc('classifyPanel.editRules')}
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="ghost" size="default" asChild className="h-11 rounded-xl text-[15px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
               <Link href="/dashboard/settings?tab=integrations">{tc('classifyPanel.integrations')}</Link>
             </Button>
           </div>
-          {classifyMessage ? (
-            <p className="text-xs leading-relaxed text-muted-foreground">{classifyMessage}</p>
-          ) : null}
+          {classifyDetails != null ? <ClassifySyncResultPanel details={classifyDetails} /> : null}
           {classifyError ? (
-            <p className="text-xs leading-relaxed text-destructive">
+            <div className="rounded-xl border border-red-200/80 bg-red-50/80 px-5 py-4 text-[14px] leading-relaxed text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
               {classifyError}{' '}
-              <Link href="/dashboard/fans#arrangements" className="font-medium underline underline-offset-2">
+              <Link href="/dashboard/fans#arrangements" className="font-semibold underline underline-offset-2">
                 {tc('classifyPanel.openArrangements')}
               </Link>
-            </p>
+            </div>
           ) : null}
         </CardContent>
       </Card>

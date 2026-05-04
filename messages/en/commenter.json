@@ -13,9 +13,6 @@
     "commentsAdded": "{count, plural, one {Added # comment.} other {Added # comments.}}",
     "upToDate": "Up to date."
   },
-  "classify": {
-    "defaultSuccess": "Lists and tags updated from your CRM."
-  },
   "empty": {
     "fetching": "Fetching comments…",
     "noCommentsYet": "No comments yet.",
@@ -73,6 +70,42 @@
     "editRules": "Edit rules",
     "integrations": "Integrations",
     "openArrangements": "Open Arrangements"
+  },
+  "classifyResult": {
+    "title": "Classification complete",
+    "subtitle": "Your CRM rules were applied to OnlyFans lists and Fansly tags.",
+    "emptyLog": "Sync finished. There were no detailed line items to show—your rules may already match the current data.",
+    "statAdded": "Added",
+    "statRemoved": "Removed",
+    "sectionChanges": "What changed",
+    "sectionSkipped": "Skipped",
+    "skippedSummary": "{count, plural, one {# segment was skipped.} other {# segments were skipped.}}",
+    "added": "Added",
+    "removed": "Removed",
+    "inPool": "In segment",
+    "skipDisabled": "Rule is off in Arrangements",
+    "skipNoListOnlyfans": "No OnlyFans list matched—connect OnlyFans or enable auto-create lists",
+    "skipTagFansly": "Fansly tag could not be created",
+    "skipOther": "{detail}",
+    "skipGeneric": "{detail}",
+    "channels": {
+      "fansly_tags": "Fansly tag",
+      "onlyfans_crm": "OnlyFans (CRM)",
+      "onlyfans_api": "OnlyFans (live)",
+      "onlyfans_active_chat": "OnlyFans",
+      "unknown": "Other"
+    },
+    "segments": {
+      "whale_spend": "Whales",
+      "active_chatter": "Active chatters",
+      "cold": "Cold / low engagement",
+      "freeloader_new": "Freeloaders (<45d)",
+      "freeloader_mature": "Freeloaders (45+d)",
+      "spenders": "Spenders",
+      "subscriber_no_extra": "Subscribers, no extra spend",
+      "recent_sub_3d": "Recent subs (3d)",
+      "active_chat": "Active chat"
+    }
   },
   "voices": {
     "circe": "Circe",

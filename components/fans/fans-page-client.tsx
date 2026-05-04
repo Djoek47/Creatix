@@ -376,7 +376,13 @@ export function FansPageClient({
                     : 'min-h-9 min-w-[4.25rem] px-2.5 sm:min-w-[5.25rem] sm:px-3',
                 )}
                 onClick={() => setPlatformScope(scope)}
-                title={scope === 'all' ? 'All platforms' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                title={
+                  scope === 'all'
+                    ? t('platform.allPlatformsTitle')
+                    : scope === 'onlyfans'
+                      ? t('platform.onlyfansAlt')
+                      : t('platform.fanslyAlt')
+                }
               >
                 {scope === 'all' ? (
                   t('platform.all')

@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { cn } from '@/lib/utils'
 
@@ -14,8 +15,9 @@ type PlatformLogoChipProps = {
 }
 
 export function PlatformLogoChip({ platform, className, size = 'md' }: PlatformLogoChipProps) {
+  const t = useTranslations('massCampaign.audience')
   const src = platform === 'onlyfans' ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC
-  const label = platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'
+  const label = platform === 'onlyfans' ? t('platformOnlyfans') : t('platformFansly')
   const heightPx = size === 'sm' ? 14 : 18
   const widthPx = platform === 'onlyfans' ? 72 : 64
 

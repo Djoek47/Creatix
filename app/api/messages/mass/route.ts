@@ -12,9 +12,14 @@ import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
-import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
 import { denyIfNonApiProtectionTier } from '@/lib/api-non-api-guard'
+import { validateFanslyChatMediaIdsForSend } from '@/lib/fansly/chat-media-validate'
+import {
+  FANSLY_MASS_OTP_COOKIE,
+  isFanslyMassOtpEnforced,
+  verifyFanslyMassOtpCookieValue,
+} from '@/lib/fansly/mass-otp-cookie'
 
 interface MassMessageRequest {
   message: string
@@ -25,13 +30,10 @@ interface MassMessageRequest {
   filter?: 'all' | 'active' | 'expired' | 'renewing'
   /** OnlyFans user list ids (OnlyFansAPI mass messaging). */
   userLists?: string[]
-  /** Optional explicit recipient fan ids for per-recipient trace and targeting. */
+  /** Optional explicit recipient fan ids for OnlyFans mass targeting. */
   userIds?: string[]
-  trace?: {
-    enabled?: boolean
-    contentId?: string
-    recipientKeyPrefix?: string
-  }
+  /** Fansly vault / media ids for the Fansly mass leg (do not use OnlyFans upload ids here). */
+  fanslyMediaIds?: (string | number)[]
 }
 
 // POST: Send mass message to all subscribers across platforms
@@ -48,7 +50,8 @@ export async function POST(request: NextRequest) {
     if (nonApi) return nonApi
 
     const body: MassMessageRequest = await request.json()
-    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists, userIds, trace } = body
+    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists, userIds, fanslyMediaIds } =
+      body
 
     const trimmed = message?.trim()
     const hasText = typeof trimmed === 'string' && trimmed.length > 0
@@ -66,6 +69,20 @@ export async function POST(request: NextRequest) {
     ) {
       const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
       if (billingBlock) return billingBlock
+    }
+
+    if (Array.isArray(platforms) && platforms.includes('fansly') && isFanslyMassOtpEnforced()) {
+      const ok = verifyFanslyMassOtpCookieValue(request.cookies.get(FANSLY_MASS_OTP_COOKIE)?.value, user.id)
+      if (!ok) {
+        return NextResponse.json(
+          {
+            error:
+              'Fansly two-factor verification required before mass send. Complete email OTP verification in Fansly settings, then retry.',
+            code: 'FANSLY_MASS_OTP_REQUIRED',
+          },
+          { status: 403 },
+        )
+      }
     }
 
     // Get platform connections
@@ -92,9 +109,6 @@ export async function POST(request: NextRequest) {
     let totalSent = 0
     let totalFailed = 0
     let onlyFansRateLimited = false
-    let traceGenerated = 0
-    let traceFailed = 0
-    const traceErrors: string[] = []
 
     // Send to each platform
     for (const platform of platforms) {
@@ -108,11 +122,43 @@ export async function POST(request: NextRequest) {
       try {
         if (platform === 'fansly') {
           const api = createFanslyAPI()
-          const accountId = connection.platform_user_id
+          const accountId =
+            (connection.access_token != null && String(connection.access_token).trim() !== ''
+              ? String(connection.access_token).trim()
+              : null) ??
+            (connection.platform_user_id != null && String(connection.platform_user_id).trim() !== ''
+              ? String(connection.platform_user_id).trim()
+              : null)
+
+          if (!accountId) {
+            results.fansly = { success: false, error: 'Fansly account id missing on connection' }
+            continue
+          }
+
+          const fanslyIds =
+            Array.isArray(fanslyMediaIds) && fanslyMediaIds.length > 0
+              ? fanslyMediaIds
+              : platforms.length === 1 && platforms[0] === 'fansly' && Array.isArray(mediaIds) && mediaIds.length > 0
+                ? mediaIds
+                : []
+          const flMediaErr = validateFanslyChatMediaIdsForSend(fanslyIds)
+          if (flMediaErr) {
+            results.fansly = { success: false, sent: 0, failed: 0, error: flMediaErr }
+            continue
+          }
+          if (typeof price === 'number' && price > 0 && fanslyIds.length === 0) {
+            results.fansly = {
+              success: false,
+              sent: 0,
+              failed: 0,
+              error: 'Paid Fansly mass messages require Fansly media IDs (fanslyMediaIds or mediaIds when Fansly-only).',
+            }
+            continue
+          }
 
           const result = await api.sendMassMessage(accountId, {
             content: trimmed || '',
-            mediaIds: mediaIds?.map((id) => String(id)),
+            mediaIds: fanslyIds.map((id) => String(id)),
             price,
             subscriberFilter: filter,
           })
@@ -186,8 +232,6 @@ export async function POST(request: NextRequest) {
           totalSent += result.sent || 0
           totalFailed += result.failed || 0
 
-          const traceEnabled = Boolean(trace?.enabled)
-          const traceContentId = typeof trace?.contentId === 'string' ? trace.contentId.trim() : ''
           const targetUserIds =
             Array.isArray(userIds) && userIds.length > 0
               ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
@@ -218,52 +262,6 @@ export async function POST(request: NextRequest) {
                 .is('audience_profile_override', null)
             }
           }
-
-          if (traceEnabled) {
-            if (!traceContentId) {
-              results.onlyfans = {
-                success: false,
-                sent: result.sent,
-                failed: result.failed,
-                error: 'Ariadne trace enabled, but no trace contentId was provided.',
-              }
-            } else if (targetUserIds.length === 0) {
-              results.onlyfans = {
-                success: false,
-                sent: result.sent,
-                failed: result.failed,
-                error: 'Ariadne trace per recipient requires explicit recipient IDs (userIds).',
-              }
-            } else {
-              for (const recipientFanId of targetUserIds) {
-                const recipientKeyPrefix =
-                  typeof trace?.recipientKeyPrefix === 'string' && trace.recipientKeyPrefix.trim()
-                    ? trace.recipientKeyPrefix.trim()
-                    : 'mass'
-                const traceOut = await createAriadneTraceExport({
-                  supabase,
-                  userId: user.id,
-                  contentId: traceContentId,
-                  recipientKey: `${recipientKeyPrefix}:${recipientFanId}`,
-                  source: 'mass_dm',
-                  recipient: {
-                    platform: 'onlyfans',
-                    platformFanId: recipientFanId,
-                  },
-                  origin: {
-                    massBatchId: result.id != null ? String(result.id) : undefined,
-                  },
-                  updateContentRow: false,
-                })
-                if (traceOut.ok) {
-                  traceGenerated += 1
-                } else {
-                  traceFailed += 1
-                  traceErrors.push(`${recipientFanId}: ${traceOut.error}`)
-                }
-              }
-            }
-          }
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
@@ -290,7 +288,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         platform: 'multi',
         source: 'mass_dm',
-        metadata: { totalSent, totalFailed, platforms: [...platforms], traceGenerated, traceFailed },
+        metadata: { totalSent, totalFailed, platforms: [...platforms] },
       })
       bumpSubscriptionMessagesSent(user.id, totalSent)
     }
@@ -303,12 +301,6 @@ export async function POST(request: NextRequest) {
         ? `Successfully sent to ${totalSent} subscribers`
         : `Sent to ${totalSent} subscribers, ${totalFailed} failed`,
       results,
-      trace: {
-        enabled: Boolean(trace?.enabled),
-        generated: traceGenerated,
-        failed: traceFailed,
-        errors: traceErrors.slice(0, 20),
-      },
     }
     if (totalSent === 0 && onlyFansRateLimited) {
       return NextResponse.json(

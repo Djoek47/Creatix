@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AtSign,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { orbitGuideStepField } from '@/lib/guide-orbit-i18n'
 import type { GuideOrbitIconKey, GuideOrbStep, GuideOrbTheme } from '@/lib/guide-onboarding-data'
 import { GUIDE_ORBIT_STEPS } from '@/lib/guide-onboarding-data'
 
@@ -120,12 +122,15 @@ const THEME_STYLES: Record<
 function SubjectChip({
   step,
   theme,
+  subjectLabel,
 }: {
   step: GuideOrbStep
   theme: GuideOrbTheme
+  subjectLabel: string
 }) {
   const Icon = ICON_MAP[step.iconKey] ?? Sparkles
-  const t = THEME_STYLES[theme]
+  const styles = THEME_STYLES[theme]
+  const tg = useTranslations('dashboard.guidePage')
   return (
     <motion.div
       layout
@@ -135,20 +140,20 @@ function SubjectChip({
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       className={cn(
         'relative flex min-h-[4.5rem] w-full max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 backdrop-blur-sm',
-        t.chip,
+        styles.chip,
       )}
     >
       <div
         className={cn(
           'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/5 shadow-inner',
-          t.iconWrap,
+          styles.iconWrap,
         )}
       >
         <Icon className="h-6 w-6" aria-hidden />
       </div>
       <div className="min-w-0 text-left">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">In the app</p>
-        <p className="truncate font-serif text-base font-semibold tracking-tight text-foreground">{step.subjectLabel}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{tg('inTheApp')}</p>
+        <p className="truncate font-serif text-base font-semibold tracking-tight text-foreground">{subjectLabel}</p>
       </div>
       <div className="pointer-events-none absolute inset-x-8 -top-1 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
     </motion.div>
@@ -157,8 +162,13 @@ function SubjectChip({
 
 function OrbitStepBlock({ step, stepNumber }: { step: GuideOrbStep; stepNumber: number }) {
   const theme = step.theme
-  const t = THEME_STYLES[theme]
+  const styles = THEME_STYLES[theme]
+  const tg = useTranslations('dashboard.guidePage')
+  const tOrbit = useTranslations('guideOrbit')
   const href = step.path ?? '#'
+  const title = orbitGuideStepField(tOrbit, step.id, 'title', step.title)
+  const description = orbitGuideStepField(tOrbit, step.id, 'description', step.description)
+  const subjectLabel = orbitGuideStepField(tOrbit, step.id, 'subjectLabel', step.title)
 
   return (
     <motion.article
@@ -175,13 +185,13 @@ function OrbitStepBlock({ step, stepNumber }: { step: GuideOrbStep; stepNumber: 
           layout
           className={cn(
             'relative z-[1] w-full max-w-lg overflow-hidden rounded-2xl border p-5 md:p-6',
-            t.callout,
+            styles.callout,
           )}
         >
           <div
             className={cn(
               'pointer-events-none absolute -right-20 -top-24 h-48 w-48 rounded-full bg-gradient-to-br opacity-90 blur-3xl',
-              t.glow,
+              styles.glow,
             )}
           />
           <div className="relative space-y-2">
@@ -191,31 +201,31 @@ function OrbitStepBlock({ step, stepNumber }: { step: GuideOrbStep; stepNumber: 
               </span>
               {theme === 'circe' && (
                 <span className="rounded-full bg-circe/15 px-2 py-0.5 text-[10px] font-medium text-circe-light">
-                  Circe lane
+                  {tg('laneCirce')}
                 </span>
               )}
               {theme === 'venus' && (
                 <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                  Venus lane
+                  {tg('laneVenus')}
                 </span>
               )}
               {theme === 'aurora' && (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  Orbit
+                  {tg('laneOrbit')}
                 </span>
               )}
               {theme === 'neutral' && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  Core
+                  {tg('laneCore')}
                 </span>
               )}
             </div>
-            <h3 className="font-serif text-xl font-semibold tracking-tight md:text-2xl">{step.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground md:text-[15px]">{step.description}</p>
+            <h3 className="font-serif text-xl font-semibold tracking-tight md:text-2xl">{title}</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground md:text-[15px]">{description}</p>
             {step.path ? (
               <div className="pt-2">
                 <Button variant="secondary" size="sm" className="gap-1.5" asChild>
-                  <Link href={href}>Open in app</Link>
+                  <Link href={href}>{tg('openInApp')}</Link>
                 </Button>
               </div>
             ) : null}
@@ -227,20 +237,21 @@ function OrbitStepBlock({ step, stepNumber }: { step: GuideOrbStep; stepNumber: 
           <div
             className={cn(
               'h-0 w-0 border-x-[9px] border-t-[11px] border-x-transparent bg-transparent',
-              t.pointer,
+              styles.pointer,
             )}
           />
           <div className="h-2 w-px bg-gradient-to-b from-border to-transparent" />
         </div>
 
         {/* Subject sits directly under the callout */}
-        <SubjectChip step={step} theme={theme} />
+        <SubjectChip step={step} theme={theme} subjectLabel={subjectLabel} />
       </div>
     </motion.article>
   )
 }
 
 export function GuideOrbitJourney() {
+  const tg = useTranslations('dashboard.guidePage')
   const [filter, setFilter] = useState<'all' | GuideOrbTheme>('all')
   const steps = useMemo(() => {
     if (filter === 'all') return GUIDE_ORBIT_STEPS
@@ -259,11 +270,8 @@ export function GuideOrbitJourney() {
 
       <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">Orbital walkthrough</h2>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Same story as the live tour—each card explains the step; the tile below is the exact area in the product it
-            belongs to.
-          </p>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">{tg('orbitalTitle')}</h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">{tg('orbitalSubtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {(['all', 'circe', 'venus', 'neutral', 'aurora'] as const).map((k) => (
@@ -272,10 +280,18 @@ export function GuideOrbitJourney() {
               type="button"
               size="sm"
               variant={filter === k ? 'default' : 'outline'}
-              className="rounded-full capitalize"
+              className="rounded-full"
               onClick={() => setFilter(k === 'all' ? 'all' : k)}
             >
-              {k === 'all' ? 'All steps' : k}
+              {k === 'all'
+                ? tg('filterAll')
+                : k === 'circe'
+                  ? tg('filterCirce')
+                  : k === 'venus'
+                    ? tg('filterVenus')
+                    : k === 'neutral'
+                      ? tg('filterNeutral')
+                      : tg('filterAurora')}
             </Button>
           ))}
         </div>

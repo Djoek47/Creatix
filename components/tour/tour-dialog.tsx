@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
@@ -25,6 +26,7 @@ export function TourDialog({
   onBack,
   tourId: _tourId,
 }: TourDialogProps) {
+  const tUi = useTranslations('dashboard.tourUi')
   if (steps.length === 0) return null
   const step = steps[stepIndex]
   const isFirst = stepIndex === 0
@@ -52,7 +54,7 @@ export function TourDialog({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-primary/90 dark:text-primary">
-                  Step {stepIndex + 1} of {steps.length}
+                  {tUi('stepProgress', { current: stepIndex + 1, total: steps.length })}
                 </div>
               </div>
             </div>
@@ -74,7 +76,7 @@ export function TourDialog({
                   className="h-10 gap-1.5 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/10"
                 >
                   <ChevronLeft className="h-4 w-4 opacity-70" />
-                  Back
+                  {tUi('back')}
                 </Button>
               ) : (
                 <Button
@@ -84,7 +86,7 @@ export function TourDialog({
                   onClick={onClose}
                   className="h-10 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/10"
                 >
-                  Skip tour
+                  {tUi('skipTour')}
                 </Button>
               )}
             </div>
@@ -94,10 +96,10 @@ export function TourDialog({
                   type="button"
                   size="sm"
                   onClick={onClose}
-                  aria-label="Finish tour"
+                  aria-label={tUi('finishAria')}
                   className="h-10 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] hover:opacity-90"
                 >
-                  Done
+                  {tUi('done')}
                 </Button>
               ) : (
                 <Button
@@ -106,7 +108,7 @@ export function TourDialog({
                   onClick={onNext}
                   className="h-10 gap-1 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] hover:opacity-90"
                 >
-                  Next
+                  {tUi('next')}
                   <ChevronRight className="h-4 w-4 opacity-90" />
                 </Button>
               )}

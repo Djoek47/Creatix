@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
@@ -60,6 +61,7 @@ export function TourSpotlight({
   onBack,
   tourId: _tourId,
 }: TourSpotlightProps) {
+  const tUi = useTranslations('dashboard.tourUi')
   const [mounted, setMounted] = useState(false)
   const [rect, setRect] = useState<Rect | null>(null)
   const primaryActionRef = useRef<HTMLButtonElement>(null)
@@ -237,7 +239,7 @@ export function TourSpotlight({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-primary/90 dark:text-primary">
-                      Step {stepIndex + 1} of {steps.length}
+                      {tUi('stepProgress', { current: stepIndex + 1, total: steps.length })}
                     </div>
                   </div>
                 </div>
@@ -258,7 +260,7 @@ export function TourSpotlight({
                         className="h-10 gap-1.5 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/10"
                       >
                         <ChevronLeft className="h-4 w-4 opacity-70" />
-                        Back
+                        {tUi('back')}
                       </Button>
                     ) : (
                       <Button
@@ -279,10 +281,10 @@ export function TourSpotlight({
                         type="button"
                         size="sm"
                         onClick={onClose}
-                        aria-label="Finish tour"
+                        aria-label={tUi('finishAria')}
                         className="h-10 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] transition-opacity hover:opacity-90"
                       >
-                        Done
+                        {tUi('done')}
                       </Button>
                     ) : (
                       <Button
@@ -292,7 +294,7 @@ export function TourSpotlight({
                         onClick={onNext}
                         className="h-10 gap-1 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] transition-opacity hover:opacity-90"
                       >
-                        Next
+                        {tUi('next')}
                         <ChevronRight className="h-4 w-4 opacity-90" />
                       </Button>
                     )}

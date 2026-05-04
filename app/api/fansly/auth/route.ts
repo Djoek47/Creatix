@@ -144,7 +144,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Initial connection attempt
-    const result = await api.connectAccount(username, password, countryCode)
+    const result = await api.connectAccount(
+      username,
+      password,
+      countryCode,
+      `Creatix · ${(user.email ?? user.id).slice(0, 80)}`,
+    )
 
     // If 2FA required, return the token
     if (result.requires_2fa && result.twoFactorToken) {

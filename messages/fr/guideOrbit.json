@@ -1,0 +1,154 @@
+{
+  "steps": {
+    "full-01": {
+      "title": "Bienvenue sur Circe et Venus",
+      "description": "Cette visite parcourt la vraie appli : chaque étape ouvre la bonne page et met en évidence la zone correspondante dans la barre latérale (ou sur la page). Utilisez Suivant pour avancer — une trentaine d’étapes courtes.",
+      "subjectLabel": "Carte d’accueil"
+    },
+    "full-02": {
+      "title": "Comment l’appli s’articule",
+      "description": "Imaginez un seul espace de travail pour votre activité créatrice : fans, revenus, boîte de réception, rétention, conformité et assistants IA. La barre latérale gauche est votre carte ; chaque section ci-dessous la détaille.",
+      "subjectLabel": "Vue d’ensemble"
+    },
+    "full-03": {
+      "title": "Accueil du tableau de bord",
+      "description": "Ouvrez le tableau de bord quand vous voulez pour les statistiques, les plateformes connectées et les raccourcis. Après cette visite, utilisez Démarrer la visite live ou Lancer la visite live dans l’en-tête pour refaire la même visite complète depuis n’importe quelle page.",
+      "subjectLabel": "Tableau de bord"
+    },
+    "full-04": {
+      "title": "Divine Manager",
+      "description": "La couronne dans la barre latérale : contrôle vocal et texte de votre assistant IA — plan du jour, tâches protocole, Mimic, notifications et outils sans quitter la page. La première visite lance un court assistant de configuration ; les liens du Guide et `?section=protocol`, `tasks` ou `chat` ouvrent directement.",
+      "subjectLabel": "Divine Manager"
+    },
+    "full-05": {
+      "title": "Contenu",
+      "description": "Planifiez les publications sur le calendrier, gérez votre coffre média et parcourez chaque ligne — Planning, Coffre et Toutes les publications dans un même espace posé.",
+      "subjectLabel": "Contenu"
+    },
+    "full-06": {
+      "title": "Bien-être",
+      "description": "Une voie plus calme : instantané Mimic, calendrier cosmique, habitudes — au service du travail, pas un substitut à un accompagnement professionnel.",
+      "subjectLabel": "Bien-être"
+    },
+    "full-07": {
+      "title": "Messages",
+      "description": "MP OnlyFans et Fansly unifiés. Actualisez les fils pour le contexte le plus récent ; certains médias ne s’ouvrent pleinement que dans l’app officielle de la plateforme.",
+      "subjectLabel": "Messages"
+    },
+    "full-08": {
+      "title": "Message de masse",
+      "description": "Depuis Messages ou AI Studio : rédigez des diffusions par segments — distinct du chat 1:1 ; vérifiez la conformité de vos plateformes.",
+      "subjectLabel": "Message de masse"
+    },
+    "full-09": {
+      "title": "Social",
+      "description": "Promotion multi-plateforme et signaux de réputation hors plateformes adultes — à combiner avec Mentions pour une vue complète.",
+      "subjectLabel": "Social"
+    },
+    "full-10": {
+      "title": "AI Studio — vue d’ensemble",
+      "description": "Médias et Coffre plus la bibliothèque d’outils : légendes, churn, concurrents, cadeaux, Cupid pour les nouveaux fans, etc. Les outils Pro affichent le coût en crédits.",
+      "subjectLabel": "AI Studio"
+    },
+    "full-11": {
+      "title": "Crédits IA et Pro",
+      "description": "De nombreuses exécutions consomment des crédits IA (voir abonnement et fiches outils). Passez à l’offre supérieure ou gérez les plafonds dans Réglages et facturation quand vous avez besoin de marge.",
+      "subjectLabel": "Outils et crédits"
+    },
+    "full-13": {
+      "title": "AI Studio : Chatter et cadeaux",
+      "description": "AI Chatter gère les voies d’automatisation des MP lorsqu’elles sont activées. La liste de souhaits relie les outils aux liens produits que vous enregistrez — utile pour les flux de suggestion de cadeaux.",
+      "subjectLabel": "Chatter et cadeaux"
+    },
+    "full-14": {
+      "title": "Circe vs Venus",
+      "description": "Circe (violet) : rétention, analytique, protection — sécurisez fans et revenus. Venus (or) : croissance — fans, commentateur public, mentions. Les deux peuvent alimenter des personas IA dans les outils.",
+      "subjectLabel": "Circe vs Venus"
+    },
+    "full-15": {
+      "title": "Analytique",
+      "description": "Tendances revenus et fans, instantanés et accès aux outils plus poussés comme Income Predictor pour prévisions et objectifs.",
+      "subjectLabel": "Analytique"
+    },
+    "full-16": {
+      "title": "Income Predictor",
+      "description": "Sous Analytique : combine les stats partenaires avec votre cadence, objectifs et contexte — pour planifier le mois suivant, pas comme garantie.",
+      "subjectLabel": "Income Predictor"
+    },
+    "full-17": {
+      "title": "Hub rétention et churn",
+      "description": "Scans de churn planifiés, fans à risque selon vos règles, protocoles et tâches — s’aligne sur les jobs en arrière-plan et les notifications si activés.",
+      "subjectLabel": "Rétention et churn"
+    },
+    "full-18": {
+      "title": "Outil Churn Predictor",
+      "description": "Dans AI Studio : lectures churn par fan avec fiches fan et contexte de fil — différent du rapport Retention par lots ; utilisez les deux pour la stratégie.",
+      "subjectLabel": "Churn Predictor (outil)"
+    },
+    "full-19": {
+      "title": "Protection",
+      "description": "Alertes de fuites, scans, aide DMCA — revoyez les éléments ouverts régulièrement ; connectez les plateformes pour des signaux à jour.",
+      "subjectLabel": "Protection"
+    },
+    "full-20": {
+      "title": "Aegis",
+      "description": "Sous-zone Protection pour le hub Aegis lorsqu’il est configuré — lieu central pour les flux de protection avancés aux côtés des fuites.",
+      "subjectLabel": "Aegis"
+    },
+    "full-21": {
+      "title": "Fans",
+      "description": "Recherche, tags, notes, arrangements — votre référence abonnés multi-plateformes ; synchronisez depuis les intégrations.",
+      "subjectLabel": "Fans"
+    },
+    "full-22": {
+      "title": "Classification des fans",
+      "description": "Règles pour étiqueter fans par comportement ou dépense ; les résultats alimentent listes et automatisations — restez aligné·e sur les segments Fan Atlas.",
+      "subjectLabel": "Classification fans"
+    },
+    "full-23": {
+      "title": "Commenteur",
+      "description": "Commentaires de posts et stories OnlyFans : brouillons de persona (Circe, Venus, Flirt, Pro), signaux de sécurité, relecture avant publication. Fan Atlas (classification intelligente) : dépense, activité de fil, segments freeloader — synchro vers listes OnlyFans et tags Fansly depuis Fans → Arrangements ou cette page.",
+      "subjectLabel": "Commenteur"
+    },
+    "full-25": {
+      "title": "Mentions",
+      "description": "Réputation et signaux type mentions — à combiner avec Social pour voir comment on parle de vous hors plateforme.",
+      "subjectLabel": "Mentions"
+    },
+    "full-26": {
+      "title": "Communauté",
+      "description": "Astuces et idées entre pairs — pas le support officiel ; utilisez le Guide pour la doc produit.",
+      "subjectLabel": "Communauté"
+    },
+    "full-27": {
+      "title": "Conseils quotidiens de Circe",
+      "description": "Habitudes et ancres sous Communauté ou liés depuis Bien-être — structure optionnelle pour les routines.",
+      "subjectLabel": "Conseils quotidiens Circe"
+    },
+    "full-28": {
+      "title": "Guide",
+      "description": "Aide longue format et liens profonds — mettez-le en favori. Quand les libellés UI changent, le Guide et cette visite sont mis à jour ensemble.",
+      "subjectLabel": "Guide (cette page)"
+    },
+    "full-29": {
+      "title": "Réglages",
+      "description": "Intégrations (OnlyFans, Fansly, facturation), préférences, sécurité, règles de listes Fan Atlas en un coup d’œil — connectez les comptes tôt pour des données fans fiables.",
+      "subjectLabel": "Réglages"
+    },
+    "full-30": {
+      "title": "Les intégrations comptent",
+      "description": "Sans plateformes connectées, listes live et webhooks sont limités — reconnectez si les sessions expirent ; des garde-fous de facturation peuvent s’appliquer aux données adultes.",
+      "subjectLabel": "Intégrations"
+    },
+    "full-31": {
+      "title": "En-tête : visite live",
+      "description": "Sur toute page, Démarrer la visite live ou Lancer la visite live dans l’en-tête rouvre cette visite complète (via Bienvenue). Sur petit écran, utilisez le menu si le contrôle d’en-tête est masqué.",
+      "subjectLabel": "Démarrer la visite (en-tête)"
+    },
+    "full-32": {
+      "title": "Vous avez vos repères",
+      "description": "Explorez la barre latérale dans l’ordre qui vous convient. Relancez cette visite quand vous voulez depuis l’en-tête ou le Guide. Ouvrez le Guide pour la profondeur et le dépannage.",
+      "subjectLabel": "C’est bon"
+    }
+  }
+}

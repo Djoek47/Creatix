@@ -9,6 +9,7 @@ import { AnalyticsCharts } from '@/components/analytics/analytics-charts'
 import { PlatformBreakdown } from '@/components/analytics/platform-breakdown'
 import { TopContent } from '@/components/analytics/top-content'
 import { OnlyFansApiAnalytics } from '@/components/analytics/onlyfans-api-analytics'
+import { FanslyGrowthAnalytics } from '@/components/analytics/fansly-growth-analytics'
 import Link from 'next/link'
 import { Link2, MessageCircle, TrendingUp } from 'lucide-react'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC, MANYVIDS_LOGO_SRC } from '@/lib/platform-logos'
@@ -47,12 +48,15 @@ export function AnalyticsDashboard({
   connections,
   content,
   hasOnlyFansConnected,
+  hasFanslyConnected,
 }: {
   analytics: AnalyticsSnapshot[]
   connections: Connection[]
   content: Content[]
   /** True when OnlyFans is connected with a valid session (matches server / API gate). */
   hasOnlyFansConnected: boolean
+  /** True when Fansly is connected (account id on `platform_connections`). */
+  hasFanslyConnected: boolean
 }) {
   const connectedPlatforms = useMemo(
     () => Array.from(new Set((connections || []).map((c) => c.platform))).sort(),
@@ -120,7 +124,8 @@ export function AnalyticsDashboard({
       <section className="rounded-2xl border border-border/60 bg-card/25 px-5 py-5 sm:px-6 sm:py-6">
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
           Figures below come from saved sync snapshots and activity from connected platforms. Use the filters to scope
-          charts; live OnlyFans partner data appears when your session is valid.
+          charts; live OnlyFans partner analytics appear when OnlyFans is connected, and Fansly growth blocks when Fansly
+          is connected.
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Button
@@ -302,6 +307,26 @@ export function AnalyticsDashboard({
                 Settings → Integrations
               </Link>{' '}
               for live earnings and forecasts. This block stays empty until the partner session is active.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {hasFanslyConnected ? (
+        <FanslyGrowthAnalytics />
+      ) : (
+        <Card className="rounded-2xl border border-dashed border-border/70 bg-muted/15 shadow-none">
+          <CardHeader className="py-8 sm:py-9">
+            <CardTitle className="text-base font-semibold tracking-tight">Fansly growth APIs</CardTitle>
+            <CardDescription className="mt-2 max-w-prose text-[15px] leading-relaxed">
+              Connect Fansly in{' '}
+              <Link
+                href="/dashboard/settings?tab=integrations"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                Settings → Integrations
+              </Link>{' '}
+              to load transactions, top supporters, and follower discovery from the Fansly partner API.
             </CardDescription>
           </CardHeader>
         </Card>

@@ -2,8 +2,6 @@ import { getCreditsForToolId, CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billin
 
 export type MassCampaignCreditInput = {
   recipientCount: number
-  traceEnabled: boolean
-  traceVideoCount?: number
   includeAudienceSuggestionRun?: boolean
   includeCaptionGenerationRun?: boolean
   includePriceGenerationRun?: boolean
@@ -15,7 +13,6 @@ export type MassCampaignCreditBreakdown = {
   captionGeneration: number
   priceGeneration: number
   send: number
-  trace: number
   total: number
 }
 
@@ -26,7 +23,6 @@ function clampCount(value: number | undefined): number {
 
 export function estimateMassCampaignCredits(input: MassCampaignCreditInput): MassCampaignCreditBreakdown {
   const recipients = clampCount(input.recipientCount)
-  const traceVideos = Math.max(1, clampCount(input.traceVideoCount || 1))
 
   const audienceSuggestion = input.includeAudienceSuggestionRun
     ? getCreditsForToolId('mass-dm-audience-suggester')
@@ -39,14 +35,12 @@ export function estimateMassCampaignCredits(input: MassCampaignCreditInput): Mas
     : 0
 
   const send = input.personalizedSend ? recipients * CREDITS_MESSAGE_SEND_PLATFORM : 0
-  const trace = input.traceEnabled ? recipients * traceVideos * getCreditsForToolId('ariadne-trace') : 0
 
   return {
     audienceSuggestion,
     captionGeneration,
     priceGeneration,
     send,
-    trace,
-    total: audienceSuggestion + captionGeneration + priceGeneration + send + trace,
+    total: audienceSuggestion + captionGeneration + priceGeneration + send,
   }
 }

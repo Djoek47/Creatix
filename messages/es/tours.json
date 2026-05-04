@@ -1,0 +1,382 @@
+{
+  "dashboard": {
+    "map-intro": {
+      "title": "Tu base principal",
+      "description": "Este panel es tu base: ingresos, fans, salud de la bandeja y acceso rápido a cada zona de Circe et Venus: tu centro de mando para el día a día."
+    },
+    "map-divine": {
+      "title": "Divine Manager",
+      "description": "Usa la barra lateral: Divine Manager es control por voz y texto de tu asistente IA (tareas, estilo Mimic, notificaciones y herramientas sin salir de la página)."
+    },
+    "map-content-wellbeing": {
+      "title": "Contenido y bienestar",
+      "description": "Contenido es tu calendario y publicaciones. Bienestar es un chequeo más tranquilo (instantánea Mimic, calendario cósmico): va con el trabajo, no lo sustituye."
+    },
+    "map-messages-social": {
+      "title": "Mensajes y social",
+      "description": "Mensajes es tu bandeja unificada OnlyFans/Fansly. Social cubre promoción multicanal y señales de reputación fuera de las plataformas adultas."
+    },
+    "map-content-library": {
+      "title": "Espacio de contenido",
+      "description": "Una entrada de la barra lateral abre Programación, tu bóveda de medios y la lista completa de publicaciones: planifica, estantería y tabla sin cambiar de herramienta."
+    },
+    "map-ai-studio": {
+      "title": "AI Studio",
+      "description": "AI Studio agrupa Medios y bóveda más la biblioteca de herramientas (pies de foto, churn, competencia, regalos y más). Las herramientas Pro consumen créditos donde se indica."
+    },
+    "map-circe": {
+      "title": "Circe: retención y escudo",
+      "description": "Bajo Circe: Analíticas (ingresos y fans), Retención (hub de churn y barridos programados), Protección (fugas, DMCA, Aegis). Morado = quedarte, proteger, analizar."
+    },
+    "map-venus": {
+      "title": "Venus: crecimiento",
+      "description": "Bajo Venus: Fans, Comentarista + Fan Atlas (respuestas a posts y listas inteligentes), Menciones. Oro = atraer, responder en público, reputación."
+    },
+    "map-community-guide": {
+      "title": "Comunidad y guía",
+      "description": "Comunidad tiene consejos y hábitos diarios de Circe. La Guía es el manual extenso: márcala. Ajustes reúne facturación, integraciones y seguridad."
+    },
+    "stats": {
+      "title": "Estadísticas en esta página",
+      "description": "Las tarjetas resumen ingresos, fans y actividad de conversaciones. Conecta OnlyFans o Fansly en Ajustes → Integraciones para que los números sean reales."
+    },
+    "platforms": {
+      "title": "Plataformas conectadas",
+      "description": "Mira qué cuentas están vinculadas. Usa Gestionar o Ajustes para conectar, renovar tokens o desconectar."
+    },
+    "widgets": {
+      "title": "Widgets y atajos",
+      "description": "Alertas, menciones y enlaces rápidos te llevan a Mensajes, Protección, AI Studio o Divine: úsalos como lista de triaje diaria."
+    }
+  },
+  "messages": {
+    "list": {
+      "title": "Lista de conversaciones",
+      "description": "Todos los hilos de OnlyFans y Fansly en una lista. Elige un fan para cargar el hilo; no leídos y badges de plataforma ayudan a priorizar."
+    },
+    "thread": {
+      "title": "Hilo de chat",
+      "description": "Lee y responde aquí. Creatix puede mostrar medios vía proxy seguro; si algo no carga, abre la app oficial OnlyFans o Fansly para vídeo completo o contenido con DRM."
+    },
+    "divine-ai": {
+      "title": "Divine e IA en el chat",
+      "description": "Usa Divine o paneles de sugerencias donde haya para redactar respuestas: todo es revisión previa salvo que actives explícitamente el envío automático en AI Chatter."
+    },
+    "refresh": {
+      "title": "Actualizar y acciones",
+      "description": "Actualizar trae los mensajes más recientes de la plataforma. Usa el menú del hilo para leído/no leído y acciones específicas de OnlyFans."
+    },
+    "mass": {
+      "title": "Mensajería masiva",
+      "description": "Abre Mensaje masivo desde Mensajes para segmentos o listas en promos y anuncios: respeta cumplimiento y reglas de plataforma."
+    }
+  },
+  "messages-mass": {
+    "purpose": {
+      "title": "Compositor de mass DM",
+      "description": "Redacta una campaña para muchos fans a la vez. Segmenta por etiquetas, listas o gasto donde permita la UI: es tu carril de difusión, no chat 1:1."
+    },
+    "review": {
+      "title": "Revisar antes de enviar",
+      "description": "Previsualiza texto y audiencia. Las APIs pueden limitar o pedir confirmación; sigue las reglas OnlyFans/Fansly para contenido promocional."
+    }
+  },
+  "fans": {
+    "list": {
+      "title": "Fans",
+      "description": "Filas de suscriptores y fans sincronizadas desde plataformas conectadas. Busca, ordena y abre un fan para notas, etiquetas y enlaces profundos a Mensajes."
+    },
+    "tiers": {
+      "title": "Niveles de gasto",
+      "description": "Ballenas, VIP y regulares ayudan a priorizar contacto. Alinea con Fan Atlas y Churn para los mismos fans en todo el producto."
+    },
+    "classify": {
+      "title": "Clasificación y listas",
+      "description": "Usa clasificación de fans o listas inteligentes en Comentarista (Fan Atlas) para mantener segmentos alineados con listas OnlyFans."
+    },
+    "add": {
+      "title": "Fans manuales",
+      "description": "Añade un fan manualmente cuando necesites notas o seguimiento para alguien aún no sincronizado: útil para contexto multicanal."
+    }
+  },
+  "content": {
+    "workspace": {
+      "title": "Espacio de contenido",
+      "description": "Programación, Bóveda y Todas las publicaciones detrás de un solo control tranquilo: cambia de vista sin perder contexto."
+    },
+    "calendar": {
+      "title": "Programación",
+      "description": "Vista de calendario para borradores, programados y publicados: ve el ritmo de tu semana."
+    },
+    "vault": {
+      "title": "Bóveda",
+      "description": "Medios, metadatos para PPV y recomendaciones de Divine Manager, y enlaces de plataforma: la estantería detrás de cada publicación."
+    },
+    "new": {
+      "title": "Nueva publicación",
+      "description": "Compón un lanzamiento cuando estés lista: adjunta medios, define horario y respeta las reglas de cada plataforma."
+    }
+  },
+  "content-new": {
+    "composer": {
+      "title": "Compositor",
+      "description": "Escribe tu publicación, adjunta medios y elige horario. Respeta PPV, teasers y contenido bloqueado según la plataforma."
+    },
+    "schedule": {
+      "title": "Programar y publicar",
+      "description": "Publica ahora o en un hueco futuro. Vuelve a Contenido para editar o mover ítems en el calendario."
+    }
+  },
+  "analytics": {
+    "overview": {
+      "title": "Analíticas",
+      "description": "Ingresos, fans y engagement en el tiempo desde instantáneas sincronizadas. Úsalo para comparar periodos y plataformas cuando las conexiones estén sanas."
+    },
+    "breakdown": {
+      "title": "Desglose por plataforma",
+      "description": "Separa OnlyFans frente a Fansly si ambas están conectadas. Combina con Retención para riesgo de churn y con Income Predictor para metas a futuro."
+    },
+    "income-predictor-link": {
+      "title": "Income Predictor",
+      "description": "Abre Income Predictor desde Analíticas para metas tipo previsión y cadencia: solo Pro donde aplique facturación."
+    }
+  },
+  "analytics-income-predictor": {
+    "forecast": {
+      "title": "Income Predictor",
+      "description": "Mezcla estadísticas del socio con tus instantáneas y metas sincronizadas. Usa modos mantener vs crecer y notas de calendario para contrastar el mes siguiente."
+    },
+    "goals": {
+      "title": "Metas y realismo",
+      "description": "Define objetivos y lee bandas intermedias: es planificación, no garantía. Revisa tras campañas grandes o cambios de plataforma."
+    }
+  },
+  "well-being": {
+    "overview": {
+      "title": "Hub de bienestar",
+      "description": "Una pantalla con carga de bandeja, instantánea de perfil Mimic, lista de deseos (contexto de producto para fans e IA) y calendario cósmico: respira y planifica sin cinco pestañas."
+    },
+    "mimic-snapshot": {
+      "title": "Instantánea Mimic",
+      "description": "Deslizadores de calidez, humor y coqueteo de tu perfil Mimic. Completa la entrevista de voz en Divine Manager cuando quieras que los borradores a fans suenen a ti."
+    },
+    "cosmic-hero": {
+      "title": "Calendario cósmico",
+      "description": "Fase lunar, zodiaco y cuadrícula mensual: ritmo opcional. Combina con Comunidad → consejos diarios de Circe para ideas de hábitos."
+    },
+    "rhythm": {
+      "title": "Ritmo, no rigor",
+      "description": "Úsalo como chequeo suave, no como nota. Combina con Comunidad cuando quieras hábitos con estructura."
+    }
+  },
+  "divine-manager": {
+    "welcome": {
+      "title": "Bienvenida a Divine Manager",
+      "description": "Órbita de operaciones: voz en vivo, chat de texto, tareas de protocolo, Mimic y plan de hoy. La primera visita abre un asistente breve (frases de ejemplo, metas, notificaciones); después ajusta en Preferencias. La Guía y `?section=protocol`, `tasks` o `chat` saltan en la página o abren chat de texto: desplázate si aterrizaste a mitad de página."
+    },
+    "voice": {
+      "title": "Voz con la corona",
+      "description": "Toca la corona flotante para hablar. Abre el launcher para Text Divine y atajos, o entra directo en voz desde ajustes."
+    },
+    "text": {
+      "title": "Chat de texto",
+      "description": "La hoja de texto usa el mismo cerebro del manager: ideal para prompts largos, enlaces o cuando no puedas hablar."
+    },
+    "protocol-rail": {
+      "title": "Tareas de protocolo",
+      "description": "La tarjeta de protocolo lista seguimientos y flujos (misma cola que el menú corona). `?section=tasks` enfoca esta tarjeta; `?section=protocol` desplaza al bloque Plan de hoy + tareas. Abre el menú corona en cualquier momento para la misma cola sin salir de la voz."
+    },
+    "bell": {
+      "title": "Notificaciones",
+      "description": "En vivo vs Divine: actividad de plataforma frente a fugas, facturación, reputación y acciones Divine. Lanza un briefing para repasar filas guardadas con Divine."
+    },
+    "mimic": {
+      "title": "Mimic",
+      "description": "Entrevista de voz para que Divine refleje tu estilo de respuesta a fans. Los borradores son revisión previa; en el futuro un runner de clonación de voz en AI Studio está previsto para más muestras."
+    },
+    "today-plan": {
+      "title": "Plan de hoy y tareas",
+      "description": "Con modo beta, las sugerencias del día van sobre las tareas de protocolo en una sección (`#divine-section-protocol`). Ábrelo desde la Guía o `?section=protocol`; ganchos de automatización y reglas de grandes propinas aparecen aquí si están configurados."
+    },
+    "voice-settings": {
+      "title": "Ajustes de voz",
+      "description": "Brevedad vs expresividad, cuándo se desbloquea Colgar llamada, foco DM, timing del compositor y arranque instantáneo opcional de la corona."
+    },
+    "guide-link": {
+      "title": "Guía",
+      "description": "La Guía tiene un capítulo completo de Divine Manager con enlaces profundos. Vuelve cuando quieras desde la barra lateral."
+    }
+  },
+  "ai-studio": {
+    "tabs": {
+      "title": "AI Studio",
+      "description": "Dos pestañas: Medios y bóveda (activos, descripciones, retoques seguros) y Herramientas (biblioteca completa). Los créditos aplican donde indique cada herramienta; Pro limita herramientas premium."
+    },
+    "vault": {
+      "title": "Medios y bóveda",
+      "description": "Etiqueta contenido para Divine, enlaza publicaciones OnlyFans, fotos de bóveda para contexto PPV y retoques de foto seguros."
+    },
+    "tools": {
+      "title": "Biblioteca de herramientas",
+      "description": "Pies de foto, churn, análisis de competencia, regalos, escritor de fantasía y más. Algunas figuran como Próximamente hasta que estén listas."
+    },
+    "chatter-gifts": {
+      "title": "Chatter y regalos",
+      "description": "Abre AI Chatter y la lista de deseos desde aquí para automatización de DM y enlaces de producto en sugerencias de regalo."
+    }
+  },
+  "ai-studio-tools": {
+    "grid": {
+      "title": "Biblioteca de herramientas",
+      "description": "Busca y filtra por categoría. Cada tarjeta abre un runner o redirige al panel correcto (p. ej. Fan Atlas, Retención, Protección)."
+    },
+    "credits": {
+      "title": "Créditos y Pro",
+      "description": "Los créditos se ven en la cabecera. Las herramientas solo Pro requieren plan activo; las tarjetas bloqueadas enlazan a facturación."
+    },
+    "open": {
+      "title": "Ejecutar una herramienta",
+      "description": "Entra y ejecútala desde el espacio de trabajo. Las salidas son tuyas para copiar a mensajes, publicaciones o protocolos."
+    }
+  },
+  "ai-studio-chatter": {
+    "purpose": {
+      "title": "AI Chatter",
+      "description": "Automatización de DM por fan en OnlyFans: borradores, colas, envío automático opcional (beta). Combina con Mimic para el tono y con Mensajes para el hilo en vivo."
+    },
+    "profiles": {
+      "title": "Perfiles y ballenas",
+      "description": "Cambia modos o perfiles whale whisper donde exista. Revisa todo antes de enviar salvo que hayas activado explícitamente la automatización."
+    }
+  },
+  "ai-studio-gifts": {
+    "wishlist": {
+      "title": "Lista de deseos",
+      "description": "Guarda enlaces HTTPS de productos; extraemos título, precio y detalles cuando podamos para que Chatter, Divine y Gift Suggester sepan qué sugerir cuando un fan envía un regalo."
+    },
+    "use": {
+      "title": "Uso en herramientas",
+      "description": "Construye tu lista aquí, luego ejecuta Gift Suggester desde Divine Manager (o fíjalo en el panel) cuando quieras ranking IA con este contexto."
+    }
+  },
+  "settings": {
+    "tabs": {
+      "title": "Ajustes",
+      "description": "Perfil, Integraciones, Seguridad, Facturación y preferencias. Integraciones conecta OnlyFans y Fansly; la facturación controla Pro y créditos."
+    },
+    "integrations": {
+      "title": "Integraciones",
+      "description": "Conecta OnlyFans con OAuth seguro en ventana; Fansly con email/contraseña en el diálogo. Desconecta aquí si caducan los tokens."
+    },
+    "billing": {
+      "title": "Facturación y plan",
+      "description": "Mejora, método de pago y límites de uso donde aplique. La facturación de plataformas adultas puede condicionar ciertas funciones."
+    }
+  },
+  "guide": {
+    "guide-hub": {
+      "title": "Guía y recorrido orbital",
+      "description": "Esta página une la historia del tour completo con el manual: desplaza pasos animados (cada callout flota sobre la superficie que describe), lanza el tour en vivo desde Bienvenida o despliega Referencia detallada para integraciones y solución de problemas."
+    },
+    "header-tour": {
+      "title": "Cabecera: tour en vivo completo",
+      "description": "En cualquier página, Iniciar tour en vivo / Lanzar tour en vivo en la cabecera ejecuta el mismo tour completo que desde Bienvenida (con inicio automático)."
+    }
+  },
+  "protection": {
+    "overview": {
+      "title": "Protección",
+      "description": "Alertas de fugas, borradores DMCA e historial de resolución. Pega URLs para escanear; revisa cada reclamación antes de enviarla a terceros."
+    },
+    "aegis": {
+      "title": "Hub Aegis",
+      "description": "Abre el Aegis de Circe para barridos programados, borradores DMCA opcionales y enlaces a ajustes amplios de protección: detalle en el tour de Aegis."
+    }
+  },
+  "protection-aegis": {
+    "shield": {
+      "title": "Aegis",
+      "description": "Hub unificado: interruptores del escudo, calendario Sentinel, valores por defecto de escaneo de fugas, borradores Hammer opcionales y enlaces a Menciones para reputación (aparte de alertas de fugas)."
+    },
+    "schedule": {
+      "title": "Barridos y borradores",
+      "description": "Configura cadencia y severidad. Revisa todo borrador automático antes de que salga al exterior."
+    },
+    "dmca": {
+      "title": "DMCA y fugas",
+      "description": "Leak Scanner y DMCA Automator pueden redactar a partir de hallazgos graves: tú sigues revisando y enviando desde Protección."
+    }
+  },
+  "social": {
+    "reputation": {
+      "title": "Promoción social",
+      "description": "Promoción multicanal y señales de reputación. Conecta cuentas donde haya para dar contexto a los escaneos."
+    },
+    "mentions": {
+      "title": "Con Menciones",
+      "description": "Usa Venus → Menciones para colas de revisión; Social complementa con contexto promocional más amplio."
+    }
+  },
+  "mentions": {
+    "queue": {
+      "title": "Menciones",
+      "description": "Menciones entrantes y reputación para triar. Marca revisado al cerrar; escala a Protección si se solapan fugas."
+    },
+    "workflow": {
+      "title": "Flujo de trabajo",
+      "description": "Combina con Comentarista para respuestas públicas y con Divine para sugerencias donde esté activado."
+    }
+  },
+  "retention-churn": {
+    "hub": {
+      "title": "Hub de retención",
+      "description": "Churn Predictor: barridos programados para suscripciones que caducan y fans silenciosos, con tus datos sincronizados. Configura cadencia, créditos y notificaciones aquí."
+    },
+    "last-run": {
+      "title": "Última ejecución y salida",
+      "description": "Última ejecución muestra cuándo terminó el job en segundo plano. Mantén Fans sincronizado para caducidades y gasto fiables; parte del media solo se reproduce del todo en la app oficial."
+    },
+    "protocols": {
+      "title": "Protocolos y tareas",
+      "description": "Abre protocolos y tareas para actuar por lotes. Enlaza con la herramienta churn de AI Studio para profundizar en un fan puntual."
+    },
+    "tease": {
+      "title": "Avance futuro",
+      "description": "Notas de calendario opcionales alimentan teasers de retención en los barridos: alinea con el calendario de Contenido para mensajes coherentes."
+    }
+  },
+  "commenter": {
+    "feed": {
+      "title": "Comentarista",
+      "description": "Sincroniza comentarios de posts e historias OnlyFans vía webhooks y API. Revisa cada comentario de fan con seguridad IA y borradores de persona."
+    },
+    "personas": {
+      "title": "Circe, Venus, Flirt, Pro",
+      "description": "Elige sugerencia de persona o Mejor opción: copia manualmente a OnlyFans; por defecto solo revisión. Banderas de acoso o riesgo aparecen para notificaciones Divine."
+    },
+    "housekeeping": {
+      "title": "Fan Atlas",
+      "description": "Clasificación inteligente: segmenta fans por gasto, actividad en hilo/DM, fans fríos y freeloaders; sincroniza esos segmentos a listas OnlyFans y etiquetas Fansly. Configura en Fans → Acuerdos o aquí."
+    }
+  },
+  "community": {
+    "tips": {
+      "title": "Comunidad",
+      "description": "Consejos y contenido de comunidad aprobado. Para ideas entre pares e inspiración de hábitos, no soporte oficial."
+    },
+    "circe-daily": {
+      "title": "Consejos diarios de Circe",
+      "description": "Abre consejos diarios de Circe para hábitos numerados y anclas; enlaza desde Bienestar cuando quieras rutinas con estructura."
+    }
+  },
+  "community-circe-daily": {
+    "daily": {
+      "title": "Consejos diarios de Circe",
+      "description": "Consejos numerados con anclas para enlaces profundos. Usa junto a Bienestar y Comunidad para hábitos."
+    },
+    "prefs": {
+      "title": "Preferencias",
+      "description": "Activa tipos de consejo en Ajustes → Preferencias cuando exista para que el feed coincida con tu foco."
+    }
+  }
+}

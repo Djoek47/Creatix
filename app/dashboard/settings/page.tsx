@@ -54,6 +54,7 @@ import { BillingSection } from '@/components/settings/billing-section'
 import { UsageCreditsPanel } from '@/components/settings/usage-credits-panel'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
+import { FanslyEmailTwofaDialog } from '@/components/fansly/fansly-email-twofa-dialog'
 import { HousekeepingListsSettings } from '@/components/settings/housekeeping-lists-settings'
 import { SocialAccountsSettings } from '@/components/settings/social-accounts-settings'
 import { getCirceTipCount } from '@/lib/community/circe-daily-tips'
@@ -198,6 +199,11 @@ export default function SettingsPage() {
     instagram: false,
     tiktok: false,
   })
+  const [fanslyTwofaSettingsOpen, setFanslyTwofaSettingsOpen] = useState(false)
+  const [fanslyTwofaSettingsMessage, setFanslyTwofaSettingsMessage] = useState<{
+    variant: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [tipPopupsEnabled, setTipPopupsEnabled] = useState(true)
   const [mimicProfile, setMimicProfile] = useState<MimicProfileV1>(DEFAULT_MIMIC_PROFILE)
   const [mimicSaving, setMimicSaving] = useState(false)
@@ -1110,6 +1116,64 @@ export default function SettingsPage() {
               {workspaceCaps.canUsePlatformIntegrationsSettings ? (
                 <>
                   <PlatformConnector />
+
+                  {integrations.fansly ? (
+                    <Card className={SETTINGS_SURFACE}>
+                      <CardHeader className={SETTINGS_CARD_HEADER}>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                            <Shield className="h-5 w-5" aria-hidden />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <CardTitle className={SETTINGS_CARD_TITLE}>
+                              {t('integrations.fanslyTwofaCardTitle')}
+                            </CardTitle>
+                            <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                              {t('integrations.fanslyTwofaCardBody')}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className={cn(SETTINGS_CARD_CONTENT, 'pt-0')}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                          onClick={() => {
+                            setFanslyTwofaSettingsMessage(null)
+                            setFanslyTwofaSettingsOpen(true)
+                          }}
+                        >
+                          <Mail className="mr-2 h-4 w-4 opacity-70" aria-hidden />
+                          {t('integrations.fanslyTwofaCardCta')}
+                        </Button>
+                        {fanslyTwofaSettingsMessage ? (
+                          <p
+                            className={cn(
+                              'mt-3 text-[0.8125rem] leading-snug',
+                              fanslyTwofaSettingsMessage.variant === 'success'
+                                ? 'text-emerald-600 dark:text-emerald-400/90'
+                                : 'text-destructive',
+                            )}
+                          >
+                            {fanslyTwofaSettingsMessage.text}
+                          </p>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  <FanslyEmailTwofaDialog
+                    open={fanslyTwofaSettingsOpen}
+                    onOpenChange={setFanslyTwofaSettingsOpen}
+                    onVerified={async () => {
+                      setFanslyTwofaSettingsOpen(false)
+                      setFanslyTwofaSettingsMessage({
+                        variant: 'success',
+                        text: t('integrations.fanslyTwofaCardSuccess'),
+                      })
+                    }}
+                  />
 
                   <HousekeepingListsSettings
                     fanPlatformConnected={integrations.onlyfans || integrations.fansly}

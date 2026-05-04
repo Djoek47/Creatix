@@ -25,10 +25,26 @@ type Row = {
 
 type Draft = { preset: CreatorStatusPreset; detail: string }
 
-const PLATFORM_UI: Record<string, { label: string; logoSrc?: string }> = {
-  onlyfans: { label: 'OnlyFans', logoSrc: ONLYFANS_LOGO_SRC },
-  fansly: { label: 'Fansly', logoSrc: FANSLY_LOGO_SRC },
-  manyvids: { label: 'ManyVids', logoSrc: MANYVIDS_LOGO_SRC },
+const PLATFORM_LOGOS: Record<string, string | undefined> = {
+  onlyfans: ONLYFANS_LOGO_SRC,
+  fansly: FANSLY_LOGO_SRC,
+  manyvids: MANYVIDS_LOGO_SRC,
+}
+
+function platformStatusLabel(
+  platform: string,
+  t: ReturnType<typeof useTranslations<'dashboard'>>,
+): string {
+  switch (platform) {
+    case 'onlyfans':
+      return t('platformStatusLabels.onlyfans')
+    case 'fansly':
+      return t('platformStatusLabels.fansly')
+    case 'manyvids':
+      return t('platformStatusLabels.manyvids')
+    default:
+      return platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  }
 }
 
 function draftFromRow(row: Row): Draft {
@@ -235,8 +251,9 @@ export function HeaderPlatformStatusMenuSection() {
             {rows.length > 1 ? (
               <div className="flex items-center gap-1.5">
                 {rows.map((row) => {
-                  const ui = PLATFORM_UI[row.platform] ?? {
-                    label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                  const ui = {
+                    label: platformStatusLabel(row.platform, t),
+                    logoSrc: PLATFORM_LOGOS[row.platform],
                   }
                   const isActive = (activePlatform ?? editableRow?.platform) === row.platform
                   return (
@@ -262,8 +279,9 @@ export function HeaderPlatformStatusMenuSection() {
 
             {editableRow ? (() => {
               const row = editableRow
-              const ui = PLATFORM_UI[row.platform] ?? {
-                label: row.platform.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+              const ui = {
+                label: platformStatusLabel(row.platform, t),
+                logoSrc: PLATFORM_LOGOS[row.platform],
               }
               const draft = drafts[row.platform] ?? draftFromRow(row)
               const isCustom = draft.preset === 'custom'

@@ -349,7 +349,11 @@
   "integrations": {
     "apiTitle": "API & integrations",
     "viewPlans": "View plans",
-    "nonApiUpgradeBody": "Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put."
+    "nonApiUpgradeBody": "Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put.",
+    "fanslyTwofaCardTitle": "Fansly email session",
+    "fanslyTwofaCardBody": "Run ApiFansly’s email OTP flow so your connected Fansly account has a verified sensitive-action session. This also skips the mass-message email check for about 15 minutes in this browser tab.",
+    "fanslyTwofaCardCta": "Verify with email code",
+    "fanslyTwofaCardSuccess": "Fansly session verified. Mass sends from Messages won’t ask for another code here for about 15 minutes."
   },
   "data": {
     "yours": {

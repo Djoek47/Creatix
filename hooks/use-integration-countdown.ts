@@ -1,11 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** Default length for Protection MarkIt / integration teaser countdowns. */
+export const INTEGRATION_COUNTDOWN_DAYS = 13
+
 /**
- * Cosmetic release countdown used for Protection “deep integration” teasers (MarkIt pane, attribution trace UX).
- * Update when targeting a shipping window — keep aligned with product.
+ * Cosmetic release countdown for Protection “deep integration” teasers (MarkIt pane, leak alerts).
+ * End time is `dayCount` full 24h days after the component’s first mount (rolling “from now”).
  */
-export const INTEGRATION_COUNTDOWN_END_MS = new Date('2026-05-09T12:00:00.000Z').getTime()
+export function useIntegrationCountdownEndMs(dayCount: number = INTEGRATION_COUNTDOWN_DAYS): number {
+  const [endMs] = useState(() => Date.now() + dayCount * MS_PER_DAY)
+  return endMs
+}
 
 export function useCountdownMs(targetMs: number): number {
   const [remaining, setRemaining] = useState(() => Math.max(0, targetMs - Date.now()))

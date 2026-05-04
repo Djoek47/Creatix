@@ -760,7 +760,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     setFanslyDialogOpen(true)
   }
 
-  const handleFanslyLogin = async () => {
+  const runFanslyAuthRequest = async (body: Record<string, unknown>) => {
     setFanslyLoading(true)
     setError(null)
 
@@ -768,12 +768,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
       const response = await fetch('/api/fansly/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: fanslyEmail,
-          password: fanslyPassword,
-          twoFactorToken: fansly2FAToken,
-          twoFactorCode: fansly2FACode || undefined,
-        }),
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
@@ -783,7 +778,6 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         setError(
           typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'),
         )
-        setFanslyLoading(false)
         return
       }
 
@@ -795,7 +789,6 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
             : t('errors.fanslyFocusUpgrade'),
         )
         setMultiUpgradeOpen(true)
-        setFanslyLoading(false)
         return
       }
 
@@ -803,14 +796,12 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         setFanslyDialogOpen(false)
         setError(data.error || t('errors.fanslyAlreadyConnectedShort'))
         await loadConnections()
-        setFanslyLoading(false)
         return
       }
 
       if (data.requires_2fa) {
-        setFansly2FAToken(data.twoFactorToken)
-        setFanslyMaskedEmail(data.masked_email)
-        setFanslyLoading(false)
+        setFansly2FAToken(typeof data.twoFactorToken === 'string' ? data.twoFactorToken : null)
+        setFanslyMaskedEmail(typeof data.masked_email === 'string' ? data.masked_email : null)
         return
       }
 
@@ -835,6 +826,25 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     } finally {
       setFanslyLoading(false)
     }
+  }
+
+  const handleFanslyLogin = async () => {
+    const code = fansly2FACode.trim()
+    const verifying = Boolean(fansly2FAToken && code.length >= 5)
+    const body: Record<string, unknown> = {
+      username: fanslyEmail,
+      password: fanslyPassword,
+      ...(verifying
+        ? { twoFactorToken: fansly2FAToken, twoFactorCode: code }
+        : {}),
+    }
+    await runFanslyAuthRequest(body)
+  }
+
+  /** ApiFansly connect does not expose a separate resend endpoint; a fresh connect issues a new email + twofa_token. */
+  const handleFanslyResend2fa = async () => {
+    setFansly2FACode('')
+    await runFanslyAuthRequest({ username: fanslyEmail, password: fanslyPassword })
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -1006,6 +1016,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
           fanslyMaskedEmail={fanslyMaskedEmail}
           fanslyLoading={fanslyLoading}
           handleFanslyLogin={handleFanslyLogin}
+          handleFanslyResend2fa={handleFanslyResend2fa}
         />
       </>
     )
@@ -1223,6 +1234,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
           fanslyMaskedEmail={fanslyMaskedEmail}
           fanslyLoading={fanslyLoading}
           handleFanslyLogin={handleFanslyLogin}
+          handleFanslyResend2fa={handleFanslyResend2fa}
         />
       </>
     )
@@ -1496,6 +1508,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
         fanslyMaskedEmail={fanslyMaskedEmail}
         fanslyLoading={fanslyLoading}
         handleFanslyLogin={handleFanslyLogin}
+        handleFanslyResend2fa={handleFanslyResend2fa}
       />
     </>
   )
@@ -1547,6 +1560,7 @@ interface ConnectDialogsProps {
   fanslyMaskedEmail: string | null
   fanslyLoading: boolean
   handleFanslyLogin: () => void
+  handleFanslyResend2fa: () => void | Promise<void>
 }
 
 function ConnectDialogs({
@@ -1557,6 +1571,7 @@ function ConnectDialogs({
   fansly2FACode, setFansly2FACode,
   fanslyMaskedEmail, fanslyLoading,
   handleFanslyLogin,
+  handleFanslyResend2fa,
 }: ConnectDialogsProps) {
   const t = useTranslations('dashboard.platformConnector')
   return (
@@ -1608,6 +1623,18 @@ function ConnectDialogs({
                   <Input id="fl-2fa" type="text" placeholder={t('fanslyDialog.codePlaceholder')} value={fansly2FACode} onChange={e => setFansly2FACode(e.target.value)} className="pl-10 text-center text-lg tracking-widest" maxLength={6} />
                 </div>
                 <p className="text-xs text-muted-foreground">{t('fanslyDialog.codeHint')}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void handleFanslyResend2fa()}
+                  disabled={
+                    fanslyLoading || !fanslyEmail || !fanslyPassword
+                  }
+                >
+                  {t('fanslyDialog.resendCode')}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">{t('fanslyDialog.resendHint')}</p>
               </div>
             )}
 

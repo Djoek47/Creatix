@@ -1,0 +1,154 @@
+{
+  "steps": {
+    "full-01": {
+      "title": "Welcome to Circe et Venus",
+      "description": "This tour walks the real app: each step loads the right page and highlights where that area lives in the sidebar (or on the page). Use Next to move through—about thirty short steps.",
+      "subjectLabel": "Welcome card"
+    },
+    "full-02": {
+      "title": "How the app fits together",
+      "description": "Think of it as one workspace for your creator business: fans, revenue, inbox, retention, compliance, and AI helpers. The left sidebar is your map; each section below expands on it.",
+      "subjectLabel": "How it fits"
+    },
+    "full-03": {
+      "title": "Dashboard home",
+      "description": "Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start live tour or Launch live tour in the header to run this same full tour again from any page.",
+      "subjectLabel": "Dashboard"
+    },
+    "full-04": {
+      "title": "Divine Manager",
+      "description": "The crown in the sidebar: voice and text control of your AI assistant—today’s plan, protocol tasks, Mimic, notifications, and tools without leaving the page. First visit runs a short setup wizard; Guide links and `?section=protocol`, `tasks`, or `chat` deep-link straight in.",
+      "subjectLabel": "Divine Manager"
+    },
+    "full-05": {
+      "title": "Content",
+      "description": "Plan posts on the calendar, manage your media vault, and scan every row — Schedule, Vault, and All posts in one quiet workspace.",
+      "subjectLabel": "Content"
+    },
+    "full-06": {
+      "title": "Well-being",
+      "description": "A calmer lane: Mimic snapshot, cosmic calendar, habits—paired with work, not a replacement for professional support.",
+      "subjectLabel": "Well-being"
+    },
+    "full-07": {
+      "title": "Messages",
+      "description": "Unified OnlyFans and Fansly DMs. Refresh threads when you need latest context; some media may open fully only in the official platform app.",
+      "subjectLabel": "Messages"
+    },
+    "full-08": {
+      "title": "Mass DM",
+      "description": "From Messages or AI Studio: compose broadcasts to segments—separate from 1:1 chat; check compliance for your platforms.",
+      "subjectLabel": "Mass DM"
+    },
+    "full-09": {
+      "title": "Social",
+      "description": "Cross-platform promotion and reputation signals outside the adult platforms—use with Mentions for a full picture.",
+      "subjectLabel": "Social"
+    },
+    "full-10": {
+      "title": "AI Studio overview",
+      "description": "Media and Vault plus the tools library: captions, churn, competitor insights, gifts, Cupid onboarding for newest fans, and more. Pro tools show credit costs.",
+      "subjectLabel": "AI Studio"
+    },
+    "full-11": {
+      "title": "AI credits and Pro",
+      "description": "Many runs consume AI credits (see subscription and tool cards). Upgrade or manage limits under Settings and billing when you need more headroom.",
+      "subjectLabel": "Tools & credits"
+    },
+    "full-13": {
+      "title": "AI Studio: Chatter and gifts",
+      "description": "AI Chatter handles DM automation lanes where enabled. Gift wishlist ties tools to real product links you save—useful for gift suggester flows.",
+      "subjectLabel": "Chatter & gifts"
+    },
+    "full-14": {
+      "title": "Circe vs Venus",
+      "description": "Circe (purple): retention, analytics, protection—keep fans and revenue safe. Venus (gold): growth—fans, public commenter, mentions. Both can power AI personas in tools.",
+      "subjectLabel": "Circe vs Venus"
+    },
+    "full-15": {
+      "title": "Analytics",
+      "description": "Revenue and fan trends, snapshots, and paths into deeper tools like Income Predictor for forecasts and goals.",
+      "subjectLabel": "Analytics"
+    },
+    "full-16": {
+      "title": "Income Predictor",
+      "description": "Under Analytics: blends partner stats with your cadence, goals, and context—use for next-month planning, not as a guarantee.",
+      "subjectLabel": "Income Predictor"
+    },
+    "full-17": {
+      "title": "Retention and churn hub",
+      "description": "Scheduled churn scans, at-risk fans from your rules, protocols and tasks—aligns with background jobs and notifications when enabled.",
+      "subjectLabel": "Retention & churn"
+    },
+    "full-18": {
+      "title": "Churn Predictor tool",
+      "description": "In AI Studio: per-fan churn reads with fan records and thread context—different from the batch Retention report; use both for strategy.",
+      "subjectLabel": "Churn Predictor (tool)"
+    },
+    "full-19": {
+      "title": "Protection",
+      "description": "Leak alerts, scans, DMCA support—review open items regularly; connect platforms so signals stay fresh.",
+      "subjectLabel": "Protection"
+    },
+    "full-20": {
+      "title": "Aegis",
+      "description": "Protection sub-area for the Aegis hub when configured—central place for advanced protection workflows alongside leaks.",
+      "subjectLabel": "Aegis"
+    },
+    "full-21": {
+      "title": "Fans",
+      "description": "Search, tags, notes, arrangements—your system of record for subscribers across platforms; sync from integrations.",
+      "subjectLabel": "Fans"
+    },
+    "full-22": {
+      "title": "Fan classification",
+      "description": "Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Fan Atlas segments.",
+      "subjectLabel": "Fan classification"
+    },
+    "full-23": {
+      "title": "Commenter",
+      "description": "Post and story comments from OnlyFans: persona drafts (Circe, Venus, Flirt, Pro), safety flags, review-before-post. Fan Atlas (smart classify): spend, thread activity, freeloader buckets—sync to OnlyFans lists and Fansly tags from Fans → Arrangements or this page.",
+      "subjectLabel": "Commenter"
+    },
+    "full-25": {
+      "title": "Mentions",
+      "description": "Reputation and mention-style signals—pair with Social for how you are discussed off-platform.",
+      "subjectLabel": "Mentions"
+    },
+    "full-26": {
+      "title": "Community",
+      "description": "Peer tips and ideas—not official support; use Guide for product documentation.",
+      "subjectLabel": "Community"
+    },
+    "full-27": {
+      "title": "Circe daily tips",
+      "description": "Habits and anchors under Community or linked from Well-being—optional structure for routines.",
+      "subjectLabel": "Circe daily tips"
+    },
+    "full-28": {
+      "title": "Guide",
+      "description": "Long-form help and deep links—bookmark it. When UI labels change, the Guide and this tour are updated together.",
+      "subjectLabel": "Guide (this page)"
+    },
+    "full-29": {
+      "title": "Settings",
+      "description": "Integrations (OnlyFans, Fansly, billing), preferences, security, Fan Atlas list rules at a glance—connect accounts early for accurate fan data.",
+      "subjectLabel": "Settings"
+    },
+    "full-30": {
+      "title": "Integrations matter",
+      "description": "Without connected platforms, live lists and webhooks are limited—reconnect if sessions expire; billing gates may apply for adult platform data.",
+      "subjectLabel": "Integrations"
+    },
+    "full-31": {
+      "title": "Header: live tour",
+      "description": "On any page, Start live tour or Launch live tour in the header opens this full tour again (via Welcome). On small screens, use the menu if the header control is hidden.",
+      "subjectLabel": "Start Tour (header)"
+    },
+    "full-32": {
+      "title": "You are oriented",
+      "description": "Explore the sidebar in any order. Replay this tour anytime from the header or Guide. Open Guide for depth and troubleshooting.",
+      "subjectLabel": "You're ready"
+    }
+  }
+}

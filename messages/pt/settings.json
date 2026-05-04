@@ -349,7 +349,11 @@
   "integrations": {
     "apiTitle": "API e integrações",
     "viewPlans": "Ver planos",
-    "nonApiUpgradeBody": "Adicione um plano Creatix completo quando quiser para desbloquear ligações API de criadora, mensagens, AI Studio e automação — os seus dados de proteção mantêm-se."
+    "nonApiUpgradeBody": "Adicione um plano Creatix completo quando quiser para desbloquear ligações API de criadora, mensagens, AI Studio e automação — os seus dados de proteção mantêm-se.",
+    "fanslyTwofaCardTitle": "Sessão Fansly por email",
+    "fanslyTwofaCardBody": "Execute o fluxo OTP por email da ApiFansly para que a sua conta Fansly ligada tenha uma sessão verificada para ações sensíveis. Também ignora o pedido de código em envios em massa durante cerca de 15 minutos neste separador.",
+    "fanslyTwofaCardCta": "Verificar com código por email",
+    "fanslyTwofaCardSuccess": "Sessão Fansly verificada. Os envios em massa a partir de Mensagens não voltarão a pedir código aqui durante cerca de 15 minutos."
   },
   "data": {
     "yours": {

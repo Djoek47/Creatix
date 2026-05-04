@@ -50,7 +50,6 @@ import {
   ChevronRight,
   ChevronsDown,
   MessageCircle,
-  Shield,
   Mic,
   PenLine,
   TrendingUp,
@@ -212,6 +211,21 @@ interface OnlyFansConversation {
   unreadCount: number
   platform: 'onlyfans' | 'fansly'
   chatId?: string
+}
+
+/** Thread fetch URL: OnlyFans uses fan id; Fansly uses chat id (or fan id resolved server-side) + peer hint. */
+function dmThreadFetchPath(conv: OnlyFansConversation): { base: string; peerQs: string } {
+  if (conv.platform === 'fansly') {
+    const threadId = encodeURIComponent(String(conv.chatId || conv.user.id))
+    return {
+      base: `/api/fansly/messages/${threadId}`,
+      peerQs: `&peerUserId=${encodeURIComponent(String(conv.user.id))}`,
+    }
+  }
+  return {
+    base: `/api/onlyfans/messages/${encodeURIComponent(String(conv.user.id))}`,
+    peerQs: '',
+  }
 }
 
 interface OnlyFansMedia {
@@ -593,7 +607,10 @@ export function ChatWindow({
     if (messagesFocusChrome?.focusMode) setAiSectionOpen(true)
   }, [messagesFocusChrome?.focusMode])
   const lastGoodMessagesByConversationRef = useRef<Record<string, OnlyFansMessage[]>>({})
-  const isOnlyFansConversation = conversation?.platform === 'onlyfans'
+  const isOnlyFansPlatform = conversation?.platform === 'onlyfans'
+  const hasDmComposer = Boolean(
+    conversation && (conversation.platform === 'onlyfans' || conversation.platform === 'fansly'),
+  )
   const refreshCreditSnapshot = useCallback(async () => {
     try {
       const res = await fetch('/api/billing/credit-snapshot', { credentials: 'include' })
@@ -1096,13 +1113,14 @@ export function ChatWindow({
       setError(null)
 
       try {
-        if (conversation.platform !== 'onlyfans') {
+        if (conversation.platform !== 'onlyfans' && conversation.platform !== 'fansly') {
           if (seq !== onlyFansLoadThreadSeqRef.current) return
           setMessages([])
-          setError(tChat('fanslyThreadViewUnavailable'))
+          setError(tChat('errorLoadFailed'))
           return
         }
-        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
+        const { base, peerQs } = dmThreadFetchPath(conversation)
+        const res = await fetch(`${base}?limit=100${peerQs}`)
         let data: {
           error?: string
           code?: string
@@ -1152,36 +1170,41 @@ export function ChatWindow({
           setThreadStaleReason(null)
         }
 
-        const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
-        const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
-        setMessagingReadPrefs(prefs)
-        if (shouldAutoMarkOnOpen(prefs, 'onlyfans', String(conversation.user.id))) {
-          const cid = String(conversation.chatId || conversation.user.id)
-          void fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' }).catch(
-            () => undefined,
-          )
-          onMessageSent?.()
-        }
+        if (conversation.platform === 'onlyfans') {
+          const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
+          const prefs = mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null)
+          setMessagingReadPrefs(prefs)
+          if (shouldAutoMarkOnOpen(prefs, 'onlyfans', String(conversation.user.id))) {
+            const cid = String(conversation.chatId || conversation.user.id)
+            void fetch(`/api/onlyfans/chats/${encodeURIComponent(cid)}/read`, { method: 'POST' }).catch(
+              () => undefined,
+            )
+            onMessageSent?.()
+          }
 
-        void fetch(
-          `/api/divine/dm-send-events?fan_id=${encodeURIComponent(String(conversation.user.id))}`,
-          { credentials: 'include' },
-        )
-          .then((r) => r.json())
-          .then(
-            (j: {
-              events?: Array<{ onlyfans_message_id?: string | null; source?: string | null }>
-            }) => {
-              const next: Record<string, DmSendSource> = {}
-              for (const e of j.events ?? []) {
-                const mid = e.onlyfans_message_id ? String(e.onlyfans_message_id) : ''
-                const src = typeof e.source === 'string' ? e.source.trim() : ''
-                if (mid && isDmSendSource(src)) next[mid] = src
-              }
-              if (Object.keys(next).length) setDmSendSourceByMessageId((prev) => ({ ...prev, ...next }))
-            },
+          void fetch(
+            `/api/divine/dm-send-events?fan_id=${encodeURIComponent(String(conversation.user.id))}`,
+            { credentials: 'include' },
           )
-          .catch(() => undefined)
+            .then((r) => r.json())
+            .then(
+              (j: {
+                events?: Array<{ onlyfans_message_id?: string | null; source?: string | null }>
+              }) => {
+                const next: Record<string, DmSendSource> = {}
+                for (const e of j.events ?? []) {
+                  const mid = e.onlyfans_message_id ? String(e.onlyfans_message_id) : ''
+                  const src = typeof e.source === 'string' ? e.source.trim() : ''
+                  if (mid && isDmSendSource(src)) next[mid] = src
+                }
+                if (Object.keys(next).length) setDmSendSourceByMessageId((prev) => ({ ...prev, ...next }))
+              },
+            )
+            .catch(() => undefined)
+        } else {
+          const prefsRes = await fetch('/api/user/messaging-read-preferences', { credentials: 'include' })
+          setMessagingReadPrefs(mergeMessagingReadPrefs(prefsRes.ok ? await prefsRes.json() : null))
+        }
       } catch (err) {
         if (seq !== onlyFansLoadThreadSeqRef.current) return
         setError(err instanceof Error ? err.message : tChat('errorLoadFailed'))
@@ -1199,7 +1222,7 @@ export function ChatWindow({
     // Prefer id + platform over full `conversation` so parents that pass inline objects
     // (or stale memo) cannot retrigger this effect every render (React #185).
     // Do not depend on `onMessageSent` — parent identity changes must not wipe the thread.
-  }, [conversation?.user?.id, conversation?.platform, tChat])
+  }, [conversation?.user?.id, conversation?.platform, conversation?.chatId, tChat])
 
   // After paint: snap to bottom when opening; follow new messages when opted in; otherwise only if near bottom.
   useLayoutEffect(() => {
@@ -1240,9 +1263,9 @@ export function ChatWindow({
     }
   }, [conversation, loading, messages, followThreadLatest])
 
-  // Poll for new messages (OnlyFans route only). Delay first poll + slower interval to reduce rate-limit bursts with voice navigation + thread refresh.
+  // Poll for new messages (OnlyFans + Fansly). Delay first poll + slower interval to reduce rate-limit bursts with voice navigation + thread refresh.
   useEffect(() => {
-    if (!conversation || conversation.platform !== 'onlyfans') return
+    if (!conversation || (conversation.platform !== 'onlyfans' && conversation.platform !== 'fansly')) return
     if (loading) return
 
     const poll = async () => {
@@ -1251,7 +1274,8 @@ export function ChatWindow({
       if (Date.now() < onlyFansPollBackoffUntilRef.current) return
       setIsPolling(true)
       try {
-        const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100`)
+        const { base, peerQs } = dmThreadFetchPath(conversation)
+        const res = await fetch(`${base}?limit=100${peerQs}`)
         let data: { messages?: OnlyFansMessage[]; code?: string } = {}
         try {
           data = (await res.json()) as typeof data
@@ -1293,7 +1317,7 @@ export function ChatWindow({
         pollIntervalRef.current = null
       }
     }
-  }, [conversation?.user?.id, conversation?.platform, loading])
+  }, [conversation?.user?.id, conversation?.platform, conversation?.chatId, loading])
 
   useEffect(() => {
     if (!divinePanel || !conversation) return
@@ -1315,28 +1339,40 @@ export function ChatWindow({
     })
   }, [divinePanel, conversation?.user?.id, conversation?.platform, applyComposerTextAnimated])
 
-  const handleChatFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files?.length || conversation?.platform !== 'onlyfans') return
-    setUploadingMedia(true)
-    try {
-      const { uploadLocalFileToOnlyFansMedia } = await import('@/lib/onlyfans-upload-client')
-      for (let i = 0; i < files.length; i++) {
-        const data = await uploadLocalFileToOnlyFansMedia(files[i])
-        if (data.id) setAttachedMediaIds((prev) => [...prev, data.id])
+  const handleChatFileUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files?.length || !conversation) return
+      if (conversation.platform !== 'onlyfans' && conversation.platform !== 'fansly') return
+      setUploadingMedia(true)
+      try {
+        if (conversation.platform === 'onlyfans') {
+          const { uploadLocalFileToOnlyFansMedia } = await import('@/lib/onlyfans-upload-client')
+          for (let i = 0; i < files.length; i++) {
+            const data = await uploadLocalFileToOnlyFansMedia(files[i])
+            if (data.id) setAttachedMediaIds((prev) => [...prev, data.id])
+          }
+        } else {
+          const { uploadLocalFileToFanslyMedia } = await import('@/lib/fansly-upload-client')
+          for (let i = 0; i < files.length; i++) {
+            const data = await uploadLocalFileToFanslyMedia(files[i])
+            if (data.id) setAttachedMediaIds((prev) => [...prev, data.id])
+          }
+        }
+      } catch {
+        setError(tChat('uploadMediaFailed'))
+      } finally {
+        setUploadingMedia(false)
+        e.target.value = ''
       }
-    } catch {
-      setError(tChat('uploadMediaFailed'))
-    } finally {
-      setUploadingMedia(false)
-      e.target.value = ''
-    }
-  }, [conversation?.platform, tChat])
+    },
+    [conversation, tChat],
+  )
 
   const handleSendMessage = useCallback(async () => {
     if ((!message.trim() && attachedMediaIds.length === 0) || !conversation || sending) return
-    if (conversation.platform !== 'onlyfans') {
-      setError(tChat('fanslySendNotAvailable'))
+    if (conversation.platform !== 'onlyfans' && conversation.platform !== 'fansly') {
+      setError(tChat('errorSendMessage'))
       return
     }
 
@@ -1359,15 +1395,23 @@ export function ChatWindow({
         price?: number
       } = { text: messageText }
       if (mediaIdsToSend.length > 0) body.mediaIds = mediaIdsToSend
-      if (priceToSend != null && !Number.isNaN(priceToSend) && priceToSend >= 0) body.price = priceToSend
+      if (
+        (conversation.platform === 'onlyfans' || conversation.platform === 'fansly') &&
+        priceToSend != null &&
+        !Number.isNaN(priceToSend) &&
+        priceToSend >= 0
+      ) {
+        body.price = priceToSend
+      }
 
-      const res = await fetch(`/api/onlyfans/messages/${conversation.user.id}`, {
+      const { base } = dmThreadFetchPath(conversation)
+      const res = await fetch(base, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
-        const data = (await res.json()) as {
+      const data = (await res.json()) as {
         error?: string
         message?: OnlyFansMessage & { id?: string | number }
       }
@@ -1380,43 +1424,47 @@ export function ChatWindow({
         const mid = data.message.id != null ? String(data.message.id) : ''
         setMessages((prev) => normalizeAndSortMessages([...prev, data.message as OnlyFansMessage]))
         requestAnimationFrame(() => scrollMessagesListToBottomAfterSend())
-        const consumedDivine = divinePanel?.consumePendingDmSendSource() ?? 'user'
-        let source: DmSendSource = 'user'
-        if (consumedDivine !== 'user') {
-          source = consumedDivine
-        } else if (pendingComposerSuggestionRef.current !== 'user') {
-          source = pendingComposerSuggestionRef.current
-          pendingComposerSuggestionRef.current = 'user'
-        }
-        if (source !== 'user') {
-          if (mid) setDmSendSourceByMessageId((prev) => ({ ...prev, [mid]: source }))
-          void fetch('/api/divine/dm-send-event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              fan_id: String(conversation.user.id),
-              platform: 'onlyfans',
-              body_preview: messageText.slice(0, 2000),
-              source,
-              ...(mid ? { onlyfans_message_id: mid } : {}),
-            }),
-          }).catch(() => undefined)
+        if (conversation.platform === 'onlyfans') {
+          const consumedDivine = divinePanel?.consumePendingDmSendSource() ?? 'user'
+          let source: DmSendSource = 'user'
+          if (consumedDivine !== 'user') {
+            source = consumedDivine
+          } else if (pendingComposerSuggestionRef.current !== 'user') {
+            source = pendingComposerSuggestionRef.current
+            pendingComposerSuggestionRef.current = 'user'
+          }
+          if (source !== 'user') {
+            if (mid) setDmSendSourceByMessageId((prev) => ({ ...prev, [mid]: source }))
+            void fetch('/api/divine/dm-send-event', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                fan_id: String(conversation.user.id),
+                platform: 'onlyfans',
+                body_preview: messageText.slice(0, 2000),
+                source,
+                ...(mid ? { onlyfans_message_id: mid } : {}),
+              }),
+            }).catch(() => undefined)
+          }
         }
       }
-      void fetch('/api/divine/refresh-thread-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          fanId: String(conversation.user.id),
-          platform: 'onlyfans',
-          force: true,
-        }),
-      }).catch(() => undefined)
+      if (conversation.platform === 'onlyfans') {
+        void fetch('/api/divine/refresh-thread-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            fanId: String(conversation.user.id),
+            platform: 'onlyfans',
+            force: true,
+          }),
+        }).catch(() => undefined)
+      }
 
       const chatterOutboxId = pendingChatterOutboxIdRef.current
-      if (chatterOutboxId) {
+      if (chatterOutboxId && conversation.platform === 'onlyfans') {
         pendingChatterOutboxIdRef.current = null
         void fetch(`/api/ai-chatter/outbox/${chatterOutboxId}`, {
           method: 'PATCH',
@@ -1565,12 +1613,10 @@ export function ChatWindow({
               <DropdownMenuItem
                 className={threadToolsMenuItemClass}
                 onClick={() => {
-                  if (conversation.platform !== 'onlyfans') {
-                    setError(tChat('fanslyRefreshNotAvailable'))
-                    return
-                  }
                   setLoading(true)
-                  fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
+                  const { base, peerQs } = dmThreadFetchPath(conversation)
+                  const refresh = conversation.platform === 'onlyfans' ? '&refresh=1' : ''
+                  fetch(`${base}?limit=100${peerQs}${refresh}`)
                     .then((res) => res.json())
                     .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
                       const normalized = normalizeAndSortMessages(data.messages || [])
@@ -1739,13 +1785,11 @@ export function ChatWindow({
               size="sm" 
               className="mt-2"
               onClick={() => {
-                if (conversation.platform !== 'onlyfans') {
-                  setError(tChat('fanslyThreadViewUnavailable'))
-                  return
-                }
                 setError(null)
                 setLoading(true)
-                fetch(`/api/onlyfans/messages/${conversation.user.id}?limit=100&refresh=1`)
+                const { base, peerQs } = dmThreadFetchPath(conversation)
+                const refresh = conversation.platform === 'onlyfans' ? '&refresh=1' : ''
+                fetch(`${base}?limit=100${peerQs}${refresh}`)
                   .then(res => res.json())
                   .then((data: { messages?: OnlyFansMessage[]; source?: string; stale?: boolean }) => {
                     const normalized = normalizeAndSortMessages(data.messages || [])
@@ -2103,10 +2147,10 @@ export function ChatWindow({
                   variant="outline"
                   size="sm"
                   className="gap-1 border-sky-500/50 text-xs text-sky-500"
-                  disabled={suggestionsLoading === 'mimic' || messages.length === 0 || !isOnlyFansConversation}
+                  disabled={suggestionsLoading === 'mimic' || messages.length === 0 || !isOnlyFansPlatform}
                   onClick={() => callSuggestionApi('mimic')}
                   title={
-                    isOnlyFansConversation
+                    isOnlyFansPlatform
                       ? tChat('mimicTooltipOnlyfans')
                       : tChat('mimicTooltipUnavailable')
                   }
@@ -2182,28 +2226,6 @@ export function ChatWindow({
             </div>
             </CollapsibleContent>
           </Collapsible>
-          {isOnlyFansConversation ? (
-            <div className="border-t border-border/50 px-2 py-1 sm:px-3">
-              <div className="flex min-h-0 items-center gap-2 rounded-md border border-border/35 bg-muted/10 px-2 py-1">
-                <Shield className="h-3.5 w-3.5 shrink-0 text-violet-400" aria-hidden />
-                <p className="min-w-0 flex-1 truncate text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
-                  <span className="font-medium text-foreground/90">{tChat('ariadneTeaserTitle')}</span>
-                  <span className="text-muted-foreground/90"> · {tChat('ariadneTeaserLine')}</span>
-                </p>
-                <Badge
-                  variant="outline"
-                  className="shrink-0 border-violet-500/35 bg-violet-500/[0.12] px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-violet-100/90"
-                >
-                  {tChat('ariadneTeaserBadge')}
-                </Badge>
-                <Button asChild size="sm" variant="secondary" className="h-7 shrink-0 px-2.5 text-[11px]">
-                  <Link href="/dashboard/ai-studio/ariadne" prefetch={false}>
-                    {tChat('ariadneTeaserCta')}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </div>
 
       {/* Composer + send: fixed to bottom of chat card (always visible) */}
@@ -2252,10 +2274,14 @@ export function ChatWindow({
                   variant="outline"
                   size="icon"
                   className="h-11 w-11 shrink-0"
-                  disabled={!isOnlyFansConversation || uploadingMedia}
+                  disabled={!hasDmComposer || uploadingMedia}
                   onClick={() => chatFileInputRef.current?.click()}
                   title={
-                    isOnlyFansConversation ? tChat('attachMediaTooltipOf') : tChat('attachMediaTooltipNotOf')
+                    !hasDmComposer
+                      ? tChat('attachMediaTooltipNotOf')
+                      : isOnlyFansPlatform
+                        ? tChat('attachMediaTooltipOf')
+                        : tChat('attachMediaTooltipFansly')
                   }
                 >
                   {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
@@ -2297,7 +2323,7 @@ export function ChatWindow({
                       divineComposerHighlight &&
                         'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
                     )}
-                    disabled={sending || !isOnlyFansConversation}
+                    disabled={sending || !hasDmComposer}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
@@ -2310,7 +2336,7 @@ export function ChatWindow({
                 <Button
                   size="icon"
                   className="h-11 w-11 shrink-0"
-                  disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !isOnlyFansConversation}
+                  disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !hasDmComposer}
                   onClick={handleSendMessage}
                 >
                   {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
@@ -2325,7 +2351,7 @@ export function ChatWindow({
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0 gap-1 px-2.5"
-                      disabled={!isOnlyFansConversation}
+                      disabled={!hasDmComposer}
                     >
                       <DollarSign className="h-3.5 w-3.5" />
                       {ppvPrice
@@ -2383,10 +2409,14 @@ export function ChatWindow({
                   variant="outline"
                   size="icon"
                   className="h-11 w-11"
-                  disabled={!isOnlyFansConversation || uploadingMedia}
+                  disabled={!hasDmComposer || uploadingMedia}
                   onClick={() => chatFileInputRef.current?.click()}
                   title={
-                    isOnlyFansConversation ? tChat('attachMediaTooltipOf') : tChat('attachMediaTooltipNotOf')
+                    !hasDmComposer
+                      ? tChat('attachMediaTooltipNotOf')
+                      : isOnlyFansPlatform
+                        ? tChat('attachMediaTooltipOf')
+                        : tChat('attachMediaTooltipFansly')
                   }
                 >
                   {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
@@ -2442,7 +2472,7 @@ export function ChatWindow({
                     divineComposerHighlight &&
                       'ring-2 ring-amber-400/55 ring-offset-0 shadow-[0_0_0_1px_rgba(234,179,8,0.35),0_0_22px_rgba(147,51,234,0.45)] dark:ring-amber-400/45 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_26px_rgba(168,85,247,0.4)]',
                   )}
-                  disabled={sending || !isOnlyFansConversation}
+                  disabled={sending || !hasDmComposer}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
@@ -2469,7 +2499,7 @@ export function ChatWindow({
               <Button
                 size="icon"
                 className="h-11 w-11 shrink-0"
-                disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !isOnlyFansConversation}
+                disabled={(!message.trim() && attachedMediaIds.length === 0) || sending || !hasDmComposer}
                 onClick={handleSendMessage}
               >
                 {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
@@ -2526,7 +2556,7 @@ export function ChatWindow({
                   type="button"
                   variant="ghost"
                   className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
-                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  disabled={!isOnlyFansPlatform || messages.length === 0}
                   onClick={() => {
                     setMobileDivineOperatorSheetOpen(false)
                     setAiSectionOpen(true)
@@ -2540,7 +2570,7 @@ export function ChatWindow({
                   type="button"
                   variant="ghost"
                   className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
-                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  disabled={!isOnlyFansPlatform || messages.length === 0}
                   onClick={() => {
                     setMobileDivineOperatorSheetOpen(false)
                     setAiSectionOpen(true)
@@ -2554,7 +2584,7 @@ export function ChatWindow({
                   type="button"
                   variant="ghost"
                   className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
-                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  disabled={!isOnlyFansPlatform || messages.length === 0}
                   onClick={() => {
                     setMobileDivineOperatorSheetOpen(false)
                     setAiSectionOpen(true)
@@ -2568,7 +2598,7 @@ export function ChatWindow({
                   type="button"
                   variant="ghost"
                   className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
-                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  disabled={!isOnlyFansPlatform || messages.length === 0}
                   onClick={() => {
                     setMobileDivineOperatorSheetOpen(false)
                     setAiSectionOpen(true)
@@ -2582,7 +2612,7 @@ export function ChatWindow({
                   type="button"
                   variant="ghost"
                   className="h-11 shrink-0 justify-start gap-3 rounded-none px-4 text-sm font-normal"
-                  disabled={!isOnlyFansConversation || messages.length === 0}
+                  disabled={!isOnlyFansPlatform || messages.length === 0}
                   onClick={() => {
                     setMobileDivineOperatorSheetOpen(false)
                     setAiSectionOpen(true)

@@ -67,7 +67,7 @@ function fanInitial(username: string | undefined): string {
   return (u[0] ?? '?').toUpperCase()
 }
 
-type TrayKey = 'ppv' | 'voice' | 'trace' | 'ai' | 'divine'
+type TrayKey = 'ppv' | 'voice' | 'ai' | 'divine'
 
 export default function MessageThreadScreen() {
   const router = useRouter()
@@ -75,7 +75,12 @@ export default function MessageThreadScreen() {
   const { openDivinePopup } = useDivineQuick()
   const voice = useDivineVoice()
   const dismissVoicePending = voice.dismissPendingConfirmation
-  const { fanId, fanUsername } = useLocalSearchParams<{ fanId: string; fanUsername?: string }>()
+  const { fanId, fanUsername, platform: platformParam, chatId: chatIdParam } = useLocalSearchParams<{
+    fanId: string
+    fanUsername?: string
+    platform?: string
+    chatId?: string
+  }>()
   const fid = typeof fanId === 'string' ? fanId : Array.isArray(fanId) ? fanId[0] : ''
   const uname = typeof fanUsername === 'string' ? fanUsername : Array.isArray(fanUsername) ? fanUsername[0] : ''
   const displayName = uname.replace(/^@/, '') || 'Fan'
@@ -89,13 +94,29 @@ export default function MessageThreadScreen() {
   const [confirmingVoiceIntentId, setConfirmingVoiceIntentId] = useState<string | null>(null)
   const listRef = useRef<FlatList<Msg>>(null)
 
+  const rawPlatform = Array.isArray(platformParam) ? platformParam[0] : platformParam
+  const platform = rawPlatform === 'fansly' ? 'fansly' : 'onlyfans'
+  const rawChatId =
+    typeof chatIdParam === 'string'
+      ? chatIdParam.trim()
+      : Array.isArray(chatIdParam)
+        ? String(chatIdParam[0] ?? '').trim()
+        : ''
+  const threadKey = platform === 'fansly' && rawChatId ? rawChatId : fid
+  const threadId = encodeURIComponent(threadKey)
+
   const load = useCallback(
     async (opts?: { refresh?: boolean }) => {
       if (!fid) return
       setError(null)
       const q = new URLSearchParams({ limit: '100' })
-      if (opts?.refresh) q.set('refresh', '1')
-      const res = await apiFetch(`/api/onlyfans/messages/${encodeURIComponent(fid)}?${q.toString()}`)
+      if (opts?.refresh && platform === 'onlyfans') q.set('refresh', '1')
+      if (platform === 'fansly') q.set('peerUserId', fid)
+      const path =
+        platform === 'fansly'
+          ? `/api/fansly/messages/${threadId}?${q.toString()}`
+          : `/api/onlyfans/messages/${threadId}?${q.toString()}`
+      const res = await apiFetch(path)
       const json = (await res.json()) as { messages?: Msg[]; error?: string; message?: string }
       if (!res.ok) {
         setError(formatApiScreenError(res.status, json.error, json.message))
@@ -104,13 +125,13 @@ export default function MessageThreadScreen() {
       }
       setItems(json.messages ?? [])
       const prefs = await loadMessagingReadPrefs()
-      if (shouldAutoMarkOnlyFansChat(prefs, fid)) {
+      if (platform === 'onlyfans' && shouldAutoMarkOnlyFansChat(prefs, fid)) {
         void apiFetch(`/api/onlyfans/chats/${encodeURIComponent(fid)}/read`, { method: 'POST' }).catch(
           () => undefined,
         )
       }
     },
-    [fid],
+    [fid, platform, threadId],
   )
 
   useEffect(() => {
@@ -130,7 +151,8 @@ export default function MessageThreadScreen() {
     setSending(true)
     setDraft('')
     try {
-      const res = await apiFetch(`/api/onlyfans/messages/${encodeURIComponent(fid)}`, {
+      const sendPath = platform === 'fansly' ? `/api/fansly/messages/${threadId}` : `/api/onlyfans/messages/${threadId}`
+      const res = await apiFetch(sendPath, {
         method: 'POST',
         body: JSON.stringify({ text }),
       })
@@ -212,9 +234,6 @@ export default function MessageThreadScreen() {
           break
         }
         void voice.startVoiceCall({ id: fid, username: displayName, name: displayName })
-        break
-      case 'trace':
-        void openUrlSafe(threadWebUrl)
         break
       case 'ai':
         router.push('/(main)/ai-studio')
@@ -395,7 +414,7 @@ export default function MessageThreadScreen() {
             onPress={() => router.push('/(main)/divine-manager?section=chat')}
           >
             <FontAwesome name="magic" size={12} color={theme.circe} />
-            <Text style={styles.intelPillTextDim}>Ariadne · reasoning & tools (manager)</Text>
+            <Text style={styles.intelPillTextDim}>Manager · chat tools</Text>
           </Pressable>
         </View>
 
@@ -454,13 +473,6 @@ export default function MessageThreadScreen() {
             >
               <FontAwesome name="microphone" size={16} color={theme.text} />
               <Text style={styles.trayLabel}>Voice</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.trayBtn, pressed && styles.pressed]}
-              onPress={() => onTrayPress('trace')}
-            >
-              <FontAwesome name="search" size={16} color={theme.text} />
-              <Text style={styles.trayLabel}>Trace</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.trayBtn, pressed && styles.pressed]}

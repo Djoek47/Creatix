@@ -2,12 +2,16 @@
 
 import { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   CREATIX_TOUR_COMPLETED_EVENT,
   getTourForPath,
   type CreatixTourCompletedDetail,
   TOUR_STORAGE_PREFIX,
 } from '@/lib/tour-config'
+import { orbitGuideStepField } from '@/lib/guide-orbit-i18n'
+import { tourStepCopy } from '@/lib/tour-i18n'
+import { fullAppWelcomeTour } from '@/lib/tour-full-app-welcome'
 import { TourDialog } from './tour-dialog'
 import { TourSpotlight } from './tour-spotlight'
 import type { TourConfig } from '@/lib/tour-types'
@@ -74,12 +78,31 @@ function TourProviderInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const tGuideOrbit = useTranslations('guideOrbit')
+  const tTours = useTranslations('tours')
   const pathConfig = useMemo(() => getTourForPath(pathname ?? '/dashboard'), [pathname])
   const [open, setOpen] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [activeTour, setActiveTour] = useState<TourConfig | null>(null)
 
   const config = open && activeTour ? activeTour : pathConfig
+
+  const displaySteps = useMemo(() => {
+    if (!activeTour) return []
+    if (!activeTour.steps.length) return activeTour.steps
+    if (activeTour.tourId === fullAppWelcomeTour.tourId) {
+      return activeTour.steps.map((s) => ({
+        ...s,
+        title: orbitGuideStepField(tGuideOrbit, s.id, 'title', s.title),
+        description: orbitGuideStepField(tGuideOrbit, s.id, 'description', s.description),
+      }))
+    }
+    return activeTour.steps.map((s) => ({
+      ...s,
+      title: tourStepCopy(tTours, activeTour.tourId, s.id, 'title', s.title),
+      description: tourStepCopy(tTours, activeTour.tourId, s.id, 'description', s.description),
+    }))
+  }, [activeTour, tGuideOrbit, tTours])
 
   const startTour = useCallback(() => {
     const c = getTourForPath(pathname ?? '/dashboard')
@@ -142,7 +165,7 @@ function TourProviderInner({ children }: { children: React.ReactNode }) {
             open={open}
             pathname={pathname ?? ''}
             onClose={onClose}
-            steps={activeTour.steps}
+            steps={displaySteps}
             stepIndex={stepIndex}
             onNext={onNext}
             onBack={onBack}
@@ -152,7 +175,7 @@ function TourProviderInner({ children }: { children: React.ReactNode }) {
           <TourDialog
             open={open}
             onClose={onClose}
-            steps={activeTour.steps}
+            steps={displaySteps}
             stepIndex={stepIndex}
             onNext={onNext}
             onBack={onBack}

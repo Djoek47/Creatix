@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   Dialog,
   DialogContent,
@@ -38,51 +39,59 @@ type FanProfileModalProps = {
   initialAvatar?: string | null
 }
 
-function formatProfileSection(profileJson: unknown): { label: string; items: string[] }[] {
+function formatProfileSection(
+  profileJson: unknown,
+  t: (key: string) => string,
+): { label: string; items: string[] }[] {
   if (!profileJson || typeof profileJson !== 'object') return []
   const o = profileJson as Record<string, unknown>
-  const keys: Array<{ key: string; label: string }> = [
-    { key: 'preferences', label: 'Preferences' },
-    { key: 'interests', label: 'Interests' },
-    { key: 'hobbies', label: 'Hobbies' },
-    { key: 'travel_plans', label: 'Travel' },
-    { key: 'content_requests', label: 'Content requests' },
-  ]
+  const keys = [
+    ['preferences', 'sections.preferences'],
+    ['interests', 'sections.interests'],
+    ['hobbies', 'sections.hobbies'],
+    ['travel_plans', 'sections.travel_plans'],
+    ['content_requests', 'sections.content_requests'],
+  ] as const
   const out: { label: string; items: string[] }[] = []
-  for (const { key, label } of keys) {
+  for (const [key, labelKey] of keys) {
     const v = o[key]
     if (Array.isArray(v)) {
       const items = v.map((x) => String(x)).filter(Boolean)
-      if (items.length) out.push({ label, items })
+      if (items.length) out.push({ label: t(labelKey), items })
     }
   }
   if (typeof o.relationship_notes === 'string' && o.relationship_notes.trim()) {
-    out.push({ label: 'Relationship notes', items: [o.relationship_notes.trim()] })
+    out.push({ label: t('sections.relationship_notes'), items: [o.relationship_notes.trim()] })
   }
   if (typeof o.tone === 'string' && o.tone.trim()) {
-    out.push({ label: 'Tone', items: [o.tone.trim()] })
+    out.push({ label: t('sections.tone'), items: [o.tone.trim()] })
   }
   return out
 }
 
-function threadInsightMetaLine(ti: {
-  lastThreadRefreshAt?: string | null
-  lastScanKind?: string | null
-  lastScanAt?: string | null
-  lastUpdateAt?: string | null
-}): string | null {
+function threadInsightMetaLine(
+  ti: {
+    lastThreadRefreshAt?: string | null
+    lastScanKind?: string | null
+    lastScanAt?: string | null
+    lastUpdateAt?: string | null
+  },
+  t: (key: string, values?: Record<string, string>) => string,
+): string | null {
   const parts: string[] = []
   if (ti.lastThreadRefreshAt) {
-    parts.push(`Refreshed ${new Date(ti.lastThreadRefreshAt).toLocaleString()}`)
+    parts.push(t('metaRefreshed', { dateTime: new Date(ti.lastThreadRefreshAt).toLocaleString() }))
   }
   if (ti.lastScanKind && ti.lastScanAt) {
-    const kind = ti.lastScanKind === 'thread_update' ? 'Thread update' : 'Manual scan'
-    parts.push(`${kind} · ${new Date(ti.lastScanAt).toLocaleString()}`)
+    const dt = new Date(ti.lastScanAt).toLocaleString()
+    parts.push(
+      ti.lastScanKind === 'thread_update' ? t('metaThreadUpdate', { dateTime: dt }) : t('metaManualScan', { dateTime: dt }),
+    )
   } else if (ti.lastScanAt) {
-    parts.push(`Scan ${new Date(ti.lastScanAt).toLocaleString()}`)
+    parts.push(t('metaScan', { dateTime: new Date(ti.lastScanAt).toLocaleString() }))
   }
   if (ti.lastUpdateAt) {
-    parts.push(`Auto-update ${new Date(ti.lastUpdateAt).toLocaleString()}`)
+    parts.push(t('metaAutoUpdate', { dateTime: new Date(ti.lastUpdateAt).toLocaleString() }))
   }
   if (parts.length === 0) return null
   return parts.join(' · ')
@@ -97,6 +106,7 @@ export function FanProfileModal({
   initialName,
   initialAvatar,
 }: FanProfileModalProps) {
+  const t = useTranslations('messages.fanProfile')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<UnifiedFanProfilePayload | null>(null)
@@ -121,14 +131,14 @@ export function FanProfileModal({
         { credentials: 'include', signal: ac.signal },
       )
       const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & { error?: string }
-      if (!res.ok) throw new Error(json.error || 'Failed to load profile')
+      if (!res.ok) throw new Error(json.error || t('errLoadProfile'))
       if (ac.signal.aborted) return
       setData(json)
       setClassificationDraft(json.creatorClassification ?? '')
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
       if (e instanceof Error && e.name === 'AbortError') return
-      setError(e instanceof Error ? e.message : 'Failed to load')
+      setError(e instanceof Error ? e.message : t('errLoadShort'))
       setData(null)
     } finally {
       if (profileFetchAbortRef.current === ac) {
@@ -136,7 +146,7 @@ export function FanProfileModal({
       }
       setLoading(false)
     }
-  }, [fanId, platform])
+  }, [fanId, platform, t])
 
   useEffect(() => {
     return () => profileFetchAbortRef.current?.abort()
@@ -148,8 +158,8 @@ export function FanProfileModal({
   }, [open, fanId, load])
 
   const displayName =
-    data?.core?.displayName || initialName || data?.core?.username || initialUsername || 'Fan'
-  const username = data?.core?.username || initialUsername || '—'
+    data?.core?.displayName || initialName || data?.core?.username || initialUsername || t('displayFallback')
+  const username = data?.core?.username || initialUsername || t('usernamePlaceholder')
   const avatar = data?.core?.avatarUrl || initialAvatar || ''
 
   /** Same effective type as the CRM grid: manual override wins, else backend-evolved profileType. */
@@ -181,8 +191,8 @@ export function FanProfileModal({
         )}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Fan profile</DialogTitle>
-          <DialogDescription>Fan id, platform, thread insights, and AI summary</DialogDescription>
+          <DialogTitle>{t('dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col px-5 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8">
@@ -196,7 +206,7 @@ export function FanProfileModal({
             <div className="min-w-0 flex-1 space-y-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/55">Fan profile</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/55">{t('headerKicker')}</p>
                   <h2 className="truncate text-[1.625rem] font-semibold leading-tight tracking-[-0.03em] text-foreground">
                     {displayName}
                   </h2>
@@ -206,7 +216,7 @@ export function FanProfileModal({
                       href={fansCrmHref}
                       className="text-[12px] font-medium text-muted-foreground underline decoration-border/55 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/35"
                     >
-                      Open in Fans
+                      {t('openInFans')}
                     </Link>
                   </p>
                 </div>
@@ -215,7 +225,7 @@ export function FanProfileModal({
                   variant="outline"
                   size="icon"
                   className="h-10 w-10 shrink-0 rounded-xl border-border/40 bg-background/40 shadow-none"
-                  title="Sync thread from platform, then reload"
+                  title={t('syncTitle')}
                   onClick={async () => {
                     setError(null)
                     setLoading(true)
@@ -227,10 +237,10 @@ export function FanProfileModal({
                         body: JSON.stringify({ fanId, platform, force: true }),
                       })
                       const syncJson = (await sync.json().catch(() => ({}))) as { error?: string }
-                      if (!sync.ok) throw new Error(syncJson.error || 'Could not sync thread')
+                      if (!sync.ok) throw new Error(syncJson.error || t('errCouldNotSyncThread'))
                       await load()
                     } catch (e) {
-                      setError(e instanceof Error ? e.message : 'Sync failed')
+                      setError(e instanceof Error ? e.message : t('errSyncFailed'))
                       setLoading(false)
                     }
                   }}
@@ -242,7 +252,7 @@ export function FanProfileModal({
 
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-border/35 bg-background/35 px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-                  ID {fanId}
+                  {t('fanIdBadge', { fanId })}
                 </span>
                 <PlatformLogoChip platform={platform} />
                 {audienceBadges.map((b) => (
@@ -266,24 +276,23 @@ export function FanProfileModal({
                 <div className="border-l-2 border-l-violet-500/35 py-1 pl-4 dark:border-l-violet-400/30">
                   {data?.creatorClassification?.trim() ? (
                     <p className="text-[13px] leading-snug text-foreground">
-                      <span className="text-muted-foreground/80">Your label · </span>
+                      <span className="text-muted-foreground/80">{t('yourLabelPrefix')}</span>
                       {data.creatorClassification.trim()}
                     </p>
                   ) : null}
                   {data?.crm?.fanTenureDays != null ? (
                     <p className={cn('text-[13px] leading-snug text-foreground/90', data?.creatorClassification?.trim() && 'mt-2')}>
-                      <span className="text-muted-foreground/80">Tenure · </span>
+                      <span className="text-muted-foreground/80">{t('tenurePrefix')}</span>
                       {data.crm.fanTenureDays === 0
-                        ? 'joined today'
+                        ? t('tenureJoinedToday')
                         : data.crm.fanTenureDays < 14
-                          ? `${data.crm.fanTenureDays} days`
+                          ? t('tenureDays', { count: data.crm.fanTenureDays })
                           : data.crm.fanTenureDays < 365
-                            ? `${Math.floor(data.crm.fanTenureDays / 7)} weeks`
-                            : `${Math.floor(data.crm.fanTenureDays / 30)} months`}
+                            ? t('tenureWeeks', { count: Math.floor(data.crm.fanTenureDays / 7) })
+                            : t('tenureMonths', { count: Math.floor(data.crm.fanTenureDays / 30) })}
                       {data.crm.subscriptionStart ? (
                         <span className="text-muted-foreground/75">
-                          {' '}
-                          · since {new Date(data.crm.subscriptionStart).toLocaleDateString()}
+                          {t('sinceWithDate', { date: new Date(data.crm.subscriptionStart).toLocaleDateString() })}
                         </span>
                       ) : null}
                     </p>
@@ -293,11 +302,9 @@ export function FanProfileModal({
 
               <div className="space-y-2">
                 <Label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
-                  CRM profile type
+                  {t('crmProfileTypeLabel')}
                 </Label>
-                <p className="text-[12px] leading-snug text-muted-foreground/82">
-                  Override replaces inferred classification until you clear it in CRM.
-                </p>
+                <p className="text-[12px] leading-snug text-muted-foreground/82">{t('crmProfileTypeHint')}</p>
                 <FanProfileTypeSelect
                   value={effectiveProfileType}
                   disabled={profileTypeSaving || loading || !fanId}
@@ -329,11 +336,11 @@ export function FanProfileModal({
                       const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
                         error?: string
                       }
-                      if (!res.ok) throw new Error(json.error || 'Failed to save profile type')
+                      if (!res.ok) throw new Error(json.error || t('errProfileTypeSave'))
                       setData(json)
                     } catch (e) {
                       setData(prev)
-                      setError(e instanceof Error ? e.message : 'Save failed')
+                      setError(e instanceof Error ? e.message : t('errSaveFailed'))
                     } finally {
                       setProfileTypeSaving(false)
                     }
@@ -342,7 +349,7 @@ export function FanProfileModal({
                 />
                 {data ? (
                   <p className="text-[11px] text-muted-foreground/80">
-                    Applied ·{' '}
+                    {t('appliedPrefix')}
                     <span className="font-medium text-foreground/90">{effectiveProfileType.replace(/_/g, ' ')}</span>
                     <span className="text-muted-foreground/50"> · </span>
                     <span className="uppercase tracking-[0.08em] text-muted-foreground/70">{data.profileTypeSource}</span>
@@ -352,19 +359,19 @@ export function FanProfileModal({
 
               {data?.crm != null && (
                 <p className="text-[12px] leading-snug text-muted-foreground/85">
-                  ${Math.round(data.crm.totalSpent)} spent
+                  {t('crmSpent', { amount: `$${Math.round(data.crm.totalSpent)}` })}
                   {data.crm.subscriptionTier ? ` · ${data.crm.subscriptionTier}` : ''}
                   {data.crm.subscriptionAccountType && data.crm.subscriptionAccountType !== 'unknown'
-                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? 'free' : 'paid'}`
+                    ? ` · ${data.crm.subscriptionAccountType === 'free' ? t('crmAccountFree') : t('crmAccountPaid')}`
                     : ''}
                   {data.crm.subscriptionPrice != null && !Number.isNaN(data.crm.subscriptionPrice)
-                    ? ` · list $${data.crm.subscriptionPrice.toFixed(2)}`
+                    ? t('crmListPrice', { price: `$${data.crm.subscriptionPrice.toFixed(2)}` })
                     : ''}
                 </p>
               )}
               {data?.churnSnapshot ? (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 dark:border-amber-400/15 dark:bg-amber-400/[0.05]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">Churn</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">{t('churnKicker')}</p>
                   <p className="mt-1.5 text-[13px] text-foreground">
                     <span className="capitalize">{data.churnSnapshot.riskLevel}</span>
                     {data.churnSnapshot.updatedAt
@@ -384,13 +391,13 @@ export function FanProfileModal({
                       href="/dashboard/retention/churn"
                       className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground/40"
                     >
-                      Retention
+                      {t('linkRetention')}
                     </Link>
                     <Link
                       href="/dashboard/ai-studio/tools/churn-predictor"
                       className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground/40"
                     >
-                      Churn predictor
+                      {t('linkChurnPredictor')}
                     </Link>
                   </p>
                 </div>
@@ -401,24 +408,22 @@ export function FanProfileModal({
           {loading && !data && (
             <div className="mt-8 flex items-center gap-2.5 text-[13px] text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin opacity-80" />
-              Loading profile…
+              {t('loadingProfile')}
             </div>
           )}
           {error ? <p className="mt-4 text-[13px] text-destructive">{error}</p> : null}
 
           <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
             <Label htmlFor="fan-creator-classification" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
-              Your label
+              {t('yourLabelField')}
             </Label>
-            <p className="max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">
-              Private tags for you and Divine — whale, VIP, churn risk, fellow creator, etc.
-            </p>
+            <p className="max-w-prose text-[12px] leading-relaxed text-muted-foreground/85">{t('yourLabelHint')}</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <Input
                 id="fan-creator-classification"
                 value={classificationDraft}
                 onChange={(e) => setClassificationDraft(e.target.value)}
-                placeholder="Optional"
+                placeholder={t('optionalPlaceholder')}
                 className="h-10 flex-1 rounded-xl border-border/40 bg-background/50 text-[13px] shadow-none"
                 disabled={savingClass || loading}
                 maxLength={2000}
@@ -445,17 +450,17 @@ export function FanProfileModal({
                     const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
                       error?: string
                     }
-                    if (!res.ok) throw new Error(json.error || 'Save failed')
+                    if (!res.ok) throw new Error(json.error || t('errSaveFailed'))
                     setData(json)
                     setClassificationDraft(json.creatorClassification ?? '')
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Save failed')
+                    setError(e instanceof Error ? e.message : t('errSaveFailed'))
                   } finally {
                     setSavingClass(false)
                   }
                 }}
               >
-                Save
+                {t('save')}
               </Button>
             </div>
           </div>
@@ -463,15 +468,12 @@ export function FanProfileModal({
           {platform === 'onlyfans' && data && (
             <div className="mt-10 space-y-4 border-t border-border/25 pt-8 dark:border-white/[0.06]">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">OnlyFans bio</p>
-                <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">
-                  Web search (Serper) plus a short AI pass: flags likely fellow creators and writes a concise public bio when
-                  the snippets support it. Does not call OnlyFans for their bio. Cached ~24h unless you force refresh.
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('onlyfansBioTitle')}</p>
+                <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">{t('onlyfansBioExplainer')}</p>
               </div>
               {data.platformAboutSource !== 'none' ? (
                 <p className="text-[11px] text-muted-foreground/75">
-                  {data.platformAboutSource === 'of_api' ? 'OnlyFans API' : 'Web snippet fallback'} · {data.platformAboutFreshness}
+                  {data.platformAboutSource === 'of_api' ? t('bioSourceApi') : t('bioSourceWeb')} · {data.platformAboutFreshness}
                 </p>
               ) : null}
               {data.platformAbout?.trim() ? (
@@ -479,11 +481,11 @@ export function FanProfileModal({
                   {data.platformAbout}
                 </p>
               ) : (
-                <p className="text-[12px] text-muted-foreground/80">No bio stored yet.</p>
+                <p className="text-[12px] text-muted-foreground/80">{t('noBioYet')}</p>
               )}
               {data.platformAboutFetchedAt ? (
                 <p className="text-[11px] text-muted-foreground/65">
-                  Fetched {new Date(data.platformAboutFetchedAt).toLocaleString()}
+                  {t('bioFetchedAt', { dateTime: new Date(data.platformAboutFetchedAt).toLocaleString() })}
                 </p>
               ) : null}
               <Button
@@ -503,10 +505,10 @@ export function FanProfileModal({
                       body: JSON.stringify({ fanId, force: true }),
                     })
                     const json = (await res.json().catch(() => ({}))) as { error?: string }
-                    if (!res.ok) throw new Error(json.error || 'Fetch failed')
+                    if (!res.ok) throw new Error(json.error || t('errFetchBio'))
                     await load()
                   } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Enrich failed')
+                    setError(e instanceof Error ? e.message : t('errEnrichFailed'))
                   } finally {
                     setEnrichAboutLoading(false)
                   }
@@ -515,20 +517,18 @@ export function FanProfileModal({
                 {enrichAboutLoading ? (
                   <>
                     <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    Fetching…
+                    {t('fetchingBio')}
                   </>
                 ) : (
-                  'Refresh bio'
+                  t('refreshBio')
                 )}
               </Button>
               <div className="flex items-start justify-between gap-4 border-t border-border/20 pt-6 dark:border-white/[0.06]">
                 <div className="min-w-0 space-y-1">
                   <Label htmlFor="treat-as-fan-auto" className="text-[13px] font-medium text-foreground/90">
-                    Treat as fan for automation
+                    {t('treatAsFanLabel')}
                   </Label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">
-                    Run AI chatter and comment tools even when they look like a fellow creator.
-                  </p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('treatAsFanDesc')}</p>
                 </div>
                 <Switch
                   id="treat-as-fan-auto"
@@ -551,10 +551,10 @@ export function FanProfileModal({
                       const json = (await res.json().catch(() => ({}))) as UnifiedFanProfilePayload & {
                         error?: string
                       }
-                      if (!res.ok) throw new Error(json.error || 'Update failed')
+                      if (!res.ok) throw new Error(json.error || t('errUpdateFailed'))
                       setData(json)
                     } catch (e) {
-                      setError(e instanceof Error ? e.message : 'Update failed')
+                      setError(e instanceof Error ? e.message : t('errUpdateFailed'))
                     } finally {
                       setTreatFanSaving(false)
                     }
@@ -568,8 +568,7 @@ export function FanProfileModal({
             data.creatorDetector?.is_creator_likely &&
             !data.treatAsFanForAutomation && (
               <p className="mt-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-[12px] leading-relaxed text-foreground/90 dark:border-amber-400/15">
-                Expensive AI is off for likely creators. Turn on “Treat as fan for automation” or add a fan-style label
-                to keep automations.
+                {t('expensiveAiOff')}
               </p>
             )}
 
@@ -589,13 +588,11 @@ export function FanProfileModal({
                   aria-hidden
                 />
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">
-                  Creator signal
+                  {t('creatorSignal')}
                 </p>
               </div>
               <p className="text-[14px] font-medium leading-snug tracking-[-0.01em] text-foreground">
-                {data.creatorDetector.is_creator_likely
-                  ? 'May also create or promote a page.'
-                  : 'No strong creator-style signals in stored text.'}
+                {data.creatorDetector.is_creator_likely ? t('creatorLikely') : t('creatorUnlikely')}
               </p>
               {data.creatorDetector.rationale_snippets.length > 0 ? (
                 <ul className="mt-3 list-disc space-y-1.5 border-t border-border/15 py-3 pl-4 text-[12px] leading-relaxed text-muted-foreground/88 dark:border-white/[0.05]">
@@ -610,8 +607,8 @@ export function FanProfileModal({
           {data?.threadInsight?.profileJson != null &&
             formatProfileSection(data.threadInsight.profileJson).length > 0 && (
               <div className="mt-10 space-y-6 border-t border-border/25 pt-8 dark:border-white/[0.06]">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">From thread</p>
-                {formatProfileSection(data.threadInsight.profileJson).map((block) => (
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('fromThread')}</p>
+                {formatProfileSection(data.threadInsight.profileJson, t).map((block) => (
                   <div key={block.label}>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/55">
                       {block.label}
@@ -631,7 +628,7 @@ export function FanProfileModal({
 
           {data?.aiSummary?.summaryJson != null && (
             <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">AI summary</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('aiSummary')}</p>
               <pre className="max-h-[min(50vh,28rem)] overflow-auto rounded-xl border border-border/25 bg-muted/10 p-4 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-foreground/85 dark:border-white/[0.06]">
                 {JSON.stringify(data.aiSummary.summaryJson, null, 2)}
               </pre>
@@ -645,12 +642,12 @@ export function FanProfileModal({
 
           {data?.threadInsight?.threadSnapshotExcerpt && (
             <div className="mt-10 space-y-3 border-t border-border/25 pt-8 dark:border-white/[0.06]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">Thread excerpt</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('threadExcerpt')}</p>
               <p className="max-h-[min(50vh,28rem)] overflow-auto rounded-xl border border-border/25 bg-muted/10 p-4 text-[12px] leading-relaxed whitespace-pre-wrap text-muted-foreground/88 dark:border-white/[0.06]">
                 {data.threadInsight.threadSnapshotExcerpt}
               </p>
               {(() => {
-                const meta = threadInsightMetaLine(data.threadInsight!)
+                const meta = threadInsightMetaLine(data.threadInsight!, t)
                 return meta ? (
                   <p className="text-[11px] leading-snug text-muted-foreground/72">{meta}</p>
                 ) : null
@@ -660,17 +657,16 @@ export function FanProfileModal({
 
           {data?.threadInsight?.insufficientData && (
             <div className="mt-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 dark:border-amber-400/15">
-              <p className="text-[13px] font-medium text-foreground">Profile still forming</p>
+              <p className="text-[13px] font-medium text-foreground">{t('profileForming')}</p>
               <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground/88">
-                {data.threadInsight.insufficientDataReason ??
-                  'Not enough conversation yet. Chat more, then run Scan again.'}
+                {data.threadInsight.insufficientDataReason ?? t('profileFormingDefaultReason')}
               </p>
             </div>
           )}
 
           {!loading && data && !data.threadInsight && !data.aiSummary?.summaryJson && (
             <p className="mt-10 max-w-prose border-t border-border/25 pt-8 text-[13px] leading-relaxed text-muted-foreground/85 dark:border-white/[0.06]">
-              No thread insight yet. Sync from the header, run Scan in Divine AI, or send a message in chat.
+              {t('noThreadInsightYet')}
             </p>
           )}
         </div>

@@ -34,6 +34,7 @@ import { VaultHoverPlayVideo } from '@/components/ai/vault-hover-cinema-video'
 import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
 import { cn } from '@/lib/utils'
+import { proxyImageUrl } from '@/lib/proxy-image-url'
 import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
@@ -225,6 +226,10 @@ export function MediaVaultHub() {
   const [ofLoading, setOfLoading] = useState(false)
   const [ofError, setOfError] = useState<string | null>(null)
   const [ofNeedsConnect, setOfNeedsConnect] = useState(false)
+  const [fanslyPosts, setFanslyPosts] = useState<OfPost[]>([])
+  const [fanslyLoading, setFanslyLoading] = useState(false)
+  const [fanslyError, setFanslyError] = useState<string | null>(null)
+  const [fanslyNeedsConnect, setFanslyNeedsConnect] = useState(false)
   const [fanslyConnected, setFanslyConnected] = useState<boolean | null>(null)
   const [selected, setSelected] = useState<VaultContentRow | null>(null)
   const [saving, setSaving] = useState(false)
@@ -348,6 +353,35 @@ export function MediaVaultHub() {
     }
   }, [tm])
 
+  const loadFanslyPosts = useCallback(async () => {
+    setFanslyLoading(true)
+    setFanslyError(null)
+    try {
+      const res = await fetch('/api/fansly/vault-posts?limit=50')
+      const json = (await res.json()) as { posts?: OfPost[]; error?: string; total?: number }
+      if (!res.ok) {
+        setFanslyNeedsConnect(false)
+        setFanslyError(json.error || tm('errorFailedToLoad'))
+        setFanslyPosts([])
+        return
+      }
+      if (json.error === 'Fansly not connected') {
+        setFanslyNeedsConnect(true)
+        setFanslyError(null)
+        setFanslyPosts([])
+        return
+      }
+      setFanslyNeedsConnect(false)
+      setFanslyPosts(Array.isArray(json.posts) ? json.posts : [])
+    } catch {
+      setFanslyNeedsConnect(false)
+      setFanslyError(tm('errorNetwork'))
+      setFanslyPosts([])
+    } finally {
+      setFanslyLoading(false)
+    }
+  }, [tm])
+
   const refreshFanslyConnection = useCallback(async () => {
     const {
       data: { user },
@@ -373,6 +407,11 @@ export function MediaVaultHub() {
   useEffect(() => {
     void refreshFanslyConnection()
   }, [refreshFanslyConnection])
+
+  useEffect(() => {
+    if (fanslyConnected !== true) return
+    void loadFanslyPosts()
+  }, [fanslyConnected, loadFanslyPosts])
 
   const loadQuota = useCallback(async (opts?: { bust?: boolean }) => {
     try {
@@ -406,11 +445,12 @@ export function MediaVaultHub() {
         void loadQuota({ bust: true })
         void loadOfPosts()
         void refreshFanslyConnection()
+        if (fanslyConnected === true) void loadFanslyPosts()
       }
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
-  }, [loadQuota, loadOfPosts, refreshFanslyConnection])
+  }, [loadQuota, loadOfPosts, refreshFanslyConnection, loadFanslyPosts, fanslyConnected])
 
   const openRow = (r: VaultContentRow, opts?: { resetFrameMsg?: boolean }) => {
     setSelected(r)
@@ -499,6 +539,34 @@ export function MediaVaultHub() {
     setLinking(post.id)
     try {
       const res = await fetch('/api/content/vault/import-onlyfans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: post.id,
+          text: post.text,
+          previewUrl: preview,
+          mediaType: firstImg?.type || 'photo',
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        console.warn(json.error)
+        return
+      }
+      await loadVault()
+      await loadQuota({ bust: true })
+    } finally {
+      setLinking(null)
+    }
+  }
+
+  const linkFanslyPost = async (post: OfPost) => {
+    const firstImg = post.media?.find((m) => m.type?.toLowerCase().includes('photo') || m.url)
+    const raw = firstImg?.url || null
+    const preview = raw ? proxyImageUrl(raw) ?? raw : null
+    setLinking(post.id)
+    try {
+      const res = await fetch('/api/content/vault/import-fansly', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -635,8 +703,10 @@ export function MediaVaultHub() {
   }
 
   const filteredRows = rows.filter((r) => {
-    if (vaultCategory === 'of') return r.source_platform === 'onlyfans'
-    if (vaultCategory === 'app') return r.source_platform !== 'onlyfans'
+    if (vaultCategory === 'of')
+      return r.source_platform === 'onlyfans' || r.source_platform === 'fansly'
+    if (vaultCategory === 'app')
+      return r.source_platform !== 'onlyfans' && r.source_platform !== 'fansly'
     return true
   })
 
@@ -741,6 +811,7 @@ export function MediaVaultHub() {
           <TabsTrigger
             value="fansly"
             className="flex flex-1 flex-col gap-1 rounded-full px-3 py-2 text-center text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm sm:flex-none sm:min-w-[5.5rem] sm:text-sm"
+            onClick={() => fanslyConnected === true && fanslyPosts.length === 0 && void loadFanslyPosts()}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -835,12 +906,16 @@ export function MediaVaultHub() {
                       <span
                         className={cn(
                           'absolute right-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
-                          r.source_platform === 'onlyfans'
+                          r.source_platform === 'onlyfans' || r.source_platform === 'fansly'
                             ? 'bg-background/85 text-foreground shadow-sm'
                             : 'bg-background/85 text-muted-foreground shadow-sm',
                         )}
                       >
-                        {r.source_platform === 'onlyfans' ? tm('badgeOf') : tm('badgeApp')}
+                        {r.source_platform === 'onlyfans'
+                          ? tm('badgeOf')
+                          : r.source_platform === 'fansly'
+                            ? tm('badgeFansly')
+                            : tm('badgeApp')}
                       </span>
                     </div>
                     <div className="space-y-1 p-3.5">
@@ -956,7 +1031,7 @@ export function MediaVaultHub() {
           )}
         </TabsContent>
 
-        <TabsContent value="fansly" className="mt-8">
+        <TabsContent value="fansly" className="mt-8 space-y-4">
           {fanslyConnected === null ? (
             <div className="flex justify-center py-16">
               <div
@@ -966,16 +1041,82 @@ export function MediaVaultHub() {
                 aria-label={tm('ariaCheckingFansly')}
               />
             </div>
-          ) : !fanslyConnected ? (
+          ) : !fanslyConnected || fanslyNeedsConnect ? (
             <div className="overflow-hidden rounded-[1.25rem] border border-black/[0.06] bg-card/60 dark:border-white/[0.08] dark:bg-card/45">
               <VaultPlatformConnectEmpty platform="fansly" />
             </div>
-          ) : (
-            <div className="rounded-[1.25rem] border border-border/80 bg-muted/[0.12] px-6 py-14 text-center dark:bg-muted/[0.08]">
-              <p className="mx-auto max-w-[36ch] text-[13px] leading-relaxed text-muted-foreground">
-                {tm('fanslyConnectedStub')}
-              </p>
+          ) : fanslyLoading ? (
+            <div className="flex justify-center py-16">
+              <div
+                className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/30 motion-safe:animate-spin"
+                style={{ animationDuration: '0.85s' }}
+                role="status"
+                aria-label={tm('ariaLoadingFeed')}
+              />
             </div>
+          ) : fanslyError ? (
+            <p className="rounded-xl border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">{fanslyError}</p>
+          ) : (
+            <ScrollArea className="h-[min(60vh,520px)] pr-3">
+              {fanslyPosts.length === 0 ? (
+                <div className="flex min-h-[min(52vh,480px)] flex-col items-center justify-center gap-3 px-4 py-14 text-center">
+                  <p className="max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
+                    {tm('ofNoPosts')}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full text-[13px] text-foreground"
+                    onClick={() => void loadFanslyPosts()}
+                  >
+                    {tm('refresh')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {fanslyPosts.map((p) => {
+                    const rawPrev = p.media?.[0]?.url
+                    const prev = rawPrev ? proxyImageUrl(rawPrev) ?? rawPrev : null
+                    return (
+                      <Card key={p.id} className="rounded-2xl border-border/80 shadow-none">
+                        <CardContent className="flex gap-3 p-3.5">
+                          <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-md bg-muted">
+                            {prev ? (
+                              <Image src={prev} alt="" fill className="object-cover" unoptimized />
+                            ) : (
+                              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                                {tm('postTextOnly')}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm">{p.text || tm('postNoCaption')}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {new Date(p.createdAt).toLocaleDateString()}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-2 gap-1 rounded-full"
+                              disabled={linking === p.id}
+                              onClick={() => void linkFanslyPost(p)}
+                            >
+                              {linking === p.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Link2 className="h-3 w-3" />
+                              )}
+                              {tm('addToVault')}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </ScrollArea>
           )}
         </TabsContent>
       </Tabs>

@@ -207,16 +207,28 @@
       "alertsOnlyFansFansly": "Alertes · OnlyFans et Fansly"
     },
     "options": {
-      "stats": { "label": "Statistiques d’ensemble" },
+      "stats": {
+        "label": "Statistiques d’ensemble"
+      },
       "standardAttraction": {
         "label": "Outil AI Studio mis en avant",
         "hint": "Épinglez un outil exécutable depuis la carte ci-dessous."
       },
-      "revenue": { "label": "Graphique des revenus" },
-      "quickColumn": { "label": "Plateformes et actions rapides" },
-      "messageActivity": { "label": "Conversations" },
-      "alertsColumn": { "label": "Alertes · OnlyFans et Fansly" },
-      "recentFans": { "label": "Fans récents" },
+      "revenue": {
+        "label": "Graphique des revenus"
+      },
+      "quickColumn": {
+        "label": "Plateformes et actions rapides"
+      },
+      "messageActivity": {
+        "label": "Conversations"
+      },
+      "alertsColumn": {
+        "label": "Alertes · OnlyFans et Fansly"
+      },
+      "recentFans": {
+        "label": "Fans récents"
+      },
       "socialRep": {
         "label": "Social (résumé)",
         "hint": "Scans complets et identifiants sur Social."
@@ -268,12 +280,30 @@
   "quickActions": {
     "title": "Actions rapides",
     "subtitle": "Les tâches courantes à portée de main",
-    "upload": { "label": "Publier du contenu", "description": "Ajouter photos ou vidéos" },
-    "fans": { "label": "Fans", "description": "Abonnés synchronisés depuis OnlyFans et Fansly" },
-    "massMessage": { "label": "Message de masse", "description": "Envoyer à plusieurs fans" },
-    "reports": { "label": "Voir les rapports", "description": "Analytique détaillée" },
-    "wellBeing": { "label": "Bien-être", "description": "Charge, profil mimétique et rythme cosmique" },
-    "creditsPlanner": { "label": "Planificateur de crédits", "description": "Stratégie d’allocation mensuelle" }
+    "upload": {
+      "label": "Publier du contenu",
+      "description": "Ajouter photos ou vidéos"
+    },
+    "fans": {
+      "label": "Fans",
+      "description": "Abonnés synchronisés depuis OnlyFans et Fansly"
+    },
+    "massMessage": {
+      "label": "Message de masse",
+      "description": "Envoyer à plusieurs fans"
+    },
+    "reports": {
+      "label": "Voir les rapports",
+      "description": "Analytique détaillée"
+    },
+    "wellBeing": {
+      "label": "Bien-être",
+      "description": "Charge, profil mimétique et rythme cosmique"
+    },
+    "creditsPlanner": {
+      "label": "Planificateur de crédits",
+      "description": "Stratégie d’allocation mensuelle"
+    }
   },
   "alertsWidget": {
     "title": "Alertes et surveillance",
@@ -526,7 +556,9 @@
       "codeHint": "Vérifiez votre e-mail ou votre appli d’authentification",
       "submit2fa": "Vérifier et connecter",
       "submitConnect": "Connecter Fansly",
-      "credentialsNote": "Vos identifiants sont chiffrés et ne sont pas stockés localement"
+      "credentialsNote": "Vos identifiants sont chiffrés et ne sont pas stockés localement",
+      "resendCode": "Renvoyer le code",
+      "resendHint": "Relance la connexion pour qu’un nouveau code soit envoyé. Nous ne stockons pas votre mot de passe sur nos serveurs."
     },
     "errors": {
       "subscriptionRequired": "Abonnement requis.",
@@ -639,6 +671,14 @@
     "launchLiveTour": "Lancer la visite live",
     "startLiveTour": "Démarrer la visite live"
   },
+  "tourUi": {
+    "stepProgress": "Étape {current} sur {total}",
+    "back": "Retour",
+    "skipTour": "Passer la visite",
+    "next": "Suivant",
+    "done": "Terminé",
+    "finishAria": "Terminer la visite"
+  },
   "platformStatus": {
     "sectionTitle": "Statut plateforme",
     "loading": "Chargement des connexions…",
@@ -676,5 +716,168 @@
     "systemRowTitle": "Utilise automatiquement le mode clair ou sombre selon votre appareil.",
     "matchDeviceTitle": "Comme l’appareil",
     "matchDeviceSubtitle": "Clair/sombre OS uniquement — pas le fuseau du profil"
+  },
+  "platformStatusLabels": {
+    "onlyfans": "OnlyFans",
+    "fansly": "Fansly",
+    "manyvids": "ManyVids"
+  },
+  "guide": {
+    "gettingStarted": {
+      "title": "Premiers pas",
+      "description": "Vos premiers pas dans Circe et Venus",
+      "body1Rich": "Circe et Venus vous donne deux IA divines : <circe>Circe</circe> pour la rétention, l'analytique et la protection (garder vos fans et votre contenu en sécurité). <venus>Venus</venus> pour la croissance, l'attraction et la réputation (nouveaux fans et opportunités).",
+      "body2Rich": "Après l'inscription, un court tutoriel s'affiche. Vous pouvez le passer ou le terminer, et rouvrir ce Guide à tout moment depuis la barre latérale. L'étape la plus importante est de connecter <onlyfans>OnlyFans</onlyfans> ou <fansly>Fansly</fansly> pour synchroniser MP, fans et insights. Le chiffre d'affaires ManyVids peut compter pour les paliers de facturation <unified>Unified</unified> — voir Tarifs et facturation."
+    },
+    "divineManager": {
+      "title": "Divine Manager — votre manager sur une même orbite",
+      "descriptionRich": "Voix, texte, outils et rythme quotidien au même endroit. Ouvrez-le quand vous voulez depuis la barre latérale (icône couronne) ou <dm>Divine Manager</dm>.",
+      "intro": "Divine Manager, c'est comme un·e responsable des opérations posé·e : il voit vos tâches, vos plateformes et vos préférences, puis vous aide à décider quoi faire ensuite — par la voix, par le texte, ou en ouvrant le bon écran. Il ne vous remplace pas ; il recommande, rédige et organise, et vous gardez la main sur ce qui part ou se publie.",
+      "wizardTitle": "Première configuration (assistant)",
+      "wizardP1Rich": "Tant que la configuration n'est pas terminée, un assistant en quatre étapes s'affiche : <p1>Persona et limites</p1> (ton, niveau de flirt, limites, exemples de phrases optionnels), <p2>Objectifs, archétype et notifications</p2> (vos cibles, style du manager, niveau d'alerte), <p3>Règles d'automatisation</p3> (aide planifiée et options voix auto), puis <p4>Revoir et activer</p4> (reconnaissance bêta et mode manager). Tout est modifiable ensuite dans la console ou les Préférences.",
+      "wizardP2Rich": "Liens profonds : <code1>?section=text</code1> ou <code2>?section=chat</code2> ouvre la feuille texte ; <code3>?section=protocol</code3> fait défiler jusqu'au bloc <strong1>Plan du jour + tâches protocole</strong1> ; <code4>?section=tasks</code4> va directement à la carte des tâches.",
+      "voiceTitle": "Voix (couronne flottante)",
+      "voiceP1": "Touchez la couronne flottante pour démarrer une session voix en direct. Vous pouvez utiliser le lanceur (Text Divine, Divine Manager, raccourcis AI Studio) ou passer directement à l'appel si vous l'activez dans les réglages Divine Manager. Pendant que vous parlez, Divine peut utiliser des outils, lire vos analytiques, ouvrir Messages, etc. — les mêmes capacités qu'en texte, adaptées à la voix.",
+      "voiceP2": "Dans les réglages, choisissez à quel point Divine est bavard·e : réponses courtes, équilibrées ou un peu plus expressives — pour la voix et le texte. Vous pouvez aussi choisir quand le bouton Raccrocher se débloque (toujours, ou seulement après que Divine demande si vous avez encore besoin de quelque chose).",
+      "voiceLink": "Section voix",
+      "voiceQuickRich": "Accès rapide : <link>Section voix</link>.",
+      "textTitle": "Chat texte",
+      "textP1": "Ouvrez la feuille texte pour le même cerveau Divine Manager quand vous préférez taper. Elle partage le contexte avec la voix et convient aux instructions longues ou aux liens collés. La même feuille s'ouvre si l'URL contient ?section=chat.",
+      "textLink": "Ouvrir avec focus texte",
+      "protocolTitle": "Tâches protocole (rail flottant)",
+      "protocolP1": "Au-dessus de la couronne, le rail protocole liste les tâches ouvertes ajoutées par Divine ou par vous — suivis, accueils, rappels « baleines ». Le panneau est repliable pour le ranger quand vous voulez un écran dégagé.",
+      "protocolP2": "Le briefing IA (lié) utilise des tâches rattachées aux notifications de boîte enregistrées. Si rien n'est encore lié, ajoutez des tâches depuis Divine ou associez-les à la bonne notification lors de la configuration.",
+      "bellTitle": "Cloche et notifications",
+      "bellP1": "L'onglet Live affiche messages, pourboires et mises à jour des plateformes connectées à leur arrivée. L'onglet Divine regroupe fuites, réputation, baleines, facturation et actions Divine Manager. Vous pouvez lancer un briefing depuis la cloche pour parcourir les éléments enregistrés avec Divine (voix ou texte).",
+      "bellP2Rich": "Les lignes qui ne sont qu'un aperçu depuis la plateforme peuvent s'afficher comme <em>pas encore enregistrées dans votre boîte</em> jusqu'à la synchro.",
+      "mimicTitle": "Mimic (votre voix pour brouillons fans)",
+      "mimicP1": "L'entretien vocal Mimic capte comment vous voulez que les fans vous entendent. Ce style sert quand Divine rédige une phrase orientée fan. Rien ne part tout seul — vous validez d'abord.",
+      "mimicLink": "Section Mimic",
+      "todayTitle": "Plan du jour, tâches et alertes",
+      "todayP1": "Le plan du jour et les listes de tâches montrent ce que Divine propose pour la journée. Les règles d'automatisation peuvent créer des tâches pour gros pourboires, demander confirmation sur les flux sensibles, etc. — le tout configurable sur la page Divine Manager.",
+      "todayJumpRich": "Aller au <today>Plan du jour</today>, au <protocol>bloc protocole</protocol>, ou ouvrir les sections <tasks>tâches</tasks> et <alerts>alertes</alerts>.",
+      "bgTitle": "IA en arrière-plan et cron",
+      "bgP": "Les exécutions enrichies en arrière-plan de Divine Manager appellent une route planifiée (GET /api/cron/divine-manager) protégée par CRON_SECRET ou Vercel Cron (x-vercel-cron). N'activez les bascules arrière-plan que lorsque ce job est configuré pour votre environnement.",
+      "tourTip": "Astuce : utilisez Démarrer la visite sur la page Divine Manager pour une courte intro pas à pas (visite en dialogue)."
+    },
+    "connectingPlatforms": {
+      "title": "Connecter vos plateformes",
+      "description": "Lier OnlyFans et Fansly ; ManyVids pour la facturation Unified le cas échéant",
+      "p1Rich": "Allez dans <integrations>Réglages → Intégrations</integrations> (ou utilisez les cartes plateforme sur le tableau de bord). Connexions sécurisées en lecture seule : vos identifiants ne sont jamais stockés sur nos serveurs ; ils servent uniquement à établir une session avec notre partenaire de données de confiance.",
+      "liOnlyfansRich": "<brand>OnlyFans</brand> — Connectez-vous avec l'e-mail et le mot de passe OnlyFans. Voir la section OnlyFans ci-dessous (proxy, 2FA, vérification faciale, expiration de session).",
+      "liFanslyRich": "<brand>Fansly</brand> — Connectez-vous avec identifiant/e-mail et mot de passe Fansly. La 2FA peut être demandée ; nous vous le signalons dans le dialogue.",
+      "liManyvidsRich": "<brand>ManyVids</brand> — Utilisé pour le chiffre d'affaires et les paliers Unified si votre forfait le prévoit ; les outils in-app restent centrés sur OnlyFans et Fansly.",
+      "p2": "Une fois connecté, utilisez Synchroniser pour récupérer fans, messages et revenus à jour. Si une session expire (ex. mot de passe modifié ou déconnexion OnlyFans), nous déconnectons automatiquement ce compte par sécurité. Vous pouvez reconnecter à tout moment avec une nouvelle connexion."
+    },
+    "onlyfans": {
+      "title": "Connexion OnlyFans (détaillé)",
+      "description": "Flux de connexion, proxy, 2FA, vérification faciale et expiration de session",
+      "loginTitle": "La connexion peut prendre jusqu'à une minute",
+      "loginP": "L'authentification OnlyFans tourne en arrière-plan. Nous interrogeons jusqu'à la fin. Des étapes comme « Filling out login » ou « Submitting » sont normales. Ne fermez pas le dialogue tant que vous n'avez pas vu le succès ou une demande de 2FA ou vérification faciale.",
+      "proxyTitle": "Région proxy (États-Unis / Royaume-Uni)",
+      "proxyP": "À la connexion OnlyFans, vous pouvez choisir la région proxy (US ou UK). Si la connexion semble bloquée sur le formulaire, essayez Reprendre une connexion neuve et passez à l'autre région (ex. US vers UK). Cela règle souvent géolocalisation ou VPN.",
+      "freshTitle": "Reprendre une connexion neuve",
+      "freshP": "Si le dialogue reste bloqué (ex. toujours « Filling out login » après 45+ s), utilisez Reprendre une connexion neuve. Cela abandonne la tentative et réaffiche le formulaire pour saisir à nouveau identifiants et éventuellement changer le proxy. Ne réutilisez jamais une tentative bloquée.",
+      "twoFaTitle": "2FA (authentification à deux facteurs)",
+      "twoFaP": "Si la 2FA OnlyFans est activée, un code vous sera demandé (e-mail ou appli d'authentification). Saisissez le code à 6 chiffres dans le dialogue et cliquez Vérifier et connecter. Nous conservons la même tentative pour appliquer le code correctement.",
+      "faceTitle": "Vérification faciale",
+      "faceP": "OnlyFans peut parfois demander une vérification faciale rapide. Nous affichons un message et un lien : Complete face verification. Ouvrez le lien dans le navigateur, terminez la vérification, puis revenez au dialogue. Nous continuons à interroger jusqu'à confirmation OnlyFans.",
+      "sessionTitle": "Session expirée",
+      "sessionP": "Si votre session OnlyFans expire (ex. mot de passe modifié ou déconnexion OnlyFans), nous le détectons à la synchro ou au chargement des messages. Nous déconnectons automatiquement le compte OnlyFans dans notre base pour la cohérence des données. Un message du type « Your OnlyFans session expired. Please reconnect. » s'affiche. Allez dans Réglages → Intégrations et reconnectez OnlyFans avec une nouvelle connexion (sans réutiliser une ancienne tentative).",
+      "displayTitle": "Nom affiché",
+      "displayP": "Le nom affiché pour votre compte dans la console de notre partenaire est votre identité Circe et Venus (nom de profil ou e-mail d'inscription chez nous), pas l'e-mail de connexion OnlyFans. Cela aide vous et le support à identifier l'espace de travail sans exposer vos identifiants OnlyFans."
+    },
+    "dashboardSection": {
+      "title": "Tableau de bord",
+      "description": "Votre centre de commande",
+      "p1Rich": "Le <dash>tableau de bord</dash> principal résume revenus, fans et messages. Accès rapide à Circe et Venus, statut des connexions, fans récents et alertes (fuites, mentions, etc.). La barre latérale mène plus loin : <dm>Divine Manager</dm>, Analytique (Circe), Fans et Mentions (Venus), Contenu, Messages, Protection et AI Studio. La barre du haut inclut aussi un raccourci Bien-être (icône pouls) sur chaque page.",
+      "wellbeingLinkRich": "<link>Bien-être et calendrier cosmique</link> — voir la section dédiée ci-dessous pour le rythme, l'instantané Mimic et le calendrier lunaire."
+    },
+    "wellBeing": {
+      "title": "Bien-être et calendrier cosmique",
+      "description": "Charge, instantané Mimic, phases lunaires et zodiaque — dans une vue douce",
+      "p1Rich": "<wb>Bien-être</wb> combine la charge conversationnelle de vos plateformes connectées, votre instantané d'entretien Mimic et le calendrier cosmique pour voir pression et rythme au même endroit.",
+      "p2": "Le calendrier cosmique s'ouvre sur un héros apaisant : affirmation du jour, grande phase lunaire (pas seulement une petite icône), saison zodiacale occidentale en cours et animal du zodiaque chinois de l'année lunaire. Défilement horizontal sur les douze signes occidentaux et les douze animaux ; votre saison et année en cours sont mises en avant.",
+      "p3": "Une bande de phases montre le cycle d'un coup d'œil ; la grille du mois affiche le jour et l'émoji lune. Touchez un jour pour score lumineux, lune et détails de signe.",
+      "p4": "Ajoutez votre date de naissance dans Réglages pour des notes plus personnalisées (options de chiffrement possibles) ; le calendrier reste encourageant avant cela."
+    },
+    "aiGuides": {
+      "title": "Guides IA : Circe et Venus",
+      "description": "Deux IA divines à votre service",
+      "circeTitle": "Circe — Rétention et protection",
+      "circePRich": "Circe aide à captiver votre audience et sécuriser votre contenu. Pour : analytique de rétention, prédiction de churn, détection de fuites et automatisation DMCA, score d'engagement et alertes. Accès depuis le tableau de bord ou via <analytics>Analytique</analytics> et <protection>Protection</protection>.",
+      "venusTitle": "Venus — Croissance et attraction",
+      "venusPRich": "Venus aide à attirer de nouveaux admirateurs et à faire grandir votre réputation. Pour : stratégies de croissance, meilleurs horaires de publication, prédictions de performance de contenu, réputation et sentiment, acquisition de fans. Accès depuis le tableau de bord ou via <fans>Fans</fans> et <mentions>Mentions</mentions>.",
+      "studioRich": "<studio>AI Studio</studio> est votre coffre média (décrire du contenu pour Divine), retouches photo prudentes et bibliothèque complète d'outils IA (légendes, churn, croissance, etc.).",
+      "dailyTitle": "Conseils IA quotidiens de Circe",
+      "dailyP": "Conseils choisis et rotatifs pour bien utiliser Circe et Venus — habitudes de synchro, notes coffre, segments massifs, Protection, etc. Mise à jour avec un « conseil du jour » sur le calendrier ; la liste complète tient sur une page.",
+      "dailyLink": "Ouvrir les conseils IA quotidiens de Circe (page entière)",
+      "dailyFootRich": "Également lié depuis <sug>Suggestions</sug> en haut de l'écran."
+    },
+    "messagesFans": {
+      "title": "Messages et Fans",
+      "description": "Conversations et gestion des fans",
+      "messagesRich": "<msg>Messages</msg> affiche vos MP des plateformes connectées. Vous voyez les conversations et des suggestions de réponse IA. Si la session OnlyFans a expiré, une erreur s'affiche : reconnectez OnlyFans dans Réglages → Intégrations avant de recharger les messages.",
+      "fansRich": "<fans>Fans</fans> liste abonnés et fans synchronisés. Voyez qui est actif, qui risque le churn, ajoutez des fans manuels si besoin. Tags et notes aident Circe et Venus à adapter les suggestions et respecter vos limites."
+    },
+    "content": {
+      "title": "Contenu",
+      "description": "Publications et calendrier",
+      "pRich": "<content>Contenu</content> permet de voir et gérer les publications. Connectez les plateformes et synchronisez pour importer l'existant ou créer du nouveau. Le calendrier de contenu aide à planifier selon votre stratégie."
+    },
+    "protection": {
+      "title": "Protection",
+      "description": "Détection de fuites et DMCA",
+      "pRich": "<prot>Protection</prot> est le domaine de Circe. Alertes de fuites et outils pour lancer des retraits DMCA. Nous aidons à repérer les usages non autorisés de votre contenu et à protéger votre travail."
+    },
+    "settings": {
+      "title": "Réglages",
+      "description": "Profil, notifications, intégrations, facturation",
+      "pRich": "<set>Réglages</set> : profil (nom, avatar), notifications, sécurité (mot de passe), facturation et abonnement, Intégrations (connecter ou déconnecter les plateformes). Onglet Intégrations pour OnlyFans, Fansly et les autres, puis synchroniser ou déconnecter."
+    },
+    "troubleshooting": {
+      "title": "Dépannage",
+      "description": "Problèmes fréquents et solutions",
+      "stuckTitle": "Connexion OnlyFans bloquée sur « Filling out login »",
+      "stuckP": "Cliquez Reprendre une connexion neuve, choisissez l'autre proxy (US ou UK) et réessayez. Ne réutilisez pas la même tentative.",
+      "expiredTitle": "Session OnlyFans expirée / « Please reconnect »",
+      "expiredP": "Nous avons déconnecté votre compte OnlyFans par sécurité. Allez dans Réglages → Intégrations et reconnectez avec une nouvelle connexion (e-mail + mot de passe, puis 2FA ou vérification faciale si demandé).",
+      "syncTitle": "Messages ou synchro échouent avec « session expired »",
+      "syncP": "Comme ci-dessus : reconnectez la plateforme concernée dans Réglages → Intégrations.",
+      "twofaTitle": "2FA ou vérification faciale invisible",
+      "twofaP": "Vérifiez d'avoir terminé l'étape précédente (ex. mot de passe saisi et attente). Si le dialogue s'est fermé, rouvrez Connecter et une nouvelle connexion — ne réutilisez pas un ancien ID de tentative.",
+      "helpTitle": "Besoin d'aide ?",
+      "helpPRich": "Contactez le support à <email>support@circe-venus.com</email> ou via la page <contact>Contact</contact>."
+    },
+    "footer": {
+      "goIntegrations": "Aller aux Intégrations"
+    }
+  },
+  "guidePage": {
+    "eyebrow": "Boussole d'intégration",
+    "title": "Guide et parcours orbital",
+    "introRich": "Faites défiler <journey>le même parcours que la visite complète de l'app</journey> — chaque étape flotte au-dessus de l'écran qu'elle décrit — puis ouvrez les <manual>chapitres du manuel</manual> pour aller plus loin (intégrations, OnlyFans, dépannage).",
+    "startScrolling": "Commencer à défiler",
+    "jumpToReference": "Aller à la référence :",
+    "linkGettingStarted": "Premiers pas",
+    "linkSuggestions": "Suggestions",
+    "linkDivineManager": "Divine Manager",
+    "linkTroubleshooting": "Dépannage",
+    "deepReferenceTitle": "Référence approfondie",
+    "deepReferenceSubtitle": "Chapitres détaillés — développez une section ou utilisez les liens ci-dessus.",
+    "accordionManual": "Ouvrir le manuel complet (intégrations, IA, dépannage…)",
+    "inTheApp": "Dans l'app",
+    "laneCirce": "Voie Circe",
+    "laneVenus": "Voie Venus",
+    "laneOrbit": "Orbite",
+    "laneCore": "Noyau",
+    "openInApp": "Ouvrir dans l'app",
+    "orbitalTitle": "Parcours orbital",
+    "orbitalSubtitle": "Même récit que la visite live — chaque carte explique l'étape ; la vignette dessous est la zone exacte du produit.",
+    "filterAll": "Toutes les étapes",
+    "filterCirce": "Circe",
+    "filterVenus": "Venus",
+    "filterNeutral": "Neutre",
+    "filterAurora": "Aurore"
   }
 }

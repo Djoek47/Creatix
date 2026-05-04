@@ -526,7 +526,9 @@
       "codeHint": "Check your email or authenticator app for the code",
       "submit2fa": "Verify & Connect",
       "submitConnect": "Connect Fansly",
-      "credentialsNote": "Your credentials are securely encrypted and never stored locally"
+      "credentialsNote": "Your credentials are securely encrypted and never stored locally",
+      "resendCode": "Resend code",
+      "resendHint": "Runs sign-in again so Fansly can send a new code. Your password is not stored on our servers."
     },
     "errors": {
       "subscriptionRequired": "Subscription required.",
@@ -639,6 +641,14 @@
     "launchLiveTour": "Launch live tour",
     "startLiveTour": "Start live tour"
   },
+  "tourUi": {
+    "stepProgress": "Step {current} of {total}",
+    "back": "Back",
+    "skipTour": "Skip tour",
+    "next": "Next",
+    "done": "Done",
+    "finishAria": "Finish tour"
+  },
   "platformStatus": {
     "sectionTitle": "Platform status",
     "loading": "Loading connections…",
@@ -676,5 +686,168 @@
     "systemRowTitle": "Automatically uses light or dark to match your device.",
     "matchDeviceTitle": "Match device",
     "matchDeviceSubtitle": "OS light/dark only—not your profile timezone"
+  },
+  "platformStatusLabels": {
+    "onlyfans": "OnlyFans",
+    "fansly": "Fansly",
+    "manyvids": "ManyVids"
+  },
+  "guide": {
+    "gettingStarted": {
+      "title": "Getting started",
+      "description": "Your first steps in Circe et Venus",
+      "body1Rich": "Circe et Venus gives you two divine AIs: <circe>Circe</circe> focuses on retention, analytics, and protection (keeping your fans and content safe). <venus>Venus</venus> focuses on growth, attraction, and reputation (bringing in new fans and opportunities).",
+      "body2Rich": "After sign-up you'll see a short tutorial. You can skip it or complete it, and reopen this Guide anytime from the sidebar. The most important step is connecting <onlyfans>OnlyFans</onlyfans> or <fansly>Fansly</fansly> so we can sync DMs, fans, and insights. ManyVids revenue can factor into <unified>Unified</unified> billing tiers — see Pricing and Billing."
+    },
+    "divineManager": {
+      "title": "Divine Manager — your manager in one orbit",
+      "descriptionRich": "Voice, text, tools, and daily rhythm in one place. Open anytime from the sidebar (crown icon) or <dm>Divine Manager</dm>.",
+      "intro": "Think of Divine Manager as a calm operations lead: it sees your tasks, your platforms, and your preferences, then helps you decide what to do next — by voice, by text, or by nudging the right screen open. It does not replace you; it recommends, drafts, and organizes, and you stay in control of what sends or publishes.",
+      "wizardTitle": "First-time setup (wizard)",
+      "wizardP1Rich": "Until you finish setup, you'll see a four-step wizard: <p1>Persona and boundaries</p1> (tone, flirty level, limits, optional example phrases), <p2>Goals, archetype and notifications</p2> (what you're aiming for, manager style, alert level), <p3>Automation rules</p3> (scheduled help and voice auto options), then <p4>Review and activate</p4> (beta acknowledgment and manager mode). You can change everything later in the console or under Preferences.",
+      "wizardP2Rich": "Deep links: <code1>?section=text</code1> or <code2>?section=chat</code2> opens the text sheet; <code3>?section=protocol</code3> scrolls to the <strong1>Today plan + protocol tasks</strong1> block; <code4>?section=tasks</code4> scrolls straight to the tasks card.",
+      "voiceTitle": "Voice (floating crown)",
+      "voiceP1": "Tap the floating crown to start a live voice session. You can use the launcher (Text Divine, Divine Manager, AI Studio shortcuts) or skip straight into a call if you turn that on in Divine Manager settings. While you speak, Divine can use tools, read your analytics, open Messages, and more — same capabilities as text, tuned for voice.",
+      "voiceP2": "In settings you can choose how chatty Divine is: brief answers, balanced, or a bit more expressive — for both voice and text. You can also choose when the End call button unlocks (always, or only after Divine asks if you need anything else).",
+      "voiceLink": "Voice section",
+      "voiceQuickRich": "Quick entry: <link>Voice section</link>.",
+      "textTitle": "Text chat",
+      "textP1": "Open the text sheet for the same Divine Manager brain when you prefer typing. It shares context with voice and is ideal for longer instructions or pasting links. The same sheet opens when the URL includes ?section=chat.",
+      "textLink": "Open with text focus",
+      "protocolTitle": "Protocol tasks (floating rail)",
+      "protocolP1": "Above the crown, the protocol rail lists open tasks Divine or you added — follow-ups, welcome flows, whale reminders. The panel is collapsible so you can tuck it away when you need a clear screen.",
+      "protocolP2": "AI briefing (linked) uses tasks that are tied to saved inbox notifications. If nothing is linked yet, add tasks from Divine or connect them to the right notification when you set them up.",
+      "bellTitle": "Bell and notifications",
+      "bellP1": "The Live tab shows messages, tips, and updates from connected platforms as they arrive. The Divine tab gathers leaks, reputation, whales, billing, and Divine Manager actions. You can run a briefing from the bell to walk through saved items with Divine (voice or text).",
+      "bellP2Rich": "Rows that are only a preview from the platform may show as <em>not saved to your inbox yet</em> until they sync.",
+      "mimicTitle": "Mimic Test (your voice for fan drafts)",
+      "mimicP1": "The Mimic voice interview captures how you want fans to hear you. That style is used when Divine drafts a fan-facing line for you. Nothing sends automatically — you review first.",
+      "mimicLink": "Mimic section",
+      "todayTitle": "Today plan, tasks and alerts",
+      "todayP1": "The Today plan and task lists help you see what Divine suggests for the day. Automation rules can create tasks for large tips, respect confirmation for sensitive flows, and more — all configurable on the Divine Manager page.",
+      "todayJumpRich": "Jump to <today>Today plan</today>, the <protocol>protocol block</protocol>, or open the <tasks>tasks</tasks> and <alerts>alerts</alerts> sections.",
+      "bgTitle": "Background AI and cron",
+      "bgP": "Enriched background runs in Divine Manager call a scheduled route (GET /api/cron/divine-manager) protected by CRON_SECRET or Vercel Cron (x-vercel-cron). Enable background switches only when that job is configured for your environment.",
+      "tourTip": "Tip: Use Start tour on the Divine Manager page while you are there for a short step-by-step intro (dialog-based tour)."
+    },
+    "connectingPlatforms": {
+      "title": "Connecting your platforms",
+      "description": "Link OnlyFans and Fansly; ManyVids on Unified billing where applicable",
+      "p1Rich": "Go to <integrations>Settings → Integrations</integrations> (or use the platform cards on the dashboard). We use secure, read-only connections: your login credentials are never stored on our servers; they are used only to establish a session with our trusted data partner.",
+      "liOnlyfansRich": "<brand>OnlyFans</brand> — Connect with your OnlyFans email and password. See the OnlyFans section below for tips (proxy, 2FA, face verification, session expiry).",
+      "liFanslyRich": "<brand>Fansly</brand> — Connect with your Fansly username/email and password. You may be asked for 2FA; we'll prompt you in the dialog.",
+      "liManyvidsRich": "<brand>ManyVids</brand> — Used for revenue and Unified-tier pricing when your plan includes it; in-app tools still center on OnlyFans and Fansly surfaces.",
+      "p2": "Once connected, use Sync to pull the latest fans, messages, and earnings. If a platform session expires (e.g. you changed your password or OnlyFans logged you out), we automatically disconnect that account for security. You can reconnect anytime with a fresh login."
+    },
+    "onlyfans": {
+      "title": "OnlyFans connection (detailed)",
+      "description": "Login flow, proxy, 2FA, face verification, and session expiry",
+      "loginTitle": "Login can take up to a minute",
+      "loginP": "OnlyFans authentication runs in the background. We keep polling until it completes. You may see steps like \"Filling out login\" or \"Submitting\" — that's normal. Don't close the dialog until you see success or a request for 2FA/face verification.",
+      "proxyTitle": "Proxy region (US / UK)",
+      "proxyP": "When you connect OnlyFans, you can choose a proxy region (US or UK). If login seems stuck at the form step for a long time, try Start fresh login and switch to the other region (e.g. from US to UK). This often resolves issues related to geography or VPN.",
+      "freshTitle": "Start fresh login",
+      "freshP": "If the connection dialog is stuck (e.g. still \"Filling out login\" after 45+ seconds), use the Start fresh login button. This abandons the current attempt and shows the form again so you can re-enter your credentials and optionally change the proxy. Never reuse a stuck attempt — always start fresh.",
+      "twoFaTitle": "2FA (two-factor authentication)",
+      "twoFaP": "If OnlyFans has 2FA enabled, you'll be asked for the code (from your email or authenticator app). Enter the 6-digit code in the dialog and click Verify and Connect. We keep the same attempt so the code is applied correctly.",
+      "faceTitle": "Face verification",
+      "faceP": "Sometimes OnlyFans requires a quick face check. If so, we show a message and a link: Complete face verification. Open the link in your browser, complete the check, then return to the dialog. We keep polling and will complete the connection once OnlyFans confirms.",
+      "sessionTitle": "Session expired",
+      "sessionP": "If your OnlyFans session expires (e.g. you changed your password, or OnlyFans logged you out), our system detects it when you try to sync or load messages. We automatically disconnect the OnlyFans account in our database so your data stays consistent. You'll see a message like \"Your OnlyFans session expired. Please reconnect.\" Go to Settings → Integrations and connect OnlyFans again with a fresh login (don't reuse an old attempt).",
+      "displayTitle": "Display name",
+      "displayP": "The name shown for your account in our partner's console is your Circe et Venus identity (your profile name or the email you used to sign up with us), not your OnlyFans login email. This helps you and support identify your workspace without exposing your OnlyFans credentials."
+    },
+    "dashboardSection": {
+      "title": "Dashboard",
+      "description": "Your command center",
+      "p1Rich": "The main <dash>Dashboard</dash> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: <dm>Divine Manager</dm>, Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio. The top bar also includes a Well-being shortcut (heart pulse icon) on every page.",
+      "wellbeingLinkRich": "<link>Well-being and cosmic calendar</link> — see the dedicated section below for rhythm, Mimic snapshot, and lunar calendar."
+    },
+    "wellBeing": {
+      "title": "Well-being and cosmic calendar",
+      "description": "Pressure, Mimic snapshot, moon phases, and zodiac — in one gentle view",
+      "p1Rich": "<wb>Well-being</wb> combines conversational load from your connected platforms, your Mimic interview snapshot, and the cosmic calendar so you can see pressure and rhythm in one place.",
+      "p2": "The cosmic calendar opens with a calm hero: a daily affirmation, a large moon phase visual (not just a tiny icon), the current Western zodiac season, and the Chinese zodiac animal for the lunar year. You can scroll horizontally through all twelve Western signs and all twelve lunar animals; your current season and year are highlighted.",
+      "p3": "A moon phase strip shows each phase of the cycle at a glance; the month grid shows the day number and moon emoji for quick scanning. Tap a day for glow score, moon, and sign details for that date.",
+      "p4": "Add your birthday in Settings when you want deeper personalized notes (encryption options may apply); the calendar is still uplifting even before that."
+    },
+    "aiGuides": {
+      "title": "AI Guides: Circe and Venus",
+      "description": "Two divine AIs at your service",
+      "circeTitle": "Circe — Retention and Protection",
+      "circePRich": "Circe helps you keep your audience captivated and your content safe. Use her for: retention analytics, churn prediction, leak detection and DMCA automation, fan engagement scoring, and alerts. Access her from the dashboard or via <analytics>Analytics</analytics> and <protection>Protection</protection>.",
+      "venusTitle": "Venus — Growth and Attraction",
+      "venusPRich": "Venus helps you attract new admirers and grow your reputation. Use her for: growth strategies, optimal posting times, content performance predictions, reputation and sentiment monitoring, and fan acquisition. Access her from the dashboard or via <fans>Fans</fans> and <mentions>Mentions</mentions>.",
+      "studioRich": "<studio>AI Studio</studio> is your media vault (describe content for Divine), safe photo touch-ups, and the full AI tools library (captions, churn, growth, and more).",
+      "dailyTitle": "Daily AI tips from Circe",
+      "dailyP": "Curated, rotating tips for using Circe et Venus well — sync habits, vault notes, mass segments, Protection, and more. Updated with a new \"tip of the day\" on the calendar; the full list lives on one page.",
+      "dailyLink": "Open Daily AI tips from Circe (full page)",
+      "dailyFootRich": "Also linked from <sug>Suggestions</sug> at the top of the screen."
+    },
+    "messagesFans": {
+      "title": "Messages and Fans",
+      "description": "Conversations and fan management",
+      "messagesRich": "<msg>Messages</msg> shows your DMs from connected platforms. You can view conversations and use AI-powered reply suggestions. If OnlyFans session has expired, you'll see an error and need to reconnect OnlyFans from Settings → Integrations before messages load again.",
+      "fansRich": "<fans>Fans</fans> lists your subscribers/fans synced from your platforms. You can see who's active, who might churn, and add manual fans if needed. Tags and notes help Circe et Venus tailor suggestions and respect your boundaries."
+    },
+    "content": {
+      "title": "Content",
+      "description": "Posts and calendar",
+      "pRich": "<content>Content</content> lets you view and manage posts. Connect platforms and sync to import existing content, or create new content. The content calendar helps you plan and schedule aligned with your strategy."
+    },
+    "protection": {
+      "title": "Protection",
+      "description": "Leak detection and DMCA",
+      "pRich": "<prot>Protection</prot> is Circe's domain. Here you get leak alerts and tools to issue DMCA takedowns. We help you find unauthorized use of your content and guide you through the process of protecting your work."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Profile, notifications, integrations, billing",
+      "pRich": "<set>Settings</set> is where you manage your profile (name, avatar), notifications, security (password), billing and subscription, and Integrations (connect/disconnect platforms). Use the Integrations tab for OnlyFans, Fansly, and any other listed platforms, then sync or disconnect as needed."
+    },
+    "troubleshooting": {
+      "title": "Troubleshooting",
+      "description": "Common issues and fixes",
+      "stuckTitle": "OnlyFans login stuck at \"Filling out login\"",
+      "stuckP": "Click Start fresh login, choose the other proxy (US or UK), and try again. Avoid reusing the same attempt.",
+      "expiredTitle": "OnlyFans session expired / \"Please reconnect\"",
+      "expiredP": "We disconnected your OnlyFans account for security. Go to Settings → Integrations and connect OnlyFans again with a fresh login (email + password, then 2FA or face verification if prompted).",
+      "syncTitle": "Messages or sync fail with \"session expired\"",
+      "syncP": "Same as above: reconnect the affected platform from Settings → Integrations.",
+      "twofaTitle": "2FA or face verification not showing",
+      "twofaP": "Make sure you completed the previous step (e.g. entered password and waited). If the dialog closed, open Connect again and start a new login — don't reuse an old attempt ID.",
+      "helpTitle": "Need more help?",
+      "helpPRich": "Contact support at <email>support@circe-venus.com</email> or via the <contact>Contact</contact> page."
+    },
+    "footer": {
+      "goIntegrations": "Go to Integrations"
+    }
+  },
+  "guidePage": {
+    "eyebrow": "Onboarding compass",
+    "title": "Guide and orbital tour",
+    "introRich": "Scroll the <journey>same journey as the full app tour</journey>—each beat floats above the exact surface it describes—then open the <manual>manual chapters</manual> when you want depth (integrations, OnlyFans, troubleshooting).",
+    "startScrolling": "Start scrolling",
+    "jumpToReference": "Jump to reference:",
+    "linkGettingStarted": "Getting started",
+    "linkSuggestions": "Suggestions",
+    "linkDivineManager": "Divine Manager",
+    "linkTroubleshooting": "Troubleshooting",
+    "deepReferenceTitle": "Deep reference",
+    "deepReferenceSubtitle": "Long-form chapters—expand a section or use the links above.",
+    "accordionManual": "Open full manual (integrations, AI, troubleshooting…)",
+    "inTheApp": "In the app",
+    "laneCirce": "Circe lane",
+    "laneVenus": "Venus lane",
+    "laneOrbit": "Orbit",
+    "laneCore": "Core",
+    "openInApp": "Open in app",
+    "orbitalTitle": "Orbital walkthrough",
+    "orbitalSubtitle": "Same story as the live tour—each card explains the step; the tile below is the exact area in the product it belongs to.",
+    "filterAll": "All steps",
+    "filterCirce": "Circe",
+    "filterVenus": "Venus",
+    "filterNeutral": "Neutral",
+    "filterAurora": "Aurora"
   }
 }

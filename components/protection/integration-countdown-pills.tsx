@@ -1,6 +1,6 @@
 'use client'
 
-import { INTEGRATION_COUNTDOWN_END_MS, formatCountdownParts, useCountdownMs } from '@/hooks/use-integration-countdown'
+import { formatCountdownParts, useCountdownMs, useIntegrationCountdownEndMs } from '@/hooks/use-integration-countdown'
 
 type Props = {
   className?: string
@@ -8,7 +8,8 @@ type Props = {
 
 /** Same mono pill cluster as MarkIt “full in-app integration” teaser — keep styling in sync. */
 export function IntegrationCountdownPills({ className }: Props) {
-  const countdownLeft = useCountdownMs(INTEGRATION_COUNTDOWN_END_MS)
+  const countdownEnd = useIntegrationCountdownEndMs()
+  const countdownLeft = useCountdownMs(countdownEnd)
   const parts = formatCountdownParts(countdownLeft)
 
   return (

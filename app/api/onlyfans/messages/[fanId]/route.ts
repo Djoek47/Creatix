@@ -18,7 +18,6 @@ import {
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
-import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import {
   consumeAiCredits,
   hasEnoughAiCredits,
@@ -251,7 +250,7 @@ export async function POST(
     api.setAccountId(connection.access_token)
 
     const body = await request.json()
-    const { text, mediaIds, previews, price, trace } = body
+    const { text, mediaIds, previews, price } = body
     const trimmed = typeof text === 'string' ? text.trim() : ''
     const hasText = trimmed.length > 0
     const hasMedia = Array.isArray(mediaIds) && mediaIds.length > 0
@@ -282,42 +281,6 @@ export async function POST(
           { error: 'Preview media must also be included in media files.' },
           { status: 400 },
         )
-      }
-    }
-
-    let traceResult:
-      | { payloadId: string; exportId: string; downloadUrl: string; creditsCharged: number }
-      | null = null
-    if (trace?.enabled) {
-      const traceContentId = typeof trace.contentId === 'string' ? trace.contentId.trim() : ''
-      if (!traceContentId) {
-        return NextResponse.json({ error: 'Trace content is required when Ariadne trace is enabled.' }, { status: 400 })
-      }
-      const recipientKey =
-        (typeof trace.recipientKey === 'string' ? trace.recipientKey.trim() : '') || String(fanId)
-      const traceOut = await createAriadneTraceExport({
-        supabase,
-        userId: user.id,
-        contentId: traceContentId,
-        recipientKey,
-        source: 'message_send',
-        recipient: {
-          platform: 'onlyfans',
-          platformFanId: String(fanId),
-          username: typeof trace.recipientUsername === 'string' ? trace.recipientUsername : undefined,
-          displayName: typeof trace.recipientDisplayName === 'string' ? trace.recipientDisplayName : undefined,
-        },
-        origin: { messageId: undefined },
-        updateContentRow: false,
-      })
-      if (!traceOut.ok) {
-        return NextResponse.json({ error: traceOut.error }, { status: traceOut.status })
-      }
-      traceResult = {
-        payloadId: traceOut.payloadId,
-        exportId: traceOut.exportId,
-        downloadUrl: traceOut.downloadUrl,
-        creditsCharged: traceOut.creditsCharged,
       }
     }
 
@@ -383,7 +346,6 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: result,
-      trace: traceResult,
     })
   } catch (error) {
     console.error('Failed to send message:', error)

@@ -32,6 +32,7 @@
     "test:partner-connect-gate": "tsx lib/billing/partner-connect-gate.test.ts",
     "test:platform-focus": "tsx lib/billing/platform-variant-focus.test.ts",
     "test:product-gates-smoke": "tsx lib/divine-manager-deep-link.test.ts && tsx lib/billing/partner-connect-gate.test.ts",
+    "test:fansly-upstream": "tsx lib/fansly/fansly-upstream-error.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install",

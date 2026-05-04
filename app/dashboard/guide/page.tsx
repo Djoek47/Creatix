@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { BookOpen, Compass, Sparkles, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,9 @@ import {
 } from '@/components/ui/accordion'
 
 export default function GuidePage() {
+  const t = useTranslations('dashboard')
+  const tPage = useTranslations('dashboard.guidePage')
+
   return (
     <div className="relative mx-auto max-w-5xl overflow-x-hidden pb-24">
       {/* Ambient */}
@@ -37,28 +41,29 @@ export default function GuidePage() {
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
                 <Star className="h-3.5 w-3.5" aria-hidden />
-                Onboarding compass
+                {tPage('eyebrow')}
               </div>
               <h1 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-                Guide &amp; orbital tour
+                {tPage('title')}
               </h1>
               <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-                Scroll the <strong className="text-foreground">same journey as the full app tour</strong>—each beat floats
-                above the exact surface it describes—then open the <strong className="text-foreground">manual chapters</strong>{' '}
-                when you want depth (integrations, OnlyFans, troubleshooting).
+                {tPage.rich('introRich', {
+                  journey: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+                  manual: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+                })}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Button asChild className="gap-2 shadow-lg shadow-primary/15">
                 <Link href="/dashboard/welcome?openTour=1">
                   <Sparkles className="h-4 w-4" aria-hidden />
-                  Launch live tour
+                  {t('startTour.launchLiveTour')}
                 </Link>
               </Button>
               <Button variant="outline" asChild className="gap-2 border-primary/25 bg-background/60 backdrop-blur-sm">
                 <Link href="#guide-orbit-full-01">
                   <Compass className="h-4 w-4" aria-hidden />
-                  Start scrolling
+                  {tPage('startScrolling')}
                 </Link>
               </Button>
             </div>
@@ -67,18 +72,18 @@ export default function GuidePage() {
 
         <Card className="border-border/60 bg-muted/15 backdrop-blur-sm">
           <CardContent className="flex flex-wrap gap-x-6 gap-y-2 pt-6 text-sm">
-            <span className="text-muted-foreground">Jump to reference:</span>
+            <span className="text-muted-foreground">{tPage('jumpToReference')}</span>
             <a href="#getting-started" className="text-primary underline-offset-4 hover:underline">
-              Getting started
+              {tPage('linkGettingStarted')}
             </a>
             <Link href="/dashboard/community" className="text-primary underline-offset-4 hover:underline">
-              Suggestions
+              {tPage('linkSuggestions')}
             </Link>
             <a href="#divine-manager" className="text-primary underline-offset-4 hover:underline">
-              Divine Manager
+              {tPage('linkDivineManager')}
             </a>
             <a href="#troubleshooting" className="text-primary underline-offset-4 hover:underline">
-              Troubleshooting
+              {tPage('linkTroubleshooting')}
             </a>
           </CardContent>
         </Card>
@@ -98,17 +103,15 @@ export default function GuidePage() {
         <div className="flex items-center gap-3 border-b border-border/60 pb-4">
           <BookOpen className="h-7 w-7 text-primary" aria-hidden />
           <div>
-            <h2 className="font-serif text-2xl font-semibold tracking-tight">Deep reference</h2>
-            <p className="text-sm text-muted-foreground">
-              Long-form chapters—expand a section or use the links above.
-            </p>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">{tPage('deepReferenceTitle')}</h2>
+            <p className="text-sm text-muted-foreground">{tPage('deepReferenceSubtitle')}</p>
           </div>
         </div>
 
         <Accordion type="multiple" className="rounded-2xl border border-border/80 bg-card/30">
           <AccordionItem value="reference" className="border-0 px-1">
             <AccordionTrigger className="px-4 py-4 text-left font-serif text-lg hover:no-underline">
-              Open full manual (integrations, AI, troubleshooting…)
+              {tPage('accordionManual')}
             </AccordionTrigger>
             <AccordionContent className="border-t border-border/50 px-2 pb-6 pt-2 sm:px-4">
               <GuideReferenceSections />

@@ -31,6 +31,12 @@ export default async function AnalyticsPage() {
   const hasOnlyFansConnected =
     onlyFansPartnerAccountIdFromRow(onlyfansRow as PlatformConnectionObservedRow) != null
 
+  const fanslyRow = (connections || []).find((c) => c.platform === 'fansly')
+  const hasFanslyConnected = Boolean(
+    fanslyRow &&
+      (Boolean(fanslyRow.access_token?.trim()) || Boolean(String(fanslyRow.platform_user_id || '').trim())),
+  )
+
   const { data: analytics } = await supabase
     .from('analytics_snapshots')
     .select('*')
@@ -70,6 +76,7 @@ export default async function AnalyticsPage() {
         connections={(connections as any) || []}
         content={content}
         hasOnlyFansConnected={hasOnlyFansConnected}
+        hasFanslyConnected={hasFanslyConnected}
       />
     </div>
   )

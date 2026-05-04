@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
-import { INTEGRATION_COUNTDOWN_END_MS, formatCountdownParts, useCountdownMs } from '@/hooks/use-integration-countdown'
+import { formatCountdownParts, useCountdownMs, useIntegrationCountdownEndMs } from '@/hooks/use-integration-countdown'
 
 type AnalyzeResponse = MarkitAttributionResult & { creditsCharged?: number; error?: string }
 
@@ -14,7 +14,7 @@ type Props = {
   className?: string
 }
 
-/** External MarkIt trace lab (beta). */
+/** External MarkIt trace lab (coming soon in-product). */
 const MARKIT_EXTERNAL_TRACE_URL = 'https://markit-fawn.vercel.app/trace'
 /** When false, no `<a href>` to the hosted lab (banner + “Test it out”). */
 const MARKIT_EXTERNAL_TRACE_LINK_ENABLED = false
@@ -35,7 +35,8 @@ export function MarkitAttributionPanel({ className }: Props) {
   const [err, setErr] = useState<string | null>(null)
   const [result, setResult] = useState<AnalyzeResponse | null>(null)
 
-  const countdownLeft = useCountdownMs(INTEGRATION_COUNTDOWN_END_MS)
+  const countdownEnd = useIntegrationCountdownEndMs()
+  const countdownLeft = useCountdownMs(countdownEnd)
   const parts = formatCountdownParts(countdownLeft)
   const blocked = MARKIT_IN_APP_TEASER
 
@@ -73,7 +74,7 @@ export function MarkitAttributionPanel({ className }: Props) {
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="rounded-xl bg-violet-500/15 p-2.5 ring-1 ring-violet-500/25">
-              <Fingerprint className="h-5 w-5 text-violet-300" />
+              <Fingerprint className="h-5 w-5 text-violet-700 dark:text-violet-300" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -81,9 +82,9 @@ export function MarkitAttributionPanel({ className }: Props) {
                 {blocked ? (
                   <Badge
                     variant="secondary"
-                    className="border-amber-500/35 bg-amber-500/15 text-amber-100"
+                    className="border-violet-600/35 bg-violet-100 text-violet-950 dark:border-violet-400/35 dark:bg-violet-500/20 dark:text-violet-50"
                   >
-                    Beta
+                    Coming soon
                   </Badge>
                 ) : null}
               </div>
@@ -99,7 +100,7 @@ export function MarkitAttributionPanel({ className }: Props) {
         {blocked ? (
           <div className="mb-4 space-y-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2 text-foreground">
-              <Lock className="h-4 w-4 shrink-0 text-violet-300" aria-hidden />
+              <Lock className="h-4 w-4 shrink-0 text-violet-700 dark:text-violet-300" aria-hidden />
               <span className="font-medium">Upload and analyze are not available in this workspace yet.</span>
             </div>
             <p className="text-muted-foreground">
@@ -120,7 +121,7 @@ export function MarkitAttributionPanel({ className }: Props) {
                 href={MARKIT_EXTERNAL_TRACE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 font-medium text-violet-300 underline decoration-violet-500/40 underline-offset-2 hover:text-violet-200"
+                className="inline-flex items-center gap-1.5 font-medium text-violet-800 underline decoration-violet-600/40 underline-offset-2 hover:text-violet-950 dark:text-violet-300 dark:hover:text-violet-200"
               >
                 Open hosted trace on MarkIt
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -170,42 +171,61 @@ export function MarkitAttributionPanel({ className }: Props) {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label
-            className={cn(
-              'flex flex-1 flex-col gap-1.5 text-xs text-muted-foreground',
-              blocked ? 'cursor-not-allowed' : 'cursor-pointer',
+        <div
+          className={cn(
+            'flex flex-col gap-3 sm:flex-row sm:items-end',
+            blocked && 'rounded-lg border border-border bg-muted/40 p-3 dark:bg-muted/25',
+          )}
+        >
+          <div className={cn('flex min-w-0 flex-1 flex-col gap-1.5', blocked && 'cursor-not-allowed')}>
+            <span className="text-xs font-semibold text-foreground">Suspect file</span>
+            {blocked ? (
+              <>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  In-app upload is not finished yet — this row previews where you will attach evidence after MarkIt
+                  ships here.
+                </p>
+                <div
+                  role="status"
+                  aria-label="File upload not available yet"
+                  className="flex min-h-10 items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-background px-3 py-2.5 text-sm text-foreground shadow-sm"
+                >
+                  <Upload className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="text-muted-foreground">Choose file — coming soon</span>
+                </div>
+              </>
+            ) : (
+              <label className="flex cursor-pointer flex-col gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] ?? null)
+                    setResult(null)
+                    setErr(null)
+                  }}
+                />
+              </label>
             )}
-          >
-            <span className="font-medium">Suspect file</span>
-            <input
-              type="file"
-              accept="image/*,video/*"
-              disabled={blocked}
-              className={cn(
-                'text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5',
-                blocked && 'opacity-60',
-              )}
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null)
-                setResult(null)
-                setErr(null)
-              }}
-            />
-          </label>
+          </div>
           {blocked ? (
             MARKIT_EXTERNAL_TRACE_LINK_ENABLED ? (
-              <Button asChild className="shrink-0 gap-2">
+              <Button asChild variant="outline" className="shrink-0 gap-2 border-violet-600/40 text-foreground hover:bg-muted">
                 <a href={MARKIT_EXTERNAL_TRACE_URL} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" aria-hidden />
                   Test it out
                 </a>
               </Button>
             ) : (
-              <Button type="button" disabled className="shrink-0 gap-2" title="External lab link disabled in this build">
-                <ExternalLink className="h-4 w-4 opacity-50" aria-hidden />
-                Test it out
-              </Button>
+              <span
+                role="status"
+                className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-md border border-dashed border-muted-foreground/50 bg-background px-3 py-2 text-center text-xs font-medium leading-snug text-foreground sm:max-w-[12rem] sm:self-end"
+                title="Hosted MarkIt lab is not linked from this screen in this release."
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                Coming soon
+              </span>
             )
           ) : (
             <Button

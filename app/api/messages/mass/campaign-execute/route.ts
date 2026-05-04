@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
+import { validateFanslyChatMediaIdsForSend } from '@/lib/fansly/chat-media-validate'
+import { resolveFanslyChat } from '@/lib/fansly/resolve-fansly-chat'
 import {
-  CREDITS_MESSAGE_SEND_PLATFORM,
-  getCreditsForToolId,
-} from '@/lib/billing/credit-economics'
+  FANSLY_MASS_OTP_COOKIE,
+  isFanslyMassOtpEnforced,
+  verifyFanslyMassOtpCookieValue,
+} from '@/lib/fansly/mass-otp-cookie'
+import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
+import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 import {
   consumeAiCredits,
   hasEnoughAiCredits,
   insufficientAiCreditsResponse,
 } from '@/lib/billing/consume-ai-credits'
-import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 
@@ -32,12 +36,19 @@ type CampaignExecuteBody = {
   price?: number
   mediaIds?: (string | number)[]
   previews?: (string | number)[]
-  trace?: {
-    enabled?: boolean
-    contentId?: string
-    contentIds?: string[]
-    recipientKeyPrefix?: string
-  }
+  /** Fansly vault / media ids for personalized Fansly sends (not OnlyFans upload ids). */
+  fanslyMediaIds?: (string | number)[]
+}
+
+function fanslyAccountId(conn: { access_token?: string | null; platform_user_id?: string | null }): string | null {
+  const a =
+    (conn.access_token != null && String(conn.access_token).trim() !== ''
+      ? String(conn.access_token).trim()
+      : null) ??
+    (conn.platform_user_id != null && String(conn.platform_user_id).trim() !== ''
+      ? String(conn.platform_user_id).trim()
+      : null)
+  return a
 }
 
 export async function POST(request: NextRequest) {
@@ -70,22 +81,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No personalized targets provided' }, { status: 400 })
     }
 
-    const traceEnabled = Boolean(body.trace?.enabled)
-    const traceContentIds = Array.isArray(body.trace?.contentIds)
-      ? body.trace?.contentIds.map((id) => String(id ?? '').trim()).filter(Boolean)
-      : []
-    const fallbackContentId = String(body.trace?.contentId ?? '').trim()
-    const activeTraceContentIds = traceContentIds.length > 0 ? traceContentIds : fallbackContentId ? [fallbackContentId] : []
-    if (traceEnabled && activeTraceContentIds.length === 0) {
-      return NextResponse.json({ error: 'Trace content is required when trace is enabled.' }, { status: 400 })
-    }
-
     const mediaIds = Array.isArray(body.mediaIds) ? body.mediaIds : []
+    const fanslyMediaIds = Array.isArray(body.fanslyMediaIds) ? body.fanslyMediaIds : []
     const previews = Array.isArray(body.previews) ? body.previews : []
-    const hasMedia = mediaIds.length > 0
-    const mediaErr = validateChatMediaIdsForSend(mediaIds)
-    if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
-    if (previews.length > 0 && !hasMedia) {
+    const hasOfMedia = mediaIds.length > 0
+    const hasFlMedia = fanslyMediaIds.length > 0
+
+    if (hasOfMedia) {
+      const mediaErr = validateChatMediaIdsForSend(mediaIds)
+      if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
+    }
+    if (hasFlMedia) {
+      const flErr = validateFanslyChatMediaIdsForSend(fanslyMediaIds)
+      if (flErr) return NextResponse.json({ error: flErr }, { status: 400 })
+    }
+    if (previews.length > 0 && !hasOfMedia) {
       return NextResponse.json({ error: 'Preview media requires media files.' }, { status: 400 })
     }
 
@@ -98,37 +108,58 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .eq('is_connected', true)
       .in('platform', ['onlyfans', 'fansly'])
-    const ofConn = (connections || []).find((c) => c.platform === 'onlyfans')
-    if (!ofConn) return NextResponse.json({ error: 'OnlyFans is not connected.' }, { status: 400 })
 
-    const personalizedTargets = targets.filter((t) => t.platform === 'onlyfans')
-    const sendCreditsEstimate = personalizedTargets.length * CREDITS_MESSAGE_SEND_PLATFORM
-    const traceCreditsEstimate =
-      traceEnabled && personalizedTargets.length > 0
-        ? personalizedTargets.length * activeTraceContentIds.length * getCreditsForToolId('ariadne-trace')
-        : 0
-    const gate = await hasEnoughAiCredits(supabase, user.id, sendCreditsEstimate + traceCreditsEstimate)
+    const ofConn = (connections || []).find((c) => c.platform === 'onlyfans')
+    const flConn = (connections || []).find((c) => c.platform === 'fansly')
+
+    const personalizedOf = targets.filter((t) => t.platform === 'onlyfans')
+    const personalizedFl = targets.filter((t) => t.platform === 'fansly')
+
+    if (personalizedOf.length > 0 && !ofConn?.access_token) {
+      return NextResponse.json({ error: 'OnlyFans is not connected.' }, { status: 400 })
+    }
+    if (personalizedFl.length > 0 && !fanslyAccountId(flConn ?? {})) {
+      return NextResponse.json({ error: 'Fansly is not connected.' }, { status: 400 })
+    }
+
+    if (personalizedFl.length > 0 && isFanslyMassOtpEnforced()) {
+      const ok = verifyFanslyMassOtpCookieValue(request.cookies.get(FANSLY_MASS_OTP_COOKIE)?.value, user.id)
+      if (!ok) {
+        return NextResponse.json(
+          {
+            error:
+              'Fansly two-factor verification required before campaign sends. Complete email OTP verification in Fansly settings, then retry.',
+            code: 'FANSLY_MASS_OTP_REQUIRED',
+          },
+          { status: 403 },
+        )
+      }
+    }
+
+    const sendCreditsEstimate =
+      (personalizedOf.length + personalizedFl.length) * CREDITS_MESSAGE_SEND_PLATFORM
+    const gate = await hasEnoughAiCredits(supabase, user.id, sendCreditsEstimate)
     if (!gate.ok) return insufficientAiCreditsResponse(gate.used, gate.limit)
 
-    const api = createOnlyFansAPI(ofConn.access_token)
+    const ofApi = ofConn?.access_token ? createOnlyFansAPI(ofConn.access_token) : null
+    const flAccountId = flConn ? fanslyAccountId(flConn) : null
+    const flApi = flAccountId ? createFanslyAPI(flAccountId) : null
+
     const results: Array<{
       fanId: string
-      platform: 'onlyfans'
+      platform: 'onlyfans' | 'fansly'
       success: boolean
       messageId?: string
       error?: string
-      trace?: Array<{ payloadId: string; exportId: string; downloadUrl: string; creditsCharged: number }> | null
     }> = []
 
     let sent = 0
     let failed = 0
-    let traceGenerated = 0
-    let traceFailed = 0
 
-    for (const target of personalizedTargets) {
+    for (const target of personalizedOf) {
+      if (!ofApi) continue
       try {
-        // OF paid-message requirement.
-        if (typeof target.price === 'number' && target.price > 0 && !hasMedia) {
+        if (typeof target.price === 'number' && target.price > 0 && !hasOfMedia) {
           results.push({
             fanId: target.fanId,
             platform: 'onlyfans',
@@ -139,9 +170,9 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const messageOut = await api.sendMessage(target.fanId, {
+        const messageOut = await ofApi.sendMessage(target.fanId, {
           text: target.message,
-          mediaFiles: hasMedia ? mediaIds : undefined,
+          mediaFiles: hasOfMedia ? mediaIds : undefined,
           previews: previews.length > 0 ? previews : undefined,
           price: typeof target.price === 'number' ? target.price : undefined,
         })
@@ -154,55 +185,16 @@ export async function POST(request: NextRequest) {
           metadata: {
             endpoint: '/api/messages/mass/campaign-execute',
             fan_id: target.fanId,
+            platform: 'onlyfans',
           },
         })
         if (!sendDebit.ok) return insufficientAiCreditsResponse(sendDebit.used, sendDebit.limit)
-
-        let traceOut: Array<{ payloadId: string; exportId: string; downloadUrl: string; creditsCharged: number }> = []
-
-        if (traceEnabled) {
-          const prefix =
-            typeof body.trace?.recipientKeyPrefix === 'string' && body.trace.recipientKeyPrefix.trim()
-              ? body.trace.recipientKeyPrefix.trim()
-              : 'mass'
-          for (const traceContentId of activeTraceContentIds) {
-            const createdTrace = await createAriadneTraceExport({
-              supabase,
-              userId: user.id,
-              contentId: traceContentId,
-              recipientKey: `${prefix}:${target.fanId}`,
-              source: 'mass_dm',
-              recipient: {
-                platform: 'onlyfans',
-                platformFanId: target.fanId,
-                username: target.username ?? undefined,
-                displayName: target.displayName ?? undefined,
-              },
-              origin: {
-                messageId: messageOut.id != null ? String(messageOut.id) : undefined,
-              },
-              updateContentRow: false,
-            })
-            if (createdTrace.ok) {
-              traceOut.push({
-                payloadId: createdTrace.payloadId,
-                exportId: createdTrace.exportId,
-                downloadUrl: createdTrace.downloadUrl,
-                creditsCharged: createdTrace.creditsCharged,
-              })
-              traceGenerated += 1
-            } else {
-              traceFailed += 1
-            }
-          }
-        }
 
         results.push({
           fanId: target.fanId,
           platform: 'onlyfans',
           success: true,
           messageId: messageOut.id != null ? String(messageOut.id) : undefined,
-          trace: traceOut.length > 0 ? traceOut : null,
         })
         sent += 1
       } catch (e) {
@@ -216,18 +208,83 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    for (const target of personalizedFl) {
+      if (!flApi || !flAccountId) continue
+      try {
+        if (typeof target.price === 'number' && target.price > 0 && !hasFlMedia) {
+          results.push({
+            fanId: target.fanId,
+            platform: 'fansly',
+            success: false,
+            error: 'Paid messages require Fansly media IDs.',
+          })
+          failed += 1
+          continue
+        }
+
+        const resolved = await resolveFanslyChat(flApi, target.fanId)
+        if (!resolved) {
+          failed += 1
+          results.push({
+            fanId: target.fanId,
+            platform: 'fansly',
+            success: false,
+            error: 'Chat not found for this Fansly account.',
+          })
+          continue
+        }
+
+        const sendPayload = await flApi.sendMessage(flAccountId, resolved.chatId, {
+          text: target.message,
+          mediaIds: hasFlMedia ? fanslyMediaIds.map((id) => String(id)) : undefined,
+          price: typeof target.price === 'number' && target.price > 0 ? target.price : undefined,
+        })
+
+        const sendReasonRef = `mass_campaign_send_fansly:${target.fanId}:${String(sendPayload.id ?? '')}`
+        const sendDebit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_SEND_PLATFORM, {
+          reasonCode: 'mass_campaign_send',
+          reasonRef: sendReasonRef,
+          idempotencyKey: `${sendReasonRef}:${user.id}`,
+          metadata: {
+            endpoint: '/api/messages/mass/campaign-execute',
+            fan_id: target.fanId,
+            platform: 'fansly',
+          },
+        })
+        if (!sendDebit.ok) return insufficientAiCreditsResponse(sendDebit.used, sendDebit.limit)
+
+        results.push({
+          fanId: target.fanId,
+          platform: 'fansly',
+          success: true,
+          messageId: sendPayload.id != null ? String(sendPayload.id) : undefined,
+        })
+        sent += 1
+      } catch (e) {
+        failed += 1
+        results.push({
+          fanId: target.fanId,
+          platform: 'fansly',
+          success: false,
+          error: e instanceof Error ? e.message : 'Send failed',
+        })
+      }
+    }
+
     if (sent > 0) {
+      const platformsHit = new Set<'onlyfans' | 'fansly'>()
+      for (const r of results) {
+        if (r.success) platformsHit.add(r.platform)
+      }
       logMessageSendEvent({
         userId: user.id,
-        platform: 'onlyfans',
+        platform: platformsHit.size > 1 ? 'multi' : platformsHit.has('fansly') ? 'fansly' : 'onlyfans',
         source: mode === 'personalized' ? 'mass_campaign_personalized' : 'mass_dm',
         metadata: {
           sent,
           failed,
-          traceEnabled,
-          traceGenerated,
-          traceFailed,
           mode,
+          platforms: [...platformsHit],
         },
       })
       bumpSubscriptionMessagesSent(user.id, sent)
@@ -239,11 +296,6 @@ export async function POST(request: NextRequest) {
       sent,
       failed,
       results,
-      trace: {
-        enabled: traceEnabled,
-        generated: traceGenerated,
-        failed: traceFailed,
-      },
     })
   } catch (e) {
     return NextResponse.json(

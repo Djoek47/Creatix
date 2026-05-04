@@ -55,6 +55,9 @@ export async function GET(request: NextRequest) {
       after = now - recentDays * 24 * 60 * 60 * 1000
       before = now
     }
+    // ApiFansly rejects future `before`/`after` with 400 (client clock skew or bookmarked URLs).
+    if (before != null && before > now) before = now
+    if (after != null && after > now) after = now
 
     const api = createFanslyAPI(String(accountId))
     const { total, transactions } = await api.listEarningsTransactions(String(accountId), {

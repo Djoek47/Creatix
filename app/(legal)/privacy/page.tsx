@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 
 export default function PrivacyPolicyPage() {
   const router = useRouter()
+  const t = useTranslations('legal')
 
   const handleBack = () => {
     // Try to go back in history, or go to home if no history

@@ -605,7 +605,7 @@ export function FanProfileModal({
           )}
 
           {data?.threadInsight?.profileJson != null &&
-            formatProfileSection(data.threadInsight.profileJson).length > 0 && (
+            formatProfileSection(data.threadInsight.profileJson, t).length > 0 && (
               <div className="mt-10 space-y-6 border-t border-border/25 pt-8 dark:border-white/[0.06]">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('fromThread')}</p>
                 {formatProfileSection(data.threadInsight.profileJson, t).map((block) => (

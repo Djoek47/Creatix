@@ -868,11 +868,13 @@ class FanslyAPI {
     const q = new URLSearchParams()
     q.set('limit', String(params.limit))
     q.set('offset', String(params.offset))
+    const nowMs = Date.now()
+    // Docs: Unix ms. Partner returns 400 if `before` or `after` is in the future (client clock skew, stale URLs).
+    let before = params.before != null ? Math.min(params.before, nowMs) : undefined
+    let after = params.after != null ? Math.min(params.after, nowMs) : undefined
     // Docs show `before` + `after` together; some deployments reject `after` alone.
-    let before = params.before
-    let after = params.after
     if (after != null && before == null) {
-      before = Date.now()
+      before = nowMs
     }
     // Upstream returns 400 if `after` >= `before` (client clock ahead of server, bad inputs, etc.).
     if (before != null && after != null && after >= before) {

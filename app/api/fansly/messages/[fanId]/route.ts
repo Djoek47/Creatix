@@ -59,7 +59,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const peerUserId = peerFromQuery || resolved.peerUserId
     const result = await api.getMessages(resolved.chatId, { limit, before })
-    const messages = mapFanslyChatMessages(result.data, { fanUserId: peerUserId })
+    const messages = mapFanslyChatMessages(result.data, {
+      fanUserId: peerUserId,
+      accountMedia: result.accountMedia,
+    })
 
     return NextResponse.json({ messages, source: 'fansly' })
   } catch (error) {

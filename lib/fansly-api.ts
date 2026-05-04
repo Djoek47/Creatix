@@ -11,9 +11,11 @@ import {
   digRecord,
   extractFanslyChatAggregationAccounts,
   extractFanslyChatMessagesArray,
+  extractFanslyChatMessagesAccountMedia,
   extractFanslyChatsArray,
   extractFanslyChatsNextCursor,
   extractFanslyChatMessagesNextCursor,
+  dedupeFanslyChatAccountMediaRows,
   normalizeFanslyChatListItem,
 } from '@/lib/messages/fansly-thread-map'
 
@@ -1240,7 +1242,7 @@ class FanslyAPI {
     /** Alias for upstream `cursor` (older messages). */
     before?: string
     cursor?: string
-  }): Promise<{ data: unknown[] }> {
+  }): Promise<{ data: unknown[]; accountMedia: Record<string, unknown>[] }> {
     if (!this.accountId) throw new Error('Account ID not set')
 
     const wantTotal = Math.min(Math.max(params?.limit ?? 100, 1), 200)
@@ -1254,6 +1256,7 @@ class FanslyAPI {
         : undefined)
 
     const merged: unknown[] = []
+    const mergedAccountMedia: unknown[] = []
     let cursor: string | undefined = startCursor
     let prevCursor: string | undefined
 
@@ -1274,6 +1277,7 @@ class FanslyAPI {
 
       const batch = extractFanslyChatMessagesArray(raw)
       merged.push(...batch)
+      mergedAccountMedia.push(...extractFanslyChatMessagesAccountMedia(raw))
 
       const next = extractFanslyChatMessagesNextCursor(raw)
       if (!next || batch.length === 0) break
@@ -1282,7 +1286,10 @@ class FanslyAPI {
       cursor = next
     }
 
-    return { data: merged.slice(0, wantTotal) }
+    return {
+      data: merged.slice(0, wantTotal),
+      accountMedia: dedupeFanslyChatAccountMediaRows(mergedAccountMedia),
+    }
   }
 
   /**

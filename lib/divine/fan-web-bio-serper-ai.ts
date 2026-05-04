@@ -11,7 +11,7 @@ type LooseSb = SupabaseClient<any, 'public', any, any>
 export async function mergeCreatorDetectorIntoFanThreadInsight(
   supabase: LooseSb,
   userId: string,
-  platform: 'onlyfans',
+  platform: 'onlyfans' | 'fansly',
   platformFanId: string,
   signal: CreatorDetectorSignal,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -67,24 +67,38 @@ export function formatSerperResultsForBioPrompt(results: SearchResult[]): string
     .join('\n\n')
 }
 
-/** Run a small set of Serper queries and merge/dedupe by URL (OF-first, then general). */
+/** Run a small set of Serper queries and merge/dedupe by URL (platform-focused). */
 export async function collectFanWebSerperHits(
   provider: SerperProvider,
   opts: { username: string; displayName: string | null; fanId: string },
+  platform: 'onlyfans' | 'fansly' = 'onlyfans',
 ): Promise<SearchResult[]> {
   const rawU = opts.username.replace(/^@/, '').trim()
   const u = rawU.startsWith('fan_') ? '' : rawU
   const d = (opts.displayName || '').trim()
   const queries: string[] = []
-  if (u) {
-    queries.push(`site:onlyfans.com "${u}"`)
-    queries.push(`"${u}" onlyfans creator model`)
-  }
-  if (d && d.toLowerCase() !== u.toLowerCase()) {
-    queries.push(`"${d}" onlyfans`)
-  }
-  if (queries.length === 0) {
-    queries.push(`onlyfans fan id ${opts.fanId}`)
+  if (platform === 'fansly') {
+    if (u) {
+      queries.push(`site:fansly.com "${u}"`)
+      queries.push(`"${u}" fansly creator`)
+    }
+    if (d && d.toLowerCase() !== u.toLowerCase()) {
+      queries.push(`"${d}" fansly`)
+    }
+    if (queries.length === 0) {
+      queries.push(`fansly fan id ${opts.fanId}`)
+    }
+  } else {
+    if (u) {
+      queries.push(`site:onlyfans.com "${u}"`)
+      queries.push(`"${u}" onlyfans creator model`)
+    }
+    if (d && d.toLowerCase() !== u.toLowerCase()) {
+      queries.push(`"${d}" onlyfans`)
+    }
+    if (queries.length === 0) {
+      queries.push(`onlyfans fan id ${opts.fanId}`)
+    }
   }
 
   const seen = new Set<string>()
@@ -107,7 +121,7 @@ const webBioAnalysisSchema = z.object({
   likely_fellow_creator: z
     .boolean()
     .describe(
-      'True if snippets indicate they run or promote paid adult creator work (OnlyFans/Fansly/model page, tip menu, collab, sell content, etc.). False for typical subscribers/fans.',
+      'True if snippets indicate they run or promote paid adult creator work (OnlyFans, Fansly, similar model page, tip menu, collab, sell content, etc.). False for typical subscribers/fans.',
     ),
   confidence: z.number().min(0).max(1).describe('Confidence in likely_fellow_creator (0–1).'),
   creator_bio: z
@@ -135,13 +149,19 @@ export function analysisToCreatorDetector(analysis: WebBioSerperAnalysis): Creat
 export async function analyzeSerperHitsForFanCreatorBio(
   evidenceMarkdown: string,
   subjectLine: string,
+  platform: 'onlyfans' | 'fansly' = 'onlyfans',
 ): Promise<WebBioSerperAnalysis> {
+  const platformHint =
+    platform === 'fansly'
+      ? 'Snippets are biased toward Fansly and general web; they may still mention OnlyFans or other platforms.'
+      : 'Snippets are biased toward OnlyFans and general web; they may mention Fansly or other platforms.'
   const { object } = await generateObject({
     model: 'openai/gpt-4o-mini',
     schema: webBioAnalysisSchema,
     system: `You classify a person using only the web search snippets provided (no browsing).
-Decide if they are likely a *fellow creator* (runs or promotes paid adult content / OnlyFans-style work) versus a typical fan or ambiguous.
-Extract a short public-facing bio only if Snippets support it; otherwise null.
+Decide if they are likely a *fellow creator* (runs or promotes paid adult content on OnlyFans, Fansly, or similar) versus a typical fan or ambiguous.
+${platformHint}
+Extract a short public-facing bio only if snippets support it; otherwise null.
 Be conservative: false if evidence is ads, unrelated namesakes, or too thin.`,
     prompt: `Subject (inbox fan / CRM):\n${subjectLine}\n\n--- Web results (titles, URLs, snippets) ---\n${evidenceMarkdown}`,
   })

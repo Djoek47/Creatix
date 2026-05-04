@@ -9,6 +9,75 @@ export const maxDuration = 180
 
 const FANSLY_PARTNER_BASE = 'https://v1.apifansly.com'
 
+type PartnerDownloadAttempt = { label: string; url: string; init: RequestInit }
+
+/**
+ * Live ApiFansly often exposes download under `/api/fansly/{accountId}/media/download` (like chats/upload).
+ * The undocumented global `POST /api/fansly/media/download` may 404 with "Cannot POST …".
+ */
+async function fetchFanslyPartnerMediaDownload(opts: {
+  apiKey: string
+  accountId: string | null
+  cdnUrl: string
+}): Promise<Response> {
+  const { apiKey, accountId, cdnUrl } = opts
+  const jsonHeaders = {
+    'x-api-key': apiKey,
+    'Content-Type': 'application/json',
+    Accept: '*/*',
+  } as const
+  const getHeaders = {
+    'x-api-key': apiKey,
+    Accept: '*/*',
+  } as const
+
+  const attempts: PartnerDownloadAttempt[] = []
+
+  if (accountId) {
+    const scoped = `${FANSLY_PARTNER_BASE}/api/fansly/${encodeURIComponent(accountId)}/media/download`
+    attempts.push({
+      label: 'POST account /media/download',
+      url: scoped,
+      init: {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ cdnUrl }),
+      },
+    })
+    attempts.push({
+      label: 'GET account /media/download?cdnUrl',
+      url: `${scoped}?cdnUrl=${encodeURIComponent(cdnUrl)}`,
+      init: { method: 'GET', headers: getHeaders },
+    })
+  }
+
+  const globalPath = `${FANSLY_PARTNER_BASE}/api/fansly/media/download`
+  attempts.push({
+    label: 'POST global /media/download',
+    url: globalPath,
+    init: {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ cdnUrl }),
+    },
+  })
+  attempts.push({
+    label: 'GET global /media/download?cdnUrl',
+    url: `${globalPath}?cdnUrl=${encodeURIComponent(cdnUrl)}`,
+    init: { method: 'GET', headers: getHeaders },
+  })
+
+  let last: Response | undefined
+  for (const a of attempts) {
+    const res = await fetch(a.url, a.init)
+    last = res
+    if (res.ok) return res
+    const retry = res.status === 404 || res.status === 405
+    if (!retry) return res
+  }
+  return last as Response
+}
+
 /** Hosts allowed for `cdnUrl` — Fansly CDN / media only (not www marketing). */
 function isFanslyMediaCdnHost(hostname: string): boolean {
   const h = hostname.toLowerCase()
@@ -79,13 +148,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Host not allowed for Fansly media download' }, { status: 403 })
     }
 
-    const res = await fetch(`${FANSLY_PARTNER_BASE}/api/fansly/media/download`, {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ cdnUrl: cdnUrlRaw.trim() }),
+    const cdnUrl = cdnUrlRaw.trim()
+    /** Partner account id (same as `createFanslyAPI(connection.access_token)` elsewhere). */
+    const accountId =
+      connection?.access_token != null && String(connection.access_token).trim() !== ''
+        ? String(connection.access_token).trim()
+        : null
+
+    const res = await fetchFanslyPartnerMediaDownload({
+      apiKey,
+      accountId,
+      cdnUrl,
     })
 
     if (!res.ok) {

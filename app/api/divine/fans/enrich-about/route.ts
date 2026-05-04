@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { onlyFansBillingGateResponse, fanslyBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
-import { executeFanEnrichAbout } from '@/lib/divine/fan-enrich-about'
+import { executeFanEnrichAbout, type FanEnrichPlatform } from '@/lib/divine/fan-enrich-about'
 
 export const maxDuration = 60
 
 /**
- * POST { fanId: platform_fan_id, force?: boolean }
- * Legacy path; always OnlyFans. Prefer POST /api/divine/fans/enrich-about with platform.
+ * POST { fanId, platform?: 'onlyfans' | 'fansly', force?: boolean }
+ * Web bio + fellow-creator signal (Serper + LLM); same behavior as legacy /api/onlyfans/fans/enrich-about.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -18,14 +18,23 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const billingBlock = await onlyFansBillingGateResponse(supabase)
+    const body = (await req.json().catch(() => ({}))) as {
+      fanId?: string
+      force?: boolean
+      platform?: string
+    }
+    const platform: FanEnrichPlatform = body.platform === 'fansly' ? 'fansly' : 'onlyfans'
+
+    const billingBlock =
+      platform === 'fansly'
+        ? await fanslyBillingGateResponse(supabase)
+        : await onlyFansBillingGateResponse(supabase)
     if (billingBlock) return billingBlock
 
-    const body = (await req.json().catch(() => ({}))) as { fanId?: string; force?: boolean }
     const fanId = typeof body.fanId === 'string' ? body.fanId.trim() : ''
     const result = await executeFanEnrichAbout(supabase, user.id, {
       fanId,
-      platform: 'onlyfans',
+      platform,
       force: body.force === true,
     })
 

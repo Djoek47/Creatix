@@ -166,11 +166,11 @@ export function FanProfileModal({
       setEnrichBioPhase(force ? 'force' : 'soft')
       setError(null)
       try {
-        const res = await fetch('/api/onlyfans/fans/enrich-about', {
+        const res = await fetch('/api/divine/fans/enrich-about', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ fanId, force }),
+          body: JSON.stringify({ fanId, platform, force }),
         })
         const json = (await res.json().catch(() => ({}))) as {
           error?: string
@@ -230,7 +230,7 @@ export function FanProfileModal({
         setForceBioDialogOpen(false)
       }
     },
-    [fanId, load, t],
+    [fanId, platform, load, t],
   )
 
   useEffect(() => {
@@ -552,15 +552,20 @@ export function FanProfileModal({
             </div>
           </div>
 
-          {platform === 'onlyfans' && data && (
+          {(platform === 'onlyfans' || platform === 'fansly') && data && (
             <div className="mt-10 space-y-4 border-t border-border/25 pt-8 dark:border-white/[0.06]">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('onlyfansBioTitle')}</p>
-                <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">{t('onlyfansBioExplainer')}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/65">{t('webBioTitle')}</p>
+                <p className="mt-2 max-w-prose text-[12px] leading-snug text-muted-foreground/85">{t('webBioExplainer')}</p>
               </div>
               {data.platformAboutSource !== 'none' ? (
                 <p className="text-[11px] text-muted-foreground/75">
-                  {data.platformAboutSource === 'of_api' ? t('bioSourceApi') : t('bioSourceWeb')} · {data.platformAboutFreshness}
+                  {data.platformAboutSource === 'of_api'
+                    ? platform === 'fansly'
+                      ? t('bioSourceFanslyApi')
+                      : t('bioSourceApi')
+                    : t('bioSourceWeb')}{' '}
+                  · {data.platformAboutFreshness}
                 </p>
               ) : null}
               {data.platformAbout?.trim() ? (

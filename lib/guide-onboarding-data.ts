@@ -40,7 +40,7 @@ export type GuideOrbitIconKey =
   | 'Route'
   | 'Sun'
 
-/** Theme + icon per tour step id (`lib/tour-full-app-welcome.ts`). Copy lives in `messages/*/guideOrbit.json`. */
+/** Theme + icon per tour step id (lib/tour-full-app-welcome.ts). Copy lives in messages/<locale>/guideOrbit.json */
 const STEP_UI: Record<string, { theme: GuideOrbTheme; iconKey: GuideOrbitIconKey }> = {
   'full-01': { theme: 'aurora', iconKey: 'Sparkles' },
   'full-02': { theme: 'neutral', iconKey: 'Map' },

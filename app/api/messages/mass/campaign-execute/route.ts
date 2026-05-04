@@ -5,6 +5,7 @@ import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
 import { validateFanslyChatMediaIdsForSend } from '@/lib/fansly/chat-media-validate'
 import { resolveFanslyChat } from '@/lib/fansly/resolve-fansly-chat'
+import { validateFanslyPpvForSend } from '@/lib/fansly/ppv-send'
 import {
   FANSLY_MASS_OTP_COOKIE,
   isFanslyMassOtpEnforced,
@@ -211,12 +212,16 @@ export async function POST(request: NextRequest) {
     for (const target of personalizedFl) {
       if (!flApi || !flAccountId) continue
       try {
-        if (typeof target.price === 'number' && target.price > 0 && !hasFlMedia) {
+        const ppvErr = validateFanslyPpvForSend(
+          typeof target.price === 'number' ? target.price : undefined,
+          hasFlMedia,
+        )
+        if (ppvErr) {
           results.push({
             fanId: target.fanId,
             platform: 'fansly',
             success: false,
-            error: 'Paid messages require Fansly media IDs.',
+            error: ppvErr,
           })
           failed += 1
           continue

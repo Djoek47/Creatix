@@ -5,6 +5,7 @@ import { fanslyBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { mapFanslyChatMessages, mapFanslyChatRowToThreadMessage } from '@/lib/messages/fansly-thread-map'
 import { resolveFanslyChat } from '@/lib/fansly/resolve-fansly-chat'
 import { validateFanslyChatMediaIdsForSend } from '@/lib/fansly/chat-media-validate'
+import { parseFanslyPriceInput, validateFanslyPpvForSend } from '@/lib/fansly/ppv-send'
 import {
   consumeAiCredits,
   hasEnoughAiCredits,
@@ -107,11 +108,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const body = await request.json()
-    const { text, mediaIds, price } = body as {
+    const { text, mediaIds } = body as {
       text?: string
       mediaIds?: (string | number)[]
-      price?: number
+      price?: unknown
     }
+    const priceUsd = parseFanslyPriceInput(body.price)
     const trimmed = typeof text === 'string' ? text.trim() : ''
     const hasText = trimmed.length > 0
     const hasMedia = Array.isArray(mediaIds) && mediaIds.length > 0
@@ -120,11 +122,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Message text or media required' }, { status: 400 })
     }
 
-    if (typeof price === 'number' && price > 0 && !hasMedia) {
-      return NextResponse.json(
-        { error: 'Paid messages must include at least one media file.' },
-        { status: 400 },
-      )
+    const ppvErr = validateFanslyPpvForSend(priceUsd, hasMedia)
+    if (ppvErr) {
+      return NextResponse.json({ error: ppvErr }, { status: 400 })
     }
 
     const mediaErr = validateFanslyChatMediaIdsForSend(mediaIds)
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const sendPayload = await api.sendMessage(accountId, resolved.chatId, {
       text: trimmed || '',
       mediaIds: hasMedia ? mediaIds!.map((id) => String(id)) : undefined,
-      price: typeof price === 'number' && price > 0 ? price : undefined,
+      price: priceUsd,
     })
 
     const mapped =
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       platform: 'fansly',
       fanId: resolved.peerUserId,
       source: 'chat_dm',
-      metadata: { hasMedia, hasPrice: typeof price === 'number' && price > 0 },
+      metadata: { hasMedia, hasPrice: priceUsd != null && priceUsd > 0 },
     })
     bumpSubscriptionMessagesSent(user.id, 1)
 

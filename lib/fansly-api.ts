@@ -6,6 +6,7 @@
  */
 
 import { formatFanslyUpstreamError, sanitizeFanslyPartnerMessage } from '@/lib/fansly/fansly-upstream-error'
+import { finalizeFanslyPpvUsd } from '@/lib/fansly/ppv-send'
 import {
   digRecord,
   extractFanslyChatAggregationAccounts,
@@ -1248,6 +1249,8 @@ class FanslyAPI {
 
   /**
    * Send a message
+   * @see https://docs.apifansly.com/api-reference/chat-messages/send-message
+   * Upstream expects `content` (not `text`), optional singular `mediaId`, and for PPV: `access_type: "ppv"` + `price` (USD).
    */
   async sendMessage(accountId: string, chatId: string, data: {
     text: string
@@ -1255,10 +1258,31 @@ class FanslyAPI {
     /** PPV / paid message amount when supported by upstream. */
     price?: number
   }): Promise<Record<string, unknown>> {
-    const raw = await this.request<unknown>(`/api/fansly/${accountId}/chats/${encodeURIComponent(chatId)}/messages`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
+    const content = typeof data.text === 'string' ? data.text : ''
+    const mediaIds = (data.mediaIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+    const rawPrice =
+      typeof data.price === 'number' && Number.isFinite(data.price) && data.price > 0 ? data.price : undefined
+
+    const body: Record<string, unknown> = { content }
+    if (mediaIds.length > 0) {
+      body.mediaId = mediaIds[0]
+    }
+    /**
+     * PPV: `mediaId` + `access_type: "ppv"` + `price` (USD). Vendor minimum $1 — callers must validate;
+     * we still guard here so partial cents round safely within bounds.
+     */
+    if (mediaIds.length > 0 && rawPrice != null && rawPrice >= 1) {
+      body.access_type = 'ppv'
+      body.price = finalizeFanslyPpvUsd(rawPrice)
+    }
+
+    const raw = await this.request<unknown>(
+      `/api/fansly/${encodeURIComponent(accountId)}/chats/${encodeURIComponent(chatId)}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    )
     const root = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
     const d0 =
       root.data && typeof root.data === 'object' && !Array.isArray(root.data)

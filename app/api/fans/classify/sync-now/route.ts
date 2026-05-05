@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import type { FanClassifyConfig } from '@/lib/divine-manager'
+import { formatClassifyOnlyFansError } from '@/lib/fan-classify/onlyfans-classify-errors'
 import { syncFanClassifyForUser } from '@/lib/fan-classify/sync-core'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, details: out.details })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed'
+    const msg = e instanceof Error ? formatClassifyOnlyFansError(e) : 'Failed'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
   useSignupEntranceMode,
   useTrialSignupTransition,
 } from '@/components/marketing/trial-signup-transition'
+import { safePostAuthPath } from '@/lib/auth/safe-post-auth-path'
 
 type LoginStep = 'credentials' | 'mfa'
 
@@ -39,6 +40,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const nextParam = searchParams.get('next')
+  const postAuthPath = useMemo(() => safePostAuthPath(nextParam), [nextParam])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -70,12 +74,12 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    router.push(postAuthPath)
     router.refresh()
   }
 
   function handleMfaVerified() {
-    router.push('/dashboard')
+    router.push(postAuthPath)
     router.refresh()
   }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { after } from 'next/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { serializeAuthUserForRsc } from '@/lib/supabase/serialize-auth-user-for-rsc'
@@ -37,6 +38,7 @@ import { resolveDashboardLocale } from '@/lib/i18n/resolve-locale'
 import type { UiPreferences } from '@/lib/types'
 import { fetchUsdFiatRates } from '@/lib/fx/fetch-usd-fiat-rates'
 import { AnalyticsCurrencyProvider } from '@/components/dashboard/analytics-currency-context'
+import { sendWelcomeEmailIfNeeded } from '@/lib/email/send-welcome-email-if-needed'
 
 /** Logged-in app: not intended for public search indexing (see also robots.txt disallow). */
 export const metadata: Metadata = {
@@ -80,6 +82,22 @@ export default async function DashboardLayout({
     } catch {
       serializableProfile = profile as Profile
     }
+  }
+
+  const welcomeEmail = user.email?.trim() ?? ''
+  if (welcomeEmail) {
+    const welcomeDisplayName =
+      (typeof serializableProfile?.full_name === 'string' && serializableProfile.full_name.trim()) ||
+      (typeof user.user_metadata?.full_name === 'string' && String(user.user_metadata.full_name).trim()) ||
+      (typeof user.user_metadata?.name === 'string' && String(user.user_metadata.name).trim()) ||
+      ''
+    after(() => {
+      void sendWelcomeEmailIfNeeded({
+        userId: user.id,
+        email: welcomeEmail,
+        displayName: welcomeDisplayName,
+      })
+    })
   }
 
   const { data: subRow } = await supabase

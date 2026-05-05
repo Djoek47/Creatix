@@ -80,6 +80,8 @@ export interface Profile {
   /** Optional platform usernames e.g. { "onlyfans": "x", "mym": "y" } */
   reputation_platform_handles?: Record<string, string> | null
   onboarding_completed?: boolean
+  /** Set when the post-login welcome email was sent (Resend). */
+  welcome_email_sent_at?: string | null
   ui_preferences?: UiPreferences | null
   created_at: string
   updated_at: string

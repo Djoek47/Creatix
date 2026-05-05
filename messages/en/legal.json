@@ -1,6 +1,37 @@
 {
   "back": "Back",
   "siteDomain": "circeetvenus.com",
+  "contact": {
+    "eyebrow": "Support",
+    "title": "How can we help?",
+    "subtitle": "We read every message and reply by email.",
+    "signedInAs": "Signed in as",
+    "topicLabel": "Topic",
+    "topics": {
+      "general": "General",
+      "billing": "Billing",
+      "technical": "Technical",
+      "other": "Other"
+    },
+    "messageLabel": "Message",
+    "messagePlaceholder": "A few sentences are enough.",
+    "messageRequired": "Please enter a message.",
+    "submit": "Send",
+    "submitting": "Sending…",
+    "successTitle": "Sent.",
+    "successBody": "We’ll respond at the email on your account.",
+    "sendAnother": "Send another message",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "errorSignIn": "Your session expired. Sign in and try again.",
+    "errorMembersOnly": "This channel is for active members. View plans to subscribe.",
+    "gateSignInTitle": "Member support",
+    "gateSignInBody": "Sign in to send a message to the team.",
+    "gateSignInCta": "Sign in",
+    "gateSubscribeTitle": "For members",
+    "gateSubscribeBody": "Support is available to subscribers and active trial members.",
+    "gateSubscribeCta": "View plans",
+    "footerLegalAria": "Legal"
+  },
   "terms": {
     "title": "Terms of Service & User Agreement",
     "effective": "Effective date: April 1, 2026"

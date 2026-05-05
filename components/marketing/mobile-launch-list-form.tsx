@@ -40,24 +40,14 @@ export function MobileLaunchListForm() {
     setError(null)
     setSending(true)
     try {
-      // English-only body for ops / inbox routing (subject stays `mobile_launch_list`).
-      const payloadMessage = [
-        'Mobile Launch List Signup',
-        form.handle ? `Creator handle: ${form.handle}` : '',
-        '',
-        form.message || 'No extra notes provided.',
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      const res = await fetch('/api/contact', {
+      const res = await fetch('/api/marketing/mobile-launch-list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          subject: 'mobile_launch_list',
-          message: payloadMessage,
+          handle: form.handle,
+          message: form.message,
         }),
       })
 

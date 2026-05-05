@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { resolveResendFrom } from '@/lib/email/resend-from'
+import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 import { insertDivineAppNotification, type NotificationInsertClient } from '@/lib/notifications/divine-app-notification'
 import { getCanonicalUrl } from '@/lib/site-url'
-import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
 
@@ -111,8 +112,7 @@ export async function notifyPlatformConnectionChange(params: {
   })
 
   const apiKey = process.env.RESEND_API_KEY
-  const fromEmail =
-    process.env.SUPPORT_FROM_EMAIL || 'Circe et Venus <support@circe-venus.com>'
+  const fromEmail = resolveResendFrom()
   if (!apiKey) return
 
   let to = params.userEmail?.trim()

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { resolveResendFrom } from '@/lib/email/resend-from'
 import { insertDivineAppNotification, type NotificationInsertClient } from '@/lib/notifications/divine-app-notification'
 import { getCanonicalUrl } from '@/lib/site-url'
 
@@ -82,8 +83,7 @@ export async function notifyRevenueTierChange(
   })
 
   const apiKey = process.env.RESEND_API_KEY
-  const fromEmail =
-    process.env.SUPPORT_FROM_EMAIL || 'Circe et Venus <support@circe-venus.com>'
+  const fromEmail = resolveResendFrom()
   if (!apiKey) return
 
   const { data: profile } = await supabase
@@ -172,8 +172,7 @@ export async function notifyRevenueBandMismatchIfNeeded(
   })
 
   const apiKey = process.env.RESEND_API_KEY
-  const fromEmail =
-    process.env.SUPPORT_FROM_EMAIL || 'Circe et Venus <support@circe-venus.com>'
+  const fromEmail = resolveResendFrom()
   if (!apiKey) return true
 
   const { data: profile } = await supabase

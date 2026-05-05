@@ -76,6 +76,7 @@ Use this on a **new** project (or an empty `public` schema) so the app matches t
 42. `040_fan_thread_scan_automation.sql`
 43. `041_fans_crm_webhook.sql`
 44. *(catch-up)* `099_fans_subscription_start.sql` — adds `fans.subscription_start` if missing (required by some CRM selects / upserts)
+45. `100_profiles_welcome_email_sent_at.sql` — one-time welcome email tracking on `profiles`
 
 *(Optional after 034: `035_optional_delete_legacy_seeded_notifications.sql`)*
 

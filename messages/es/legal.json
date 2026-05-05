@@ -1,6 +1,37 @@
 {
   "back": "Volver",
   "siteDomain": "circeetvenus.com",
+  "contact": {
+    "eyebrow": "Soporte",
+    "title": "¿En qué podemos ayudarte?",
+    "subtitle": "Leemos todos los mensajes y respondemos por correo.",
+    "signedInAs": "Sesión iniciada como",
+    "topicLabel": "Tema",
+    "topics": {
+      "general": "General",
+      "billing": "Facturación",
+      "technical": "Técnico",
+      "other": "Otro"
+    },
+    "messageLabel": "Mensaje",
+    "messagePlaceholder": "Bastan unas frases.",
+    "messageRequired": "Escribe un mensaje.",
+    "submit": "Enviar",
+    "submitting": "Enviando…",
+    "successTitle": "Enviado.",
+    "successBody": "Responderemos al correo de tu cuenta.",
+    "sendAnother": "Enviar otro mensaje",
+    "errorGeneric": "Algo salió mal. Inténtalo de nuevo.",
+    "errorSignIn": "Tu sesión expiró. Inicia sesión e inténtalo de nuevo.",
+    "errorMembersOnly": "Este canal es para miembros activos. Mira los planes para suscribirte.",
+    "gateSignInTitle": "Soporte para miembros",
+    "gateSignInBody": "Inicia sesión para escribir al equipo.",
+    "gateSignInCta": "Iniciar sesión",
+    "gateSubscribeTitle": "Para miembros",
+    "gateSubscribeBody": "El soporte está disponible para suscriptores y pruebas activas.",
+    "gateSubscribeCta": "Ver planes",
+    "footerLegalAria": "Legal"
+  },
   "terms": {
     "title": "Términos del servicio y acuerdo de usuario",
     "effective": "Fecha de vigencia: 1 de abril de 2026"

@@ -196,6 +196,8 @@ function OnboardingTrialWalletStep({
   onCheckoutSuccess,
   onCheckoutSecretTerminalError,
   onEmbedBypass,
+  checkoutOpen,
+  onOpenCheckout,
 }: {
   trialBillingAttachedLive: boolean
   trialWalletAlreadyResolvedByServer: boolean
@@ -206,6 +208,8 @@ function OnboardingTrialWalletStep({
   onCheckoutSuccess: () => void
   onCheckoutSecretTerminalError: (_message: string, code?: string) => void
   onEmbedBypass: () => void
+  checkoutOpen: boolean
+  onOpenCheckout: () => void
 }) {
   const router = useRouter()
   const creditsFormatted = TRIAL_AI_CREDITS_LIMIT.toLocaleString()
@@ -233,9 +237,38 @@ function OnboardingTrialWalletStep({
     return (
       <div className="space-y-5 text-center">
         <p className={cn(obBody)}>
-          Continuing without adding a card. You can add a payment method anytime in Billing to activate the trial credits
-          when you&apos;re ready.
+          You&apos;re continuing without a card. Your trial includes{' '}
+          <span className="font-medium tabular-nums text-foreground/90">{creditsFormatted} credits</span> and 2 days to try
+          the app.
         </p>
+        <p className="mx-auto max-w-[22rem] text-[12px] leading-relaxed text-muted-foreground">
+          Add billing anytime in Settings.
+        </p>
+      </div>
+    )
+  }
+
+  if (!checkoutOpen) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <p className={cn(obBody)}>
+            Your free trial includes{' '}
+            <span className="font-medium tabular-nums text-foreground/90">{creditsFormatted} free credits</span> and{' '}
+            <span className="font-medium text-foreground/90">2 days</span> to try the app.
+          </p>
+          <p className="mx-auto max-w-[22rem] text-[12px] leading-relaxed text-muted-foreground">
+            Continue now with or without a card.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onOpenCheckout}>
+            Open secure card form
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={onEmbedBypass}>
+            Continue without card
+          </Button>
+        </div>
       </div>
     )
   }
@@ -243,9 +276,9 @@ function OnboardingTrialWalletStep({
   return (
     <div className="space-y-5">
       <p className={cn(obBody, 'text-center')}>
-        Add a card once to unlock{' '}
-        <span className="font-medium tabular-nums text-foreground/90">{creditsFormatted} AI credits</span> and your full trial
-        workspace — same secure Stripe flow as billing.
+        Card is optional. Your trial already includes{' '}
+        <span className="font-medium tabular-nums text-foreground/90">{creditsFormatted} free credits</span> and 2 days to try
+        the app.
       </p>
       <div className="min-h-[19rem] w-full overflow-hidden rounded-xl border border-border/40 bg-background/40 p-1 sm:min-h-[21rem] dark:bg-black/20">
         <CheckoutEmbed
@@ -274,6 +307,11 @@ function OnboardingTrialWalletStep({
           </p>
         </div>
       ) : null}
+      <div className="text-center">
+        <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={onEmbedBypass}>
+          Continue without card
+        </Button>
+      </div>
     </div>
   )
 }
@@ -375,6 +413,7 @@ export function OnboardingModal({
   const [trialWalletEmbedBypassed, setTrialWalletEmbedBypassed] = useState(false)
   const [trialCheckoutSecretHadError, setTrialCheckoutSecretHadError] = useState(false)
   const [trialWalletAlreadyResolvedByServer, setTrialWalletAlreadyResolvedByServer] = useState(false)
+  const [trialCheckoutOpen, setTrialCheckoutOpen] = useState(false)
   const openedSoftRefreshDoneRef = useRef(false)
 
   const trialBillingSnapshotRef = useRef<boolean | null>(null)
@@ -411,6 +450,10 @@ export function OnboardingModal({
     setTrialWalletEmbedBypassed(true)
     void router.refresh()
   }, [router])
+
+  const handleTrialCheckoutOpen = useCallback(() => {
+    setTrialCheckoutOpen(true)
+  }, [])
 
   const steps: OnboardingStep[] = useMemo(() => {
     const welcome: OnboardingStep = {
@@ -790,6 +833,8 @@ export function OnboardingModal({
           onCheckoutSuccess={handleTrialCheckoutSuccess}
           onCheckoutSecretTerminalError={handleTrialSecretTerminalError}
           onEmbedBypass={handleTrialEmbedBypass}
+          checkoutOpen={trialCheckoutOpen}
+          onOpenCheckout={handleTrialCheckoutOpen}
         />
       ),
     }
@@ -824,10 +869,12 @@ export function OnboardingModal({
     trialWalletEmbedBypassed,
     trialCheckoutSecretHadError,
     trialWalletAlreadyResolvedByServer,
+    trialCheckoutOpen,
     handleTrialCheckoutSuccess,
     handleTrialSecretFetchStarted,
     handleTrialSecretTerminalError,
     handleTrialEmbedBypass,
+    handleTrialCheckoutOpen,
   ])
 
   const totalSteps = steps.length
@@ -841,6 +888,7 @@ export function OnboardingModal({
       setTrialWalletEmbedBypassed(false)
       setTrialCheckoutSecretHadError(false)
       setTrialWalletAlreadyResolvedByServer(false)
+      setTrialCheckoutOpen(false)
       return
     }
     setCurrentStep(0)
@@ -890,15 +938,6 @@ export function OnboardingModal({
     currentStepData.id === 'welcome' ||
     currentStepData.id === 'celebration' ||
     currentStepData.id === 'trial-wallet'
-
-  const trialTrialStepUnblocked =
-    trialBillingAttached ||
-    trialCheckoutFinishedSession ||
-    trialWalletEmbedBypassed ||
-    trialWalletAlreadyResolvedByServer
-
-  const trialWalletNeedsCheckout =
-    currentStepData.id === 'trial-wallet' && !trialTrialStepUnblocked
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -1004,13 +1043,10 @@ export function OnboardingModal({
           <Button
             type="button"
             onClick={handleNext}
-            disabled={trialWalletNeedsCheckout}
             className="h-11 min-w-[8.75rem] gap-2 rounded-full px-7 font-medium tracking-tight shadow-sm"
           >
             {isLastStep ? (
               'Get Started'
-            ) : trialWalletNeedsCheckout ? (
-              'Add card to continue'
             ) : (
               <>
                 Next

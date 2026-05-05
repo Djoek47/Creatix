@@ -171,10 +171,12 @@ export async function POST(request: NextRequest) {
  * GET: OnlyFans uses SDK only (no OAuth redirect). Redirect to settings with a hint.
  */
 export async function GET(request: NextRequest) {
-  const baseUrl = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || ''
   const error = request.nextUrl.searchParams.get('error')
-  const url = `${baseUrl}/dashboard/settings?tab=integrations${error ? `&error=${encodeURIComponent(error)}` : ''}`
-  return NextResponse.redirect(url)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+  const redirectUrl = new URL('/dashboard/settings', baseUrl)
+  redirectUrl.searchParams.set('tab', 'integrations')
+  if (error) redirectUrl.searchParams.set('error', error)
+  return NextResponse.redirect(redirectUrl)
 }
 
 async function syncOnlyFansData(request: NextRequest, userId: string, accountId: string) {

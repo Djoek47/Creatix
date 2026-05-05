@@ -10,8 +10,16 @@ function parseMarkitOrigins(): string[] {
   if (!raw) return []
   return raw
     .split(',')
-    .map((s) => s.trim().replace(/\/$/, ''))
+    .map((s) => s.trim())
     .filter(Boolean)
+    .map((s) => {
+      try {
+        return new URL(s).origin
+      } catch {
+        return null
+      }
+    })
+    .filter((origin): origin is string => Boolean(origin))
 }
 
 function allowedMarkitOrigin(request: NextRequest): string | null {
@@ -19,8 +27,16 @@ function allowedMarkitOrigin(request: NextRequest): string | null {
   if (origins.length === 0) return null
   const requestOrigin = request.headers.get('origin')
   if (!requestOrigin) return null
+  const normalizedRequestOrigin = (() => {
+    try {
+      return new URL(requestOrigin).origin
+    } catch {
+      return null
+    }
+  })()
+  if (!normalizedRequestOrigin) return null
   for (const markit of origins) {
-    if (requestOrigin === markit || requestOrigin.startsWith(`${markit}/`)) return requestOrigin
+    if (normalizedRequestOrigin === markit) return normalizedRequestOrigin
   }
   return null
 }

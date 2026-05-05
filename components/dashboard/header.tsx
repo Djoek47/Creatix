@@ -161,7 +161,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
   return (
     <header
       id="dashboard-workspace-header"
-      className="dashboard-header-chrome flex h-14 w-full min-w-0 max-w-full items-center gap-1.5 overflow-x-hidden ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:ps-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]"
+      className="dashboard-header-chrome relative z-40 flex h-14 w-full min-w-0 max-w-full items-center gap-1.5 overflow-visible overflow-x-hidden ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] supports-[backdrop-filter]:backdrop-blur-xl sm:h-16 sm:gap-3 sm:ps-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]"
     >
       {/* AI Studio Tools — solitary lead control (start) */}
       <div className="flex shrink-0 items-center justify-start">
@@ -194,7 +194,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2 md:gap-3">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-visible sm:gap-2 md:gap-3">
         {mounted ? (
           <Sheet>
             <SheetTrigger asChild>
@@ -268,7 +268,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full hover:bg-muted/35 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
+                className="relative z-[70] h-11 w-11 min-h-[44px] min-w-[44px] rounded-full hover:z-[80] hover:bg-muted/35 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                 data-tour="header-user-menu"
                 onPointerEnter={() => {
                   setAvatarHovered(true)
@@ -280,7 +280,7 @@ export function DashboardHeader({ user, profile }: HeaderProps) {
               >
                 <span
                   className={cn(
-                    'pointer-events-none absolute bottom-0 left-1/2 z-30 flex -translate-x-1/2 translate-y-[calc(100%+8px)] items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/30 bg-popover/95 px-2.5 py-1 text-[11px] font-semibold tabular-nums tracking-tight text-foreground/95 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-xl transition-opacity duration-200 ease-out dark:border-amber-300/22 dark:bg-slate-950/94 dark:text-amber-50/95 dark:ring-amber-400/15',
+                    'pointer-events-none absolute bottom-0 left-1/2 z-[90] flex -translate-x-1/2 translate-y-[calc(100%+8px)] items-center gap-1 whitespace-nowrap rounded-full border border-amber-400/30 bg-popover/95 px-2.5 py-1 text-[11px] font-semibold tabular-nums tracking-tight text-foreground/95 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-xl transition-opacity duration-200 ease-out dark:border-amber-300/22 dark:bg-slate-950/94 dark:text-amber-50/95 dark:ring-amber-400/15',
                     showAvatarCreditHoverChip ? 'opacity-100' : 'opacity-0',
                   )}
                   aria-hidden

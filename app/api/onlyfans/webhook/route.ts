@@ -45,10 +45,18 @@ function verifySignature(payload: string, signature: string, secret: string): bo
     .createHmac('sha256', secret)
     .update(payload)
     .digest('hex')
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  )
+  const normalizedSignature = signature.trim().toLowerCase().replace(/^sha256=/, '')
+  if (!/^[0-9a-f]+$/.test(normalizedSignature) || normalizedSignature.length % 2 !== 0) return false
+  const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+  const providedBuffer = Buffer.from(normalizedSignature, 'hex')
+  if (expectedBuffer.length === 0 || providedBuffer.length === 0 || expectedBuffer.length !== providedBuffer.length) {
+    return false
+  }
+  try {
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+  } catch {
+    return false
+  }
 }
 
 function payloadHash(payload: string): string {

@@ -53,17 +53,15 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text()
     const signature = request.headers.get('x-fansly-signature')
     const secret = process.env.FANSLY_WEBHOOK_SECRET
-    if (secret) {
-      if (!signature?.trim()) {
-        return NextResponse.json({ error: 'Missing x-fansly-signature' }, { status: 401 })
-      }
-      if (!verifySignature(rawBody, signature, secret)) {
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-      }
-    } else if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        '[Fansly webhook] FANSLY_WEBHOOK_SECRET is not set — webhooks are accepted unsigned. Set FANSLY_WEBHOOK_SECRET in production.',
-      )
+    if (!secret) {
+      console.error('[Fansly webhook] FANSLY_WEBHOOK_SECRET is not set. Rejecting webhook request.')
+      return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 401 })
+    }
+    if (!signature?.trim()) {
+      return NextResponse.json({ error: 'Missing x-fansly-signature' }, { status: 401 })
+    }
+    if (!verifySignature(rawBody, signature, secret)) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     let payload: { event_type?: string; data?: unknown }

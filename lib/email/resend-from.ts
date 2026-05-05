@@ -1,12 +1,15 @@
 /**
- * Resend requires a `from` on every send. Without a verified domain, use their
- * onboarding sender; after you verify e.g. `circeetvenus.com` in Resend, set
- * `SUPPORT_FROM_EMAIL` to something like `Circe et Venus <support@circeetvenus.com>`.
+ * System / transactional `from` for Resend (welcome, billing, contact pipe, waitlist).
+ *
+ * - Set `NOREPLY_FROM_EMAIL` after **circeetvenus.com** is verified in Resend (Domains).
+ *   Example: `Circe et Venus <noreply@circeetvenus.com>`
+ * - If unset, uses Resend’s test sender so local/staging works without DNS; production
+ *   should verify the domain and set `NOREPLY_FROM_EMAIL` for real deliverability.
  */
-export const RESEND_DEFAULT_FROM_NO_VERIFIED_DOMAIN = 'Circe et Venus <onboarding@resend.dev>'
+const RESEND_ONBOARDING_FROM = 'Circe et Venus <onboarding@resend.dev>'
 
 export function resolveResendFrom(): string {
-  const custom = process.env.SUPPORT_FROM_EMAIL?.trim()
-  if (custom) return custom
-  return RESEND_DEFAULT_FROM_NO_VERIFIED_DOMAIN
+  const explicit = process.env.NOREPLY_FROM_EMAIL?.trim()
+  if (explicit) return explicit
+  return RESEND_ONBOARDING_FROM
 }

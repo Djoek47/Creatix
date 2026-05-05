@@ -6,6 +6,7 @@ import {
   isPaidSubscription,
   type SubscriptionLike,
 } from '@/lib/billing/access'
+import { maybeAlignFocusPlatformConnections } from '@/lib/billing/align-focus-platform-connections'
 import {
   focusConnectedPlatformsMismatch,
   type PlatformConnectionLike,
@@ -305,6 +306,9 @@ export function scopedObservationFromFanslyRow(row: PlatformConnectionObservedRo
 export const PLATFORM_CONNECTION_OBSERVED_SELECT =
   'access_token, platform_user_id, observed_monthly_revenue_usd, observed_revenue_captured_at, observed_revenue_onlyfans_account_id, is_connected'
 
+/** OF + Fansly rows for billing context and Focus auto-align (includes `platform` + username for notify). */
+export const ADULT_PLATFORM_CONNECTION_ROWS_SELECT = `${PLATFORM_CONNECTION_OBSERVED_SELECT}, platform, platform_username`
+
 export async function loadScopedPlatformObservationsForUser(
   supabase: SupabaseClient,
   userId: string,
@@ -345,27 +349,37 @@ export async function loadAdultPlatformBillingContext(
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const [{ data: ofConn }, { data: fsConn }, { data: subscription }] = await Promise.all([
-    supabase
-      .from('platform_connections')
-      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
-      .eq('user_id', user.id)
-      .eq('platform', 'onlyfans')
-      .eq('is_connected', true)
-      .maybeSingle(),
-    supabase
-      .from('platform_connections')
-      .select(PLATFORM_CONNECTION_OBSERVED_SELECT)
-      .eq('user_id', user.id)
-      .eq('platform', 'fansly')
-      .eq('is_connected', true)
-      .maybeSingle(),
+  const [{ data: subscription }, { data: platRowsInitial }] = await Promise.all([
     supabase
       .from('subscriptions')
       .select('plan_id,status,revenue_tier,billing_variant,billing_focus_platform,billing_focus_platforms')
       .eq('user_id', user.id)
       .maybeSingle(),
+    supabase
+      .from('platform_connections')
+      .select(ADULT_PLATFORM_CONNECTION_ROWS_SELECT)
+      .eq('user_id', user.id)
+      .in('platform', ['onlyfans', 'fansly']),
   ])
+
+  let platRows = platRowsInitial ?? []
+  const aligned = await maybeAlignFocusPlatformConnections(supabase, user.id, user.email, {
+    subscription,
+    platformRows: platRows,
+  })
+  if (aligned) {
+    const { data: platRefetch } = await supabase
+      .from('platform_connections')
+      .select(ADULT_PLATFORM_CONNECTION_ROWS_SELECT)
+      .eq('user_id', user.id)
+      .in('platform', ['onlyfans', 'fansly'])
+    platRows = platRefetch ?? []
+  }
+
+  const ofConn =
+    platRows.find((r) => r.platform === 'onlyfans' && r.is_connected === true) ?? null
+  const fsConn =
+    platRows.find((r) => r.platform === 'fansly' && r.is_connected === true) ?? null
 
   const platformConnections: PlatformConnectionLike[] = []
   if (ofConn?.is_connected === true) {

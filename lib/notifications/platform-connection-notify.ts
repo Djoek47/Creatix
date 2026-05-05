@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resolveResendFrom } from '@/lib/email/resend-from'
+import { resolveNoreplyFrom } from '@/lib/email/resend-from'
 import { FANSLY_LOGO_SRC, ONLYFANS_LOGO_SRC } from '@/lib/platform-logos'
 import { insertDivineAppNotification, type NotificationInsertClient } from '@/lib/notifications/divine-app-notification'
 import { getCanonicalUrl } from '@/lib/site-url'
@@ -112,7 +112,7 @@ export async function notifyPlatformConnectionChange(params: {
   })
 
   const apiKey = process.env.RESEND_API_KEY
-  const fromEmail = resolveResendFrom()
+  const fromEmail = resolveNoreplyFrom()
   if (!apiKey) return
 
   let to = params.userEmail?.trim()

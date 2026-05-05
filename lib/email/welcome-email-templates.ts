@@ -1,5 +1,5 @@
 import { SUPPORT_EMAIL } from '@/components/marketing/footer-support-social'
-import { getCanonicalUrl } from '@/lib/site-url'
+import { emailAbsoluteUrl, emailBrandLogoUrl } from '@/lib/email/email-public-url'
 
 /**
  * Luxury welcome letter — docs/STYLE.md.
@@ -9,11 +9,11 @@ import { getCanonicalUrl } from '@/lib/site-url'
 export function buildWelcomeEmailContent(params: {
   greetingName: string
 }): { subject: string; text: string; html: string } {
-  const dashboardUrl = getCanonicalUrl('/dashboard')
-  const settingsUrl = getCanonicalUrl('/dashboard/settings?tab=integrations')
-  const memberSupportUrl = getCanonicalUrl('/contact')
+  const dashboardUrl = emailAbsoluteUrl('/dashboard')
+  const settingsUrl = emailAbsoluteUrl('/dashboard/settings?tab=integrations')
+  const memberSupportUrl = emailAbsoluteUrl('/contact')
   const mailtoSupport = `mailto:${SUPPORT_EMAIL}`
-  const logoUrl = getCanonicalUrl('/icon.png')
+  const logoUrl = emailBrandLogoUrl()
 
   const subject = 'Welcome to Circe et Venus'
 
@@ -137,7 +137,7 @@ export function buildWelcomeEmailContent(params: {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding:48px 40px 32px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-                    <img class="cev-logo-ring" src="${logoUrl}" width="80" height="80" alt="Circe et Venus" style="display:block;width:80px;height:80px;border-radius:40px;border:1px solid rgba(26,22,37,0.06);" />
+                    <img class="cev-logo-ring" src="${logoUrl}" width="80" height="80" alt="Circe et Venus" style="display:block;width:80px;max-width:80px;height:80px;border-radius:40px;border:1px solid rgba(26,22,37,0.06);outline:none;-ms-interpolation-mode:bicubic;" />
                     <p class="cev-wordmark" style="margin:20px 0 0;font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:#5c4d8a;">Circe et Venus</p>
                   </td>
                 </tr>

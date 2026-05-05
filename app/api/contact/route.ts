@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { resolveResendFrom } from '@/lib/email/resend-from'
+import { resolveSupportOutboundFrom } from '@/lib/email/resend-from'
 import { logApiError } from '@/lib/usage/server-log'
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: resolveResendFrom(),
+        from: resolveSupportOutboundFrom(),
         to: [toAddress],
         subject: emailSubject,
         reply_to: replyEmail,

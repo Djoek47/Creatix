@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveResendFrom } from '@/lib/email/resend-from'
+import { resolveNoreplyFrom } from '@/lib/email/resend-from'
 import { logApiError } from '@/lib/usage/server-log'
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: resolveResendFrom(),
+        from: resolveNoreplyFrom(),
         to: [toAddress],
         subject: `[Mobile launch list] ${name}`,
         reply_to: email,

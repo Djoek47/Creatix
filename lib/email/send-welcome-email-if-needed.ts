@@ -1,7 +1,8 @@
 import 'server-only'
 
 import { buildWelcomeEmailContent } from '@/lib/email/welcome-email-templates'
-import { resolveResendFrom } from '@/lib/email/resend-from'
+import { resolveNoreplyFrom } from '@/lib/email/resend-from'
+import { SUPPORT_EMAIL } from '@/components/marketing/footer-support-social'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
@@ -52,6 +53,8 @@ export async function sendWelcomeEmailIfNeeded(params: {
     greetingName: greetingFromDisplayName(displayName),
   })
 
+  const replyTo = process.env.SUPPORT_CONTACT_EMAIL?.trim() || SUPPORT_EMAIL
+
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: 'POST',
@@ -60,8 +63,9 @@ export async function sendWelcomeEmailIfNeeded(params: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: resolveResendFrom(),
+        from: resolveNoreplyFrom(),
         to: [email.trim()],
+        ...(replyTo.includes('@') ? { reply_to: replyTo } : {}),
         subject,
         text,
         html,

@@ -29,6 +29,10 @@ import {
   subscriptionStripeHasDivineVoicePrice,
 } from '@/lib/billing/premium-divine'
 import { stripeProductForInlinePriceData } from '@/lib/billing/stripe-dahlia-product'
+import {
+  fetchAuthUserEmail,
+  runAdultPartnerPlatformAlignmentForUser,
+} from '@/lib/billing/run-adult-partner-platform-alignment'
 
 /** Only touch DB column when checkout metadata explicitly includes divineVoicePremium (avoids wiping on unrelated checkouts). */
 function divineVoicePatchFromCheckoutMeta(meta: Record<string, string> | undefined) {
@@ -200,6 +204,14 @@ async function upsertSubscriptionByUserId(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.warn('[stripe webhook] reconcileIncludedCreditsWallet', userId, msg)
+  }
+
+  try {
+    const email = await fetchAuthUserEmail(supabase, userId)
+    await runAdultPartnerPlatformAlignmentForUser(supabase, userId, email)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn('[stripe webhook] adult partner platform alignment', userId, msg)
   }
 }
 

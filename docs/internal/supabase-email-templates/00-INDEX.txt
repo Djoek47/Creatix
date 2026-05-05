@@ -12,14 +12,16 @@ Configure the composite slug on your IdP/custom hook if Supabase must emit both 
 They do NOT send for Settings “connect Vault” OAuth callback flows tracked in platform_connections —
 those emails use application Resend (see lib/notifications/platform-connection-notify.ts).
 
-Visual system (v2 · calm / premium restraint)
---------------------------------------------
-Canvas: aluminum #f5f5f7 · card #ffffff · border #d8d8dd · shadow soft / broad
-Accent: ONE 3px violet hairline (#5c4dbf) on transactional mails only
-Typography: headline Cinzel ~24–26px / #1d1d1f · body DM Sans ~15–17px / #494949 secondary #6e6e73
-CTA (auth): charcoal pill (#1d1d1f) · white · 999px radius — no gold slabs
-Security mails: monochrome card top rule #ececee · label “Account security”
-Links: understated underline charcoal or muted violet (#5c4dbf + alpha) sparingly
+Visual system (aligned with docs/STYLE.md + lib/email/transactional-email-theme.ts)
+----------------------------------------------------------------------------------
+Canvas: Venus outer #f3f1ec · card #faf9f6 / border #e8e4dc · soft purple shadow
+Accent: 3px bar purple | gold | purple (`.cev-accent-bar` triple cells)
+Typography: headline Cinzel ~24–26px (ink #1a1626 or inline near-equivalent) · body DM Sans
+Primary CTA (auth flows with a button): rainbow gradient ring (`.cev-rainbow-cta-wrap` / inner link) — matches dashboard rainbow trial / tools pill
+Secondary / gold CTAs: `.cev-btn-gold` where used
+Security mails: same outer + card + fonts; informational layout (no rainbow CTA unless you add one)
+After editing `transactional-email-theme.ts`, run `pnpm run sync:supabase-email-styles` to refresh `<style>` blocks in these HTML files, then re-paste into Supabase Dashboard.
+Links: purple-tinted underline on hover-capable clients; keep fallbacks readable
 
 Files → Dashboard
 -----------------

@@ -1,16 +1,11 @@
-<!--
-  Supabase → Change email address
-  Subject: Confirm your new email — Circe et Venus
+/**
+ * Shared CSS for Circe et Venus transactional HTML email (Resend welcome + Supabase Auth templates).
+ * Colors approximate docs/STYLE.md (Venus cream / Circe purple / gold); motion mirrors
+ * `header-tools-rainbow-shift` in app/globals.css where clients allow it.
+ */
 
-  Paste everything after this comment into Message.
--->
-
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
-
-<style type="text/css">
-
+/** Paste inside `<style type="text/css">` for Supabase dashboard templates (keep in sync with this file). */
+export const TRANSACTIONAL_EMAIL_STYLE_BLOCK_INNER = `
   body { margin: 0 !important; padding: 0 !important; -webkit-text-size-adjust: 100%; }
   .cetv-sheet { margin: 0; padding: 0; border-collapse: collapse; border-spacing: 0; }
   .cetv-body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
@@ -101,43 +96,4 @@
     background-color: #13111a !important;
     color: #f2f0f7 !important;
   }
-
-</style>
-<table role="presentation" width="100%" bgcolor="#f5f5f7" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f1ec;">
-  <tr>
-    <td align="center" style="padding:52px 20px;">
-      <table role="presentation" width="600" style="width:100%;max-width:600px;border-collapse:separate;">
-        <tr>
-          <td bgcolor="#ffffff" style="border-radius:22px;border:1px solid #d8d8dd;box-shadow:0 6px 20px rgba(0,0,0,0.04);overflow:hidden;">
-            <table width="100%"><tr><td height="3" bgcolor="#5c4dbf"></td></tr></table>
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:40px 44px 8px;"><img src="https://www.circeetvenus.com/icon.png" width="48" height="48" style="border-radius:999px;" alt="" /></td></tr>
-              <tr><td style="padding:8px 44px 0;">
-                <h1 class="cetv-title" style="margin:0;font-size:26px;line-height:1.12;font-weight:600;color:#1d1d1f;font-family:'Cinzel',Georgia,serif;">Verify new email</h1>
-                <p style="margin:20px 0 0;font-size:17px;line-height:26px;color:#494949;font-family:'DM Sans',sans-serif;">Going forward:<br/><span style="font-size:22px;line-height:30px;font-weight:600;color:#1d1d1f;display:block;margin-top:8px;">{{ .NewEmail }}</span></p>
-                {{ if .Email }}<p style="margin:12px 0 0;font-size:15px;line-height:23px;color:#6e6e73;font-family:'DM Sans',sans-serif;">Previously: {{ .Email }}</p>{{ end }}
-              </td></tr>
-              <tr><td style="padding:34px 44px;text-align:center;">
-                <table align="center" cellpadding="0" cellspacing="0"><tr>
-                  <td align="center" style="padding:0;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;"><tr>
-                      <td class="cev-rainbow-cta-wrap" style="padding:2px;border-radius:999px;background:linear-gradient(90deg,#e8b84d,#a855f7,#6366f1,#22d3ee,#c026d3,#e8b84d);background-size:200% 100%;-webkit-animation:cev-rainbow-shift 7s linear infinite;animation:cev-rainbow-shift 7s linear infinite;">
-                        <a class="cev-rainbow-cta-inner" href="{{ .ConfirmationURL }}" style="display:block;border-radius:999px;background-color:#faf9f6;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#1a1626;text-decoration:none;">✦ Confirm</a>
-                      </td>
-                    </tr></table>
-                  </td>
-                </tr></table>
-              </td></tr>
-              <tr><td style="padding:0 44px 42px;">
-                <table width="100%"><tr><td style="border-top:1px solid #ececec;"></td></tr></table>
-                <p style="margin:26px 0 0;font-size:12px;color:#aeaeb2;word-break:break-all;line-height:17px;">{{ .ConfirmationURL }}</p>
-                <p style="margin:22px 0 0;font-size:13px;line-height:20px;color:#86868b;font-family:'DM Sans',sans-serif;">Unsolicited change? Reach <a href="mailto:support@circeetvenus.com" style="color:#5c4dbf;text-decoration:none;border-bottom:1px solid rgba(92,76,191,0.35);padding-bottom:1px;">support@circeetvenus.com</a></p>
-              </td></tr>
-            </table>
-          </td>
-        </tr>
-        {{ if .SiteURL }}<tr><td align="center" style="padding:26px;"><a href="{{ .SiteURL }}" style="font-size:11px;color:#86868b;text-decoration:none;border-bottom:1px solid #dedede;font-family:'DM Sans',sans-serif;">{{ .SiteURL }}</a></td></tr>{{ end }}
-      </table>
-    </td>
-  </tr>
-</table>
+`.trim()

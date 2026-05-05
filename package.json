@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "eslint .",
     "check:forbidden-branding": "node scripts/check-forbidden-branding.mjs",
+    "sync:supabase-email-styles": "node scripts/patch-supabase-transactional-email-styles.mjs",
     "test:leaks": "tsx lib/leaks/canonical-logic.test.ts",
     "test:credits": "tsx lib/billing/credit-economics.test.ts",
     "test:plan-capabilities": "tsx lib/plan-capabilities.test.ts",

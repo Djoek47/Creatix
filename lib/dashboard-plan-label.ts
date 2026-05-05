@@ -1,4 +1,10 @@
-import { FREE_PLAN_ID, isPaidPlanId, TRIAL_PLAN_ID, divineTrialSubtitleBadge } from '@/lib/billing/access'
+import {
+  FREE_PLAN_ID,
+  isPaidPlanId,
+  isPaidSubscription,
+  TRIAL_PLAN_ID,
+  divineTrialSubtitleBadge,
+} from '@/lib/billing/access'
 import { focusPlatformsShortLabel } from '@/lib/pricing-matrix'
 import { resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 
@@ -32,6 +38,11 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
   const pid = row.plan_id.toLowerCase()
   const st = (row.status || '').toLowerCase()
 
+  /** Stale paid SKU (e.g. cev-paid) after cancel / past_due / etc. — avoid "Cev Paid" title case. */
+  if (isPaidPlanId(pid) && !isPaidSubscription(row)) {
+    return 'Free plan'
+  }
+
   const paidish = st === 'active' || st === 'trialing'
   if (paidish && isPaidPlanId(pid)) {
     const band = row.revenue_band_label?.trim()
@@ -54,7 +65,7 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
 
   if (pid === TRIAL_PLAN_ID || st === 'trial') return 'Trial'
 
-  if (pid === FREE_PLAN_ID) return 'Free'
+  if (pid === FREE_PLAN_ID) return 'Free plan'
 
   return pid
     .split('-')

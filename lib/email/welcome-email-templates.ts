@@ -1,31 +1,36 @@
 import { SUPPORT_EMAIL } from '@/components/marketing/footer-support-social'
+import { TRIAL_AI_CREDITS_LIMIT } from '@/lib/billing/credit-economics'
 import { emailAbsoluteUrl, emailBrandLogoUrl } from '@/lib/email/email-public-url'
+import { TRANSACTIONAL_EMAIL_STYLE_BLOCK_INNER } from '@/lib/email/transactional-email-theme'
 
 /**
- * Luxury welcome letter — docs/STYLE.md.
- * Light: Venus (cream, gold, purple). Dark: Circe (near-black, brighter gold, luminous purple) via
- * `prefers-color-scheme: dark` and `[data-ogsc]` (some Gmail/Outlook clients).
+ * Luxury welcome letter — docs/STYLE.md (Venus / Circe / gold, rainbow CTA aligned with dashboard tools pill).
  */
 export function buildWelcomeEmailContent(params: {
   greetingName: string
 }): { subject: string; text: string; html: string } {
   const dashboardUrl = emailAbsoluteUrl('/dashboard')
+  const billingUrl = emailAbsoluteUrl('/dashboard/settings?tab=billing')
   const settingsUrl = emailAbsoluteUrl('/dashboard/settings?tab=integrations')
   const memberSupportUrl = emailAbsoluteUrl('/contact')
   const mailtoSupport = `mailto:${SUPPORT_EMAIL}`
   const logoUrl = emailBrandLogoUrl()
+  const trialCredits = TRIAL_AI_CREDITS_LIMIT
 
   const subject = 'Welcome to Circe et Venus'
 
   const text = [
     `Hi ${params.greetingName},`,
     '',
-    'Welcome to Circe et Venus — Creatix is your operating system for creators on OnlyFans and Fansly.',
+    'Welcome to Circe et Venus — your calm workspace for creators on OnlyFans and Fansly.',
     '',
-    'Clarity — One calm surface for messages, media, and the signals that matter.',
+    `Start your free trial (card on file) from Billing to unlock the full stack — including ${trialCredits} AI credits to explore the tools.`,
+    '',
+    'Clarity — One surface for messages, media, and the signals that matter.',
     'Control — Connect a platform when you choose; your workspace stays organized around you.',
     'Intelligence — Tools that stay quiet until you need them.',
     '',
+    `Billing (free trial): ${billingUrl}`,
     `Open your workspace: ${dashboardUrl}`,
     `Integrations: ${settingsUrl}`,
     '',
@@ -35,8 +40,7 @@ export function buildWelcomeEmailContent(params: {
   ].join('\n')
 
   const nameEsc = escapeHtml(params.greetingName)
-  const preheader =
-    'Your workspace is ready — clarity, control, and intelligence in one refined surface.'
+  const preheader = `Your workspace is ready — start a free trial with ${trialCredits} AI credits, or dive in and connect when you choose.`
 
   const darkModeCss = `
     @media (prefers-color-scheme: dark) {
@@ -45,7 +49,7 @@ export function buildWelcomeEmailContent(params: {
       .cev-card {
         background-color: #13111a !important;
         border-color: #2a2635 !important;
-        box-shadow: none !important;
+        box-shadow: 0 0 0 1px rgba(201, 184, 240, 0.06) !important;
       }
       .cev-top-purple { background-color: #7c6bb8 !important; }
       .cev-top-gold { background-color: #d4b24c !important; }
@@ -55,11 +59,15 @@ export function buildWelcomeEmailContent(params: {
       .cev-hero-title { color: #f2f0f7 !important; }
       .cev-hero-body { color: #b4afc9 !important; }
       .cev-hero-strong { color: #ebe9f4 !important; }
+      .cev-spotlight { background: linear-gradient(135deg, #1a1724 0%, #16131f 100%) !important; border-color: #3d3558 !important; }
+      .cev-spotlight-title { color: #e8dff8 !important; }
+      .cev-spotlight-body { color: #b4afc9 !important; }
+      .cev-spotlight-badge { color: #d4b352 !important; background: rgba(212, 179, 82, 0.12) !important; border-color: rgba(212, 179, 82, 0.35) !important; }
       .cev-module-table { background-color: #1a1724 !important; border-color: #2a2635 !important; }
       .cev-module-label { color: #b0a0dc !important; }
       .cev-module-text { color: #c6c2d8 !important; }
       .cev-module-strong { color: #f0eef8 !important; }
-      .cev-btn { background-color: #d4b352 !important; border-color: #e0c266 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.35) !important; }
+      .cev-btn { background: linear-gradient(180deg, #d4b352, #9a7d28) !important; border-color: #c9a84c !important; }
       .cev-btn-text { color: #141218 !important; }
       .cev-cta-sub { color: #908aa3 !important; }
       .cev-link { color: #c9b8f0 !important; border-bottom-color: rgba(201,184,240,0.45) !important; }
@@ -72,13 +80,18 @@ export function buildWelcomeEmailContent(params: {
     [data-ogsc] .cev-card, [data-ogsb] .cev-card {
       background-color: #13111a !important;
       border-color: #2a2635 !important;
-      box-shadow: none !important;
     }
     [data-ogsc] .cev-hairline, [data-ogsb] .cev-hairline { background-color: #2a2635 !important; }
     [data-ogsc] .cev-wordmark, [data-ogsb] .cev-wordmark { color: #c9b8f0 !important; }
     [data-ogsc] .cev-hero-title, [data-ogsb] .cev-hero-title { color: #f2f0f7 !important; }
     [data-ogsc] .cev-hero-body, [data-ogsb] .cev-hero-body { color: #b4afc9 !important; }
     [data-ogsc] .cev-hero-strong, [data-ogsb] .cev-hero-strong { color: #ebe9f4 !important; }
+    [data-ogsc] .cev-spotlight, [data-ogsb] .cev-spotlight {
+      background: linear-gradient(135deg, #1a1724 0%, #16131f 100%) !important;
+      border-color: #3d3558 !important;
+    }
+    [data-ogsc] .cev-spotlight-title, [data-ogsb] .cev-spotlight-title { color: #e8dff8 !important; }
+    [data-ogsc] .cev-spotlight-body, [data-ogsb] .cev-spotlight-body { color: #b4afc9 !important; }
     [data-ogsc] .cev-module-table, [data-ogsb] .cev-module-table {
       background-color: #1a1724 !important;
       border-color: #2a2635 !important;
@@ -86,7 +99,7 @@ export function buildWelcomeEmailContent(params: {
     [data-ogsc] .cev-module-label, [data-ogsb] .cev-module-label { color: #b0a0dc !important; }
     [data-ogsc] .cev-module-text, [data-ogsb] .cev-module-text { color: #c6c2d8 !important; }
     [data-ogsc] .cev-module-strong, [data-ogsb] .cev-module-strong { color: #f0eef8 !important; }
-    [data-ogsc] .cev-btn, [data-ogsb] .cev-btn { background-color: #d4b352 !important; border-color: #e0c266 !important; }
+    [data-ogsc] .cev-btn, [data-ogsb] .cev-btn { background: linear-gradient(180deg, #d4b352, #9a7d28) !important; }
     [data-ogsc] .cev-btn-text, [data-ogsb] .cev-btn-text { color: #141218 !important; }
     [data-ogsc] .cev-cta-sub, [data-ogsb] .cev-cta-sub { color: #908aa3 !important; }
     [data-ogsc] .cev-link, [data-ogsb] .cev-link { color: #c9b8f0 !important; }
@@ -111,6 +124,7 @@ export function buildWelcomeEmailContent(params: {
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet" />
   <style type="text/css">
     :root { color-scheme: light dark; }
+    ${TRANSACTIONAL_EMAIL_STYLE_BLOCK_INNER}
     @media only screen and (max-width: 620px) {
       .cev-pad { padding-left: 28px !important; padding-right: 28px !important; }
       .cev-hero-title { font-size: 28px !important; }
@@ -125,18 +139,18 @@ export function buildWelcomeEmailContent(params: {
       <td align="center" style="padding:56px 24px 72px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
           <tr>
-            <td class="cev-pad cev-card" style="padding:0;border-radius:2px;background-color:#faf9f6;border:1px solid #e8e4dc;box-shadow:0 1px 0 rgba(26,22,37,0.04);">
+            <td class="cev-pad cev-card" style="padding:0;border-radius:12px;background-color:#faf9f6;border:1px solid #e8e4dc;box-shadow:0 1px 0 rgba(26,22,37,0.04),0 16px 48px rgba(92,77,138,0.08);">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td class="cev-top-purple" style="width:36%;height:1px;line-height:1px;font-size:0;background-color:#5c4d8a;">&nbsp;</td>
-                  <td class="cev-top-gold" style="width:28%;height:1px;line-height:1px;font-size:0;background-color:#c9a84c;">&nbsp;</td>
-                  <td class="cev-top-purple" style="width:36%;height:1px;line-height:1px;font-size:0;background-color:#5c4d8a;">&nbsp;</td>
+                  <td class="cev-top-purple" style="width:36%;height:3px;line-height:3px;font-size:0;background-color:#5c4d8a;">&nbsp;</td>
+                  <td class="cev-top-gold" style="width:28%;height:3px;line-height:3px;font-size:0;background-color:#c9a84c;">&nbsp;</td>
+                  <td class="cev-top-purple" style="width:36%;height:3px;line-height:3px;font-size:0;background-color:#5c4d8a;">&nbsp;</td>
                 </tr>
               </table>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="center" style="padding:48px 40px 32px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                  <td align="center" style="padding:48px 40px 28px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                     <img class="cev-logo-ring" src="${logoUrl}" width="80" height="80" alt="Circe et Venus" style="display:block;width:80px;max-width:80px;height:80px;border-radius:40px;border:1px solid rgba(26,22,37,0.06);outline:none;-ms-interpolation-mode:bicubic;" />
                     <p class="cev-wordmark" style="margin:20px 0 0;font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:#5c4d8a;">Circe et Venus</p>
                   </td>
@@ -152,17 +166,41 @@ export function buildWelcomeEmailContent(params: {
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td class="cev-pad" align="center" style="padding:40px 48px 8px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-                    <h1 class="cev-hero-title" style="margin:0;font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:32px;font-weight:600;line-height:1.12;letter-spacing:-0.03em;color:#1a1626;">A quiet welcome</h1>
-                    <p class="cev-hero-body" style="margin:20px 0 0;max-width:420px;font-size:16px;line-height:1.65;font-weight:400;color:#4a4558;">Hi ${nameEsc} — your account is ready. <strong class="cev-hero-strong" style="font-weight:600;color:#2a2438;">Creatix</strong> is the luxury operating system for creators: messaging, media, insight, and automation in one composed workspace.</p>
+                  <td class="cev-pad" align="center" style="padding:36px 48px 8px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                    <h1 class="cev-hero-title cev-hero-title-animated" style="margin:0;font-family:'Cinzel',Georgia,'Times New Roman',serif;font-size:32px;font-weight:600;line-height:1.12;letter-spacing:-0.03em;color:#1a1626;">A quiet welcome</h1>
+                    <p class="cev-hero-body" style="margin:20px 0 0;max-width:440px;font-size:16px;line-height:1.65;font-weight:400;color:#4a4558;">Hi ${nameEsc} — your account is ready. <strong class="cev-hero-strong" style="font-weight:600;color:#2a2438;">Circe et Venus</strong> brings messaging, media, insight, and automation into one composed workspace for creators.</p>
                   </td>
                 </tr>
               </table>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td class="cev-pad" style="padding:28px 40px 12px;">
-                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:2px;background-color:#ffffff;">
+                  <td class="cev-pad" style="padding:16px 40px 8px;">
+                    <table class="cev-spotlight" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:12px;border:1px solid #e0d8f0;background:linear-gradient(135deg,#faf8ff 0%,#fffdf8 50%,#f8f6ff 100%);overflow:hidden;">
+                      <tr>
+                        <td style="width:4px;background:linear-gradient(180deg,#5c4d8a,#c9a84c,#5c4d8a);font-size:0;line-height:0;">&nbsp;</td>
+                        <td style="padding:22px 24px 24px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                          <p class="cev-spotlight-title" style="margin:0 0 8px;font-family:'Cinzel',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#5c4d8a;">Divine trial</p>
+                          <p class="cev-spotlight-body" style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3f3a4d;">Start your <strong style="color:#2a2438;">free trial</strong> (card on file) from Billing — you’ll receive <strong style="color:#5c4d8a;">${trialCredits} AI credits</strong> to explore assistants, studio tools, and workflows at full depth.</p>
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:0;">
+                            <tr>
+                              <td align="center" class="cev-rainbow-cta-wrap">
+                                <a class="cev-rainbow-cta-inner" href="${billingUrl}" target="_blank" rel="noopener noreferrer">✦ Start free trial — Billing</a>
+                              </td>
+                            </tr>
+                          </table>
+                          <p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#6b6578;clear:both;">Same rainbow energy as the <strong style="color:#5c4d8a;">Tools</strong> pill in your dashboard header — tap when you’re ready.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="cev-pad" style="padding:20px 40px 12px;">
+                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:10px;background:linear-gradient(180deg,#ffffff,#faf9f6);">
                       <tr>
                         <td style="padding:22px 24px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                           <p class="cev-module-label" style="margin:0 0 6px;font-family:'Cinzel',Georgia,serif;font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#8a7ab8;">Clarity</p>
@@ -174,7 +212,7 @@ export function buildWelcomeEmailContent(params: {
                 </tr>
                 <tr>
                   <td class="cev-pad" style="padding:12px 40px 12px;">
-                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:2px;background-color:#ffffff;">
+                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:10px;background:linear-gradient(180deg,#ffffff,#faf9f6);">
                       <tr>
                         <td style="padding:22px 24px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                           <p class="cev-module-label" style="margin:0 0 6px;font-family:'Cinzel',Georgia,serif;font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#8a7ab8;">Control</p>
@@ -185,8 +223,8 @@ export function buildWelcomeEmailContent(params: {
                   </td>
                 </tr>
                 <tr>
-                  <td class="cev-pad" style="padding:12px 40px 36px;">
-                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:2px;background-color:#ffffff;">
+                  <td class="cev-pad" style="padding:12px 40px 28px;">
+                    <table class="cev-module-table" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e8e4dc;border-radius:10px;background:linear-gradient(180deg,#ffffff,#faf9f6);">
                       <tr>
                         <td style="padding:22px 24px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                           <p class="cev-module-label" style="margin:0 0 6px;font-family:'Cinzel',Georgia,serif;font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#8a7ab8;">Intelligence</p>
@@ -200,10 +238,10 @@ export function buildWelcomeEmailContent(params: {
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="center" style="padding:8px 40px 44px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                  <td align="center" style="padding:8px 40px 40px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
-                        <td class="cev-btn" style="border-radius:10px;background-color:#b8952e;border:1px solid #a68528;box-shadow:0 1px 2px rgba(26,22,37,0.06);">
+                        <td class="cev-btn" style="border-radius:12px;background:linear-gradient(180deg,#d4b352,#b8952e);border:1px solid #a68528;box-shadow:0 2px 10px rgba(92,77,138,0.15);">
                           <a class="cev-btn-text" href="${dashboardUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:15px 36px;font-size:14px;font-weight:600;letter-spacing:0.04em;color:#faf9f6;text-decoration:none;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Enter your workspace</a>
                         </td>
                       </tr>
@@ -224,7 +262,7 @@ export function buildWelcomeEmailContent(params: {
                 <tr>
                   <td class="cev-pad" style="padding:28px 40px 40px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
                     <p class="cev-footer-muted" style="margin:0;font-size:12px;line-height:1.65;color:#8c8699;text-align:center;">Questions — <a class="cev-link" href="${mailtoSupport}" style="color:#5c4d8a;text-decoration:none;border-bottom:1px solid rgba(92,77,138,0.3);">${escapeHtml(SUPPORT_EMAIL)}</a><span class="cev-footer-sep" style="color:#c9c4d1;"> · </span><a class="cev-link" href="${memberSupportUrl}" style="color:#5c4d8a;text-decoration:none;border-bottom:1px solid rgba(92,77,138,0.3);">Member support</a> <span class="cev-footer-fine" style="color:#8c8699;">(subscribers)</span></p>
-                    <p class="cev-footer-fine" style="margin:16px 0 0;font-size:11px;line-height:1.5;color:#a8a3b3;text-align:center;letter-spacing:0.06em;">CIRCE ET VENUS · CREATIX</p>
+                    <p class="cev-footer-fine" style="margin:16px 0 0;font-size:11px;line-height:1.5;color:#a8a3b3;text-align:center;letter-spacing:0.12em;">CIRCE ET VENUS</p>
                   </td>
                 </tr>
               </table>

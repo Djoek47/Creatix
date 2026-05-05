@@ -6,7 +6,10 @@ import {
   isPaidSubscription,
   type SubscriptionLike,
 } from '@/lib/billing/access'
-import { maybeAlignFocusPlatformConnections } from '@/lib/billing/align-focus-platform-connections'
+import {
+  maybeAlignFocusPlatformConnections,
+  maybeDisconnectUnentitledPartnerPlatforms,
+} from '@/lib/billing/align-focus-platform-connections'
 import {
   focusConnectedPlatformsMismatch,
   type PlatformConnectionLike,
@@ -363,6 +366,23 @@ export async function loadAdultPlatformBillingContext(
   ])
 
   let platRows = platRowsInitial ?? []
+  const preloaded = { subscription, platformRows: platRows }
+
+  const unentitledDisconnected = await maybeDisconnectUnentitledPartnerPlatforms(
+    supabase,
+    user.id,
+    user.email,
+    preloaded,
+  )
+  if (unentitledDisconnected) {
+    const { data: platRefetch } = await supabase
+      .from('platform_connections')
+      .select(ADULT_PLATFORM_CONNECTION_ROWS_SELECT)
+      .eq('user_id', user.id)
+      .in('platform', ['onlyfans', 'fansly'])
+    platRows = platRefetch ?? []
+  }
+
   const aligned = await maybeAlignFocusPlatformConnections(supabase, user.id, user.email, {
     subscription,
     platformRows: platRows,

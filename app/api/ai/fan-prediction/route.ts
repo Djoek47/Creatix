@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 30
 
@@ -21,6 +25,10 @@ const fanPredictionSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const access = await requireAiToolSessionAndCredits(req, 'churn-predictor')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost, billingToolId } = access.data
+
   const { fanData } = await req.json()
 
   const systemPrompt = `You are an AI analyst for a creator management platform. Analyze fan data to predict their value and recommend engagement strategies.
@@ -61,6 +69,9 @@ Generate predictions and engagement recommendations.`,
       },
     ],
   })
+
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
+  if (!charged.ok) return charged.response
 
   return Response.json(output)
 }

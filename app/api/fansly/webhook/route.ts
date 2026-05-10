@@ -30,7 +30,8 @@ const webhookEnabled = process.env.FANSLY_WEBHOOK_ENABLED === 'true'
 
 function verifySignature(payload: string, signature: string, secret: string): boolean {
   const expectedHex = crypto.createHmac('sha256', secret).update(payload).digest('hex')
-  const sig = signature.trim().toLowerCase()
+  const sig = signature.trim().toLowerCase().replace(/^sha256=/, '')
+  if (!/^[0-9a-f]+$/.test(sig) || sig.length % 2 !== 0) return false
   const a = Buffer.from(expectedHex, 'hex')
   const b = Buffer.from(sig, 'hex')
   if (a.length === 0 || b.length === 0 || a.length !== b.length) return false

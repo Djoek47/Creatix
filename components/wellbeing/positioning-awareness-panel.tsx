@@ -40,20 +40,20 @@ function CompassDial({ azimuthDeg, direction }: { azimuthDeg: number; direction:
       <span className="absolute bottom-3 text-[10px] font-semibold text-muted-foreground">S</span>
       <span className="absolute right-3 text-[10px] font-semibold text-muted-foreground">E</span>
       <span className="absolute left-3 text-[10px] font-semibold text-muted-foreground">W</span>
-      <div className="absolute h-2 w-2 rounded-full bg-foreground/80" />
+      <div className="absolute z-30 h-2 w-2 rounded-full bg-foreground/80" />
       <div
-        className="absolute left-1/2 top-1/2 h-1 w-[38%] origin-left rounded-full bg-gradient-to-r from-amber-200 via-sky-300 to-violet-300 shadow-[0_0_18px_rgba(251,191,36,0.28)]"
+        className="absolute left-1/2 top-1/2 z-20 h-1 w-[38%] origin-left rounded-full bg-gradient-to-r from-amber-200 via-sky-300 to-violet-300 shadow-[0_0_18px_rgba(251,191,36,0.28)]"
         style={{ transform: `rotate(${angle - 90}deg)` }}
       />
       <div
-        className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/60 bg-amber-300/20"
+        className="absolute left-1/2 top-1/2 z-30 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/60 bg-amber-300/20"
         style={{
           transform: `rotate(${angle - 90}deg) translateX(4.7rem) rotate(${90 - angle}deg) translate(-50%, -50%)`,
         }}
       />
-      <div className="relative z-10 mt-16 rounded-full border border-border/35 bg-background/80 px-3 py-1 text-center backdrop-blur">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Face</p>
-        <p className="text-xs font-semibold text-foreground">{direction}</p>
+      <div className="relative z-10 mt-16 max-w-[6.25rem] rounded-full border border-border/15 bg-background/35 px-2 py-0.5 text-center shadow-sm backdrop-blur-[2px]">
+        <p className="text-[8px] font-medium uppercase tracking-[0.1em] text-muted-foreground/80">Face</p>
+        <p className="truncate text-[10px] font-semibold leading-tight text-foreground/90">{direction}</p>
       </div>
     </div>
   )

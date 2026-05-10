@@ -9,6 +9,7 @@ import { AmbientLayer } from '@/components/wellbeing/ambient-layer'
 import { MoodConstellation } from '@/components/wellbeing/mood-constellation'
 import { GlowCorePanel } from '@/components/wellbeing/glow-core-panel'
 import { GoldenHourTimeline } from '@/components/wellbeing/golden-hour-timeline'
+import { PositioningAwarenessPanel } from '@/components/wellbeing/positioning-awareness-panel'
 import { PerfectShotCarousel } from '@/components/wellbeing/perfect-shot-carousel'
 import { FloatingActionCapsules } from '@/components/wellbeing/floating-action-capsules'
 import { WellbeingStateStrip } from '@/components/wellbeing/wellbeing-state-strip'
@@ -299,6 +300,7 @@ export function WellbeingDashboard() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-6 border-t border-border/20 p-4 sm:p-5 sm:space-y-7">
                 <GlowCorePanel insight={insight} embedded />
+                <PositioningAwarenessPanel insight={insight} />
                 <GoldenHourTimeline timeline={insight.timeline} />
                 <PerfectShotCarousel days={insight.perfectShotDays} />
                 <div className="space-y-3 pt-2">

@@ -45,11 +45,11 @@ import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
 import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
-import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
-import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
+import { DivineManagerCockpit } from '@/components/divine/divine-manager-cockpit'
 import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
 import { BackgroundJobsList } from '@/components/divine/background-jobs-list'
 import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
+import { type EasyProUiMode } from '@/components/ui/easy-pro-mode-toggle'
 import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
@@ -159,6 +159,7 @@ export default function DivineManagerPage() {
   const closeAfterActionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetIdleRef = useRef<(() => void) | null>(null)
   const [replyDialogOpen, setReplyDialogOpen] = useState(false)
+  const [uiMode, setUiMode] = useState<EasyProUiMode>('easy')
 
   useEffect(() => {
     const section = searchParams.get('section')
@@ -193,6 +194,15 @@ export default function DivineManagerPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     setIntroBriefingPlayed(window.localStorage.getItem('divine_intro_briefing_played') === '1')
+    const savedUiMode = window.localStorage.getItem('divine_manager_ui_mode')
+    if (savedUiMode === 'easy' || savedUiMode === 'pro') setUiMode(savedUiMode)
+  }, [])
+
+  const handleUiModeChange = useCallback((mode: EasyProUiMode) => {
+    setUiMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('divine_manager_ui_mode', mode)
+    }
   }, [])
 
   useEffect(() => {
@@ -1619,8 +1629,33 @@ export default function DivineManagerPage() {
 
   return (
     <div className="divine-page-bg min-h-full">
-      <div className="divine-fade-in mx-auto max-w-2xl space-y-12 px-4 pb-20 pt-8 sm:px-6">
-        <header className="space-y-8">
+      <div className="divine-fade-in mx-auto max-w-5xl space-y-8 px-4 pb-20 pt-8 sm:px-6">
+        <DivineManagerCockpit
+          settings={settings}
+          mode={mode}
+          uiMode={uiMode}
+          onUiModeChange={handleUiModeChange}
+          onModeChange={handleUpdateMode}
+          onOpenTextDivine={() => setTextSheetOpen(true)}
+          onStartVoice={() => void startRealtimeVoice()}
+          onPause={() => void handleUpdateMode('off')}
+          onReset={() => void handleResetDivineManager()}
+          resetting={resetting}
+          realtimeStatus={realtimeStatus}
+          sessionPhotoDataUrl={sessionPhotoDataUrl}
+          onSessionPhotoDataUrlChange={(value) => {
+            setSessionPhotoDataUrl(value)
+            if (value === null) {
+              setLastAIToolResult(null)
+              setLastToolName(null)
+              setLastToolResult(null)
+            }
+          }}
+        />
+
+        {uiMode === 'pro' ? (
+        <>
+        <header className="hidden">
           <div className="space-y-3">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
@@ -1672,13 +1707,6 @@ export default function DivineManagerPage() {
             </Link>
           </nav>
         </header>
-
-        <div id="divine-section-protocol" className="scroll-mt-24 space-y-10">
-          {settings.beta_acknowledged && mode !== 'off' ? (
-            <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
-          ) : null}
-          <DivineManagerProtocolTasksCard />
-        </div>
 
         <div id="divine-section-mimic" className="scroll-mt-24">
           <MimicTestWizard />
@@ -2956,6 +2984,8 @@ export default function DivineManagerPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      ) : null}
       {replyContext && (
         <DivineReplyDialog
           open={replyDialogOpen}

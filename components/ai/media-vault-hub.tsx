@@ -732,8 +732,10 @@ export function MediaVaultHub() {
       const res = await fetch(`/api/content/vault/${target.id}/frame-session`)
       const j = (await res.json()) as {
         error?: string
+        markitLaunchUrl?: string | null
         frameLaunchUrl?: string | null
         assetProxyUrl?: string
+        markitConfigured?: boolean
         frameConfigured?: boolean
       }
       if (!res.ok) {
@@ -741,12 +743,12 @@ export function MediaVaultHub() {
         setFrameMsg(j.error || tm('frameSessionFailed'))
         return
       }
-      const open = j.frameLaunchUrl || j.assetProxyUrl
+      const open = j.markitLaunchUrl || j.frameLaunchUrl || j.assetProxyUrl
       if (open) window.open(open, '_blank', 'noopener,noreferrer')
-      if (!j.frameConfigured) {
+      if (!(j.markitConfigured ?? j.frameConfigured)) {
         if (row) openRow(row, { resetFrameMsg: false })
         setFrameMsg(
-          'NEXT_PUBLIC_FRAME_URL is not set — opened the asset proxy only. Deploy Frame separately, or use Replace video to upload an edited file.',
+          'NEXT_PUBLIC_MARKIT_URL is not set — opened the asset proxy only. Configure Markit, or use Replace video to upload an edited file.',
         )
       }
     } catch {
@@ -1229,21 +1231,19 @@ export function MediaVaultHub() {
                       <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
-                          variant="secondary"
+                          variant="default"
                           size="sm"
-                          className="h-10 cursor-not-allowed gap-1.5 rounded-xl opacity-80"
-                          disabled
+                          className="h-10 gap-1.5 rounded-xl"
+                          onClick={() => void openFrameEditor(selected)}
+                          disabled={frameBusy}
                           aria-label={tm('ariaEditFrameComingSoon')}
-                          title={tAi('chrome.comingSoon')}
                         >
-                          <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
-                          <span>{tm('editInFrame')}</span>
-                          <Badge
-                            variant="secondary"
-                            className="border-border/50 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-                          >
-                            {tAi('chrome.comingSoon')}
-                          </Badge>
+                          {frameBusy ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                          ) : (
+                            <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
+                          )}
+                          <span>Open in Markit</span>
                         </Button>
                         <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 rounded-xl" asChild>
                           <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">

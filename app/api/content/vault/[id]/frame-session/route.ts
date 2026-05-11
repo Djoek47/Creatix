@@ -15,8 +15,17 @@ function hasPlayableMedia(fileUrl: string | null | undefined, storagePath: strin
   return /^https?:\/\//i.test(fileUrl.trim())
 }
 
+function editorBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_MARKIT_URL || process.env.NEXT_PUBLIC_FRAME_URL || '').replace(/\/$/, '')
+}
+
+function editorLaunchUrl(base: string, params: Record<string, string>) {
+  const query = new URLSearchParams(params)
+  return `${base}/editor?${query.toString()}`
+}
+
 /**
- * Start Frame bridge: signed asset proxy URL + export token for POST /frame-export.
+ * Start Markit bridge: signed asset proxy URL + export token for POST /frame-export.
  * Requires authenticated user who owns the content row.
  */
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -60,7 +69,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   const storagePath = (row as { vault_storage_path?: string | null }).vault_storage_path
 
   if (!isVideoContentType(row.content_type)) {
-    return NextResponse.json({ error: 'Frame editing is only available for video items' }, { status: 400 })
+    return NextResponse.json({ error: 'Markit editing is only available for video items' }, { status: 400 })
   }
 
   if (!hasPlayableMedia(row.file_url, storagePath)) {
@@ -78,10 +87,15 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   const exportToken = createExportToken(id, user.id, 7200)
   const assetProxyUrl = `${base}/api/content/vault/${id}/asset?t=${encodeURIComponent(assetToken)}`
   const exportUrl = `${base}/api/content/vault/${id}/frame-export`
-  const frameBase = (process.env.NEXT_PUBLIC_FRAME_URL || '').replace(/\/$/, '')
+  const frameBase = editorBaseUrl()
   const frameConfigured = frameBase.length > 0
   const frameLaunchUrl = frameConfigured
-    ? `${frameBase}/?importUrl=${encodeURIComponent(assetProxyUrl)}&exportUrl=${encodeURIComponent(exportUrl)}&exportToken=${encodeURIComponent(exportToken)}`
+    ? editorLaunchUrl(frameBase, {
+        importUrl: assetProxyUrl,
+        exportUrl,
+        exportToken,
+        contentId: id,
+      })
     : null
 
   const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`
@@ -100,8 +114,11 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
     frameAssistApiUrl,
     frameBaseUrl: frameBase || null,
     frameLaunchUrl,
+    markitBaseUrl: frameBase || null,
+    markitLaunchUrl: frameLaunchUrl,
     frameConfigured,
+    markitConfigured: frameConfigured,
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
-    instructions: `Open frameLaunchUrl in a new tab when the editor is deployed. Large video exports bypass Creatix body limits: POST JSON to this response's exportPrepareUrl with header X-Frame-Export-Secret and body { exportToken, fileName, mimeType, fileSize }; PUT file bytes to signedUrl from that response; POST JSON to exportCompleteUrl with { exportToken, path, mimeType }. The Frame editor POST /api/export proxy runs this flow. Or use Replace video in Media & vault. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" }. Frame AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.`,
+    instructions: `Open markitLaunchUrl in a new tab when Markit is deployed. Markit receives importUrl, exportUrl, and exportToken, imports the vault media, and can save an export back to this vault item. Large video exports can use exportPrepareUrl/exportCompleteUrl. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" }. Markit AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.`,
   })
 }

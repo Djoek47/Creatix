@@ -69,19 +69,21 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
       const res = await fetch(`/api/content/vault/${id}/frame-session`)
       const j = (await res.json()) as {
         error?: string
+        markitLaunchUrl?: string | null
         frameLaunchUrl?: string | null
         assetProxyUrl?: string
+        markitConfigured?: boolean
         frameConfigured?: boolean
       }
       if (!res.ok) {
         setLaunchMsg(j.error || 'Could not start editor session')
         return
       }
-      const url = j.frameLaunchUrl || j.assetProxyUrl
+      const url = j.markitLaunchUrl || j.frameLaunchUrl || j.assetProxyUrl
       if (url) window.open(url, '_blank', 'noopener,noreferrer')
-      if (!j.frameConfigured) {
+      if (!(j.markitConfigured ?? j.frameConfigured)) {
         setLaunchMsg(
-          'NEXT_PUBLIC_FRAME_URL is not set — opened the asset proxy only. Deploy Frame separately, or use Replace video in the vault item.',
+          'NEXT_PUBLIC_MARKIT_URL is not set — opened the asset proxy only. Configure Markit, or use Replace video in the vault item.',
         )
       } else {
         setOpen(false)
@@ -125,7 +127,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
             />
             <span>Video editor</span>
             <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.62rem] uppercase leading-none tracking-tight text-amber-500 sm:text-[0.7rem] sm:tracking-wide">
-              Coming soon
+              Beta
             </span>
           </span>
         </Button>
@@ -144,7 +146,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
             Edit a vault video
           </DialogTitle>
           <DialogDescription className="text-[15px] leading-[1.55] text-muted-foreground/88">
-            Opens the Frame bridge in a new tab. Choose a video below, or add one to your vault first.
+            Opens Markit with the selected vault video already loaded. Choose a video below, or add one to your vault first.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[min(58vh,432px)] px-8 pb-2 [&_[data-slot=scroll-area-viewport]]:scroll-smooth">

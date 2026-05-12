@@ -59,6 +59,12 @@ import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import { isAllowedUiNavigatePath } from '@/lib/divine/app-action-registry'
+
+export {
+  REGISTERED_DASHBOARD_ROUTES as ALLOWED_UI_PATHS,
+  isAllowedUiNavigatePath,
+} from '@/lib/divine/app-action-registry'
 
 export const AI_TOOL_NAME_TO_ID: Record<string, string> = {
   analyze_content: 'standard-of-attraction',
@@ -108,79 +114,6 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
 ])
 
 export type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
-
-export const ALLOWED_UI_PATHS = new Set<string>([
-  '/dashboard',
-  '/dashboard/messages',
-  '/dashboard/content',
-  '/dashboard/protection',
-  '/dashboard/mentions',
-  '/dashboard/fans',
-  '/dashboard/analytics',
-  '/dashboard/analytics/income-predictor',
-  '/dashboard/divine-manager',
-  '/dashboard/ai-studio',
-  '/dashboard/social',
-  '/dashboard/settings',
-  '/dashboard/guide',
-  '/dashboard/commenter',
-])
-
-const AI_STUDIO_TOOL_PATH = /^\/dashboard\/ai-studio\/tools\/[a-z0-9][a-z0-9-]{0,79}$/i
-
-/** Allows dashboard links with validated query params (Divine Manager section, AI Studio tab/ai). */
-export function isAllowedUiNavigatePath(path: string): boolean {
-  const trimmed = path.trim()
-  if (!trimmed.startsWith('/dashboard')) return false
-  if (ALLOWED_UI_PATHS.has(trimmed)) return true
-  const base = trimmed.split('?')[0]
-  if (!ALLOWED_UI_PATHS.has(base)) {
-    if (AI_STUDIO_TOOL_PATH.test(base)) return !trimmed.includes('?')
-    return false
-  }
-  if (!trimmed.includes('?')) return true
-  try {
-    const qs = trimmed.slice(trimmed.indexOf('?'))
-    const params = new URLSearchParams(qs)
-    const keys = [...params.keys()]
-    if (base === '/dashboard/divine-manager') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'section') return false
-      const v = params.get('section') ?? ''
-      return /^[a-z0-9_-]{1,40}$/i.test(v)
-    }
-    if (base === '/dashboard/ai-studio') {
-      for (const k of keys) {
-        if (k !== 'tab' && k !== 'ai') return false
-      }
-      const tab = params.get('tab')
-      if (
-        tab &&
-        !['library', 'vault', 'tools', 'overview', 'circe', 'venus', 'cosmic', 'chatter'].includes(tab)
-      ) {
-        return false
-      }
-      const ai = params.get('ai')
-      if (ai && !['circe', 'venus'].includes(ai)) return false
-      return true
-    }
-    if (base === '/dashboard/messages') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'fanId') return false
-      const fanId = params.get('fanId') ?? ''
-      return /^[a-z0-9_-]{1,64}$/i.test(fanId)
-    }
-    if (base === '/dashboard/settings') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'tab') return false
-      const tab = params.get('tab') ?? ''
-      return ['profile', 'notifications', 'security', 'billing', 'integrations', 'data', 'preferences'].includes(tab)
-    }
-    return false
-  } catch {
-    return false
-  }
-}
 
 export function getBaseUrl(): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
@@ -1439,7 +1372,7 @@ export async function runIntent(
   type: string,
   args: Record<string, unknown>,
   cookie: string,
-  ctx?: { supabase: SupabaseClient },
+  ctx?: { supabase: SupabaseClient; forceConfirmation?: boolean },
 ): Promise<{
   status: string
   intent_id?: string
@@ -1449,6 +1382,7 @@ export async function runIntent(
   error?: string
 }> {
   const body = buildIntentRequestBody(type, args) as IntentBody
+  if (ctx?.forceConfirmation === true) body.force_confirmation = true
 
   if (ctx?.supabase) {
     const {
@@ -1616,6 +1550,7 @@ export async function runToolCall(
     supabase: SupabaseClient
     userId: string
     divineFull: boolean
+    forceRiskyConfirmation?: boolean
   },
 ): Promise<{
   tool_call_id: string
@@ -1625,6 +1560,7 @@ export async function runToolCall(
   lookupMeta?: DivineLookupMeta | null
 }> {
   const { cookie, supabase, userId } = opts
+  const intentCtx = { supabase, forceConfirmation: opts.forceRiskyConfirmation === true }
   const name = tc.function.name
   let args: Record<string, unknown> = {}
   try {
@@ -2373,12 +2309,12 @@ export async function runToolCall(
   const pendingConfirmations: Array<{ type: string; intent_id: string; summary?: string }> = []
 
   if (name === 'get_notifications') {
-    const intentRes = await runIntent('get_notifications_summary', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('get_notifications_summary', intentBody, cookie, intentCtx)
     const summary = (intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)).slice(0, 4000)
     return { tool_call_id: tc.id, content: summary, pendingConfirmations, uiActions }
   }
   if (name === 'list_notifications') {
-    const intentRes = await runIntent('list_notifications', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('list_notifications', intentBody, cookie, intentCtx)
     let summary = intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)
     const r = intentRes as { notifications?: unknown[] }
     if (Array.isArray(r.notifications) && r.notifications.length) {
@@ -2387,7 +2323,7 @@ export async function runToolCall(
     return { tool_call_id: tc.id, content: summary.slice(0, 6000), pendingConfirmations, uiActions }
   }
   if (name === 'mark_notifications_read') {
-    const intentRes = await runIntent('mark_notifications_read', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('mark_notifications_read', intentBody, cookie, intentCtx)
     const summary = (intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)).slice(0, 2000)
     return { tool_call_id: tc.id, content: summary, pendingConfirmations, uiActions }
   }
@@ -2431,7 +2367,7 @@ export async function runToolCall(
     }
   }
 
-  const intentRes = await runIntent(name, intentBody, cookie, { supabase })
+  const intentRes = await runIntent(name, intentBody, cookie, intentCtx)
   let summary =
     intentRes.summary ??
     intentRes.message ??

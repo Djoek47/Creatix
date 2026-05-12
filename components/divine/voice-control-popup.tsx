@@ -415,6 +415,7 @@ export function VoiceControlPopup() {
     forceEndVoiceCall,
     voiceVizRef,
     voiceSurfaceState,
+    voiceWorkLabel,
     canManualHangup,
     divineVoicePremium,
   } = voice
@@ -892,7 +893,9 @@ export function VoiceControlPopup() {
                     {primaryLabel}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-[1.45] text-muted-foreground">{voicePillStatusSubtitle(status)}</p>
+                <p className="mt-1.5 text-[13px] leading-[1.45] text-muted-foreground">
+                  {voiceWorkLabel ?? voicePillStatusSubtitle(status)}
+                </p>
                 <DivineWorkingLogo
                   variant={isActive ? voiceSurfaceState : 'idle'}
                   className="mt-1.5"

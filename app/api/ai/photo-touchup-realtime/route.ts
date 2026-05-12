@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getDivineVoice } from '@/lib/divine-manager'
+import { getOpenAIRealtimeModel } from '@/lib/openai/realtime-model'
 
 export const maxDuration = 30
 
@@ -106,7 +107,7 @@ Tools:
 
     const sessionConfig = {
       type: 'realtime',
-      model: 'gpt-realtime',
+      model: getOpenAIRealtimeModel(),
       instructions,
       audio: { output: { voice } },
       tools,

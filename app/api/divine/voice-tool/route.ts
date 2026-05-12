@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
         id: 'voice',
         function: { name, arguments: JSON.stringify(args) },
       },
-      { cookie, supabase, userId: user.id, divineFull },
+      { cookie, supabase, userId: user.id, divineFull, forceRiskyConfirmation: true },
     )
 
     return NextResponse.json({

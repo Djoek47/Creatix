@@ -27,6 +27,7 @@ import {
   type VoiceSilenceTimingConfig,
 } from '@/lib/divine/voice-silence-prompts'
 import { getMicThreshold } from '@/lib/divine/voice-personality'
+import { orderRealtimeToolCalls, realtimeWorkingLabel } from '@/lib/divine/realtime-agent-harness'
 
 /** Must stay below `voice-tool` route `maxDuration` so the client fails first with a clear message, not a generic hang. */
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
@@ -45,10 +46,24 @@ function extractRealtimeFunctionCallId(item: {
   call_id?: string
   id?: string
   name?: string
-  arguments?: string
+  arguments?: unknown
 }): string | undefined {
   const cid = item.call_id ?? item.id
   return typeof cid === 'string' && cid.length > 0 ? cid : undefined
+}
+
+function parseRealtimeToolArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {}
+    } catch {
+      return {}
+    }
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
 }
 
 /** When no call_id is available, inject the tool text as a user message so the model still sees the result. */
@@ -91,6 +106,8 @@ export type VoiceSessionContextValue = {
   status: VoiceStatus
   /** Derived from remote audio (speaking) vs in-flight tools (working). */
   voiceSurfaceState: VoiceSurfaceState
+  /** Friendly current batch label, e.g. "checking inbox", while voice tools are running. */
+  voiceWorkLabel: string | null
   /** True while waiting to hang up after `end_call` (assistant audio + silence gate). */
   closingPending: boolean
   error: string | null
@@ -205,6 +222,7 @@ export function VoiceSessionProvider({
   const scheduleIdleDisconnectRef = useRef<() => void>(() => {})
   const resumeBriefingSentRef = useRef(false)
   const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('idle')
+  const [voiceWorkLabel, setVoiceWorkLabel] = useState<string | null>(null)
   const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('idle')
   const telemetryPendingRef = useRef({ idle: 0, working: 0, speaking: 0 })
   const telemetryTickRef = useRef(0)
@@ -310,6 +328,7 @@ export function VoiceSessionProvider({
       setClosingPending(false)
       toolInFlightRef.current = false
       lastPendingConfirmationsRef.current = []
+      setVoiceWorkLabel(null)
       setVoiceSurfaceState('idle')
       assistantSpeakingRef.current = false
       prevRemoteLoudRef.current = false
@@ -535,6 +554,7 @@ export function VoiceSessionProvider({
     realtimeBodyExtrasRef.current =
       opts?.realtimeBodyExtras && typeof opts.realtimeBodyExtras === 'object' ? opts.realtimeBodyExtras : {}
     setError(null)
+    setVoiceWorkLabel(null)
     setUserHangupAllowed(false)
     speechEventSeenRef.current = false
     await refreshVoiceManagerClientSettings()
@@ -804,51 +824,41 @@ export function VoiceSessionProvider({
           const toolCalls =
             payload?.tool_calls ??
             (payload as { tool_calls?: Array<{ name?: string; arguments?: string }> })?.tool_calls
-          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-            // Execute tools in parallel to reduce wall-time.
-            // Keep `end_call` last so we don't close the session before other tools finish.
-            const endCallToolCalls = toolCalls.filter((tc) => tc.name === 'end_call')
-            const parallelToolCalls = toolCalls.filter((tc) => tc.name && tc.name !== 'end_call')
-
+          const runToolBatch = async (
+            calls: Array<{ id?: string; call_id?: string; name?: string; arguments?: unknown }>,
+          ) => {
+            const ordered = orderRealtimeToolCalls(calls)
             let needAssistantResponse = false
-            const results = await Promise.all(
-              parallelToolCalls.map(async (tc) => {
-                const name = tc.name
-                const args =
-                  typeof tc.arguments === 'string'
-                    ? (() => {
-                        try {
-                          return JSON.parse(tc.arguments!)
-                        } catch {
-                          return {}
-                        }
-                      })()
-                    : (tc.arguments ?? {}) as Record<string, unknown>
-                const callId = extractRealtimeFunctionCallId(tc)
-                const summary = await runTool(name!, args)
-                return finalizeRealtimeToolOutput(callId, summary, name!)
-              }),
-            )
-            if (results.some((r) => r === 'paired')) needAssistantResponse = true
 
-            for (const tc of endCallToolCalls) {
-              if (!tc.name) continue
-              const args =
-                typeof tc.arguments === 'string'
-                  ? (() => {
-                      try {
-                        return JSON.parse(tc.arguments!)
-                      } catch {
-                        return {}
-                      }
-                    })()
-                  : (tc.arguments ?? {}) as Record<string, unknown>
-              const callId = extractRealtimeFunctionCallId(tc)
-              const summary = await runTool(tc.name, args)
-              if (finalizeRealtimeToolOutput(callId, summary, tc.name) === 'paired') {
-                needAssistantResponse = true
-              }
+            const runOne = async (tc: { id?: string; call_id?: string; name?: string; arguments?: unknown }) => {
+              if (!tc.name) return 'fallback' as const
+              const summary = await runTool(tc.name, parseRealtimeToolArgs(tc.arguments))
+              return finalizeRealtimeToolOutput(extractRealtimeFunctionCallId(tc), summary, tc.name)
             }
+
+            if (ordered.parallel.length > 0) {
+              setVoiceWorkLabel(realtimeWorkingLabel(ordered.parallel.map((tc) => tc.name ?? '')))
+              const results = await Promise.all(ordered.parallel.map(runOne))
+              if (results.some((r) => r === 'paired')) needAssistantResponse = true
+            }
+
+            for (const tc of ordered.serial) {
+              setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
+              if ((await runOne(tc)) === 'paired') needAssistantResponse = true
+            }
+
+            for (const tc of ordered.endCall) {
+              setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
+              if ((await runOne(tc)) === 'paired') needAssistantResponse = true
+            }
+
+            setVoiceWorkLabel(null)
+            return needAssistantResponse
+          }
+          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+            const needAssistantResponse = await runToolBatch(
+              toolCalls as Array<{ id?: string; call_id?: string; name?: string; arguments?: unknown }>,
+            )
             if (needAssistantResponse) {
               triggerRealtimeAssistantResponse(dc)
               scheduleIdleDisconnectRef.current()
@@ -856,29 +866,12 @@ export function VoiceSessionProvider({
             return
           }
           if (payload?.type === 'response.done' && Array.isArray(payload.response?.output)) {
-            // Parallelize function_call tool runs and send outputs back per call_id.
+            // Batch safe reads in parallel, then run state-changing or confirmation-gated calls serially.
             const fnItems = payload.response.output.filter(
               (item) => item?.type === 'function_call' && item.name,
-            ) as Array<{ id?: string; call_id?: string; name: string; arguments?: string }>
+            ) as Array<{ id?: string; call_id?: string; name: string; arguments?: unknown }>
 
-            const doneResults = await Promise.all(
-              fnItems.map(async (item) => {
-                const args =
-                  typeof item.arguments === 'string'
-                    ? (() => {
-                        try {
-                          return JSON.parse(item.arguments!)
-                        } catch {
-                          return {}
-                        }
-                      })()
-                    : {}
-
-                const summary = await runTool(item.name, args as Record<string, unknown>)
-                return finalizeRealtimeToolOutput(extractRealtimeFunctionCallId(item), summary, item.name)
-              }),
-            )
-            if (doneResults.some((r) => r === 'paired')) {
+            if (await runToolBatch(fnItems)) {
               triggerRealtimeAssistantResponse(dc)
               scheduleIdleDisconnectRef.current()
             }
@@ -1206,6 +1199,7 @@ export function VoiceSessionProvider({
   const value: VoiceSessionContextValue = {
     status,
     voiceSurfaceState,
+    voiceWorkLabel,
     closingPending,
     error,
     startVoiceCall,

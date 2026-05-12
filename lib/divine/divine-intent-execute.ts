@@ -34,8 +34,15 @@ import {
   type PublishQueueItemParams,
 } from '@/lib/divine-intent-actions'
 
-/** Intent types that require confirmation when voice_auto is off. */
-const RISKY_INTENTS = ['mass_dm', 'pricing_changes', 'content_publish', 'publish_queue_item'] as const
+/** Intent types that require confirmation when voice_auto is off or the Realtime voice guard forces it. */
+const RISKY_INTENTS = [
+  'mass_dm',
+  'send_message',
+  'adjust_price',
+  'pricing_changes',
+  'content_publish',
+  'publish_queue_item',
+] as const
 type RiskyIntentType = (typeof RISKY_INTENTS)[number]
 
 /** Supported intent types. */
@@ -95,6 +102,8 @@ export interface IntentBody {
   tab?: string
   limit?: number
   offset?: number
+  /** Internal voice harness guard: require app confirmation even if legacy voice_auto flags are enabled. */
+  force_confirmation?: boolean
 }
 
 async function insertDivineNotification(
@@ -166,7 +175,9 @@ export async function executeDivineIntentPost(
   }
 
   const intentTypeForPolicy = type as RiskyIntentType
+  const forceConfirmation = body.force_confirmation === true
   const allowed =
+    !forceConfirmation &&
     RISKY_INTENTS.includes(intentTypeForPolicy) &&
     intentTypeForPolicy !== 'publish_queue_item' &&
     isVoiceAutoAllowed(settings, intentTypeForPolicy as 'mass_dm' | 'pricing_changes' | 'content_publish')

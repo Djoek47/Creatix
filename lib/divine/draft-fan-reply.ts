@@ -8,8 +8,8 @@ const OPENAI_MODEL = 'gpt-4o-mini'
 const MIMIC_BG_MIN_CHARS = 4200
 
 export type DraftFanReplyWithMimicResult =
-  | { ok: true; text: string; note: string }
-  | { ok: true; pending: true; jobId: string; note: string }
+  | { ok: true; pending?: false; text: string; note: string }
+  | { ok: true; pending: true; jobId: string; note: string; text?: never }
   | { ok: false; error: string }
 
 function formatOpenAiErrorResponse(status: number, bodyText: string): string {

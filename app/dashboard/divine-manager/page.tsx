@@ -15,11 +15,17 @@ import {
   type DivineManagerPersona,
   type DivineManagerGoals,
   type DivineVoicePersonalityInitiative,
+  type DivineInterruptionStyle,
   type DivineManagerAutomationRules,
   type DivineBackgroundOps,
+  type DivineNavigationAutonomy,
+  type DivineRealtimeReasoningEffort,
+  type DivineToolNarration,
 } from '@/lib/divine-manager'
 import {
+  applyVoicePersonalityPreset,
   applyVoicePersonalityToAutomationRules,
+  DIVINE_VOICE_PERSONALITY_PRESETS,
   defaultVoicePersonality,
   resolveVoicePersonality,
   type ResolvedVoicePersonality,
@@ -1345,12 +1351,14 @@ export default function DivineManagerPage() {
                     />
                   </div>
                   <p className="text-sm font-medium text-foreground pt-2">Voice automation</p>
-                  <p className="text-xs text-muted-foreground pb-2">When using voice control, choose what Divine can do without asking you to confirm.</p>
+                  <p className="text-xs text-muted-foreground pb-2">
+                    Legacy auto shortcuts stay saved; Realtime 2 still asks before external sends, publishing, pricing, DMCA, or billing changes.
+                  </p>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-send mass DMs</p>
-                        <p className="text-xs text-muted-foreground">Divine can send mass messages by voice without confirmation</p>
+                        <p className="font-medium">Mass DM shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare and route mass DM work; final send is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.mass_dm ?? false}
@@ -1364,8 +1372,8 @@ export default function DivineManagerPage() {
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-change prices</p>
-                        <p className="text-xs text-muted-foreground">Divine can apply pricing changes by voice without confirmation</p>
+                        <p className="font-medium">Pricing shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare pricing changes; final apply is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.pricing_changes ?? false}
@@ -1379,8 +1387,8 @@ export default function DivineManagerPage() {
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-publish posts</p>
-                        <p className="text-xs text-muted-foreground">Divine can publish content by voice without confirmation</p>
+                        <p className="font-medium">Publish shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare publishing flows; final publish is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.content_publish ?? false}
@@ -1997,7 +2005,7 @@ export default function DivineManagerPage() {
                 <Badge
                   variant="secondary"
                   className="text-[10px] font-normal"
-                  title="Voice automation: what Divine can do without confirmation"
+                  title="Voice safety: Realtime 2 still requires confirmation before external actions"
                 >
                   {settings.automation_rules?.voice_auto?.mass_dm ||
                   settings.automation_rules?.voice_auto?.pricing_changes ||
@@ -2603,6 +2611,32 @@ export default function DivineManagerPage() {
               </p>
             </div>
 
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DIVINE_VOICE_PERSONALITY_PRESETS.map((preset) => {
+                const selected = voiceUi.preset_id === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={loading || saving || resetting}
+                    onClick={() => {
+                      setPersonalityDrag({})
+                      patchVoicePersonality(applyVoicePersonalityPreset(voiceUi, preset.id))
+                    }}
+                    className={cn(
+                      'rounded-2xl border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                      selected
+                        ? 'border-foreground/15 bg-foreground/[0.045] text-foreground shadow-sm'
+                        : 'border-border/60 bg-background/40 text-muted-foreground hover:border-foreground/15 hover:bg-muted/40 hover:text-foreground',
+                    )}
+                  >
+                    <span className="block text-[13px] font-semibold tracking-tight">{preset.label}</span>
+                    <span className="mt-1 block text-[11px] leading-relaxed">{preset.description}</span>
+                  </button>
+                )
+              })}
+            </div>
+
             <div className="space-y-8">
               <div className="space-y-3">
                 <div className="flex items-end justify-between gap-3">
@@ -2691,6 +2725,110 @@ export default function DivineManagerPage() {
               <p className="text-[11px] leading-relaxed text-muted-foreground">
                 Left: partner waits on your goals. Right: Divine proposes the plan—you stay in charge of risky actions.
               </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Reasoning</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'low' as DivineRealtimeReasoningEffort, label: 'Low' },
+                      { id: 'medium' as DivineRealtimeReasoningEffort, label: 'Medium' },
+                      { id: 'high' as DivineRealtimeReasoningEffort, label: 'High' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.reasoning_effort === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ reasoning_effort: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Higher reasoning helps multi-step tool routing; lower keeps simple calls snappy.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">App control</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'ask' as DivineNavigationAutonomy, label: 'Ask' },
+                      { id: 'suggest' as DivineNavigationAutonomy, label: 'Suggest' },
+                      { id: 'act' as DivineNavigationAutonomy, label: 'Act' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.navigation_autonomy === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ navigation_autonomy: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Safe navigation can be direct; sends, publishing, DMCA, pricing, and billing still require confirmation.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Tool narration</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'quiet' as DivineToolNarration, label: 'Quiet' },
+                      { id: 'brief' as DivineToolNarration, label: 'Brief' },
+                      { id: 'statusy' as DivineToolNarration, label: 'Status' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.tool_narration === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ tool_narration: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Interruptions</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'fast' as DivineInterruptionStyle, label: 'Fast' },
+                      { id: 'balanced' as DivineInterruptionStyle, label: 'Balanced' },
+                      { id: 'patient' as DivineInterruptionStyle, label: 'Patient' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.interruption_style === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ interruption_style: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4 rounded-2xl border border-border/50 bg-muted/[0.15] px-5 py-5">
@@ -2904,7 +3042,9 @@ export default function DivineManagerPage() {
           </div>
           <p><span className="font-medium text-foreground">Rules:</span> Auto-post {settings.automation_rules?.autoPostSchedule?.enabled ? 'on' : 'off'}, Welcome DM {settings.automation_rules?.autoWelcomeDm?.enabled ? 'on' : 'off'}, Tip follow-up {settings.automation_rules?.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}</p>
           <p className="font-medium text-foreground pt-2">Voice automation</p>
-          <p className="text-xs text-muted-foreground pb-1">What Divine can do by voice without asking you to confirm.</p>
+          <p className="text-xs text-muted-foreground pb-1">
+            Legacy shortcuts stay saved, but Realtime 2 still pauses for app confirmation before external sends, publishing, pricing, DMCA, or billing changes.
+          </p>
           <div className="flex flex-wrap gap-4 pt-1">
             <div className="flex items-center gap-2">
               <Switch

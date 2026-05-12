@@ -74,14 +74,29 @@ export type VoiceHangupPolicy = 'always' | 'after_closing_prompt'
 
 /** Who leads the agenda in voice/text; separate from talkativeness sliders. */
 export type DivineVoicePersonalityInitiative = 'creator_led' | 'balanced' | 'manager_led'
+export type DivineVoicePersonalityPresetId =
+  | 'quiet_operator'
+  | 'balanced_partner'
+  | 'proactive_manager'
+  | 'studio_director'
+export type DivineRealtimeReasoningEffort = 'low' | 'medium' | 'high'
+export type DivineInterruptionStyle = 'fast' | 'balanced' | 'patient'
+export type DivineNavigationAutonomy = 'ask' | 'suggest' | 'act'
+export type DivineToolNarration = 'quiet' | 'brief' | 'statusy'
 
 /** Fine-grained Divine voice persona (stored under `automation_rules.voice_personality`). */
 export interface DivineVoicePersonalityStored {
+  /** Optional preset seed; manual slider edits remain authoritative after it is applied. */
+  preset_id?: DivineVoicePersonalityPresetId
   /** 0 = quiet/concise, 50 = balanced, 100 = expressive */
   talkativeness: number
   /** 0 = reactive, 100 = forward narration during tools */
   proactivity: number
   initiative: DivineVoicePersonalityInitiative
+  reasoning_effort?: DivineRealtimeReasoningEffort
+  interruption_style?: DivineInterruptionStyle
+  navigation_autonomy?: DivineNavigationAutonomy
+  tool_narration?: DivineToolNarration
   /** Pro: idle ladder timing (maps to silence ms server-side). */
   silence_patience: number
   /** Pro: mic energy sensitivity (higher = more sensitive). */

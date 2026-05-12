@@ -21,6 +21,8 @@ import { logUsageEvent } from '@/lib/usage/server-log'
 import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
 import { checkDivineVoiceRealtimeMonthCap } from '@/lib/billing/divine-voice-fairuse'
 import { applyMarkitCorsHeaders, markitCorsOptions } from '@/lib/cors-markit'
+import { getOpenAIRealtimeModel } from '@/lib/openai/realtime-model'
+import { buildDivineRealtimeSessionConfig } from '@/lib/divine/realtime-agent-harness'
 
 export const maxDuration = 30
 
@@ -1267,13 +1269,20 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
     ]
 
     const voice = getDivineVoice(notify?.voice)
-    const sessionConfig = {
-      type: 'realtime',
-      model: 'gpt-realtime',
+    const realtimeModel = getOpenAIRealtimeModel()
+    const sessionConfig = buildDivineRealtimeSessionConfig({
+      model: realtimeModel,
       instructions,
-      audio: { output: { voice } },
+      voice,
       tools,
-    }
+      personality: resolvedVoicePersonality,
+      traceGroupId: sid || user.id,
+      traceMetadata: {
+        user_id: user.id,
+        surface: voiceSurface,
+        divine_session_id: sid || null,
+      },
+    })
 
     const formData = new FormData()
     formData.set('sdp', sdp)
@@ -1300,7 +1309,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       userId: user.id,
       feature: 'divine-manager-realtime-session',
       provider: 'openai',
-      model: 'gpt-realtime',
+      model: realtimeModel,
       usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
       metadata: {
         kind: 'webrtc_sdp_exchange',

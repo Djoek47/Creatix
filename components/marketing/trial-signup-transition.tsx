@@ -23,7 +23,7 @@ export const TRIAL_SIGNUP_VIDEO_SRC_DAY = '/marketing/trial-launch-transition-da
 /** Same asset as `TRIAL_SIGNUP_VIDEO_SRC_NIGHT` (historical export name). */
 export const TRIAL_SIGNUP_VIDEO_SRC = TRIAL_SIGNUP_VIDEO_SRC_NIGHT
 
-const TRIAL_PRELOAD_MARKERS = ['day', 'night'] as const
+const TRIAL_VIDEO_STARTUP_FALLBACK_MS = 2800
 
 /** Tunable per clip so early navigation + glass line up with each ending on its scenic still (day / night). */
 export type TrialTransitionTiming = {
@@ -101,6 +101,51 @@ function reducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+type BrowserNetworkInformation = {
+  saveData?: boolean
+  effectiveType?: string
+  downlink?: number
+}
+
+function getNetworkInformation(): BrowserNetworkInformation | null {
+  if (typeof navigator === 'undefined') return null
+  const maybeNavigator = navigator as Navigator & {
+    connection?: BrowserNetworkInformation
+    mozConnection?: BrowserNetworkInformation
+    webkitConnection?: BrowserNetworkInformation
+  }
+  return (
+    maybeNavigator.connection ??
+    maybeNavigator.mozConnection ??
+    maybeNavigator.webkitConnection ??
+    null
+  )
+}
+
+function shouldSkipTrialTransitionVideo(): boolean {
+  if (typeof window === 'undefined') return false
+  const connection = getNetworkInformation()
+  const effectiveType = connection?.effectiveType?.toLowerCase()
+  if (connection?.saveData) return true
+  if (effectiveType === 'slow-2g' || effectiveType === '2g' || effectiveType === '3g') {
+    return true
+  }
+  if (typeof connection?.downlink === 'number' && connection.downlink > 0 && connection.downlink < 1.25) {
+    return true
+  }
+  const maybeNavigator = navigator as Navigator & { deviceMemory?: number }
+  if (typeof maybeNavigator.deviceMemory === 'number' && maybeNavigator.deviceMemory <= 2) {
+    return true
+  }
+  return false
+}
+
+function clearTimer(timerRef: { current: ReturnType<typeof setTimeout> | null }) {
+  if (!timerRef.current) return
+  clearTimeout(timerRef.current)
+  timerRef.current = null
+}
+
 function preloadAuthScenicImages() {
   if (typeof document === 'undefined') return
   for (const href of AUTH_SCENIC_BG_PATHS) {
@@ -137,37 +182,17 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   const glassStartedRef = useRef(false)
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const glassTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startupFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (pathname?.startsWith('/auth/sign-up') || pathname?.startsWith('/auth/login')) return
     setSignupEntranceMode('off')
   }, [pathname])
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    const links: HTMLLinkElement[] = []
-    for (const marker of TRIAL_PRELOAD_MARKERS) {
-      const sel = `link[data-cev-trial-preload="${marker}"]`
-      if (document.querySelector(sel)) continue
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.as = 'video'
-      link.href =
-        marker === 'day' ? TRIAL_SIGNUP_VIDEO_SRC_DAY : TRIAL_SIGNUP_VIDEO_SRC_NIGHT
-      link.setAttribute('data-cev-trial-preload', marker)
-      document.head.appendChild(link)
-      links.push(link)
-    }
-    return () => {
-      for (const link of links) {
-        link.remove()
-      }
-    }
-  }, [])
-
   const resetPlayer = useCallback(() => {
-    if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
-    if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
+    clearTimer(freezeTimerRef)
+    clearTimer(glassTimerRef)
+    clearTimer(startupFallbackTimerRef)
     const v = videoRef.current
     if (v) {
       v.pause()
@@ -183,7 +208,8 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
   }, [])
 
   const finishGlassSequence = useCallback(() => {
-    if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
+    clearTimer(glassTimerRef)
+    clearTimer(startupFallbackTimerRef)
     const glassMs = transitionTimingRef.current.glassMs
     glassTimerRef.current = window.setTimeout(() => {
       const v = videoRef.current
@@ -237,8 +263,9 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
 
   const navigateFallback = useCallback(
     (href: string) => {
-      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
-      if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
+      clearTimer(freezeTimerRef)
+      clearTimer(glassTimerRef)
+      clearTimer(startupFallbackTimerRef)
       router.push(href)
       resetPlayer()
       setSignupEntranceMode('off')
@@ -248,6 +275,18 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
 
   const onVideoError = useCallback(() => {
     navigateFallback(hrefRef.current)
+  }, [navigateFallback])
+
+  const onVideoPlayable = useCallback(() => {
+    clearTimer(startupFallbackTimerRef)
+  }, [])
+
+  const onVideoWaiting = useCallback(() => {
+    const v = videoRef.current
+    if (!v || v.currentTime > 0.1 || startupFallbackTimerRef.current) return
+    startupFallbackTimerRef.current = window.setTimeout(() => {
+      navigateFallback(hrefRef.current)
+    }, TRIAL_VIDEO_STARTUP_FALLBACK_MS)
   }, [navigateFallback])
 
   const beginSignupTransition = useCallback(
@@ -260,13 +299,14 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
       transitionTimingRef.current = TRIAL_TRANSITION_TIMING[timingKind]
       setActiveTransitionVideoSrc(videoSrc)
 
-      if (reducedMotion()) {
+      if (reducedMotion() || shouldSkipTrialTransitionVideo()) {
         router.push(href)
         return
       }
 
-      if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
-      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+      clearTimer(glassTimerRef)
+      clearTimer(freezeTimerRef)
+      clearTimer(startupFallbackTimerRef)
       busyRef.current = true
       pushedRef.current = false
       glassStartedRef.current = false
@@ -279,7 +319,7 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
       setVideoOpacity(0)
       setVideoGlassStyle(false)
 
-      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+      clearTimer(freezeTimerRef)
       freezeTimerRef.current = setTimeout(() => {
         setBackdropOpacity(0.38)
         requestAnimationFrame(() => {
@@ -288,6 +328,9 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
           if (v) {
             v.currentTime = 0
             v.volume = 1
+            startupFallbackTimerRef.current = window.setTimeout(() => {
+              navigateFallback(hrefRef.current)
+            }, TRIAL_VIDEO_STARTUP_FALLBACK_MS)
             const playPreferAudio = async () => {
               v.muted = false
               try {
@@ -311,8 +354,9 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
 
   useEffect(() => {
     return () => {
-      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
-      if (glassTimerRef.current) clearTimeout(glassTimerRef.current)
+      clearTimer(freezeTimerRef)
+      clearTimer(glassTimerRef)
+      clearTimer(startupFallbackTimerRef)
     }
   }, [])
 
@@ -364,6 +408,10 @@ export function TrialSignupTransitionProvider({ children }: { children: ReactNod
               onTimeUpdate={onTimeUpdate}
               onEnded={onEnded}
               onError={onVideoError}
+              onCanPlay={onVideoPlayable}
+              onPlaying={onVideoPlayable}
+              onStalled={onVideoWaiting}
+              onWaiting={onVideoWaiting}
             >
               <source src={activeTransitionVideoSrc} type="video/mp4" />
             </video>

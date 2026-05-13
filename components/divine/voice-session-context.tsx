@@ -41,6 +41,7 @@ import {
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
 const VOICE_INPUT_DEVICE_LS_KEY = 'divine_voice_input_device_v1'
 const VOICE_OUTPUT_DEVICE_LS_KEY = 'divine_voice_output_device_v1'
+const POST_TOOL_CONTINUATION_MS = 2400
 
 function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
   try {
@@ -109,8 +110,8 @@ function triggerRealtimeAssistantResponse(dc: RTCDataChannel) {
 
 type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
-/** Purple = tool/model work; gold = assistant speaking; idle = neither. */
-export type VoiceSurfaceState = 'idle' | 'working' | 'speaking'
+/** Listening = awaiting creator; thinking = model/tool work; speaking = assistant audio; needs_attention = failure/confirmation. */
+export type VoiceSurfaceState = 'listening' | 'thinking' | 'speaking' | 'needs_attention'
 
 export type DivineVoiceTranscriptTurn = {
   id: string
@@ -121,7 +122,7 @@ export type DivineVoiceTranscriptTurn = {
 
 export type VoiceSessionContextValue = {
   status: VoiceStatus
-  /** Derived from remote audio (speaking) vs in-flight tools (working). */
+  /** Derived from remote audio, in-flight tools, and pending post-tool spoken follow-ups. */
   voiceSurfaceState: VoiceSurfaceState
   /** Friendly current batch label, e.g. "checking inbox", while voice tools are running. */
   voiceWorkLabel: string | null
@@ -262,6 +263,9 @@ export function VoiceSessionProvider({
   /** True while assistant TTS/audio energy is above threshold (pauses idle disconnect). */
   const assistantSpeakingRef = useRef(false)
   const prevRemoteLoudRef = useRef(false)
+  const assistantResponsePendingRef = useRef(false)
+  const assistantContinuationForcedRef = useRef(false)
+  const postToolContinuationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const idleMsRef = useRef<number | null>(null)
   /** Silence ladder timing from Divine Manager patience slider (default = legacy 47s/60s). */
   const silenceTimingRef = useRef<VoiceSilenceTimingConfig>(buildVoiceSilenceConfig(50))
@@ -274,9 +278,9 @@ export function VoiceSessionProvider({
   >([])
   const scheduleIdleDisconnectRef = useRef<() => void>(() => {})
   const resumeBriefingSentRef = useRef(false)
-  const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('idle')
+  const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('listening')
   const [voiceWorkLabel, setVoiceWorkLabel] = useState<string | null>(null)
-  const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('idle')
+  const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('listening')
   const telemetryPendingRef = useRef({ idle: 0, working: 0, speaking: 0 })
   const telemetryTickRef = useRef(0)
 
@@ -393,6 +397,15 @@ export function VoiceSessionProvider({
     voiceSurfaceStateRef.current = voiceSurfaceState
   }, [voiceSurfaceState])
 
+  const clearPostToolContinuation = useCallback(() => {
+    assistantResponsePendingRef.current = false
+    assistantContinuationForcedRef.current = false
+    if (postToolContinuationTimerRef.current) {
+      clearTimeout(postToolContinuationTimerRef.current)
+      postToolContinuationTimerRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     const raw = process.env.NEXT_PUBLIC_DIVINE_VOICE_IDLE_MS
     if (raw === undefined || raw === '') {
@@ -467,11 +480,12 @@ export function VoiceSessionProvider({
         cancelAnimationFrame(endCallRafRef.current)
         endCallRafRef.current = null
       }
+      clearPostToolContinuation()
       setClosingPending(false)
       toolInFlightRef.current = false
       lastPendingConfirmationsRef.current = []
       setVoiceWorkLabel(null)
-      setVoiceSurfaceState('idle')
+      setVoiceSurfaceState('listening')
       assistantSpeakingRef.current = false
       prevRemoteLoudRef.current = false
       const pc = pcRef.current
@@ -517,14 +531,14 @@ export function VoiceSessionProvider({
         ),
       }).catch(() => undefined)
     },
-    [cancelIdleTimer],
+    [cancelIdleTimer, clearPostToolContinuation],
   )
 
   const scheduleIdleDisconnect = useCallback(() => {
     const ms = idleMsRef.current
     if (ms == null || ms <= 0) return
     cancelIdleTimer()
-    if (toolInFlightRef.current || assistantSpeakingRef.current) return
+    if (toolInFlightRef.current || assistantSpeakingRef.current || assistantResponsePendingRef.current) return
     idleTimeoutRef.current = setTimeout(() => {
       idleTimeoutRef.current = null
       endVoiceCall('idle_timeout')
@@ -565,6 +579,7 @@ export function VoiceSessionProvider({
         response: { modalities: ['audio'] },
       }),
     )
+    assistantResponsePendingRef.current = true
     scheduleIdleDisconnectRef.current()
 
     const ms = opts?.allowHangupAfterMs
@@ -576,6 +591,41 @@ export function VoiceSessionProvider({
   useEffect(() => {
     sendBriefingQuestionRef.current = sendBriefingQuestion
   }, [sendBriefingQuestion])
+
+  const armPostToolContinuation = useCallback((reason: 'paired' | 'fallback' | 'briefing' = 'paired') => {
+    assistantResponsePendingRef.current = true
+    assistantContinuationForcedRef.current = false
+    cancelIdleTimerRef.current()
+    setVoiceWorkLabel(reason === 'briefing' ? 'Preparing a response...' : 'Thinking...')
+    if (postToolContinuationTimerRef.current) clearTimeout(postToolContinuationTimerRef.current)
+    postToolContinuationTimerRef.current = setTimeout(() => {
+      postToolContinuationTimerRef.current = null
+      if (!assistantResponsePendingRef.current || assistantContinuationForcedRef.current) return
+      if (statusRef.current !== 'connected') return
+      if (assistantSpeakingRef.current) return
+      const dc = oaiDataChannelRef.current
+      if (!dc || dc.readyState !== 'open') return
+      assistantContinuationForcedRef.current = true
+      dc.send(
+        JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text:
+                  '[Continuation watchdog] Finish the answer to the creator now based on the completed tool result. Do not wait for more microphone input. If you navigated or opened a fan, summarize what was done and give the requested overview.',
+              },
+            ],
+          },
+        }),
+      )
+      triggerRealtimeAssistantResponse(dc)
+      setVoiceWorkLabel('Finishing the answer...')
+    }, POST_TOOL_CONTINUATION_MS)
+  }, [])
 
   const runFinalSilenceClose = useCallback(async (genAtStart: number) => {
     if (silenceGenRef.current !== genAtStart) return
@@ -600,6 +650,11 @@ export function VoiceSessionProvider({
     silenceSecondTimerRef.current = null
     silenceFailsafeTimerRef.current = null
 
+    if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current) {
+      silenceWatchdogEpochRef.current = null
+      return
+    }
+
     const cfg = silenceTimingRef.current
     const gen = silenceGenRef.current
     silenceWatchdogEpochRef.current = Date.now()
@@ -607,6 +662,7 @@ export function VoiceSessionProvider({
       silenceFirstTimerRef.current = null
       if (silenceGenRef.current !== gen) return
       if (statusRef.current !== 'connected') return
+      if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current) return
       void (async () => {
         try {
           await sendBriefingQuestionRef.current(DIVINE_VOICE_SILENCE_PROMPT_FIRST)
@@ -625,6 +681,9 @@ export function VoiceSessionProvider({
   }, [runFinalSilenceClose])
 
   const markUserSpeech = useCallback(() => {
+    if (!assistantResponsePendingRef.current) {
+      clearPostToolContinuation()
+    }
     silenceGenRef.current += 1
     if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
     if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
@@ -639,7 +698,7 @@ export function VoiceSessionProvider({
       lastPresenceSpeechPatchRef.current = now
       patchVoicePresence(nextVoicePresenceAfterUserSpeech(voicePresenceRef.current, new Date(now)))
     }
-  }, [patchVoicePresence, startSilenceWatchdog])
+  }, [clearPostToolContinuation, patchVoicePresence, startSilenceWatchdog])
 
   useEffect(() => {
     markUserSpeechRef.current = markUserSpeech
@@ -827,6 +886,15 @@ export function VoiceSessionProvider({
           if (isRealtimeUserSpeechEvent(payload)) {
             speechEventSeenRef.current = true
             markUserSpeechRef.current()
+          }
+
+          if (
+            typeof payload.type === 'string' &&
+            (payload.type.includes('response.audio') ||
+              payload.type.includes('response.output_audio') ||
+              payload.type === 'output_audio_buffer.started')
+          ) {
+            clearPostToolContinuation()
           }
 
           if (
@@ -1045,6 +1113,7 @@ export function VoiceSessionProvider({
           ) => {
             const ordered = orderRealtimeToolCalls(calls)
             let needAssistantResponse = false
+            let fallbackResponseStarted = false
 
             const runOne = async (tc: { id?: string; call_id?: string; name?: string; arguments?: unknown }) => {
               if (!tc.name) return 'fallback' as const
@@ -1056,19 +1125,25 @@ export function VoiceSessionProvider({
               setVoiceWorkLabel(realtimeWorkingLabel(ordered.parallel.map((tc) => tc.name ?? '')))
               const results = await Promise.all(ordered.parallel.map(runOne))
               if (results.some((r) => r === 'paired')) needAssistantResponse = true
+              if (results.some((r) => r === 'fallback')) fallbackResponseStarted = true
             }
 
             for (const tc of ordered.serial) {
               setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
-              if ((await runOne(tc)) === 'paired') needAssistantResponse = true
+              const result = await runOne(tc)
+              if (result === 'paired') needAssistantResponse = true
+              if (result === 'fallback') fallbackResponseStarted = true
             }
 
             for (const tc of ordered.endCall) {
               setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
-              if ((await runOne(tc)) === 'paired') needAssistantResponse = true
+              const result = await runOne(tc)
+              if (result === 'paired') needAssistantResponse = true
+              if (result === 'fallback') fallbackResponseStarted = true
             }
 
             setVoiceWorkLabel(null)
+            if (fallbackResponseStarted) armPostToolContinuation('fallback')
             return needAssistantResponse
           }
           if (Array.isArray(toolCalls) && toolCalls.length > 0) {
@@ -1077,6 +1152,7 @@ export function VoiceSessionProvider({
             )
             if (needAssistantResponse) {
               triggerRealtimeAssistantResponse(dc)
+              armPostToolContinuation('paired')
               scheduleIdleDisconnectRef.current()
             }
             return
@@ -1089,6 +1165,11 @@ export function VoiceSessionProvider({
 
             if (await runToolBatch(fnItems)) {
               triggerRealtimeAssistantResponse(dc)
+              armPostToolContinuation('paired')
+              scheduleIdleDisconnectRef.current()
+            } else if (fnItems.length === 0 && assistantResponsePendingRef.current) {
+              clearPostToolContinuation()
+              setVoiceWorkLabel(null)
               scheduleIdleDisconnectRef.current()
             }
           }
@@ -1175,6 +1256,8 @@ export function VoiceSessionProvider({
     selectedAudioOutputId,
     refreshAudioDevices,
     patchVoicePresence,
+    armPostToolContinuation,
+    clearPostToolContinuation,
   ])
 
   /** Arm optional idle disconnect + staged silence watchdog when connected. */
@@ -1261,10 +1344,10 @@ export function VoiceSessionProvider({
     return () => clearInterval(id)
   }, [status])
 
-  /** Purple (working) vs gold (speaking) vs idle. */
+  /** Listening vs thinking vs speaking vs needs_attention. */
   useEffect(() => {
     if (status !== 'connected') {
-      setVoiceSurfaceState('idle')
+      setVoiceSurfaceState(status === 'error' ? 'needs_attention' : 'listening')
       return
     }
     const id = setInterval(() => {
@@ -1282,16 +1365,18 @@ export function VoiceSessionProvider({
       prevRemoteLoudRef.current = remoteLoud
       if (!prev && remoteLoud) {
         cancelIdleTimerRef.current()
+        clearPostToolContinuation()
       }
       if (prev && !remoteLoud) {
         scheduleIdleDisconnectRef.current()
+        startSilenceWatchdogRef.current()
       }
       if (remoteLoud) setVoiceSurfaceState('speaking')
-      else if (toolInFlightRef.current) setVoiceSurfaceState('working')
-      else setVoiceSurfaceState('idle')
+      else if (toolInFlightRef.current || assistantResponsePendingRef.current) setVoiceSurfaceState('thinking')
+      else setVoiceSurfaceState('listening')
     }, 140)
     return () => clearInterval(id)
-  }, [status])
+  }, [clearPostToolContinuation, status])
 
   /** Accumulate WebRTC time per voice surface state; POST to /api/divine/voice-telemetry every 10s. */
   useEffect(() => {
@@ -1331,8 +1416,8 @@ export function VoiceSessionProvider({
       const d = now - telemetryTickRef.current
       telemetryTickRef.current = now
       const surf = voiceSurfaceStateRef.current
-      if (surf === 'idle') telemetryPendingRef.current.idle += d
-      else if (surf === 'working') telemetryPendingRef.current.working += d
+      if (surf === 'listening') telemetryPendingRef.current.idle += d
+      else if (surf === 'thinking' || surf === 'needs_attention') telemetryPendingRef.current.working += d
       else if (surf === 'speaking') telemetryPendingRef.current.speaking += d
     }, 1000)
     const post = setInterval(() => {
@@ -1522,4 +1607,3 @@ export function VoiceSessionProvider({
     </VoiceSessionContext.Provider>
   )
 }
-

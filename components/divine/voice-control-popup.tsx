@@ -44,6 +44,7 @@ import { DivineProtocolTaskRail } from '@/components/divine/divine-protocol-task
 import { useProtocolRailLayersAccent } from '@/components/divine/use-protocol-rail-layers-accent'
 import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { VoiceSurfaceState } from '@/components/divine/voice-session-context'
 
 /** Shared surface for Divine shortcut menus (skip-launcher, in-call overflow). */
 const divineSubmenuContentClass =
@@ -95,6 +96,71 @@ const FAB_DRAG_THRESHOLD_PX = 12
 /** Require a brief hold before drag; short tap opens the launcher instead. */
 const FAB_LONG_PRESS_ARM_MS = 650
 
+function voiceSurfaceLabel(status: string, surface: VoiceSurfaceState): string {
+  if (status === 'idle') return 'Idle'
+  if (status === 'connecting') return 'Connecting...'
+  if (status === 'error') return 'Needs attention'
+  if (surface === 'speaking') return 'Speaking...'
+  if (surface === 'thinking') return 'Thinking...'
+  if (surface === 'needs_attention') return 'Needs attention'
+  return 'Listening'
+}
+
+function CollapsedVoiceArcMeter({
+  divineLevel,
+  userLevel,
+  active,
+}: {
+  divineLevel: number
+  userLevel: number
+  active: boolean
+}) {
+  if (!active) return null
+  const top = Math.max(0.08, Math.min(1, divineLevel))
+  const bottom = Math.max(0.08, Math.min(1, userLevel))
+  const arcLength = 100
+  return (
+    <svg
+      className="pointer-events-none absolute -inset-[7px] h-[calc(100%+14px)] w-[calc(100%+14px)] overflow-visible"
+      viewBox="0 0 100 100"
+      aria-hidden
+    >
+      <path d="M 16 50 A 34 34 0 0 1 84 50" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M 84 50 A 34 34 0 0 1 16 50" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" strokeLinecap="round" />
+      <path
+        d="M 16 50 A 34 34 0 0 1 84 50"
+        fill="none"
+        stroke="url(#divineArcGradient)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        pathLength={arcLength}
+        strokeDasharray={`${Math.round(top * arcLength)} ${arcLength}`}
+        className="transition-all duration-100"
+      />
+      <path
+        d="M 84 50 A 34 34 0 0 1 16 50"
+        fill="none"
+        stroke="url(#userArcGradient)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        pathLength={arcLength}
+        strokeDasharray={`${Math.round(bottom * arcLength)} ${arcLength}`}
+        className="transition-all duration-100"
+      />
+      <defs>
+        <linearGradient id="divineArcGradient" x1="16" y1="20" x2="84" y2="20">
+          <stop stopColor="#8b5cf6" />
+          <stop offset="1" stopColor="#d946ef" />
+        </linearGradient>
+        <linearGradient id="userArcGradient" x1="84" y1="80" x2="16" y2="80">
+          <stop stopColor="#f59e0b" />
+          <stop offset="1" stopColor="#fde68a" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
 function clampFabInset(right: number, bottom: number, elWidth: number, elHeight: number) {
   if (typeof window === 'undefined') return { right, bottom }
   const vw = window.innerWidth
@@ -139,6 +205,7 @@ export function VoiceControlPopup() {
   const [fabInset, setFabInset] = useState<{ right: number; bottom: number } | null>(null)
   const [fabDragArmedVisual, setFabDragArmedVisual] = useState(false)
   const fabRef = useRef<HTMLDivElement>(null)
+  const prevVoiceStatusRef = useRef<string | null>(null)
   const fabDragRef = useRef<{
     pointerId: number
     x0: number
@@ -403,9 +470,11 @@ export function VoiceControlPopup() {
 
   useEffect(() => {
     if (!voice) return
-    // Collapse when the call fully ends; do not force-expand while connected — user can collapse and read status on the crown (mic-style colors).
+    const prev = prevVoiceStatusRef.current
+    prevVoiceStatusRef.current = voice.status
     if (!hasStartedCall) setExpanded(false)
-  }, [voice, hasStartedCall])
+    if (prev !== voice.status && voice.status !== 'idle' && !isMobileViewport) setExpanded(true)
+  }, [voice, hasStartedCall, isMobileViewport])
 
   if (!voice) return null
 
@@ -431,26 +500,19 @@ export function VoiceControlPopup() {
 
   const hideIdleDivineFabStack = suppressIdleDivineFabStack || messagesMobileIdleHideFab
 
-  const primaryLabel =
-    status === 'idle'
-      ? 'Idle'
-      : status === 'connecting'
-        ? 'Connecting…'
-        : status === 'connected'
-          ? 'Listening'
-          : 'Needs attention'
+  const primaryLabel = voiceSurfaceLabel(status, voiceSurfaceState)
 
   const voiceErrorPresentation =
     status === 'error' && error ? voicePillErrorPresentation(error) : null
 
   const startVoiceFromLauncher = async () => {
     setLauncherOpen(false)
-    setExpanded(true)
+    setExpanded(!isMobileViewport)
     await startVoiceCall()
   }
 
   const handleCrownClickInstant = async () => {
-    setExpanded(true)
+    setExpanded(!isMobileViewport)
     await startVoiceCall()
   }
 
@@ -459,7 +521,7 @@ export function VoiceControlPopup() {
   }
 
   const crownClassName = cn(
-    'divine-fab-crown divine-crown-trigger grid w-[4.125rem] min-w-[66px] shrink-0 place-items-center p-0 leading-none',
+    'divine-fab-crown divine-crown-trigger relative grid w-[4.125rem] min-w-[66px] shrink-0 place-items-center p-0 leading-none',
     'transition-[transform,box-shadow,filter,color] duration-200 ease-out',
     'motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]',
     voiceDeckOpen
@@ -727,7 +789,7 @@ export function VoiceControlPopup() {
                 return
               }
               if (!divineVoicePremium) {
-                setExpanded(true)
+                setExpanded(!isMobileViewport)
                 void startVoiceCall()
                 return
               }
@@ -744,6 +806,11 @@ export function VoiceControlPopup() {
                 : 'Divine voice — Premium required — hold the stack briefly, then drag to move'
             }
           >
+            <CollapsedVoiceArcMeter
+              divineLevel={voice.remoteVoiceLevel}
+              userLevel={voice.localVoiceLevel}
+              active={hasStartedCall && !voiceDeckOpen}
+            />
             <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
           </button>
         </div>
@@ -776,6 +843,11 @@ export function VoiceControlPopup() {
           ' — hold the stack briefly, then drag to move when collapsed'
         }
       >
+        <CollapsedVoiceArcMeter
+          divineLevel={voice.remoteVoiceLevel}
+          userLevel={voice.localVoiceLevel}
+          active={hasStartedCall && !voiceDeckOpen}
+        />
         <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
       </button>
     )
@@ -793,69 +865,80 @@ export function VoiceControlPopup() {
         onPointerCancelCapture={handleFabPointerUp}
         className={cn(
           'group/divineFab fixed z-40 flex touch-none flex-col items-end gap-3',
+          voiceDeckOpen && isMobileViewport && 'inset-x-3 items-stretch',
+          voiceDeckOpen && isMobileViewport && 'z-[90]',
           fabDragArmedVisual && 'ring-2 ring-amber-400/35 ring-offset-2 ring-offset-transparent rounded-[2.75rem]',
           fabInset == null &&
             (messagesRouteDefault
               ? 'bottom-[max(8.5rem,calc(env(safe-area-inset-bottom)+7.25rem))] right-3 sm:right-5'
-              : 'bottom-[max(7.75rem,calc(env(safe-area-inset-bottom)+6.75rem))] right-3 md:bottom-6 md:right-6'),
+              : voiceDeckOpen && isMobileViewport
+                ? 'bottom-[max(1rem,env(safe-area-inset-bottom))]'
+                : 'bottom-[max(7.75rem,calc(env(safe-area-inset-bottom)+6.75rem))] right-3 md:bottom-6 md:right-6'),
         )}
         style={
-          fabInset
+          fabInset && !(voiceDeckOpen && isMobileViewport)
             ? { right: fabInset.right, bottom: fabInset.bottom, left: 'auto', top: 'auto' }
             : undefined
         }
       >
-        {!protocolRailCollapsed ? (
-          <div className="flex max-h-[min(58dvh,calc(100dvh-13rem))] min-h-0 min-w-0 w-full max-w-[min(92vw,400px)] shrink-0 touch-pan-y flex-col sm:max-h-[min(78dvh,calc(100dvh-5.5rem))]">
-            <DivineProtocolTaskRail
-              acknowledgeNewGlow={acknowledgeNewGlow}
-              layersAccentTone={layersAccentTone}
-              layersToneClassName={protocolLayersToneClassName}
-              onCollapseProtocolRail={collapseProtocolRail}
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-card/93 shadow-sm backdrop-blur-md transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 dark:border-white/[0.09] sm:h-10 sm:w-10',
-              protocolLayersToneClassName,
-            )}
-            onClick={expandProtocolRail}
-            aria-label={
-              layersAccentTone === 'purple'
-                ? 'Show protocols rail · new task in queue'
-                : layersAccentTone === 'orange'
-                  ? 'Show protocols rail · tasks to do'
-                  : layersAccentTone === 'green'
-                    ? 'Show protocols rail · queue clear'
-                    : 'Show protocols and tasks rail'
-            }
-            title={
-              layersAccentTone === 'purple'
-                ? 'New protocol task · show strip'
-                : layersAccentTone === 'orange'
-                  ? 'Tasks open · show protocols strip'
-                  : layersAccentTone === 'green'
-                    ? 'All clear · show protocols strip'
-                    : 'Show protocols strip'
-            }
-          >
-            <Layers2 className="h-[1.0625rem] w-[1.0625rem] opacity-95" aria-hidden />
-          </button>
-        )}
+        {!voiceDeckOpen ? (
+          !protocolRailCollapsed ? (
+            <div className="flex max-h-[min(58dvh,calc(100dvh-13rem))] min-h-0 min-w-0 w-full max-w-[min(92vw,400px)] shrink-0 touch-pan-y flex-col sm:max-h-[min(78dvh,calc(100dvh-5.5rem))]">
+              <DivineProtocolTaskRail
+                acknowledgeNewGlow={acknowledgeNewGlow}
+                layersAccentTone={layersAccentTone}
+                layersToneClassName={protocolLayersToneClassName}
+                onCollapseProtocolRail={collapseProtocolRail}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={cn(
+                'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-card/93 shadow-sm backdrop-blur-md transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 dark:border-white/[0.09] sm:h-10 sm:w-10',
+                protocolLayersToneClassName,
+              )}
+              onClick={expandProtocolRail}
+              aria-label={
+                layersAccentTone === 'purple'
+                  ? 'Show protocols rail · new task in queue'
+                  : layersAccentTone === 'orange'
+                    ? 'Show protocols rail · tasks to do'
+                    : layersAccentTone === 'green'
+                      ? 'Show protocols rail · queue clear'
+                      : 'Show protocols and tasks rail'
+              }
+              title={
+                layersAccentTone === 'purple'
+                  ? 'New protocol task · show strip'
+                  : layersAccentTone === 'orange'
+                    ? 'Tasks open · show protocols strip'
+                    : layersAccentTone === 'green'
+                      ? 'All clear · show protocols strip'
+                      : 'Show protocols strip'
+              }
+            >
+              <Layers2 className="h-[1.0625rem] w-[1.0625rem] opacity-95" aria-hidden />
+            </button>
+          )
+        ) : null}
         <div
           className={cn(
             'flex overflow-hidden transition-all duration-300 motion-reduce:transition-none',
             voiceDeckOpen
-              ? 'divine-voice-pill-expanded relative h-auto min-h-[4.125rem] w-[min(92vw,660px)] items-stretch rounded-[22px] ring-0'
+              ? cn(
+                  'divine-voice-pill-expanded relative h-auto min-h-[4.125rem] items-stretch ring-0',
+                  isMobileViewport
+                    ? 'max-h-[min(78dvh,calc(100dvh-2rem))] w-full overflow-y-auto rounded-[28px]'
+                    : 'w-[min(92vw,660px)] rounded-[22px]',
+                )
               : 'h-[4.125rem] min-h-[66px] w-[4.125rem] min-w-[66px] items-center rounded-full border-0 bg-transparent shadow-[0_16px_50px_-28px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] dark:ring-white/[0.055]',
           )}
         >
           <div
             className={cn(
               'relative z-[1] min-w-0 transition-all duration-300 motion-reduce:transition-none',
-              voiceDeckOpen ? 'flex-1 px-5 py-4 opacity-100' : 'w-0 px-0 py-0 opacity-0',
+              voiceDeckOpen ? cn('flex-1 opacity-100', isMobileViewport ? 'px-4 py-4' : 'px-5 py-4') : 'w-0 px-0 py-0 opacity-0',
             )}
           >
             <div className="flex items-start gap-4">
@@ -898,7 +981,7 @@ export function VoiceControlPopup() {
                   {voiceWorkLabel ?? voicePillStatusSubtitle(status)}
                 </p>
                 <DivineWorkingLogo
-                  variant={isActive ? voiceSurfaceState : 'idle'}
+                  variant={isActive ? voiceSurfaceState : 'listening'}
                   className="mt-1.5"
                   wordmarkClassName={!isActive ? 'ai-tools-wordmark text-[11px]' : undefined}
                 />
@@ -994,7 +1077,7 @@ export function VoiceControlPopup() {
                 ) : null}
               </div>
             ) : null}
-            {isActive ? <DivineVoiceLiveConsole compact className="mt-4" /> : null}
+            {isActive ? <DivineVoiceLiveConsole compact={isMobileViewport} className="mt-4" /> : null}
           </div>
           {renderCrownButton()}
         </div>

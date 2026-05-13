@@ -52,8 +52,8 @@ function VoiceMeter({
               className={cn(
                 'w-full rounded-full transition-all duration-100',
                 tone === 'user'
-                  ? on ? 'bg-gradient-to-t from-amber-500 to-yellow-200' : 'bg-amber-500/12'
-                  : on ? 'bg-gradient-to-t from-violet-500 to-fuchsia-200' : 'bg-violet-500/12',
+                  ? on ? 'bg-gradient-to-t from-amber-500 to-yellow-200' : 'bg-amber-500/10'
+                  : on ? 'bg-gradient-to-t from-violet-500 to-indigo-200' : 'bg-violet-500/10',
               )}
               style={{ height: `${on ? height : 8}px`, opacity: on ? 0.96 : 0.55 }}
             />
@@ -82,19 +82,19 @@ export function DivineVoiceLiveConsole({
   return (
     <section
       className={cn(
-        'overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.18),transparent_34%),linear-gradient(145deg,rgba(15,10,25,0.86),rgba(7,8,14,0.82))] p-3 text-white shadow-[0_22px_70px_-38px_rgba(0,0,0,0.75)] backdrop-blur-2xl',
+        'overflow-hidden rounded-[1.625rem] border border-white/10 bg-[linear-gradient(145deg,rgba(24,24,27,0.92),rgba(8,8,12,0.88))] p-3 text-white shadow-[0_24px_80px_-44px_rgba(0,0,0,0.8)] backdrop-blur-2xl',
         compact ? 'space-y-3' : 'space-y-4',
         className,
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/10 text-amber-200">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.08] text-amber-200">
             <Radio className="h-4 w-4" aria-hidden />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold tracking-[-0.02em]">Live voice console</p>
-            <p className="truncate text-xs text-white/[0.58]">
+            <p className="text-sm font-semibold tracking-[-0.01em]">Live voice console</p>
+            <p className="truncate text-xs text-white/[0.52]">
               {voice.status === 'connected' ? 'Listening, routing, and transcribing in realtime.' : 'Choose devices before starting voice.'}
             </p>
           </div>
@@ -103,7 +103,7 @@ export function DivineVoiceLiveConsole({
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 shrink-0 rounded-full border border-white/10 bg-white/[0.08] px-3 text-xs text-white hover:bg-white/[0.14] hover:text-white"
+          className="h-8 shrink-0 rounded-full border border-white/10 bg-white/[0.07] px-3 text-xs text-white hover:bg-white/[0.13] hover:text-white"
           onClick={() => void voice.refreshAudioDevices()}
         >
           <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -121,7 +121,7 @@ export function DivineVoiceLiveConsole({
             value={voice.selectedAudioInputId || DEFAULT_DEVICE_ID}
             onValueChange={(value) => void voice.setAudioInputDevice(value)}
           >
-            <SelectTrigger className="h-10 w-full border-white/10 bg-white/[0.08] text-white shadow-none [&_svg]:text-white/[0.55]">
+            <SelectTrigger className="h-10 w-full rounded-2xl border-white/10 bg-white/[0.06] text-white shadow-none [&_svg]:text-white/[0.55]">
               <SelectValue placeholder="System microphone" />
             </SelectTrigger>
             <SelectContent className="z-[130]">
@@ -145,7 +145,7 @@ export function DivineVoiceLiveConsole({
             onValueChange={(value) => void voice.setAudioOutputDevice(value)}
             disabled={!canPickOutput}
           >
-            <SelectTrigger className="h-10 w-full border-white/10 bg-white/[0.08] text-white shadow-none disabled:opacity-70 [&_svg]:text-white/[0.55]">
+            <SelectTrigger className="h-10 w-full rounded-2xl border-white/10 bg-white/[0.06] text-white shadow-none disabled:opacity-70 [&_svg]:text-white/[0.55]">
               <SelectValue placeholder="System output" />
             </SelectTrigger>
             <SelectContent className="z-[130]">
@@ -170,7 +170,7 @@ export function DivineVoiceLiveConsole({
         <VoiceMeter label="Divine" level={voice.remoteVoiceLevel} tone="divine" />
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-3">
         <div className="mb-1.5 flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/[0.52]">
             <Volume2 className="h-3 w-3" aria-hidden />

@@ -46,9 +46,10 @@ export function useDivineCrownStateClass(pillExpanded: boolean): string {
   if (status === 'idle') return 'divine-crown-inactive-yellow'
 
   /* Expanded (or any non-collapsed) call UI: traffic-style RGY — green listen, amber busy/speaking, red error above */
-  if (status === 'connected' && voiceSurfaceState === 'working') return 'divine-crown-standby-gold'
+  if (status === 'connected' && voiceSurfaceState === 'thinking') return 'divine-crown-standby-gold'
   if (status === 'connected' && voiceSurfaceState === 'speaking') return 'divine-crown-standby-gold'
-  if (status === 'connected' && voiceSurfaceState === 'idle') return 'divine-crown-listening-silver'
+  if (status === 'connected' && voiceSurfaceState === 'needs_attention') return 'divine-crown-ending-red'
+  if (status === 'connected' && voiceSurfaceState === 'listening') return 'divine-crown-listening-silver'
 
   return 'divine-crown-inactive-yellow'
 }

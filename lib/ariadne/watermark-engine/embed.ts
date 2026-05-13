@@ -1,4 +1,5 @@
 import { encodeWithParity, repeatBits } from '@/lib/ariadne/watermark-engine/ecc'
+import { normalizePayloadIdHex, uuidHexToBits } from '@/lib/ariadne/payload-id-bits'
 import type { GrayFrame, WatermarkEmbedOptions } from '@/lib/ariadne/watermark-engine/types'
 
 function lcg(seed: number) {
@@ -11,6 +12,35 @@ function lcg(seed: number) {
 
 function cloneFrame(frame: GrayFrame): GrayFrame {
   return frame.map((row) => [...row])
+}
+
+export type WatermarkEmbeddingPlan = {
+  algorithm: 'frame-v2'
+  payloadId: string
+  payloadBits: number[]
+  options: Required<WatermarkEmbedOptions>
+}
+
+export function buildWatermarkEmbeddingPlan(input: {
+  payloadId: string
+  strength?: number
+  redundancy?: number
+  useSpatialLayer?: boolean
+  seed?: number
+}): WatermarkEmbeddingPlan {
+  const hex = normalizePayloadIdHex(input.payloadId)
+  if (!hex) throw new Error('payloadId must be a UUID or 32-char hex string')
+  return {
+    algorithm: 'frame-v2',
+    payloadId: input.payloadId,
+    payloadBits: uuidHexToBits(hex),
+    options: {
+      seed: input.seed ?? 42,
+      strength: Math.max(1, Math.floor(input.strength ?? 1)),
+      redundancy: Math.max(1, Math.floor(input.redundancy ?? 3)),
+      useSpatialLayer: input.useSpatialLayer ?? true,
+    },
+  }
 }
 
 /**

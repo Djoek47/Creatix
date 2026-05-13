@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { detectWatermark, type GrayFrame } from '@/lib/ariadne/watermark-engine'
 import { extractAppendV1Detailed } from '@/lib/ariadne-embed'
+import { extractDetectionFrames } from '@/lib/ariadne/media-ffmpeg'
 import { bitsToUuidWithDashes } from '@/lib/ariadne/payload-id-bits'
 
 export type DetectV2Result = {
@@ -58,6 +59,23 @@ function bitsToHex(bits: number[]): string {
 export function runDetectV2(buf: Buffer, seed = 42): DetectV2Result {
   const append = extractAppendV1Detailed(buf)
   const frames = sampledFrames(buf, 8)
+  return runDetectV2OnFrames(buf, frames, append.state, append.payload?.payloadId ?? null, seed)
+}
+
+export async function runDetectV2FromMedia(buf: Buffer, seed = 42): Promise<DetectV2Result> {
+  const append = extractAppendV1Detailed(buf)
+  const frames = await extractDetectionFrames(buf, 8)
+  if (!frames.length) return runDetectV2(buf, seed)
+  return runDetectV2OnFrames(buf, frames, append.state, append.payload?.payloadId ?? null, seed)
+}
+
+function runDetectV2OnFrames(
+  buf: Buffer,
+  frames: GrayFrame[],
+  appendState: string,
+  appendPayloadId: string | null,
+  seed: number,
+): DetectV2Result {
   const scores = frames.map((frame) => detectWatermark(frame, { seed, redundancy: 3, expectedBits: 40 }))
   const scores128 = frames.map((frame) => detectWatermark(frame, { seed, redundancy: 3, expectedBits: 128 }))
   const avgConfidence = scores.reduce((acc, s) => acc + s.confidence, 0) / Math.max(1, scores.length)
@@ -76,9 +94,9 @@ export function runDetectV2(buf: Buffer, seed = 42): DetectV2Result {
       : '')
 
   const payload_candidates: DetectV2Result['payload_candidates'] = []
-  if (append.state === 'marker_valid' && append.payload?.payloadId) {
+  if (appendState === 'marker_valid' && appendPayloadId) {
     payload_candidates.push({
-      payload_id: append.payload.payloadId,
+      payload_id: appendPayloadId,
       confidence: 0.97,
       source: 'append_v1',
     })
@@ -92,11 +110,11 @@ export function runDetectV2(buf: Buffer, seed = 42): DetectV2Result {
   }
 
   let match_state: DetectV2Result['match_state'] = 'none'
-  if (append.state === 'marker_valid') match_state = 'registered'
+  if (appendState === 'marker_valid') match_state = 'registered'
   else if (payload_candidates.length) match_state = 'candidate'
 
   const visualConf = uuidFromVisual && best128 ? best128.confidence : avgConfidence
-  const confidence = append.state === 'marker_valid' ? 0.97 : Number(visualConf.toFixed(4))
+  const confidence = appendState === 'marker_valid' ? 0.97 : Number(visualConf.toFixed(4))
   return {
     match_state,
     payload_candidates,
@@ -104,7 +122,7 @@ export function runDetectV2(buf: Buffer, seed = 42): DetectV2Result {
     evidence_summary: {
       sampled_frames: frames.length,
       contributing_regions: frames.length * 2,
-      append_state: append.state,
+      append_state: appendState,
       watermark_hit_rate: Number(avgHit.toFixed(4)),
     },
   }

@@ -50,8 +50,19 @@ const sessionConfig = buildDivineRealtimeSessionConfig({
   personality: defaultVoicePersonality(),
 })
 
-assert.deepEqual(sessionConfig.output_modalities, ['audio'])
 assert.equal('modalities' in sessionConfig, false)
+assert.equal('output_modalities' in sessionConfig, false)
+assert.equal('turn_detection' in sessionConfig, false)
+assert.equal('parallel_tool_calls' in sessionConfig, false)
+assert.equal('tracing' in sessionConfig, false)
+assert.deepEqual((sessionConfig.audio as { input?: unknown }).input, {
+  turn_detection: {
+    type: 'semantic_vad',
+    eagerness: 'medium',
+    create_response: true,
+    interrupt_response: true,
+  },
+})
 assert.deepEqual(sessionConfig.reasoning, { effort: 'medium' })
 
 console.log('divine realtime agent harness: ok')

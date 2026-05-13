@@ -142,33 +142,25 @@ export function buildDivineRealtimeSessionConfig({
   voice,
   tools,
   personality,
-  traceGroupId,
-  traceMetadata,
+  traceGroupId: _traceGroupId,
+  traceMetadata: _traceMetadata,
 }: BuildDivineRealtimeSessionConfigInput): Record<string, unknown> {
+  const reasoningEffort = realtimeReasoningEffortForPersonality(personality)
   const config: Record<string, unknown> = {
     type: 'realtime',
     model,
     instructions: buildDivineRealtimeAgentInstructions(instructions, personality),
-    output_modalities: ['audio'],
-    audio: { output: { voice } },
-    tools,
-    tool_choice: 'auto',
-    parallel_tool_calls: true,
-    turn_detection: realtimeTurnDetectionForPersonality(personality),
-    tracing: {
-      workflow_name: 'Divine Manager Realtime Voice',
-      group_id: traceGroupId,
-      metadata: {
-        surface: 'divine_manager',
-        model,
-        personality_preset: personality.preset_id ?? 'balanced_partner',
-        ...traceMetadata,
+    audio: {
+      input: {
+        turn_detection: realtimeTurnDetectionForPersonality(personality),
       },
+      output: { voice },
     },
+    tools,
   }
 
   if (model.includes('gpt-realtime-2')) {
-    config.reasoning = { effort: realtimeReasoningEffortForPersonality(personality) }
+    config.reasoning = { effort: reasoningEffort }
   }
 
   return config

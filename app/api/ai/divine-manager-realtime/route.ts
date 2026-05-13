@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'node:crypto'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
 import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
@@ -1293,6 +1294,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        'OpenAI-Safety-Identifier': createHash('sha256').update(user.id).digest('hex'),
       },
       body: formData,
     })

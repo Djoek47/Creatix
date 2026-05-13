@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  buildDivineRealtimeSessionConfig,
   classifyRealtimeToolSafety,
   orderRealtimeToolCalls,
   realtimeReasoningEffortForPersonality,
@@ -40,5 +41,17 @@ assert.strictEqual(
   }),
   'high',
 )
+
+const sessionConfig = buildDivineRealtimeSessionConfig({
+  model: 'gpt-realtime-2',
+  instructions: 'You are Divine.',
+  voice: 'marin',
+  tools: [],
+  personality: defaultVoicePersonality(),
+})
+
+assert.deepEqual(sessionConfig.output_modalities, ['audio'])
+assert.equal('modalities' in sessionConfig, false)
+assert.deepEqual(sessionConfig.reasoning, { effort: 'medium' })
 
 console.log('divine realtime agent harness: ok')

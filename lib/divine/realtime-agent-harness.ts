@@ -149,7 +149,7 @@ export function buildDivineRealtimeSessionConfig({
     type: 'realtime',
     model,
     instructions: buildDivineRealtimeAgentInstructions(instructions, personality),
-    modalities: ['audio'],
+    output_modalities: ['audio'],
     audio: { output: { voice } },
     tools,
     tool_choice: 'auto',

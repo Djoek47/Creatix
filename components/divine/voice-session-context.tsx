@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
-    type ReactNode,
+  type ReactNode,
 } from 'react'
 import { useDivinePanel, type FocusedFan } from '@/components/divine/divine-panel-context'
 import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
@@ -16,6 +16,7 @@ import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
 import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import type { DivineVoiceDisconnectReason } from '@/lib/divine/voice-memory-types'
+import type { DivineVoicePresence } from '@/lib/divine/voice-memory-types'
 import type { DivineVoicePersonalityStored, VoiceHangupPolicy } from '@/lib/divine-manager'
 import {
   DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS,
@@ -28,9 +29,18 @@ import {
 } from '@/lib/divine/voice-silence-prompts'
 import { getMicThreshold } from '@/lib/divine/voice-personality'
 import { orderRealtimeToolCalls, realtimeWorkingLabel } from '@/lib/divine/realtime-agent-harness'
+import {
+  buildPostNavigationPrompt,
+  buildVoiceStartupPrompt,
+  nextVoicePresenceAfterGreeting,
+  nextVoicePresenceAfterUserSpeech,
+  nextVoicePresenceOnStart,
+} from '@/lib/divine/voice-presence'
 
 /** Must stay below `voice-tool` route `maxDuration` so the client fails first with a clear message, not a generic hang. */
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
+const VOICE_INPUT_DEVICE_LS_KEY = 'divine_voice_input_device_v1'
+const VOICE_OUTPUT_DEVICE_LS_KEY = 'divine_voice_output_device_v1'
 
 function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
   try {
@@ -102,6 +112,13 @@ type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 /** Purple = tool/model work; gold = assistant speaking; idle = neither. */
 export type VoiceSurfaceState = 'idle' | 'working' | 'speaking'
 
+export type DivineVoiceTranscriptTurn = {
+  id: string
+  text: string
+  final: boolean
+  at: number
+}
+
 export type VoiceSessionContextValue = {
   status: VoiceStatus
   /** Derived from remote audio (speaking) vs in-flight tools (working). */
@@ -129,6 +146,18 @@ export type VoiceSessionContextValue = {
   localVoiceStream: MediaStream | null
   voiceVizRef: React.RefObject<HTMLCanvasElement | null>
   userVoiceVizRef: React.RefObject<HTMLCanvasElement | null>
+  remoteVoiceLevel: number
+  localVoiceLevel: number
+  audioInputDevices: MediaDeviceInfo[]
+  audioOutputDevices: MediaDeviceInfo[]
+  selectedAudioInputId: string
+  selectedAudioOutputId: string
+  setAudioInputDevice: (deviceId: string) => Promise<void>
+  setAudioOutputDevice: (deviceId: string) => Promise<void>
+  refreshAudioDevices: () => Promise<void>
+  outputDeviceSelectionSupported: boolean
+  voiceTranscript: DivineVoiceTranscriptTurn[]
+  clearVoiceTranscript: () => void
   focusedFanForVoice: FocusedFan | null
   setFocusedFanForVoice: (fan: FocusedFan | null) => void
   /** From Divine Manager settings; when after_closing_prompt, End is gated until voice_allow_user_hangup runs. */
@@ -183,12 +212,33 @@ export function VoiceSessionProvider({
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      const input = window.localStorage.getItem(VOICE_INPUT_DEVICE_LS_KEY)
+      const output = window.localStorage.getItem(VOICE_OUTPUT_DEVICE_LS_KEY)
+      if (input) setSelectedAudioInputId(input)
+      if (output) setSelectedAudioOutputId(output)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const [status, setStatus] = useState<VoiceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [remoteVoiceStream, setRemoteVoiceStream] = useState<MediaStream | null>(null)
   const [localVoiceStream, setLocalVoiceStream] = useState<MediaStream | null>(null)
   const voiceVizRef = useRef<HTMLCanvasElement | null>(null)
   const userVoiceVizRef = useRef<HTMLCanvasElement | null>(null)
+  const [remoteVoiceLevel, setRemoteVoiceLevel] = useState(0)
+  const [localVoiceLevel, setLocalVoiceLevel] = useState(0)
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState('default')
+  const [selectedAudioOutputId, setSelectedAudioOutputId] = useState('default')
+  const [voiceTranscript, setVoiceTranscript] = useState<DivineVoiceTranscriptTurn[]>([])
+  const outputDeviceSelectionSupported =
+    typeof HTMLMediaElement !== 'undefined' &&
+    'setSinkId' in HTMLMediaElement.prototype
   const [focusedFanForVoice, setFocusedFanForVoice] = useState<FocusedFan | null>(null)
   const [closingPending, setClosingPending] = useState(false)
   const [voiceHangupPolicy, setVoiceHangupPolicy] = useState<VoiceHangupPolicy>('always')
@@ -216,6 +266,9 @@ export function VoiceSessionProvider({
   /** Silence ladder timing from Divine Manager patience slider (default = legacy 47s/60s). */
   const silenceTimingRef = useRef<VoiceSilenceTimingConfig>(buildVoiceSilenceConfig(50))
   const micEnergyThresholdRef = useRef(getMicThreshold(50))
+  const voicePersonalityRef = useRef<DivineVoicePersonalityStored | null>(null)
+  const voicePresenceRef = useRef<DivineVoicePresence>({})
+  const lastPresenceSpeechPatchRef = useRef(0)
   const lastPendingConfirmationsRef = useRef<
     Array<{ type: string; intent_id: string; summary?: string }>
   >([])
@@ -242,6 +295,95 @@ export function VoiceSessionProvider({
   const speechEventSeenRef = useRef(false)
   const markUserSpeechRef = useRef<() => void>(() => {})
   const startSilenceWatchdogRef = useRef<() => void>(() => {})
+
+  const refreshAudioDevices = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      setAudioInputDevices(devices.filter((device) => device.kind === 'audioinput'))
+      setAudioOutputDevices(devices.filter((device) => device.kind === 'audiooutput'))
+    } catch {
+      /* Permission may not be granted yet; retry after getUserMedia succeeds. */
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshAudioDevices()
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.addEventListener) return
+    const onDeviceChange = () => {
+      void refreshAudioDevices()
+    }
+    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
+  }, [refreshAudioDevices])
+
+  const setAudioOutputDevice = useCallback(
+    async (deviceId: string) => {
+      const next = deviceId || 'default'
+      setSelectedAudioOutputId(next)
+      try {
+        window.localStorage.setItem(VOICE_OUTPUT_DEVICE_LS_KEY, next)
+      } catch {
+        /* ignore */
+      }
+      const audio = audioRef.current as (HTMLAudioElement & {
+        setSinkId?: (sinkId: string) => Promise<void>
+      }) | null
+      if (!audio?.setSinkId) return
+      await audio.setSinkId(next)
+    },
+    [],
+  )
+
+  const setAudioInputDevice = useCallback(
+    async (deviceId: string) => {
+      const next = deviceId || 'default'
+      setSelectedAudioInputId(next)
+      try {
+        window.localStorage.setItem(VOICE_INPUT_DEVICE_LS_KEY, next)
+      } catch {
+        /* ignore */
+      }
+      if (statusRef.current !== 'connected' && statusRef.current !== 'connecting') return
+      if (typeof navigator === 'undefined') return
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: next === 'default' ? true : { deviceId: { exact: next } },
+      })
+      const nextTrack = nextStream.getAudioTracks()[0]
+      if (!nextTrack) {
+        nextStream.getTracks().forEach((track) => track.stop())
+        throw new Error('Selected microphone did not provide an audio track.')
+      }
+      const pc = pcRef.current
+      const sender = pc?.getSenders().find((s) => s.track?.kind === 'audio')
+      if (sender) {
+        await sender.replaceTrack(nextTrack)
+      }
+      const previous = streamRef.current
+      previous?.getTracks().forEach((track) => track.stop())
+      streamRef.current = nextStream
+      setLocalVoiceStream(nextStream)
+      await refreshAudioDevices()
+    },
+    [refreshAudioDevices],
+  )
+
+  const clearVoiceTranscript = useCallback(() => {
+    setVoiceTranscript([])
+  }, [])
+
+  const patchVoicePresence = useCallback((presence: DivineVoicePresence) => {
+    voicePresenceRef.current = {
+      ...voicePresenceRef.current,
+      ...presence,
+    }
+    void fetch('/api/divine/voice-memory', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_presence: voicePresenceRef.current }),
+    }).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     statusRef.current = status
@@ -345,6 +487,8 @@ export function VoiceSessionProvider({
       audioRef.current = null
       setRemoteVoiceStream(null)
       setLocalVoiceStream(null)
+      setRemoteVoiceLevel(0)
+      setLocalVoiceLevel(0)
       oaiDataChannelRef.current = null
       setStatus('idle')
       setError(null)
@@ -490,7 +634,12 @@ export function VoiceSessionProvider({
     silenceFailsafeTimerRef.current = null
     scheduleIdleDisconnectRef.current()
     startSilenceWatchdog()
-  }, [startSilenceWatchdog])
+    const now = Date.now()
+    if (now - lastPresenceSpeechPatchRef.current > 10_000) {
+      lastPresenceSpeechPatchRef.current = now
+      patchVoicePresence(nextVoicePresenceAfterUserSpeech(voicePresenceRef.current, new Date(now)))
+    }
+  }, [patchVoicePresence, startSilenceWatchdog])
 
   useEffect(() => {
     markUserSpeechRef.current = markUserSpeech
@@ -514,6 +663,7 @@ export function VoiceSessionProvider({
       }
       if (json.voice_personality && typeof json.voice_personality === 'object') {
         const vp = json.voice_personality
+        voicePersonalityRef.current = vp
         silenceTimingRef.current = buildVoiceSilenceConfig(
           typeof vp.silence_patience === 'number' ? vp.silence_patience : 50,
         )
@@ -521,10 +671,12 @@ export function VoiceSessionProvider({
           typeof vp.mic_pickup === 'number' ? vp.mic_pickup : 50,
         )
       } else {
+        voicePersonalityRef.current = null
         silenceTimingRef.current = buildVoiceSilenceConfig(50)
         micEnergyThresholdRef.current = getMicThreshold(50)
       }
     } catch {
+      voicePersonalityRef.current = null
       setVoiceHangupPolicy('always')
       silenceTimingRef.current = buildVoiceSilenceConfig(50)
       micEnergyThresholdRef.current = getMicThreshold(50)
@@ -555,6 +707,7 @@ export function VoiceSessionProvider({
       opts?.realtimeBodyExtras && typeof opts.realtimeBodyExtras === 'object' ? opts.realtimeBodyExtras : {}
     setError(null)
     setVoiceWorkLabel(null)
+    setVoiceTranscript([])
     setUserHangupAllowed(false)
     speechEventSeenRef.current = false
     await refreshVoiceManagerClientSettings()
@@ -563,15 +716,23 @@ export function VoiceSessionProvider({
       if (typeof navigator === 'undefined') {
         throw new Error('Navigator not available')
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: selectedAudioInputId === 'default' ? true : { deviceId: { exact: selectedAudioInputId } },
+      })
       streamRef.current = stream
       setLocalVoiceStream(stream)
+      await refreshAudioDevices()
       const pc = new RTCPeerConnection()
       pcRef.current = pc
 
       const audioEl = document.createElement('audio')
       audioEl.autoplay = true
       audioEl.setAttribute('playsinline', 'true')
+      if (selectedAudioOutputId !== 'default' && 'setSinkId' in audioEl) {
+        await (audioEl as HTMLAudioElement & { setSinkId: (sinkId: string) => Promise<void> }).setSinkId(
+          selectedAudioOutputId,
+        )
+      }
       audioRef.current = audioEl
       pc.ontrack = (e) => {
         if (e.streams[0]) {
@@ -649,6 +810,9 @@ export function VoiceSessionProvider({
         try {
           const payload = JSON.parse(event.data as string) as {
             type?: string
+            item_id?: string
+            delta?: string
+            transcript?: string
             tool_calls?: Array<{
               id?: string
               call_id?: string
@@ -663,6 +827,58 @@ export function VoiceSessionProvider({
           if (isRealtimeUserSpeechEvent(payload)) {
             speechEventSeenRef.current = true
             markUserSpeechRef.current()
+          }
+
+          if (
+            payload.type === 'conversation.item.input_audio_transcription.delta' &&
+            typeof payload.item_id === 'string' &&
+            typeof payload.delta === 'string'
+          ) {
+            const delta = payload.delta
+            setVoiceTranscript((turns) => {
+              const idx = turns.findIndex((turn) => turn.id === payload.item_id)
+              if (idx === -1) {
+                return [
+                  ...turns.slice(-5),
+                  { id: payload.item_id!, text: delta, final: false, at: Date.now() },
+                ]
+              }
+              const next = [...turns]
+              next[idx] = {
+                ...next[idx],
+                text: `${next[idx].text}${delta}`,
+                final: false,
+                at: Date.now(),
+              }
+              return next.slice(-6)
+            })
+          }
+
+          if (
+            payload.type === 'conversation.item.input_audio_transcription.completed' &&
+            typeof payload.item_id === 'string' &&
+            typeof payload.transcript === 'string'
+          ) {
+            const transcript = payload.transcript.trim()
+            if (transcript) {
+              setVoiceTranscript((turns) => {
+                const idx = turns.findIndex((turn) => turn.id === payload.item_id)
+                if (idx === -1) {
+                  return [
+                    ...turns.slice(-5),
+                    { id: payload.item_id!, text: transcript, final: true, at: Date.now() },
+                  ]
+                }
+                const next = [...turns]
+                next[idx] = {
+                  ...next[idx],
+                  text: transcript,
+                  final: true,
+                  at: Date.now(),
+                }
+                return next.slice(-6)
+              })
+            }
           }
 
           /**
@@ -911,9 +1127,12 @@ export function VoiceSessionProvider({
               status?: string
               resume_hint?: string
               action_log?: Array<{ tool: string }>
+              voice_presence?: DivineVoicePresence
             }
           }
           const m = memJson.memory
+          const presenceOnStart = nextVoicePresenceOnStart(m?.voice_presence ?? voicePresenceRef.current)
+          patchVoicePresence(presenceOnStart)
           const hasResumeContext =
             m?.resume_hint ||
             (Array.isArray(m?.action_log) && m.action_log.length > 0)
@@ -923,6 +1142,15 @@ export function VoiceSessionProvider({
               `The last voice session ended before everything finished. Resume hint: ${m.resume_hint}. Ask briefly if they want to continue that or start fresh; if they decline, move on.`,
               { allowHangupAfterMs: 10_000 },
             )
+            patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
+            return
+          }
+          const initiative = voicePersonalityRef.current?.initiative ?? 'manager_led'
+          const startup = buildVoiceStartupPrompt(voicePresenceRef.current, initiative)
+          if (startup.shouldSpeak && startup.prompt && !resumeBriefingSentRef.current) {
+            resumeBriefingSentRef.current = true
+            await sendBriefingQuestion(startup.prompt, { allowHangupAfterMs: 10_000 })
+            patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
           }
         } catch {
           // ignore resume prompt failures
@@ -943,6 +1171,10 @@ export function VoiceSessionProvider({
     sendBriefingQuestion,
     refreshVoiceManagerClientSettings,
     divineVoicePremiumLive,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    refreshAudioDevices,
+    patchVoicePresence,
   ])
 
   /** Arm optional idle disconnect + staged silence watchdog when connected. */
@@ -957,6 +1189,50 @@ export function VoiceSessionProvider({
       silenceWatchdogEpochRef.current = null
     }
   }, [status])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onGuideFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ elementId?: string | null; label?: string | null }>).detail
+      const elementId = typeof detail?.elementId === 'string' ? detail.elementId.trim() : ''
+      if (!elementId || !/^[a-z0-9_-]{1,80}$/i.test(elementId)) return
+      window.setTimeout(() => {
+        const el = document.getElementById(elementId)
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const previousOutline = el.style.outline
+        const previousOutlineOffset = el.style.outlineOffset
+        const previousBoxShadow = el.style.boxShadow
+        el.style.outline = '2px solid rgba(168, 85, 247, 0.82)'
+        el.style.outlineOffset = '6px'
+        el.style.boxShadow = '0 0 0 10px rgba(168, 85, 247, 0.10)'
+        window.setTimeout(() => {
+          el.style.outline = previousOutline
+          el.style.outlineOffset = previousOutlineOffset
+          el.style.boxShadow = previousBoxShadow
+        }, 4200)
+      }, 450)
+    }
+
+    const onGuidedNavigation = (event: Event) => {
+      if (statusRef.current !== 'connected') return
+      if (voicePersonalityRef.current?.initiative !== 'manager_led') return
+      const detail = (event as CustomEvent<{ path?: string | null }>).detail
+      const path = typeof detail?.path === 'string' ? detail.path : '/dashboard'
+      window.setTimeout(() => {
+        void sendBriefingQuestionRef.current(buildPostNavigationPrompt(path), { allowHangupAfterMs: 10_000 }).then(() => {
+          patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
+        })
+      }, 900)
+    }
+
+    window.addEventListener('creatix:divine-guide-focus', onGuideFocus)
+    window.addEventListener('creatix:divine-guided-navigation', onGuidedNavigation)
+    return () => {
+      window.removeEventListener('creatix:divine-guide-focus', onGuideFocus)
+      window.removeEventListener('creatix:divine-guided-navigation', onGuidedNavigation)
+    }
+  }, [patchVoicePresence])
 
   useEffect(() => {
     if (status !== 'connected') return
@@ -1078,10 +1354,9 @@ export function VoiceSessionProvider({
 
   // Divine (remote) waveform: react to sound with lower smoothing so it fluctuates visibly
   useEffect(() => {
-    if (!remoteVoiceStream || !voiceVizRef.current) return
+    if (!remoteVoiceStream) return
     const canvas = voiceVizRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ctx = canvas?.getContext('2d') ?? null
     try {
       const audioContext = new AudioContext()
       const source = audioContext.createMediaStreamSource(remoteVoiceStream)
@@ -1095,6 +1370,10 @@ export function VoiceSessionProvider({
       const draw = () => {
         rafId = requestAnimationFrame(draw)
         analyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+        setRemoteVoiceLevel(Math.min(1, (sum / dataArray.length) / 96))
+        if (!canvas || !ctx) return
         const w = canvas.width
         const h = canvas.height
         ctx.clearRect(0, 0, w, h)
@@ -1120,7 +1399,8 @@ export function VoiceSessionProvider({
       return () => {
         cancelAnimationFrame(rafId)
         remoteAnalyserRef.current = null
-        audioContext.close()
+        setRemoteVoiceLevel(0)
+        audioContext.close().catch(() => undefined)
       }
     } catch {
       return undefined
@@ -1129,10 +1409,9 @@ export function VoiceSessionProvider({
 
   // User (local mic) waveform: same style, amber color, fluctuates with your voice
   useEffect(() => {
-    if (!localVoiceStream || !userVoiceVizRef.current) return
+    if (!localVoiceStream) return
     const canvas = userVoiceVizRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ctx = canvas?.getContext('2d') ?? null
     try {
       const audioContext = new AudioContext()
       const source = audioContext.createMediaStreamSource(localVoiceStream)
@@ -1146,6 +1425,10 @@ export function VoiceSessionProvider({
       const draw = () => {
         rafId = requestAnimationFrame(draw)
         analyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+        setLocalVoiceLevel(Math.min(1, (sum / dataArray.length) / 90))
+        if (!canvas || !ctx) return
         const w = canvas.width
         const h = canvas.height
         ctx.clearRect(0, 0, w, h)
@@ -1171,7 +1454,8 @@ export function VoiceSessionProvider({
       return () => {
         cancelAnimationFrame(rafId)
         localAnalyserRef.current = null
-        audioContext.close()
+        setLocalVoiceLevel(0)
+        audioContext.close().catch(() => undefined)
       }
     } catch {
       return undefined
@@ -1209,6 +1493,18 @@ export function VoiceSessionProvider({
     localVoiceStream,
     voiceVizRef,
     userVoiceVizRef,
+    remoteVoiceLevel,
+    localVoiceLevel,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    setAudioInputDevice,
+    setAudioOutputDevice,
+    refreshAudioDevices,
+    outputDeviceSelectionSupported,
+    voiceTranscript,
+    clearVoiceTranscript,
     focusedFanForVoice,
     setFocusedFanForVoice,
     voiceHangupPolicy,

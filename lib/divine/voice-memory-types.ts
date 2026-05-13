@@ -41,6 +41,15 @@ export type ProtocolPlanLeftoverItem = {
   priority_tier: number
 }
 
+export type DivineVoicePresence = {
+  first_started_at?: string
+  last_started_at?: string
+  last_user_spoke_at?: string
+  last_divine_spoke_at?: string
+  last_greeted_date?: string
+  has_seen_intro?: boolean
+}
+
 export type DivineVoiceMemoryPayload = {
   status?: DivineVoiceMemoryStatus
   disconnect_reason?: DivineVoiceDisconnectReason
@@ -54,6 +63,8 @@ export type DivineVoiceMemoryPayload = {
   tasks?: DivineVoiceTask[]
   /** Barrier: navigate when every task in taskIds is done. */
   navigation?: DivineVoiceNavigation | null
+  /** Humanized voice presence: intro/day greetings and last interaction memory. */
+  voice_presence?: DivineVoicePresence
 }
 
 export const VOICE_MEMORY_ACTION_LOG_MAX = 15

@@ -188,6 +188,7 @@ export async function PATCH(req: NextRequest) {
       clear?: boolean
       /** Set to null to clear deferred navigation after barrier UI applied */
       navigation?: DivineVoiceMemoryPayload['navigation'] | null
+      voice_presence?: DivineVoiceMemoryPayload['voice_presence']
     }
 
     const { data: row, error: fetchErr } = await supabase
@@ -210,6 +211,7 @@ export async function PATCH(req: NextRequest) {
         action_log: [],
         tasks: [],
         navigation: null,
+        voice_presence: prev.voice_presence,
         last_updated_at: new Date().toISOString(),
       }
     } else {
@@ -225,6 +227,12 @@ export async function PATCH(req: NextRequest) {
       merged = mergeMemory(prev, patch)
       if (Object.prototype.hasOwnProperty.call(body, 'navigation') && body.navigation === null) {
         merged.navigation = null
+      }
+      if (body.voice_presence && typeof body.voice_presence === 'object') {
+        merged.voice_presence = {
+          ...(prev.voice_presence ?? {}),
+          ...body.voice_presence,
+        }
       }
     }
 

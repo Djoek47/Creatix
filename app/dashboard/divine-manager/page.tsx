@@ -53,6 +53,7 @@ import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
 import { DivineManagerCockpit } from '@/components/divine/divine-manager-cockpit'
 import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
+import { DivineVoiceLiveConsole } from '@/components/divine/divine-voice-live-console'
 import { BackgroundJobsList } from '@/components/divine/background-jobs-list'
 import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { type EasyProUiMode } from '@/components/ui/easy-pro-mode-toggle'
@@ -145,9 +146,6 @@ export default function DivineManagerPage() {
   const closingPending = voiceSession?.closingPending ?? false
   const canManualHangup = voiceSession?.canManualHangup ?? true
   const realtimeError = voiceSession?.error ?? null
-  const remoteVoiceStream = voiceSession?.remoteVoiceStream ?? null
-  const voiceVizRef = voiceSession?.voiceVizRef ?? useRef<HTMLCanvasElement | null>(null)
-  const userVoiceVizRef = voiceSession?.userVoiceVizRef ?? useRef<HTMLCanvasElement | null>(null)
   const [intentLog, setIntentLog] = useState<{ id: string; intent_type: string; status: string; result_summary?: string; created_at: string }[]>([])
   const [intentLogLoading, setIntentLogLoading] = useState(false)
   const [pendingIntentId, setPendingIntentId] = useState<string | null>(null)
@@ -2360,41 +2358,18 @@ export default function DivineManagerPage() {
               </div>
             )}
             {realtimeStatus === 'connected' && (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-gradient-to-b from-violet-500/10 to-transparent p-4">
+              <div className="space-y-3">
                 {(intentInProgress || closingPending) ? (
-                  <>
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-gradient-to-b from-violet-500/10 to-transparent p-4">
                     <div className="flex flex-col items-center gap-2">
                       <Hourglass className="h-12 w-12 text-violet-500 animate-spin" style={{ animationDuration: '3s' }} />
                       <p className="text-xs text-muted-foreground">
                         {closingPending ? 'Ending call…' : 'Working…'}
                       </p>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-full max-w-[240px] space-y-1.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">You</p>
-                      <canvas
-                        ref={userVoiceVizRef}
-                        width={240}
-                        height={28}
-                        className="h-7 w-full rounded-lg opacity-90 block"
-                        style={{ background: 'rgba(0,0,0,0.05)' }}
-                      />
-                    </div>
-                    <div className="w-full max-w-[240px] space-y-1.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Divine</p>
-                      <canvas
-                        ref={voiceVizRef}
-                        width={240}
-                        height={28}
-                        className="h-7 w-full rounded-lg opacity-90 block"
-                        style={{ background: 'transparent' }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Listening and speaking…</p>
-                  </>
-                )}
+                  </div>
+                ) : null}
+                <DivineVoiceLiveConsole />
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
@@ -2696,13 +2671,13 @@ export default function DivineManagerPage() {
             </div>
 
             <div className="space-y-4">
-              <Label className="text-[13px] font-medium text-foreground">Who leads</Label>
+              <Label className="text-[13px] font-medium text-foreground">Conversation lead</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [
-                    { id: 'creator_led' as DivineVoicePersonalityInitiative, label: 'You direct' },
+                    { id: 'creator_led' as DivineVoicePersonalityInitiative, label: 'User-led' },
                     { id: 'balanced' as DivineVoicePersonalityInitiative, label: 'Balanced' },
-                    { id: 'manager_led' as DivineVoicePersonalityInitiative, label: 'Divine directs' },
+                    { id: 'manager_led' as DivineVoicePersonalityInitiative, label: 'Divine-led' },
                   ] as const
                 ).map(({ id, label }) => (
                   <Button
@@ -2723,7 +2698,7 @@ export default function DivineManagerPage() {
                 ))}
               </div>
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Left: partner waits on your goals. Right: Divine proposes the plan—you stay in charge of risky actions.
+                User-led waits after greetings. Divine-led speaks first, continues after safe navigation, and still asks before risky actions.
               </p>
             </div>
 

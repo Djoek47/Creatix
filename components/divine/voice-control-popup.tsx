@@ -36,6 +36,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { DivineTranscriptStack } from '@/components/divine/divine-transcript-card'
+import { DivineVoiceLiveConsole } from '@/components/divine/divine-voice-live-console'
 import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
 import { useDivineCrownStateClass } from '@/components/divine/use-divine-crown-state-class'
 import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
@@ -89,9 +90,10 @@ const FAB_INSET_LS_KEY = 'divine_fab_inset_v1'
 /** When "1", tasks & protocols rail is tucked — crown launcher stays visible */
 const PROTOCOL_RAIL_COLLAPSED_LS_KEY = 'divine_protocol_rail_collapsed_v1'
 const FAB_EDGE_MARGIN = 10
+const MOBILE_BOTTOM_NAV_CLEARANCE_PX = 112
 const FAB_DRAG_THRESHOLD_PX = 12
-/** Require hold before FAB can be dragged; short tap opens the launcher instead. */
-const FAB_LONG_PRESS_ARM_MS = 2000
+/** Require a brief hold before drag; short tap opens the launcher instead. */
+const FAB_LONG_PRESS_ARM_MS = 650
 
 function clampFabInset(right: number, bottom: number, elWidth: number, elHeight: number) {
   if (typeof window === 'undefined') return { right, bottom }
@@ -99,7 +101,7 @@ function clampFabInset(right: number, bottom: number, elWidth: number, elHeight:
   const vh = window.innerHeight
   const minR = FAB_EDGE_MARGIN
   const maxR = Math.max(minR, vw - FAB_EDGE_MARGIN - elWidth)
-  const minB = FAB_EDGE_MARGIN
+  const minB = vw < 768 ? MOBILE_BOTTOM_NAV_CLEARANCE_PX : FAB_EDGE_MARGIN
   const maxB = Math.max(minB, vh - FAB_EDGE_MARGIN - elHeight)
   return {
     right: Math.min(maxR, Math.max(minR, Math.round(right))),
@@ -348,7 +350,7 @@ export function VoiceControlPopup() {
         Number.isFinite(j.right) &&
         Number.isFinite(j.bottom)
       ) {
-        setFabInset({ right: j.right, bottom: j.bottom })
+        setFabInset(clampFabInset(j.right, j.bottom, 66, 66))
       }
     } catch {
       /* ignore */
@@ -413,7 +415,6 @@ export function VoiceControlPopup() {
     startVoiceCall,
     endVoiceCall,
     forceEndVoiceCall,
-    voiceVizRef,
     voiceSurfaceState,
     voiceWorkLabel,
     canManualHangup,
@@ -477,8 +478,8 @@ export function VoiceControlPopup() {
               type="button"
               className={cn(crownClassName, 'select-none')}
               style={{ WebkitTouchCallout: 'none' }}
-              aria-label="Open Divine launcher — tap for menu; hold crown two seconds, then drag to move"
-              title="Tap to open. Hold the crown 2 seconds (ring appears), then drag to move."
+              aria-label="Open Divine launcher — tap for menu; hold crown, then drag to move"
+              title="Tap to open. Hold the crown briefly until the ring appears, then drag to move."
               onClick={guardFabClick}
             >
               <SidebarDivineManagerCrown
@@ -739,8 +740,8 @@ export function VoiceControlPopup() {
             aria-label={divineVoicePremium ? 'Start Divine voice call' : 'Divine voice — Premium'}
             title={
               divineVoicePremium
-                ? 'Start Divine voice call — hold 2s on the stack, then drag to move'
-                : 'Divine voice — Premium required — hold 2s on the stack, then drag to move'
+                ? 'Start Divine voice call — hold the stack briefly, then drag to move'
+                : 'Divine voice — Premium required — hold the stack briefly, then drag to move'
             }
           >
             <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
@@ -772,7 +773,7 @@ export function VoiceControlPopup() {
         aria-label={expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control'}
         title={
           (expanded ? 'Collapse Divine voice control' : hasStartedCall ? collapsedCallLabel : 'Expand Divine voice control') +
-          ' — hold 2s on the stack, then drag to move when collapsed'
+          ' — hold the stack briefly, then drag to move when collapsed'
         }
       >
         <Crown className="pointer-events-none block h-6 w-6 shrink-0" aria-hidden />
@@ -796,7 +797,7 @@ export function VoiceControlPopup() {
           fabInset == null &&
             (messagesRouteDefault
               ? 'bottom-[max(8.5rem,calc(env(safe-area-inset-bottom)+7.25rem))] right-3 sm:right-5'
-              : 'bottom-6 right-6'),
+              : 'bottom-[max(7.75rem,calc(env(safe-area-inset-bottom)+6.75rem))] right-3 md:bottom-6 md:right-6'),
         )}
         style={
           fabInset
@@ -805,7 +806,7 @@ export function VoiceControlPopup() {
         }
       >
         {!protocolRailCollapsed ? (
-          <div className="flex max-h-[min(78dvh,calc(100dvh-5.5rem))] min-h-0 min-w-0 w-full max-w-[min(92vw,400px)] shrink-0 touch-pan-y flex-col">
+          <div className="flex max-h-[min(58dvh,calc(100dvh-13rem))] min-h-0 min-w-0 w-full max-w-[min(92vw,400px)] shrink-0 touch-pan-y flex-col sm:max-h-[min(78dvh,calc(100dvh-5.5rem))]">
             <DivineProtocolTaskRail
               acknowledgeNewGlow={acknowledgeNewGlow}
               layersAccentTone={layersAccentTone}
@@ -817,7 +818,7 @@ export function VoiceControlPopup() {
           <button
             type="button"
             className={cn(
-              'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-card/93 shadow-sm backdrop-blur-md transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 dark:border-white/[0.09]',
+              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-card/93 shadow-sm backdrop-blur-md transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 dark:border-white/[0.09] sm:h-10 sm:w-10',
               protocolLayersToneClassName,
             )}
             onClick={expandProtocolRail}
@@ -902,12 +903,6 @@ export function VoiceControlPopup() {
                   wordmarkClassName={!isActive ? 'ai-tools-wordmark text-[11px]' : undefined}
                 />
               </div>
-              <canvas
-                ref={voiceVizRef}
-                width={94}
-                height={33}
-                className="hidden shrink-0 self-center rounded-lg border border-black/[0.06] bg-white/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.06] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:block"
-              />
               {!isActive ? (
                 divineVoicePremium ? (
                   <Button
@@ -999,6 +994,7 @@ export function VoiceControlPopup() {
                 ) : null}
               </div>
             ) : null}
+            {isActive ? <DivineVoiceLiveConsole compact className="mt-4" /> : null}
           </div>
           {renderCrownButton()}
         </div>

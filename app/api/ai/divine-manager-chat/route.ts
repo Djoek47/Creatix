@@ -548,7 +548,7 @@ const CHAT_TOOLS: Array<{
     function: {
       name: 'ui_navigate',
       description:
-        'Open a main dashboard screen inside the app (Divine full). For Messages, use /dashboard/messages for the inbox only; to open a specific fan chat use ui_focus_fan. For connection setup use /dashboard/settings?tab=integrations.',
+        'Open a main dashboard screen inside the app (Divine full). When explaining a page, include label and optional elementId so the client can guide/highlight a safe known section. For Messages, use /dashboard/messages for the inbox only; to open a specific fan chat use ui_focus_fan. For connection setup use /dashboard/settings?tab=integrations.',
       parameters: {
         type: 'object',
         properties: {
@@ -559,6 +559,7 @@ const CHAT_TOOLS: Array<{
               '/dashboard/messages',
               '/dashboard/content',
               '/dashboard/protection',
+              '/dashboard/well-being',
               '/dashboard/mentions',
               '/dashboard/commenter',
               '/dashboard/fans',
@@ -571,6 +572,14 @@ const CHAT_TOOLS: Array<{
               '/dashboard/guide',
             ],
             description: 'App route under /dashboard',
+          },
+          elementId: {
+            type: 'string',
+            description: 'Optional known DOM id to scroll/highlight after navigation. Do not invent arbitrary selectors.',
+          },
+          label: {
+            type: 'string',
+            description: 'Optional short human label for the highlighted area.',
           },
         },
         required: ['path'],

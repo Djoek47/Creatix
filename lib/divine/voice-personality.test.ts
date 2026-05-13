@@ -12,6 +12,7 @@ const fallback = resolveVoicePersonality({
 
 assert.strictEqual(fallback.talkativeness, 80)
 assert.strictEqual(fallback.preset_id, 'balanced_partner')
+assert.strictEqual(fallback.initiative, 'manager_led')
 assert.strictEqual(fallback.reasoning_effort, 'low')
 assert.strictEqual(fallback.navigation_autonomy, 'suggest')
 

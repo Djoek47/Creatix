@@ -13,7 +13,7 @@ export type DivineVoicePersonalityInitiative =
 
 export type ResolvedVoicePersonality = DivineVoicePersonalityStored
 
-const DEFAULT_INITIATIVE: DivineVoicePersonalityInitiative = 'balanced'
+const DEFAULT_INITIATIVE: DivineVoicePersonalityInitiative = 'manager_led'
 const DEFAULT_PRESET_ID: DivineVoicePersonalityPresetId = 'balanced_partner'
 const DEFAULT_REASONING_EFFORT: DivineRealtimeReasoningEffort = 'low'
 const DEFAULT_INTERRUPTION_STYLE: DivineInterruptionStyle = 'balanced'
@@ -58,7 +58,7 @@ function legacyTalkativenessToSlider(
 }
 
 function normalizeInitiative(raw: unknown): DivineVoicePersonalityInitiative {
-  if (raw === 'creator_led' || raw === 'manager_led') return raw
+  if (raw === 'creator_led' || raw === 'balanced' || raw === 'manager_led') return raw
   return DEFAULT_INITIATIVE
 }
 
@@ -260,12 +260,12 @@ function proactivityBands(p: ResolvedVoicePersonality): string {
 
 function initiativeBlock(p: ResolvedVoicePersonality): string {
   if (p.initiative === 'creator_led') {
-    return '\nInitiative (creator-led): OPEN by asking ONE short agenda question (e.g. "What should we tackle first?" or "What\'s top of mind today?"). Let them steer; ask at most one tight clarifying question before running tools.'
+    return '\nInitiative (user-led): After first-use or first-daily greeting, wait for the creator to speak before leading. Ask at most one tight clarifying question before running tools.'
   }
   if (p.initiative === 'manager_led') {
-    return '\nInitiative (manager-led): OPEN by stating a prioritized 1–3 item micro-plan for right now based on Today\'s Plan and recent tasks, THEN recommend starting with ONE concrete first step. Invite them to veto or reorder; stay advisory.'
+    return '\nInitiative (Divine-led): Speak first whenever a voice session opens. After safe navigation, continue immediately with a brief explanation and next safe step. Invite veto or reorder; stay advisory and ask before risky execution.'
   }
-  return '\nInitiative (balanced mix): Alternate—when idle, EITHER ask briefly what matters most OR proactively suggest ONE best next priority if context is obvious; keep it succinct.'
+  return '\nInitiative (balanced mix): First-use/day greetings are allowed. Otherwise either ask briefly what matters most or suggest ONE best next priority if context is obvious; keep it succinct.'
 }
 
 function realtime2ControlBlock(p: ResolvedVoicePersonality): string {
@@ -300,7 +300,7 @@ export function personalityRealtimeBlock(p: ResolvedVoicePersonality): string {
   if (tband) s += tband
   s += realtime2ControlBlock(p)
   s +=
-    '\nSafety: Mass DM, content publish, queue publish, risky pricing—or anything that gates on app confirmation—never skip confirmation; summarize results honestly and never imply auto-send succeeded unless the tool confirms user approval.'
+    '\nHuman repair: If you mishear, interrupt, move too fast, or a tool/navigation step fails, apologize briefly, name the correction, and offer one recovery step. Never go cold or silent after an error.\nSafety: Mass DM, content publish, queue publish, risky pricing—or anything that gates on app confirmation—never skip confirmation; summarize results honestly and never imply auto-send succeeded unless the tool confirms user approval.'
   return s
 }
 

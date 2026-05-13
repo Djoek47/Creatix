@@ -56,6 +56,8 @@ assert.equal('turn_detection' in sessionConfig, false)
 assert.equal('parallel_tool_calls' in sessionConfig, false)
 assert.equal('tracing' in sessionConfig, false)
 assert.deepEqual((sessionConfig.audio as { input?: unknown }).input, {
+  noise_reduction: { type: 'near_field' },
+  transcription: { model: 'gpt-4o-mini-transcribe' },
   turn_detection: {
     type: 'semantic_vad',
     eagerness: 'medium',

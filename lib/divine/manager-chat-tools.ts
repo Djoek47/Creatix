@@ -1933,10 +1933,21 @@ export async function runToolCall(
         uiActions,
       }
     }
-    uiActions.push({ type: 'navigate', path })
+    const elementId = typeof args.elementId === 'string' ? args.elementId.trim() : ''
+    const label = typeof args.label === 'string' ? args.label.trim() : ''
+    if (elementId || label) {
+      uiActions.push({
+        type: 'guide_focus',
+        path,
+        elementId: elementId || undefined,
+        label: label || undefined,
+      })
+    } else {
+      uiActions.push({ type: 'navigate', path })
+    }
     return {
       tool_call_id: tc.id,
-      content: `Opening ${path} in the app.`,
+      content: elementId || label ? `Opening ${path} and highlighting the guided area.` : `Opening ${path} in the app.`,
       pendingConfirmations: emptyPending,
       uiActions,
     }

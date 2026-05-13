@@ -152,6 +152,8 @@ export function buildDivineRealtimeSessionConfig({
     instructions: buildDivineRealtimeAgentInstructions(instructions, personality),
     audio: {
       input: {
+        noise_reduction: { type: 'near_field' },
+        transcription: { model: 'gpt-4o-mini-transcribe' },
         turn_detection: realtimeTurnDetectionForPersonality(personality),
       },
       output: { voice },

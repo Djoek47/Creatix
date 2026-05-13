@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Crown, Home, MessageSquare, Sparkles, Shield, type LucideIcon } from 'lucide-react'
@@ -29,8 +30,34 @@ function itemActive(pathname: string, href: string, exact?: boolean): boolean {
 export function DashboardMobileBottomNav() {
   const pathname = usePathname() ?? ''
   const tNav = useTranslations('navigation')
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const hasOpenMobileSheet = () =>
+      window.innerWidth < 768 &&
+      Boolean(document.querySelector('[data-slot="sheet-content"][data-state="open"]'))
+
+    const update = () => setMobileSheetOpen(hasOpenMobileSheet())
+    update()
+
+    const observer = new MutationObserver(update)
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-state'],
+    })
+    window.addEventListener('resize', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
 
   if (
+    mobileSheetOpen ||
     pathname.startsWith('/dashboard/messages') ||
     pathname.startsWith('/dashboard/ai-studio/tools/') ||
     pathname.startsWith('/dashboard/content/new')

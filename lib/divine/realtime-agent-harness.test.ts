@@ -63,6 +63,6 @@ assert.deepEqual((sessionConfig.audio as { input?: unknown }).input, {
     interrupt_response: true,
   },
 })
-assert.deepEqual(sessionConfig.reasoning, { effort: 'medium' })
+assert.deepEqual(sessionConfig.reasoning, { effort: 'low' })
 
 console.log('divine realtime agent harness: ok')

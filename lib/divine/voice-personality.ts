@@ -15,7 +15,7 @@ export type ResolvedVoicePersonality = DivineVoicePersonalityStored
 
 const DEFAULT_INITIATIVE: DivineVoicePersonalityInitiative = 'balanced'
 const DEFAULT_PRESET_ID: DivineVoicePersonalityPresetId = 'balanced_partner'
-const DEFAULT_REASONING_EFFORT: DivineRealtimeReasoningEffort = 'medium'
+const DEFAULT_REASONING_EFFORT: DivineRealtimeReasoningEffort = 'low'
 const DEFAULT_INTERRUPTION_STYLE: DivineInterruptionStyle = 'balanced'
 const DEFAULT_NAVIGATION_AUTONOMY: DivineNavigationAutonomy = 'suggest'
 const DEFAULT_TOOL_NARRATION: DivineToolNarration = 'brief'

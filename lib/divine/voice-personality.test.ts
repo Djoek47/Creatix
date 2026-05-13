@@ -12,7 +12,7 @@ const fallback = resolveVoicePersonality({
 
 assert.strictEqual(fallback.talkativeness, 80)
 assert.strictEqual(fallback.preset_id, 'balanced_partner')
-assert.strictEqual(fallback.reasoning_effort, 'medium')
+assert.strictEqual(fallback.reasoning_effort, 'low')
 assert.strictEqual(fallback.navigation_autonomy, 'suggest')
 
 const proactive = applyVoicePersonalityPreset(defaultVoicePersonality(), 'proactive_manager')

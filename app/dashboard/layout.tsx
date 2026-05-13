@@ -23,6 +23,7 @@ import { DashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-e
 import { ProtectionOnlyRedirect } from '@/components/dashboard/protection-only-redirect'
 import { WorkspaceCapabilitiesProvider } from '@/components/dashboard/workspace-capabilities-context'
 import { DashboardPulseProvider } from '@/components/dashboard/dashboard-pulse-provider'
+import { DashboardMobileBottomNav } from '@/components/dashboard/dashboard-mobile-bottom-nav'
 import { WellbeingActivityReporter } from '@/components/wellbeing/wellbeing-activity-reporter'
 import { WellbeingBreakNudgeScheduler } from '@/components/wellbeing/wellbeing-break-nudge-scheduler'
 import { resolveWorkspaceCapabilities, type SubscriptionCapsRow } from '@/lib/plan-capabilities'
@@ -159,6 +160,7 @@ export default async function DashboardLayout({
                         <DashboardMessagesChrome user={serializableUser} profile={serializableProfile}>
                           <DashboardMainShell>{children}</DashboardMainShell>
                         </DashboardMessagesChrome>
+                        <DashboardMobileBottomNav />
                       </MessagesFocusChromeProvider>
                     </AnalyticsCurrencyProvider>
                   </div>

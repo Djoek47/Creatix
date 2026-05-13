@@ -19,7 +19,7 @@ export function DivineCommandCenter({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/50 to-circe/[0.07] p-8 shadow-2xl backdrop-blur-md sm:p-12',
+        'relative min-w-0 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-card/90 via-card/50 to-circe/[0.07] p-4 shadow-2xl backdrop-blur-md sm:rounded-3xl sm:p-8 lg:p-12',
         'marketing-glow-ring',
         className,
       )}
@@ -31,17 +31,17 @@ export function DivineCommandCenter({ className }: { className?: string }) {
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-circe/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
 
-      <div className="relative grid gap-10 lg:grid-cols-2 lg:items-center">
+      <div className="relative grid min-w-0 gap-8 lg:grid-cols-2 lg:items-center lg:gap-10">
         <div>
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="relative mx-auto flex aspect-square max-w-[280px] items-center justify-center lg:mx-0"
+            className="relative mx-auto flex aspect-square w-full max-w-[240px] items-center justify-center sm:max-w-[280px] lg:mx-0"
           >
             <div className="marketing-hero-halo absolute inset-4 rounded-full bg-gradient-to-br from-primary/40 via-circe/30 to-fuchsia-500/25 blur-2xl" />
-            <div className="relative flex h-44 w-44 items-center justify-center rounded-full border-2 border-primary/40 bg-gradient-to-br from-background/80 to-card/90 shadow-xl sm:h-52 sm:w-52">
+            <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-2 border-primary/40 bg-gradient-to-br from-background/80 to-card/90 shadow-xl sm:h-52 sm:w-52">
               <div className="absolute inset-0 rounded-full border border-circe/30" />
               <Mic className="relative z-10 h-16 w-16 text-primary sm:h-20 sm:w-20" strokeWidth={1.25} />
               <motion.div
@@ -76,21 +76,21 @@ export function DivineCommandCenter({ className }: { className?: string }) {
         </div>
 
         <div className="space-y-6">
-          <div>
+          <div className="min-w-0">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-circe-light">
               {t('divineCommandCenter.eyebrow')}
             </p>
-            <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="text-balance font-serif text-2xl font-semibold tracking-tight sm:text-4xl">
               {t('divineCommandCenter.headlineBefore')}{' '}
               <span className="text-primary">{t('divineCommandCenter.headlineAccent')}</span>
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <p className="mt-4 text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-lg">
               {t.rich('divineCommandCenter.body', {
                 bold: (chunks) => <span className="text-foreground/90">{chunks}</span>,
               })}
             </p>
           </div>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
             {INTENT_ICONS.map((Icon, index) => {
               const label = t(`divineCommandCenter.pillars.${index}`)
               const hue = INTENT_HUES[index] ?? INTENT_HUES[0]

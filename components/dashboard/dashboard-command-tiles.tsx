@@ -94,7 +94,7 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
     <div className="space-y-4">
       <motion.div
         className={cn(
-          'grid gap-3.5 sm:grid-cols-2 sm:gap-4',
+          'grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4',
           tilesActive.length <= 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-5',
           tierSheen,
         )}
@@ -112,7 +112,7 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
             <Link
               href={tile.href}
               className={cn(
-                'group relative block overflow-hidden rounded-[1.25rem] border border-white/[0.32] bg-white/[0.16] p-5 shadow-[0_10px_36px_-22px_rgba(15,23,42,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.06] transition-[box-shadow,border-color] duration-300 md:p-6',
+                'group relative block min-h-[6.25rem] overflow-hidden rounded-[1rem] border border-white/[0.32] bg-white/[0.16] p-4 shadow-[0_10px_36px_-22px_rgba(15,23,42,0.14)] backdrop-blur-[10px] backdrop-saturate-[1.06] transition-[box-shadow,border-color] duration-300 sm:rounded-[1.25rem] md:p-6',
                 'dark:border-white/[0.11] dark:bg-slate-950/[0.18] dark:shadow-[0_14px_44px_-26px_rgba(0,0,0,0.38)]',
                 'hover:border-white/55 hover:shadow-[0_20px_50px_-22px_rgba(15,23,42,0.28)] dark:hover:border-white/[0.14]',
                 'bg-gradient-to-br',
@@ -122,7 +122,7 @@ export function DashboardCommandTiles({ accent, tierIndex, nonApiProtectionTier 
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-violet-500/[0.04] via-transparent to-amber-500/[0.05] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-amber-400/[0.08] to-fuchsia-500/[0.07] blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-              <div className="relative flex items-start gap-4">
+              <div className="relative flex min-w-0 items-start gap-3 sm:gap-4">
                 <div
                   className={cn(
                     'rounded-2xl border border-white/40 bg-background/35 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28)] backdrop-blur-[8px] transition-[transform,box-shadow] duration-300 dark:border-white/[0.12] dark:bg-white/[0.04]',

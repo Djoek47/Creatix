@@ -187,15 +187,87 @@
 }
 
 @layer base {
+  html {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
   * {
     @apply border-border outline-ring/50;
+    min-width: 0;
   }
+
   body {
     @apply bg-background text-foreground;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  pre,
+  code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: inherit;
+    }
+  }
+
   /* Titles use Cinzel */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
+    overflow-wrap: anywhere;
+  }
+
+  p,
+  li,
+  dd,
+  blockquote {
+    overflow-wrap: anywhere;
+  }
+}
+
+@layer utilities {
+  .mobile-safe-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .mobile-scroll-x {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-bottom-nav-pad {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
   }
 }
 

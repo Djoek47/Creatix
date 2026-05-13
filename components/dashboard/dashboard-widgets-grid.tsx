@@ -220,7 +220,7 @@ function DashboardModule({ className, children, heading }: { className?: string;
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[1.35rem] border border-white/[0.32] bg-white/[0.16] shadow-[0_12px_44px_-26px_rgba(15,23,42,0.14)] backdrop-blur-[12px] backdrop-saturate-[1.08] transition-[box-shadow] duration-300',
+        'relative min-w-0 overflow-hidden rounded-[1rem] border border-white/[0.32] bg-white/[0.16] shadow-[0_12px_44px_-26px_rgba(15,23,42,0.14)] backdrop-blur-[12px] backdrop-saturate-[1.08] transition-[box-shadow] duration-300 sm:rounded-[1.35rem]',
         'dark:border-white/[0.11] dark:bg-slate-950/[0.18] dark:shadow-[0_16px_50px_-28px_rgba(0,0,0,0.4)]',
         className,
       )}
@@ -235,11 +235,11 @@ function DashboardModule({ className, children, heading }: { className?: string;
       />
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent dark:via-white/[0.10]" aria-hidden />
       {heading ? (
-        <div className="relative border-b border-border/25 px-4 py-3 md:px-5 dark:border-white/[0.06]">
+        <div className="relative border-b border-border/25 px-3 py-2.5 sm:px-4 sm:py-3 md:px-5 dark:border-white/[0.06]">
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/85">{heading}</p>
         </div>
       ) : null}
-      <div className="relative p-4 md:p-5">{children}</div>
+      <div className="relative min-w-0 p-3 sm:p-4 md:p-5">{children}</div>
     </div>
   )
 }
@@ -900,7 +900,7 @@ export function DashboardWidgetsGrid({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mobile-safe-shell space-y-5 sm:space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         {customize ? (
           <p className="max-w-prose text-[13px] leading-relaxed text-muted-foreground/90">
@@ -911,7 +911,7 @@ export function DashboardWidgetsGrid({
             })}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
           <Button
             type="button"
             size="sm"
@@ -939,7 +939,7 @@ export function DashboardWidgetsGrid({
                 {t('blocksButton')}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
+            <PopoverContent className="w-[min(calc(100vw-1.5rem),20rem)] p-0" align="end">
               <div className="border-b border-border/60 px-3 py-2.5">
                 <p className="text-sm font-medium">{t('visibleBlocksTitle')}</p>
                 <p className="text-xs text-muted-foreground">{t('visibleBlocksSubtitle')}</p>
@@ -1003,7 +1003,7 @@ export function DashboardWidgetsGrid({
         </div>
       </div>
 
-      <div className="relative rounded-[1.35rem] border border-white/[0.26] bg-gradient-to-b from-white/[0.14] via-white/[0.04] to-transparent p-1.5 shadow-inner backdrop-blur-[10px] dark:border-white/[0.09] dark:from-white/[0.04] dark:via-transparent md:p-2.5">
+      <div className="relative min-w-0 rounded-[1rem] border border-white/[0.26] bg-gradient-to-b from-white/[0.14] via-white/[0.04] to-transparent p-1 shadow-inner backdrop-blur-[10px] dark:border-white/[0.09] dark:from-white/[0.04] dark:via-transparent sm:rounded-[1.35rem] md:p-2.5">
         {customize ? (
           <Reorder.Group
             axis="y"

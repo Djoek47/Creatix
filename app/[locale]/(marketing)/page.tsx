@@ -78,15 +78,15 @@ export default async function LandingPage({ params }: PageProps) {
 
   return (
     <main className="marketing-main-offset relative z-10">
-      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-24 sm:pt-16 lg:pt-20">
+      <section className="relative overflow-hidden px-3 pb-14 pt-8 sm:px-6 sm:pb-24 sm:pt-16 lg:pt-20">
         <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[min(100%,720px)] -translate-x-1/2 rounded-full bg-gradient-to-b from-primary/15 via-circe/10 to-transparent blur-3xl" />
         <div className="mx-auto max-w-5xl text-center">
           <MotionReveal>
-            <div className="mb-8 flex justify-center">
+            <div className="mb-6 flex justify-center sm:mb-8">
               <MarketingBrandLogo
                 width={200}
                 height={200}
-                className="h-36 w-36 sm:h-48 sm:w-48"
+                className="h-28 w-28 sm:h-48 sm:w-48"
                 variant="hero"
                 priority
               />
@@ -94,7 +94,7 @@ export default async function LandingPage({ params }: PageProps) {
           </MotionReveal>
 
           <MotionReveal delay={0.1}>
-            <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
+            <h1 className="text-balance font-serif text-[2rem] font-semibold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
               <span className="bg-gradient-to-r from-amber-200 via-primary to-circe-light/70 bg-clip-text text-transparent">
                 {t('home.hero.headlineEarnMore')}
               </span>{' '}
@@ -106,7 +106,7 @@ export default async function LandingPage({ params }: PageProps) {
           </MotionReveal>
 
           <MotionReveal delay={0.14}>
-            <p className="mx-auto mt-6 max-w-xl text-pretty text-lg text-muted-foreground sm:text-xl">
+            <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:mt-6 sm:text-xl">
               {t('home.hero.subhead')}
             </p>
           </MotionReveal>
@@ -129,7 +129,7 @@ export default async function LandingPage({ params }: PageProps) {
           </MotionReveal>
 
           <MotionReveal delay={0.18}>
-            <div className="mx-auto mt-10 flex max-w-2xl flex-wrap items-center justify-center gap-2.5 sm:mt-12">
+            <div className="mx-auto mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-2.5 sm:mt-12">
               {platforms.map((platform) => {
                 const w = platform.logoWidthPx
                 const h = platform.logoHeightPx
@@ -137,7 +137,7 @@ export default async function LandingPage({ params }: PageProps) {
                   <div
                     key={platform.id}
                     className={cn(
-                      'marketing-float group relative flex min-h-11 shrink-0 items-center gap-3 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3.5 backdrop-blur-sm sm:gap-3.5 sm:pl-2.5 sm:pr-4',
+                      'marketing-float group relative flex min-h-11 w-full max-w-[22rem] items-center justify-center gap-2 overflow-visible rounded-full border border-primary/25 bg-card/60 py-1.5 pl-2 pr-3 text-center backdrop-blur-sm sm:w-auto sm:max-w-none sm:justify-start sm:gap-3.5 sm:pl-2.5 sm:pr-4 sm:text-left',
                       platform.id === 'onlyfans' && 'marketing-hero-platform-pill-of',
                       platform.id === 'fansly' && 'marketing-hero-platform-pill-fl',
                     )}
@@ -149,10 +149,10 @@ export default async function LandingPage({ params }: PageProps) {
                       alt={t('home.hero.platformLogoAlt', { name: platform.name })}
                       width={w}
                       height={h}
-                      className="relative z-10 h-[3.25rem] w-auto shrink-0 object-contain object-left sm:h-14"
+                      className="relative z-10 h-10 w-auto max-w-[8.5rem] shrink-0 object-contain object-left sm:h-14 sm:max-w-none"
                       sizes="(max-width: 640px) 160px, 200px"
                     />
-                    <span className="relative text-xs font-medium text-foreground/90 sm:text-sm">
+                    <span className="relative min-w-0 text-xs font-medium leading-snug text-foreground/90 sm:text-sm">
                       {t('home.hero.platformCompatibleBefore')} <span className="text-primary">{platform.name}</span>
                     </span>
                   </div>
@@ -180,7 +180,7 @@ export default async function LandingPage({ params }: PageProps) {
 
       <HomeDiscoverLinks locale={locale} />
 
-      <section className="px-4 py-12 sm:px-6 sm:py-16">
+      <section className="px-3 py-10 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">
           <MotionReveal className="mb-8 text-center">
             <h2 className="font-serif text-3xl font-semibold sm:text-4xl">{t('home.speakSection.heading')}</h2>
@@ -201,9 +201,9 @@ export default async function LandingPage({ params }: PageProps) {
             </h2>
           </MotionReveal>
 
-          <MotionStagger className="mt-12 grid gap-8 lg:grid-cols-2" stagger={0.12}>
+          <MotionStagger className="mt-8 grid gap-5 sm:mt-12 sm:gap-8 lg:grid-cols-2" stagger={0.12}>
             <MotionStaggerItem>
-              <div className="group relative h-full overflow-hidden rounded-3xl border border-circe/45 bg-gradient-to-br from-circe/[0.14] via-card/80 to-circe/[0.06] p-8 shadow-xl shadow-circe/10 ring-1 ring-inset ring-circe/15 transition-all duration-500 hover:border-circe/70 hover:shadow-[0_0_0_1px_oklch(0.55_0.2_295/0.35),0_0_48px_-12px_oklch(0.55_0.2_295/0.28)]">
+              <div className="group relative h-full overflow-hidden rounded-2xl border border-circe/45 bg-gradient-to-br from-circe/[0.14] via-card/80 to-circe/[0.06] p-5 shadow-xl shadow-circe/10 ring-1 ring-inset ring-circe/15 transition-all duration-500 hover:border-circe/70 hover:shadow-[0_0_0_1px_oklch(0.55_0.2_295/0.35),0_0_48px_-12px_oklch(0.55_0.2_295/0.28)] sm:rounded-3xl sm:p-8">
                 <div
                   className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-circe/25 blur-3xl transition-opacity duration-500 group-hover:bg-circe/35"
                   aria-hidden
@@ -240,7 +240,7 @@ export default async function LandingPage({ params }: PageProps) {
               </div>
             </MotionStaggerItem>
             <MotionStaggerItem>
-              <div className="group relative h-full overflow-hidden rounded-3xl border border-primary/45 bg-gradient-to-br from-primary/[0.12] via-card/80 to-fuchsia-500/[0.12] p-8 shadow-xl shadow-primary/15 ring-1 ring-inset ring-fuchsia-500/15 transition-all duration-500 hover:border-primary/70 hover:shadow-[0_0_0_1px_oklch(0.78_0.14_85/0.35),0_0_52px_-10px_oklch(0.78_0.14_85/0.22),0_0_40px_-14px_oklch(0.6_0.22_310/0.2)]">
+              <div className="group relative h-full overflow-hidden rounded-2xl border border-primary/45 bg-gradient-to-br from-primary/[0.12] via-card/80 to-fuchsia-500/[0.12] p-5 shadow-xl shadow-primary/15 ring-1 ring-inset ring-fuchsia-500/15 transition-all duration-500 hover:border-primary/70 hover:shadow-[0_0_0_1px_oklch(0.78_0.14_85/0.35),0_0_52px_-10px_oklch(0.78_0.14_85/0.22),0_0_40px_-14px_oklch(0.6_0.22_310/0.2)] sm:rounded-3xl sm:p-8">
                 <div
                   className="pointer-events-none absolute -bottom-20 -right-16 h-60 w-60 rounded-full bg-fuchsia-500/20 blur-3xl transition-opacity duration-500 group-hover:bg-fuchsia-500/28"
                   aria-hidden

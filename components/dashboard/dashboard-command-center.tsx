@@ -91,7 +91,7 @@ export function DashboardCommandCenter({
   return (
     <div
       className={cn(
-        'relative isolate overflow-hidden rounded-[1.75rem]',
+        'relative isolate overflow-hidden rounded-[1.1rem] sm:rounded-[1.75rem]',
         /* Thinner glass so the celestial canvas reads through; edge definition from border + inset highlight */
         'border border-white/[0.28] bg-white/[0.14] shadow-[0_8px_40px_-16px_rgba(15,23,42,0.1),inset_0_1px_0_0_rgba(255,255,255,0.55)]',
         'backdrop-blur-[12px] backdrop-saturate-[1.08]',
@@ -149,7 +149,7 @@ export function DashboardCommandCenter({
         className="pointer-events-none absolute inset-x-8 bottom-0 z-[2] h-px bg-gradient-to-r from-transparent via-black/[0.04] to-transparent dark:via-white/[0.05]"
         aria-hidden
       />
-      <div className="relative z-[1] space-y-10 sm:space-y-12 px-4 py-8 sm:px-6 sm:py-10 md:px-10 md:py-12">
+      <div className="relative z-[1] space-y-7 px-3 py-5 sm:space-y-10 sm:px-6 sm:py-10 md:space-y-12 md:px-10 md:py-12">
         {!runEntrance || reduced ? (
           <>
             {hero}

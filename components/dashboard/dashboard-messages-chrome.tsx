@@ -88,14 +88,14 @@ export function DashboardMessagesChrome({ user, profile, children }: Props) {
              `auto`, and bleed-out margins break `position: sticky` in Chrome/WebKit. */
           /* z-0: header strip is z-20 so avatar credit chip (extends below header) stays above scrolling content. */
           'relative z-0 min-h-0 flex-1 bg-transparent',
-          !isMessagesInbox && 'w-full min-w-0 overflow-y-auto py-4 sm:py-6',
+          !isMessagesInbox && 'mobile-safe-shell w-full overflow-y-auto py-3 mobile-bottom-nav-pad sm:py-6 md:pb-6',
           /* Inbox (normal or focus): column flex + min-h-0 so chat composer + Divine strip stay in view */
           isMessagesInbox &&
             'flex min-h-0 flex-col overflow-hidden p-0 pb-[env(safe-area-inset-bottom,0px)]',
         )}
       >
         {!isMessagesInbox ? (
-          <div className="min-w-0 w-full max-w-full px-[max(1rem,env(safe-area-inset-left))] pe-[max(1rem,env(safe-area-inset-right))] sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]">
+          <div className="mobile-safe-shell px-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pe-[max(1.5rem,env(safe-area-inset-right))]">
             {children}
           </div>
         ) : (

@@ -6,10 +6,10 @@ import { RevenueBandMismatchBanner } from '@/components/dashboard/revenue-band-m
 
 export function DashboardMainShell({ children }: { children: ReactNode }) {
   return (
-    <>
+    <main id="dashboard-main-shell" data-divine-page-context>
       <RevenueBandMismatchBanner />
       <DashboardRouteHero />
       {children}
-    </>
+    </main>
   )
 }

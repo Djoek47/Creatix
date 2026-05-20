@@ -42,6 +42,8 @@ const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
 const VOICE_INPUT_DEVICE_LS_KEY = 'divine_voice_input_device_v1'
 const VOICE_OUTPUT_DEVICE_LS_KEY = 'divine_voice_output_device_v1'
 const POST_TOOL_CONTINUATION_MS = 2400
+const PAGE_READY_TIMEOUT_MS = 4500
+const GENERAL_THINKING_TIMEOUT_MS = 14_000
 
 function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
   try {
@@ -112,6 +114,29 @@ type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
 /** Listening = awaiting creator; thinking = model/tool work; speaking = assistant audio; needs_attention = failure/confirmation. */
 export type VoiceSurfaceState = 'listening' | 'thinking' | 'speaking' | 'needs_attention'
+
+type DivinePageContext = {
+  surface?: string
+  path?: string
+  title?: string
+  visibleSummary?: string
+  reason?: string
+  capturedAt?: string
+}
+
+type VoiceOperationKind = 'navigation' | 'tool_result' | 'page_context' | 'briefing' | 'refresh' | 'guided_action'
+type VoiceOperationStatus = 'spoken_success' | 'spoken_error' | 'needs_confirmation' | 'retrying' | 'cancelled'
+
+type PendingVoiceOperation = {
+  id: number
+  kind: VoiceOperationKind
+  label: string
+  startedAt: number
+  timeoutMs: number
+  retryCount: number
+  path?: string
+  recoveryPrompt?: string
+}
 
 export type DivineVoiceTranscriptTurn = {
   id: string
@@ -248,6 +273,7 @@ export function VoiceSessionProvider({
   const toolPathRef = useRef('/api/divine/voice-tool')
   const getToolBodyExtrasRef = useRef<() => Record<string, unknown>>(() => ({}))
   const realtimeBodyExtrasRef = useRef<Record<string, unknown>>({})
+  const pageContextRef = useRef<DivinePageContext | null>(null)
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -266,6 +292,14 @@ export function VoiceSessionProvider({
   const assistantResponsePendingRef = useRef(false)
   const assistantContinuationForcedRef = useRef(false)
   const postToolContinuationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingVoiceOperationRef = useRef<PendingVoiceOperation | null>(null)
+  const pendingVoiceOperationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const voiceOperationSeqRef = useRef(0)
+  const resolveVoiceOperationRef = useRef<(status: VoiceOperationStatus, prompt?: string) => void>(() => {})
+  const beginVoiceOperationRef = useRef<
+    (operation: Omit<PendingVoiceOperation, 'id' | 'startedAt' | 'retryCount'> & { retryCount?: number }) => number
+  >(() => 0)
+  const failVoiceOperationRef = useRef<(id: number) => void>(() => {})
   const idleMsRef = useRef<number | null>(null)
   /** Silence ladder timing from Divine Manager patience slider (default = legacy 47s/60s). */
   const silenceTimingRef = useRef<VoiceSilenceTimingConfig>(buildVoiceSilenceConfig(50))
@@ -397,6 +431,67 @@ export function VoiceSessionProvider({
     voiceSurfaceStateRef.current = voiceSurfaceState
   }, [voiceSurfaceState])
 
+  const sendPageContextToRealtime = useCallback((context: DivinePageContext) => {
+    const dc = oaiDataChannelRef.current
+    if (!dc || dc.readyState !== 'open' || statusRef.current !== 'connected') return
+    const text = [
+      '[App context update]',
+      `Current page: ${context.title || 'Dashboard'} (${context.path || '/dashboard'})`,
+      context.reason ? `Reason: ${context.reason}` : null,
+      context.visibleSummary ? `Visible page summary: ${context.visibleSummary}` : null,
+      'Use this as passive screen context for the next answer. Do not reply to this update by itself.',
+    ]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 2400)
+    dc.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text }],
+        },
+      }),
+    )
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onPageContext = (event: Event) => {
+      const detail = (event as CustomEvent<DivinePageContext>).detail
+      if (!detail || typeof detail !== 'object') return
+      const next: DivinePageContext = {
+        surface: typeof detail.surface === 'string' ? detail.surface.slice(0, 40) : 'dashboard',
+        path: typeof detail.path === 'string' ? detail.path.slice(0, 240) : undefined,
+        title: typeof detail.title === 'string' ? detail.title.slice(0, 140) : undefined,
+        visibleSummary:
+          typeof detail.visibleSummary === 'string' ? detail.visibleSummary.replace(/\s+/g, ' ').trim().slice(0, 1800) : undefined,
+        reason: typeof detail.reason === 'string' ? detail.reason.slice(0, 80) : undefined,
+        capturedAt: typeof detail.capturedAt === 'string' ? detail.capturedAt.slice(0, 40) : new Date().toISOString(),
+      }
+      pageContextRef.current = next
+      sendPageContextToRealtime(next)
+      const op = pendingVoiceOperationRef.current
+      if (op?.kind === 'navigation') {
+        const expected = op.path?.split('?')[0]
+        const actual = next.path?.split('?')[0]
+        const readyReason =
+          next.reason === 'route_settled' ||
+          next.reason === 'data_refresh_settled' ||
+          next.reason === 'requested_recheck'
+        if (readyReason && (!expected || expected === actual || next.reason === 'requested_recheck')) {
+          resolveVoiceOperationRef.current(
+            'spoken_success',
+            `${buildPostNavigationPrompt(op.path || next.path || '/dashboard')}\n\nPage-ready context: ${next.title || 'Dashboard'} at ${next.path || '/dashboard'}. Visible summary: ${next.visibleSummary || 'No visible summary captured.'}`,
+          )
+        }
+      }
+    }
+    window.addEventListener('creatix:divine-page-context', onPageContext)
+    return () => window.removeEventListener('creatix:divine-page-context', onPageContext)
+  }, [sendPageContextToRealtime])
+
   const clearPostToolContinuation = useCallback(() => {
     assistantResponsePendingRef.current = false
     assistantContinuationForcedRef.current = false
@@ -480,6 +575,11 @@ export function VoiceSessionProvider({
         cancelAnimationFrame(endCallRafRef.current)
         endCallRafRef.current = null
       }
+      if (pendingVoiceOperationTimerRef.current) {
+        clearTimeout(pendingVoiceOperationTimerRef.current)
+        pendingVoiceOperationTimerRef.current = null
+      }
+      pendingVoiceOperationRef.current = null
       clearPostToolContinuation()
       setClosingPending(false)
       toolInFlightRef.current = false
@@ -538,7 +638,12 @@ export function VoiceSessionProvider({
     const ms = idleMsRef.current
     if (ms == null || ms <= 0) return
     cancelIdleTimer()
-    if (toolInFlightRef.current || assistantSpeakingRef.current || assistantResponsePendingRef.current) return
+    if (
+      toolInFlightRef.current ||
+      assistantSpeakingRef.current ||
+      assistantResponsePendingRef.current ||
+      pendingVoiceOperationRef.current
+    ) return
     idleTimeoutRef.current = setTimeout(() => {
       idleTimeoutRef.current = null
       endVoiceCall('idle_timeout')
@@ -580,6 +685,13 @@ export function VoiceSessionProvider({
       }),
     )
     assistantResponsePendingRef.current = true
+    beginVoiceOperationRef.current({
+      kind: 'briefing',
+      label: 'Preparing a response...',
+      timeoutMs: GENERAL_THINKING_TIMEOUT_MS,
+      recoveryPrompt:
+        '[Thinking recovery] You started preparing a spoken response, but no audio began. Apologize briefly, answer from the latest context if possible, and ask what the creator wants next. Do not wait for more microphone input.',
+    })
     scheduleIdleDisconnectRef.current()
 
     const ms = opts?.allowHangupAfterMs
@@ -592,7 +704,119 @@ export function VoiceSessionProvider({
     sendBriefingQuestionRef.current = sendBriefingQuestion
   }, [sendBriefingQuestion])
 
+  const clearVoiceOperation = useCallback((status: VoiceOperationStatus = 'cancelled') => {
+    if (pendingVoiceOperationTimerRef.current) {
+      clearTimeout(pendingVoiceOperationTimerRef.current)
+      pendingVoiceOperationTimerRef.current = null
+    }
+    if (status !== 'retrying') {
+      pendingVoiceOperationRef.current = null
+    }
+  }, [])
+
+  const forceVoiceRecovery = useCallback((prompt: string, label = 'Finishing the answer...') => {
+    const dc = oaiDataChannelRef.current
+    if (!dc || dc.readyState !== 'open' || statusRef.current !== 'connected') return
+    assistantResponsePendingRef.current = true
+    assistantContinuationForcedRef.current = true
+    cancelIdleTimerRef.current()
+    setVoiceWorkLabel(label)
+    dc.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: prompt }],
+        },
+      }),
+    )
+    triggerRealtimeAssistantResponse(dc)
+    if (postToolContinuationTimerRef.current) clearTimeout(postToolContinuationTimerRef.current)
+    postToolContinuationTimerRef.current = setTimeout(() => {
+      postToolContinuationTimerRef.current = null
+      if (!assistantResponsePendingRef.current || !assistantContinuationForcedRef.current || assistantSpeakingRef.current) return
+      assistantResponsePendingRef.current = false
+      assistantContinuationForcedRef.current = false
+      setVoiceWorkLabel('Needs attention')
+      setVoiceSurfaceState('needs_attention')
+      scheduleIdleDisconnectRef.current()
+    }, 10_000)
+  }, [])
+
+  const failVoiceOperation = useCallback((id: number) => {
+    const op = pendingVoiceOperationRef.current
+    if (!op || op.id !== id) return
+
+    if (op.kind === 'navigation' && op.retryCount < 1) {
+      const retry: PendingVoiceOperation = { ...op, retryCount: op.retryCount + 1, startedAt: Date.now() }
+      pendingVoiceOperationRef.current = retry
+      setVoiceWorkLabel('Checking the page...')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatix:divine-request-page-context'))
+      }
+      pendingVoiceOperationTimerRef.current = setTimeout(() => failVoiceOperationRef.current(retry.id), retry.timeoutMs)
+      return
+    }
+
+    clearVoiceOperation('spoken_error')
+    const recovery =
+      op.recoveryPrompt ||
+      `[Thinking recovery] I was waiting on ${op.label || op.kind}, but the completion signal did not arrive. Apologize briefly, say what you know, offer to retry or recheck, and do not wait for more microphone input.`
+    forceVoiceRecovery(recovery, 'Recovering...')
+    setVoiceSurfaceState('needs_attention')
+  }, [clearVoiceOperation, forceVoiceRecovery])
+
+  const beginVoiceOperation = useCallback(
+    (operation: Omit<PendingVoiceOperation, 'id' | 'startedAt' | 'retryCount'> & { retryCount?: number }) => {
+      clearVoiceOperation('cancelled')
+      const id = ++voiceOperationSeqRef.current
+      const next: PendingVoiceOperation = {
+        id,
+        startedAt: Date.now(),
+        retryCount: operation.retryCount ?? 0,
+        ...operation,
+      }
+      pendingVoiceOperationRef.current = next
+      assistantResponsePendingRef.current = true
+      cancelIdleTimerRef.current()
+      setVoiceWorkLabel(next.label || 'Thinking...')
+      pendingVoiceOperationTimerRef.current = setTimeout(() => failVoiceOperationRef.current(id), next.timeoutMs)
+      return id
+    },
+    [clearVoiceOperation],
+  )
+
+  const resolveVoiceOperation = useCallback(
+    (status: VoiceOperationStatus, prompt?: string) => {
+      clearVoiceOperation(status)
+      if (status === 'needs_confirmation') {
+        setVoiceSurfaceState('needs_attention')
+      }
+      if (prompt) {
+        forceVoiceRecovery(prompt, status === 'needs_confirmation' ? 'Waiting for confirmation...' : 'Finishing the answer...')
+      }
+      if (!prompt && status !== 'needs_confirmation') {
+        setVoiceWorkLabel(null)
+      }
+    },
+    [clearVoiceOperation, forceVoiceRecovery],
+  )
+
+  useEffect(() => {
+    beginVoiceOperationRef.current = beginVoiceOperation
+    resolveVoiceOperationRef.current = resolveVoiceOperation
+    failVoiceOperationRef.current = failVoiceOperation
+  }, [beginVoiceOperation, failVoiceOperation, resolveVoiceOperation])
+
   const armPostToolContinuation = useCallback((reason: 'paired' | 'fallback' | 'briefing' = 'paired') => {
+    beginVoiceOperationRef.current({
+      kind: reason === 'briefing' ? 'briefing' : 'tool_result',
+      label: reason === 'briefing' ? 'Preparing a response...' : 'Thinking...',
+      timeoutMs: GENERAL_THINKING_TIMEOUT_MS,
+      recoveryPrompt:
+        '[Thinking recovery] A tool or page action finished, but the spoken answer did not start. Apologize briefly, summarize the completed result or error, offer one retry/recheck option, and do not wait for more microphone input.',
+    })
     assistantResponsePendingRef.current = true
     assistantContinuationForcedRef.current = false
     cancelIdleTimerRef.current()
@@ -650,7 +874,7 @@ export function VoiceSessionProvider({
     silenceSecondTimerRef.current = null
     silenceFailsafeTimerRef.current = null
 
-    if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current) {
+    if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current || pendingVoiceOperationRef.current) {
       silenceWatchdogEpochRef.current = null
       return
     }
@@ -662,7 +886,7 @@ export function VoiceSessionProvider({
       silenceFirstTimerRef.current = null
       if (silenceGenRef.current !== gen) return
       if (statusRef.current !== 'connected') return
-      if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current) return
+      if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current || pendingVoiceOperationRef.current) return
       void (async () => {
         try {
           await sendBriefingQuestionRef.current(DIVINE_VOICE_SILENCE_PROMPT_FIRST)
@@ -895,6 +1119,7 @@ export function VoiceSessionProvider({
               payload.type === 'output_audio_buffer.started')
           ) {
             clearPostToolContinuation()
+            resolveVoiceOperationRef.current('spoken_success')
           }
 
           if (
@@ -1114,10 +1339,12 @@ export function VoiceSessionProvider({
             const ordered = orderRealtimeToolCalls(calls)
             let needAssistantResponse = false
             let fallbackResponseStarted = false
+            let navigationStarted = false
 
             const runOne = async (tc: { id?: string; call_id?: string; name?: string; arguments?: unknown }) => {
               if (!tc.name) return 'fallback' as const
               const summary = await runTool(tc.name, parseRealtimeToolArgs(tc.arguments))
+              if (tc.name === 'ui_navigate') navigationStarted = true
               return finalizeRealtimeToolOutput(extractRealtimeFunctionCallId(tc), summary, tc.name)
             }
 
@@ -1143,8 +1370,8 @@ export function VoiceSessionProvider({
             }
 
             setVoiceWorkLabel(null)
-            if (fallbackResponseStarted) armPostToolContinuation('fallback')
-            return needAssistantResponse
+            if (fallbackResponseStarted && !navigationStarted) armPostToolContinuation('fallback')
+            return navigationStarted ? false : needAssistantResponse
           }
           if (Array.isArray(toolCalls) && toolCalls.length > 0) {
             const needAssistantResponse = await runToolBatch(
@@ -1169,6 +1396,7 @@ export function VoiceSessionProvider({
               scheduleIdleDisconnectRef.current()
             } else if (fnItems.length === 0 && assistantResponsePendingRef.current) {
               clearPostToolContinuation()
+              resolveVoiceOperationRef.current('spoken_success')
               setVoiceWorkLabel(null)
               scheduleIdleDisconnectRef.current()
             }
@@ -1184,12 +1412,23 @@ export function VoiceSessionProvider({
       const res = await fetch(realtimePathRef.current, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sdp: offer.sdp ?? '',
-          focusedFan: focusedFanForVoice,
-          divine_session_id: getOrCreateDivineSessionId(),
-          ...realtimeBodyExtrasRef.current,
-        }),
+        body: JSON.stringify((() => {
+          const extras = realtimeBodyExtrasRef.current
+          const extraContext =
+            extras.context && typeof extras.context === 'object' && !Array.isArray(extras.context)
+              ? (extras.context as Record<string, unknown>)
+              : {}
+          return {
+            sdp: offer.sdp ?? '',
+            focusedFan: focusedFanForVoice,
+            divine_session_id: getOrCreateDivineSessionId(),
+            ...extras,
+            context: {
+              ...(pageContextRef.current ?? {}),
+              ...extraContext,
+            },
+          }
+        })()),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -1299,13 +1538,18 @@ export function VoiceSessionProvider({
 
     const onGuidedNavigation = (event: Event) => {
       if (statusRef.current !== 'connected') return
-      if (voicePersonalityRef.current?.initiative !== 'manager_led') return
       const detail = (event as CustomEvent<{ path?: string | null }>).detail
       const path = typeof detail?.path === 'string' ? detail.path : '/dashboard'
+      beginVoiceOperationRef.current({
+        kind: 'navigation',
+        label: 'Opening the page...',
+        path,
+        timeoutMs: PAGE_READY_TIMEOUT_MS,
+        recoveryPrompt:
+          `${buildPostNavigationPrompt(path)}\n\nI opened the page, but I did not receive the page-ready signal in time. Apologize briefly, explain what should be on this page, and offer to recheck. Do not wait for more microphone input.`,
+      })
       window.setTimeout(() => {
-        void sendBriefingQuestionRef.current(buildPostNavigationPrompt(path), { allowHangupAfterMs: 10_000 }).then(() => {
-          patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
-        })
+        window.dispatchEvent(new CustomEvent('creatix:divine-request-page-context'))
       }, 900)
     }
 
@@ -1366,13 +1610,15 @@ export function VoiceSessionProvider({
       if (!prev && remoteLoud) {
         cancelIdleTimerRef.current()
         clearPostToolContinuation()
+        resolveVoiceOperationRef.current('spoken_success')
       }
       if (prev && !remoteLoud) {
         scheduleIdleDisconnectRef.current()
         startSilenceWatchdogRef.current()
       }
       if (remoteLoud) setVoiceSurfaceState('speaking')
-      else if (toolInFlightRef.current || assistantResponsePendingRef.current) setVoiceSurfaceState('thinking')
+      else if (toolInFlightRef.current || assistantResponsePendingRef.current || pendingVoiceOperationRef.current) setVoiceSurfaceState('thinking')
+      else if (lastPendingConfirmationsRef.current.length > 0) setVoiceSurfaceState('needs_attention')
       else setVoiceSurfaceState('listening')
     }, 140)
     return () => clearInterval(id)

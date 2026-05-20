@@ -11,7 +11,7 @@ export interface SystemStatusResponse {
     region: string | null
   }
   services: Array<{
-    id: 'circe' | 'vercel-edge' | 'onlyfans-link' | 'ai-models'
+    id: 'circe' | 'vercel-edge' | 'onlyfans-link' | 'fansly-link' | 'ai-models'
     label: string
     tone: PlatformStatusTone
     detail?: string

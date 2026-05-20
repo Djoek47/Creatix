@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Bell, Loader2 } from 'lucide-react'
 import { stripHtml } from '@/lib/html-utils'
+import { createClient } from '@/lib/supabase/client'
 
 type OnlyFansNotification = {
   id: string
@@ -32,6 +33,31 @@ export function OnlyFansNotificationsCard() {
       setError(null)
       setPartialHint(null)
       try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) {
+          if (!cancelled) {
+            setCounts(null)
+            setNotifications([])
+          }
+          return
+        }
+        const { data: connection } = await supabase
+          .from('platform_connections')
+          .select('is_connected, access_token')
+          .eq('user_id', user.id)
+          .eq('platform', 'onlyfans')
+          .eq('is_connected', true)
+          .maybeSingle()
+        if (!connection?.is_connected || !connection?.access_token) {
+          if (!cancelled) {
+            setCounts(null)
+            setNotifications([])
+          }
+          return
+        }
         const res = await fetch('/api/onlyfans/notifications')
         const json = (await res.json()) as {
           error?: string

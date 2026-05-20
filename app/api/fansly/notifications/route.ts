@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const accountId = connection?.access_token ?? connection?.platform_user_id
     if (!connection || !accountId) {
-      return NextResponse.json({ error: 'Fansly is not connected', notifications: [] }, { status: 400 })
+      return NextResponse.json({ connected: false, notifications: [], source: 'fansly', derivedFrom: 'chats' })
     }
 
     const { searchParams } = new URL(request.url)

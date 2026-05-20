@@ -57,7 +57,11 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (!connection?.access_token) {
-      return NextResponse.json({ error: 'OnlyFans is not connected' }, { status: 400 })
+      return NextResponse.json({
+        connected: false,
+        counts: { total: 0, unread: 0 },
+        notifications: [],
+      })
     }
 
     const { searchParams } = new URL(request.url)
@@ -226,4 +230,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
-

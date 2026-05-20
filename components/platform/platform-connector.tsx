@@ -17,6 +17,7 @@ import {
 import {
   Loader2, Check, RefreshCw, AlertCircle, ExternalLink, X,
   Link2, ArrowRight, Mail, Lock, Shield, Unplug, Settings2,
+  Gem, Crown,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -203,6 +204,39 @@ type PlatformStatusDraft = {
   detail: string
 }
 
+function isPaidSubscriptionStatus(status: string | null | undefined): boolean {
+  return status === 'active' || status === 'trialing' || status === 'past_due'
+}
+
+function CompactPlanTierBadge({
+  revenueBandLabel,
+  billingVariant,
+  status,
+}: {
+  revenueBandLabel?: string | null
+  billingVariant?: string | null
+  status?: string | null
+}) {
+  if (!isPaidSubscriptionStatus(status) || !revenueBandLabel) return null
+
+  const variantLabel = billingVariant === 'unified' ? 'Unified' : billingVariant === 'focus' ? 'Focus' : null
+  const label = variantLabel ? `${revenueBandLabel} · ${variantLabel}` : revenueBandLabel
+  const normalized = revenueBandLabel.toLowerCase()
+  const Icon = normalized.includes('under') || normalized.includes('<') ? Shield : normalized.includes('1k') ? Gem : Crown
+  const tone = Icon === Shield
+    ? 'border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300'
+    : Icon === Gem
+      ? 'border-primary/25 bg-primary/[0.08] text-primary'
+      : 'border-amber-500/30 bg-amber-500/[0.09] text-amber-700 dark:text-amber-300'
+
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', tone)}>
+      <Icon className="h-3 w-3" aria-hidden />
+      <span className="max-w-[9.5rem] truncate">{label}</span>
+    </span>
+  )
+}
+
 export function PlatformConnector({ compact = false, bareConnect = false }: PlatformConnectorProps) {
   const t = useTranslations('dashboard.platformConnector')
   const tNiche = useTranslations('niches')
@@ -305,10 +339,11 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     ])
 
     const nextConnections = (data || []) as PlatformConnection[]
+    const nextActiveConnections = nextConnections.filter((row) => row.is_connected)
     setConnections(nextConnections)
     setStatusDrafts((prev) => {
       const next: Record<string, PlatformStatusDraft> = {}
-      for (const row of nextConnections) {
+      for (const row of nextActiveConnections) {
         next[row.platform] = prev[row.platform] ?? draftFromConnection(row)
       }
       return next
@@ -486,7 +521,7 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
     connections.some(c => c.platform === platformId && c.is_connected)
 
   const getConnection = (platformId: string) =>
-    connections.find(c => c.platform === platformId)
+    connections.find(c => c.platform === platformId && c.is_connected)
 
   const getStatusDraft = (platformId: string) =>
     statusDrafts[platformId] ?? draftFromConnection(getConnection(platformId))
@@ -1055,7 +1090,14 @@ export function PlatformConnector({ compact = false, bareConnect = false }: Plat
                 </div>
                 <div>
                   <CardTitle className="text-lg">{t('compact.title')}</CardTitle>
-                  <CardDescription className="text-xs">{t('compact.subtitle')}</CardDescription>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                    <CardDescription className="text-xs">{t('compact.subtitle')}</CardDescription>
+                    <CompactPlanTierBadge
+                      revenueBandLabel={billingSub?.revenue_band_label}
+                      billingVariant={billingSub?.billing_variant}
+                      status={billingSub?.status}
+                    />
+                  </div>
                 </div>
               </div>
               {connectedCount > 0 ? (

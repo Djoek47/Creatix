@@ -13,6 +13,7 @@ import { TourProvider } from '@/components/tour/tour-provider'
 import { DashboardMainShell } from '@/components/dashboard/dashboard-main-shell'
 import { DashboardCelestialBackdrop } from '@/components/dashboard/dashboard-celestial-backdrop'
 import { DivinePanelWrapper } from '@/components/divine/divine-panel-wrapper'
+import { DivinePageContextReporter } from '@/components/divine/divine-page-context-reporter'
 import { VoiceSessionProvider } from '@/components/divine/voice-session-context'
 import { VoiceControlPopup } from '@/components/divine/voice-control-popup'
 import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
@@ -141,6 +142,7 @@ export default async function DashboardLayout({
             <DivinePanelWrapper user={serializableUser}>
               <ProtocolTasksProvider>
                 <VoiceSessionProvider divineVoicePremium={divineVoicePremium}>
+                  <DivinePageContextReporter />
                   <DashboardDocumentScrollLock />
                   <DashboardRealmEntrance />
                   <ProtectionOnlyRedirect blockApiSurfaces={workspaceCaps.isNonApiProtectionTier} />

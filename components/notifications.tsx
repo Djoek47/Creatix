@@ -53,6 +53,7 @@ import {
 import { ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS } from '@/lib/onlyfans-client-throttle'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
+type ConnectedPlatformState = Record<'onlyfans' | 'fansly', boolean>
 
 interface Notification {
   id: string
@@ -124,6 +125,10 @@ export function Notifications() {
   const [dbNotifications, setDbNotifications] = useState<Notification[]>([])
   const [ofPullNotifications, setOfPullNotifications] = useState<Notification[]>([])
   const [fanslyPullNotifications, setFanslyPullNotifications] = useState<Notification[]>([])
+  const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatformState>({
+    onlyfans: false,
+    fansly: false,
+  })
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -141,6 +146,10 @@ export function Notifications() {
   const onlyFansPullBackoffUntilRef = useRef(0)
 
   const loadOnlyFansPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    if (!connectedPlatforms.onlyfans) {
+      setOfPullNotifications([])
+      return
+    }
     const force = opts?.force === true
     const last = onlyFansPullLastOkRef.current
     if (!force && uid && Date.now() < onlyFansPullBackoffUntilRef.current) {
@@ -215,9 +224,13 @@ export function Notifications() {
     } catch {
       setOfPullNotifications([])
     }
-  }, [t])
+  }, [connectedPlatforms.onlyfans, t])
 
   const loadFanslyPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    if (!connectedPlatforms.fansly) {
+      setFanslyPullNotifications([])
+      return
+    }
     const force = opts?.force === true
     const last = fanslyPullLastOkRef.current
     if (
@@ -277,7 +290,7 @@ export function Notifications() {
     } catch {
       setFanslyPullNotifications([])
     }
-  }, [t])
+  }, [connectedPlatforms.fansly, t])
 
   const loadNotifications = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -289,21 +302,36 @@ export function Notifications() {
 
     setUserId(user.id)
 
-    const { data: dbNotifications, error } = await supabase
-      .from('notifications')
-      .select(
-        'id, type, title, description, read, created_at, link, platform, avatar_url, origin, platform_fan_id, metadata',
-      )
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const [notificationResult, connectionResult] = await Promise.all([
+      supabase
+        .from('notifications')
+        .select(
+          'id, type, title, description, read, created_at, link, platform, avatar_url, origin, platform_fan_id, metadata',
+        )
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', user.id)
+        .in('platform', ['onlyfans', 'fansly']),
+    ])
 
-    if (error) {
-      console.error('Error loading notifications:', error)
+    const nextConnected: ConnectedPlatformState = {
+      onlyfans: (connectionResult.data ?? []).some((row) => row.platform === 'onlyfans' && row.is_connected === true),
+      fansly: (connectionResult.data ?? []).some((row) => row.platform === 'fansly' && row.is_connected === true),
+    }
+    setConnectedPlatforms(nextConnected)
+    if (!nextConnected.onlyfans) setOfPullNotifications([])
+    if (!nextConnected.fansly) setFanslyPullNotifications([])
+
+    if (notificationResult.error) {
+      console.error('Error loading notifications:', notificationResult.error)
       setDbNotifications([])
       return
     }
 
-    setDbNotifications((dbNotifications || []) as Notification[])
+    setDbNotifications((notificationResult.data || []) as Notification[])
   }, [supabase])
 
   useEffect(() => {
@@ -352,23 +380,33 @@ export function Notifications() {
   /** Prefetch platform pull feeds so the bell badge includes OF + Fansly without opening first. */
   useEffect(() => {
     if (!userId) return
-    void loadOnlyFansPull(userId, { force: false })
-    void loadFanslyPull(userId, { force: false })
-  }, [userId, loadOnlyFansPull, loadFanslyPull])
+    if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: false })
+    if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: false })
+  }, [userId, connectedPlatforms.onlyfans, connectedPlatforms.fansly, loadOnlyFansPull, loadFanslyPull])
 
   useEffect(() => {
     if (!open || !userId) return
-    void loadOnlyFansPull(userId, { force: false })
-    void loadFanslyPull(userId, { force: false })
-  }, [open, userId, loadOnlyFansPull, loadFanslyPull])
+    if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: false })
+    if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: false })
+  }, [open, userId, connectedPlatforms.onlyfans, connectedPlatforms.fansly, loadOnlyFansPull, loadFanslyPull])
+
+  const visibleDbNotifications = useMemo(
+    () =>
+      dbNotifications.filter((n) => {
+        if (n.platform === 'onlyfans') return connectedPlatforms.onlyfans
+        if (n.platform === 'fansly') return connectedPlatforms.fansly
+        return true
+      }),
+    [connectedPlatforms.fansly, connectedPlatforms.onlyfans, dbNotifications],
+  )
 
   const liveDb = useMemo(
-    () => dbNotifications.filter((n) => isLiveOrigin(n.origin)),
-    [dbNotifications],
+    () => visibleDbNotifications.filter((n) => isLiveOrigin(n.origin)),
+    [visibleDbNotifications],
   )
   const divineDb = useMemo(
-    () => dbNotifications.filter((n) => isDivineOrigin(n.origin)),
-    [dbNotifications],
+    () => visibleDbNotifications.filter((n) => isDivineOrigin(n.origin)),
+    [visibleDbNotifications],
   )
 
   const liveList = useMemo(() => {
@@ -385,11 +423,11 @@ export function Notifications() {
   const displayed = tab === 'live' ? liveList : divineList
 
   const unreadCount = useMemo(() => {
-    const dbUnread = dbNotifications.filter((n) => !n.read).length
+    const dbUnread = visibleDbNotifications.filter((n) => !n.read).length
     const ofUnread = ofPullNotifications.filter((n) => !n.read).length
     const fsUnread = fanslyPullNotifications.filter((n) => !n.read).length
     return dbUnread + ofUnread + fsUnread
-  }, [dbNotifications, ofPullNotifications, fanslyPullNotifications])
+  }, [fanslyPullNotifications, ofPullNotifications, visibleDbNotifications])
 
   const runBriefing = async () => {
     setBriefingLoading(true)
@@ -693,8 +731,8 @@ export function Notifications() {
                     className="h-7 shrink-0 whitespace-nowrap px-2 text-[11px]"
                     onClick={() => {
                       clearPullDismissed(userId)
-                      void loadOnlyFansPull(userId, { force: true })
-                      void loadFanslyPull(userId, { force: true })
+                      if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: true })
+                      if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: true })
                     }}
                   >
                     {t('notifications.showAgain')}

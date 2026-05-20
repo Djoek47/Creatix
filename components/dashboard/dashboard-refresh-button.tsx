@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -65,11 +66,11 @@ const shellButtonClass =
   'group/refresh relative overflow-hidden rounded-full border border-amber-500/40 bg-gradient-to-br from-amber-500/[0.16] via-purple-500/[0.1] to-violet-600/[0.14] text-amber-950 shadow-[0_0_22px_-8px_rgba(251,191,36,0.32),0_0_20px_-10px_rgba(168,85,247,0.22)] transition-all duration-300 hover:border-amber-400/55 hover:from-amber-500/[0.22] hover:via-purple-500/[0.14] hover:to-violet-600/[0.18] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 dark:border-amber-400/35 dark:from-amber-400/[0.12] dark:via-purple-500/[0.1] dark:to-violet-600/[0.14] dark:text-amber-50 dark:shadow-[0_0_26px_-8px_rgba(192,132,252,0.28),0_0_22px_-10px_rgba(251,191,36,0.2)] dark:hover:border-amber-300/50'
 
 /**
- * Syncs all connected platforms (same pattern as ConnectedPlatforms), then full page reload
- * so RSC-backed mentions, leaks, and widgets pick up fresh data.
+ * Syncs all connected platforms, then refreshes the app router without killing live Divine voice.
  */
 export function DashboardRefreshButton() {
   const t = useTranslations('dashboard')
+  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [platforms, setPlatforms] = useState<string[]>([])
   const [tick, setTick] = useState(0)
@@ -116,6 +117,9 @@ export function DashboardRefreshButton() {
   const handleRefresh = useCallback(async () => {
     if (busyRef.current) return
     setBusy(true)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('creatix:dashboard-data-refresh', { detail: { state: 'started' } }))
+    }
     try {
       const supabase = createClient()
       const {
@@ -134,11 +138,15 @@ export function DashboardRefreshButton() {
         await Promise.allSettled(list.map((p) => fetch(`/api/${p}/sync`, { method: 'POST' })))
       }
     } catch {
-      // still reload so UI is not stuck
+      // Keep the page alive so active voice sessions survive; router.refresh still runs below.
     } finally {
-      window.location.reload()
+      router.refresh()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatix:dashboard-data-refresh', { detail: { state: 'settled' } }))
+      }
+      setBusy(false)
     }
-  }, [])
+  }, [router])
 
   const label = busy ? t('refresh.syncing') : t('refresh.label')
   const title = t('refresh.title')

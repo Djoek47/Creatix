@@ -3,7 +3,7 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import type { PlatformStatusTone, SystemStatusResponse } from '@/lib/system-status-contract'
 
 /**
- * Lightweight security/dashboard probe: Hosting + Circe alive + user's OF link snapshot + AI key presence.
+ * Lightweight security/dashboard probe: Hosting + Circe alive + creator platform links + AI key presence.
  * Does not hit external creator APIs beyond Supabase reads.
  */
 export async function GET(request: NextRequest) {
@@ -13,12 +13,18 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: ofConn } = await supabase
+  const { data: connections } = await supabase
     .from('platform_connections')
-    .select('is_connected')
+    .select('platform, is_connected')
     .eq('user_id', user.id)
-    .eq('platform', 'onlyfans')
-    .maybeSingle()
+    .in('platform', ['onlyfans', 'fansly'])
+
+  const onlyFansConnected = (connections ?? []).some(
+    (conn) => conn.platform === 'onlyfans' && conn.is_connected === true,
+  )
+  const fanslyConnected = (connections ?? []).some(
+    (conn) => conn.platform === 'fansly' && conn.is_connected === true,
+  )
 
   const hosting =
     Boolean(process.env.VERCEL || process.env.VERCEL_ENV) ?
@@ -62,8 +68,14 @@ export async function GET(request: NextRequest) {
       {
         id: 'onlyfans-link',
         label: 'OnlyFans',
-        tone: ofConn?.is_connected ? 'up' : 'idle',
-        detail: ofConn?.is_connected ? 'Account linked' : 'Not connected',
+        tone: onlyFansConnected ? 'up' : 'idle',
+        detail: onlyFansConnected ? 'Account linked' : 'Not connected',
+      },
+      {
+        id: 'fansly-link',
+        label: 'Fansly API',
+        tone: fanslyConnected ? 'up' : 'idle',
+        detail: fanslyConnected ? 'Account linked' : 'Not connected',
       },
       {
         id: 'ai-models',

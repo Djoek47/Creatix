@@ -83,7 +83,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
       if (url) window.open(url, '_blank', 'noopener,noreferrer')
       if (!(j.markitConfigured ?? j.frameConfigured)) {
         setLaunchMsg(
-          'NEXT_PUBLIC_MARKIT_URL is not set — opened the asset proxy only. Configure Markit, or use Replace video in the vault item.',
+          'The Creatix editor route is unavailable, so the asset proxy opened instead. Use Replace video in the vault item if needed.',
         )
       } else {
         setOpen(false)
@@ -146,7 +146,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
             Edit a vault video
           </DialogTitle>
           <DialogDescription className="text-[15px] leading-[1.55] text-muted-foreground/88">
-            Opens Markit with the selected vault video already loaded. Choose a video below, or add one to your vault first.
+            Opens the Creatix editor with the selected vault video already loaded. Choose a video below, or add one to your vault first.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[min(58vh,432px)] px-8 pb-2 [&_[data-slot=scroll-area-viewport]]:scroll-smooth">

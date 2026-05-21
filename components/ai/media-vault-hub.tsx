@@ -748,7 +748,7 @@ export function MediaVaultHub() {
       if (!(j.markitConfigured ?? j.frameConfigured)) {
         if (row) openRow(row, { resetFrameMsg: false })
         setFrameMsg(
-          'NEXT_PUBLIC_MARKIT_URL is not set — opened the asset proxy only. Configure Markit, or use Replace video to upload an edited file.',
+          'The Creatix editor route is unavailable, so the asset proxy opened instead. Use Replace video to upload an edited file.',
         )
       }
     } catch {
@@ -1243,7 +1243,7 @@ export function MediaVaultHub() {
                           ) : (
                             <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
                           )}
-                          <span>Open in Markit</span>
+                          <span>Open in Creatix editor</span>
                         </Button>
                         <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 rounded-xl" asChild>
                           <a href={`/api/content/vault/${selected.id}/download`} target="_blank" rel="noopener noreferrer">

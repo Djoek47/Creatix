@@ -25,6 +25,30 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@openreel/core": [
+        "./vendor/openreel/core/index.ts"
+      ],
+      "@openreel/core/*": [
+        "./vendor/openreel/core/*"
+      ],
+      "@openreel/ui": [
+        "./vendor/openreel/ui/index.ts"
+      ],
+      "@openreel/ui/*": [
+        "./vendor/openreel/ui/*"
+      ],
+      "@openreel/ui/lib/utils": [
+        "./vendor/openreel/ui/lib/utils.ts"
+      ],
+      "@openreel/ui/components/toggle": [
+        "./vendor/openreel/ui/components/toggle.tsx"
+      ],
+      "@openreel/image-core": [
+        "./vendor/openreel/image-core/index.ts"
+      ],
+      "@openreel/image-core/*": [
+        "./vendor/openreel/image-core/*"
       ]
     }
   },
@@ -38,6 +62,10 @@
   "exclude": [
     "node_modules",
     "apps/mobile",
-    "frame-editor"
+    "frame-editor",
+    "vendor/openreel/**/test/**",
+    "vendor/openreel/**/*.test.ts",
+    "vendor/openreel/**/*.test.tsx",
+    "vendor/openreel/core/wasm/**/assembly/**"
   ]
 }

@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@source '../vendor/openreel';
+
 @custom-variant dark (&:is(.dark *));
 
 /* CIRCE ET VENUS - Mythological Creator Management Platform */
@@ -4606,4 +4608,1828 @@ body {
 
 .demo-trial-cta-shell .demo-trial-cta-edge:hover {
   animation: none;
+}
+
+/* OpenReel editor skin (integrated from Markit/OpenReel package). */
+.openreel-markit {
+  --background: 260 8% 5%;
+  --foreground: 35 24% 94%;
+  --card: 260 9% 9%;
+  --card-foreground: 35 24% 94%;
+  --popover: 260 9% 9%;
+  --popover-foreground: 35 24% 94%;
+  --primary: 42 56% 60%;
+  --primary-foreground: 260 9% 6%;
+  --secondary: 265 10% 16%;
+  --secondary-foreground: 35 24% 94%;
+  --muted: 265 10% 16%;
+  --muted-foreground: 270 10% 66%;
+  --accent: 278 64% 58%;
+  --accent-foreground: 35 24% 94%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 35 24% 94%;
+  --border: 265 11% 22%;
+  --input: 265 11% 22%;
+  --ring: 42 56% 60%;
+  --color-background: 13 13 15;
+  --color-background-secondary: 18 18 22;
+  --color-background-tertiary: 27 25 33;
+  --color-background-elevated: 42 38 50;
+  --color-text-primary: 242 239 233;
+  --color-text-secondary: 174 166 184;
+  --color-text-muted: 122 113 132;
+  --color-border: 52 47 61;
+  --color-border-hover: 82 73 96;
+  --color-border-active: 137 105 175;
+  color-scheme: dark;
+}
+
+.openreel-markit input:focus,
+.openreel-markit select:focus,
+.openreel-markit textarea:focus {
+  border-color: rgb(210 175 98);
+  box-shadow: 0 0 0 1px rgb(210 175 98);
+}
+
+/* OpenReel inside Markit: premium Circe studio skin.
+   Keep the editor mechanics intact; refine the surface, rhythm, and color. */
+.openreel-markit {
+  --mk-studio-black: 8 8 9;
+  --mk-studio-rail: 12 12 14;
+  --mk-studio-panel: 17 17 20;
+  --mk-studio-elevated: 24 24 28;
+  --mk-studio-hover: 31 31 36;
+  --mk-ivory: 244 241 235;
+  --mk-muted: 159 156 166;
+  --mk-faint: 102 99 111;
+  --mk-line: 255 255 255 / 0.075;
+  --mk-line-strong: 255 255 255 / 0.14;
+  --mk-gold: 219 183 102;
+  --mk-gold-soft: 232 205 141;
+  --mk-circe: 143 99 206;
+  --mk-circe-soft: 181 145 232;
+  --background: 0 0% 3%;
+  --foreground: 40 22% 94%;
+  --card: 240 8% 7%;
+  --card-foreground: 40 22% 94%;
+  --popover: 240 8% 8%;
+  --popover-foreground: 40 22% 94%;
+  --primary: 42 60% 63%;
+  --primary-foreground: 240 8% 5%;
+  --secondary: 250 8% 12%;
+  --secondary-foreground: 40 22% 94%;
+  --muted: 250 7% 13%;
+  --muted-foreground: 255 8% 64%;
+  --accent: 268 52% 62%;
+  --accent-foreground: 40 22% 94%;
+  --border: 255 255 255 / 0.075;
+  --input: 255 255 255 / 0.1;
+  --ring: 42 60% 63%;
+  --color-background: var(--mk-studio-black);
+  --color-background-secondary: var(--mk-studio-rail);
+  --color-background-tertiary: var(--mk-studio-panel);
+  --color-background-elevated: var(--mk-studio-elevated);
+  --color-text-primary: var(--mk-ivory);
+  --color-text-secondary: var(--mk-muted);
+  --color-text-muted: var(--mk-faint);
+  --color-border: 255 255 255 / 0.075;
+  --color-border-hover: 255 255 255 / 0.14;
+  --color-border-active: var(--mk-gold);
+  background: rgb(var(--mk-studio-black));
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.openreel-markit *,
+.openreel-markit *::before,
+.openreel-markit *::after {
+  letter-spacing: 0;
+}
+
+.openreel-markit :where(.bg-background) {
+  background-color: rgb(var(--mk-studio-black)) !important;
+}
+
+.openreel-markit :where(.bg-background-secondary) {
+  background-color: rgb(var(--mk-studio-rail)) !important;
+}
+
+.openreel-markit :where(.bg-background-tertiary) {
+  background-color: rgb(var(--mk-studio-panel)) !important;
+}
+
+.openreel-markit :where(.bg-background-elevated) {
+  background-color: rgb(var(--mk-studio-elevated)) !important;
+}
+
+.openreel-markit :where(.border-border) {
+  border-color: rgb(var(--mk-line)) !important;
+}
+
+.openreel-markit :where(.text-text-primary) {
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+.openreel-markit :where(.text-text-secondary) {
+  color: rgb(var(--mk-muted)) !important;
+}
+
+.openreel-markit :where(.text-text-muted) {
+  color: rgb(var(--mk-faint)) !important;
+}
+
+.openreel-markit :where(.text-primary) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.bg-primary) {
+  background-color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.border-primary) {
+  border-color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.ring-primary, .ring-primary\/30, .ring-primary\/50) {
+  --tw-ring-color: rgb(var(--mk-gold) / 0.35) !important;
+}
+
+.openreel-markit :where(button, input, textarea, select, [role='button']) {
+  border-radius: 8px;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.openreel-markit :where(button):focus-visible,
+.openreel-markit :where(input, textarea, select):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgb(var(--mk-gold) / 0.7), 0 0 0 5px rgb(var(--mk-gold) / 0.12);
+}
+
+.openreel-markit :where(.shadow-lg, .shadow-xl, .shadow-2xl, .shadow-inner, .shadow-sm) {
+  box-shadow: none !important;
+}
+
+.openreel-markit [class*='shadow-\[0_0'],
+.openreel-markit [class*='shadow-\[0_-'],
+.openreel-markit [class*='shadow-\[0_0_20px'],
+.openreel-markit [class*='shadow-\[0_0_30px'] {
+  box-shadow: none !important;
+}
+
+.openreel-markit :where(.rounded-2xl, .rounded-xl, .rounded-lg) {
+  border-radius: 8px !important;
+}
+
+.openreel-markit :where(.h-16.border-b) {
+  min-height: 60px;
+  height: 60px;
+  padding-left: 18px;
+  padding-right: 18px;
+  background: rgb(var(--mk-studio-black) / 0.92) !important;
+  border-bottom-color: rgb(var(--mk-line)) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.openreel-markit :where(.h-16.border-b) svg {
+  stroke-width: 1.8;
+}
+
+.openreel-markit :where(.h-16.border-b) button:hover {
+  background-color: rgb(var(--mk-studio-hover) / 0.72) !important;
+}
+
+.openreel-markit :where(.h-16.border-b) .text-lg {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+.openreel-markit :where(.w-80.bg-background-secondary.border-r, .w-80.bg-background-secondary.border-l) {
+  width: 304px;
+  background: rgb(var(--mk-studio-rail)) !important;
+}
+
+.openreel-markit :where(.w-80.bg-background-secondary.border-r) {
+  border-right-color: rgb(var(--mk-line)) !important;
+}
+
+.openreel-markit :where(.w-80.bg-background-secondary.border-l) {
+  border-left-color: rgb(var(--mk-line)) !important;
+}
+
+.openreel-markit :where(.font-bold) {
+  font-weight: 600;
+}
+
+.openreel-markit :where(.text-lg.font-bold, h3.text-sm.font-bold) {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-weight: 500;
+}
+
+.openreel-markit :where(input, textarea) {
+  background-color: rgb(var(--mk-studio-panel)) !important;
+  border-color: rgb(var(--mk-line)) !important;
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+.openreel-markit :where(input::placeholder, textarea::placeholder) {
+  color: rgb(var(--mk-faint)) !important;
+}
+
+.openreel-markit :where(input:focus, textarea:focus) {
+  border-color: rgb(var(--mk-gold) / 0.7) !important;
+  box-shadow: 0 0 0 1px rgb(var(--mk-gold) / 0.55) !important;
+}
+
+.openreel-markit :where(.bg-primary\/10) {
+  background-color: rgb(var(--mk-gold) / 0.08) !important;
+}
+
+.openreel-markit :where(.bg-primary\/20) {
+  background-color: rgb(var(--mk-gold) / 0.12) !important;
+}
+
+.openreel-markit :where(.bg-primary\/30) {
+  background-color: rgb(var(--mk-gold) / 0.18) !important;
+}
+
+.openreel-markit :where(.border-primary\/20, .border-primary\/30, .border-primary\/50) {
+  border-color: rgb(var(--mk-gold) / 0.28) !important;
+}
+
+.openreel-markit :where(.hover\:bg-primary\/20:hover, .hover\:bg-primary\/40:hover) {
+  background-color: rgb(var(--mk-gold) / 0.16) !important;
+}
+
+.openreel-markit :where(.hover\:border-primary\/50:hover, .group:hover .group-hover\:border-primary\/50) {
+  border-color: rgb(var(--mk-gold) / 0.4) !important;
+}
+
+.openreel-markit :where(.hover\:text-primary:hover, .group:hover .group-hover\:text-primary) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.text-white) {
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+.openreel-markit :where(.text-black) {
+  color: rgb(var(--mk-studio-black)) !important;
+}
+
+.openreel-markit :where(.bg-green-500, .bg-cyan-500, .bg-yellow-500) {
+  background-color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.bg-green-400, .bg-cyan-400, .bg-yellow-400) {
+  background-color: rgb(var(--mk-gold-soft)) !important;
+}
+
+.openreel-markit :where(.bg-green-500\/80, .bg-cyan-500\/80) {
+  background-color: rgb(var(--mk-gold) / 0.86) !important;
+}
+
+.openreel-markit :where(.bg-green-500\/10, .bg-green-500\/20, .bg-green-500\/30, .bg-cyan-500\/10, .bg-cyan-500\/20, .bg-cyan-500\/30) {
+  background-color: rgb(var(--mk-gold) / 0.12) !important;
+}
+
+.openreel-markit :where(.border-green-500, .border-cyan-500, .border-yellow-500) {
+  border-color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.border-green-400, .border-cyan-400, .border-yellow-400, .border-green-500\/20, .border-green-500\/30, .border-green-500\/50) {
+  border-color: rgb(var(--mk-gold) / 0.42) !important;
+}
+
+.openreel-markit :where(.text-green-500, .text-green-400, .text-green-300, .text-cyan-500, .text-cyan-400, .text-yellow-500, .text-yellow-400) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+.openreel-markit :where(.text-blue-400) {
+  color: rgb(var(--mk-circe-soft)) !important;
+}
+
+.openreel-markit :where(.hover\:bg-green-500:hover, .hover\:bg-cyan-500:hover, .hover\:bg-yellow-500:hover) {
+  background-color: rgb(var(--mk-gold-soft)) !important;
+}
+
+.openreel-markit :where(.animate-pulse) {
+  animation-duration: 2.6s;
+}
+
+.openreel-markit :where(.fixed.inset-0, [role='dialog']) {
+  backdrop-filter: blur(18px);
+}
+
+.openreel-markit :where([role='dialog'], .rounded-xl.bg-background-secondary, .rounded-lg.bg-background-secondary) {
+  border-color: rgb(var(--mk-line-strong)) !important;
+  background-color: rgb(var(--mk-studio-panel)) !important;
+}
+
+.openreel-markit :where(.custom-scrollbar) {
+  scrollbar-color: rgb(var(--mk-faint) / 0.55) transparent;
+  scrollbar-width: thin;
+}
+
+.openreel-markit :where(.custom-scrollbar::-webkit-scrollbar) {
+  width: 7px;
+  height: 7px;
+}
+
+.openreel-markit :where(.custom-scrollbar::-webkit-scrollbar-thumb) {
+  background: rgb(var(--mk-faint) / 0.45);
+  border-radius: 999px;
+}
+
+.openreel-markit :where(.h-12.border-b) {
+  height: 48px;
+  background-color: rgb(var(--mk-studio-rail)) !important;
+}
+
+.openreel-markit :where(.font-mono.text-primary) {
+  font-weight: 500;
+  color: rgb(var(--mk-gold-soft)) !important;
+}
+
+.openreel-markit canvas {
+  background: #000;
+}
+
+.openreel-markit :where(.aspect-video.bg-background-tertiary) {
+  background: rgb(var(--mk-studio-panel)) !important;
+}
+
+.openreel-markit :where(.fixed.top-16.right-0.bottom-0) {
+  top: 60px;
+  background-color: rgb(var(--mk-studio-panel)) !important;
+  border-left-color: rgb(var(--mk-line)) !important;
+}
+
+/* Portaled editor surfaces: Radix renders these outside `.openreel-markit`. */
+body.markit-editor-active {
+  --mk-studio-black: 8 8 9;
+  --mk-studio-rail: 12 12 14;
+  --mk-studio-panel: 17 17 20;
+  --mk-studio-elevated: 24 24 28;
+  --mk-studio-hover: 31 31 36;
+  --mk-ivory: 244 241 235;
+  --mk-muted: 159 156 166;
+  --mk-faint: 102 99 111;
+  --mk-line: 255 255 255 / 0.075;
+  --mk-line-strong: 255 255 255 / 0.14;
+  --mk-gold: 219 183 102;
+  --mk-gold-soft: 232 205 141;
+  --mk-circe: 143 99 206;
+  --mk-circe-soft: 181 145 232;
+  --popover: 240 8% 8%;
+  --popover-foreground: 40 22% 94%;
+  --accent: 42 60% 63%;
+  --accent-foreground: 240 8% 5%;
+  --muted: 250 7% 13%;
+  --muted-foreground: 255 8% 64%;
+  --border: 255 255 255 / 0.075;
+  --ring: 42 60% 63%;
+}
+
+body.markit-editor-active :where([role='menu'], [role='listbox'], [data-radix-popper-content-wrapper] > div) {
+  background-color: rgb(var(--mk-studio-panel) / 0.98) !important;
+  color: rgb(var(--mk-ivory)) !important;
+  border: 1px solid rgb(var(--mk-line-strong)) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 18px 50px rgb(0 0 0 / 0.42),
+    0 1px 0 rgb(255 255 255 / 0.04) inset !important;
+  backdrop-filter: blur(18px) saturate(1.12);
+}
+
+body.markit-editor-active :where([role='menu'], [role='listbox']) {
+  padding: 6px !important;
+  scrollbar-color: rgb(var(--mk-faint) / 0.65) transparent;
+  scrollbar-width: thin;
+}
+
+body.markit-editor-active :where([role='menu'], [role='listbox'], [role='dialog'])::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+body.markit-editor-active :where([role='menu'], [role='listbox'], [role='dialog'])::-webkit-scrollbar-thumb {
+  background: rgb(var(--mk-faint) / 0.56);
+  border-radius: 999px;
+}
+
+body.markit-editor-active :where([role='menu'], [role='listbox'], [role='dialog'])::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.markit-editor-active :where([role='menuitem'], [role='option'], [role='menuitemcheckbox'], [role='menuitemradio']) {
+  min-height: 32px;
+  border-radius: 7px !important;
+  color: rgb(var(--mk-muted)) !important;
+  font-size: 12px !important;
+  font-weight: 500;
+  outline: none;
+}
+
+body.markit-editor-active :where([role='menuitem'] svg, [role='option'] svg, [role='menuitemcheckbox'] svg, [role='menuitemradio'] svg) {
+  color: rgb(var(--mk-faint)) !important;
+  stroke-width: 1.8;
+}
+
+body.markit-editor-active :where([role='menuitem']:hover, [role='menuitem']:focus, [role='option']:hover, [role='option']:focus, [role='menuitemcheckbox']:hover, [role='menuitemcheckbox']:focus, [role='menuitemradio']:hover, [role='menuitemradio']:focus, [data-highlighted]) {
+  background-color: rgb(var(--mk-gold) / 0.11) !important;
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+body.markit-editor-active :where([role='menuitem']:hover svg, [role='menuitem']:focus svg, [role='option']:hover svg, [role='option']:focus svg, [data-highlighted] svg) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+body.markit-editor-active :where([role='menuitem'][data-disabled], [role='option'][data-disabled]) {
+  opacity: 0.38 !important;
+}
+
+body.markit-editor-active :where([role='separator']) {
+  background-color: rgb(var(--mk-line)) !important;
+  margin: 6px -2px !important;
+}
+
+body.markit-editor-active :where([role='menu'] [class*='text-red'], [role='menuitem'].text-red-400) {
+  color: rgb(235 116 116) !important;
+}
+
+body.markit-editor-active :where([role='menu'] [class*='text-red']:hover, [role='menuitem'].text-red-400:hover, [role='menuitem'].text-red-400:focus) {
+  background-color: rgb(235 116 116 / 0.1) !important;
+  color: rgb(255 150 150) !important;
+}
+
+body.markit-editor-active :where([role='tooltip']) {
+  background-color: rgb(var(--mk-studio-elevated) / 0.98) !important;
+  color: rgb(var(--mk-ivory)) !important;
+  border: 1px solid rgb(var(--mk-line-strong)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.38) !important;
+  font-size: 11px !important;
+  font-weight: 500;
+  padding: 7px 10px !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+body.markit-editor-active :where([data-radix-dialog-overlay]) {
+  background: rgb(0 0 0 / 0.72) !important;
+  backdrop-filter: blur(18px) saturate(1.05);
+}
+
+body.markit-editor-active :where([role='dialog']) {
+  background-color: rgb(var(--mk-studio-panel)) !important;
+  color: rgb(var(--mk-ivory)) !important;
+  border: 1px solid rgb(var(--mk-line-strong)) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 28px 90px rgb(0 0 0 / 0.58),
+    0 1px 0 rgb(255 255 255 / 0.04) inset !important;
+}
+
+body.markit-editor-active :where([role='dialog'] h1, [role='dialog'] h2, [role='dialog'] h3, [role='dialog'] [data-radix-dialog-title]) {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-weight: 500 !important;
+  color: rgb(var(--mk-ivory)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] p, [role='dialog'] label, [role='dialog'] span) {
+  letter-spacing: 0;
+}
+
+body.markit-editor-active :where([role='dialog'] input, [role='dialog'] textarea, [role='dialog'] button[role='combobox']) {
+  background-color: rgb(var(--mk-studio-elevated)) !important;
+  border-color: rgb(var(--mk-line)) !important;
+  color: rgb(var(--mk-ivory)) !important;
+  border-radius: 8px !important;
+}
+
+body.markit-editor-active :where([role='dialog'] input:focus, [role='dialog'] textarea:focus, [role='dialog'] button[role='combobox']:focus) {
+  border-color: rgb(var(--mk-gold) / 0.65) !important;
+  box-shadow: 0 0 0 1px rgb(var(--mk-gold) / 0.5) !important;
+  outline: none !important;
+}
+
+body.markit-editor-active :where([role='dialog'] button) {
+  border-radius: 8px !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .bg-primary, [role='dialog'] button.bg-primary) {
+  background-color: rgb(var(--mk-gold)) !important;
+  color: rgb(var(--mk-studio-black)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .text-primary) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .border-primary, [role='dialog'] .border-primary\/30, [role='dialog'] .border-primary\/50) {
+  border-color: rgb(var(--mk-gold) / 0.35) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .bg-background, [role='dialog'] .bg-background-secondary, [role='dialog'] .bg-background-tertiary) {
+  background-color: rgb(var(--mk-studio-elevated)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .border-border) {
+  border-color: rgb(var(--mk-line)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .text-text-secondary, [role='dialog'] .text-muted-foreground) {
+  color: rgb(var(--mk-muted)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .text-text-muted) {
+  color: rgb(var(--mk-faint)) !important;
+}
+
+body.markit-editor-active :where([role='dialog'] .shadow-lg, [role='dialog'] .shadow-xl, [role='dialog'] .shadow-2xl, [role='dialog'] [class*='shadow-\[0_0']) {
+  box-shadow: none !important;
+}
+
+body.markit-editor-active :where([data-radix-popper-content-wrapper] .bg-green-500, [data-radix-popper-content-wrapper] .bg-cyan-500, [data-radix-popper-content-wrapper] .bg-yellow-500) {
+  background-color: rgb(var(--mk-gold)) !important;
+}
+
+body.markit-editor-active :where([data-radix-popper-content-wrapper] .text-green-400, [data-radix-popper-content-wrapper] .text-green-500, [data-radix-popper-content-wrapper] .text-cyan-400, [data-radix-popper-content-wrapper] .text-yellow-500) {
+  color: rgb(var(--mk-gold)) !important;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+.font-mono-ui {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.font-serif-display {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+}
+
+:root[data-density='simple'] {
+  --row-h: 44px;
+  --pad: 18px;
+}
+
+:root[data-density='pro'] {
+  --row-h: 32px;
+  --pad: 12px;
+}
+
+:root[data-density='simple'] .pro-only {
+  display: none !important;
+}
+
+:root[data-density='pro'] .simple-only {
+  display: none !important;
+}
+
+/* ── Markit v2 shell (aligned to markit-editor.html mock) ── */
+.markit-shell {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.markit-shell .mk-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar);
+  min-height: 52px;
+}
+
+.markit-shell .mk-h-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+
+.markit-shell .mk-brand {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--foreground);
+}
+
+.markit-shell .mk-brand .mk-sep {
+  color: var(--primary);
+  margin: 0 6px;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.markit-shell .mk-beta {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.18em;
+  margin-left: 8px;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.markit-shell .mk-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.markit-shell .mk-mode-pill button {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  border-radius: 999px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.markit-shell .mk-mode-pill button:hover:not(.mk-active) {
+  color: var(--foreground);
+}
+
+.markit-shell .mk-mode-pill button.mk-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.markit-shell .mk-h-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.markit-shell .mk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.markit-shell .mk-btn:hover {
+  border-color: var(--muted-faint);
+}
+
+.markit-shell .mk-btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.markit-shell .mk-btn-primary:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft);
+}
+
+.markit-shell .mk-btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+}
+
+.markit-shell .mk-btn-ghost:hover {
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.markit-shell .mk-library {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+
+.markit-shell .mk-lib-head {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.markit-shell .mk-lib-head h2 {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--foreground);
+  margin-bottom: 2px;
+}
+
+.markit-shell .mk-lib-head h2 em {
+  font-style: italic;
+  color: var(--primary);
+  font-weight: 400;
+}
+
+.markit-shell .mk-lib-count {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.markit-shell .mk-lib-search {
+  margin: 10px 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  transition: border-color 0.15s;
+}
+
+.markit-shell .mk-lib-search:focus-within {
+  border-color: var(--primary);
+}
+
+.markit-shell .mk-lib-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.markit-shell .mk-lib-search input::placeholder {
+  color: var(--muted-faint);
+}
+
+.markit-shell .mk-lib-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 12px 16px 8px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.markit-shell .mk-lib-tab {
+  background: none;
+  border: none;
+  padding: 5px 9px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  transition: all 0.15s;
+}
+
+.markit-shell .mk-lib-tab:hover:not(.mk-active) {
+  color: var(--foreground);
+}
+
+.markit-shell .mk-lib-tab.mk-active {
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
+
+.markit-shell .mk-lib-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.markit-shell .mk-media {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: grab;
+  transition: all 0.15s;
+  align-items: center;
+}
+
+.markit-shell .mk-media:hover {
+  background: var(--card);
+  border-color: var(--border-soft);
+}
+
+.markit-shell .mk-media.mk-selected {
+  background: var(--card);
+  border-color: var(--primary);
+}
+
+.markit-shell .mk-media:active {
+  cursor: grabbing;
+}
+
+.markit-shell .mk-thumb {
+  width: 64px;
+  height: 36px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: linear-gradient(135deg, oklch(0.18 0.02 285), oklch(0.1 0.01 285));
+  border: 1px solid var(--border-soft);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.markit-shell .mk-stage {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--background);
+  min-height: 0;
+}
+
+.markit-shell .mk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px var(--pad, 18px);
+  border-bottom: 1px solid var(--border);
+}
+
+.markit-shell .mk-toolbar .mk-spacer {
+  flex: 1;
+}
+
+.markit-shell .mk-toolbar-meta {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-faint);
+}
+
+.markit-shell .mk-preview-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px var(--pad, 18px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.markit-shell .mk-preview {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.markit-shell .mk-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.markit-shell .mk-preview-empty .mk-sigil {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.markit-shell .mk-preview-empty .mk-label {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.02em;
+}
+
+.markit-shell .mk-preview-empty .mk-hint {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 6px;
+  color: var(--muted-faint);
+}
+
+.markit-shell .mk-transport {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px var(--pad, 18px);
+  border-top: 1px solid var(--border);
+}
+
+.markit-shell .mk-tp-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  transition: all 0.15s;
+}
+
+.markit-shell .mk-tp-btn:hover {
+  border-color: var(--muted-faint);
+}
+
+.markit-shell .mk-tp-btn.mk-play {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.markit-shell .mk-tp-btn.mk-play:hover {
+  background: var(--primary-soft);
+}
+
+.markit-shell .mk-tp-time {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--foreground);
+  letter-spacing: 0.04em;
+  min-width: 130px;
+}
+
+.markit-shell .mk-tp-time .mk-sep {
+  color: var(--muted-faint);
+  margin: 0 5px;
+}
+
+.markit-shell .mk-tp-time .mk-total {
+  color: var(--muted-foreground);
+}
+
+.markit-shell .mk-timeline-zone {
+  border-top: 1px solid var(--border);
+  background: var(--card-2);
+  padding: 10px var(--pad, 18px) 14px;
+  max-height: 38vh;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.markit-shell .mk-tl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.markit-shell .mk-tl-head h3 {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.markit-shell .mk-tl-ruler {
+  height: 18px;
+  position: relative;
+  border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  color: var(--muted-faint);
+  margin-left: 56px;
+  letter-spacing: 0.04em;
+}
+
+.markit-shell .mk-track {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0;
+  align-items: center;
+  min-height: 36px;
+}
+
+.markit-shell .mk-track-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  height: 100%;
+  border-right: 1px solid var(--border-soft);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.markit-shell .mk-swatch {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.markit-shell .mk-swatch.v {
+  background: var(--primary);
+}
+
+.markit-shell .mk-swatch.a {
+  background: var(--circe-light);
+}
+
+.markit-shell .mk-swatch.o {
+  background: var(--info);
+}
+
+.markit-shell .mk-track-lane {
+  position: relative;
+  height: 32px;
+  margin: 0 0 0 8px;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 0.5px),
+      var(--border-soft) calc(50% - 0.5px),
+      var(--border-soft) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
+  border-radius: 3px;
+  border: 1px dashed var(--border-soft);
+}
+
+.markit-shell .mk-clip {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    filter 0.15s,
+    outline-color 0.15s;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  border: none;
+  text-align: left;
+}
+
+.markit-shell .mk-clip:hover {
+  filter: brightness(1.08);
+}
+
+.markit-shell .mk-clip.mk-selected {
+  outline-color: var(--foreground);
+}
+
+.markit-shell .mk-clip.video {
+  background: linear-gradient(180deg, var(--primary), color-mix(in oklch, var(--primary) 80%, black));
+  color: var(--primary-foreground);
+}
+
+.markit-shell .mk-clip.audio {
+  background: linear-gradient(180deg, var(--circe-light), var(--circe));
+  color: var(--foreground);
+}
+
+.markit-shell .mk-clip.overlay {
+  background: linear-gradient(180deg, var(--info), color-mix(in oklch, var(--info) 70%, black));
+  color: var(--foreground);
+}
+
+.markit-shell .mk-playhead {
+  position: absolute;
+  top: -18px;
+  bottom: 0;
+  width: 1px;
+  background: var(--primary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.markit-shell .mk-playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--primary);
+}
+
+.markit-shell .mk-inspector {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.markit-shell .mk-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.markit-shell .mk-tab {
+  flex: 1;
+  padding: 12px 6px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  transition: all 0.15s;
+}
+
+.markit-shell .mk-tab:hover {
+  color: var(--foreground);
+}
+
+.markit-shell .mk-tab.mk-active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.markit-shell .mk-panels {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.markit-shell .mk-section {
+  padding: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.markit-shell .mk-section h4 {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.markit-shell .mk-section h4 em {
+  font-style: italic;
+  color: var(--primary);
+  font-weight: 400;
+}
+
+.markit-shell .mk-section .mk-desc {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+
+.markit-shell .mk-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-top: 1px solid var(--border);
+  background: var(--sidebar);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  min-height: 28px;
+}
+
+.markit-shell .mk-statusbar .mk-sb-group {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.markit-shell .mk-sb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.markit-shell .mk-sb-dot.gold {
+  background: var(--primary);
+}
+
+.markit-shell .mk-sb-dot.green {
+  background: var(--success);
+}
+
+.markit-shell .divine-fab {
+  position: fixed;
+  bottom: 50px;
+  right: 24px;
+  z-index: 100;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--primary-soft), var(--primary) 65%);
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--primary-foreground);
+  box-shadow:
+    0 8px 24px color-mix(in oklch, var(--primary) 30%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--primary) 50%, transparent);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.markit-shell .divine-fab:hover {
+  transform: translateY(-2px);
+}
+
+.markit-shell .divine-fab::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  animation: mk-orb-pulse 2.4s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes mk-orb-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.markit-shell .divine-popper {
+  position: fixed;
+  bottom: 116px;
+  right: 24px;
+  z-index: 101;
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow:
+    0 24px 60px -8px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.markit-shell .divine-popper::before {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  right: 30px;
+  width: 12px;
+  height: 12px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+.markit-shell .dp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.markit-shell .dp-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.markit-shell .dp-orb-mini {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--primary-soft), var(--primary) 65%);
+}
+
+.markit-shell .dp-title h5 {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--foreground);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.markit-shell .dp-title h5 em {
+  font-style: italic;
+  color: var(--primary);
+}
+
+.markit-shell .dp-title small {
+  display: block;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-top: 1px;
+}
+
+.markit-shell .dp-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.markit-shell .dp-close:hover {
+  color: var(--foreground);
+  background: var(--card-2);
+}
+
+.markit-shell .dp-body {
+  padding: 14px 16px;
+}
+
+.markit-shell .dp-prompt {
+  background: var(--card-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--foreground);
+  line-height: 1.45;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.markit-shell .dp-prompt::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+}
+
+.markit-shell .dp-prompt .dp-who {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--primary);
+  font-style: normal;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.markit-shell .dp-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.markit-shell .dp-preset {
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-align: left;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.markit-shell .dp-preset:hover {
+  color: var(--foreground);
+  border-color: var(--muted-faint);
+}
+
+.markit-shell .dp-mic {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: default;
+  transition: border-color 0.15s;
+}
+
+.markit-shell .dp-mic:hover {
+  border-color: var(--primary);
+}
+
+.markit-shell .dp-mic.live {
+  border-color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 8%, var(--card-2));
+}
+
+.markit-shell .dp-mic .mic-orb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--primary-foreground);
+}
+
+.markit-shell .dp-mic .mic-orb svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.markit-shell .dp-mic .label {
+  font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  flex: 1;
+}
+
+.markit-shell .dp-mic.live .label {
+  color: var(--foreground);
+}
+
+.markit-shell .dp-mic .wave-mini {
+  display: none;
+  gap: 2px;
+  align-items: center;
+  height: 16px;
+}
+
+.markit-shell .dp-mic.live .wave-mini {
+  display: flex;
+}
+
+.markit-shell .dp-mic .wave-mini span {
+  width: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+  animation: mk-micwave 1s infinite ease-in-out;
+}
+
+.markit-shell .dp-mic .wave-mini span:nth-child(1) {
+  height: 6px;
+  animation-delay: 0s;
+}
+
+.markit-shell .dp-mic .wave-mini span:nth-child(2) {
+  height: 12px;
+  animation-delay: 0.1s;
+}
+
+.markit-shell .dp-mic .wave-mini span:nth-child(3) {
+  height: 16px;
+  animation-delay: 0.2s;
+}
+
+.markit-shell .dp-mic .wave-mini span:nth-child(4) {
+  height: 10px;
+  animation-delay: 0.3s;
+}
+
+.markit-shell .dp-mic .wave-mini span:nth-child(5) {
+  height: 6px;
+  animation-delay: 0.4s;
+}
+
+@keyframes mk-micwave {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.3);
+  }
+}
+
+.markit-shell .dp-foot {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.markit-shell .dp-foot kbd {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 9px;
+  background: var(--card-2);
+  border: 1px solid var(--border-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--foreground);
+}
+
+/* Scoped range styling (mock) — only inside editor shell */
+.markit-shell input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  height: 16px;
+}
+
+.markit-shell input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.markit-shell input[type='range']::-moz-range-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.markit-shell input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-top: -4.5px;
+  border: none;
+  box-shadow: 0 0 0 3px var(--card);
+  transition: box-shadow 0.15s;
+}
+
+.markit-shell input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow:
+    0 0 0 3px var(--card),
+    0 0 0 5px color-mix(in oklch, var(--primary) 30%, transparent);
+}
+
+.markit-shell input[type='range']::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+}
+
+/* Legacy utility used on sign-in */
+.bg-gradient-frame {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.55 0.2 295 / 0.1), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, oklch(0.58 0.24 290 / 0.06), transparent);
+}
+
+.border-gold-edge {
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, oklch(0.78 0.14 85 / 0.35), transparent) 1;
+}
+
+.studio-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.studio-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0.02 280 / 0.5);
+  border-radius: 3px;
+}
+
+input[type='range'] {
+  accent-color: var(--primary);
+}
+
+/* Markit marketing landings — align with style.md (Circe et Venus) */
+@keyframes mkt-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes mkt-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes mkt-welcome-seal {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes mkt-welcome-text {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mkt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mkt-welcome-bar {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@keyframes mkt-slow-spin {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mkt-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .divine-orb {
+    animation: none !important;
+  }
+}
+
+.mkt-welcome-still * {
+  animation: none !important;
+}
+
+/* ── trim handles on V1 clips ── */
+.markit-shell .mk-clip {
+  /* Allow handles to sit at the very edges */
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.markit-shell .mk-trim-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  background: color-mix(in oklch, var(--foreground) 25%, transparent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  touch-action: none;
+}
+
+.markit-shell .mk-trim-handle.mk-trim-left {
+  left: 0;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+.markit-shell .mk-trim-handle.mk-trim-right {
+  right: 0;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+.markit-shell .mk-clip:hover .mk-trim-handle,
+.markit-shell .mk-clip.mk-selected .mk-trim-handle {
+  opacity: 0.85;
+}
+
+.markit-shell .mk-trim-handle:hover {
+  opacity: 1 !important;
+  background: var(--foreground);
 }

@@ -808,7 +808,7 @@ export function LeakAlertCard(props: {
               type="button"
               size="sm"
               title="Prepare a DMCA notice draft, proof attachments, and filing helpers for this URL."
-              aria-label="DMCA takedown: open draft notice and filing bundle for this leak."
+              aria-label="DMCA Self-Takedown: open draft notice and filing bundle for this leak."
               className={cn(
                 'h-10 shrink-0 rounded-xl bg-primary px-5 text-[13px] font-medium text-primary-foreground',
                 'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_0_0_1px_rgba(180,130,0,0.2),0_0_22px_-8px_rgba(245,158,11,0.38),0_0_44px_-14px_rgba(251,191,36,0.2)]',
@@ -820,7 +820,7 @@ export function LeakAlertCard(props: {
               onClick={() => onDmca(alert)}
             >
               <Gavel className="mr-2 h-4 w-4 shrink-0 opacity-95" aria-hidden />
-              DMCA takedown
+              DMCA Self-Takedown
             </Button>
           </div>
         </div>

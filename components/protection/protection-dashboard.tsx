@@ -1160,7 +1160,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             <DialogHeader className="space-y-0 px-8 pb-0 pt-9 pr-16 text-left">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/90">Notice</p>
               <DialogTitle className="mt-2 text-[1.375rem] font-semibold leading-tight tracking-[-0.035em] text-foreground sm:text-[1.5rem]">
-                DMCA takedown
+                DMCA Self-Takedown
               </DialogTitle>
               <DialogDescription className="mt-3 max-w-[38ch] text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground">
                 Review the draft. Add proof, then download and send it to the host yourself—Creatix does not submit notices
@@ -1307,4 +1307,3 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     </div>
   )
 }
-

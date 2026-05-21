@@ -116,47 +116,65 @@ function CollapsedVoiceArcMeter({
   active: boolean
 }) {
   if (!active) return null
-  const top = Math.max(0.08, Math.min(1, divineLevel))
-  const bottom = Math.max(0.08, Math.min(1, userLevel))
-  const arcLength = 100
+  const normalize = (level: number) => {
+    const clamped = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 0))
+    if (clamped < 0.015) return 0
+    return Math.min(1, Math.pow(clamped, 0.48) * 1.22)
+  }
+  const top = normalize(divineLevel)
+  const bottom = normalize(userLevel)
+  const topDash = Math.max(3, Math.round(top * 100))
+  const bottomDash = Math.max(3, Math.round(bottom * 100))
   return (
     <svg
-      className="pointer-events-none absolute -inset-[7px] h-[calc(100%+14px)] w-[calc(100%+14px)] overflow-visible"
+      className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
       viewBox="0 0 100 100"
       aria-hidden
     >
-      <path d="M 16 50 A 34 34 0 0 1 84 50" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M 84 50 A 34 34 0 0 1 16 50" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3.5" strokeLinecap="round" />
       <path
-        d="M 16 50 A 34 34 0 0 1 84 50"
+        d="M 7 50 A 43 43 0 0 1 93 50"
         fill="none"
-        stroke="url(#divineArcGradient)"
+        stroke="currentColor"
         strokeWidth="4"
         strokeLinecap="round"
-        pathLength={arcLength}
-        strokeDasharray={`${Math.round(top * arcLength)} ${arcLength}`}
-        className="transition-all duration-100"
+        className="text-violet-500/18 dark:text-violet-200/18"
       />
       <path
-        d="M 84 50 A 34 34 0 0 1 16 50"
+        d="M 93 50 A 43 43 0 0 1 7 50"
         fill="none"
-        stroke="url(#userArcGradient)"
+        stroke="currentColor"
         strokeWidth="4"
         strokeLinecap="round"
-        pathLength={arcLength}
-        strokeDasharray={`${Math.round(bottom * arcLength)} ${arcLength}`}
-        className="transition-all duration-100"
+        className="text-amber-500/18 dark:text-amber-200/18"
       />
-      <defs>
-        <linearGradient id="divineArcGradient" x1="16" y1="20" x2="84" y2="20">
-          <stop stopColor="#8b5cf6" />
-          <stop offset="1" stopColor="#d946ef" />
-        </linearGradient>
-        <linearGradient id="userArcGradient" x1="84" y1="80" x2="16" y2="80">
-          <stop stopColor="#f59e0b" />
-          <stop offset="1" stopColor="#fde68a" />
-        </linearGradient>
-      </defs>
+      <path
+        d="M 7 50 A 43 43 0 0 1 93 50"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={4.25 + top * 2.25}
+        strokeLinecap="round"
+        pathLength={100}
+        strokeDasharray={`${topDash} 100`}
+        className="text-violet-500 transition-all duration-75 ease-out dark:text-violet-300"
+        style={{
+          opacity: 0.22 + top * 0.78,
+          filter: `drop-shadow(0 0 ${2 + top * 8}px rgba(168,85,247,${0.18 + top * 0.36}))`,
+        }}
+      />
+      <path
+        d="M 93 50 A 43 43 0 0 1 7 50"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={4.25 + bottom * 2.25}
+        strokeLinecap="round"
+        pathLength={100}
+        strokeDasharray={`${bottomDash} 100`}
+        className="text-amber-500 transition-all duration-75 ease-out dark:text-amber-300"
+        style={{
+          opacity: 0.22 + bottom * 0.78,
+          filter: `drop-shadow(0 0 ${2 + bottom * 8}px rgba(245,158,11,${0.16 + bottom * 0.36}))`,
+        }}
+      />
     </svg>
   )
 }

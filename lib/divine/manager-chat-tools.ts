@@ -60,6 +60,7 @@ import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 import { isAllowedUiNavigatePath } from '@/lib/divine/app-action-registry'
+import { isRegisteredDivineGuideControl } from '@/lib/divine/page-control-registry'
 
 export {
   REGISTERED_DASHBOARD_ROUTES as ALLOWED_UI_PATHS,
@@ -1935,6 +1936,15 @@ export async function runToolCall(
     }
     const elementId = typeof args.elementId === 'string' ? args.elementId.trim() : ''
     const label = typeof args.label === 'string' ? args.label.trim() : ''
+    if (elementId && !isRegisteredDivineGuideControl(elementId, path)) {
+      return {
+        tool_call_id: tc.id,
+        content:
+          'That guided control is not registered for this dashboard route. Use one of the audited page controls surfaced in page context.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
     if (elementId || label) {
       uiActions.push({
         type: 'guide_focus',

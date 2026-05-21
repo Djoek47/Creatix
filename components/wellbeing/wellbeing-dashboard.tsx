@@ -125,23 +125,25 @@ export function WellbeingDashboard() {
   const glowScoreForAmbient = pulse?.glowScore ?? insight?.glowScore ?? 40
 
   return (
-    <div className="relative mx-auto max-w-4xl overflow-hidden rounded-[28px] border border-border/15 bg-card/[0.15] p-5 sm:p-7 md:p-8">
+    <div id="wellbeing-overview" className="relative mx-auto max-w-4xl overflow-hidden rounded-[28px] border border-border/15 bg-card/[0.15] p-5 sm:p-7 md:p-8">
       <AmbientLayer glowScore={glowScoreForAmbient} />
       <div className="relative z-10 space-y-7 sm:space-y-8">
         <header className="text-center sm:text-left">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem]">{tDash('title')}</h1>
         </header>
 
-        <WellbeingStateStrip
-          pulse={pulse}
-          pulseLoading={pulseLoading}
-          insight={insight}
-          flow={flowState}
-          flowUnavailable={flowUnavailable}
-          glowLoading={glowLoading}
-        />
+        <div id="wellbeing-state-strip" data-divine-control="wellbeing-state-strip" className="scroll-mt-28">
+          <WellbeingStateStrip
+            pulse={pulse}
+            pulseLoading={pulseLoading}
+            insight={insight}
+            flow={flowState}
+            flowUnavailable={flowUnavailable}
+            glowLoading={glowLoading}
+          />
+        </div>
 
-        <motion.section {...fadeInUp}>
+        <motion.section id="wellbeing-lunar-calendar" data-divine-control="wellbeing-lunar-calendar" {...fadeInUp} className="scroll-mt-28">
           <WellbeingLunarCalendar />
         </motion.section>
 
@@ -254,7 +256,7 @@ export function WellbeingDashboard() {
           </div>
         </motion.section>
 
-        <motion.section {...fadeInUp}>
+        <motion.section id="wellbeing-flow-state" data-divine-control="wellbeing-flow-state" {...fadeInUp} className="scroll-mt-28">
           <Collapsible defaultOpen className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]">
             <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/10 data-[state=open]:[&_svg]:rotate-180">
               <span>{tDash('flow')}</span>
@@ -289,7 +291,7 @@ export function WellbeingDashboard() {
         ) : null}
 
         {insight ? (
-          <motion.section {...fadeInUp} className="space-y-4">
+          <motion.section id="wellbeing-light-place" data-divine-control="wellbeing-light-place" {...fadeInUp} className="scroll-mt-28 space-y-4">
             <Collapsible
               defaultOpen
               className="overflow-hidden rounded-2xl border border-border/30 bg-card/[0.2]"
@@ -300,8 +302,12 @@ export function WellbeingDashboard() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-6 border-t border-border/20 p-4 sm:p-5 sm:space-y-7">
                 <GlowCorePanel insight={insight} embedded />
-                <PositioningAwarenessPanel insight={insight} />
-                <GoldenHourTimeline timeline={insight.timeline} />
+                <div id="wellbeing-positioning-awareness" data-divine-control="wellbeing-positioning-awareness" className="scroll-mt-28">
+                  <PositioningAwarenessPanel insight={insight} />
+                </div>
+                <div id="wellbeing-golden-hour" data-divine-control="wellbeing-golden-hour" className="scroll-mt-28">
+                  <GoldenHourTimeline timeline={insight.timeline} />
+                </div>
                 <PerfectShotCarousel days={insight.perfectShotDays} />
                 <div className="space-y-3 pt-2">
                   <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{tDash('suggestions')}</h3>

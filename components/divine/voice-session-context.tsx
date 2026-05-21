@@ -13,6 +13,7 @@ import {
 import { useDivinePanel, type FocusedFan } from '@/components/divine/divine-panel-context'
 import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
 import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
+import { isRegisteredDivineGuideControl } from '@/lib/divine/page-control-registry'
 import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import type { DivineVoiceDisconnectReason } from '@/lib/divine/voice-memory-types'
@@ -120,6 +121,7 @@ type DivinePageContext = {
   path?: string
   title?: string
   visibleSummary?: string
+  guideControls?: Array<{ id?: string; label?: string; action?: string; available?: boolean }>
   reason?: string
   capturedAt?: string
 }
@@ -439,6 +441,12 @@ export function VoiceSessionProvider({
       `Current page: ${context.title || 'Dashboard'} (${context.path || '/dashboard'})`,
       context.reason ? `Reason: ${context.reason}` : null,
       context.visibleSummary ? `Visible page summary: ${context.visibleSummary}` : null,
+      Array.isArray(context.guideControls) && context.guideControls.length
+        ? `Audited guide controls on this page: ${context.guideControls
+            .filter((control) => control.available !== false && control.id)
+            .map((control) => `${control.id} (${control.label || 'control'}; ${control.action || 'guide'})`)
+            .join(', ')}`
+        : null,
       'Use this as passive screen context for the next answer. Do not reply to this update by itself.',
     ]
       .filter(Boolean)
@@ -467,6 +475,17 @@ export function VoiceSessionProvider({
         title: typeof detail.title === 'string' ? detail.title.slice(0, 140) : undefined,
         visibleSummary:
           typeof detail.visibleSummary === 'string' ? detail.visibleSummary.replace(/\s+/g, ' ').trim().slice(0, 1800) : undefined,
+        guideControls: Array.isArray(detail.guideControls)
+          ? detail.guideControls
+              .map((control) => ({
+                id: typeof control.id === 'string' ? control.id.slice(0, 80) : undefined,
+                label: typeof control.label === 'string' ? control.label.slice(0, 120) : undefined,
+                action: typeof control.action === 'string' ? control.action.slice(0, 40) : undefined,
+                available: control.available === true,
+              }))
+              .filter((control) => control.id)
+              .slice(0, 30)
+          : undefined,
         reason: typeof detail.reason === 'string' ? detail.reason.slice(0, 80) : undefined,
         capturedAt: typeof detail.capturedAt === 'string' ? detail.capturedAt.slice(0, 40) : new Date().toISOString(),
       }
@@ -1517,7 +1536,7 @@ export function VoiceSessionProvider({
     const onGuideFocus = (event: Event) => {
       const detail = (event as CustomEvent<{ elementId?: string | null; label?: string | null }>).detail
       const elementId = typeof detail?.elementId === 'string' ? detail.elementId.trim() : ''
-      if (!elementId || !/^[a-z0-9_-]{1,80}$/i.test(elementId)) return
+      if (!elementId || !isRegisteredDivineGuideControl(elementId, window.location.pathname)) return
       window.setTimeout(() => {
         const el = document.getElementById(elementId)
         if (!el) return
@@ -1525,9 +1544,10 @@ export function VoiceSessionProvider({
         const previousOutline = el.style.outline
         const previousOutlineOffset = el.style.outlineOffset
         const previousBoxShadow = el.style.boxShadow
-        el.style.outline = '2px solid rgba(168, 85, 247, 0.82)'
+        el.style.outline = '2px solid rgba(217, 119, 6, 0.88)'
         el.style.outlineOffset = '6px'
-        el.style.boxShadow = '0 0 0 10px rgba(168, 85, 247, 0.10)'
+        el.style.boxShadow =
+          '0 0 0 8px rgba(217, 119, 6, 0.12), 0 0 0 14px rgba(124, 58, 237, 0.09), 0 0 42px rgba(168, 85, 247, 0.18)'
         window.setTimeout(() => {
           el.style.outline = previousOutline
           el.style.outlineOffset = previousOutlineOffset

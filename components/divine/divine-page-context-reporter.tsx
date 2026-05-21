@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { getDivineGuideControlsForPath } from '@/lib/divine/page-control-registry'
 
 const MAX_VISIBLE_CONTEXT = 1800
 
@@ -32,6 +33,12 @@ function readDashboardPageContext(reason: string) {
     title: title.slice(0, 140),
     visibleSummary,
     reason,
+    guideControls: getDivineGuideControlsForPath(window.location.pathname).map((control) => ({
+      id: control.id,
+      label: control.label,
+      action: control.action,
+      available: Boolean(document.getElementById(control.id)),
+    })),
     capturedAt: new Date().toISOString(),
   }
 }

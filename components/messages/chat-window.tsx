@@ -2191,7 +2191,7 @@ export function ChatWindow({
         </div>
 
         {/* Divine AI scrolls with the thread so the composer below never gets pushed off-screen */}
-        <div className="shrink-0 border-t border-border/70 bg-card/95">
+        <div id="messages-ai-suggestions" data-divine-control="messages-ai-suggestions" className="shrink-0 scroll-mt-28 border-t border-border/70 bg-card/95">
           <Collapsible open={aiSectionOpen} onOpenChange={setAiSectionOpen}>
             <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-2 py-1.5 sm:px-3">
               <CollapsibleTrigger asChild>
@@ -2407,7 +2407,7 @@ export function ChatWindow({
         </div>
 
       {/* Composer + send: fixed to bottom of chat card (always visible) */}
-      <div className="flex flex-shrink-0 flex-col border-t border-border/80 bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
+      <div id="messages-composer" data-divine-control="messages-composer" className="flex flex-shrink-0 scroll-mt-28 flex-col border-t border-border/80 bg-card shadow-[0_-6px_20px_rgba(0,0,0,0.12)] dark:shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
         {error && messages.length > 0 && (
           <div className="border-b border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:px-4">
             {error}

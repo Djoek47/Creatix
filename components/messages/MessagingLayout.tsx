@@ -49,6 +49,8 @@ export function MessagingLayout({
       <AnimatePresence initial={false}>
         {leftPane ? (
           <motion.aside
+            id="messages-fan-list"
+            data-divine-control="messages-fan-list"
             key="left-pane"
             initial={reduced ? false : { opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -65,6 +67,8 @@ export function MessagingLayout({
         ) : null}
       </AnimatePresence>
       <motion.section
+        id="messages-thread"
+        data-divine-control="messages-thread"
         layout
         transition={panelTransition}
         className="flex min-h-0 min-w-0 flex-1"

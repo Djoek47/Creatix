@@ -24,6 +24,7 @@ import { checkDivineVoiceRealtimeMonthCap } from '@/lib/billing/divine-voice-fai
 import { applyMarkitCorsHeaders, markitCorsOptions } from '@/lib/cors-markit'
 import { getOpenAIRealtimeModel } from '@/lib/openai/realtime-model'
 import { buildDivineRealtimeSessionConfig } from '@/lib/divine/realtime-agent-harness'
+import { DIVINE_GUIDE_CONTROL_IDS } from '@/lib/divine/page-control-registry'
 
 export const maxDuration = 30
 
@@ -40,6 +41,7 @@ type DivineRealtimeContext = {
   path?: string
   title?: string
   visibleSummary?: string
+  guideControls?: Array<{ id?: string; label?: string; action?: string; available?: boolean }>
   reason?: string
   capturedAt?: string
 }
@@ -274,9 +276,17 @@ export async function POST(req: NextRequest) {
       clientContext?.surface === 'markit'
         ? `\n\nSURFACE: Markit video editor. The creator is in the in-browser video editor (not the main dashboard). Import: ${String(clientContext.importUrl || 'none').slice(0, 500)}. Timeline: ${String(clientContext.timelineSummary || 'n/a').slice(0, 1200)}. Prefer concise, edit-focused answers; if a tool or flow only exists in the main app, say so and suggest they open the dashboard.`
         : ''
+    const guideControlsLine =
+      Array.isArray(clientContext?.guideControls) && clientContext.guideControls.length > 0
+        ? ` Audited controls currently reported by the page: ${clientContext.guideControls
+            .filter((control) => control && control.available !== false && control.id)
+            .map((control) => `${String(control.id).slice(0, 80)} (${String(control.label || 'control').slice(0, 80)}; ${String(control.action || 'guide').slice(0, 40)})`)
+            .join(', ')
+            .slice(0, 1200)}.`
+        : ''
     const dashboardContextBlock =
       clientContext && clientContext.surface !== 'markit'
-        ? `\n\nCURRENT DASHBOARD SCREEN (from the browser): ${String(clientContext.title || 'Dashboard').slice(0, 160)} at ${String(clientContext.path || '/dashboard').slice(0, 260)}. Visible summary: ${String(clientContext.visibleSummary || 'not captured yet').slice(0, 1800)}. If the creator asks whether a page loaded, what is open, or what data is visible, use this context first instead of asking them to confirm. If context reason mentions refresh, treat data as refreshing/settled according to that reason and keep the voice session alive.`
+        ? `\n\nCURRENT DASHBOARD SCREEN (from the browser): ${String(clientContext.title || 'Dashboard').slice(0, 160)} at ${String(clientContext.path || '/dashboard').slice(0, 260)}. Visible summary: ${String(clientContext.visibleSummary || 'not captured yet').slice(0, 1800)}.${guideControlsLine} If the creator asks whether a page loaded, what is open, or what data is visible, use this context first instead of asking them to confirm. If context reason mentions refresh, treat data as refreshing/settled according to that reason and keep the voice session alive.`
         : ''
 
     const voiceSurface: 'dashboard' | 'markit' = clientContext?.surface === 'markit' ? 'markit' : 'dashboard'
@@ -303,6 +313,8 @@ ${analyticsSummary}
 ${analyticsTotals ? `\n${analyticsTotals}` : ''}
 
 You have access to the creator's analytics: fans, revenue, and platform breakdown; use this when they ask about performance, sales, or growth.
+
+Phase 1 guided teaching: on Well-being, explain the state strip, lunar calendar, flow state, light/place, positioning awareness, and golden-hour timing. On Protection, explain scan setup, filters, leak cards, classification controls, and DMCA Self-Takedown; prepare but never execute takedown/classification changes without confirmation. On Messages, focus the fan, explain the thread, highlight the composer, and fill drafts; sending still requires confirmation unless explicitly requested through the normal confirmation path. On Social, highlight platform target, templates, AI generation, composer, and share/copy actions; draft first and confirm before posting or sending. Use only registered elementId values from page context or the ui_navigate schema.
 
     You can see and act on OnlyFans fans, followings, message engagement, and queue: list_fans (filter: active, expired, latest, top, expiring_soon from CRM sync — optional expiringWithinDays 1–90, default 14) for who are my fans, top spenders, expired subs, or subs ending soon; get_fan_subscription_history for a specific fan's renewals; list_followings for who the creator follows; get_top_message for the best-performing message and its buyers; get_message_engagement (type direct or mass) for how DMs or mass messages performed; publish_queue_item to publish a saved post or saved mass message. Prefer the smallest set of API calls that answers the question: e.g. "who spent the most this month" → list_fans with filter=top; "how did yesterday's mass message do" → get_message_engagement with type=mass; "publish my saved post about the new set" → look up queue then publish_queue_item with that queueId.
 
@@ -1150,6 +1162,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
             },
             elementId: {
               type: 'string',
+              enum: DIVINE_GUIDE_CONTROL_IDS,
               description: 'Optional known DOM id to scroll/highlight after navigation. Do not invent arbitrary selectors.',
             },
             label: {

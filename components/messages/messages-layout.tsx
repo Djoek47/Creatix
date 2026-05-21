@@ -1077,7 +1077,7 @@ function MessagesLayoutContent({
   )
 
   return (
-    <div className="flex w-full min-h-0 flex-1 flex-col px-0 sm:px-0.5">
+    <div id="messages-workspace" data-divine-control="messages-workspace" className="flex w-full min-h-0 flex-1 scroll-mt-28 flex-col px-0 sm:px-0.5">
       <MassMessageDialog open={massDialogOpen} onOpenChange={setMassDialogOpen} showTrigger={false} />
       {showMobileFocusStrip && view === 'conversations' ? (
         <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2 sm:mb-3">

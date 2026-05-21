@@ -51,7 +51,7 @@ export function SocialHub({ connections }: { connections: SocialConnectionRow[] 
   return (
     <div className="w-full space-y-8 sm:space-y-10">
       <Tabs value={tab} onValueChange={onTabChange} className="w-full space-y-8">
-        <div className="rounded-full border border-border/60 bg-muted/15 p-1">
+        <div id="social-create-tabs" data-divine-control="social-create-tabs" className="scroll-mt-28 rounded-full border border-border/60 bg-muted/15 p-1">
           <TabsList className="grid h-auto w-full grid-cols-1 gap-0.5 bg-transparent p-0 sm:grid-cols-3">
             <TabsTrigger
               value="create"

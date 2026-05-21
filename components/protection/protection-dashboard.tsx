@@ -754,7 +754,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   return (
     <div className="min-w-0 space-y-6 sm:space-y-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+      <div id="protection-scan-setup" data-divine-control="protection-scan-setup" className="scroll-mt-28 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0 space-y-1.5">
           <p className="text-base font-semibold tracking-tight text-foreground sm:text-[1.0625rem]">Scan setup</p>
           {uiMode === 'easy' ? (
@@ -972,7 +972,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           {alertUpdateError}
         </p>
       ) : null}
-      <div className="relative overflow-hidden rounded-xl border border-violet-500/15 bg-gradient-to-b from-muted/25 via-background/40 to-muted/10 p-3 shadow-sm ring-1 ring-inset ring-white/[0.04] space-y-3 transition-shadow duration-300 hover:shadow-md hover:ring-violet-500/20">
+      <div id="protection-filter-queue" data-divine-control="protection-filter-queue" className="relative scroll-mt-28 overflow-hidden rounded-xl border border-violet-500/15 bg-gradient-to-b from-muted/25 via-background/40 to-muted/10 p-3 shadow-sm ring-1 ring-inset ring-white/[0.04] space-y-3 transition-shadow duration-300 hover:shadow-md hover:ring-violet-500/20">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent motion-safe:animate-pulse motion-safe:[animation-duration:2.4s] motion-reduce:opacity-50"
           aria-hidden
@@ -1077,7 +1077,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       </div>
       <div className="space-y-8">
         {confirmedAlerts.length > 0 ? (
-          <section className="space-y-3" aria-labelledby="confirmed-leaks-heading">
+          <section id="protection-confirmed-leaks" data-divine-control="protection-confirmed-leaks" className="scroll-mt-28 space-y-3" aria-labelledby="confirmed-leaks-heading">
             <div>
               <h2 id="confirmed-leaks-heading" className="text-[13px] font-semibold tracking-tight text-foreground">
                 Confirmed · act next
@@ -1112,7 +1112,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           </section>
         ) : null}
         {queueAlerts.length > 0 ? (
-          <section className="space-y-5" aria-labelledby={confirmedAlerts.length > 0 ? 'triage-queue-heading' : undefined}>
+          <section id="protection-triage-queue" data-divine-control="protection-triage-queue" className="scroll-mt-28 space-y-5" aria-labelledby={confirmedAlerts.length > 0 ? 'triage-queue-heading' : undefined}>
             {confirmedAlerts.length > 0 ? (
               <h2 id="triage-queue-heading" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Triage

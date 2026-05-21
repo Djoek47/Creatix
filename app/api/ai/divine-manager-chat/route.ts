@@ -29,6 +29,7 @@ import {
 import { divineManagerDebitMetadata } from '@/lib/billing/divine-manager-ledger'
 import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
 import { appendMemory, getMemoryContext } from '@/lib/divine/divine-memory'
+import { DIVINE_GUIDE_CONTROL_IDS } from '@/lib/divine/page-control-registry'
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
 
@@ -575,6 +576,7 @@ const CHAT_TOOLS: Array<{
           },
           elementId: {
             type: 'string',
+            enum: DIVINE_GUIDE_CONTROL_IDS,
             description: 'Optional known DOM id to scroll/highlight after navigation. Do not invent arbitrary selectors.',
           },
           label: {

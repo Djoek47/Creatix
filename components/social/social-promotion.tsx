@@ -345,7 +345,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
             </CardHeader>
             <CardContent className="space-y-5 px-5 pb-6 sm:px-6 sm:pb-7">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
+                <div id="social-platform-selector" data-divine-control="social-platform-selector" className="scroll-mt-28 space-y-2">
                   <Label className="text-[13px] font-medium text-foreground">AI target</Label>
                   <Select value={aiTarget} onValueChange={(v) => setAiTarget(v as AiTarget)}>
                     <SelectTrigger
@@ -366,6 +366,8 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                 </div>
                 <div className="flex items-end">
                   <Button
+                    id="social-generate-ai"
+                    data-divine-control="social-generate-ai"
                     type="button"
                     className={cn(
                       'h-10 w-full rounded-xl text-[14px] font-medium shadow-none',
@@ -410,7 +412,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
                 </div>
               ) : null}
 
-              <div className="space-y-2">
+              <div id="social-post-composer" data-divine-control="social-post-composer" className="scroll-mt-28 space-y-2">
                 <Label htmlFor="social-post-body" className="text-[13px] font-medium text-foreground">
                   Message
                 </Label>
@@ -476,7 +478,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
             </CardContent>
           </Card>
 
-          <Card className="min-w-0 gap-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 py-0 shadow-none">
+          <Card id="social-template-gallery" data-divine-control="social-template-gallery" className="min-w-0 scroll-mt-28 gap-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 py-0 shadow-none">
             <CardHeader className="min-w-0 space-y-2 px-5 pb-2 pt-6 sm:px-6 sm:pt-7">
               <CardTitle className="font-serif text-lg font-semibold tracking-tight text-foreground sm:text-xl">
                 Templates
@@ -532,7 +534,7 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
         </div>
 
         <div className="space-y-5">
-          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+          <Card id="social-share-actions" data-divine-control="social-share-actions" className="overflow-hidden scroll-mt-28 rounded-2xl border-border/60 bg-card/40 shadow-none">
             <CardHeader className="space-y-1 pb-3 pt-6 sm:pt-7">
               <CardTitle className="text-base font-semibold tracking-tight">Share & copy</CardTitle>
               <CardDescription className="text-[15px] leading-relaxed">

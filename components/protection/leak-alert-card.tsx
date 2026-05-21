@@ -611,8 +611,10 @@ export function LeakAlertCard(props: {
 
       {/* Secondary: classification — single disclosure */}
       <details
+        id="protection-classification-controls"
+        data-divine-control="protection-classification-controls"
         className={cn(
-          'group rounded-2xl border border-border/30 bg-black/[0.12] [&_summary::-webkit-details-marker]:hidden dark:bg-white/[0.03]',
+          'group scroll-mt-28 rounded-2xl border border-border/30 bg-black/[0.12] [&_summary::-webkit-details-marker]:hidden dark:bg-white/[0.03]',
           pinned ? 'mt-4' : 'mt-6',
         )}
       >
@@ -781,6 +783,8 @@ export function LeakAlertCard(props: {
         <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
           <div className="flex w-full min-w-0 flex-col gap-2 sm:max-w-none sm:flex-row sm:items-center sm:gap-3 lg:min-w-[min(100%,22rem)]">
             <Button
+              id="protection-dmca-self-takedown"
+              data-divine-control="protection-dmca-self-takedown"
               type="button"
               variant="ghost"
               size="sm"

@@ -13,6 +13,12 @@ export type FinalizeVaultExportResult =
     }
   | { ok: false; status: number; error: string }
 
+function sanitizeExportTitle(title: string | null | undefined): string | null {
+  if (typeof title !== 'string') return null
+  const trimmed = title.trim().replace(/\s+/g, ' ').slice(0, 500)
+  return trimmed.length > 0 ? trimmed : null
+}
+
 /**
  * After a client uploads to `storagePath`, update `content` with a fresh signed `file_url`
  * and remove the previous vault object when replaced.
@@ -24,6 +30,7 @@ export async function finalizeVaultExportUpload(
     contentId: string
     storagePath: string
     mime: string
+    title?: string | null
   },
 ): Promise<FinalizeVaultExportResult> {
   const { userId, contentId, storagePath, mime } = opts
@@ -75,13 +82,17 @@ export async function finalizeVaultExportUpload(
     vault_storage_path: storagePath,
     updated_at: new Date().toISOString(),
   }
+  const exportTitle = sanitizeExportTitle(opts.title)
+  if (exportTitle) {
+    patch.title = exportTitle
+  }
 
   const { data: updated, error: updErr } = await service
     .from('content')
     .update(patch)
     .eq('id', contentId)
     .eq('user_id', userId)
-    .select('id, file_url, vault_storage_path, updated_at')
+    .select('id, title, file_url, vault_storage_path, updated_at')
     .maybeSingle()
 
   if (updErr || !updated) {

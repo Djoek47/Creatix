@@ -11,6 +11,7 @@ type CompleteBody = {
   exportToken?: string | null
   path?: string
   mimeType?: string
+  title?: string | null
 }
 
 /**
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     contentId: id,
     storagePath,
     mime,
+    title: body.title,
   })
 
   if (!result.ok) {

@@ -42,7 +42,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
 
   let { data: row, error } = await supabase
     .from('content')
-    .select('id, user_id, content_type, file_url, vault_storage_path')
+    .select('id, user_id, title, content_type, file_url, vault_storage_path')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -50,7 +50,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   if (error && /vault_storage_path|column/i.test(error.message || '')) {
     const fb = await supabase
       .from('content')
-      .select('id, user_id, content_type, file_url')
+      .select('id, user_id, title, content_type, file_url')
       .eq('id', id)
       .eq('user_id', user.id)
       .maybeSingle()
@@ -89,6 +89,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
     exportUrl,
     exportToken,
     contentId: id,
+    title: row.title || 'Creatix vault video',
   })
 
   const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`

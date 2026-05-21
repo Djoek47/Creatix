@@ -55,6 +55,16 @@ function extensionFromMime(mime: string) {
   return 'mp4'
 }
 
+function cleanProjectTitle(value: string) {
+  return value.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 120)
+}
+
+function titleFromProjectName(value: string) {
+  const title = cleanProjectTitle(value)
+  if (!title) return 'Creatix export'
+  return title.replace(/\.(mp4|mov|webm|m4v)$/i, '')
+}
+
 function exportEndpoint(path: string, suffix: 'prepare' | 'complete') {
   return `${path.replace(/\/frame-export\/?$/, '/frame-export')}/${suffix}`
 }
@@ -164,6 +174,10 @@ function CreatixBridge() {
         const fileName = filenameFromResponse(response, `${activeBridge.title}.${extensionFromMime(mime)}`)
         const file = new File([blob], fileName, { type: mime, lastModified: Date.now() })
         const store = useProjectStore.getState()
+        const initialTitle = titleFromProjectName(activeBridge.title)
+        if (initialTitle && store.project.name !== initialTitle) {
+          await store.renameProject(initialTitle)
+        }
         const result = await store.importMedia(file)
 
         if (!result.success || !result.actionId) {
@@ -212,6 +226,7 @@ function CreatixBridge() {
       setGlobalExportState({ isExporting: true, progress: 0, phase: 'Rendering for Creatix...' })
 
       const project = useProjectStore.getState().project
+      const projectTitle = titleFromProjectName(project.name)
       const blob = await exportProjectToBlob(
         {
           width: project.settings.width,
@@ -229,9 +244,10 @@ function CreatixBridge() {
       )
 
       setMessage('Saving to Creatix vault...')
-      const fileName = `${project.name || 'creatix-export'}.mp4`
+      const fileName = `${projectTitle}.mp4`
       const formData = new FormData()
       formData.append('exportToken', bridge.exportToken)
+      formData.append('title', projectTitle)
       formData.append('file', new File([blob], fileName, { type: 'video/mp4' }))
 
       let response: Response
@@ -242,6 +258,7 @@ function CreatixBridge() {
         body: JSON.stringify({
           exportToken: bridge.exportToken,
           fileName,
+          title: projectTitle,
           mimeType: blob.type || 'video/mp4',
           fileSize: blob.size,
         }),
@@ -266,6 +283,7 @@ function CreatixBridge() {
           body: JSON.stringify({
             exportToken: bridge.exportToken,
             path: prep.path,
+            title: projectTitle,
             mimeType: blob.type || 'video/mp4',
           }),
         })

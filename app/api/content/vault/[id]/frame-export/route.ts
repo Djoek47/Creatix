@@ -49,6 +49,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   const exportTokenRaw = formData.get('exportToken')
   const exportToken = typeof exportTokenRaw === 'string' ? exportTokenRaw : null
+  const titleRaw = formData.get('title')
+  const title = typeof titleRaw === 'string' ? titleRaw : null
 
   let userId: string | null = null
 
@@ -141,6 +143,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     contentId: id,
     storagePath: path,
     mime,
+    title,
   })
 
   if (!finalized.ok) {

@@ -41,7 +41,7 @@ export const SpotlightTour: React.FC = () => {
           <>
             <motion.div
               key={`top-${currentStep}`}
-              className="fixed left-0 right-0 top-0 bg-black/80 pointer-events-auto"
+              className="fixed left-0 right-0 top-0 bg-black/45 pointer-events-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, height: spotlightRect.top }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -49,7 +49,7 @@ export const SpotlightTour: React.FC = () => {
             />
             <motion.div
               key={`bottom-${currentStep}`}
-              className="fixed left-0 right-0 bottom-0 bg-black/80 pointer-events-auto"
+              className="fixed left-0 right-0 bottom-0 bg-black/45 pointer-events-auto"
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 1,
@@ -60,7 +60,7 @@ export const SpotlightTour: React.FC = () => {
             />
             <motion.div
               key={`left-${currentStep}`}
-              className="fixed left-0 bg-black/80 pointer-events-auto"
+              className="fixed left-0 bg-black/45 pointer-events-auto"
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 1,
@@ -73,7 +73,7 @@ export const SpotlightTour: React.FC = () => {
             />
             <motion.div
               key={`right-${currentStep}`}
-              className="fixed right-0 bg-black/80 pointer-events-auto"
+              className="fixed right-0 bg-black/45 pointer-events-auto"
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 1,
@@ -106,7 +106,7 @@ export const SpotlightTour: React.FC = () => {
         ) : (
           <motion.div
             key="full-overlay"
-            className="fixed inset-0 bg-black/80 pointer-events-auto"
+            className="fixed inset-0 bg-black/45 pointer-events-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

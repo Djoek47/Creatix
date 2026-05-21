@@ -943,7 +943,7 @@ export function OnboardingModal({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        overlayClassName="fixed inset-0 z-50 bg-neutral-950/45 backdrop-blur-[2px] dark:bg-black/55"
+        overlayClassName="fixed inset-0 z-50 bg-neutral-950/38 dark:bg-black/45"
         className={cn(
           'flex max-h-[min(92dvh,44rem)] flex-col gap-0 overflow-hidden rounded-[1.375rem]',
           'border-border/45 bg-background/95 shadow-[0_26px_80px_-32px_rgba(0,0,0,0.55)]',

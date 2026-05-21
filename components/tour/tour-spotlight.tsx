@@ -167,15 +167,15 @@ export function TourSpotlight({
             {rect ? (
               <>
                 <div
-                  className="pointer-events-auto absolute left-0 right-0 top-0 bg-neutral-950/28 backdrop-blur-sm dark:bg-black/32"
+                  className="pointer-events-auto absolute left-0 right-0 top-0 bg-neutral-950/28 dark:bg-black/32"
                   style={{ height: Math.max(0, rect.top) }}
                 />
                 <div
-                  className="pointer-events-auto absolute bottom-0 left-0 right-0 bg-neutral-950/28 backdrop-blur-sm dark:bg-black/32"
+                  className="pointer-events-auto absolute bottom-0 left-0 right-0 bg-neutral-950/28 dark:bg-black/32"
                   style={{ top: rect.top + rect.height, height: Math.max(0, vh - rect.top - rect.height) }}
                 />
                 <div
-                  className="pointer-events-auto absolute bg-neutral-950/28 backdrop-blur-sm dark:bg-black/32"
+                  className="pointer-events-auto absolute bg-neutral-950/28 dark:bg-black/32"
                   style={{
                     left: 0,
                     width: Math.max(0, rect.left),
@@ -184,7 +184,7 @@ export function TourSpotlight({
                   }}
                 />
                 <div
-                  className="pointer-events-auto absolute bg-neutral-950/28 backdrop-blur-sm dark:bg-black/32"
+                  className="pointer-events-auto absolute bg-neutral-950/28 dark:bg-black/32"
                   style={{
                     left: rect.left + rect.width,
                     right: 0,
@@ -209,7 +209,7 @@ export function TourSpotlight({
                 />
               </>
             ) : (
-              <div className="pointer-events-auto absolute inset-0 bg-neutral-950/28 backdrop-blur-sm dark:bg-black/32" />
+              <div className="pointer-events-auto absolute inset-0 bg-neutral-950/28 dark:bg-black/32" />
             )}
           </div>
 
@@ -219,7 +219,7 @@ export function TourSpotlight({
               aria-modal="true"
               aria-labelledby={titleId}
               className={cn(
-                'pointer-events-auto relative w-full max-w-[26rem] overflow-hidden rounded-[1.25rem] outline-none backdrop-blur-2xl',
+                'pointer-events-auto relative w-full max-w-[26rem] overflow-hidden rounded-[1.25rem] outline-none',
                 'border border-primary/25 bg-background/75 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.55),0_0_60px_-28px_color-mix(in_oklch,var(--primary)_18%,transparent)]',
                 'dark:border-primary/20 dark:bg-white/[0.07]',
               )}

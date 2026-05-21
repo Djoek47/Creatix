@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "homeAria": "Accueil Circe et Venus"
+  },
+  "hero": {
+    "kicker": "Entreprise",
+    "title": "À propos",
+    "lead": "Nous concevons un espace de travail posé pour les créatrices et créateurs exigeants — messages, fans, outils IA et protection — avec commande vocale lorsque vous en avez besoin."
+  },
+  "mission": {
+    "title": "Mission",
+    "p1": "Les outils autrefois réservés aux agences doivent être derrière vous. Nous livrons un logiciel qui respecte votre temps, vos données et votre façon de travailler.",
+    "p2": "Circe, c’est la rétention et la profondeur. Vénus, c’est la croissance et la portée. Ensemble elles décrivent un seul produit, pas deux assemblés."
+  },
+  "dual": {
+    "circeTitle": "Circe",
+    "circeBody": "Rétention, rythme et protection — moins de voies d’eau, moins d’incendies dans la boîte de réception.",
+    "venusTitle": "Vénus",
+    "venusBody": "Croissance et présentation — offres plus claires, interfaces plus nettes, plus de marge pour scaler."
+  },
+  "values": {
+    "title": "Principes",
+    "oneTitle": "Confidentialité par défaut",
+    "oneBody": "Vos comptes et votre contenu restent les vôtres. Nous visons la moindre exposition et des réglages explicites.",
+    "twoTitle": "Exigence plutôt que bruit",
+    "twoBody": "Chaque écran mérite ses pixels. Pas d’encombrement, pas de pièges sombres, pas de tableaux de bord gadgets.",
+    "threeTitle": "L’humain dans la boucle",
+    "threeBody": "L’IA assiste ; vous décidez. Voix et texte alignés sur votre façon réelle d’opérer."
+  },
+  "closing": {
+    "line": "Construit par des personnes qui livrent du produit et comprennent le travail de l’autre côté de l’écran."
+  },
+  "cta": {
+    "title": "Commencer",
+    "subtitle": "Essai sur le site. Facturation et forfaits dans Réglages quand vous serez prête.",
+    "primary": "Créer un compte",
+    "secondary": "Contact"
+  },
+  "footer": {
+    "terms": "Conditions",
+    "privacy": "Confidentialité",
+    "cookies": "Cookies",
+    "contact": "Contact"
+  }
+}

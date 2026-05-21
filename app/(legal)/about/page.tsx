@@ -1,227 +1,144 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Moon, Sun, Star, Shield, TrendingUp, Heart, Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { ArrowLeft } from 'lucide-react'
+
+import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+
+const glassShell = cn(
+  'w-full max-w-[40rem] rounded-[2rem] border px-8 py-12 sm:px-12 sm:py-14 md:px-14 md:py-16',
+  'border-white/50 bg-white/50 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.14)] backdrop-blur-2xl',
+  'dark:border-white/[0.09] dark:bg-slate-950/40 dark:shadow-[0_28px_90px_-32px_rgba(0,0,0,0.55)]',
+)
+
+const sectionRule = 'border-t border-border/25 pt-12 first:border-t-0 first:pt-0'
 
 export default function AboutPage() {
-  const team = [
-    {
-      name: 'The Founders',
-      role: 'Visionaries',
-      description: 'Former top creators who understood the need for intelligent tools.',
-    },
-    {
-      name: 'AI Research Team',
-      role: 'The Enchanters',
-      description: 'Building divine intelligence for creator success.',
-    },
-    {
-      name: 'Security Team',
-      role: 'The Guardians',
-      description: 'Protecting creator content and privacy.',
-    },
-    {
-      name: 'Growth Team',
-      role: 'The Cultivators',
-      description: 'Helping creators reach their full potential.',
-    },
-  ]
+  const t = useTranslations('about')
+  const tCommon = useTranslations('common')
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <ThemedLogo width={32} height={32} className="rounded-full" priority />
-            <span className="font-serif text-lg font-semibold text-primary">CIRCE ET VENUS</span>
+    <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-background">
+      <AuthScenicBackdrop />
+
+      <header
+        className={cn(
+          'sticky top-0 z-20 border-b border-border/30 bg-background/70 backdrop-blur-xl',
+          'supports-[backdrop-filter]:bg-background/55',
+        )}
+      >
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5 sm:h-[3.75rem] sm:px-8">
+          <Link
+            href="/"
+            aria-label={t('nav.homeAria')}
+            className="flex min-w-0 items-center gap-2.5 rounded-xl outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/50"
+          >
+            <ThemedLogo width={36} height={36} className="size-9 shrink-0 rounded-full" priority />
+            <span className="truncate font-serif text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              {tCommon('brand.name')}
+            </span>
           </Link>
-          <Button variant="ghost" asChild>
-            <Link href="/" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
+          <Button variant="ghost" size="sm" className="h-9 gap-1.5 rounded-full px-3 text-muted-foreground" asChild>
+            <Link href="/" className="flex items-center gap-1.5">
+              <ArrowLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />
+              <span className="text-[13px] font-medium">{tCommon('back')}</span>
             </Link>
           </Button>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <div className="mb-6 flex justify-center">
-            <ThemedLogo width={120} height={120} className="rounded-full" priority />
-          </div>
-          <h1 className="font-serif text-4xl font-bold">About Circe et Venus</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Where ancient wisdom meets modern technology. We empower content creators with 
-            divine intelligence to enchant their audience and grow their empire.
-          </p>
-        </div>
-      </section>
+      <main className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pb-20 pt-10 sm:px-8 sm:pb-24 sm:pt-14">
+        <div className={glassShell}>
+          <header className="space-y-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t('hero.kicker')}</p>
+            <h1 className="font-serif text-[2.125rem] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl sm:leading-[1.05]">
+              {t('hero.title')}
+            </h1>
+            <p className="max-w-prose text-pretty text-[17px] leading-relaxed text-muted-foreground sm:text-lg">
+              {t('hero.lead')}
+            </p>
+          </header>
 
-      {/* Mission */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="grid gap-8 md:grid-cols-2">
-            <div>
-              <h2 className="font-serif text-2xl font-bold">Our Mission</h2>
-              <p className="mt-4 text-muted-foreground">
-                We believe every creator deserves access to powerful tools that were once only
-                available to agencies and top earners. Our mission is to democratize creator success
-                through AI-powered insights, intelligent automation, and divine guidance.
-              </p>
-              <p className="mt-4 text-muted-foreground">
-                By combining the enchanting retention powers of Circe with the attractive growth
-                magic of Venus, we provide a complete ecosystem for creator empowerment.
-              </p>
+          <section className={cn('mt-14 space-y-5', sectionRule)}>
+            <h2 className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{t('mission.title')}</h2>
+            <div className="space-y-4 text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+              <p className="max-w-prose text-pretty">{t('mission.p1')}</p>
+              <p className="max-w-prose text-pretty">{t('mission.p2')}</p>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-lg border border-circe/30 bg-circe/5 p-4">
-                <Moon className="mt-1 h-5 w-5 text-circe" />
-                <div>
-                  <h3 className="font-medium text-circe">Circe: Retention</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Like the mythological sorceress, we help you keep your audience enchanted.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-lg border border-venus/30 bg-venus/5 p-4">
-                <Sun className="mt-1 h-5 w-5 text-venus" />
-                <div>
-                  <h3 className="font-medium text-venus">Venus: Growth</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Channel the goddess of attraction to grow your following irresistibly.
-                  </p>
-                </div>
-              </div>
+          </section>
+
+          <section className={cn('mt-14 grid gap-10 sm:grid-cols-2 sm:gap-12', sectionRule)}>
+            <div className="space-y-3 border-l-2 border-circe/25 pl-5 sm:pl-6">
+              <h3 className="font-serif text-lg font-semibold tracking-tight text-foreground">{t('dual.circeTitle')}</h3>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">{t('dual.circeBody')}</p>
             </div>
-          </div>
-        </div>
-      </section>
+            <div className="space-y-3 border-l-2 border-amber-400/25 pl-5 sm:pl-6 dark:border-amber-300/20">
+              <h3 className="font-serif text-lg font-semibold tracking-tight text-foreground">{t('dual.venusTitle')}</h3>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">{t('dual.venusBody')}</p>
+            </div>
+          </section>
 
-      {/* Values */}
-      <section className="border-y border-border bg-card/30 py-16">
-        <div className="mx-auto max-w-4xl px-4">
-          <h2 className="text-center font-serif text-2xl font-bold">Our Values</h2>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 text-center">
-                <Shield className="mx-auto h-10 w-10 text-primary" />
-                <h3 className="mt-4 font-semibold">Creator First</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Your content, your empire. We protect what you build and never compromise your privacy.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 text-center">
-                <Sparkles className="mx-auto h-10 w-10 text-primary" />
-                <h3 className="mt-4 font-semibold">Innovation</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Cutting-edge AI that evolves with the creator economy and stays ahead of trends.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 text-center">
-                <Heart className="mx-auto h-10 w-10 text-primary" />
-                <h3 className="mt-4 font-semibold">Empowerment</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Tools that give you superpowers, not replace you. Amplify your unique voice.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+          <section className={cn('mt-14', sectionRule)}>
+            <h2 className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{t('values.title')}</h2>
+            <ul className="mt-8 grid gap-10 sm:grid-cols-3 sm:gap-8">
+              <li className="space-y-2">
+                <p className="text-[15px] font-medium leading-snug text-foreground">{t('values.oneTitle')}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t('values.oneBody')}</p>
+              </li>
+              <li className="space-y-2">
+                <p className="text-[15px] font-medium leading-snug text-foreground">{t('values.twoTitle')}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t('values.twoBody')}</p>
+              </li>
+              <li className="space-y-2">
+                <p className="text-[15px] font-medium leading-snug text-foreground">{t('values.threeTitle')}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t('values.threeBody')}</p>
+              </li>
+            </ul>
+          </section>
 
-      {/* Team */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4">
-          <h2 className="text-center font-serif text-2xl font-bold">The Divine Council</h2>
-          <p className="mx-auto mt-2 max-w-lg text-center text-muted-foreground">
-            Our team combines creator experience with technical excellence.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {team.map((member) => (
-              <div
-                key={member.name}
-                className="rounded-lg border border-border bg-card p-4"
+          <p className={cn('mt-14 text-sm leading-relaxed text-muted-foreground/90', sectionRule)}>{t('closing.line')}</p>
+
+          <section className={cn('mt-14 space-y-5 text-center', sectionRule)}>
+            <h2 className="font-serif text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{t('cta.title')}</h2>
+            <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">{t('cta.subtitle')}</p>
+            <div className="flex flex-col items-stretch justify-center gap-3 pt-1 sm:flex-row sm:items-center sm:justify-center">
+              <Button
+                asChild
+                size="lg"
+                className="h-12 rounded-full bg-foreground px-8 text-[15px] font-medium text-background shadow-none hover:bg-foreground/90"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <Star className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">{member.description}</p>
-              </div>
-            ))}
-          </div>
+                <Link href="/auth/sign-up">{t('cta.primary')}</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="h-12 rounded-full border-border/60 bg-background/40 px-8 text-[15px] backdrop-blur-sm">
+                <Link href="/contact">{t('cta.secondary')}</Link>
+              </Button>
+            </div>
+          </section>
         </div>
-      </section>
 
-      {/* Stats */}
-      <section className="border-y border-border bg-card/30 py-16">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="grid gap-8 text-center md:grid-cols-4">
-            <div>
-              <div className="text-3xl font-bold text-primary">10K+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Creators</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">$50M+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Revenue Managed</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">1M+</div>
-              <div className="mt-1 text-sm text-muted-foreground">Messages Automated</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">99.9%</div>
-              <div className="mt-1 text-sm text-muted-foreground">Uptime</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="font-serif text-2xl font-bold">Join the Divine Realm</h2>
-          <p className="mx-auto mt-2 max-w-lg text-muted-foreground">
-            Ready to transform your creator journey? Start your free trial today.
-          </p>
-          <div className="mt-6 flex justify-center gap-4">
-            <Button asChild size="lg">
-              <Link href="/auth/sign-up">Start Free Trial</Link>
-            </Button>
-            <Button variant="outline" asChild size="lg">
-              <Link href="/contact">Contact Sales</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            <Link href="/terms" className="hover:text-primary">Terms of Service</Link>
-            <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
-            <Link href="/cookies" className="hover:text-primary">Cookie Policy</Link>
-            <Link href="/contact" className="hover:text-primary">Contact Us</Link>
-          </div>
-          <FooterSupportSocial className="mt-4" />
-        </div>
-      </footer>
+        <footer className="mx-auto mt-16 w-full max-w-[40rem] space-y-6 pb-8 text-center sm:mt-20">
+          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[13px] text-muted-foreground">
+            <Link href="/terms" className="transition-colors hover:text-foreground">
+              {t('footer.terms')}
+            </Link>
+            <Link href="/privacy" className="transition-colors hover:text-foreground">
+              {t('footer.privacy')}
+            </Link>
+            <Link href="/cookies" className="transition-colors hover:text-foreground">
+              {t('footer.cookies')}
+            </Link>
+            <Link href="/contact" className="transition-colors hover:text-foreground">
+              {t('footer.contact')}
+            </Link>
+          </nav>
+          <FooterSupportSocial className="justify-center opacity-90" />
+        </footer>
+      </main>
     </div>
   )
 }

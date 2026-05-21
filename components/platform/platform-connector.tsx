@@ -17,6 +17,7 @@ import {
 import {
   Loader2, Check, RefreshCw, AlertCircle, ExternalLink, X,
   Link2, ArrowRight, Mail, Lock, Shield, Unplug, Settings2,
+  Gem, Crown,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -39,6 +40,35 @@ import { NICHE_LABELS, NicheKey, BOUNDARY_NICHES } from '@/lib/niches'
 import { cn } from '@/lib/utils'
 import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
 import {
+  CREATOR_STATUS_PRESETS,
+  normalizeCreatorStatusDetail,
+  normalizeCreatorStatusPreset,
+  type CreatorStatusPreset,
+} from '@/lib/creator-platform-status'
+import { useLocale, useTranslations } from 'next-intl'
+
+function intlTagFromPhase1(locale: string): string {
+  if (locale === 'pt') return 'pt-BR'
+  if (locale === 'fr') return 'fr-FR'
+  if (locale === 'es') return 'es-ES'
+  return 'en-US'
+}
+
+function formatLocalizedCreatorStatusLabel(
+  t: ReturnType<typeof useTranslations>,
+  presetValue: unknown,
+  detailValue: unknown,
+): string | null {
+  const preset = normalizeCreatorStatusPreset(presetValue)
+  const detail = normalizeCreatorStatusDetail(detailValue)
+  const presetLabel =
+    preset === 'dnd' ? t('statusEditor.dnd') : t(`statusPreset.${preset}` as 'statusPreset.available')
+  if (preset === 'custom') {
+    return detail ?? t('statusPreset.custom')
+  }
+  return detail ? `${presetLabel} - ${detail}` : presetLabel
+}
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -57,6 +87,8 @@ interface PlatformConnection {
   platform_username: string | null
   is_connected: boolean
   last_sync_at: string | null
+  creator_status_preset?: string | null
+  creator_status_detail?: string | null
   niches?: string[] | null
   onlyfans_creator_page_model?: string | null
   onlyfans_creator_page_model_source?: string | null
@@ -68,27 +100,28 @@ interface Platform {
   color: string
   gradient: string
   description: string
-  dataTypes: string[]
   comingSoon?: boolean
 }
 
 import Image from 'next/image'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 
 // OnlyFans Logo
 const OnlyFansLogo = () => (
-  <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-6 w-6" />
+  <img
+    src={ONLYFANS_LOGO_SRC}
+    alt="OnlyFans"
+    className="h-6 w-auto max-w-[7.5rem] object-contain object-left"
+  />
 )
 
 // Fansly Logo
 const FanslyLogo = () => (
-  <img src="/fansly-logo.png" alt="Fansly" className="h-6 w-6" />
-)
-
-// ManyVids Logo
-const ManyVidsLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-  </svg>
+  <img
+    src={FANSLY_LOGO_SRC}
+    alt="Fansly"
+    className="h-6 w-auto max-w-[6.5rem] object-contain object-left"
+  />
 )
 
 // X (Twitter) Logo
@@ -112,31 +145,16 @@ const TikTokLogo = () => (
   </svg>
 )
 
-const PLATFORMS: Platform[] = [
+const PLATFORM_DEFS: Omit<Platform, 'name' | 'description'>[] = [
   {
     id: 'onlyfans',
-    name: 'OnlyFans',
     color: '#00AFF0',
     gradient: 'from-[#00AFF0] to-[#0090C0]',
-    description: 'Connect your OnlyFans account to import fans, messages, and earnings',
-    dataTypes: ['Subscribers', 'Messages', 'Earnings', 'Tips', 'PPV Sales'],
   },
   {
     id: 'fansly',
-    name: 'Fansly',
     color: '#009FFF',
     gradient: 'from-[#009FFF] to-[#0066CC]',
-    description: 'Import your Fansly subscribers and analytics',
-    dataTypes: ['Subscribers', 'Messages', 'Earnings', 'Tips'],
-  },
-  {
-    id: 'manyvids',
-    name: 'ManyVids',
-    color: '#E91E63',
-    gradient: 'from-[#E91E63] to-[#C2185B]',
-    description: 'Sync sales, fans, and video performance',
-    dataTypes: ['Sales', 'Fans', 'Videos', 'Tips'],
-    comingSoon: true,
   },
 ]
 
@@ -144,22 +162,105 @@ function getPlatformLogo(platformId: string) {
   switch (platformId) {
     case 'onlyfans': return <OnlyFansLogo />
     case 'fansly': return <FanslyLogo />
-    case 'manyvids': return <ManyVidsLogo />
     default: return null
   }
 }
 
 interface PlatformConnectorProps {
   compact?: boolean
+  /**
+   * OnlyFans + Fansly connect actions with shared dialogs/overlays (no card chrome).
+   * Use for Messages empty state. Takes precedence over `compact`.
+   */
+  bareConnect?: boolean
 }
 
-export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
+function OnlyFansSdkProgressOverlay({ open }: { open: boolean }) {
+  const t = useTranslations('dashboard.platformConnector.overlay')
+  if (!open) return null
+  return (
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      aria-hidden="false"
+      style={{ pointerEvents: 'auto' }}
+    >
+      <div className="mx-4 max-w-sm rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
+        <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
+        <p className="font-medium text-foreground">{t('title')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('securedBy')}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('paused')}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('vpnHint')}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+type PlatformStatusDraft = {
+  preset: CreatorStatusPreset
+  detail: string
+}
+
+function isPaidSubscriptionStatus(status: string | null | undefined): boolean {
+  return status === 'active' || status === 'trialing' || status === 'past_due'
+}
+
+function CompactPlanTierBadge({
+  revenueBandLabel,
+  billingVariant,
+  status,
+}: {
+  revenueBandLabel?: string | null
+  billingVariant?: string | null
+  status?: string | null
+}) {
+  if (!isPaidSubscriptionStatus(status) || !revenueBandLabel) return null
+
+  const variantLabel = billingVariant === 'unified' ? 'Unified' : billingVariant === 'focus' ? 'Focus' : null
+  const label = variantLabel ? `${revenueBandLabel} · ${variantLabel}` : revenueBandLabel
+  const normalized = revenueBandLabel.toLowerCase()
+  const Icon = normalized.includes('under') || normalized.includes('<') ? Shield : normalized.includes('1k') ? Gem : Crown
+  const tone = Icon === Shield
+    ? 'border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300'
+    : Icon === Gem
+      ? 'border-primary/25 bg-primary/[0.08] text-primary'
+      : 'border-amber-500/30 bg-amber-500/[0.09] text-amber-700 dark:text-amber-300'
+
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', tone)}>
+      <Icon className="h-3 w-3" aria-hidden />
+      <span className="max-w-[9.5rem] truncate">{label}</span>
+    </span>
+  )
+}
+
+export function PlatformConnector({ compact = false, bareConnect = false }: PlatformConnectorProps) {
+  const t = useTranslations('dashboard.platformConnector')
+  const tNiche = useTranslations('niches')
+  const locale = useLocale()
+  const intlTag = intlTagFromPhase1(locale)
+  const platforms: Platform[] = PLATFORM_DEFS.map((p) => {
+    const id = p.id as 'onlyfans' | 'fansly'
+    return {
+      ...p,
+      name: t(`platforms.${id}.name`),
+      description: t(`platforms.${id}.description`),
+    }
+  })
   const [connections, setConnections] = useState<PlatformConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  /**
+   * When set, OnlyFans/Fansly connect is blocked (user not entitled or billing not in good shape).
+   * Derived from /api/onlyfans/check-connection when at least one platform is still unlinked.
+   */
+  const [adultPlatformConnectDenialMessage, setAdultPlatformConnectDenialMessage] = useState<string | null>(null)
   /** From /api/onlyfans/check-connection — which platform(s) billing blocks (OF vs Fansly can differ). */
   const [adultPlatformBilling, setAdultPlatformBilling] = useState<{
     message: string
@@ -189,6 +290,8 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   } | null>(null)
   const [multiUpgradeOpen, setMultiUpgradeOpen] = useState(false)
   const [savingOfPageModel, setSavingOfPageModel] = useState(false)
+  const [statusDrafts, setStatusDrafts] = useState<Record<string, PlatformStatusDraft>>({})
+  const [savingStatusByPlatform, setSavingStatusByPlatform] = useState<Record<string, boolean>>({})
 
   const supabase = createClient()
 
@@ -208,14 +311,19 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         .eq('platform', 'onlyfans')
       if (upErr) throw new Error(upErr.message)
       await loadConnections()
-      setSuccess('OnlyFans page type saved for AI & automations.')
+      setSuccess(t('success.pageTypeSaved'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save page type')
+      setError(e instanceof Error ? e.message : t('errors.savePageTypeFailed'))
     } finally {
       setSavingOfPageModel(false)
     }
   }
+
+  const draftFromConnection = (connection: PlatformConnection | undefined): PlatformStatusDraft => ({
+    preset: normalizeCreatorStatusPreset(connection?.creator_status_preset),
+    detail: normalizeCreatorStatusDetail(connection?.creator_status_detail) ?? '',
+  })
 
   const loadConnections = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -230,7 +338,16 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         .maybeSingle(),
     ])
 
-    setConnections(data || [])
+    const nextConnections = (data || []) as PlatformConnection[]
+    const nextActiveConnections = nextConnections.filter((row) => row.is_connected)
+    setConnections(nextConnections)
+    setStatusDrafts((prev) => {
+      const next: Record<string, PlatformStatusDraft> = {}
+      for (const row of nextActiveConnections) {
+        next[row.platform] = prev[row.platform] ?? draftFromConnection(row)
+      }
+      return next
+    })
     if (subRow) {
       setBillingSub({
         plan_id: subRow.plan_id ?? null,
@@ -248,10 +365,16 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
     const ofConnected = (data || []).some((c) => c.platform === 'onlyfans' && c.is_connected)
     const fsConnected = (data || []).some((c) => c.platform === 'fansly' && c.is_connected)
-    if (ofConnected || fsConnected) {
-      try {
-        const res = await fetch('/api/onlyfans/check-connection')
-        const j = await res.json().catch(() => ({}))
+
+    try {
+      const res = await fetch('/api/onlyfans/check-connection')
+      const j = await res.json().catch(() => ({}))
+      const denial = j.adultPlatformBillingDenial as { code?: string; message?: string } | null | undefined
+      const denialMsg = typeof denial?.message === 'string' ? denial.message : null
+      const blockNewLinks = Boolean(denialMsg && (!ofConnected || !fsConnected))
+      setAdultPlatformConnectDenialMessage(blockNewLinks ? denialMsg : null)
+
+      if (ofConnected || fsConnected) {
         const msg =
           typeof j.adultPlatformBillingDenial?.message === 'string'
             ? j.adultPlatformBillingDenial.message
@@ -267,10 +390,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         } else {
           setAdultPlatformBilling(null)
         }
-      } catch {
+      } else {
         setAdultPlatformBilling(null)
       }
-    } else {
+    } catch {
+      setAdultPlatformConnectDenialMessage(null)
       setAdultPlatformBilling(null)
     }
 
@@ -287,14 +411,14 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       if (data.connected && data.newlySynced) {
         // New account was synced from OnlyFans API - reload connections and sync data
         await loadConnections()
-        setSuccess(`OnlyFans connected as @${data.username || 'user'}! Syncing data...`)
+        setSuccess(t('success.onlyfansConnectedSyncing', { username: data.username || 'user' }))
         
         // Automatically sync data from the newly connected account
         try {
           await fetch('/api/onlyfans/sync', { method: 'POST' })
-          setSuccess(`OnlyFans synced! Your revenue data is now available.`)
+          setSuccess(t('success.onlyfansSynced'))
         } catch {
-          setSuccess(`OnlyFans connected! Click Sync to import your data.`)
+          setSuccess(t('success.onlyfansConnectedClickSync'))
         }
         
         setTimeout(() => setSuccess(null), 5000)
@@ -335,13 +459,13 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
       // If we previously saw the iframe and now it's gone, user likely closed (X)
       if (onlyfansSdkSeenIframeRef.current && !hasIframe) {
-        void cancelOnlyfansSdkAuth('OnlyFans sign-in was cancelled')
+        void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInCancelled'))
         return
       }
 
       // If nothing showed up after a while, likely blocked
       if (!onlyfansSdkSeenIframeRef.current && Date.now() - startedAt > 10000) {
-        void cancelOnlyfansSdkAuth('OnlyFans sign-in window did not open (popup blocked?). Please allow popups and try again.')
+        void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInPopupBlocked'))
         return
       }
     }
@@ -353,7 +477,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [onlyfansSdkInProgress])
+  }, [onlyfansSdkInProgress, t])
 
   // Recovery polling: if the user clicked Continue but onSuccess never fired (e.g. postMessage lost),
   // poll check-connection so we still detect the connection and unblock the UI.
@@ -371,7 +495,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         if (cancelled) return
         if (data.connected === true) {
           await loadConnections()
-          setSuccess(`OnlyFans connected as @${data.username || 'user'}!`)
+          setSuccess(t('success.onlyfansConnected', { username: data.username || 'user' }))
           setOnlyfansSdkInProgress(false)
           try {
             await fetch('/api/onlyfans/sync', { method: 'POST' })
@@ -397,7 +521,117 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     connections.some(c => c.platform === platformId && c.is_connected)
 
   const getConnection = (platformId: string) =>
-    connections.find(c => c.platform === platformId)
+    connections.find(c => c.platform === platformId && c.is_connected)
+
+  const getStatusDraft = (platformId: string) =>
+    statusDrafts[platformId] ?? draftFromConnection(getConnection(platformId))
+
+  const updateStatusDraft = (
+    platformId: string,
+    patch: Partial<PlatformStatusDraft>,
+  ) => {
+    setStatusDrafts((prev) => {
+      const current = prev[platformId] ?? draftFromConnection(getConnection(platformId))
+      return {
+        ...prev,
+        [platformId]: { ...current, ...patch },
+      }
+    })
+  }
+
+  const savePlatformStatus = async (platformId: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const draft = getStatusDraft(platformId)
+    const preset = normalizeCreatorStatusPreset(draft.preset)
+    const detail = normalizeCreatorStatusDetail(draft.detail)
+
+    if (preset === 'custom' && !detail) {
+      setError(t('errors.customStatusDetail'))
+      return
+    }
+
+    setSavingStatusByPlatform((prev) => ({ ...prev, [platformId]: true }))
+    setError(null)
+    try {
+      const { error: upErr } = await supabase
+        .from('platform_connections')
+        .update({
+          creator_status_preset: preset,
+          creator_status_detail: detail,
+        })
+        .eq('user_id', user.id)
+        .eq('platform', platformId)
+        .eq('is_connected', true)
+      if (upErr) throw new Error(upErr.message)
+      await loadConnections()
+      setSuccess(
+        t('success.savedStatus', {
+          platform: platformId === 'onlyfans' ? t('platforms.onlyfans.name') : t('platforms.fansly.name'),
+        }),
+      )
+      setTimeout(() => setSuccess(null), 2500)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('errors.saveStatusFailed'))
+    } finally {
+      setSavingStatusByPlatform((prev) => ({ ...prev, [platformId]: false }))
+    }
+  }
+
+  const renderStatusEditor = (platformId: string, compactView = false) => {
+    const draft = getStatusDraft(platformId)
+    const saving = savingStatusByPlatform[platformId] === true
+    const preview = formatLocalizedCreatorStatusLabel(t, draft.preset, draft.detail)
+    const isCustom = draft.preset === 'custom'
+
+    return (
+      <div className={cn('space-y-3 rounded-xl border border-border/35 bg-background/25 p-4', compactView && 'p-2.5')}>
+        <Label className={cn('text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground', compactView && 'text-[10px]')}>
+          {t('statusEditor.label')}
+        </Label>
+        <Select
+          value={draft.preset}
+          onValueChange={(v) => updateStatusDraft(platformId, { preset: normalizeCreatorStatusPreset(v) })}
+          disabled={saving}
+        >
+          <SelectTrigger className={cn('h-9 text-sm bg-background', compactView && 'h-8 text-xs')}>
+            <SelectValue placeholder={t('statusEditor.choosePlaceholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            {CREATOR_STATUS_PRESETS.map((preset) => (
+              <SelectItem key={preset} value={preset}>
+                {preset === 'dnd' ? t('statusEditor.dnd') : t(`statusPreset.${preset}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          value={draft.detail}
+          onChange={(e) => updateStatusDraft(platformId, { detail: e.target.value.slice(0, 120) })}
+          placeholder={isCustom ? t('statusEditor.detailCustom') : t('statusEditor.detailOptional')}
+          className={cn('h-9', compactView && 'h-8 text-xs')}
+          disabled={saving}
+          maxLength={120}
+        />
+        <div className="flex items-center justify-between gap-2">
+          <p className={cn('line-clamp-1 text-xs text-muted-foreground', compactView && 'text-[11px]')}>
+            {preview ?? t('statusEditor.noStatus')}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn('h-8 gap-1.5', compactView && 'h-7 px-2 text-[11px]')}
+            onClick={() => savePlatformStatus(platformId)}
+            disabled={saving || (isCustom && !draft.detail.trim())}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Settings2 className="h-3.5 w-3.5" />}
+            {t('statusEditor.save')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const toggleNiche = async (platformId: string, niche: NicheKey) => {
     const connection = getConnection(platformId)
@@ -442,9 +676,13 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
   const connectOnlyfansWithSdk = async () => {
     if (onlyfansSdkInProgress) return
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
+      return
+    }
     // Prevent double authentication: do not start if already connected
     if (isConnected('onlyfans')) {
-      setError('OnlyFans is already connected. Disconnect in Settings if you want to link a different account.')
+      setError(t('errors.onlyfansAlreadyConnected'))
       return
     }
     setOnlyfansSdkInProgress(true)
@@ -459,16 +697,21 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       const res = await fetch('/api/onlyfans/auth')
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
+        if (res.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+          setError(typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'))
+          setOnlyfansSdkInProgress(false)
+          return
+        }
         if (res.status === 409 && data?.code === 'ALREADY_CONNECTED') {
-          setError(data.error || 'OnlyFans is already connected.')
+          setError(data.error || t('errors.onlyfansAlreadyConnectedShort'))
           await loadConnections()
           setOnlyfansSdkInProgress(false)
           return
         }
-        throw new Error(data.error || 'Failed to get session')
+        throw new Error(data.error || t('errors.getSessionFailed'))
       }
       const { token } = await res.json()
-      if (!token || typeof token !== 'string') throw new Error('No session token')
+      if (!token || typeof token !== 'string') throw new Error(t('errors.noSessionToken'))
 
       const { startOnlyFansAuthentication } = await import('@onlyfansapi/auth')
       startOnlyFansAuthentication(token, {
@@ -491,6 +734,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
             })
             if (!cbRes.ok) {
               const err = await cbRes.json().catch(() => ({}))
+              if (cbRes.status === 403 && err?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+                setError(typeof err.error === 'string' ? err.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'))
+                setOnlyfansSdkInProgress(false)
+                return
+              }
               if (cbRes.status === 409 && err?.code === 'ONLYFANS_ACCOUNT_ALREADY_CONNECTED') {
                 setError('This OnlyFans account is already connected to another Circe et Venus workspace. If you believe this is a mistake, please contact support.')
               } else {
@@ -500,7 +748,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
               return
             }
             await loadConnections()
-            setSuccess(`OnlyFans connected as @${data.username || 'user'}!`)
+            setSuccess(t('success.onlyfansConnected', { username: data.username || 'user' }))
             try {
               await fetch('/api/onlyfans/sync', { method: 'POST' })
               setTimeout(() => window.location.reload(), 1000)
@@ -508,21 +756,21 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
               setTimeout(() => setSuccess(null), 3000)
             }
           } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to save connection')
+            setError(e instanceof Error ? e.message : t('errors.saveConnectionFailed'))
           } finally {
             setOnlyfansSdkInProgress(false)
           }
         },
         onError: (err: { message?: string; code?: string }) => {
           if (err?.code === 'AUTH_CANCELLED') {
-            void cancelOnlyfansSdkAuth('OnlyFans sign-in was cancelled')
+            void cancelOnlyfansSdkAuth(t('errors.onlyfansSignInCancelled'))
             return
           }
-          void cancelOnlyfansSdkAuth(err?.message || 'OnlyFans sign-in was cancelled or failed')
+          void cancelOnlyfansSdkAuth(err?.message || t('errors.onlyfansSignInFailedOrCancelled'))
         },
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to start OnlyFans sign-in')
+      setError(e instanceof Error ? e.message : t('errors.startOnlyfansFailed'))
       setOnlyfansSdkInProgress(false)
     }
   }
@@ -532,7 +780,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
   const openFanslyDialog = () => {
     if (isConnected('fansly')) {
-      setError('Fansly is already connected. Disconnect in Settings if you want to link a different account.')
+      setError(t('errors.fanslyAlreadyConnected'))
+      return
+    }
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
       return
     }
     setFanslyEmail('')
@@ -543,7 +795,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
     setFanslyDialogOpen(true)
   }
 
-  const handleFanslyLogin = async () => {
+  const runFanslyAuthRequest = async (body: Record<string, unknown>) => {
     setFanslyLoading(true)
     setError(null)
 
@@ -551,40 +803,40 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       const response = await fetch('/api/fansly/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: fanslyEmail,
-          password: fanslyPassword,
-          twoFactorToken: fansly2FAToken,
-          twoFactorCode: fansly2FACode || undefined,
-        }),
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
+
+      if (response.status === 403 && data?.code === 'CONNECT_ENTITLEMENT_REQUIRED') {
+        setFanslyDialogOpen(false)
+        setError(
+          typeof data.error === 'string' ? data.error : adultPlatformConnectDenialMessage || t('errors.subscriptionRequired'),
+        )
+        return
+      }
 
       if (response.status === 403 && data?.code === 'BILLING_FOCUS_UPGRADE_REQUIRED') {
         setFanslyDialogOpen(false)
         setError(
           typeof data.error === 'string'
             ? data.error
-            : 'Your plan is Focus for OnlyFans only. Upgrade to Unified under Billing to connect Fansly.',
+            : t('errors.fanslyFocusUpgrade'),
         )
         setMultiUpgradeOpen(true)
-        setFanslyLoading(false)
         return
       }
 
       if (response.status === 409 && data?.code === 'ALREADY_CONNECTED') {
         setFanslyDialogOpen(false)
-        setError(data.error || 'Fansly is already connected.')
+        setError(data.error || t('errors.fanslyAlreadyConnectedShort'))
         await loadConnections()
-        setFanslyLoading(false)
         return
       }
 
       if (data.requires_2fa) {
-        setFansly2FAToken(data.twoFactorToken)
-        setFanslyMaskedEmail(data.masked_email)
-        setFanslyLoading(false)
+        setFansly2FAToken(typeof data.twoFactorToken === 'string' ? data.twoFactorToken : null)
+        setFanslyMaskedEmail(typeof data.masked_email === 'string' ? data.masked_email : null)
         return
       }
 
@@ -605,17 +857,40 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect Fansly')
+      setError(err instanceof Error ? err.message : t('errors.connectFanslyFailed'))
     } finally {
       setFanslyLoading(false)
     }
+  }
+
+  const handleFanslyLogin = async () => {
+    const code = fansly2FACode.trim()
+    const verifying = Boolean(fansly2FAToken && code.length >= 5)
+    const body: Record<string, unknown> = {
+      username: fanslyEmail,
+      password: fanslyPassword,
+      ...(verifying
+        ? { twoFactorToken: fansly2FAToken, twoFactorCode: code }
+        : {}),
+    }
+    await runFanslyAuthRequest(body)
+  }
+
+  /** ApiFansly connect does not expose a separate resend endpoint; a fresh connect issues a new email + twofa_token. */
+  const handleFanslyResend2fa = async () => {
+    setFansly2FACode('')
+    await runFanslyAuthRequest({ username: fanslyEmail, password: fanslyPassword })
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const handleConnect = (platformId: string) => {
     setError(null)
-    const platform = PLATFORMS.find(p => p.id === platformId)
+    if (adultPlatformConnectDenialMessage) {
+      setError(adultPlatformConnectDenialMessage)
+      return
+    }
+    const platform = platforms.find(p => p.id === platformId)
     if (platform?.comingSoon) return
 
     if (adultPlatformConnectBlockedByFocusPlan(connections, billingSub ?? undefined, platformId)) {
@@ -637,18 +912,16 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         // Handle OnlyFans-specific session expiry so we can log the user out cleanly
         if (platformId === 'onlyfans' && response.status === 401 && data?.code === 'ONLYFANS_SESSION_EXPIRED') {
           if (typeof window !== 'undefined') window.localStorage.removeItem('onlyfans_auth_attempt')
-          setError(
-            'Your OnlyFans password or session changed. To keep your data safe, we disconnected your OnlyFans account. Please reconnect (use a fresh login; you can try a different proxy if it was stuck).'
-          )
+          setError(t('errors.onlyfansSessionExpired'))
           await loadConnections()
           return
         }
-        throw new Error(data.error || 'Sync failed')
+        throw new Error(data.error || t('errors.syncFailed'))
       }
       await loadConnections()
       setTimeout(() => window.location.reload(), 1000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync failed')
+      setError(err instanceof Error ? err.message : t('errors.syncFailed'))
     } finally {
       setSyncing(null)
     }
@@ -662,14 +935,14 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
       const response = await fetch(`/api/${platformId}/disconnect`, { method: 'POST' })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to disconnect')
+        throw new Error(data.error || t('errors.disconnectGeneric'))
       }
 
       await loadConnections()
-      setSuccess('Platform disconnected successfully')
+      setSuccess(t('success.platformDisconnected'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect')
+      setError(err instanceof Error ? err.message : t('errors.disconnectFailed'))
     } finally {
       setDisconnecting(null)
     }
@@ -679,13 +952,112 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className={cn('flex items-center justify-center', bareConnect ? 'py-6' : 'py-12')}>
+        <Loader2 className={cn('animate-spin text-muted-foreground', bareConnect ? 'h-6 w-6' : 'h-8 w-8')} />
       </div>
     )
   }
 
-  const connectedCount = PLATFORMS.filter(p => isConnected(p.id)).length
+  if (bareConnect) {
+    return (
+      <>
+        <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
+        <div className="w-full max-w-md space-y-4">
+          {error ? (
+            <p className="text-center text-[13px] leading-snug text-destructive">{error}</p>
+          ) : null}
+          {success ? (
+            <p className="text-center text-[13px] leading-snug text-emerald-600 dark:text-emerald-400">{success}</p>
+          ) : null}
+          {adultPlatformConnectDenialMessage &&
+          (!isConnected('onlyfans') || !isConnected('fansly')) ? (
+            <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <AlertDescription className="text-[13px]">
+                {adultPlatformConnectDenialMessage}{' '}
+                <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                  {t('bareConnect.openBilling')}
+                </Link>
+                .
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => handleConnect('onlyfans')}
+              disabled={onlyfansSdkInProgress || (!isConnected('onlyfans') && !!adultPlatformConnectDenialMessage)}
+              className={cn(
+                'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
+                'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
+                onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+                !isConnected('onlyfans') && adultPlatformConnectDenialMessage && 'pointer-events-none opacity-45',
+              )}
+            >
+              <img
+                src={ONLYFANS_LOGO_SRC}
+                alt=""
+                className="h-7 w-auto max-w-[9rem] object-contain dark:brightness-110"
+              />
+              <span className="sr-only">{t('bareConnect.srConnectOnlyfans')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleConnect('fansly')}
+              disabled={onlyfansSdkInProgress || (!isConnected('fansly') && !!adultPlatformConnectDenialMessage)}
+              className={cn(
+                'flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border px-5 py-3.5 shadow-sm transition-[background-color,border-color,opacity] duration-200',
+                'border-border/45 bg-background/50 hover:bg-background/72 hover:border-border/65',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'dark:border-white/[0.10] dark:bg-white/[0.04] dark:hover:bg-white/[0.07]',
+                onlyfansSdkInProgress && 'pointer-events-none opacity-45',
+                !isConnected('fansly') && adultPlatformConnectDenialMessage && 'pointer-events-none opacity-45',
+              )}
+            >
+              <img
+                src={FANSLY_LOGO_SRC}
+                alt=""
+                className="h-7 w-auto max-w-[8rem] object-contain dark:brightness-110"
+              />
+              <span className="sr-only">{t('bareConnect.srConnectFansly')}</span>
+            </button>
+          </div>
+          <Link
+            href="/dashboard/settings?tab=integrations"
+            className="block text-center text-[12px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            {t('bareConnect.moreInSettings')}
+          </Link>
+        </div>
+
+        <UnifiedPlanAlertDialog
+          open={multiUpgradeOpen}
+          onOpenChange={setMultiUpgradeOpen}
+          revenueBandLabel={billingSub?.revenue_band_label}
+        />
+
+        <ConnectDialogs
+          fanslyDialogOpen={fanslyDialogOpen}
+          setFanslyDialogOpen={setFanslyDialogOpen}
+          fanslyEmail={fanslyEmail}
+          setFanslyEmail={setFanslyEmail}
+          fanslyPassword={fanslyPassword}
+          setFanslyPassword={setFanslyPassword}
+          fansly2FAToken={fansly2FAToken}
+          fansly2FACode={fansly2FACode}
+          setFansly2FACode={setFansly2FACode}
+          fanslyMaskedEmail={fanslyMaskedEmail}
+          fanslyLoading={fanslyLoading}
+          handleFanslyLogin={handleFanslyLogin}
+          handleFanslyResend2fa={handleFanslyResend2fa}
+        />
+      </>
+    )
+  }
+
+  const connectedCount = platforms.filter(p => isConnected(p.id)).length
 
   const Alerts = () => (
     <>
@@ -708,40 +1080,33 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   if (compact) {
     return (
       <>
-        {onlyfansSdkInProgress && (
-          <div
-            className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
-            aria-hidden="false"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <div className="rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
-              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-3" />
-              <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
-              <p className="text-sm text-muted-foreground mt-1">Secured by OnlyFansAPI.com</p>
-              <p className="text-xs text-muted-foreground mt-2">This page is paused until you finish or close the sign-in window.</p>
-              <p className="text-xs text-muted-foreground mt-1">Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails.</p>
-            </div>
-          </div>
-        )}
+        <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
         <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-xl">
-          <CardHeader className="border-b border-border/50 bg-muted/30 pb-4">
+          <CardHeader className="border-b border-border/50 bg-muted/30 px-4 pb-4 pt-6 sm:px-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                   <Link2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Creator Platforms</CardTitle>
-                  <CardDescription className="text-xs">Connect to import your data</CardDescription>
+                  <CardTitle className="text-lg">{t('compact.title')}</CardTitle>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                    <CardDescription className="text-xs">{t('compact.subtitle')}</CardDescription>
+                    <CompactPlanTierBadge
+                      revenueBandLabel={billingSub?.revenue_band_label}
+                      billingVariant={billingSub?.billing_variant}
+                      status={billingSub?.status}
+                    />
+                  </div>
                 </div>
               </div>
               {connectedCount > 0 ? (
                 <Badge className="gap-1.5 bg-green-500/10 text-green-500 border-green-500/20">
                   <Check className="h-3.5 w-3.5" />
-                  {connectedCount} Connected
+                  {t('compact.connectedBadge', { count: connectedCount })}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-muted-foreground">Not Connected</Badge>
+                <Badge variant="outline" className="text-muted-foreground">{t('compact.notConnectedBadge')}</Badge>
               )}
             </div>
           </CardHeader>
@@ -758,7 +1123,20 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
               </div>
             )}
 
-            {PLATFORMS.map((platform) => {
+            {adultPlatformConnectDenialMessage &&
+            (!isConnected('onlyfans') || !isConnected('fansly')) ? (
+              <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <AlertDescription className="text-xs">
+                  {adultPlatformConnectDenialMessage}{' '}
+                  <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                    {t('compact.billingLink')}
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {platforms.map((platform) => {
               const connected = isConnected(platform.id)
               const connection = getConnection(platform.id)
               return (
@@ -784,7 +1162,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                         <span className="font-semibold text-sm">{platform.name}</span>
                         {platform.comingSoon && !connected && (
                           <Badge className="text-[10px] px-1.5 py-0.5" variant="outline">
-                            Coming soon
+                            {t('compact.comingSoon')}
                           </Badge>
                         )}
                         {connected && (
@@ -796,12 +1174,21 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                       {connection?.platform_username ? (
                         <p className="text-xs text-muted-foreground">@{connection.platform_username}</p>
                       ) : platform.comingSoon ? (
-                        <p className="text-xs text-muted-foreground">Integration in progress</p>
+                        <p className="text-xs text-muted-foreground">{t('compact.integrationInProgress')}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          {connected ? 'Connected' : 'Click to connect'}
+                          {connected ? t('compact.connected') : t('compact.clickToConnect')}
                         </p>
                       )}
+                      {connected ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatLocalizedCreatorStatusLabel(
+                            t,
+                            connection?.creator_status_preset,
+                            connection?.creator_status_detail,
+                          ) ?? t('statusPreset.available')}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -809,7 +1196,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5">
                         <Check className="h-3.5 w-3.5 text-green-500" />
-                        <span className="text-xs font-medium text-green-600">Connected</span>
+                        <span className="text-xs font-medium text-green-600">{t('compact.connected')}</span>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -826,7 +1213,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                             {syncing === platform.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
                               : <RefreshCw className="h-4 w-4" />}
-                            Sync data
+                            {t('compact.syncData')}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -837,7 +1224,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                             {disconnecting === platform.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
                               : <Unplug className="h-4 w-4" />}
-                            Disconnect
+                            {t('compact.disconnect')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -845,7 +1232,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                   ) : platform.comingSoon ? (
                     <Button size="sm" variant="outline" disabled className="opacity-70 cursor-not-allowed">
                       <ExternalLink className="h-4 w-4" />
-                      Coming soon
+                      {t('compact.comingSoon')}
                     </Button>
                   ) : (
                     <Button
@@ -853,8 +1240,12 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                       className="h-8 px-4 text-xs font-medium shadow-sm"
                       style={{ background: `linear-gradient(135deg, ${platform.color}, ${platform.color}CC)` }}
                       onClick={() => handleConnect(platform.id)}
+                      disabled={
+                        !!adultPlatformConnectDenialMessage &&
+                        !isConnected(platform.id)
+                      }
                     >
-                      Connect
+                      {t('compact.connect')}
                     </Button>
                   )}
                 </div>
@@ -863,38 +1254,18 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
 
             <Link href="/dashboard/settings?tab=integrations" className="block">
               <Button variant="ghost" size="sm" className="w-full mt-2 gap-1.5 text-primary hover:text-primary hover:bg-primary/5">
-                Manage All Platforms
+                {t('compact.manageAll')}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unified plan required</AlertDialogTitle>
-              <AlertDialogDescription>
-                Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
-                Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
-                by your revenue tier
-                {billingSub?.revenue_band_label ? (
-                  <>
-                    {' '}
-                    (your band: <strong>{billingSub.revenue_band_label}</strong>)
-                  </>
-                ) : null}
-                . Upgrade under Billing, then connect again.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Not now</AlertDialogCancel>
-              <Button asChild>
-                <Link href="/dashboard/settings?tab=billing">Open billing</Link>
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <UnifiedPlanAlertDialog
+          open={multiUpgradeOpen}
+          onOpenChange={setMultiUpgradeOpen}
+          revenueBandLabel={billingSub?.revenue_band_label}
+        />
 
         <ConnectDialogs
           fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}
@@ -905,6 +1276,7 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
           fanslyMaskedEmail={fanslyMaskedEmail}
           fanslyLoading={fanslyLoading}
           handleFanslyLogin={handleFanslyLogin}
+          handleFanslyResend2fa={handleFanslyResend2fa}
         />
       </>
     )
@@ -913,103 +1285,71 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
   // ── Full layout (settings page) ───────────────────────────────────────────
   return (
     <>
-      {onlyfansSdkInProgress && (
-        <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          aria-hidden="false"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <div className="rounded-xl border border-border bg-card px-6 py-4 text-center shadow-xl">
-            <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary mb-3" />
-            <p className="font-medium text-foreground">Complete sign-in in the OnlyFans window</p>
-            <p className="text-sm text-muted-foreground mt-1">Secured by OnlyFansAPI.com</p>
-            <p className="text-xs text-muted-foreground mt-2">This page is paused until you finish or close the sign-in window.</p>
-            <p className="text-xs text-muted-foreground mt-1">Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails.</p>
-          </div>
-        </div>
-      )}
+      <OnlyFansSdkProgressOverlay open={onlyfansSdkInProgress} />
       <div className="space-y-6">
         <Alerts />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {PLATFORMS.map((platform) => {
+        <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:max-w-5xl">
+          {platforms.map((platform) => {
             const connected = isConnected(platform.id)
             const connection = getConnection(platform.id)
 
             return (
               <Card
                 key={platform.id}
-                className={`relative overflow-hidden border-2 transition-all duration-300 ${
+                className={cn(
+                  'relative overflow-hidden rounded-2xl border bg-card/30 shadow-none ring-1 ring-black/[0.04] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 dark:bg-slate-950/35 dark:ring-white/[0.07]',
                   connected
-                    ? 'border-green-500/50 bg-gradient-to-br from-green-500/5 to-transparent shadow-lg shadow-green-500/10'
-                    : 'border-border hover:border-primary/50 hover:shadow-lg'
-                }`}
+                    ? 'border-emerald-500/20 ring-emerald-500/10'
+                    : 'border-border/50 hover:border-border',
+                )}
               >
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${platform.gradient}`} />
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-80"
+                  style={{
+                    background: `linear-gradient(90deg, ${platform.color}, transparent)`,
+                  }}
+                  aria-hidden
+                />
 
-                <CardHeader className="pb-4 pt-6">
-                  <div className="flex items-center gap-4">
+                <CardHeader className="space-y-0 px-6 pb-2 pt-10 sm:pt-11">
+                  <div className="flex items-start gap-4">
                     <div
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
-                      style={{
-                        background: `linear-gradient(135deg, ${platform.color}20, ${platform.color}10)`,
-                        color: platform.color,
-                        border: `1px solid ${platform.color}30`,
-                      }}
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]"
+                      style={{ boxShadow: `inset 0 0 0 1px ${platform.color}18` }}
                     >
-                      {getPlatformLogo(platform.id)}
+                      <div className="scale-90">{getPlatformLogo(platform.id)}</div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {platform.name}
-                        {connected && (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shadow-sm">
-                            <Check className="h-3 w-3 text-white" />
-                          </div>
-                        )}
-                      </CardTitle>
-                      {connection?.platform_username && (
-                        <p className="text-sm text-muted-foreground">@{connection.platform_username}</p>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <CardTitle className="text-[1.125rem] font-semibold leading-tight tracking-tight text-foreground sm:text-[1.1875rem]">
+                          {platform.name}
+                        </CardTitle>
+                        {connected ? (
+                          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-600/90 dark:text-emerald-400/90">
+                            {t('full.connectedLabel')}
+                          </span>
+                        ) : null}
+                      </div>
+                      {connection?.platform_username ? (
+                        <p className="truncate text-[13px] text-muted-foreground">@{connection.platform_username}</p>
+                      ) : (
+                        <p className="text-[13px] text-muted-foreground">{t('full.notLinked')}</p>
                       )}
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <CardDescription className="text-sm">{platform.description}</CardDescription>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {platform.dataTypes.map((type) => (
-                      <Badge
-                        key={type}
-                        variant="secondary"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: `${platform.color}10`,
-                          color: platform.color,
-                          borderColor: `${platform.color}20`,
-                        }}
-                      >
-                        {type}
-                      </Badge>
-                    ))}
-                  </div>
+                <CardContent className="space-y-6 px-6 pb-8 pt-4">
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">{platform.description}</p>
 
                   {connected ? (
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-5">
                       {platform.id === 'onlyfans' ? (
-                        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <Label className="text-xs font-medium text-muted-foreground">
-                            Your OnlyFans page type
+                        <div className="space-y-2">
+                          <Label className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                            {t('full.pageType')}
                           </Label>
-                          <p className="text-[11px] text-muted-foreground leading-snug">
-                            Free page: $0 follow, revenue from PPV, tips, and messages. Paid page: fans pay a
-                            monthly sub; most feed posts are included. This is separate from each fan’s CRM
-                            tier. Divine and AI Chatter use it so replies match how you monetize.
-                            {(connection?.onlyfans_creator_page_model_source === 'api' && connection?.onlyfans_creator_page_model && connection.onlyfans_creator_page_model !== 'unknown') ? (
-                              <span className="block mt-1 text-primary/90">Inferred from API — change below if wrong.</span>
-                            ) : null}
-                          </p>
                           <Select
                             value={
                               connection?.onlyfans_creator_page_model === 'free' ||
@@ -1022,28 +1362,46 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                             }
                             disabled={savingOfPageModel}
                           >
-                            <SelectTrigger className="h-9 text-sm bg-background">
-                              <SelectValue placeholder="Select page type" />
+                            <SelectTrigger className="h-10 rounded-xl border-border/40 bg-background/50 text-[14px]">
+                              <SelectValue placeholder={t('full.choosePlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="free">Free page (PPV / tips / messages)</SelectItem>
-                              <SelectItem value="paid">Paid subscription page</SelectItem>
-                              <SelectItem value="unknown">Not sure — infer when possible</SelectItem>
+                              <SelectItem value="free">{t('full.pageFree')}</SelectItem>
+                              <SelectItem value="paid">{t('full.pagePaid')}</SelectItem>
+                              <SelectItem value="unknown">{t('full.pageUnknown')}</SelectItem>
                             </SelectContent>
                           </Select>
+                          {(connection?.onlyfans_creator_page_model_source === 'api' &&
+                            connection?.onlyfans_creator_page_model &&
+                            connection.onlyfans_creator_page_model !== 'unknown') ? (
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                              {t('full.pageInferredHint')}
+                            </p>
+                          ) : null}
+                          <details className="group rounded-xl border border-border/30 bg-background/[0.15] px-3 py-2 text-[12px] text-muted-foreground">
+                            <summary className="cursor-pointer list-none py-1 font-medium text-foreground/80 outline-none transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                              <span className="border-b border-dotted border-muted-foreground/40 pb-px">
+                                {t('full.whyWeAsk')}
+                              </span>
+                            </summary>
+                            <p className="mt-2 leading-relaxed">
+                              {t('full.whyWeAskBody')}
+                            </p>
+                          </details>
                         </div>
                       ) : null}
 
-                      {platform.id === 'onlyfans' &&
-                      adultPlatformBilling?.onlyFansAccessBlocked ? (
+                      {renderStatusEditor(platform.id)}
+
+                      {platform.id === 'onlyfans' && adultPlatformBilling?.onlyFansAccessBlocked ? (
                         <Alert variant="destructive" className="border-amber-600/50 bg-amber-500/10 text-amber-950 dark:text-amber-100">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription className="text-sm">
                             {adultPlatformBilling.message}{' '}
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                              Review billing
+                              {t('full.reviewBilling')}
                             </Link>
-                            , or disconnect this platform until your plan matches.
+                            {t('full.billingAlertSuffix')}
                           </AlertDescription>
                         </Alert>
                       ) : null}
@@ -1053,106 +1411,123 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
                           <AlertDescription className="text-sm">
                             {adultPlatformBilling.message}{' '}
                             <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
-                              Review billing
+                              {t('full.reviewBilling')}
                             </Link>
-                            , or disconnect this platform until your plan matches.
+                            {t('full.billingAlertSuffix')}
                           </AlertDescription>
                         </Alert>
                       ) : null}
 
-                      {/* Connected status bar */}
-                      <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/8 px-3 py-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-                          <Check className="h-3.5 w-3.5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-green-600">Connected</p>
-                          {connection?.platform_username && (
-                            <p className="text-xs text-muted-foreground truncate">@{connection.platform_username}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Niche & boundaries editor for creator platforms */}
                       {(platform.id === 'onlyfans' || platform.id === 'fansly') && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Content niche & boundaries
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(Object.keys(NICHE_LABELS) as NicheKey[]).map((key) => {
-                              const active = (connection?.niches || []).includes(key)
-                              const isBoundary = BOUNDARY_NICHES.includes(key)
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => toggleNiche(platform.id, key)}
-                                  className={cn(
-                                    'rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
-                                    active
-                                      ? isBoundary
-                                        ? 'border-amber-500 bg-amber-500/10 text-amber-600'
-                                        : 'border-primary bg-primary/10 text-primary'
-                                      : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-primary'
-                                  )}
-                                >
-                                  {NICHE_LABELS[key]}
-                                </button>
-                              )
-                            })}
+                        <details className="rounded-xl border border-border/30 bg-background/[0.12]">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+                            {t('full.nicheSummary')}
+                          </summary>
+                          <div className="border-t border-border/25 px-4 pb-4 pt-3">
+                            <div className="flex flex-wrap gap-1.5">
+                              {(Object.keys(NICHE_LABELS) as NicheKey[]).map((key) => {
+                                const active = (connection?.niches || []).includes(key)
+                                const isBoundary = BOUNDARY_NICHES.includes(key)
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => toggleNiche(platform.id, key)}
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
+                                      active
+                                        ? isBoundary
+                                          ? 'border-amber-500/50 bg-amber-500/[0.08] text-amber-700 dark:text-amber-200'
+                                          : 'border-primary/35 bg-primary/[0.08] text-primary'
+                                        : 'border-border/60 bg-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                                    )}
+                                  >
+                                    {tNiche(`labels.${key}`)}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                              {t('full.nicheHint')}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            These tags help Circe & Venus tailor replies and respect your boundaries.
-                          </p>
-                        </div>
+                        </details>
                       )}
 
-                      {/* Actions */}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 gap-2"
+                          className="h-9 flex-1 gap-2 rounded-xl border-border/45"
                           onClick={() => handleSync(platform.id)}
                           disabled={syncing === platform.id}
                         >
-                          {syncing === platform.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <RefreshCw className="h-3.5 w-3.5" />}
-                          Sync Data
+                          {syncing === platform.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          )}
+                          {t('full.sync')}
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/60"
+                          variant="ghost"
+                          className="h-9 gap-2 rounded-xl text-muted-foreground hover:text-destructive"
                           onClick={() => handleDisconnect(platform.id)}
                           disabled={disconnecting === platform.id}
                         >
-                          {disconnecting === platform.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Unplug className="h-3.5 w-3.5" />}
-                          Disconnect
+                          {disconnecting === platform.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Unplug className="h-3.5 w-3.5" />
+                          )}
+                          {t('full.disconnect')}
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <Button
-                      size="sm"
-                      className="w-full shadow-lg transition-all hover:shadow-xl gap-2"
-                      style={{ background: `linear-gradient(135deg, ${platform.color}, ${platform.color}CC)` }}
-                      onClick={() => handleConnect(platform.id)}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Connect {platform.name}
-                    </Button>
+                    <>
+                      {adultPlatformConnectDenialMessage ? (
+                        <Alert className="border-amber-500/35 bg-amber-500/[0.07] text-amber-950 dark:text-amber-100">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-[13px]">
+                            {adultPlatformConnectDenialMessage}{' '}
+                            <Link
+                              href="/dashboard/settings?tab=billing"
+                              className="font-medium underline underline-offset-2"
+                            >
+                              {t('full.openBilling')}
+                            </Link>
+                            .
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-10 w-full gap-2 rounded-xl border-2 bg-background/30 text-[14px] font-medium transition-colors hover:bg-background/50"
+                        style={{
+                          borderColor: `${platform.color}44`,
+                          color: platform.color,
+                        }}
+                        onClick={() => handleConnect(platform.id)}
+                        disabled={!!adultPlatformConnectDenialMessage}
+                      >
+                        <Link2 className="h-4 w-4 opacity-80" />
+                        {t('full.connectNamed', { name: platform.name })}
+                      </Button>
+                    </>
                   )}
 
-                  {connection?.last_sync_at && (
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                      Last synced: {new Date(connection.last_sync_at).toLocaleDateString()}
+                  {connection?.last_sync_at ? (
+                    <p className="text-center text-[11px] text-muted-foreground">
+                      {t('full.lastSynced', {
+                        date: new Date(connection.last_sync_at).toLocaleDateString(intlTag, {
+                          dateStyle: 'medium',
+                        }),
+                      })}
                     </p>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             )
@@ -1160,31 +1535,11 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         </div>
       </div>
 
-      <AlertDialog open={multiUpgradeOpen} onOpenChange={setMultiUpgradeOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unified plan required</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your subscription is <strong>Focus</strong> for the adult billing platform(s) you selected.
-              Adding Fansly (or another platform outside that Focus) requires <strong>Unified</strong>, priced
-              by your revenue tier
-              {billingSub?.revenue_band_label ? (
-                <>
-                  {' '}
-                  (your band: <strong>{billingSub.revenue_band_label}</strong>)
-                </>
-              ) : null}
-              . Upgrade under Billing, then connect again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Not now</AlertDialogCancel>
-            <Button asChild>
-              <Link href="/dashboard/settings?tab=billing">Open billing</Link>
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnifiedPlanAlertDialog
+        open={multiUpgradeOpen}
+        onOpenChange={setMultiUpgradeOpen}
+        revenueBandLabel={billingSub?.revenue_band_label}
+      />
 
       <ConnectDialogs
         fanslyDialogOpen={fanslyDialogOpen} setFanslyDialogOpen={setFanslyDialogOpen}
@@ -1195,12 +1550,44 @@ export function PlatformConnector({ compact = false }: PlatformConnectorProps) {
         fanslyMaskedEmail={fanslyMaskedEmail}
         fanslyLoading={fanslyLoading}
         handleFanslyLogin={handleFanslyLogin}
+        handleFanslyResend2fa={handleFanslyResend2fa}
       />
     </>
   )
 }
 
 // ── Shared Dialogs ─────────────────────────────────────────────────────────
+
+function UnifiedPlanAlertDialog({
+  open,
+  onOpenChange,
+  revenueBandLabel,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  revenueBandLabel: string | null | undefined
+}) {
+  const t = useTranslations('dashboard.platformConnector')
+  const description = revenueBandLabel
+    ? t('unifiedUpgrade.bodyWithBand', { band: revenueBandLabel })
+    : t('unifiedUpgrade.bodyNoBand')
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('unifiedUpgrade.title')}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('unifiedUpgrade.notNow')}</AlertDialogCancel>
+          <Button asChild>
+            <Link href="/dashboard/settings?tab=billing">{t('unifiedUpgrade.openBilling')}</Link>
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
 
 interface ConnectDialogsProps {
   fanslyDialogOpen: boolean
@@ -1215,6 +1602,7 @@ interface ConnectDialogsProps {
   fanslyMaskedEmail: string | null
   fanslyLoading: boolean
   handleFanslyLogin: () => void
+  handleFanslyResend2fa: () => void | Promise<void>
 }
 
 function ConnectDialogs({
@@ -1225,7 +1613,9 @@ function ConnectDialogs({
   fansly2FACode, setFansly2FACode,
   fanslyMaskedEmail, fanslyLoading,
   handleFanslyLogin,
+  handleFanslyResend2fa,
 }: ConnectDialogsProps) {
+  const t = useTranslations('dashboard.platformConnector')
   return (
     <>
       {/* Fansly Login Dialog */}
@@ -1237,11 +1627,13 @@ function ConnectDialogs({
                 <FanslyLogo />
               </div>
               <div>
-                <DialogTitle>Connect Fansly</DialogTitle>
+                <DialogTitle>{t('fanslyDialog.title')}</DialogTitle>
                 <DialogDescription>
                   {fansly2FAToken
-                    ? `Enter the code sent to ${fanslyMaskedEmail || 'your email'}`
-                    : 'Sign in with your Fansly credentials'}
+                    ? t('fanslyDialog.desc2fa', {
+                        email: fanslyMaskedEmail || t('fanslyDialog.fallbackEmail'),
+                      })
+                    : t('fanslyDialog.descSignIn')}
                 </DialogDescription>
               </div>
             </div>
@@ -1251,28 +1643,40 @@ function ConnectDialogs({
             {!fansly2FAToken ? (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="fl-email">Email</Label>
+                  <Label htmlFor="fl-email">{t('fanslyDialog.email')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fl-email" type="email" placeholder="your@email.com" value={fanslyEmail} onChange={e => setFanslyEmail(e.target.value)} className="pl-10" />
+                    <Input id="fl-email" type="email" placeholder={t('fanslyDialog.emailPlaceholder')} value={fanslyEmail} onChange={e => setFanslyEmail(e.target.value)} className="pl-10" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fl-password">Password</Label>
+                  <Label htmlFor="fl-password">{t('fanslyDialog.password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fl-password" type="password" placeholder="Enter your password" value={fanslyPassword} onChange={e => setFanslyPassword(e.target.value)} className="pl-10" />
+                    <Input id="fl-password" type="password" placeholder={t('fanslyDialog.passwordPlaceholder')} value={fanslyPassword} onChange={e => setFanslyPassword(e.target.value)} className="pl-10" />
                   </div>
                 </div>
               </>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="fl-2fa">Verification Code</Label>
+                <Label htmlFor="fl-2fa">{t('fanslyDialog.verificationCode')}</Label>
                 <div className="relative">
                   <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="fl-2fa" type="text" placeholder="Enter 6-digit code" value={fansly2FACode} onChange={e => setFansly2FACode(e.target.value)} className="pl-10 text-center text-lg tracking-widest" maxLength={6} />
+                  <Input id="fl-2fa" type="text" placeholder={t('fanslyDialog.codePlaceholder')} value={fansly2FACode} onChange={e => setFansly2FACode(e.target.value)} className="pl-10 text-center text-lg tracking-widest" maxLength={6} />
                 </div>
-                <p className="text-xs text-muted-foreground">Check your email or authenticator app for the code</p>
+                <p className="text-xs text-muted-foreground">{t('fanslyDialog.codeHint')}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void handleFanslyResend2fa()}
+                  disabled={
+                    fanslyLoading || !fanslyEmail || !fanslyPassword
+                  }
+                >
+                  {t('fanslyDialog.resendCode')}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">{t('fanslyDialog.resendHint')}</p>
               </div>
             )}
 
@@ -1283,9 +1687,9 @@ function ConnectDialogs({
               disabled={fanslyLoading || (!fansly2FAToken && (!fanslyEmail || !fanslyPassword)) || (!!fansly2FAToken && fansly2FACode.length < 5)}
             >
               {fanslyLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {fansly2FAToken ? 'Verify & Connect' : 'Connect Fansly'}
+              {fansly2FAToken ? t('fanslyDialog.submit2fa') : t('fanslyDialog.submitConnect')}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">Your credentials are securely encrypted and never stored locally</p>
+            <p className="text-xs text-muted-foreground text-center">{t('fanslyDialog.credentialsNote')}</p>
           </div>
         </DialogContent>
       </Dialog>

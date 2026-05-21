@@ -3,6 +3,8 @@
 import { Suspense, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AIToolsSelector } from '@/components/ai/ai-tools-selector'
+import { ToolRunnerLoadingFallback } from '@/components/ai/tool-runner-loading-fallback'
+import { getToolMeta } from '@/lib/ai-tools-data'
 
 function ToolRunnerInner() {
   const params = useParams()
@@ -26,9 +28,9 @@ function ToolRunnerInner() {
       router.replace('/dashboard/ai-studio/chatter?profile=whale_whisper')
     }
     if (toolId === 'retention-tease') {
-      router.replace('/dashboard/retention/churn#future-tease')
+      router.replace('/dashboard/retention/tease')
     }
-    if (toolId === 'voice-cloning' || toolId === 'venus-attraction') {
+    if (toolId === 'voice-cloning' || toolId === 'venus-attraction' || toolId === 'brand-uniformity') {
       router.replace('/dashboard/ai-studio/tools')
     }
     if (toolId === 'price-optimizer' || toolId === 'viral-predictor' || toolId === 'dm-bundle-pricing') {
@@ -38,10 +40,17 @@ function ToolRunnerInner() {
       router.replace('/dashboard/protection/aegis')
     }
     if (toolId === 'ariadne-trace') {
-      router.replace('/dashboard/ai-studio/ariadne')
+      if (getToolMeta('ariadne-trace')?.comingSoon) {
+        router.replace('/dashboard/ai-studio/tools')
+      } else {
+        router.replace('/dashboard/ai-studio/ariadne')
+      }
     }
-    if (toolId === 'frame-studio') {
-      router.replace('/dashboard/ai-studio')
+    if (toolId === 'frame-studio' || toolId === 'frame-ai-assist') {
+      router.replace('/dashboard/ai-studio?tab=library')
+    }
+    if (toolId === 'credits-planner') {
+      router.replace('/dashboard/credits-planner')
     }
   }, [toolId, router])
 
@@ -57,6 +66,7 @@ function ToolRunnerInner() {
     toolId === 'retention-tease' ||
     toolId === 'voice-cloning' ||
     toolId === 'venus-attraction' ||
+    toolId === 'brand-uniformity' ||
     toolId === 'price-optimizer' ||
     toolId === 'viral-predictor' ||
     toolId === 'dm-bundle-pricing' ||
@@ -64,7 +74,9 @@ function ToolRunnerInner() {
     toolId === 'dmca-automator' ||
     toolId === 'circe-protection-shield' ||
     toolId === 'ariadne-trace' ||
-    toolId === 'frame-studio'
+    toolId === 'frame-studio' ||
+    toolId === 'frame-ai-assist' ||
+    toolId === 'credits-planner'
   ) {
     return null
   }
@@ -81,13 +93,7 @@ function ToolRunnerInner() {
 
 export default function ToolRunnerPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-          Loading tool…
-        </div>
-      }
-    >
+    <Suspense fallback={<ToolRunnerLoadingFallback />}>
       <ToolRunnerInner />
     </Suspense>
   )

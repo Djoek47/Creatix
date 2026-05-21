@@ -9,6 +9,20 @@ export type { TourStep, TourConfig } from '@/lib/tour-types'
 
 export const TOUR_STORAGE_PREFIX = 'circe-tour-v2-done-'
 
+/** Dispatched on `window` when a tour is marked complete (same tab). */
+export const CREATIX_TOUR_COMPLETED_EVENT = 'creatix-tour-completed' as const
+
+export type CreatixTourCompletedDetail = { tourId: string }
+
+export function readTourCompleted(tourId: string): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return localStorage.getItem(TOUR_STORAGE_PREFIX + tourId) === '1'
+  } catch {
+    return false
+  }
+}
+
 /** v2 tour content — bump TOUR_STORAGE_PREFIX when changing materially */
 const TOURS: Record<string, TourConfig> = {
   '/dashboard': {
@@ -16,9 +30,9 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'map-intro',
-        title: 'Your CRM home',
+        title: 'Your home base',
         description:
-          'This dashboard is your home base: revenue, fans, inbox health, and quick entry to every area of Circe et Venus—similar to a creator CRM command center.',
+          'This dashboard is your home base: revenue, fans, inbox health, and quick entry to every area of Circe et Venus—your command center for day-to-day work.',
       },
       {
         id: 'map-divine',
@@ -40,9 +54,9 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'map-content-library',
-        title: 'Content library',
+        title: 'Content workspace',
         description:
-          'Content library is your media vault: describe assets for AI, link posts, and safe touch-ups—separate from the calendar on Content.',
+          'One sidebar entry opens Schedule, your media Vault, and a full list of posts — plan, shelf, and table without switching tools.',
       },
       {
         id: 'map-ai-studio',
@@ -54,13 +68,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'map-circe',
         title: 'Circe: retention & shield',
         description:
-          'Under Circe: Analytics (revenue and fans), Retention (churn hub and digests), Protection (leaks, DMCA, Aegis). Purple = stay, protect, analyze.',
+          'Under Circe: Analytics (revenue and fans), Retention (churn hub and scheduled scans), Protection (leaks, DMCA, Aegis). Purple = stay, protect, analyze.',
       },
       {
         id: 'map-venus',
         title: 'Venus: growth',
         description:
-          'Under Venus: Fans CRM, Housekeeping (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
+          'Under Venus: Fans, Commenter + Fan Atlas (post replies + smart lists), Mentions. Gold = attract, reply in public, reputation.',
       },
       {
         id: 'map-community-guide',
@@ -150,7 +164,7 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'list',
-        title: 'Fans CRM',
+        title: 'Fans',
         description:
           'Subscriber and fan rows synced from connected platforms. Search, sort, and open a fan for notes, tags, and deep links to Messages.',
       },
@@ -158,55 +172,19 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tiers',
         title: 'Spend tiers',
         description:
-          'Whales, VIPs, and regulars help you prioritize outreach. Align with Housekeeping and Churn for the same fans across the product.',
+          'Whales, VIPs, and regulars help you prioritize outreach. Align with Fan Atlas and Churn for the same fans across the product.',
       },
       {
         id: 'classify',
         title: 'Classification & lists',
         description:
-          'Use fan classification or smart lists on the Housekeeping page to keep CRM segments aligned with OnlyFans lists.',
+          'Use fan classification or smart lists on the Commenter page (Fan Atlas) to keep your segments aligned with OnlyFans lists.',
       },
       {
         id: 'add',
         title: 'Manual fans',
         description:
-          'Add a fan manually when you need CRM notes or tracking for someone not yet synced—useful for cross-platform context.',
-      },
-    ],
-  },
-
-  '/dashboard/fans/classify': {
-    tourId: 'fans-classify',
-    steps: [
-      {
-        id: 'rules',
-        title: 'Classification',
-        description:
-          'Run rules to label fans by behavior or spend. Results feed lists and automations elsewhere—keep rules aligned with your Housekeeping lists.',
-      },
-      {
-        id: 'sync',
-        title: 'Sync with platforms',
-        description:
-          'After classification, sync or push segments to OnlyFans user lists where supported so DMs and promotions match.',
-      },
-    ],
-  },
-
-  '/dashboard/fans/new': {
-    tourId: 'fans-new',
-    steps: [
-      {
-        id: 'manual',
-        title: 'Add fan',
-        description:
-          'Add a manual fan row for CRM notes, tags, or tracking when someone is not fully synced from a platform.',
-      },
-      {
-        id: 'crm',
-        title: 'Use with CRM',
-        description:
-          'Return to Fans list to search and merge with synced subscribers; link out to Messages when you start chatting.',
+          'Add a fan manually when you need notes or tracking for someone not yet synced—useful for cross-platform context.',
       },
     ],
   },
@@ -215,16 +193,28 @@ const TOURS: Record<string, TourConfig> = {
     tourId: 'content',
     steps: [
       {
-        id: 'calendar',
-        title: 'Content calendar',
+        id: 'workspace',
+        title: 'Content workspace',
         description:
-          'Planned posts and status: draft, scheduled, published. Track what goes out on which day across connected platforms.',
+          'Schedule, Vault, and All posts live behind one calm control — switch lenses without losing context.',
+      },
+      {
+        id: 'calendar',
+        title: 'Schedule',
+        description:
+          'Calendar view for draft, scheduled, and published drops — see the rhythm of your week.',
+      },
+      {
+        id: 'vault',
+        title: 'Vault',
+        description:
+          'Media, metadata for Divine Manager PPV and recommendations, and platform links — the shelf behind every post.',
       },
       {
         id: 'new',
         title: 'New post',
         description:
-          'Create new content from here: copy, media, schedule. Publish or schedule to connected accounts per integration settings.',
+          'Compose a drop when you are ready — attach media, set timing, match each platform’s rules.',
       },
     ],
   },
@@ -243,30 +233,6 @@ const TOURS: Record<string, TourConfig> = {
         title: 'Schedule & publish',
         description:
           'Choose publish now or a future slot. Return to Content to edit or move items on the calendar.',
-      },
-    ],
-  },
-
-  '/dashboard/content-library': {
-    tourId: 'content-library',
-    steps: [
-      {
-        id: 'vault',
-        title: 'Media vault',
-        description:
-          'Describe and tag media for Divine Manager PPV and recommendations. Link vault items to OnlyFans posts when you need consistent metadata.',
-      },
-      {
-        id: 'photo',
-        title: 'Safe photo touch-up',
-        description:
-          'Request blur, lighting, or emoji overlays—no beautify or inpaint. Same pipeline as AI Studio safe edits.',
-      },
-      {
-        id: 'schedule-link',
-        title: 'Content schedule',
-        description:
-          'Jump to Content schedule from here when you want to place described assets on the calendar.',
       },
     ],
   },
@@ -320,7 +286,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'overview',
         title: 'Well-being hub',
         description:
-          'One screen for inbox load, Mimic profile snapshot, and a cosmic calendar—so you can breathe and plan without juggling five tabs.',
+          'One screen for inbox load, Mimic profile snapshot, Gift wishlist (product context for fans and AI), and a cosmic calendar—so you can breathe and plan without juggling five tabs.',
       },
       {
         id: 'mimic-snapshot',
@@ -350,7 +316,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'welcome',
         title: 'Welcome to Divine Manager',
         description:
-          'Operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. Scroll the page if you landed on a deep link.',
+          'Operations orbit: live voice, text chat, protocol tasks, Mimic, and today’s plan. First visit runs a short setup wizard (example phrases, goals, notifications); after that, tune goals under Preferences. Guide links and `?section=protocol`, `tasks`, or `chat` jump the page or open text chat—scroll if you landed mid-page.',
       },
       {
         id: 'voice',
@@ -368,7 +334,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'protocol-rail',
         title: 'Protocol tasks',
         description:
-          'The collapsible rail lists follow-ups and workflows. Collapse it for a clean screen; link tasks to inbox items when possible.',
+          'The protocol card lists follow-ups and workflows (same queue as the crown menu). `?section=tasks` focuses this card; `?section=protocol` scrolls the whole Today plan + tasks block. Open the crown menu anytime for the same queue without leaving voice.',
       },
       {
         id: 'bell',
@@ -386,7 +352,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'today-plan',
         title: 'Today plan and tasks',
         description:
-          'Suggested moves for the day, automation hooks, and large-tip rules when configured. Anchor links jump to Today plan or tasks.',
+          'When beta mode is on, suggested moves for the day sit above protocol tasks in one section (`#divine-section-protocol`). Open it from the Guide or `?section=protocol`; automation hooks and large-tip rules appear here when configured.',
       },
       {
         id: 'voice-settings',
@@ -440,7 +406,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'grid',
         title: 'Tools library',
         description:
-          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Housekeeping, Retention, Protection).',
+          'Search and filter by category. Each card opens a runner or redirects to the right dashboard (e.g. Fan Atlas, Retention, Protection).',
       },
       {
         id: 'credits',
@@ -482,13 +448,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'wishlist',
         title: 'Gift wishlist',
         description:
-          'Save HTTPS product links with titles and prices so Gift Suggester and other tools can reference real items.',
+          'Save HTTPS product links; we pull titles, prices, and details when possible so Chatter, Divine, and Gift Suggester know what to suggest when a fan sends a gift.',
       },
       {
         id: 'use',
         title: 'Using in tools',
         description:
-          'Return to AI Studio → Tools to run Gift Suggester with wishlist context for a fan or campaign.',
+          'Build your list here, then run Gift Suggester from Divine Manager (or pin it on the home dashboard) when you want AI-ranked picks using this context.',
       },
     ],
   },
@@ -528,9 +494,9 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'header-tour',
-        title: 'Shorter page tours',
+        title: 'Header: full live tour',
         description:
-          'On other screens, Start Tour in the header opens a spotlight walkthrough for that page. Switch routes and tap it again for area-specific tips.',
+          'On any page, the header’s Start live tour / Launch live tour runs the same full live tour you can start from Welcome (with auto-start).',
       },
     ],
   },
@@ -608,7 +574,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'workflow',
         title: 'Workflow',
         description:
-          'Pair with Housekeeping for public replies and with Divine for suggested responses where enabled.',
+          'Pair with Commenter for public replies and with Divine for suggested responses where enabled.',
       },
     ],
   },
@@ -620,13 +586,13 @@ const TOURS: Record<string, TourConfig> = {
         id: 'hub',
         title: 'Retention hub',
         description:
-          'Churn Predictor: scheduled digests for expiring subs and quiet fans, CRM-backed. Configure cadence, credits, and notifications here.',
+          'Churn Predictor: scheduled scans for expiring subs and quiet fans, using your synced fan data. Configure cadence, credits, and notifications here.',
       },
       {
         id: 'last-run',
-        title: 'Last run & digest',
+        title: 'Last run & output',
         description:
-          'Last run shows when the background job completed. Sync CRM so expiries and spend are accurate; some media may only fully play in the official platform app.',
+          'Last run shows when the background job completed. Keep Fans synced so expiries and spend are accurate; some media may only fully play in the official platform app.',
       },
       {
         id: 'protocols',
@@ -638,7 +604,7 @@ const TOURS: Record<string, TourConfig> = {
         id: 'tease',
         title: 'Future tease',
         description:
-          'Optional calendar notes feed retention teasers in digests—align with Content calendar for consistent messaging.',
+          'Optional calendar notes feed retention teasers in scans—align with Content calendar for consistent messaging.',
       },
     ],
   },
@@ -648,7 +614,7 @@ const TOURS: Record<string, TourConfig> = {
     steps: [
       {
         id: 'feed',
-        title: 'Housekeeping',
+        title: 'Commenter',
         description:
           'Sync post and story comments from OnlyFans via webhooks and API. Review each fan comment with AI safety and persona reply drafts.',
       },
@@ -660,7 +626,7 @@ const TOURS: Record<string, TourConfig> = {
       },
       {
         id: 'housekeeping',
-        title: 'Smart lists',
+        title: 'Fan Atlas',
         description:
           'Smart classify: auto-segment fans by spend, thread/DM activity, cold fans, and freeloaders — then sync those segments to OnlyFans lists and Fansly tags. Configure under Fans → Arrangements or here.',
       },
@@ -718,12 +684,9 @@ const TOUR_PATH_MATCH_ORDER: string[] = [
   '/dashboard/ai-studio/tools',
   '/dashboard/messages/mass',
   '/dashboard/protection/aegis',
-  '/dashboard/fans/classify',
   '/dashboard/commenter',
-  '/dashboard/content-library',
   '/dashboard/community',
   '/dashboard/content/new',
-  '/dashboard/fans/new',
 ]
 
 function pathMatchesNormalizedKey(normalized: string, key: string): boolean {

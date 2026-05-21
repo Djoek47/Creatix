@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
+import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
+import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 import { observedMonthlyRevenueUsdFromOnlyFansSignals } from '@/lib/onlyfans/observed-monthly-revenue'
 import { assertPlatformAccountAvailable } from '@/lib/platform-connections'
 import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
@@ -10,6 +14,8 @@ import {
   inferCreatorPageModelFromApiPayload,
   shouldApplyApiInferenceForCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { onlyFansSubscribersAndFollows } from '@/lib/onlyfans/onlyfans-snapshot-audience'
+import { notifyPlatformConnectionChange } from '@/lib/notifications/platform-connection-notify'
 
 /**
  * OnlyFans connection callback (SDK flow).
@@ -37,6 +43,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Session mismatch. Please refresh and try again.' },
         { status: 403 }
+      )
+    }
+
+    const [{ data: subscription }, { data: connRows }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase.from('platform_connections').select('platform, is_connected').eq('user_id', userId),
+    ])
+
+    if (adultPlatformConnectBlockedByFocusPlan(connRows || [], subscription, 'onlyfans')) {
+      return NextResponse.json(
+        {
+          error:
+            'Your current plan is Focus for Fansly only. Upgrade to Unified (priced by your revenue tier) under Billing to connect OnlyFans.',
+          code: 'BILLING_FOCUS_UPGRADE_REQUIRED',
+        },
+        { status: 403 },
+      )
+    }
+
+    if (!canConnectAdultPartnerPlatform(subscription)) {
+      logPartnerConnectEntitlementDenied('POST /api/onlyfans/callback', userId)
+      const denial = denialForAdultPlatformConnectEntitlement(subscription)
+      return NextResponse.json(
+        {
+          error: denial?.message ?? 'Subscription or Divine trial required before connecting platforms.',
+          code: 'CONNECT_ENTITLEMENT_REQUIRED',
+          reason: 'CONNECT_ENTITLEMENT_REQUIRED',
+        },
+        { status: 403 },
       )
     }
 
@@ -102,6 +141,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save connection' }, { status: 500 })
     }
 
+    if (user?.email && !sameOnlyfansAccount) {
+      void notifyPlatformConnectionChange({
+        supabase,
+        userId,
+        userEmail: user.email,
+        platform: 'onlyfans',
+        event: 'connected',
+        platformUsername: typeof username === 'string' && username.length ? username : null,
+      })
+    }
+
     await syncOnlyFansData(request, userId, accountId)
 
     return NextResponse.json({
@@ -121,10 +171,12 @@ export async function POST(request: NextRequest) {
  * GET: OnlyFans uses SDK only (no OAuth redirect). Redirect to settings with a hint.
  */
 export async function GET(request: NextRequest) {
-  const baseUrl = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || ''
   const error = request.nextUrl.searchParams.get('error')
-  const url = `${baseUrl}/dashboard/settings?tab=integrations${error ? `&error=${encodeURIComponent(error)}` : ''}`
-  return NextResponse.redirect(url)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+  const redirectUrl = new URL('/dashboard/settings', baseUrl)
+  redirectUrl.searchParams.set('tab', 'integrations')
+  if (error) redirectUrl.searchParams.set('error', error)
+  return NextResponse.redirect(redirectUrl)
 }
 
 async function syncOnlyFansData(request: NextRequest, userId: string, accountId: string) {
@@ -163,6 +215,7 @@ async function syncOnlyFansData(request: NextRequest, userId: string, accountId:
         .eq('platform', 'onlyfans')
     }
 
+    const { follows: onlyFansFollows } = onlyFansSubscribersAndFollows(stats, accountRaw)
     const today = new Date().toISOString().split('T')[0]
     await supabase.from('analytics_snapshots').upsert(
       {
@@ -170,6 +223,7 @@ async function syncOnlyFansData(request: NextRequest, userId: string, accountId:
         platform: 'onlyfans',
         date: today,
         total_fans: stats?.fans?.total ?? 0,
+        total_follows: onlyFansFollows,
         new_fans: stats?.fans?.new ?? 0,
         churned_fans: stats?.fans?.expired ?? 0,
         revenue: earningsResult?.total ?? 0,

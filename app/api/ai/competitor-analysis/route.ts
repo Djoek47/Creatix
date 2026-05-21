@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 import { isPaidSubscription } from '@/lib/billing/access'
 import {
   runCompetitorDiscoverySearch,
@@ -106,11 +110,8 @@ type InternalBenchmarkRow = {
   computed_at: string
 }
 
-function platformKeysForBenchmarks(platform: string): string[] {
-  const p = platform.toLowerCase()
-  if (p === 'onlyfans' || p === 'fansly' || p === 'mym') return [p, 'all']
-  if (p === 'multi') return ['onlyfans', 'fansly', 'mym', 'all']
-  return ['all']
+function platformKeysForBenchmarks(platform: 'onlyfans' | 'fansly'): string[] {
+  return [platform, 'all']
 }
 
 function scoreBenchmarkNicheMatch(row: InternalBenchmarkRow, niche: string): number {
@@ -285,7 +286,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}))
     const niche = typeof body.niche === 'string' ? body.niche.trim() : ''
-    const platform = typeof body.platform === 'string' ? body.platform.trim() : 'onlyfans'
+    const rawPlat = typeof body.platform === 'string' ? body.platform.trim().toLowerCase() : 'onlyfans'
+    const platform: 'onlyfans' | 'fansly' = rawPlat === 'fansly' ? 'fansly' : 'onlyfans'
     const competitorTargets =
       typeof body.competitorTargets === 'string' ? body.competitorTargets.trim() : ''
     const goals = typeof body.goals === 'string' ? body.goals.trim() : typeof body.contentDescription === 'string' ? body.contentDescription.trim() : ''
@@ -297,6 +299,10 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       )
     }
+
+    const access = await requireAiToolSessionAndCredits(req, 'competitor-analysis')
+    if (!access.ok) return access.response
+    const creditCost = access.data.cost
 
     const benchPlatforms = [...new Set(platformKeysForBenchmarks(platform))]
 
@@ -351,7 +357,7 @@ export async function POST(req: NextRequest) {
       fanCount != null && `Approx. fans in CRM (imported): ${fanCount}`,
       tz && `Timezone: ${tz}`,
       niche && `Stated niche: ${niche}`,
-      platform && `Primary platform focus: ${platform}`,
+      `Primary platform focus: ${platform === 'fansly' ? 'Fansly' : 'OnlyFans'}`,
       competitorTargets && `Creator-supplied peer / competitor notes (public cues only):\n${competitorTargets}`,
       goals && `Goals / questions:\n${goals}`,
     ]
@@ -400,6 +406,9 @@ Produce structured JSON per schema. Lead with competitor comparison (same band v
 
     const analysis = object as AnalysisOut
     const cohortPercentileSummary = buildCohortPercentileSummary(fanCount, benchForPrompt)
+
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, creditCost, access.data.billingToolId)
+    if (!charged.ok) return charged.response
 
     return NextResponse.json({
       ...analysis,

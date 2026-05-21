@@ -22,14 +22,21 @@ import { activeChatOnInboundFanslyMessage } from '@/lib/fan-classify/active-chat
 // Set FANSLY_WEBHOOK_SECRET to verify signatures (header: x-fansly-signature, HMAC-SHA256 hex).
 // Set FANSLY_WEBHOOK_ENABLED=true to accept webhooks.
 
+export const dynamic = 'force-dynamic'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const webhookEnabled = process.env.FANSLY_WEBHOOK_ENABLED === 'true'
 
 function verifySignature(payload: string, signature: string, secret: string): boolean {
-  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+  const expectedHex = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+  const sig = signature.trim().toLowerCase().replace(/^sha256=/, '')
+  if (!/^[0-9a-f]+$/.test(sig) || sig.length % 2 !== 0) return false
+  const a = Buffer.from(expectedHex, 'hex')
+  const b = Buffer.from(sig, 'hex')
+  if (a.length === 0 || b.length === 0 || a.length !== b.length) return false
   try {
-    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected))
+    return crypto.timingSafeEqual(a, b)
   } catch {
     return false
   }
@@ -47,11 +54,23 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text()
     const signature = request.headers.get('x-fansly-signature')
     const secret = process.env.FANSLY_WEBHOOK_SECRET
-    if (secret && signature && !verifySignature(rawBody, signature, secret)) {
+    if (!secret) {
+      console.error('[Fansly webhook] FANSLY_WEBHOOK_SECRET is not set. Rejecting webhook request.')
+      return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 401 })
+    }
+    if (!signature?.trim()) {
+      return NextResponse.json({ error: 'Missing x-fansly-signature' }, { status: 401 })
+    }
+    if (!verifySignature(rawBody, signature, secret)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    const payload = JSON.parse(rawBody)
+    let payload: { event_type?: string; data?: unknown }
+    try {
+      payload = JSON.parse(rawBody) as { event_type?: string; data?: unknown }
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     
     console.log('[v0] Fansly webhook received:', payload.event_type)
     
@@ -92,7 +111,7 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('[v0] Fansly webhook error:', error)
-    // Return 200 anyway to prevent retries for parsing errors
+    // Acknowledge to limit vendor retries on transient handler failures (payload already validated).
     return NextResponse.json({ received: true, error: 'Processing error' }, { status: 200 })
   }
 }

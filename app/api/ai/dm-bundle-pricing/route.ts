@@ -2,6 +2,7 @@ import { generateText } from 'ai'
 import { NextRequest } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 45
@@ -93,7 +94,7 @@ ${priceLine}`
     })
 
     try {
-      await consumeAiCredits(supabase, user.id, bundleCost)
+      await consumeAiCredits(supabase, user.id, bundleCost, ledgerDebitOptsForBillingTool('dm-bundle-pricing'))
     } catch {
       // ignore credit errors
     }

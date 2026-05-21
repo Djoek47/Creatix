@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import type { Fan } from '@/lib/types'
+import type { Fan, Platform } from '@/lib/types'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
 
-// Manual number formatting to avoid hydration mismatch (no Intl dependency)
 function formatCurrency(amount: number): string {
   const str = Math.round(amount).toString()
   const parts: string[] = []
@@ -31,27 +32,36 @@ const tierColors = {
   inactive: 'bg-muted text-muted-foreground border-muted',
 }
 
-const platformColors = {
+const platformColors: Record<Platform, string> = {
   onlyfans: 'bg-[#00AFF0]/20 text-[#00AFF0]',
   mym: 'bg-[#FF4D67]/20 text-[#FF4D67]',
   fansly: 'bg-[#009FFF]/20 text-[#009FFF]',
+  manyvids: 'bg-violet-500/20 text-violet-400',
+  loyalfans: 'bg-fuchsia-500/20 text-fuchsia-400',
 }
 
+const TIER_KEYS = new Set(['whale', 'regular', 'new', 'inactive'])
+
 export function RecentFans({ fans, totalFans }: RecentFansProps) {
+  const t = useTranslations('dashboard.recentFans')
+  const { formatApiUsd } = useAnalyticsMoney()
   const hasImportedFans = fans.length > 0
   const hasAnyFans =
     hasImportedFans || (typeof totalFans === 'number' && totalFans > 0)
+
+  const tierLabel = (raw: string) =>
+    TIER_KEYS.has(raw) ? t(`tier.${raw as 'whale'}`) : raw
 
   return (
     <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Recent Fans</CardTitle>
-          <CardDescription>Latest subscribers across platforms</CardDescription>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('subtitle')}</CardDescription>
         </div>
         <Link href="/dashboard/fans">
           <Button variant="ghost" size="sm" className="gap-1">
-            View All <ArrowRight className="h-4 w-4" />
+            {t('viewAll')} <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
       </CardHeader>
@@ -63,10 +73,8 @@ export function RecentFans({ fans, totalFans }: RecentFansProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium">No Fans Detected Yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Connect and sync your creator platforms to import your fans into Creatix.
-            </p>
+            <h3 className="text-lg font-medium">{t('emptyNoneTitle')}</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t('emptyNoneBody')}</p>
           </div>
         ) : !hasImportedFans && typeof totalFans === 'number' ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -75,21 +83,17 @@ export function RecentFans({ fans, totalFans }: RecentFansProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium">Fans Detected, Syncing Details</h3>
+            <h3 className="text-lg font-medium">{t('emptySyncingTitle')}</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              We see approximately{' '}
-              <span className="font-semibold">
-                {formatCurrency(totalFans)}
-              </span>{' '}
-              fans from your connected platforms. Detailed fan profiles are still syncing — they&apos;ll appear here after your next sync.
+              {t('emptySyncingBody', { count: formatCurrency(totalFans) })}
             </p>
             <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-              Use{' '}
-              <span className="font-medium text-foreground">Connected platforms</span> at the top of this page: click your
-              OnlyFans or Fansly icon to run a sync and import fan profiles.
+              {t.rich('emptySyncingHint', {
+                strong: (chunks) => <strong className="font-medium text-foreground">{chunks}</strong>,
+              })}
             </p>
             <Button asChild variant="default" size="sm" className="mt-4">
-              <Link href="/dashboard#dashboard-platform-sync">Go to platform sync</Link>
+              <Link href="/dashboard#dashboard-platform-sync">{t('goPlatformSync')}</Link>
             </Button>
           </div>
         ) : (
@@ -110,13 +114,13 @@ export function RecentFans({ fans, totalFans }: RecentFansProps) {
                       {fan.platform.toUpperCase()}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      ${formatCurrency(fan.total_spent)} spent
+                      {t('spent', { amount: formatApiUsd(fan.total_spent, 0) })}
                     </span>
                   </div>
                 </div>
               </div>
               <Badge variant="outline" className={cn('text-xs capitalize', tierColors[fan.tier])}>
-                {fan.tier}
+                {tierLabel(fan.tier)}
               </Badge>
             </div>
           ))}

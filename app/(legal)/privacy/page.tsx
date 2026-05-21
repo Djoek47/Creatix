@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button'
 
 export default function PrivacyPolicyPage() {
   const router = useRouter()
+  const t = useTranslations('legal')
 
   const handleBack = () => {
     // Try to go back in history, or go to home if no history
@@ -30,15 +32,15 @@ export default function PrivacyPolicyPage() {
           </Link>
           <Button variant="ghost" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t('back')}
           </Button>
         </div>
       </header>
 
       {/* Content */}
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-        <h1 className="font-serif text-2xl font-bold sm:text-3xl">Privacy Policy</h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base">Last updated: March 9, 2026</p>
+        <h1 className="font-serif text-2xl font-bold sm:text-3xl">{t('privacy.title')}</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">{t('privacy.lastUpdated')}</p>
 
         <div className="prose prose-invert mt-8 max-w-full space-y-8">
           <section>
@@ -169,7 +171,6 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="mt-2 list-none space-y-1 text-muted-foreground">
               <li>Email: privacy@circeetvenus.com</li>
-              <li>Address: 123 Creator Way, Suite 400, Los Angeles, CA 90001</li>
             </ul>
           </section>
         </div>

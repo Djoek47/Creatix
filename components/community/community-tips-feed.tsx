@@ -43,7 +43,7 @@ export function CommunityTipsFeed() {
       const res = await fetch('/api/community/tips')
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof json.error === 'string' ? json.error : 'Could not load community tips.')
+        setError(typeof json.error === 'string' ? json.error : 'Could not load suggestions.')
         setFeed([])
         setMySubmissions([])
         return
@@ -51,7 +51,7 @@ export function CommunityTipsFeed() {
       setFeed(Array.isArray(json.feed) ? json.feed : [])
       setMySubmissions(Array.isArray(json.mySubmissions) ? json.mySubmissions : [])
     } catch {
-      setError('Could not load community tips.')
+      setError('Could not load suggestions.')
     } finally {
       setLoading(false)
     }
@@ -94,13 +94,13 @@ export function CommunityTipsFeed() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Lightbulb className="h-8 w-8 text-amber-500" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Lightbulb className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
           <h2 className="text-2xl font-semibold tracking-tight">Community tips</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Share how you use Creatix—shortcuts, workflows, cool ideas, or things that clicked for you. Other creators see
-          approved tips here; nothing goes live until our team reviews it (admin tools coming soon).
+          approved tips here; nothing goes live until our team reviews it in the admin approval queue.
         </p>
       </div>
 
@@ -192,7 +192,7 @@ export function CommunityTipsFeed() {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium">From the community</h2>
+        <h2 className="text-lg font-medium">Published suggestions</h2>
         <p className="text-xs text-muted-foreground">
           Approved tips may be summarized anonymously into the shared best-practices library used by Competitor Analysis
           (no names or IDs attached).

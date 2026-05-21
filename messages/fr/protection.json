@@ -1,0 +1,15 @@
+{
+  "page": {
+    "activeSignals": "Signaux actifs",
+    "activeSignalsHint": "À examiner ou DMCA",
+    "closedCases": "Cas clos",
+    "closedCasesHint": "Résolus, arnaque, faux positifs…",
+    "vaultItems": "Éléments du coffre",
+    "vaultItemsHint": "Bibliothèque empreintée",
+    "dmcaClaims": "Réclamations DMCA",
+    "dmcaDraftsHint": "brouillons inclus",
+    "dmcaFiledPrefix": "{count, number} déposées · ",
+    "runScanHeading": "Lancer une analyse",
+    "loadingTools": "Chargement des outils de protection…"
+  }
+}

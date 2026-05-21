@@ -1,11 +1,13 @@
 import { generateText } from 'ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
 import { loadOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
 import { formatThreadTextForAi, normalizeSortedRawOfMessages } from '@/lib/divine/of-thread-text'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 60
 
@@ -42,24 +44,20 @@ export async function POST(req: NextRequest) {
 
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('plan_id')
+    .select('plan_id, status')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const planId = (subscription as { plan_id?: string } | null)?.plan_id?.toLowerCase() || null
-  const isPro = Boolean(planId && isPaidPlanId(planId))
-  if (!isPro) {
-    return NextResponse.json({ error: 'Pro subscription required for Churn Predictor' }, { status: 403 })
-  }
-
-  const churnCost = getCreditsForToolId('churn-predictor')
-  const gate = await hasEnoughAiCredits(supabase, user.id, churnCost)
-  if (!gate.ok) {
+  if (!canUseCreditGatedProFeature(subscription)) {
     return NextResponse.json(
-      { error: 'AI credits exhausted', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-      { status: 402 },
+      { error: 'Pro or active trial required. Churn Predictor uses AI credits per run—no separate charge.' },
+      { status: 403 },
     )
   }
+
+  const access = await requireAiToolSessionAndCredits(req, 'churn-predictor')
+  if (!access.ok) return access.response
+  const churnCost = access.data.cost
 
   const body = await req.json().catch(() => ({})) as {
     fanId?: string
@@ -283,16 +281,11 @@ Respond with:
 7) A ready-to-send message draft the creator can edit (warm, not desperate)`,
   })
 
-  const consumed = await consumeAiCredits(supabase, user.id, churnCost)
-  if (!consumed.ok) {
-    return NextResponse.json(
-      { error: 'AI credits exhausted', code: 'ai_credits_exhausted', used: consumed.used, limit: consumed.limit },
-      { status: 402 },
-    )
-  }
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, user.id, churnCost, access.data.billingToolId)
+  if (!charged.ok) return charged.response
 
   return NextResponse.json({
     content: text,
-    creditsUsed: consumed.usedAfter,
+    creditsUsed: charged.usedAfter ?? null,
   })
 }

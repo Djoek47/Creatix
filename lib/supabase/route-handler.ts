@@ -12,7 +12,7 @@ import { createClient } from './server'
  * Migrate handlers incrementally; until migrated, routes only support cookie auth.
  */
 export async function createRouteHandlerClient(
-  request: NextRequest,
+  request: NextRequest | Request,
 ): Promise<SupabaseClient> {
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.startsWith('Bearer ')

@@ -9,7 +9,7 @@ import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { useDivineProtocolBriefing } from '@/components/divine/use-divine-protocol-briefing'
-import { ProtocolOpenTasksList } from '@/components/divine/protocol-task-ui'
+import { ProtocolOpenTasksListManage } from '@/components/divine/protocol-task-ui'
 
 /** Main Divine Manager section: same protocol queue as the floating crown panel (notifications, scans, tool follow-ups). */
 export function DivineManagerProtocolTasksCard() {
@@ -36,8 +36,8 @@ export function DivineManagerProtocolTasksCard() {
               Protocols &amp; tasks
             </CardTitle>
             <CardDescription>
-              Contextual follow-ups from notifications, protection scans, CRM, and other tools—not ad-hoc &quot;suggested&quot;
-              cards. Matches the floating panel next to the crown.
+              Follow-ups from notifications, scans, and your workspace tools. The same queue appears in the floating
+              assistant menu.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-1 justify-end shrink-0">
@@ -69,12 +69,11 @@ export function DivineManagerProtocolTasksCard() {
           <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
         ) : openTasks.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center rounded-lg border border-dashed border-amber-500/20 bg-muted/10 px-4">
-            No open protocol tasks. When notifications arrive or scans finish, steps appear here. Use Realtime briefing for a
-            voice walkthrough of your bell queue, or open the compact panel on the crown.
+            Nothing open right now. Steps show up when something needs you, or after you run Realtime briefing.
           </p>
         ) : (
           <ScrollArea className="max-h-[min(60vh,520px)] pr-3">
-            <ProtocolOpenTasksList tasks={openTasks} textAlign="left" />
+            <ProtocolOpenTasksListManage tasks={openTasks} textAlign="left" />
           </ScrollArea>
         )}
       </CardContent>

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
 // POST - Send a mass message
@@ -94,9 +94,16 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Failed to send mass message:', error)
+    const msg = error instanceof Error ? error.message : String(error)
+    const rateLimited = isOnlyFansRateLimitError(msg)
     return NextResponse.json(
-      { error: 'Failed to send mass message' },
-      { status: 500 }
+      {
+        error: rateLimited
+          ? 'OnlyFans is temporarily limiting requests. Please retry shortly.'
+          : 'Failed to send mass message',
+        code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : undefined,
+      },
+      { status: rateLimited ? 429 : 500 }
     )
   }
 }

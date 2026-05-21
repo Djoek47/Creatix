@@ -1,9 +1,11 @@
-// Database Types for CREATRIX Platform
+// Database types — Circe et Venus / Creatix app
 
 import type { AudienceBadge } from '@/lib/fans/audience-classification'
 import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import type { FanProfileType } from '@/lib/fans/profile-types'
 
 export type Platform = 'onlyfans' | 'fansly' | 'manyvids' | 'mym' | 'loyalfans'
+export type CreatorStatusPreset = 'available' | 'away' | 'busy' | 'dnd' | 'custom'
 export type FanTier = 'whale' | 'regular' | 'new' | 'inactive'
 export type ContentStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 export type ConversationStatus = 'active' | 'pending' | 'archived'
@@ -43,6 +45,16 @@ export type LeakDistributionIntent =
   | 'cross_post_consented'
 export type MentionSentiment = 'positive' | 'neutral' | 'negative'
 
+/** Persisted dashboard / app chrome preferences (Phase 1 i18n). */
+export type UiPreferences = {
+  locale?: string
+  dateFormat?: string
+  currency?: string
+  autoSave?: boolean
+  soundEffects?: boolean
+  cosmicGuidance?: boolean
+}
+
 export interface Profile {
   id: string
   email: string
@@ -53,6 +65,10 @@ export interface Profile {
   encrypted_birthday: string | null
   birthday_passphrase_hash: string | null
   has_birthday_set: boolean
+  encrypted_location?: string | null
+  has_location_set?: boolean
+  location_hint?: string | null
+  location_updated_at?: string | null
   /** Prior platform handles for leak search (rebrands) */
   former_usernames?: string[] | null
   /** Manual content title hints for leak search */
@@ -63,6 +79,10 @@ export interface Profile {
   reputation_display_name?: string | null
   /** Optional platform usernames e.g. { "onlyfans": "x", "mym": "y" } */
   reputation_platform_handles?: Record<string, string> | null
+  onboarding_completed?: boolean
+  /** Set when the post-login welcome email was sent (Resend). */
+  welcome_email_sent_at?: string | null
+  ui_preferences?: UiPreferences | null
   created_at: string
   updated_at: string
 }
@@ -96,6 +116,8 @@ export interface Fan {
   subscription_price?: number | null
   /** Free-page vs paid tier when derivable from price or sync. */
   subscription_account_type?: SubscriptionAccountType
+  /** From platform CRM sync (`active`, `expired`, `pending`, …). */
+  subscription_status?: string | null
   /** Partial revenue breakdown (null = not tracked yet for this row). */
   spend_subscriptions?: number | null
   spend_tips?: number | null
@@ -114,10 +136,8 @@ export interface Fan {
   updated_at: string
   /** Server-derived when loading /dashboard/fans from DB + thread insights. */
   audience?: FanAudienceMeta
-  /**
-   * Optional manual profile type for CRM (badges + filters). `auto` = use spend + thread insights.
-   */
-  audience_profile_override?: 'auto' | 'whale' | 'creator' | 'fan' | null
+  /** Optional explicit manual profile type for CRM (null = backend-derived). */
+  audience_profile_override?: FanProfileType | null
 }
 
 export interface Content {
@@ -208,6 +228,10 @@ export interface LeakAlert {
   ai_nuance_summary?: string | null
   /** video | photo | unknown */
   media_type?: LeakMediaType
+  /** Serper / discovery query term that produced this hit (nullable for manual URLs) */
+  query?: string | null
+  /** `search_api` | `user_report` — how the row entered the inbox */
+  detected_by?: string | null
   /** Same canonical URL seen again after resolve */
   reappearance_count?: number
   last_seen_at?: string | null

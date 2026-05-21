@@ -35,122 +35,260 @@ import { upsertOnlyFansDmMessageCache } from '@/lib/messages/of-dm-cache'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+function createServiceSupabase() {
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
+
 // Verify webhook signature
 function verifySignature(payload: string, signature: string, secret: string): boolean {
   const expectedSignature = crypto
     .createHmac('sha256', secret)
     .update(payload)
     .digest('hex')
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  )
+  const normalizedSignature = signature.trim().toLowerCase().replace(/^sha256=/, '')
+  if (!/^[0-9a-f]+$/.test(normalizedSignature) || normalizedSignature.length % 2 !== 0) return false
+  const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+  const providedBuffer = Buffer.from(normalizedSignature, 'hex')
+  if (expectedBuffer.length === 0 || providedBuffer.length === 0 || expectedBuffer.length !== providedBuffer.length) {
+    return false
+  }
+  try {
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+  } catch {
+    return false
+  }
+}
+
+function payloadHash(payload: string): string {
+  return crypto.createHash('sha256').update(payload).digest('hex')
+}
+
+type LedgerReservation =
+  | { duplicate: true; ledgerId?: string }
+  | { duplicate: false; ledgerId?: string }
+
+async function reserveWebhookEvent(
+  supabase: SupabaseClient,
+  args: {
+    platform: 'onlyfans'
+    eventType: string
+    eventId: string
+    payloadHash: string
+  },
+): Promise<LedgerReservation> {
+  const { data, error } = await supabase
+    .from('platform_webhook_event_ledger')
+    .insert({
+      platform: args.platform,
+      event_type: args.eventType,
+      event_id: args.eventId,
+      payload_hash: args.payloadHash,
+      status: 'received',
+      received_at: new Date().toISOString(),
+    })
+    .select('id')
+    .maybeSingle()
+
+  if (!error) {
+    const ledgerId = data && typeof (data as { id?: string }).id === 'string' ? (data as { id: string }).id : undefined
+    return { duplicate: false, ledgerId }
+  }
+
+  // duplicate event delivery
+  if (error.code === '23505') {
+    const { data: existing } = await supabase
+      .from('platform_webhook_event_ledger')
+      .select('id')
+      .eq('platform', args.platform)
+      .eq('event_id', args.eventId)
+      .maybeSingle()
+    const ledgerId =
+      existing && typeof (existing as { id?: string }).id === 'string'
+        ? (existing as { id: string }).id
+        : undefined
+    return { duplicate: true, ledgerId }
+  }
+
+  // If ledger table is not available yet, continue without hard-failing webhook ingest.
+  if (error.code === '42P01') {
+    console.warn('[onlyfans webhook] ledger table missing; continuing without dedupe')
+    return { duplicate: false }
+  }
+
+  throw error
+}
+
+async function markWebhookEventProcessed(
+  supabase: SupabaseClient,
+  ledgerId: string | undefined,
+  status: 'processed' | 'failed',
+  error?: string,
+) {
+  if (!ledgerId) return
+  await supabase
+    .from('platform_webhook_event_ledger')
+    .update({
+      status,
+      error: error ? error.slice(0, 2000) : null,
+      processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', ledgerId)
+}
+
+async function processWebhookEvent(
+  supabase: SupabaseClient,
+  eventType: string,
+  data: unknown,
+) {
+  // OnlyFansAPI webhook events based on their settings
+  switch (eventType) {
+    // Chat events
+    case 'chat.message':
+      await handleNewMessage(supabase, data as any)
+      break
+
+    case 'chat.tip':
+    case 'post.tip':
+    case 'story.tip':
+    case 'stream.tip':
+    case 'subscription.tip':
+      await handleTip(supabase, data as any)
+      break
+
+    case 'chat.purchase':
+      await handlePurchase(supabase, data as any, 'message')
+      break
+    case 'post.purchase':
+      await handlePurchase(supabase, data as any, 'post')
+      break
+
+    // Post/Story/Stream engagement events
+    case 'post.comment':
+      await handleComment(supabase, data as any, 'post')
+      break
+    case 'story.comment':
+      await handleComment(supabase, data as any, 'story')
+      break
+    case 'stream.comment':
+      await handleComment(supabase, data as any, 'stream')
+      break
+
+    case 'post.like':
+    case 'story.like':
+    case 'stream.like':
+      await handleLike(supabase, data as any)
+      break
+
+    // Subscription events
+    case 'subscription.new':
+      await handleNewSubscription(supabase, data as any)
+      break
+
+    case 'subscription.renewed':
+      await handleRenewal(supabase, data as any)
+      break
+
+    case 'subscription.expired':
+      await handleExpiration(supabase, data as any)
+      break
+
+    // User spending event
+    case 'user.spent':
+      await handleUserSpent(supabase, data as any)
+      break
+
+    case 'fan_summary.completed':
+      await handleFanSummaryCompleted(supabase, data)
+      break
+
+    case 'tips.received':
+      try {
+        await handleTip(supabase, normalizeTipPayload(data))
+      } catch (e) {
+        console.warn('tips.received handler:', e)
+      }
+      break
+
+    case 'transactions.new':
+      await handleTransactionNew(supabase, data)
+      break
+
+    case 'chat_queue.updated':
+    case 'chat_queue.finished':
+      await handleChatQueueEvent(supabase, data, eventType)
+      break
+
+    case 'messages.deleted':
+      await handleMessageDeleted(supabase, data)
+      break
+
+    default:
+      console.log('Unknown event type:', eventType)
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const signature = request.headers.get('x-onlyfans-signature')
     const rawBody = await request.text()
-    
-    // Verify signature if secret is set
+
+    // In production, signature verification is mandatory.
     const webhookSecret = process.env.ONLYFANS_WEBHOOK_SECRET
-    if (webhookSecret && signature) {
+    if (process.env.NODE_ENV === 'production') {
+      if (!webhookSecret || !signature) {
+        return NextResponse.json({ error: 'Missing webhook signature configuration' }, { status: 401 })
+      }
+      if (!verifySignature(rawBody, signature, webhookSecret)) {
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+      }
+    } else if (webhookSecret && signature) {
       if (!verifySignature(rawBody, signature, webhookSecret)) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
       }
     }
 
     const event = JSON.parse(rawBody)
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createServiceSupabase()
     const eventType = event.type ?? event.event
+    const rawEventId =
+      event.id ??
+      event.event_id ??
+      event.data?.event_id ??
+      event.data?.id
+    const eventId =
+      typeof rawEventId === 'string' && rawEventId.trim().length > 0
+        ? rawEventId.trim()
+        : `${eventType}:${payloadHash(rawBody)}`
 
-    // OnlyFansAPI webhook events based on their settings
-    switch (eventType) {
-      // Chat events
-      case 'chat.message':
-        await handleNewMessage(supabase, event.data)
-        break
-      
-      case 'chat.tip':
-      case 'post.tip':
-      case 'story.tip':
-      case 'stream.tip':
-      case 'subscription.tip':
-        await handleTip(supabase, event.data)
-        break
-      
-      case 'chat.purchase':
-        await handlePurchase(supabase, event.data, 'message')
-        break
-      case 'post.purchase':
-        await handlePurchase(supabase, event.data, 'post')
-        break
-      
-      // Post/Story/Stream engagement events
-      case 'post.comment':
-        await handleComment(supabase, event.data, 'post')
-        break
-      case 'story.comment':
-        await handleComment(supabase, event.data, 'story')
-        break
-      case 'stream.comment':
-        await handleComment(supabase, event.data, 'stream')
-        break
-      
-      case 'post.like':
-      case 'story.like':
-      case 'stream.like':
-        await handleLike(supabase, event.data)
-        break
-      
-      // Subscription events
-      case 'subscription.new':
-        await handleNewSubscription(supabase, event.data)
-        break
-      
-      case 'subscription.renewed':
-        await handleRenewal(supabase, event.data)
-        break
-      
-      case 'subscription.expired':
-        await handleExpiration(supabase, event.data)
-        break
-      
-      // User spending event
-      case 'user.spent':
-        await handleUserSpent(supabase, event.data)
-        break
-
-      case 'fan_summary.completed':
-        await handleFanSummaryCompleted(supabase, event.data)
-        break
-
-      case 'tips.received':
-        try {
-          await handleTip(supabase, normalizeTipPayload(event.data))
-        } catch (e) {
-          console.warn('tips.received handler:', e)
-        }
-        break
-
-      case 'transactions.new':
-        await handleTransactionNew(supabase, event.data)
-        break
-
-      case 'chat_queue.updated':
-      case 'chat_queue.finished':
-        await handleChatQueueEvent(supabase, event.data, eventType)
-        break
-
-      case 'messages.deleted':
-        await handleMessageDeleted(supabase, event.data)
-        break
-      
-      default:
-        console.log('Unknown event type:', eventType)
+    const reservation = await reserveWebhookEvent(supabase, {
+      platform: 'onlyfans',
+      eventType: String(eventType || 'unknown'),
+      eventId,
+      payloadHash: payloadHash(rawBody),
+    })
+    if (reservation.duplicate) {
+      return NextResponse.json({ received: true, duplicate: true })
     }
 
-    return NextResponse.json({ received: true })
+    const queuedAt = new Date().toISOString()
+    after(async () => {
+      const workerSupabase = createServiceSupabase()
+      try {
+        await processWebhookEvent(workerSupabase, String(eventType || 'unknown'), event.data)
+        await markWebhookEventProcessed(workerSupabase, reservation.ledgerId, 'processed')
+      } catch (error) {
+        console.error('[onlyfans webhook] async processing failed:', error)
+        await markWebhookEventProcessed(
+          workerSupabase,
+          reservation.ledgerId,
+          'failed',
+          error instanceof Error ? error.message : String(error),
+        )
+      }
+    })
+
+    return NextResponse.json({ received: true, queued: true, queuedAt })
   } catch (error) {
     console.error('Webhook error:', error)
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })

@@ -119,9 +119,31 @@ const PLATFORM_LABEL: Record<string, string> = {
   onlyfans: 'OnlyFans',
   fansly: 'Fansly',
   manyvids: 'ManyVids',
+  loyalfans: 'LoyalFans',
   twitter: 'X',
   instagram: 'Instagram',
   tiktok: 'TikTok',
+}
+
+/**
+ * Maps a handle `source` from {@link loadScanIdentityHandles} to a platform id
+ * (e.g. `onlyfans`, `fansly`, `former`, `manual`).
+ */
+export function scanSourcePlatformKey(source: string): string {
+  if (source === 'former') return 'former'
+  if (source === 'reputation_manual') return 'manual'
+  if (source.startsWith('social_')) return source.slice('social_'.length)
+  if (source.startsWith('reputation_')) return source.slice('reputation_'.length)
+  return source
+}
+
+export function scanSourcePlatformDisplayName(source: string): string {
+  const key = scanSourcePlatformKey(source)
+  if (key === 'former') return 'Former name'
+  if (key === 'manual') return 'Manual'
+  const labeled = PLATFORM_LABEL[key]
+  if (labeled) return labeled
+  return key.replace(/_/g, ' ')
 }
 
 /**

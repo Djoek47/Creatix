@@ -1,29 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ThemedLogo } from '@/components/themed-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AuthPasswordField } from '@/components/auth/auth-password-field'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Loader2, Sparkles, Moon, Sun, Shield, Mic, MessageSquare } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
+import { AuthScenicBackdrop } from '@/components/auth/auth-scenic-backdrop'
+import { SignUpFeatureShowcase } from '@/components/auth/sign-up-feature-showcase'
 import { createClient } from '@/lib/supabase/client'
+import { getEmailConfirmationRedirectUrlClient } from '@/lib/supabase/email-confirmation-redirect'
 import { cn } from '@/lib/utils'
+import {
+  DEFAULT_AUTH_SIGNIN_HREF,
+  useSignupEntranceMode,
+  useTrialSignupTransition,
+} from '@/components/marketing/trial-signup-transition'
 
 export default function SignUpPage() {
+  const { beginSignupTransition, isTransitioning: authNavBusy } = useTrialSignupTransition()
+  const entranceMode = useSignupEntranceMode()
+  const reduceEntranceMotion = useReducedMotion()
+  const instantEntrance = entranceMode === 'off' || reduceEntranceMotion
+  const staged = entranceMode === 'staged'
+
+  const tAuth = useTranslations('auth')
+  const tCommon = useTranslations('common')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,8 +49,9 @@ export default function SignUpPage() {
       email,
       password,
       options: {
-        emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || 
-          `${window.location.origin}/dashboard`,
+        emailRedirectTo:
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL?.trim() ||
+          getEmailConfirmationRedirectUrlClient(),
         data: {
           full_name: fullName,
         },
@@ -52,157 +67,207 @@ export default function SignUpPage() {
     router.push('/auth/sign-up-success')
   }
 
-  const features = [
-    { icon: Moon, text: 'Circe — retention, protection & analytics', color: 'text-circe' },
-    { icon: Sun, text: 'Venus — fans, mentions & housekeeping', color: 'text-venus' },
-    { icon: Mic, text: 'Divine Manager — voice & chat', color: 'text-primary' },
-    { icon: MessageSquare, text: 'Unified inbox — OnlyFans & Fansly', color: 'text-venus' },
-    { icon: Shield, text: 'Leak alerts & DMCA drafts (you approve)', color: 'text-circe' },
-    { icon: Sparkles, text: 'AI Studio — tools library & credits', color: 'text-primary' },
-  ]
-
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Left Side - Form */}
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-4 py-12">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-gold/10 via-venus/5 to-transparent" />
-        </div>
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <AuthScenicBackdrop />
+      </div>
 
-        <Link 
-          href="/" 
-          className="absolute left-6 top-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      <div
+        className={cn(
+          'relative z-10 flex min-h-screen min-w-0 flex-1 flex-col items-center justify-center overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[calc(4rem+env(safe-area-inset-top))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]',
+          staged && 'pointer-events-none select-none',
+        )}
+      >
+        <motion.div
+          initial={instantEntrance ? { x: 0, opacity: 1 } : { x: -36, opacity: 0 }}
+          animate={
+            instantEntrance
+              ? { x: 0, opacity: 1 }
+              : staged
+                ? { x: -36, opacity: 0 }
+                : { x: 0, opacity: 1 }
+          }
+          transition={{
+            duration: instantEntrance ? 0 : 0.55,
+            delay: instantEntrance ? 0 : 0.06,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="absolute left-[max(1.25rem,env(safe-area-inset-left))] top-[max(1.25rem,env(safe-area-inset-top))] z-10 sm:left-8 sm:top-8"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to home
-        </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 opacity-70" />
+            {tCommon('back')}
+          </Link>
+        </motion.div>
 
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <ThemedLogo
-            width={100}
-            height={100}
-            className="rounded-full"
-            priority
+        <motion.div
+          initial={instantEntrance ? { y: 0, opacity: 1 } : { y: -28, opacity: 0 }}
+          animate={
+            instantEntrance
+              ? { y: 0, opacity: 1 }
+              : staged
+                ? { y: -28, opacity: 0 }
+                : { y: 0, opacity: 1 }
+          }
+          transition={{
+            duration: instantEntrance ? 0 : 0.55,
+            delay: instantEntrance ? 0 : 0.1,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="relative z-10 mb-10 flex flex-col items-center gap-5 sm:mb-12"
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-[-3rem] rounded-[3rem] bg-gradient-to-b from-violet-500/[0.07] via-transparent to-transparent blur-3xl dark:from-amber-400/[0.06]"
           />
-          <h1 className={cn(
-            "font-serif text-xl font-bold tracking-wider text-primary",
-            mounted && "dark:text-circe-light"
-          )}>CIRCE ET VENUS</h1>
-        </div>
+          <ThemedLogo width={96} height={96} className="relative z-10 rounded-full" priority />
+          <div className="relative z-10 text-center">
+            <p className="font-serif text-[0.65rem] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+              {tCommon('brand.name')}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground/90">{tCommon('brand.subtitle')}</p>
+          </div>
+        </motion.div>
 
-        <Card className="w-full max-w-md border-primary/20 bg-card">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Join the Divine Realm</CardTitle>
-            <CardDescription>
-              Begin your 14-day celestial trial
+        <motion.div
+          initial={instantEntrance ? { y: 0, opacity: 1 } : { y: 40, opacity: 0 }}
+          animate={
+            instantEntrance
+              ? { y: 0, opacity: 1 }
+              : staged
+                ? { y: 40, opacity: 0 }
+                : { y: 0, opacity: 1 }
+          }
+          transition={{
+            duration: instantEntrance ? 0 : 0.58,
+            delay: instantEntrance ? 0 : 0.14,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="relative z-10 w-full max-w-[420px]"
+        >
+        <Card
+          className={cn(
+            'relative z-10 w-full gap-0 overflow-hidden rounded-3xl py-0',
+            'border border-white/50 bg-white/55 shadow-[0_24px_80px_-20px_rgba(15,23,42,0.18)] backdrop-blur-2xl',
+            'dark:border-white/[0.12] dark:bg-slate-950/45 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.65)] dark:backdrop-blur-2xl',
+          )}
+        >
+          <CardHeader className="space-y-2 px-5 pb-0 pt-10 text-left sm:px-8">
+            <CardTitle className="font-serif text-[1.75rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-3xl">
+              {tAuth('signUpTitle')}
+            </CardTitle>
+            <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
+              {tAuth('signUpCardSubtitle')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="px-5 pb-10 pt-8 sm:px-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-destructive/20 bg-destructive/[0.06] px-4 py-3.5 text-sm text-destructive"
+                >
+                  <div className="flex gap-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-medium leading-snug text-destructive">{tAuth('signUpErrorTitle')}</p>
+                      <p className="text-xs leading-relaxed text-destructive/85">{error}</p>
+                    </div>
+                  </div>
                 </div>
               )}
-              
+
               <div className="space-y-2">
-                <Label htmlFor="fullName">Your Name</Label>
+                <Label htmlFor="fullName" className="text-[13px] font-medium text-foreground">
+                  {tAuth('signUpNameLabel')}
+                </Label>
                 <Input
                   id="fullName"
                   type="text"
-                  placeholder="Your name"
+                  placeholder={tAuth('signUpNamePlaceholder')}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="name"
+                  className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-[13px] font-medium text-foreground">
+                  {tAuth('signUpEmailLabel')}
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={tAuth('emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="email"
+                  className="h-12 rounded-xl border-border/80 bg-background/70 text-[15px] shadow-none transition-[border-color,box-shadow] focus-visible:border-foreground/25 focus-visible:ring-foreground/15 dark:bg-black/25"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
+                <Label htmlFor="password" className="text-[13px] font-medium text-foreground">
+                  {tAuth('passwordLabel')}
+                </Label>
+                <AuthPasswordField
                   id="password"
-                  type="password"
-                  placeholder="Create a sacred password"
+                  placeholder={tAuth('passwordMaskedPlaceholder')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="bg-input border-border min-h-[44px]"
+                  autoComplete="new-password"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters
-                </p>
+                <p className="text-xs text-muted-foreground">{tAuth('signUpPasswordHint')}</p>
               </div>
 
-              <Button type="submit" className={cn(
-                "w-full min-h-[44px] bg-primary hover:bg-primary/90 text-primary-foreground",
-                mounted && "dark:bg-circe dark:hover:bg-circe/90"
-              )} disabled={loading}>
+              <Button
+                type="submit"
+                disabled={loading}
+                className={cn(
+                  'h-12 w-full rounded-xl text-[15px] font-medium tracking-tight shadow-none',
+                  'bg-foreground text-background hover:bg-foreground/88',
+                  'dark:bg-white dark:text-slate-950 dark:hover:bg-white/90',
+                  'transition-[opacity,background-color,transform] duration-200 active:scale-[0.99]',
+                  'disabled:opacity-50',
+                )}
+              >
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Awakening the goddesses...
-                  </>
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin opacity-80" />
+                    {tAuth('signUpCreating')}
+                  </span>
                 ) : (
-                  'Begin Your Journey'
+                  tAuth('continue')
                 )}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already blessed by the goddesses?{' '}
-              <Link href="/auth/login" className="font-medium text-primary hover:underline">
-                Enter the realm
-              </Link>
-            </div>
+            <p className="mt-8 text-center text-[15px] text-muted-foreground">
+              {tAuth('signUpHaveAccount')}{' '}
+              <button
+                type="button"
+                disabled={authNavBusy}
+                className="font-medium text-foreground underline-offset-4 transition-colors hover:underline disabled:pointer-events-none disabled:opacity-50"
+                onClick={() => beginSignupTransition(DEFAULT_AUTH_SIGNIN_HREF)}
+              >
+                {tAuth('signUpSignIn')}
+              </button>
+            </p>
           </CardContent>
         </Card>
+        </motion.div>
       </div>
 
-      {/* Right Side - Features */}
-      <div className="hidden flex-1 items-center justify-center border-l border-primary/10 bg-gradient-to-br from-background via-circe/5 to-venus/5 lg:flex">
-        <div className="max-w-md px-8">
-          <h2 className="font-serif text-3xl font-bold tracking-tight">
-            Two Goddesses, <br />
-            <span className="text-primary">One Divine Platform</span>
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Circe enchants your fans to stay. Venus attracts new admirers. Together, they transform your creator business.
-          </p>
-          <ul className="mt-8 space-y-4">
-            {features.map((feature) => (
-              <li key={feature.text} className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                  <feature.icon className={`h-4 w-4 ${feature.color}`} />
-                </div>
-                <span className="text-sm">{feature.text}</span>
-              </li>
-            ))}
-          </ul>
-          
-          <div className="mt-8 rounded-lg border border-primary/20 bg-primary/5 p-4">
-            <p className="text-sm italic text-muted-foreground">
-              "Circe et Venus helped me double my retention and grow my following by 300% in just 3 months."
-            </p>
-            <p className="mt-2 text-xs font-medium text-primary">- Top 0.1% Creator</p>
-          </div>
-        </div>
-      </div>
+      <SignUpFeatureShowcase entranceMode={entranceMode} />
     </div>
   )
 }

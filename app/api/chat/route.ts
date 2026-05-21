@@ -1,5 +1,6 @@
 import { streamText, convertToModelMessages, UIMessage } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import type { NextRequest } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
 export const maxDuration = 60
@@ -16,7 +17,7 @@ Important behavioral rules:
 - Never respond with just a single word such as "venus", "circe", or "flirt".
 - Always answer the user's question in natural language, using full sentences that directly address their request.`
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(req)
     const {

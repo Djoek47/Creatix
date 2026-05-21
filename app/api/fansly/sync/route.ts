@@ -5,7 +5,8 @@ import { fanslyMonthToDateRevenueUsd } from '@/lib/fansly/observed-month-to-date
 import { writeFanslyConnectionBillingSnapshot } from '@/lib/fansly/billing-observation'
 import { subscriptionFieldsFromFanslyFan } from '@/lib/fans/subscription-dates'
 
-// POST: Sync Fansly data for a user
+// POST: Sync Fansly data for a user. Intentionally no adult-platform billing gate here — sync must run to refresh
+// scoped revenue observations used by revenue-band enforcement (see lib/billing/onlyfans-billing-gate.ts).
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(request)
@@ -35,7 +36,10 @@ export async function POST(request: NextRequest) {
     let profile = { username: '', displayName: '', avatar: '', subscribersCount: 0, followersCount: 0 }
     let fans = { data: [] as any[], count: 0 }
     let earnings = { total: 0, subscriptions: 0, tips: 0, messages: 0, period: { start: '', end: '' } }
-    let followers = { data: [], count: 0 }
+    let followers: {
+      data: { id: string; username: string; displayName: string; avatar: string }[]
+      count: number
+    } = { data: [], count: 0 }
 
     try {
       profile = await api.getProfile(accountId)
@@ -55,11 +59,13 @@ export async function POST(request: NextRequest) {
 
     // Store analytics snapshot
     const today = new Date().toISOString().split('T')[0]
+    const fanslyFollows = profile.followersCount ?? (followers as { count?: number }).count ?? 0
     await supabase.from('analytics_snapshots').upsert({
       user_id: user.id,
       platform: 'fansly',
       date: today,
       total_fans: fans.count || 0,
+      total_follows: Math.max(0, Number(fanslyFollows) || 0),
       new_fans: 0,
       churned_fans: 0,
       revenue: earnings.total || 0,

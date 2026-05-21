@@ -1,8 +1,6 @@
 'use client'
 
 import Image from 'next/image'
-import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface ThemedLogoProps {
@@ -12,31 +10,24 @@ interface ThemedLogoProps {
   priority?: boolean
 }
 
-export function ThemedLogo({ width = 40, height = 40, className = '', priority = false }: ThemedLogoProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Treat the initial (SSR) render as light mode for stable hydration
-  const isLight = !mounted || resolvedTheme === 'light'
-
+/**
+ * Brand mark: soft wide aura (globals `.themed-logo-aura`) — gold in light, purple in dark,
+ * with a thin accent of the other hue that breathes in the animation.
+ */
+export function ThemedLogo({ width = 40, height = 40, className, priority = false }: ThemedLogoProps) {
   return (
-    <Image
-      src="/icon.png"
-      alt="Circe et Venus"
-      width={width}
-      height={height}
-      className={cn(
-        'rounded-full transition-shadow duration-300',
-        isLight
-          ? 'shadow-[0_0_35px_rgba(212,175,55,0.7)]'
-          : 'shadow-[0_0_35px_rgba(128,90,213,0.8)]',
-        className,
-      )}
-      priority={priority}
-    />
+    <span className="themed-logo-aura inline-flex shrink-0 rounded-full align-middle">
+      <Image
+        src="/icon.png"
+        alt="Circe et Venus"
+        width={width}
+        height={height}
+        className={cn(
+          'relative z-[1] rounded-full ring-1 ring-border/25 dark:ring-border/20',
+          className,
+        )}
+        priority={priority}
+      />
+    </span>
   )
 }

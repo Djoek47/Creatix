@@ -1,72 +1,57 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw, Sparkles, ExternalLink, AlertTriangle } from 'lucide-react'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
-import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
+import { cn } from '@/lib/utils'
+
+const STORAGE_KEY = 'mentions_selected_handles'
 
 type Props = {
   initialBriefing: ReputationBriefingPayload | null
   briefingAt: string | null
-  isPro: boolean
   mentionCount: number
 }
 
-export function ReputationBriefingCard({
-  initialBriefing,
-  briefingAt,
-  isPro,
-  mentionCount,
-}: Props) {
+function buildBriefingRequestBody(identityValues: string[]): Record<string, unknown> {
+  if (identityValues.length === 0) return {}
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as string[]
+    if (!Array.isArray(parsed) || parsed.length === 0) return {}
+    const allowed = new Set(identityValues)
+    const picked = parsed.filter((h) => allowed.has(h))
+    if (picked.length === 0) return {}
+    if (picked.length >= identityValues.length) return {}
+    return { handles: picked }
+  } catch {
+    return {}
+  }
+}
+
+export function ReputationBriefingCard({ initialBriefing, briefingAt, mentionCount }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [useAllHandles] = useState(false)
-  const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
   const { handles: identityHandles } = useScanIdentity()
-
-  const toggleSelectedHandle = (value: string) => {
-    setSelectedHandles((prev) => {
-      const next = new Set(prev)
-      if (next.has(value)) next.delete(value)
-      else next.add(value)
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('mentions_selected_handles', JSON.stringify(Array.from(next)))
-      }
-      return next
-    })
-  }
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      const raw = window.localStorage.getItem('mentions_selected_handles')
-      if (!raw) return
-      const parsed = JSON.parse(raw) as string[]
-      if (!Array.isArray(parsed)) return
-      const allowed = new Set(identityHandles.map((h) => h.value))
-      setSelectedHandles(new Set(parsed.filter((h) => allowed.has(h))))
-    } catch {
-      // ignore
-    }
-  }, [identityHandles])
+  const identityValues = identityHandles.map((h) => h.value)
 
   const handleRefresh = async () => {
-    if (!isPro) return
-    if (identityHandles.length === 0 || selectedHandles.size === 0) return
+    if (identityHandles.length === 0) return
     setLoading(true)
     setError(null)
     try {
+      const body = buildBriefingRequestBody(identityValues)
       const res = await fetch('/api/social/reputation-briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handles: Array.from(selectedHandles) }),
+        body: JSON.stringify(body),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -81,182 +66,174 @@ export function ReputationBriefingCard({
     }
   }
 
-  const showEmptyPro =
-    isPro && mentionCount === 0 && !initialBriefing
+  const showEmptyBriefing = mentionCount === 0 && !initialBriefing
 
   return (
-    <Card className="border-venus/20 bg-gradient-to-br from-card via-card to-venus/5">
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-venus" />
-            AI reputation briefing
-            {isPro && (
-              <Badge variant="outline" className="border-venus/40 text-[10px] text-venus">
-                Venus Pro
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Themes and next steps from indexed discovery (search snippets)—not a live X/IG/TikTok feed. You
-            choose every reply.
-          </CardDescription>
-          {briefingAt && initialBriefing && (
-            <p className="text-xs text-muted-foreground">
-              Last updated {new Date(briefingAt).toLocaleString()}
-            </p>
-          )}
-        </div>
-        {isPro && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 border-venus/40 text-venus hover:bg-venus/10"
-            onClick={() => void handleRefresh()}
-            disabled={loading || identityHandles.length === 0 || selectedHandles.size === 0}
-            title="Generate or refresh the aggregate AI briefing (runs a discovery pass if needed)"
+    <section
+      className="rounded-2xl border border-border/50 bg-muted/10 dark:bg-muted/5"
+      aria-labelledby="reputation-briefing-heading"
+    >
+      <div className="flex flex-col gap-6 border-b border-border/40 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
+        <div className="min-w-0 space-y-1.5">
+          <h2
+            id="reputation-briefing-heading"
+            className="flex flex-wrap items-center gap-2 text-[15px] font-semibold tracking-tight text-foreground"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {initialBriefing ? 'Refresh briefing' : 'Generate briefing'}
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        {identityHandles.length > 0 && (
-          <ScanHandlePicker
-            handles={identityHandles}
-            useAll={useAllHandles}
-            onUseAllChange={() => undefined}
-            selected={selectedHandles}
-            onToggle={toggleSelectedHandle}
-            idPrefix="mentions-briefing"
-          />
-        )}
-
-        {!isPro && (
-          <p className="text-sm text-muted-foreground">
-            Upgrade to Venus Pro for aggregate reputation intelligence.{' '}
-            <Link href="/dashboard/ai-studio/tools" className="text-venus underline-offset-4 hover:underline">
-              Open Venus Pro
-            </Link>
+            <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            Reputation briefing
+          </h2>
+          <p className="max-w-lg text-[13px] leading-relaxed text-muted-foreground/88">
+            From web search snippets—not a live social feed. Scope matches{' '}
+            <span className="text-foreground/85">Scan web</span> above.
           </p>
-        )}
-
-        {isPro && showEmptyPro && (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">No indexed mentions yet</p>
-            <p className="mt-1">
-              Add <span className="text-foreground">search handles</span> above (OAuth optional), then tap{' '}
-              <span className="text-foreground">Generate briefing</span>—we run indexed discovery and save a Pro
-              snapshot even when the feed is empty.
+          {briefingAt && initialBriefing ? (
+            <p className="text-[12px] text-muted-foreground/75">
+              Updated {new Date(briefingAt).toLocaleString()}
             </p>
-            <Button variant="link" className="mt-2 h-auto p-0 text-venus" asChild>
-              <Link href="/dashboard/settings?tab=integrations">Optional: Integrations</Link>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 shrink-0 rounded-xl border-border/60 bg-background/60 px-4 text-[13px] font-medium shadow-none hover:bg-muted/40"
+          onClick={() => void handleRefresh()}
+          disabled={loading || identityHandles.length === 0}
+          title="Regenerate the aggregate briefing for your current scope"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
+          {initialBriefing ? 'Refresh briefing' : 'Generate briefing'}
+        </Button>
+      </div>
+
+      <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+        {error ? (
+          <p className="text-[13px] text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {showEmptyBriefing ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-5 text-[13px] leading-relaxed text-muted-foreground/88">
+            <p className="font-medium text-foreground">No briefing yet</p>
+            <p className="mt-2">
+              Add search handles in <span className="text-foreground/90">Search profile</span> below, then run{' '}
+              <span className="text-foreground/90">Scan web</span>. A scan updates mentions and prepares this summary.
+            </p>
+            <Button variant="link" className="mt-2 h-auto p-0 text-[13px] font-medium text-foreground underline-offset-4" asChild>
+              <Link href="/dashboard/settings?tab=integrations">Connect accounts (optional)</Link>
             </Button>
           </div>
-        )}
+        ) : null}
 
-        {initialBriefing && (
-          <div className="space-y-4">
+        {initialBriefing ? (
+          <div className="space-y-6">
             <div>
-              <h3 className="text-base font-semibold text-foreground">{initialBriefing.headline}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{initialBriefing.summary}</p>
+              <h3 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">{initialBriefing.headline}</h3>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground/88">{initialBriefing.summary}</p>
             </div>
 
-            {initialBriefing.themesPositive.length > 0 && (
+            {initialBriefing.themesPositive.length > 0 ? (
               <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-chart-2">What&apos;s working</p>
-                <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">
+                  What&apos;s working
+                </p>
+                <ul className="list-inside list-disc space-y-1.5 text-[13px] leading-relaxed text-muted-foreground/88">
                   {initialBriefing.themesPositive.map((t, i) => (
                     <li key={i}>{t}</li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            {initialBriefing.themesNegative.length > 0 && (
+            {initialBriefing.themesNegative.length > 0 ? (
               <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">
                   Friction &amp; risks
                 </p>
-                <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                <ul className="list-inside list-disc space-y-1.5 text-[13px] leading-relaxed text-muted-foreground/88">
                   {initialBriefing.themesNegative.map((t, i) => (
                     <li key={i}>{t}</li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            {initialBriefing.watchlist.length > 0 && (
+            {initialBriefing.watchlist.length > 0 ? (
               <div>
-                <p className="mb-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-destructive">
-                  <AlertTriangle className="h-3 w-3" />
-                  High-risk / hostile mentions
+                <p className="mb-3 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-destructive/90">
+                  <AlertTriangle className="h-3 w-3" aria-hidden />
+                  High-risk mentions
                 </p>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {initialBriefing.watchlist.slice(0, 6).map((w, i) => (
                     <li
                       key={i}
-                      className="rounded-md border border-destructive/20 bg-destructive/5 p-2 text-xs"
+                      className={cn(
+                        'rounded-xl border border-destructive/15 bg-destructive/[0.06] px-3 py-2.5 text-[12px]',
+                        'dark:bg-destructive/[0.08]',
+                      )}
                     >
                       <a
                         href={w.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-start gap-1 font-medium text-foreground hover:text-venus"
+                        className="flex items-start gap-1.5 font-medium text-foreground underline-offset-2 hover:underline"
                       >
-                        <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+                        <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-70" aria-hidden />
                         <span className="line-clamp-2 break-all">{w.title || w.url}</span>
                       </a>
-                      {w.snippet && <p className="mt-1 text-muted-foreground">{w.snippet}</p>}
-                      {w.note && <p className="mt-1 text-muted-foreground/90">{w.note}</p>}
+                      {w.snippet ? <p className="mt-1.5 text-muted-foreground/85">{w.snippet}</p> : null}
+                      {w.note ? <p className="mt-1.5 text-muted-foreground/80">{w.note}</p> : null}
                     </li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            {initialBriefing.opportunities.length > 0 && (
+            {initialBriefing.opportunities.length > 0 ? (
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">Reply opportunities</p>
-                <ul className="space-y-2">
+                <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">
+                  Reply opportunities
+                </p>
+                <ul className="space-y-2.5">
                   {initialBriefing.opportunities.slice(0, 6).map((o, i) => (
-                    <li key={i} className="rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
+                    <li
+                      key={i}
+                      className="rounded-xl border border-border/50 bg-background/50 px-3 py-2.5 text-[12px] dark:bg-background/30"
+                    >
                       <a
                         href={o.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-start gap-1 font-medium text-foreground hover:text-venus"
+                        className="flex items-start gap-1.5 font-medium text-foreground underline-offset-2 hover:underline"
                       >
-                        <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+                        <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-70" aria-hidden />
                         <span className="line-clamp-2 break-all">{o.title || o.url}</span>
                       </a>
-                      {o.snippet && <p className="mt-1 text-muted-foreground">{o.snippet}</p>}
-                      {o.note && <p className="mt-1 text-muted-foreground/90">{o.note}</p>}
+                      {o.snippet ? <p className="mt-1.5 text-muted-foreground/85">{o.snippet}</p> : null}
+                      {o.note ? <p className="mt-1.5 text-muted-foreground/80">{o.note}</p> : null}
                     </li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            {initialBriefing.overallNextSteps.length > 0 && (
+            {initialBriefing.overallNextSteps.length > 0 ? (
               <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-foreground">Next steps</p>
-                <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/75">Next steps</p>
+                <ul className="list-inside list-disc space-y-1.5 text-[13px] leading-relaxed text-muted-foreground/88">
                   {initialBriefing.overallNextSteps.map((t, i) => (
                     <li key={i}>{t}</li>
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
-            <p className="text-xs text-muted-foreground">{initialBriefing.disclaimer}</p>
+            <p className="text-[12px] leading-relaxed text-muted-foreground/70">{initialBriefing.disclaimer}</p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        ) : null}
+      </div>
+    </section>
   )
 }

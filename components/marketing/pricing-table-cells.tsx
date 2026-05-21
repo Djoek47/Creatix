@@ -16,7 +16,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
       <span
         className={cn(
           'text-base font-semibold tabular-nums sm:text-lg',
-          isUnified ? 'font-bold text-fuchsia-200' : 'text-foreground',
+          isUnified ? 'font-bold text-fuchsia-900 dark:text-fuchsia-200' : 'text-foreground',
         )}
       >
         ${price}
@@ -24,7 +24,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
       <span
         className={cn(
           'text-[10px] font-medium leading-tight sm:text-xs',
-          isUnified ? 'text-fuchsia-300/95' : 'text-emerald-400/95',
+          isUnified ? 'text-fuchsia-800 dark:text-fuchsia-300/95' : 'text-emerald-400/95',
         )}
       >
         (−${save}, {pct}%)
@@ -33,7 +33,7 @@ export function BundleMatrixCell({ tier, combo }: { tier: PricingTier; combo: Bu
   )
 }
 
-/** Solo platform column — plain USD (Focus line). */
+/** Solo platform column — plain USD (single-platform line). */
 export function SoloMatrixCell({ usd }: { usd: number }) {
   return <span className="text-base font-semibold tabular-nums text-foreground sm:text-lg">${usd}</span>
 }
@@ -53,7 +53,7 @@ export function PriceWithSavings({ row, usd, baseline }: { row: RevenueTierRow; 
           !isBase && pct < 0 && 'text-amber-300/90',
         )}
       >
-        {isBase ? 'OnlyFans base' : pct > 0 ? `−${pct}% vs OF` : pct < 0 ? `+${-pct}% vs OF base` : '—'}
+        {isBase ? 'OnlyFans base' : pct > 0 ? `−${pct}% vs OnlyFans` : pct < 0 ? `+${-pct}% vs OnlyFans base` : '—'}
       </span>
     </div>
   )

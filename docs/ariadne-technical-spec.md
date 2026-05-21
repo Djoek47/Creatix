@@ -16,6 +16,35 @@ Per-recipient **forensic traceability** for vault-exported video: embed a signed
 1. Read uploaded bytes; search for the last occurrence of `CREATIX_ARID:v1:`.
 2. Parse JSON; verify HMAC and `exp`.
 3. Join to `ariadne_exports` by `payload_id` / `content_id`.
+4. Persist detect run metadata in `ariadne_detect_events` (`none` | `unregistered` | `registered`) for evidence timelines.
+
+### Append-v1 classification states
+
+- `no_marker`
+- `marker_invalid_signature`
+- `marker_expired`
+- `marker_valid_unregistered`
+- `marker_valid_registered`
+
+All detect responses include additive `confidence` and `reason` fields.
+
+## Service contract (`v1.1`)
+
+- Service-to-service calls (Markit -> Creatix) use signed headers:
+  - `x-ariadne-contract-version: v1.1`
+  - `x-creatix-service`, `x-creatix-timestamp`, `x-creatix-nonce`, `x-idempotency-key`, `x-creatix-signature`
+- Replay protection:
+  - nonce persisted in `ariadne_service_nonces`
+  - timestamp replay window defaults to 5 minutes (`ARIADNE_SERVICE_REPLAY_WINDOW_SEC`)
+- Idempotency:
+  - write endpoints cache prior responses in `ariadne_idempotency_keys`
+  - repeated idempotency keys return the same payload without creating duplicate forensic rows
+
+## v2 roadmap surfaces
+
+- Async embed queue endpoint: `POST /api/ariadne/embed-v2`
+- Robust detector endpoint: `POST /api/ariadne/detect-v2`
+- Canonical evidence packet endpoint: `GET /api/ariadne/evidence/:exportId`
 
 ## Limitations
 
@@ -26,3 +55,4 @@ Per-recipient **forensic traceability** for vault-exported video: embed a signed
 
 - Leak scanner or manual upload can call `POST /api/ariadne/detect` with the suspected file.
 - On match, surface `recipient_key` and `content_id` for the creator and optional pre-fill for DMCA draft context.
+- Evidence retrieval is available at `GET /api/ariadne/exports/:id/evidence` with hash chain + detect timeline.

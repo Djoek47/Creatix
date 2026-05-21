@@ -1,4 +1,4 @@
-import { proxyImageUrl } from '@/lib/proxy-image-url'
+import { proxifyChatOrVaultMediaUrl } from '@/lib/proxy-image-url'
 
 /** Raw media item from OnlyFans chat API (nested files or legacy url/preview). */
 export type RawOnlyFansMedia = {
@@ -21,7 +21,7 @@ export type ProxiedMediaPresentation = {
   displaySrc: string | undefined
   /** Second URL if display fails (e.g. thumb after full). */
   altSrc: string | undefined
-  /** Same as displaySrc/altSrc but never proxied — browser fallback when `/api/proxy/image` fails. */
+  /** Same as displaySrc/altSrc but never proxied — browser fallback when partner media proxy fails. */
   directSrc: string | undefined
   directAltSrc: string | undefined
   poster: string | undefined
@@ -47,11 +47,11 @@ export function getProxiedMediaPresentation(m: RawOnlyFansMedia): ProxiedMediaPr
     const vAlt = thumb && thumb !== full ? thumb : undefined
     return {
       kind: 'video',
-      displaySrc: proxyImageUrl(vMain),
-      altSrc: proxyImageUrl(vAlt),
+      displaySrc: proxifyChatOrVaultMediaUrl(vMain),
+      altSrc: proxifyChatOrVaultMediaUrl(vAlt),
       directSrc: vMain || undefined,
       directAltSrc: vAlt,
-      poster: proxyImageUrl(thumb || m.preview),
+      poster: proxifyChatOrVaultMediaUrl(thumb || m.preview),
       directPoster: thumb || m.preview || undefined,
     }
   }
@@ -60,8 +60,8 @@ export function getProxiedMediaPresentation(m: RawOnlyFansMedia): ProxiedMediaPr
   const secondary = full && thumb && full !== thumb ? thumb : undefined
   return {
     kind: 'photo',
-    displaySrc: proxyImageUrl(primary),
-    altSrc: proxyImageUrl(secondary),
+    displaySrc: proxifyChatOrVaultMediaUrl(primary),
+    altSrc: proxifyChatOrVaultMediaUrl(secondary),
     directSrc: primary,
     directAltSrc: secondary,
     poster: undefined,

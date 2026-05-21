@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
+import Image from 'next/image'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { FansTable } from '@/components/fans/fans-table'
 import { FansGallery } from '@/components/fans/fans-gallery'
 import { FansHeader } from '@/components/fans/fans-header'
 import { FansStats } from '@/components/fans/fans-stats'
+import { FansArrangementsSection } from '@/components/fans/fans-arrangements-section'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -20,11 +23,23 @@ import {
   mergeThreadInsightsIntoFan,
   type ThreadInsightBrief,
 } from '@/lib/fans/merge-fan-audience'
-import { LayoutGrid, Table2 } from 'lucide-react'
+import { filterFansBySearchQuery } from '@/lib/fans/fan-search-filter'
+import { postQuickFanPlatformSync } from '@/lib/fans/post-quick-fan-sync'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { useTranslations } from 'next-intl'
+import { LayoutGrid, Search, Table2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type FansFilter = 'database' | 'active' | 'expired' | 'latest' | 'top' | 'expiring'
 
-export type AudienceFilter = 'all' | 'whales' | 'creators' | 'fans'
+export type AudienceFilter =
+  | 'all'
+  | 'whales'
+  | 'creators'
+  | 'paying_creators'
+  | 'advertisements'
+  | 'freeloaders'
+  | 'fans'
 
 export type PlatformScope = 'all' | 'onlyfans' | 'fansly'
 
@@ -42,9 +57,10 @@ interface FansPageClientProps {
   hasOnlyFansConnected: boolean
   hasFanslyConnected: boolean
   hasFanPlatformsConnected: boolean
-  analyticsTotalFans?: number
-  /** Latest Circe snapshot total_fans per platform (analytics_snapshots). */
+  /** Latest Circe snapshot total_fans per platform — onlyfans + fansly keys. */
   snapshotFansByPlatform?: Record<string, number>
+  /** Free / non-sub follows per platform (e.g. OF free followers, Fansly followers). */
+  snapshotFollowsByPlatform?: Record<string, number>
 }
 
 export function FansPageClient({
@@ -53,18 +69,34 @@ export function FansPageClient({
   hasOnlyFansConnected,
   hasFanslyConnected,
   hasFanPlatformsConnected,
-  analyticsTotalFans = 0,
   snapshotFansByPlatform = {},
+  snapshotFollowsByPlatform = {},
 }: FansPageClientProps) {
+  const t = useTranslations('fans')
+  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [platformScope, setPlatformScope] = useState<PlatformScope>('all')
   const [scopeReady, setScopeReady] = useState(false)
 
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const q = new URLSearchParams(window.location.search).get('q')
+      return typeof q === 'string' ? q : ''
+    } catch {
+      return ''
+    }
+  })
+
+  const debouncedSearch = useDebouncedValue(searchQuery, 200)
+
   useEffect(() => {
-    const fromUrl = parsePlatformScope(searchParams.get('platform'))
-    if (fromUrl) {
-      setPlatformScope(fromUrl)
+    const platformFromUrl = parsePlatformScope(searchParams.get('platform'))
+    const qFromUrl = searchParams.get('q')
+
+    if (platformFromUrl) {
+      setPlatformScope(platformFromUrl)
     } else {
       try {
         const stored = parsePlatformScope(window.localStorage.getItem(PLATFORM_SCOPE_STORAGE))
@@ -73,6 +105,8 @@ export function FansPageClient({
         /* ignore */
       }
     }
+    if (qFromUrl !== null) setSearchQuery(qFromUrl)
+
     setScopeReady(true)
   }, [searchParams])
 
@@ -89,8 +123,14 @@ export function FansPageClient({
     } else {
       url.searchParams.set('platform', platformScope)
     }
+    const trimmed = debouncedSearch.trim()
+    if (!trimmed) {
+      url.searchParams.delete('q')
+    } else {
+      url.searchParams.set('q', trimmed)
+    }
     window.history.replaceState(null, '', url.pathname + url.search)
-  }, [platformScope, scopeReady])
+  }, [platformScope, scopeReady, debouncedSearch])
 
   const hasLiveSource =
     (platformScope === 'all' && (hasOnlyFansConnected || hasFanslyConnected)) ||
@@ -109,6 +149,7 @@ export function FansPageClient({
   const [expiringFans, setExpiringFans] = useState<Fan[]>([])
   const [loadingLive, setLoadingLive] = useState(false)
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null)
+  const [emptyQuickSyncBusy, setEmptyQuickSyncBusy] = useState(false)
   const [viewMode, setViewMode] = useState<'gallery' | 'table'>('gallery')
   const [liveFetchError, setLiveFetchError] = useState<string | null>(null)
 
@@ -130,7 +171,7 @@ export function FansPageClient({
 
         if (!runOf && !runFl) {
           setLiveFans([])
-          setLiveFetchError('Connect OnlyFans or Fansly (or change platform scope) to load live lists.')
+          setLiveFetchError(t('live.needConnect'))
           return
         }
 
@@ -152,14 +193,14 @@ export function FansPageClient({
           const data = payloads[i]
           i += 1
           if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
-          else if (!res.ok) err = data.error || `OnlyFans live list failed (${res.status}).`
+          else if (!res.ok) err = data.error || t('live.onlyfansFailed', { status: res.status })
         }
         if (runFl) {
           const res = responses[i]
           const data = payloads[i]
           if (res.ok && Array.isArray(data.fans)) combined = combined.concat(data.fans)
           else if (!res.ok) {
-            const flErr = data.error || `Fansly live list failed (${res.status}).`
+            const flErr = data.error || t('live.fanslyFailed', { status: res.status })
             err = err ? `${err} ${flErr}` : flErr
           }
         }
@@ -170,19 +211,16 @@ export function FansPageClient({
           else setLiveFetchError(null)
         } else {
           setLiveFans([])
-          setLiveFetchError(
-            err ||
-              'Could not load live fans. Try “From database”, reconnect the platform, or check billing.',
-          )
+          setLiveFetchError(err || t('live.combinedHint'))
         }
       } catch {
         setLiveFans([])
-        setLiveFetchError('Network error loading live fans. Try “From database” or sync again.')
+        setLiveFetchError('Network error loading live fans. Try “All synced” or sync again.')
       } finally {
         setLoadingLive(false)
       }
     },
-    [hasLiveSource, hasOnlyFansConnected, hasFanslyConnected, platformScope],
+    [hasLiveSource, hasOnlyFansConnected, hasFanslyConnected, platformScope, t],
   )
 
   const fetchExpiring = useCallback(async () => {
@@ -228,26 +266,62 @@ export function FansPageClient({
       const a = f.audience
       if (audienceFilter === 'whales') return a?.isWhaleOrVip === true
       if (audienceFilter === 'creators') return a?.isCreatorLikely === true
+      if (audienceFilter === 'paying_creators') {
+        return Boolean(a?.badges?.some((b) => b.key === 'paying_creator'))
+      }
+      if (audienceFilter === 'advertisements') {
+        return Boolean(a?.badges?.some((b) => b.key === 'advertisement'))
+      }
+      if (audienceFilter === 'freeloaders') {
+        return Boolean(a?.badges?.some((b) => b.key === 'freeloader'))
+      }
       if (audienceFilter === 'fans') return !(a?.isCreatorLikely ?? false)
       return true
     })
   }, [mergedFans, audienceFilter])
 
-  const snapshotTotalForScope = useMemo(() => {
-    if (platformScope === 'all') return analyticsTotalFans
-    return snapshotFansByPlatform[platformScope] ?? 0
-  }, [platformScope, analyticsTotalFans, snapshotFansByPlatform])
+  const displayFans = useMemo(
+    () => filterFansBySearchQuery(fans, debouncedSearch),
+    [fans, debouncedSearch],
+  )
 
-  const derivedTotalFans = Math.max(snapshotTotalForScope || 0, mergedFans.length)
+  const searchMismatch =
+    fans.length > 0 && displayFans.length === 0 && Boolean(debouncedSearch.trim())
+
+  const handleEmptyQuickSync = useCallback(async () => {
+    if (!hasFanPlatformsConnected) return
+    setEmptyQuickSyncBusy(true)
+    setSyncStatusMessage(t('sync.runningSubscribers'))
+    try {
+      await postQuickFanPlatformSync()
+      router.refresh()
+      setSyncStatusMessage(t('sync.finished'))
+    } catch {
+      setSyncStatusMessage(t('sync.failed'))
+    } finally {
+      setEmptyQuickSyncBusy(false)
+    }
+  }, [hasFanPlatformsConnected, router, t])
+
+  const snapshotCreatorTotal = useMemo(() => {
+    if (platformScope === 'all') {
+      return (snapshotFansByPlatform.onlyfans ?? 0) + (snapshotFansByPlatform.fansly ?? 0)
+    }
+    return snapshotFansByPlatform[platformScope] ?? 0
+  }, [platformScope, snapshotFansByPlatform])
+
+  /** Platform snapshot totals when available — avoid mixing Instagram/Twitter into this page. */
+  const derivedTotalFans = snapshotCreatorTotal > 0 ? snapshotCreatorTotal : mergedFans.length
   const stats = {
     totalFans: derivedTotalFans,
+    rowsInView: displayFans.length,
     whales: mergedFans.filter((f) => f.audience?.isWhaleOrVip ?? f.tier === 'whale').length,
     totalRevenue: mergedFans.reduce((sum, f) => sum + f.total_spent, 0),
     activeFans: mergedFans.filter((f) => f.tier !== 'inactive').length,
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7 sm:space-y-8">
       <FansHeader
         filter={filter}
         onFilterChange={setFilter}
@@ -257,37 +331,100 @@ export function FansPageClient({
         loadingLive={loadingLive}
         onSyncStatus={setSyncStatusMessage}
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Platform</span>
-          <div className="inline-flex rounded-md border border-border p-0.5">
+      <div className="relative min-w-0">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-11 rounded-xl border-border/50 bg-background/70 pl-9 pr-10 text-[15px] tracking-tight shadow-none placeholder:text-muted-foreground/70"
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.ariaLabel')}
+          autoComplete="off"
+        />
+        {searchQuery ? (
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={() => setSearchQuery('')}
+          >
+            {t('search.clear')}
+          </button>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">{t('platform.label')}</span>
+          <div
+            className="inline-flex max-w-full rounded-full border border-border/45 bg-muted/[0.2] p-1 dark:bg-muted/15"
+            role="group"
+            aria-label={t('platform.scopeAria')}
+          >
             {(['all', 'onlyfans', 'fansly'] as const).map((scope) => (
               <Button
                 key={scope}
                 type="button"
                 variant={platformScope === scope ? 'secondary' : 'ghost'}
                 size="sm"
-                className="px-3"
+                className={cn(
+                  'rounded-full px-3 shadow-none transition-colors',
+                  platformScope === scope && 'bg-background/90 dark:bg-background/80',
+                  scope === 'all'
+                    ? 'min-h-9'
+                    : 'min-h-9 min-w-[4.25rem] px-2.5 sm:min-w-[5.25rem] sm:px-3',
+                )}
                 onClick={() => setPlatformScope(scope)}
+                title={
+                  scope === 'all'
+                    ? t('platform.allPlatformsTitle')
+                    : scope === 'onlyfans'
+                      ? t('platform.onlyfansAlt')
+                      : t('platform.fanslyAlt')
+                }
               >
-                {scope === 'all' ? 'All' : scope === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                {scope === 'all' ? (
+                  t('platform.all')
+                ) : scope === 'onlyfans' ? (
+                  <Image
+                    src="/onlyfans-logo.png"
+                    alt={t('platform.onlyfansAlt')}
+                    width={140}
+                    height={40}
+                    className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
+                    draggable={false}
+                  />
+                ) : (
+                  <Image
+                    src="/fansly-logo.png"
+                    alt={t('platform.fanslyAlt')}
+                    width={140}
+                    height={40}
+                    className="h-8 w-auto max-h-8 max-w-[6.5rem] object-contain object-center sm:max-w-[7.5rem]"
+                    draggable={false}
+                  />
+                )}
               </Button>
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Audience</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <span className="w-20 shrink-0 text-[13px] font-medium text-muted-foreground">{t('audience.label')}</span>
           <Select
             value={audienceFilter}
             onValueChange={(v) => setAudienceFilter(v as AudienceFilter)}
           >
-            <SelectTrigger className="h-9 w-[200px]">
-              <SelectValue placeholder="Filter audience" />
+            <SelectTrigger className="h-10 w-full min-w-[10rem] max-w-[16rem] rounded-full border-border/45 bg-background/70 shadow-none sm:w-[200px]">
+              <SelectValue placeholder={t('audience.placeholder')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="whales">Whale / VIP</SelectItem>
               <SelectItem value="creators">Creator signal</SelectItem>
+              <SelectItem value="paying_creators">Paying creator</SelectItem>
+              <SelectItem value="advertisements">Advertisement</SelectItem>
+              <SelectItem value="freeloaders">Freeloader</SelectItem>
               <SelectItem value="fans">Typical fans</SelectItem>
             </SelectContent>
           </Select>
@@ -305,49 +442,71 @@ export function FansPageClient({
         stats={stats}
         platformScope={platformScope}
         snapshotFansByPlatform={snapshotFansByPlatform}
+        snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <span className="text-xs text-muted-foreground sm:sr-only">Layout</span>
-        <div className="inline-flex rounded-md border border-border p-0.5">
+        <span className="sr-only">{t('layout.viewAria')}</span>
+        <div className="inline-flex rounded-full border border-border/45 bg-muted/[0.2] p-1 dark:bg-muted/15">
           <Button
             type="button"
             variant={viewMode === 'gallery' ? 'secondary' : 'ghost'}
             size="sm"
-            className="gap-1.5 px-3"
+            className="gap-1.5 rounded-full px-3 shadow-none transition-colors [&_svg]:text-muted-foreground"
             onClick={() => setViewMode('gallery')}
           >
             <LayoutGrid className="h-4 w-4" />
-            Gallery
+            {t('layout.gallery')}
           </Button>
           <Button
             type="button"
             variant={viewMode === 'table' ? 'secondary' : 'ghost'}
             size="sm"
-            className="gap-1.5 px-3"
+            className="gap-1.5 rounded-full px-3 shadow-none transition-colors [&_svg]:text-muted-foreground"
             onClick={() => setViewMode('table')}
           >
             <Table2 className="h-4 w-4" />
-            Table
+            {t('layout.table')}
           </Button>
         </div>
       </div>
       {viewMode === 'gallery' ? (
         <FansGallery
-          fans={fans}
+          fans={displayFans}
+          filteredCountBeforeSearch={fans.length}
+          searchMismatch={searchMismatch}
+          searchTerm={debouncedSearch.trim()}
           hasFanPlatformsConnected={hasFanPlatformsConnected}
+          hasOnlyFansConnected={hasOnlyFansConnected}
+          hasFanslyConnected={hasFanslyConnected}
+          platformScope={platformScope}
+          onEmptyQuickSync={handleEmptyQuickSync}
+          emptyQuickSyncBusy={emptyQuickSyncBusy}
           loading={filter !== 'database' && loadingLive}
           liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
           showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
         />
       ) : (
         <FansTable
-          fans={fans}
+          fans={displayFans}
+          filteredCountBeforeSearch={fans.length}
+          searchMismatch={searchMismatch}
+          searchTerm={debouncedSearch.trim()}
           hasFanPlatformsConnected={hasFanPlatformsConnected}
+          hasOnlyFansConnected={hasOnlyFansConnected}
+          hasFanslyConnected={hasFanslyConnected}
+          platformScope={platformScope}
+          onEmptyQuickSync={handleEmptyQuickSync}
+          emptyQuickSyncBusy={emptyQuickSyncBusy}
           loading={filter !== 'database' && loadingLive}
           liveFilter={filter !== 'database' && filter !== 'expiring' ? filter : undefined}
           showSubscriptionEnd={filter === 'database' || filter === 'expiring'}
         />
       )}
+      <FansArrangementsSection
+        hasOnlyFans={hasOnlyFansConnected}
+        hasFansly={hasFanslyConnected}
+        compact
+      />
     </div>
   )
 }

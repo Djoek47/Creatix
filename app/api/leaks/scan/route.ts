@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { runLeakScan } from '@/lib/leaks/run-scan'
+import { normalizeDiscoveryHostNeedles } from '@/lib/leaks/discovery-focus'
 import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 
@@ -17,6 +18,8 @@ type ScanBody = {
   focus_handles?: string[]
   content_ids?: string[]
   focus_title_hints?: string[]
+  focus_hosts?: string[]
+  focus_media?: 'video' | 'photo'
 }
 
 export async function POST(req: NextRequest) {
@@ -39,6 +42,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  const hosts = normalizeDiscoveryHostNeedles(body.focus_hosts)
+  const focalMedia =
+    body.focus_media === 'video' || body.focus_media === 'photo' ? body.focus_media : undefined
+
   const result = await runLeakScan(supabase, {
     userId: user.id,
     urls: body.urls,
@@ -51,6 +58,8 @@ export async function POST(req: NextRequest) {
     focus_handles: body.focus_handles,
     content_ids: body.content_ids,
     focus_title_hints: body.focus_title_hints,
+    focus_hosts: hosts.length ? hosts : undefined,
+    focus_media: focalMedia,
   })
 
   if (!result.success) {
@@ -62,12 +71,16 @@ export async function POST(req: NextRequest) {
         inserted: result.inserted,
         skipped: result.skipped,
         filteredStrict: result.filteredStrict,
+        filteredFocus: result.filteredFocus,
       },
       { status },
     )
   }
 
-  const consumed = await consumeAiCredits(supabase, user.id, CREDITS_LEAK_SCAN)
+  const consumed = await consumeAiCredits(supabase, user.id, CREDITS_LEAK_SCAN, {
+    reasonCode: 'leak_scan',
+    metadata: { service_display_name: 'Leak Scanner' },
+  })
   if (!consumed.ok) {
     return insufficientAiCreditsResponse(consumed.used, consumed.limit)
   }
@@ -78,6 +91,7 @@ export async function POST(req: NextRequest) {
     skipped: result.skipped,
     reopened: result.reopened,
     filteredStrict: result.filteredStrict,
+    filteredFocus: result.filteredFocus,
     message: result.message,
     providerConfigured: result.providerConfigured,
     grokEnrichment: result.grokEnrichment,

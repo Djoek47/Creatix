@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,31 +25,45 @@ import {
   Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 import type { Fan } from '@/lib/types'
 import Link from 'next/link'
 import { FanAiSummaryDialog } from '@/components/fans/fan-ai-summary-dialog'
-import { formatFanCurrency, formatFanDateUtc } from '@/lib/fans/crm-format'
+import { fanSubscriptionCommerceLine } from '@/lib/fans/fan-commerce-label'
+import {
+  fanDisplayMemberSinceIso,
+  fanDisplayPeriodEndIso,
+} from '@/lib/fans/fan-display-dates'
+import { formatFanDateUtc } from '@/lib/fans/crm-format'
+import { useAnalyticsMoney } from '@/components/dashboard/analytics-currency-context'
+import { useFansGalleryColumns } from '@/hooks/use-fans-gallery-columns'
+import { FansListEmptyConnected, FansListEmptyDisconnected, type FansListPlatformScope } from '@/components/fans/fans-list-empty'
 
 interface FansGalleryProps {
   fans: Fan[]
+  filteredCountBeforeSearch?: number
+  searchMismatch?: boolean
+  searchTerm?: string
   hasFanPlatformsConnected?: boolean
+  hasOnlyFansConnected?: boolean
+  hasFanslyConnected?: boolean
+  platformScope?: FansListPlatformScope
+  onEmptyQuickSync?: () => void
+  emptyQuickSyncBusy?: boolean
   loading?: boolean
   liveFilter?: 'active' | 'expired' | 'latest' | 'top'
   showSubscriptionEnd?: boolean
 }
+
+const GALLERY_VIRTUAL_THRESHOLD = 36
+const GALLERY_ROW_ESTIMATE_PX = 480
 
 const tierColors = {
   whale: 'bg-primary/20 text-primary border-primary/30',
   regular: 'bg-chart-2/20 text-chart-2 border-chart-2/30',
   new: 'bg-chart-4/20 text-chart-4 border-chart-4/30',
   inactive: 'bg-muted text-muted-foreground border-border',
-}
-
-const platformColors = {
-  onlyfans: 'bg-[#00AFF0]/20 text-[#00AFF0]',
-  mym: 'bg-[#FF4D67]/20 text-[#FF4D67]',
-  fansly: 'bg-[#009FFF]/20 text-[#009FFF]',
 }
 
 function hasSpendChannelsTracked(fan: Fan): boolean {
@@ -66,10 +82,16 @@ function spendSegments(fan: Fan) {
 }
 
 function SpendMixBar({ fan }: { fan: Fan }) {
+  const t = useTranslations('fans.gallery')
+  const { formatApiUsd } = useAnalyticsMoney()
   const { sub, tips, dms, feed } = spendSegments(fan)
   const sum = sub + tips + dms + feed
   if (sum <= 0) {
-    return <p className="text-[11px] text-muted-foreground">Tracked categories sum to $0 so far.</p>
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        {t('spendMixEmpty', { amount: formatApiUsd(0, 0) })}
+      </p>
+    )
   }
   const pct = (n: number) => `${Math.max(2, (n / sum) * 100)}%`
   return (
@@ -79,85 +101,303 @@ function SpendMixBar({ fan }: { fan: Fan }) {
           <div
             className="bg-chart-2 h-full min-w-[4px] transition-all"
             style={{ width: pct(sub) }}
-            title={`Subscription $${formatFanCurrency(sub)}`}
+            title={t('spendTitleSub', { amount: formatApiUsd(sub, 0) })}
           />
         ) : null}
         {tips > 0 ? (
           <div
             className="h-full min-w-[4px] bg-amber-500/80 transition-all"
             style={{ width: pct(tips) }}
-            title={`Tips $${formatFanCurrency(tips)}`}
+            title={t('spendTitleTips', { amount: formatApiUsd(tips, 0) })}
           />
         ) : null}
         {dms > 0 ? (
           <div
             className="h-full min-w-[4px] bg-violet-500/75 transition-all"
             style={{ width: pct(dms) }}
-            title={`DMs / chat PPV $${formatFanCurrency(dms)}`}
+            title={t('spendTitleDms', { amount: formatApiUsd(dms, 0) })}
           />
         ) : null}
         {feed > 0 ? (
           <div
             className="h-full min-w-[4px] bg-teal-500/75 transition-all"
             style={{ width: pct(feed) }}
-            title={`Feed PPV $${formatFanCurrency(feed)}`}
+            title={t('spendTitleFeed', { amount: formatApiUsd(feed, 0) })}
           />
         ) : null}
       </div>
       <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground sm:grid-cols-4">
         <li>
-          <span className="text-chart-2">Sub</span> ${formatFanCurrency(sub)}
+          <span className="text-chart-2">{t('spendSub')}</span> {formatApiUsd(sub, 0)}
         </li>
         <li>
-          <span className="text-amber-600 dark:text-amber-400">Tips</span> ${formatFanCurrency(tips)}
+          <span className="text-amber-600 dark:text-amber-400">{t('spendTips')}</span> {formatApiUsd(tips, 0)}
         </li>
         <li>
-          <span className="text-violet-600 dark:text-violet-400">DMs</span> ${formatFanCurrency(dms)}
+          <span className="text-violet-600 dark:text-violet-400">{t('spendDms')}</span> {formatApiUsd(dms, 0)}
         </li>
         <li>
-          <span className="text-teal-600 dark:text-teal-400">Feed</span> ${formatFanCurrency(feed)}
+          <span className="text-teal-600 dark:text-teal-400">{t('spendFeed')}</span> {formatApiUsd(feed, 0)}
         </li>
       </ul>
     </div>
   )
 }
 
-function commerceBadge(fan: Fan) {
-  const t = fan.subscription_account_type
-  if (t === 'free') {
-    return (
-      <Badge variant="outline" className="border-border text-[10px]">
-        Free follow
-      </Badge>
-    )
-  }
-  if (t === 'paid') {
-    return (
-      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-800 dark:text-emerald-200">
-        Paid sub
-        {fan.subscription_price != null && fan.subscription_price > 0
-          ? ` · $${formatFanCurrency(fan.subscription_price)}`
-          : ''}
-      </Badge>
-    )
-  }
+function chunkFans<T>(arr: T[], size: number): T[][] {
+  if (size < 1) return []
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+function FansGalleryCard({
+  fan,
+  liveFilter,
+  showSubscriptionEnd,
+  onOpenSummary,
+}: {
+  fan: Fan
+  liveFilter?: FansGalleryProps['liveFilter']
+  showSubscriptionEnd: boolean
+  onOpenSummary: (fan: Fan) => void
+}) {
+  const t = useTranslations('fans')
+  const tg = useTranslations('fans.gallery')
+  const { formatApiUsd } = useAnalyticsMoney()
+  const whale = fan.audience?.isWhaleOrVip || fan.tier === 'whale'
+  const creator = fan.audience?.isCreatorLikely
+  const platformLabel =
+    fan.platform === 'onlyfans'
+      ? t('platform.onlyfansAlt')
+      : fan.platform === 'fansly'
+        ? t('platform.fanslyAlt')
+        : fan.platform.toUpperCase()
+  const metaAccent = whale
+    ? 'border-l-violet-500/50'
+    : creator
+      ? 'border-l-rose-500/35'
+      : 'border-l-transparent'
+  const memberSince = fanDisplayMemberSinceIso(fan)
+  const periodEnd = fanDisplayPeriodEndIso(fan)
+
   return (
-    <Badge variant="outline" className="text-[10px] text-muted-foreground">
-      Tier unknown
-    </Badge>
+    <Card
+      data-signal={whale ? 'whale' : creator ? 'creator' : 'default'}
+      className={cn(
+        'group relative overflow-hidden rounded-2xl border border-border/50 bg-card transition-[border-color,box-shadow] duration-200',
+        'shadow-none hover:border-border hover:shadow-sm',
+        'border-l-[3px]',
+        metaAccent,
+      )}
+    >
+      <CardContent className="space-y-0 p-0">
+        <div className="px-5 pb-5 pt-5">
+          <div className="flex gap-4">
+            <Avatar className="h-14 w-14 shrink-0 ring-1 ring-border/60">
+              <AvatarImage src={proxyImageUrl(fan.avatar_url) || fan.avatar_url || undefined} alt="" />
+              <AvatarFallback className="bg-muted text-[15px] font-medium text-muted-foreground">
+                {(fan.display_name || fan.platform_username || '?')[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="truncate text-[17px] font-semibold leading-[1.2] tracking-tight text-foreground">
+                    {fan.display_name || fan.platform_username || tg('unknownFan')}
+                  </p>
+                  <p className="truncate text-[13px] text-muted-foreground">@{fan.platform_username || '—'}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 rounded-full opacity-70 transition-opacity hover:opacity-100"
+                      aria-label={tg('fanActionsAria')}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href={`/dashboard/messages?fanId=${encodeURIComponent(String(fan.platform_fan_id || fan.id))}&platform=${encodeURIComponent(fan.platform)}`}
+                        className="flex items-center"
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        {tg('openMessages')}
+                      </Link>
+                    </DropdownMenuItem>
+                    {fan.platform === 'onlyfans' && (fan.platform_fan_id || liveFilter) ? (
+                      <DropdownMenuItem onClick={() => onOpenSummary(fan)}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {tg('aiSummary')}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {fan.platform === 'onlyfans' && (fan.audience?.isWhaleOrVip || fan.tier === 'whale') ? (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/dashboard/ai-studio/chatter?fanId=${encodeURIComponent(fan.id)}&profile=whale_whisper`}
+                          className="flex items-center"
+                        >
+                          <Crown className="mr-2 h-4 w-4" />
+                          {tg('whaleWhisper')}
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      {tg('sendMessage')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Star className="mr-2 h-4 w-4" />
+                      {fan.is_favorite ? tg('removeFavorite') : tg('addFavorite')}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive">
+                      <Ban className="mr-2 h-4 w-4" />
+                      {tg('blockFan')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <p className="mt-4 text-[12px] leading-snug text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 align-middle">
+                  {fan.platform === 'onlyfans' ? (
+                    <img
+                      src={ONLYFANS_LOGO_SRC}
+                      alt=""
+                      className="inline h-[11px] w-auto max-w-[3.25rem] object-contain opacity-85"
+                    />
+                  ) : null}
+                  {fan.platform === 'fansly' ? (
+                    <img
+                      src={FANSLY_LOGO_SRC}
+                      alt=""
+                      className="inline h-[11px] w-auto max-w-[2.75rem] object-contain opacity-85"
+                    />
+                  ) : null}
+                  <span className="tabular-nums text-foreground/90">{platformLabel}</span>
+                  <span aria-hidden className="select-none text-border">
+                    ·
+                  </span>
+                  <span>{fanSubscriptionCommerceLine(fan)}</span>
+                </span>
+              </p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'h-5 rounded-md border-border/70 px-2 py-0 text-[11px] font-medium capitalize tracking-tight text-foreground/90',
+                    tierColors[fan.tier],
+                  )}
+                >
+                  {fan.tier}
+                </Badge>
+                {fan.is_favorite ? (
+                  <Star className="h-3.5 w-3.5 fill-amber-500/85 text-amber-500" aria-label={tg('favoriteStarAria')} />
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {fan.audience?.badges?.length ? (
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {fan.audience.badges.map((b) => (
+                <span
+                  key={`${fan.id}-${b.key}`}
+                  className={cn(
+                    'rounded-md border border-border/55 bg-muted/25 px-2 py-0.5 text-[11px] font-medium text-muted-foreground',
+                    b.className,
+                  )}
+                >
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <dl className="mt-5 space-y-0 divide-y divide-border/35 border-t border-border/35 pt-1">
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
+                {tg('memberSince')}
+              </dt>
+              <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
+                {memberSince ? formatFanDateUtc(memberSince) : '—'}
+              </dd>
+            </div>
+            {showSubscriptionEnd ? (
+              <div className="flex justify-between gap-4 py-3">
+                <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
+                  {tg('periodEnds')}
+                </dt>
+                <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
+                  {periodEnd ? formatFanDateUtc(periodEnd) : '—'}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between gap-4 py-3 last:border-b-0 last:pb-0">
+              <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground/85">
+                {tg('lastActive')}
+              </dt>
+              <dd className="text-right text-[13px] font-medium tabular-nums tracking-tight text-foreground">
+                {fan.last_interaction ? formatFanDateUtc(fan.last_interaction) : '—'}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-5 rounded-xl bg-muted/25 px-4 py-3.5 transition-colors duration-200 group-hover:bg-muted/35">
+            <div className="flex items-end justify-between gap-3">
+              <span className="pb-0.5 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground/90">
+                {tg('totalSpent')}
+              </span>
+              <span className="text-[22px] font-semibold tracking-tight tabular-nums text-foreground">
+                {formatApiUsd(fan.total_spent, 0)}
+              </span>
+            </div>
+            {hasSpendChannelsTracked(fan) ? (
+              <div className="mt-4 border-t border-border/35 pt-3">
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+                  {tg('revenueMix')}
+                </p>
+                <SpendMixBar fan={fan} />
+              </div>
+            ) : (
+              <p className="mt-3 max-w-[32ch] text-[11px] leading-relaxed text-muted-foreground/95">
+                {tg('breakdownHint')}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
 export function FansGallery({
   fans,
+  filteredCountBeforeSearch = 0,
+  searchMismatch = false,
+  searchTerm = '',
   hasFanPlatformsConnected = false,
+  hasOnlyFansConnected = false,
+  hasFanslyConnected = false,
+  platformScope = 'all',
+  onEmptyQuickSync,
+  emptyQuickSyncBusy = false,
   loading = false,
   liveFilter,
   showSubscriptionEnd = false,
 }: FansGalleryProps) {
+  const tg = useTranslations('fans.gallery')
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryFanId, setSummaryFanId] = useState<string | null>(null)
   const [summaryLabel, setSummaryLabel] = useState('')
+
+  const columns = useFansGalleryColumns()
 
   const openSummary = (fan: Fan) => {
     if (fan.platform !== 'onlyfans') return
@@ -168,12 +408,49 @@ export function FansGallery({
     setSummaryOpen(true)
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const rowChunks = useMemo(() => chunkFans(fans, columns), [fans, columns])
+
+  const useVirtual = fans.length >= GALLERY_VIRTUAL_THRESHOLD
+
+  const rowVirtualizer = useVirtualizer({
+    count: useVirtual ? rowChunks.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => GALLERY_ROW_ESTIMATE_PX,
+    overscan: 1,
+  })
+
+  const virtualItems = useVirtual ? rowVirtualizer.getVirtualItems() : []
+
   if (loading) {
     return (
       <Card className="border-border bg-card">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <Loader2 className="mb-4 h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading fans…</p>
+          <p className="text-sm text-muted-foreground">{tg('loading')}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (fans.length === 0 && searchMismatch && searchTerm) {
+    return (
+      <Card className="border-border bg-card">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <h3 className="text-[17px] font-semibold tracking-tight text-foreground">{tg('noMatchesTitle')}</h3>
+          <p className="mt-1 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            {filteredCountBeforeSearch > 0 ? (
+              <>
+                {tg('noMatchesAmong', {
+                  term: searchTerm,
+                  count: filteredCountBeforeSearch.toLocaleString(),
+                })}
+              </>
+            ) : (
+              tg('noMatchesShort', { term: searchTerm })
+            )}
+          </p>
+          <p className="mt-5 text-[13px] text-muted-foreground">{tg('noMatchesHint')}</p>
         </CardContent>
       </Card>
     )
@@ -182,34 +459,44 @@ export function FansGallery({
   if (fans.length === 0) {
     return (
       <Card className="border-border bg-card">
-        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-4 rounded-full bg-muted p-4">
-            <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium">{liveFilter ? 'No fans in this live view' : 'No Fans Yet'}</h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            {hasFanPlatformsConnected
-              ? liveFilter
-                ? 'The live OnlyFans list can be empty if the partner returns no rows for this filter, or your session needs a refresh. Open the filter menu and choose “From database” to see fans already synced to Circe, or use Sync → Quick sync.'
-                : 'OnlyFans or Fansly is connected. Use Sync above (Quick or Full CRM update), or fans appear as subscribers and tips come in.'
-              : 'Connect OnlyFans or Fansly in Settings to import your fans and start managing your community.'}
-          </p>
-          {!hasFanPlatformsConnected && (
-            <Button variant="outline" size="sm" className="mt-4" asChild>
-              <Link href="/dashboard/settings?tab=integrations">Go to Settings → Integrations</Link>
-            </Button>
+        <CardContent className="px-4 pb-10 pt-6 sm:px-6">
+          {hasFanPlatformsConnected ? (
+            <FansListEmptyConnected
+              platformScope={platformScope}
+              hasOnlyFansConnected={hasOnlyFansConnected}
+              hasFanslyConnected={hasFanslyConnected}
+              liveFilter={liveFilter}
+              onQuickSync={onEmptyQuickSync}
+              quickSyncBusy={emptyQuickSyncBusy}
+            />
+          ) : (
+            <FansListEmptyDisconnected />
           )}
         </CardContent>
       </Card>
     )
   }
+
+  const gridWrap = (
+    <div
+      className={cn(
+        'grid gap-4',
+        columns >= 3 && 'sm:grid-cols-2 xl:grid-cols-3',
+        columns === 2 && 'sm:grid-cols-2',
+        columns === 1 && 'grid-cols-1',
+      )}
+    >
+      {fans.map((fan) => (
+        <FansGalleryCard
+          key={fan.id}
+          fan={fan}
+          liveFilter={liveFilter}
+          showSubscriptionEnd={showSubscriptionEnd}
+          onOpenSummary={openSummary}
+        />
+      ))}
+    </div>
+  )
 
   return (
     <>
@@ -219,186 +506,52 @@ export function FansGallery({
         platformFanId={summaryFanId}
         fanLabel={summaryLabel}
       />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {fans.map((fan) => {
-          const whale = fan.audience?.isWhaleOrVip || fan.tier === 'whale'
-          const creator = fan.audience?.isCreatorLikely
-          return (
-            <Card
-              key={fan.id}
-              className={cn(
-                'border-border bg-card overflow-hidden transition-shadow hover:shadow-md',
-                whale && 'ring-1 ring-violet-500/35',
-                creator && 'ring-1 ring-red-500/25',
-              )}
-            >
-              <div
-                className={cn(
-                  'h-1 w-full',
-                  whale && 'bg-gradient-to-r from-violet-600/80 via-fuchsia-500/60 to-transparent',
-                  !whale && creator && 'bg-gradient-to-r from-red-600/70 via-rose-500/50 to-transparent',
-                )}
-              />
-              <CardContent className="space-y-3 p-4 pt-3">
-                <div className="flex gap-3">
-                  <Avatar className="h-16 w-16 shrink-0 border-2 border-border">
-                    <AvatarImage
-                      src={proxyImageUrl(fan.avatar_url) || fan.avatar_url || undefined}
-                      alt=""
-                    />
-                    <AvatarFallback className="bg-secondary text-lg text-secondary-foreground">
-                      {(fan.display_name || fan.platform_username || '?')[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold leading-tight">
-                          {fan.display_name || fan.platform_username || 'Unknown'}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">@{fan.platform_username || '—'}</p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link
-                              href={`/dashboard/messages?fanId=${encodeURIComponent(String(fan.platform_fan_id || fan.id))}&platform=${encodeURIComponent(fan.platform)}`}
-                              className="flex items-center"
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              Open in Messages
-                            </Link>
-                          </DropdownMenuItem>
-                          {fan.platform === 'onlyfans' && (fan.platform_fan_id || liveFilter) && (
-                            <DropdownMenuItem onClick={() => openSummary(fan)}>
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              AI fan summary
-                            </DropdownMenuItem>
-                          )}
-                          {fan.platform === 'onlyfans' &&
-                            (fan.audience?.isWhaleOrVip || fan.tier === 'whale') && (
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/dashboard/ai-studio/chatter?fanId=${encodeURIComponent(fan.id)}&profile=whale_whisper`}
-                                  className="flex items-center"
-                                >
-                                  <Crown className="mr-2 h-4 w-4" />
-                                  Whale whisper
-                                </Link>
-                              </DropdownMenuItem>
-                            )}
-                          <DropdownMenuItem>
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Send Message
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Star className="mr-2 h-4 w-4" />
-                            {fan.is_favorite ? 'Remove Favorite' : 'Add to Favorites'}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
-                            <Ban className="mr-2 h-4 w-4" />
-                            Block Fan
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {fan.platform === 'onlyfans' && (
-                        <img src="/onlyfans-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
-                      )}
-                      {fan.platform === 'fansly' && (
-                        <img src="/fansly-logo.png" alt="" className="h-3.5 w-3.5 object-contain opacity-90" />
-                      )}
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px]',
-                          platformColors[fan.platform as keyof typeof platformColors] ||
-                            'bg-muted text-muted-foreground',
-                        )}
-                      >
-                        {fan.platform === 'onlyfans'
-                          ? 'OnlyFans'
-                          : fan.platform === 'fansly'
-                            ? 'Fansly'
-                            : fan.platform.toUpperCase()}
-                      </Badge>
-                      {commerceBadge(fan)}
-                      <Badge variant="outline" className={cn('text-[10px] capitalize', tierColors[fan.tier])}>
-                        {fan.tier}
-                      </Badge>
-                      {fan.is_favorite && <Star className="h-3.5 w-3.5 fill-chart-4 text-chart-4" />}
-                    </div>
-                  </div>
-                </div>
-
-                {fan.audience?.badges?.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {fan.audience.badges.map((b) => (
-                      <Badge
-                        key={`${fan.id}-${b.key}`}
-                        variant="outline"
-                        className={cn('text-[10px] font-medium', b.className)}
-                      >
-                        {b.label}
-                      </Badge>
+      {useVirtual ? (
+        <div
+          ref={scrollRef}
+          className="max-h-[min(72vh,960px)] min-h-[300px] overflow-auto rounded-xl"
+          role="region"
+          aria-label={tg('regionAria')}
+        >
+          <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+            {virtualItems.map((vi) => {
+              const slice = rowChunks[vi.index]
+              return (
+                <div
+                  key={vi.key}
+                  data-index={vi.index}
+                  ref={rowVirtualizer.measureElement}
+                  className="absolute left-0 top-0 w-full px-0"
+                  style={{
+                    transform: `translateY(${vi.start}px)`,
+                  }}
+                >
+                  <div
+                    className={cn(
+                      'grid gap-4 pb-4',
+                      columns >= 3 && 'sm:grid-cols-2 xl:grid-cols-3',
+                      columns === 2 && 'sm:grid-cols-2',
+                      columns === 1 && 'grid-cols-1',
+                    )}
+                  >
+                    {slice.map((fan) => (
+                      <FansGalleryCard
+                        key={fan.id}
+                        fan={fan}
+                        liveFilter={liveFilter}
+                        showSubscriptionEnd={showSubscriptionEnd}
+                        onOpenSummary={openSummary}
+                      />
                     ))}
                   </div>
-                ) : null}
-
-                <dl className="space-y-1.5 text-xs">
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-muted-foreground">Member since</dt>
-                    <dd className="font-medium">
-                      {fan.subscription_start ? formatFanDateUtc(fan.subscription_start) : '—'}
-                    </dd>
-                  </div>
-                  {showSubscriptionEnd ? (
-                    <div className="flex justify-between gap-2">
-                      <dt className="text-muted-foreground">Period ends</dt>
-                      <dd className="font-medium">
-                        {fan.subscription_expires_at ? formatFanDateUtc(fan.subscription_expires_at) : '—'}
-                      </dd>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-muted-foreground">Last active</dt>
-                    <dd className="font-medium">
-                      {fan.last_interaction ? formatFanDateUtc(fan.last_interaction) : '—'}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">Total spent</span>
-                    <span className="text-lg font-semibold tabular-nums">${formatFanCurrency(fan.total_spent)}</span>
-                  </div>
-                  {hasSpendChannelsTracked(fan) ? (
-                    <div className="mt-2 border-t border-border/60 pt-2">
-                      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Revenue mix
-                      </p>
-                      <SpendMixBar fan={fan} />
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                      Category breakdown appears as new tips, renewals, and purchases show up from your connected
-                      platforms.
-                    </p>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        gridWrap
+      )}
     </>
   )
 }

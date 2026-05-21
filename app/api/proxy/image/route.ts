@@ -8,6 +8,7 @@ function isAllowedImageHost(hostname: string): boolean {
     h === 'fansly.com' ||
     h.endsWith('.fansly.com') ||
     h === 'cdn.fansly.com' ||
+    h === 'cdn3.fansly.com' ||
     h === 'media.fansly.com' ||
     h === 'thumbs.fansly.com'
   )

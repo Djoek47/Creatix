@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getSettings } from '@/lib/divine-manager'
+import { getSettings, type DivineManagerAutomationRules } from '@/lib/divine-manager'
 import { normalizeManagerTalkativeness } from '@/lib/divine/manager-talkativeness'
+import { resolveVoicePersonality } from '@/lib/divine/voice-personality'
 
 /**
  * GET — subset of Divine Manager settings for voice UI + client overlays (auth cookie).
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
     const style = ar.dm_pricing_style
     const dm_pricing_style =
       style === 'maximize_revenue' || style === 'premium_domme' ? style : 'balanced'
+    const voice_personality = resolveVoicePersonality(ar as DivineManagerAutomationRules)
     return NextResponse.json({
       voice_hangup_policy: ar.voice_hangup_policy === 'after_closing_prompt' ? 'after_closing_prompt' : 'always',
       dm_focus_mode: ar.dm_focus_mode === 'overlay' ? 'overlay' : 'navigate',
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
       dm_pricing_style,
       voice_fab_skip_launcher: ar.voice_fab_skip_launcher === true,
       manager_talkativeness: normalizeManagerTalkativeness(ar.manager_talkativeness),
+      voice_personality,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to load settings'

@@ -1,26 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Share2, 
-  Copy, 
-  ExternalLink, 
-  Check,
-  Sparkles,
-  Link2,
-  MessageSquare,
-  Hash,
-  Loader2,
-} from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Copy, ExternalLink, Check, Sparkles, Hash, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-// X (Twitter) icon
+const DRAFT_KEY = 'circe-social-promo-draft-v1'
+
 function XIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -29,7 +27,6 @@ function XIcon({ className }: { className?: string }) {
   )
 }
 
-// Instagram icon
 function InstagramIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -38,7 +35,6 @@ function InstagramIcon({ className }: { className?: string }) {
   )
 }
 
-// TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -47,60 +43,148 @@ function TikTokIcon({ className }: { className?: string }) {
   )
 }
 
+function YouTubeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+  )
+}
+
 interface SocialPromotionProps {
   connections: { platform: string; platform_username: string; is_connected: boolean }[]
 }
 
-const socialPlatforms = [
-  { 
-    id: 'twitter', 
-    name: 'X (Twitter)', 
-    icon: XIcon, 
+type SharePlatformId = 'twitter' | 'instagram' | 'tiktok' | 'youtube'
+
+const socialPlatforms: Array<{
+  id: SharePlatformId
+  name: string
+  icon: React.FC<{ className?: string }>
+  color: string
+  shareUrl: ((text: string, url: string) => string) | null
+  charLimit: number
+}> = [
+  {
+    id: 'twitter',
+    name: 'X (Twitter)',
+    icon: XIcon,
     color: '#000000',
-    shareUrl: (text: string, url: string) => 
+    shareUrl: (text: string, url: string) =>
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-    charLimit: 280
+    charLimit: 280,
   },
-  { 
-    id: 'instagram', 
-    name: 'Instagram', 
-    icon: InstagramIcon, 
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    icon: InstagramIcon,
     color: '#E4405F',
-    shareUrl: null, // Instagram doesn't have direct sharing URL, copy text instead
-    charLimit: 2200
+    shareUrl: null,
+    charLimit: 2200,
   },
-  { 
-    id: 'tiktok', 
-    name: 'TikTok', 
-    icon: TikTokIcon, 
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    icon: TikTokIcon,
     color: '#000000',
-    shareUrl: null, // TikTok doesn't have direct sharing URL
-    charLimit: 2200
+    shareUrl: null,
+    charLimit: 2200,
+  },
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    icon: YouTubeIcon,
+    color: '#FF0000',
+    shareUrl: null,
+    charLimit: 5000,
   },
 ]
 
+/** Preset = main idea for AI; no fixed marketing copy. */
 const promoTemplates = [
   {
     name: 'New Content',
-    template: "New exclusive content just dropped! Don't miss out on what you've been waiting for... Link in bio!",
-    hashtags: ['newcontent', 'exclusive', 'linkinbio']
+    idea: 'New exclusive work just dropped; FOMO; link in bio. No explicit language.',
+    hashtags: ['newcontent', 'exclusive', 'linkinbio'],
   },
   {
-    name: 'Sale/Discount',
-    template: "LIMITED TIME OFFER! Subscribe now and get a special discount. Don't wait, this won't last long!",
-    hashtags: ['sale', 'discount', 'limitedtime', 'subscribe']
+    name: 'Sale / discount',
+    idea: 'Limited-time offer or price hook; subscribe before it ends; paywall / join CTA. Tasteful, no explicit language.',
+    hashtags: ['sale', 'discount', 'limitedtime', 'subscribe'],
   },
   {
-    name: 'Behind the Scenes',
-    template: "Ever wonder what goes on behind the scenes? Come see what you're missing! Link in bio.",
-    hashtags: ['behindthescenes', 'bts', 'exclusive', 'linkinbio']
+    name: 'Behind the scenes',
+    idea: 'BTS / process tease; curiosity; link in bio. Tasteful, no explicit language.',
+    hashtags: ['behindthescenes', 'bts', 'exclusive', 'linkinbio'],
   },
   {
     name: 'Engagement',
-    template: "Question of the day: What content would you like to see more of? Comment below!",
-    hashtags: ['questionoftheday', 'engagement', 'community']
+    idea: 'A question for the community; want comments, not a sales hard-sell. Tasteful, no explicit language.',
+    hashtags: ['questionoftheday', 'engagement', 'community'],
+  },
+  {
+    name: 'YouTube visibility',
+    idea: 'Tease a new video / Short; subscribe so they do not miss the next; link in bio. Tasteful, no explicit language.',
+    hashtags: ['youtube', 'shorts', 'newvideo', 'linkinbio'],
   },
 ]
+
+type AiTarget = 'twitter' | 'instagram' | 'tiktok' | 'youtube' | 'onlyfans' | 'fansly'
+
+function clipForPreview(text: string, max: number) {
+  if (text.length <= max) return text
+  return `${text.slice(0, Math.max(0, max - 1))}…`
+}
+
+/** Quiet fallback when live preview is unavailable — avoids error spam in the UI. */
+function templateAngleHint(idea: string) {
+  return clipForPreview(idea.replace(/\s+/g, ' ').trim(), 140)
+}
+
+function platformParamForApi(target: AiTarget) {
+  if (target === 'youtube') return 'instagram'
+  if (target === 'twitter') return 'twitter'
+  if (target === 'tiktok') return 'tiktok'
+  if (target === 'instagram') return 'instagram'
+  return target
+}
+
+/** Shared caption request for Post studio, template cards, and AI generate. */
+async function fetchSocialCaptions(
+  contentDescription: string,
+  target: AiTarget,
+): Promise<{ captions: string[]; hashtags: string[] }> {
+  const platform = platformParamForApi(target)
+  const bodyText =
+    target === 'youtube'
+      ? `Write social-forward copy suitable for YouTube Shorts descriptions / community posts that tease paid content off-platform (no explicit language).\n\nCreator brief:\n${contentDescription}`
+      : contentDescription
+
+  const res = await fetch('/api/ai/caption-generator', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contentDescription: bodyText,
+      platform,
+      contentType: 'photo',
+    }),
+  })
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string
+    captions?: Array<{ text?: string }>
+    hashtags?: string[]
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Generation failed')
+  }
+  const caps = Array.isArray(data.captions)
+    ? data.captions.map((c) => (typeof c.text === 'string' ? c.text.trim() : '')).filter(Boolean)
+    : []
+  const tags = Array.isArray(data.hashtags)
+    ? data.hashtags.map((h) => String(h).replace(/^#/, '')).filter(Boolean)
+    : []
+  return { captions: caps, hashtags: tags }
+}
 
 export function SocialPromotion({ connections }: SocialPromotionProps) {
   const [postText, setPostText] = useState('')
@@ -108,16 +192,60 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
   const [hashtags, setHashtags] = useState<string[]>([])
   const [copied, setCopied] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiTarget, setAiTarget] = useState<AiTarget>('twitter')
+  const [captionOptions, setCaptionOptions] = useState<string[]>([])
+  /** AI-generated one-liners; missing key → show static angle hint. */
+  const [templatePreviews, setTemplatePreviews] = useState<Record<string, string>>({})
+  const [templatePreviewsLoading, setTemplatePreviewsLoading] = useState(false)
 
-  const connectedPlatformLinks = connections.map(c => ({
-    platform: c.platform,
-    username: c.platform_username,
-    url: c.platform === 'onlyfans' 
-      ? `https://onlyfans.com/${c.platform_username}`
-      : c.platform === 'fansly'
-      ? `https://fansly.com/${c.platform_username}`
-      : ''
-  }))
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        postText?: string
+        linkUrl?: string
+        hashtags?: string[]
+        aiTarget?: AiTarget
+      }
+      if (typeof parsed.postText === 'string') setPostText(parsed.postText)
+      if (typeof parsed.linkUrl === 'string') setLinkUrl(parsed.linkUrl)
+      if (Array.isArray(parsed.hashtags)) setHashtags(parsed.hashtags.filter((h) => typeof h === 'string'))
+      if (parsed.aiTarget) setAiTarget(parsed.aiTarget)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ postText, linkUrl, hashtags, aiTarget }),
+        )
+      } catch {
+        // ignore
+      }
+    }, 400)
+    return () => window.clearTimeout(t)
+  }, [postText, linkUrl, hashtags, aiTarget])
+
+  const connectedPlatformLinks = useMemo(
+    () =>
+      connections.map((c) => ({
+        platform: c.platform,
+        username: c.platform_username,
+        url:
+          c.platform === 'onlyfans'
+            ? `https://onlyfans.com/${c.platform_username}`
+            : c.platform === 'fansly'
+              ? `https://fansly.com/${c.platform_username}`
+              : '',
+      })),
+    [connections],
+  )
 
   const copyToClipboard = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text)
@@ -125,326 +253,413 @@ export function SocialPromotion({ connections }: SocialPromotionProps) {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  const fullPostText =
+    postText + (hashtags.length > 0 ? `\n\n${hashtags.map((h) => `#${h}`).join(' ')}` : '')
+
+  useEffect(() => {
+    let cancelled = false
+    setTemplatePreviewsLoading(true)
+    setTemplatePreviews({})
+
+    ;(async () => {
+      const results = await Promise.all(
+        promoTemplates.map(async (t) => {
+          const brief = `Return a single very short teaser line (max 18 words) for a UI card under the title "${t.name}". Hint at the angle only. ${t.idea}`
+          try {
+            const { captions } = await fetchSocialCaptions(brief, aiTarget)
+            const line = captions[0]?.trim()
+            return { name: t.name, line: line ? clipForPreview(line, 140) : null }
+          } catch {
+            return { name: t.name, line: null }
+          }
+        }),
+      )
+      if (cancelled) return
+      const next: Record<string, string> = {}
+      for (const { name, line } of results) {
+        if (line) next[name] = line
+      }
+      setTemplatePreviews(next)
+      setTemplatePreviewsLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [aiTarget])
+
   const generateWithAI = async () => {
+    const trimmed = postText.trim()
+    if (!trimmed) {
+      setAiError('Add a short brief first (what you are teasing, tone, and CTA). AI uses your text as the brief.')
+      return
+    }
+    setAiError(null)
     setIsGenerating(true)
-    // Simulate AI generation - in production this would call an AI API
-    setTimeout(() => {
-      setPostText("Just dropped something special for my VIPs! If you've been on the fence, now's the time to join. Trust me, you don't want to miss this one...")
-      setHashtags(['exclusive', 'newdrop', 'linkinbio', 'dontmiss'])
+    setCaptionOptions([])
+    try {
+      const { captions, hashtags: tags } = await fetchSocialCaptions(trimmed, aiTarget)
+      if (captions.length) {
+        setPostText(captions[0]!)
+        setCaptionOptions(captions.slice(1))
+      }
+      if (tags.length) setHashtags(tags)
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Could not generate copy')
+    } finally {
       setIsGenerating(false)
-    }, 1500)
+    }
   }
 
-  const applyTemplate = (template: typeof promoTemplates[0]) => {
-    setPostText(template.template)
-    setHashtags(template.hashtags)
+  const applyTemplate = async (template: (typeof promoTemplates)[0]) => {
+    setAiError(null)
+    setIsGenerating(true)
+    setCaptionOptions([])
+    try {
+      const fullBrief = `Create social teaser copy for: "${template.name}"\n\nContext: ${template.idea}\n\nTasteful, no explicit language. Tease toward OnlyFans/Fansly; link in bio CTA.`
+      const { captions, hashtags: tags } = await fetchSocialCaptions(fullBrief, aiTarget)
+      if (captions.length) {
+        setPostText(captions[0]!)
+        setCaptionOptions(captions.slice(1))
+      }
+      setHashtags(tags.length ? tags : template.hashtags)
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Could not generate from preset')
+    } finally {
+      setIsGenerating(false)
+    }
   }
-
-  const fullPostText = postText + (hashtags.length > 0 ? '\n\n' + hashtags.map(h => `#${h}`).join(' ') : '')
 
   return (
-    <div className="space-y-6 min-w-0">
-      <Tabs defaultValue="create" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="create" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Create Post
-          </TabsTrigger>
-          <TabsTrigger value="links" className="gap-2">
-            <Link2 className="h-4 w-4" />
-            Quick Links
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="create" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Post Editor */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Post Content
-                  </CardTitle>
-                  <CardDescription>
-                    Create your promotional message
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Message</Label>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-2"
-                        onClick={generateWithAI}
-                        disabled={isGenerating}
-                      >
-                        {isGenerating ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-4 w-4" />
-                        )}
-                        AI Generate
-                      </Button>
-                    </div>
-                    <Textarea
-                      placeholder="Write your promotional message..."
-                      value={postText}
-                      onChange={(e) => setPostText(e.target.value)}
-                      className="min-h-32"
-                    />
-                    <p className="text-xs text-muted-foreground text-right">
-                      {fullPostText.length} characters
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Hash className="h-4 w-4" />
-                      Hashtags
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {hashtags.map((tag, i) => (
-                        <Badge 
-                          key={i} 
-                          variant="secondary" 
-                          className="cursor-pointer hover:bg-destructive/20"
-                          onClick={() => setHashtags(hashtags.filter((_, idx) => idx !== i))}
-                        >
-                          #{tag} &times;
-                        </Badge>
-                      ))}
-                      <Input
-                        placeholder="Add hashtag..."
-                        className="w-32 h-7 text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const value = (e.target as HTMLInputElement).value.replace('#', '')
-                            if (value && !hashtags.includes(value)) {
-                              setHashtags([...hashtags, value])
-                              ;(e.target as HTMLInputElement).value = ''
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Link2 className="h-4 w-4" />
-                      Link URL (optional)
-                    </Label>
-                    <Input
-                      placeholder="https://..."
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Templates */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Templates</CardTitle>
-                  <CardDescription>
-                    Start with a proven template
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {promoTemplates.map((template) => (
+    <div className="min-w-0 space-y-8">
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1.5 pb-4 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+                Post studio
+              </CardTitle>
+              <CardDescription className="text-[15px] leading-relaxed text-muted-foreground">
+                Draft teasers that point to OnlyFans and Fansly — clear hook, calm tone, on-brand.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5 px-5 pb-6 sm:px-6 sm:pb-7">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div id="social-platform-selector" data-divine-control="social-platform-selector" className="scroll-mt-28 space-y-2">
+                  <Label className="text-[13px] font-medium text-foreground">AI target</Label>
+                  <Select value={aiTarget} onValueChange={(v) => setAiTarget(v as AiTarget)}>
+                    <SelectTrigger
+                      className="h-10 rounded-xl border-border/80 bg-background/70 shadow-none"
+                      aria-label="AI target platform"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="twitter">X (Twitter)</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="youtube">YouTube</SelectItem>
+                      <SelectItem value="onlyfans">OnlyFans</SelectItem>
+                      <SelectItem value="fansly">Fansly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    id="social-generate-ai"
+                    data-divine-control="social-generate-ai"
+                    type="button"
+                    className={cn(
+                      'h-10 w-full rounded-xl text-[14px] font-medium shadow-none',
+                      'bg-foreground text-background hover:bg-foreground/88',
+                      'dark:bg-white dark:text-slate-950 dark:hover:bg-white/90',
+                      'disabled:opacity-50',
+                    )}
+                    onClick={generateWithAI}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin opacity-80" aria-hidden />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4 opacity-80" aria-hidden />
+                    )}
+                    Generate with AI
+                  </Button>
+                </div>
+              </div>
+              {aiError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {aiError}
+                </p>
+              ) : null}
+              {captionOptions.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">Other options</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {captionOptions.map((c, i) => (
                       <Button
-                        key={template.name}
-                        variant="outline"
-                        className="h-auto p-4 flex flex-col items-start text-left"
-                        onClick={() => applyTemplate(template)}
+                        key={i}
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-auto max-w-full whitespace-normal rounded-full px-3 py-1.5 text-left text-xs font-normal"
+                        onClick={() => setPostText(c)}
                       >
-                        <span className="font-medium">{template.name}</span>
-                        <span className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {template.template}
-                        </span>
+                        {clipForPreview(c, 72)}
                       </Button>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Share Options */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Share2 className="h-5 w-5" />
-                    Share To
-                  </CardTitle>
-                  <CardDescription>
-                    Post to your social accounts
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {socialPlatforms.map((platform) => {
-                    const Icon = platform.icon
-                    const shareUrl = platform.shareUrl?.(fullPostText, linkUrl)
-                    
-                    return (
-                      <div 
-                        key={platform.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: `${platform.color}20` }}
-                          >
-                            <Icon className="h-5 w-5" style={{ color: platform.color }} />
-                          </div>
-                          <span className="font-medium">{platform.name}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => copyToClipboard(fullPostText, platform.id)}
-                          >
-                            {copied === platform.id ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {shareUrl && (
-                            <Button
-                              size="sm"
-                              onClick={() => window.open(shareUrl, '_blank', 'width=600,height=400')}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-
-              {/* Preview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Preview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg bg-muted p-4 text-sm whitespace-pre-wrap">
-                    {fullPostText || 'Your post will appear here...'}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="links" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" />
-                Your Platform Links
-              </CardTitle>
-              <CardDescription>
-                Quick access to your profile links for bio updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {connectedPlatformLinks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No platforms connected yet. Connect your accounts to see your links here.
-                </p>
-              ) : (
-                connectedPlatformLinks.map((link) => (
-                  <div 
-                    key={link.platform}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                  >
-                    <div>
-                      <p className="font-medium capitalize">{link.platform}</p>
-                      <p className="text-sm text-muted-foreground">@{link.username}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded hidden sm:block">
-                        {link.url}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(link.url, link.platform)}
-                      >
-                        {copied === link.platform ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => window.open(link.url, '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Linktree-style links suggestion */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bio Link Suggestion</CardTitle>
-              <CardDescription>
-                Copy this formatted text for your social media bios
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="rounded-lg bg-muted p-4 text-sm font-mono whitespace-pre-wrap">
-                  {connectedPlatformLinks.map(link => 
-                    `${link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}: ${link.url}`
-                  ).join('\n') || 'Connect your platforms to generate bio links'}
                 </div>
-                {connectedPlatformLinks.length > 0 && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full gap-2"
-                    onClick={() => copyToClipboard(
-                      connectedPlatformLinks.map(link => 
-                        `${link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}: ${link.url}`
-                      ).join('\n'),
-                      'bio'
-                    )}
-                  >
-                    {copied === 'bio' ? (
-                      <>
-                        <Check className="h-4 w-4" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        Copy All Links
-                      </>
-                    )}
-                  </Button>
-                )}
+              ) : null}
+
+              <div id="social-post-composer" data-divine-control="social-post-composer" className="scroll-mt-28 space-y-2">
+                <Label htmlFor="social-post-body" className="text-[13px] font-medium text-foreground">
+                  Message
+                </Label>
+                <Textarea
+                  id="social-post-body"
+                  placeholder="Write your teaser, hook, and CTA…"
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  className="min-h-36 rounded-xl border-border/80 bg-background/70 text-[15px] leading-relaxed shadow-none focus-visible:ring-foreground/15"
+                />
+                <p className="text-right text-xs text-muted-foreground">
+                  {fullPostText.length} characters (with hashtags)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                  <Hash className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  Hashtags
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {hashtags.map((tag, i) => (
+                    <Badge
+                      key={`${tag}-${i}`}
+                      variant="secondary"
+                      className="cursor-pointer rounded-full px-2.5 py-0.5 text-xs hover:bg-destructive/15"
+                      onClick={() => setHashtags(hashtags.filter((_, idx) => idx !== i))}
+                      role="button"
+                      aria-label={`Remove hashtag ${tag}`}
+                    >
+                      #{tag} ×
+                    </Badge>
+                  ))}
+                  <Input
+                    placeholder="Add hashtag…"
+                    className="h-9 w-40 rounded-full border-border/80 bg-background/70 text-sm shadow-none"
+                    aria-label="Add hashtag"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const value = (e.target as HTMLInputElement).value.replace('#', '').trim()
+                        if (value && !hashtags.includes(value)) {
+                          setHashtags([...hashtags, value])
+                          ;(e.target as HTMLInputElement).value = ''
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="social-link-url" className="text-[13px] font-medium text-foreground">
+                  Link URL (optional)
+                </Label>
+                <Input
+                  id="social-link-url"
+                  placeholder="https://…"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  className="h-10 rounded-xl border-border/80 bg-background/70 shadow-none"
+                />
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+
+          <Card id="social-template-gallery" data-divine-control="social-template-gallery" className="min-w-0 scroll-mt-28 gap-0 overflow-hidden rounded-2xl border-border/60 bg-card/40 py-0 shadow-none">
+            <CardHeader className="min-w-0 space-y-2 px-5 pb-2 pt-6 sm:px-6 sm:pt-7">
+              <CardTitle className="font-serif text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                Templates
+              </CardTitle>
+              <CardDescription className="max-w-prose text-[15px] leading-relaxed text-muted-foreground">
+                Five starting angles. Tap a card to generate full copy for your AI target — or read the angle below while
+                previews load.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="min-w-0 px-5 pb-6 pt-2 sm:px-6 sm:pb-7">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                {promoTemplates.map((template) => {
+                  const hint = templateAngleHint(template.idea)
+                  const aiLine = templatePreviews[template.name] ?? null
+                  return (
+                    <Button
+                      key={template.name}
+                      type="button"
+                      variant="ghost"
+                      disabled={isGenerating}
+                      className={cn(
+                        'group flex h-auto min-h-[5.5rem] min-w-0 w-full max-w-full shrink flex-col items-start justify-start gap-2 overflow-hidden rounded-xl border border-border/50 bg-background/40 p-5 text-left whitespace-normal [text-wrap:pretty]',
+                        'transition-[border-color,background-color,box-shadow] duration-200',
+                        'hover:border-border hover:bg-muted/20 hover:shadow-sm',
+                        'focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                      )}
+                      onClick={() => void applyTemplate(template)}
+                    >
+                      <span className="w-full min-w-0 text-[15px] font-semibold leading-snug tracking-tight text-foreground">
+                        {template.name}
+                      </span>
+                      <span className="line-clamp-3 w-full min-w-0 text-left text-[13px] leading-relaxed text-muted-foreground">
+                        {templatePreviewsLoading ? (
+                          <span className="inline-flex items-center gap-2 text-muted-foreground/75">
+                            <span
+                              className="inline-block h-1 w-1 rounded-full bg-muted-foreground/45 motion-safe:animate-pulse"
+                              aria-hidden
+                            />
+                            <span>Loading preview</span>
+                          </span>
+                        ) : aiLine ? (
+                          <span className="text-foreground/85">{aiLine}</span>
+                        ) : (
+                          hint
+                        )}
+                      </span>
+                    </Button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-5">
+          <Card id="social-share-actions" data-divine-control="social-share-actions" className="overflow-hidden scroll-mt-28 rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1 pb-3 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight">Share & copy</CardTitle>
+              <CardDescription className="text-[15px] leading-relaxed">
+                Copy your draft or open a share window where the platform supports it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 px-5 pb-6 sm:px-6 sm:pb-7">
+              {socialPlatforms.map((platform) => {
+                const Icon = platform.icon
+                const shareUrl = platform.shareUrl?.(fullPostText, linkUrl)
+                return (
+                  <div
+                    key={platform.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/40 px-3 py-2.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/80">
+                        <Icon className="h-4 w-4 text-foreground/85" aria-hidden />
+                      </div>
+                      <span className="truncate text-sm font-medium text-foreground">{platform.name}</span>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 w-9 rounded-lg border-border/70 p-0 shadow-none"
+                        type="button"
+                        onClick={() => copyToClipboard(fullPostText, platform.id)}
+                        aria-label={`Copy full post for ${platform.name}`}
+                      >
+                        {copied === platform.id ? (
+                          <Check className="h-4 w-4" aria-hidden />
+                        ) : (
+                          <Copy className="h-4 w-4" aria-hidden />
+                        )}
+                      </Button>
+                      {shareUrl ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 w-9 rounded-lg border-border/70 p-0 shadow-none"
+                          type="button"
+                          onClick={() => window.open(shareUrl, '_blank', 'width=600,height=400')}
+                          aria-label={`Open ${platform.name} share window`}
+                        >
+                          <ExternalLink className="h-4 w-4" aria-hidden />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="space-y-1 pb-3 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight">Length check</CardTitle>
+              <CardDescription className="text-[15px] leading-relaxed">
+                Rough character fit vs common limits.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 px-5 pb-6 sm:px-6 sm:pb-7">
+              {socialPlatforms.map((p) => {
+                const over = fullPostText.length > p.charLimit
+                return (
+                  <div
+                    key={`prev-${p.id}`}
+                    className="rounded-xl border border-border/60 bg-background/40 p-3 text-xs leading-relaxed"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="font-medium">{p.name}</span>
+                      <span className={cn('tabular-nums', over && 'text-destructive')}>
+                        {fullPostText.length}/{p.charLimit}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">{clipForPreview(fullPostText, 160)}</p>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden rounded-2xl border-border/60 bg-card/40 shadow-none">
+            <CardHeader className="pb-3 pt-6 sm:pt-7">
+              <CardTitle className="text-base font-semibold tracking-tight">Live preview</CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-6 sm:px-6 sm:pb-7">
+              <div className="rounded-xl border border-border/60 bg-background/50 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
+                {fullPostText || 'Your post will appear here…'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {connectedPlatformLinks.filter((l) => l.url).length > 0 ? (
+            <Card className="overflow-hidden rounded-2xl border border-dashed border-border/70 bg-muted/10 shadow-none">
+              <CardHeader className="pb-2 pt-5">
+                <CardTitle className="text-sm font-medium text-muted-foreground">OnlyFans & Fansly URLs</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2 px-5 pb-5 sm:px-6 sm:pb-6">
+                {connectedPlatformLinks
+                  .filter((l) => l.url)
+                  .map((link) => (
+                    <Button
+                      key={link.platform}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full border-border/70 shadow-none"
+                      onClick={() => copyToClipboard(link.url, `pf-${link.platform}`)}
+                      aria-label={`Copy ${link.platform} URL`}
+                    >
+                      {copied === `pf-${link.platform}` ? (
+                        <Check className="mr-1 h-3.5 w-3.5" />
+                      ) : (
+                        <Copy className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {link.platform}
+                    </Button>
+                  ))}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }

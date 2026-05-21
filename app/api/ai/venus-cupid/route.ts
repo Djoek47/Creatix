@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 import { callGrok } from '@/lib/ai/grok-tools'
 import { loadHybridCrmFans, pickNewestFansForCupid } from '@/lib/crm/load-hybrid-fans'
 import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
@@ -89,11 +92,9 @@ async function markDatabaseFansForChurnNotes(
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAiToolSessionAndCredits(req, 'venus-cupid')
+    if (!access.ok) return access.response
+    const { supabase, userId, cost, billingToolId } = access.data
 
     const xai = process.env.XAI_API_KEY
     if (!xai) return NextResponse.json({ error: 'Grok not configured' }, { status: 503 })
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     const tagForChurn = body.tagForChurn !== false
     const limit = Math.min(Math.max(parseInt(String(body.limit ?? '25'), 10) || 25, 8), 35)
 
-    const loaded = await loadHybridCrmFans(supabase, user.id, {
+    const loaded = await loadHybridCrmFans(supabase, userId, {
       mode: 'hybrid',
       limitOf: 200,
       limitFansly: 200,
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     let markedForChurnCount = 0
     if (tagForChurn && newest.length > 0) {
-      markedForChurnCount = await markDatabaseFansForChurnNotes(supabase, user.id, newest)
+      markedForChurnCount = await markDatabaseFansForChurnNotes(supabase, userId, newest)
     }
 
     const fanSummaries = newest.map((f) => ({
@@ -153,6 +154,9 @@ export async function POST(req: NextRequest) {
       .join('\n')
 
     const content = await callGrok({ apiKey: xai, systemPrompt: SYSTEM, userPrompt })
+
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
+    if (!charged.ok) return charged.response
 
     return NextResponse.json({
       content,

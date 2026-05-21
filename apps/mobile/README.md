@@ -55,7 +55,7 @@ If you also maintain a **standalone** clone (e.g. `../creatix-mobile`), push bot
 - **Motion tokens:** [`constants/motion.ts`](./constants/motion.ts).
 - **Media:** [`expo-image-picker`](./hooks/use-image-pick.ts) — demo in **Settings → Media**; permissions declared in `app.config.ts` + plugin.
 - **Messages:** OnlyFans thread at [`app/(main)/messages/`](./app/(main)/messages/) (list + `[fanId]`).
-- **Divine Manager:** [`app/(main)/divine-manager.tsx`](./app/(main)/divine-manager.tsx) — text chat (`/api/ai/divine-manager-chat`), intent confirmation (`/api/divine/intent`), settings (`/api/divine/manager-settings`), voice hook [`hooks/use-divine-voice-session.ts`](./hooks/use-divine-voice-session.ts) (native WebRTC + `/api/divine/voice-tool`).
+- **Divine Manager:** [`app/(main)/divine-manager.tsx`](./app/(main)/divine-manager.tsx) — text chat (`/api/ai/divine-manager-chat`), intent confirmation (`/api/divine/intent`), settings (`/api/divine/manager-settings`), voice hook [`hooks/use-divine-voice-session.ts`](./hooks/use-divine-voice-session.ts) (native WebRTC + `/api/divine/voice-tool`). **Deep links** use the same `?section=` query keys as web (`chat`, `protocol`, `tasks`, `voice`, `alerts`, `mimic`) via [`lib/divine-manager-deep-link.ts`](./lib/divine-manager-deep-link.ts); native scroll targets map to Today’s Plan, Voice, and text (Mimic/full protocol card remain web-first).
 
 ## Contract
 

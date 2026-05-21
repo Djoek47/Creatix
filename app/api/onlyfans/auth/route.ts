@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { canConnectAdultPartnerPlatform } from '@/lib/billing/access'
+import { adultPlatformConnectBlockedByFocusPlan } from '@/lib/billing/platform-variant'
+import { logPartnerConnectEntitlementDenied } from '@/lib/billing/partner-connect-denial-log'
+import { denialForAdultPlatformConnectEntitlement } from '@/lib/billing/onlyfans-billing-gate'
 
 /**
  * OnlyFans connection uses the OnlyFansAPI.com SDK flow only.
@@ -31,6 +35,39 @@ export async function GET(request: NextRequest) {
           code: 'ALREADY_CONNECTED',
         },
         { status: 409 }
+      )
+    }
+
+    const [{ data: subRow }, { data: connRows }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase.from('platform_connections').select('platform, is_connected').eq('user_id', user.id),
+    ])
+
+    if (adultPlatformConnectBlockedByFocusPlan(connRows || [], subRow, 'onlyfans')) {
+      return NextResponse.json(
+        {
+          error:
+            'Your current plan is Focus for Fansly only. Upgrade to Unified (priced by your revenue tier) under Billing to connect OnlyFans.',
+          code: 'BILLING_FOCUS_UPGRADE_REQUIRED',
+        },
+        { status: 403 },
+      )
+    }
+
+    if (!canConnectAdultPartnerPlatform(subRow)) {
+      logPartnerConnectEntitlementDenied('GET /api/onlyfans/auth', user.id)
+      const denial = denialForAdultPlatformConnectEntitlement(subRow)
+      return NextResponse.json(
+        {
+          error: denial?.message ?? 'Subscription or Divine trial required before connecting platforms.',
+          code: 'CONNECT_ENTITLEMENT_REQUIRED',
+          reason: 'CONNECT_ENTITLEMENT_REQUIRED',
+        },
+        { status: 403 },
       )
     }
 

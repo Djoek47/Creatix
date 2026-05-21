@@ -1,0 +1,54 @@
+{
+  "sidebar": {
+    "analytics": "Analytiques",
+    "protection": "Protection",
+    "retention": "Rétention",
+    "fans": "Fans",
+    "mentions": "Mentions",
+    "fanAtlas": "Fan Atlas",
+    "dashboard": "Tableau de bord",
+    "divineManager": "Divine Manager",
+    "content": "Contenu",
+    "wellbeing": "Bien-être",
+    "messages": "Messages",
+    "social": "Social",
+    "aiStudio": "AI Studio",
+    "guide": "Guide",
+    "settings": "Paramètres",
+    "circeSection": "Circe",
+    "venusSection": "Venus",
+    "systemStripStatus": "Tous les systèmes opérationnels",
+    "systemStripOpen": "État du système et ressources",
+    "systemStripTriggerSub": "Guide · Paramètres",
+    "systemStripPopoverEyebrow": "État",
+    "systemStripPopoverBrand": "Creatix",
+    "systemStripPopoverBody": "Les services Creatix fonctionnent normalement.",
+    "systemStripGuideMeta": "Parcours guidé",
+    "systemStripSettingsMeta": "Compte et préférences",
+    "brandRealmReload": "Recharger le tableau de bord avec l’entrée du royaume",
+    "collapseSidebar": "Réduire la barre latérale",
+    "expandSidebar": "Développer la barre latérale"
+  },
+  "marketingNav": {
+    "home": "Accueil",
+    "features": "Fonctionnalités",
+    "demo": "Démo",
+    "mobileApp": "Appli mobile",
+    "pricing": "Tarifs"
+  },
+  "footerNav": {
+    "about": "À propos",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
+  },
+  "localeSwitcher": {
+    "label": "Langue",
+    "names": {
+      "en": "English",
+      "es": "Español",
+      "fr": "Français",
+      "pt": "Português"
+    }
+  },
+  "wellbeingUnread": "{count} non lu(s)"
+}

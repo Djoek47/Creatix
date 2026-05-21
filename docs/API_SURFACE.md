@@ -30,6 +30,7 @@
 | `app/api/social/*` | Social connect, reputation, mentions, scans. |
 | `app/api/stripe/*` | Stripe webhooks and billing-related server paths. |
 | `app/api/user/*` | User API keys, notification preferences, identity scan. |
+| `app/api/ariadne/*` | Ariadne / MarkIt forensic trace APIs: embed, detect, **analyze** (dual-layer attribution for DMCA), export listing, evidence bundles; gated test harness. |
 | `app/api/contact` | Contact form (if enabled). |
 | `app/api/chat` | Generic chat route (if used). |
 
@@ -55,3 +56,12 @@ When you add a **new public API** or change **auth requirements**, add one line 
 - `POST app/api/ai/fantasy-writer` — optional `calendarEventSummary`, `scheduledContentSummary`, `fanProfileSummary` (with `scenario` / `tone` / `platform`); at least one of scenario or any summary must be provided.
 - `POST app/api/ai/mimic-test-realtime` — WebRTC SDP handshake for Realtime Mimic interrogatory voice sessions (intro + adaptive Q/A flow).
 - `POST app/api/divine/voice-tool` — now also supports Mimic voice tools: `mimic_record_answer` (live transcript persistence) and `mimic_finalize_interview` (profile refinement + persist to `divine_manager_settings.mimic_profile`).
+- `GET app/api/ariadne/exports`, `GET /api/ariadne/exports/[id]`, `GET /api/ariadne/exports/[id]/evidence` — session auth, or M2M with `v1.1` signed headers + `x-creatix-actor-user-id` (when `MARKIT_ARIADNE_SERVICE_MODE=true`). Evidence returns canonical export, hash fields, and latest detect events.
+- `POST /api/ariadne/detect` — CORS to Frame; supports vault `Authorization: Bearer` (export token) for browser verification flows; M2M same signing rules as embed. Idempotency keys are user-scoped; see `docs/markit-ariadne-v4.md`.
+- `POST /api/ariadne/analyze` — session auth; multipart `file` + optional `includeExport` — returns `is_markit`, `user_id`, `watermark_id`, `detection_method` (`metadata` \| `visual` \| `both` \| `none`), `confidence` 0–100, evidence; debits `ariadne-detect` credits. Used from Protection / DMCA flow.
+- `POST /api/leaks/alerts/[id]/attribution` — session auth; downloads **only** that alert’s stored `source_url` (SSRF-guarded, size cap) and runs progressive Ariadne / Markit attribution; debits `ariadne-detect` credits. Wallet idempotency: optional `Idempotency-Key` for per-trace debits/retries, or JSON `reScan` / `forceNewCharge` for a new debit without a client key. See [`ariadne-leak-attribution.md`](./ariadne-leak-attribution.md). `POST /api/dmca/claim` accepts optional `ariadneAttributionEvidence` (same result shape) to append a short trace summary to the draft notice.
+- `POST /api/ariadne/test/run` — when `ARIADNE_ATTRIBUTION_TEST_API=1`, runs in-process append-v1 + microdot harness; no credits.
+- `POST app/api/ariadne/embed-v2` — session auth; queues async `ariadne_embed_v2` jobs (FFmpeg worker path) when `ARIADNE_V2_EMBED_ENABLED=true`.
+- `POST app/api/ariadne/detect-v2` — session auth; robust multi-frame detector with confidence + candidate payload outputs when `ARIADNE_V2_DETECT_ENABLED=true`.
+- `POST app/api/fansly/disconnect` — session auth (cookie or Bearer); clears `platform_connections` for Fansly and fires Divine + optional Resend disconnect notifications (no upstream OAuth revoke).
+- `GET app/api/ariadne/evidence/[exportId]` — canonical legal packet endpoint (`?format=packet` for JSON packet envelope).

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import {
   computeDailyCostScenario,
   SERPER_USD_PER_SEARCH,
@@ -46,7 +47,13 @@ function fmtInt(n: number) {
   return n.toLocaleString()
 }
 
-export function AdminCostSimulatorGame() {
+export function AdminCostSimulatorGame({
+  hybridBaseUsdPerCredit,
+  hybridOverrideCount,
+}: {
+  hybridBaseUsdPerCredit: number
+  hybridOverrideCount: number
+}) {
   const [planKind, setPlanKind] = useState<CostSimulatorInput['planKind']>('paid')
   const [billingVariant, setBillingVariant] = useState<BillingVariant>('multi')
   const [tierIndex, setTierIndex] = useState(4)
@@ -57,7 +64,7 @@ export function AdminCostSimulatorGame() {
   const [reputationRunsDaily, setReputationRunsDaily] = useState(0.2)
   const [leakRunsDaily, setLeakRunsDaily] = useState(0.15)
 
-  const focusPlatforms = useMemo(() => {
+  const focusPlatforms = useMemo((): CostSimulatorInput['focusPlatforms'] => {
     return FOCUS_PRESETS.find((p) => p.id === focusPresetId)?.platforms ?? ['onlyfans']
   }, [focusPresetId])
 
@@ -120,6 +127,15 @@ export function AdminCostSimulatorGame() {
           lanes, <strong className="text-foreground">fan-touch</strong> volume (mini-class tokens per fan you interact
           with), and <strong className="text-foreground">Serper</strong> searches for reputation discovery vs DMCA/leak
           scans ({fmtUsd(SERPER_USD_PER_SEARCH)} / search baseline — tune if your Serper tier differs).
+        </p>
+        <p className="max-w-3xl text-xs text-muted-foreground">
+          Hybrid conversion context: base{' '}
+          <span className="font-medium text-foreground">{fmtUsd(hybridBaseUsdPerCredit)} / credit</span> with{' '}
+          <span className="font-medium text-foreground">{hybridOverrideCount}</span> feature-level overrides. Update in{' '}
+          <Link href="/admin/settings" className="text-primary underline underline-offset-2 hover:no-underline">
+            Settings
+          </Link>
+          .
         </p>
       </div>
 

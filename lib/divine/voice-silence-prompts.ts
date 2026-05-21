@@ -9,7 +9,36 @@ export const DIVINE_VOICE_SILENCE_MS = {
   endCallFailsafe: 30_000,
 } as const
 
-/** 47s + 60s — full staged inactivity window before the final mic/end prompt. */
+/** Timings mapped from Divine Manager silence patience slider (0–100). Defaults match DIVINE_VOICE_SILENCE_MS at 50. */
+export type VoiceSilenceTimingConfig = {
+  first: number
+  afterFirst: number
+  endCallFailsafe: number
+}
+
+function piecewise(patience: number, low: number, mid: number, high: number): number {
+  const x = Math.max(0, Math.min(100, patience))
+  if (x <= 50) return low + (x / 50) * (mid - low)
+  return mid + ((x - 50) / 50) * (high - mid)
+}
+
+/**
+ * Silence ladder: patience 0 = faster check-ins (25s / 40s); 50 = legacy (47s / 60s); 100 = patient (90s / 120s).
+ */
+export function buildVoiceSilenceConfig(patience0to100: number): VoiceSilenceTimingConfig {
+  return {
+    first: Math.round(piecewise(patience0to100, 25_000, DIVINE_VOICE_SILENCE_MS.first, 90_000)),
+    afterFirst: Math.round(piecewise(patience0to100, 40_000, DIVINE_VOICE_SILENCE_MS.afterFirst, 120_000)),
+    endCallFailsafe: DIVINE_VOICE_SILENCE_MS.endCallFailsafe,
+  }
+}
+
+/** Full staged inactivity window (first + second stage) — use with buildVoiceSilenceConfig for customization. */
+export function voiceSilenceProtocolTotalMs(cfg: VoiceSilenceTimingConfig): number {
+  return cfg.first + cfg.afterFirst
+}
+
+/** 47s + 60s — default protocol total before the final mic/end prompt (patience slider = 50). */
 export const DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS =
   DIVINE_VOICE_SILENCE_MS.first + DIVINE_VOICE_SILENCE_MS.afterFirst
 

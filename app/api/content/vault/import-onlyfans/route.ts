@@ -1,8 +1,9 @@
+import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
 /** Create a Creatix content row that references an OnlyFans post (metadata-first). */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req)
   const {
     data: { user },
@@ -17,11 +18,16 @@ export async function POST(req: Request) {
     previewUrl?: string | null
     mediaType?: string
   } | null
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
 
-  const postId = typeof body?.postId === 'string' ? body.postId.trim() : ''
+  const postId = typeof body.postId === 'string' ? body.postId.trim() : ''
   if (!postId) {
     return NextResponse.json({ error: 'postId required' }, { status: 400 })
   }
+
+  const bodyObj = body!
 
   const { data: existing } = await supabase
     .from('content')
@@ -36,24 +42,24 @@ export async function POST(req: Request) {
   }
 
   const snippet =
-    typeof body.text === 'string' && body.text.trim()
-      ? body.text.trim().slice(0, 120)
+    typeof bodyObj.text === 'string' && bodyObj.text.trim()
+      ? bodyObj.text.trim().slice(0, 120)
       : `OnlyFans post ${postId}`
-  const typeRaw = (body.mediaType || 'photo').toLowerCase()
+  const typeRaw = (bodyObj.mediaType || 'photo').toLowerCase()
   const content_type = typeRaw.includes('video') ? 'video' : 'photo'
 
   const row = {
     user_id: user.id,
     title: snippet || `OnlyFans ${postId}`,
-    description: typeof body.text === 'string' ? body.text.trim().slice(0, 2000) : null,
+    description: typeof bodyObj.text === 'string' ? bodyObj.text.trim().slice(0, 2000) : null,
     content_type,
     file_url: null as string | null,
-    thumbnail_url: typeof body.previewUrl === 'string' ? body.previewUrl : null,
+    thumbnail_url: typeof bodyObj.previewUrl === 'string' ? bodyObj.previewUrl : null,
     platforms: ['onlyfans'] as string[],
     status: 'draft' as const,
     source_platform: 'onlyfans',
     external_post_id: postId,
-    external_preview_url: typeof body.previewUrl === 'string' ? body.previewUrl : null,
+    external_preview_url: typeof bodyObj.previewUrl === 'string' ? bodyObj.previewUrl : null,
   }
 
   const { data: inserted, error } = await supabase.from('content').insert(row).select('id').single()

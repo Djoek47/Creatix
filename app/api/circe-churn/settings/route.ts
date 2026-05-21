@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { defaultCirceChurnSettings, type CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+import { hasEnoughAiCredits, insufficientAiCreditsResponse } from '@/lib/billing/consume-ai-credits'
 
 const CADENCES = new Set(['off', 'daily', 'weekly'])
 
@@ -98,9 +99,30 @@ export async function PATCH(request: NextRequest) {
     patch.credits_per_run = body.credits_per_run
   }
 
+  const { data: existing } = await supabase.from('circe_churn_settings').select('*').eq('user_id', user.id).maybeSingle()
+  const base = existing ? (existing as CirceChurnSettingsRow) : defaultCirceChurnSettings(user.id)
+  const merged: CirceChurnSettingsRow = {
+    ...base,
+    ...(patch as Partial<CirceChurnSettingsRow>),
+    user_id: user.id,
+  }
+
+  if (merged.enabled) {
+    const need = Math.min(10, Math.max(1, Math.round(Number(merged.credits_per_run ?? 2))))
+    const check = await hasEnoughAiCredits(supabase, user.id, need)
+    if (!check.ok) {
+      return insufficientAiCreditsResponse(check.used, check.limit)
+    }
+  }
+
+  const rowToUpsert = {
+    ...merged,
+    updated_at: new Date().toISOString(),
+  }
+
   const { data: upserted, error } = await supabase
     .from('circe_churn_settings')
-    .upsert(patch, { onConflict: 'user_id' })
+    .upsert(rowToUpsert, { onConflict: 'user_id' })
     .select('*')
     .single()
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import {
   getSettings,
@@ -13,9 +14,23 @@ import {
   type DivineManagerMode,
   type DivineManagerPersona,
   type DivineManagerGoals,
+  type DivineVoicePersonalityInitiative,
+  type DivineInterruptionStyle,
   type DivineManagerAutomationRules,
   type DivineBackgroundOps,
+  type DivineNavigationAutonomy,
+  type DivineRealtimeReasoningEffort,
+  type DivineToolNarration,
 } from '@/lib/divine-manager'
+import {
+  applyVoicePersonalityPreset,
+  applyVoicePersonalityToAutomationRules,
+  DIVINE_VOICE_PERSONALITY_PRESETS,
+  defaultVoicePersonality,
+  resolveVoicePersonality,
+  type ResolvedVoicePersonality,
+} from '@/lib/divine/voice-personality'
+import { isDivineManagerScrollSection, divineManagerScrollElementId } from '@/lib/divine-manager-deep-link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,24 +45,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Crown, Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass } from 'lucide-react'
+import { Loader2, ChevronRight, ChevronLeft, Check, Sparkles, Pause, Settings2, Mic, PhoneOff, ImagePlus, Hourglass, X } from 'lucide-react'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { DivineReplyDialog } from '@/components/divine/divine-reply-dialog'
 import { MimicTestWizard } from '@/components/divine/mimic-test-wizard'
 import { DivineTextSheet } from '@/components/divine/divine-text-sheet'
-import { DivineWorkflowTodayPlan } from '@/components/divine/divine-workflow-today-plan'
-import { DivineManagerProtocolTasksCard } from '@/components/divine/divine-manager-protocol-tasks-card'
+import { DivineManagerCockpit } from '@/components/divine/divine-manager-cockpit'
+import { DivineVoiceRateCard } from '@/components/divine/divine-voice-rate-card'
+import { DivineVoiceLiveConsole } from '@/components/divine/divine-voice-live-console'
+import { BackgroundJobsList } from '@/components/divine/background-jobs-list'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
+import { type EasyProUiMode } from '@/components/ui/easy-pro-mode-toggle'
+import { DIVINE_VOICE_STYLE_PRESETS, divineVoicePresetIdForPersona, divineVoiceLabelForPersona } from '@/lib/divine-manager-voice-style-presets'
+import { cn } from '@/lib/utils'
+import { Slider } from '@/components/ui/slider'
 
 type WizardStep = 1 | 2 | 3 | 4
 
-const MODE_LABELS: Record<DivineManagerMode, string> = {
-  off: 'Off',
-  suggest_only: 'Suggest only',
-  semi_auto: 'Semi-automatic',
+function divineModeLabel(t: (key: string) => string, m: DivineManagerMode) {
+  if (m === 'off') return t('modes.off')
+  if (m === 'suggest_only') return t('modes.suggest_only')
+  return t('modes.semi_auto')
 }
 
 export default function DivineManagerPage() {
+  const tDm = useTranslations('divine-manager')
   const searchParams = useSearchParams()
   const panelCtx = useDivinePanel()
   const voiceSession = useVoiceSession()
@@ -65,6 +88,7 @@ export default function DivineManagerPage() {
     examplePhrases: [],
   })
   const [boundaryInput, setBoundaryInput] = useState('')
+  const [examplePhraseInput, setExamplePhraseInput] = useState('')
   const [goals, setGoals] = useState<DivineManagerGoals>({
     qualitativeGoals: [],
     targetSubscribers: undefined,
@@ -72,6 +96,8 @@ export default function DivineManagerPage() {
     targetARPU: undefined,
   })
   const [goalInput, setGoalInput] = useState('')
+  const goalsRef = useRef(goals)
+  goalsRef.current = goals
   const [automationRules, setAutomationRules] = useState<DivineManagerAutomationRules>({
     autoPostSchedule: { enabled: false, maxPerDay: 2 },
     autoWelcomeDm: { enabled: false, maxPerDay: 50 },
@@ -102,6 +128,7 @@ export default function DivineManagerPage() {
       min_interval_hours: 4,
     },
     divine_onboarding_checklist: {},
+    voice_personality: defaultVoicePersonality(),
   })
   const [selectedMode, setSelectedMode] = useState<DivineManagerMode>('suggest_only')
   const [managerArchetype, setManagerArchetype] = useState<string>('hermes')
@@ -119,9 +146,6 @@ export default function DivineManagerPage() {
   const closingPending = voiceSession?.closingPending ?? false
   const canManualHangup = voiceSession?.canManualHangup ?? true
   const realtimeError = voiceSession?.error ?? null
-  const remoteVoiceStream = voiceSession?.remoteVoiceStream ?? null
-  const voiceVizRef = voiceSession?.voiceVizRef ?? useRef<HTMLCanvasElement | null>(null)
-  const userVoiceVizRef = voiceSession?.userVoiceVizRef ?? useRef<HTMLCanvasElement | null>(null)
   const [intentLog, setIntentLog] = useState<{ id: string; intent_type: string; status: string; result_summary?: string; created_at: string }[]>([])
   const [intentLogLoading, setIntentLogLoading] = useState(false)
   const [pendingIntentId, setPendingIntentId] = useState<string | null>(null)
@@ -139,6 +163,7 @@ export default function DivineManagerPage() {
   const closeAfterActionRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetIdleRef = useRef<(() => void) | null>(null)
   const [replyDialogOpen, setReplyDialogOpen] = useState(false)
+  const [uiMode, setUiMode] = useState<EasyProUiMode>('easy')
 
   useEffect(() => {
     const section = searchParams.get('section')
@@ -150,8 +175,8 @@ export default function DivineManagerPage() {
       }, 200)
       return () => clearTimeout(t)
     }
-    if (!['mimic', 'voice', 'tasks', 'alerts', 'protocol'].includes(section)) return
-    const id = section === 'protocol' ? 'divine-section-tasks' : `divine-section-${section}`
+    if (!isDivineManagerScrollSection(section)) return
+    const id = divineManagerScrollElementId(section)
     const t = window.setTimeout(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 200)
@@ -173,6 +198,15 @@ export default function DivineManagerPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     setIntroBriefingPlayed(window.localStorage.getItem('divine_intro_briefing_played') === '1')
+    const savedUiMode = window.localStorage.getItem('divine_manager_ui_mode')
+    if (savedUiMode === 'easy' || savedUiMode === 'pro') setUiMode(savedUiMode)
+  }, [])
+
+  const handleUiModeChange = useCallback((mode: EasyProUiMode) => {
+    setUiMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('divine_manager_ui_mode', mode)
+    }
   }, [])
 
   useEffect(() => {
@@ -188,7 +222,7 @@ export default function DivineManagerPage() {
           setPersona(s.persona ?? {})
           setGoals(s.goals ?? {})
           const merged = (s.automation_rules ?? {}) as DivineManagerAutomationRules
-          setAutomationRules({
+          const nextAutomation: DivineManagerAutomationRules = {
             autoPostSchedule: { enabled: false, maxPerDay: 2, ...merged.autoPostSchedule },
             autoWelcomeDm: { enabled: false, maxPerDay: 50, ...merged.autoWelcomeDm },
             autoFollowUpAfterTips: { enabled: false, maxPerDay: 20, ...merged.autoFollowUpAfterTips },
@@ -244,6 +278,14 @@ export default function DivineManagerPage() {
             divine_onboarding_checklist: {
               ...((merged.divine_onboarding_checklist ?? {}) as Record<string, boolean>),
             },
+            ...(merged.dashboard ? { dashboard: merged.dashboard } : {}),
+          }
+          setAutomationRules({
+            ...nextAutomation,
+            voice_personality: resolveVoicePersonality({
+              ...merged,
+              ...nextAutomation,
+            }),
           })
           setSelectedMode(s.mode)
           setManagerArchetype(s.manager_archetype || 'hermes')
@@ -308,6 +350,44 @@ export default function DivineManagerPage() {
     }
   }
 
+  const persistGoals = async (next: DivineManagerGoals) => {
+    if (!userId) return
+    setGoals(next)
+    try {
+      const supabase = createClient()
+      const row = await upsertSettings(supabase, userId, { goals: next })
+      setSettings(row)
+      if (row.goals) setGoals(row.goals)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const voicePersonalityResolved = resolveVoicePersonality(automationRules)
+
+  const patchVoicePersonality = (partial: Partial<ResolvedVoicePersonality>) => {
+    void persistAutomationRules(
+      applyVoicePersonalityToAutomationRules(automationRules, {
+        ...voicePersonalityResolved,
+        ...partial,
+      }),
+    )
+  }
+
+  const voicePersonalityKey =
+    automationRules.voice_personality != null
+      ? JSON.stringify(automationRules.voice_personality)
+      : String(automationRules.manager_talkativeness ?? 'balanced')
+
+  const [personalityDrag, setPersonalityDrag] = useState<Partial<ResolvedVoicePersonality>>({})
+  const voiceUi = useMemo(
+    () => ({ ...voicePersonalityResolved, ...personalityDrag }),
+    [voicePersonalityResolved, personalityDrag],
+  )
+  useEffect(() => {
+    setPersonalityDrag({})
+  }, [voicePersonalityKey])
+
   const handleRunManager = async () => {
     if (!userId) return
     setRunningBrain(true)
@@ -335,6 +415,8 @@ export default function DivineManagerPage() {
     window.speechSynthesis.speak(utterance)
   }
 
+  const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
   const runVoiceMode = async (mode: 'intro' | 'ongoing' | 'what_next') => {
     setVoiceLoading(true)
     setVoiceMode(mode)
@@ -361,21 +443,64 @@ export default function DivineManagerPage() {
         body: JSON.stringify({ mode }),
       })
       if (!res.ok) throw new Error('Failed to get voice script')
-      const data = (await res.json()) as { script?: string; audio?: string; error?: string }
-      if (data.script) setVoiceScript(data.script)
-      if (data.audio) {
-        const binary = atob(data.audio)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        const blob = new Blob([bytes], { type: 'audio/mpeg' })
-        const url = URL.createObjectURL(blob)
-        const audio = new Audio(url)
-        audio.onended = () => URL.revokeObjectURL(url)
-        audio.onerror = () => URL.revokeObjectURL(url)
-        await audio.play()
-      } else if (data.script) {
-        speak(data.script)
+      const data = (await res.json()) as {
+        script?: string
+        audio?: string
+        error?: string
+        pending?: boolean
+        jobId?: string
       }
+
+      const playBriefingPayload = async (payload: { script?: string | null; audio?: string | null }) => {
+        if (payload.script) setVoiceScript(payload.script)
+        if (payload.audio) {
+          const binary = atob(payload.audio)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          const blob = new Blob([bytes], { type: 'audio/mpeg' })
+          const url = URL.createObjectURL(blob)
+          const audio = new Audio(url)
+          audio.onended = () => URL.revokeObjectURL(url)
+          audio.onerror = () => URL.revokeObjectURL(url)
+          await audio.play()
+        } else if (payload.script) {
+          speak(payload.script)
+        }
+      }
+
+      if (data.pending && data.jobId) {
+        let attempts = 0
+        let lastErr: string | null = null
+        while (attempts < 90) {
+          await sleep(2000)
+          const pollRes = await fetch(
+            `/api/ai/divine-manager-voice?jobId=${encodeURIComponent(data.jobId)}&includeTts=1`,
+          )
+          if (!pollRes.ok) break
+          const poll = (await pollRes.json()) as {
+            status?: string
+            pending?: boolean
+            script?: string
+            audio?: string | null
+            error?: string
+          }
+          if (!poll.pending && poll.status === 'completed' && poll.script) {
+            await playBriefingPayload({ script: poll.script, audio: poll.audio ?? null })
+            break
+          }
+          if (!poll.pending && poll.status !== 'completed') {
+            lastErr = poll.error || poll.status || 'briefing_failed'
+            break
+          }
+          attempts += 1
+        }
+        if (lastErr) {
+          console.error('[voice briefing]', lastErr)
+        }
+        return
+      }
+
+      await playBriefingPayload({ script: data.script ?? null, audio: data.audio ?? null })
     } catch (e) {
       console.error(e)
     } finally {
@@ -402,6 +527,8 @@ export default function DivineManagerPage() {
         boundaries: [],
         examplePhrases: [],
       })
+      setExamplePhraseInput('')
+      setGoalInput('')
       setGoals({
         qualitativeGoals: [],
         targetSubscribers: undefined,
@@ -430,6 +557,7 @@ export default function DivineManagerPage() {
         },
         voice_fab_skip_launcher: false,
         manager_talkativeness: 'balanced',
+        voice_personality: defaultVoicePersonality(),
         divine_background_ops: {
           enabled: false,
           suggest_tasks: true,
@@ -803,89 +931,125 @@ export default function DivineManagerPage() {
 
   if (loading) {
     return (
-      <div className="divine-page-bg flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading your Divine Manager…</p>
+      <div className="divine-page-bg flex min-h-[min(100dvh,52rem)] flex-col items-center justify-center px-6">
+        <div className="flex w-full max-w-xs flex-col items-center gap-8">
+          <div
+            className="h-7 w-7 rounded-full border-2 border-muted border-t-foreground/35 motion-safe:animate-spin"
+            style={{ animationDuration: '0.85s' }}
+            role="status"
+            aria-label="Loading"
+          />
+          <div className="space-y-2 text-center">
+            <p className="font-serif text-xl font-medium tracking-tight text-foreground sm:text-2xl">Divine Manager</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Preparing your workspace…</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   // First-run wizard: no settings row yet
   if (!settings) {
-    return (
-      <div className="divine-page-bg min-h-full">
-        <div className="divine-fade-in max-w-3xl mx-auto space-y-8 pb-12 px-4 pt-2">
-          <div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight flex items-center gap-2">
-              <Crown className="h-8 w-8 text-primary divine-shine" />
-              Set up your Divine Manager
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Four steps to a manager that speaks your brand.
-            </p>
-          </div>
+    const stepMeta = [
+      { step: 1 as const, title: 'Voice', hint: 'How Divine sounds when it writes.' },
+      { step: 2 as const, title: 'Goals & posture', hint: 'Outcomes you care about, plus daily cadence.' },
+      { step: 3 as const, title: 'Automation', hint: 'What runs on its own. All off by default.' },
+      { step: 4 as const, title: 'Review', hint: 'One pass, then activate.' },
+    ]
+    const currentMeta = stepMeta[wizardStep - 1]
 
-          <Card className="divine-card">
-          <CardHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2" role="group" aria-label="Setup progress">
-                {([1, 2, 3, 4] as const).map((step) => (
-                  <div key={step} className="flex flex-1 items-center last:flex-none">
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors ${
-                        wizardStep > step
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : wizardStep === step
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-muted-foreground/30 bg-transparent text-muted-foreground'
-                      }`}
-                    >
-                      {wizardStep > step ? <Check className="h-4 w-4" /> : step}
-                    </div>
-                    {step < 4 && <div className="mx-1 h-0.5 flex-1 bg-border" />}
+    return (
+      <div className="divine-setup-wizard-page min-h-full">
+        <div className="divine-fade-in mx-auto max-w-xl px-4 pb-20 pt-10 sm:px-6 lg:max-w-[42rem]">
+          <header className="mx-auto max-w-lg space-y-3 text-center sm:text-left">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground/90">Divine Manager</p>
+            <h1 className="font-serif text-[1.75rem] font-semibold tracking-[-0.02em] text-foreground sm:text-[2.25rem] sm:leading-[1.1]">
+              Set up once
+            </h1>
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
+              Four steps · Nothing is permanent — tune everything inside the console after this.
+            </p>
+          </header>
+
+          <div className="divine-setup-wizard-shell divine-card mt-10">
+            <div className="relative overflow-hidden rounded-[1.265rem] border border-white/35 bg-card/72 shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-card/65">
+              <div className="space-y-6 px-5 pb-6 pt-6 sm:px-8 sm:pb-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Step {wizardStep} of 4
+                    </p>
+                    <h2 className="font-serif text-xl font-semibold tracking-tight text-foreground">{currentMeta.title}</h2>
+                    <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">{currentMeta.hint}</p>
                   </div>
-                ))}
-              </div>
-              <CardDescription className="text-sm">
-                {wizardStep === 1 && 'Persona & boundaries'}
-                {wizardStep === 2 && 'Archetype & notifications'}
-                {wizardStep === 3 && 'Automation rules'}
-                {wizardStep === 4 && 'Review and activate'}
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+                </div>
+
+                <div className="flex items-center gap-1.5" role="navigation" aria-label="Setup steps">
+                  {([1, 2, 3, 4] as const).map((step) => {
+                    const passed = wizardStep > step
+                    const active = wizardStep === step
+                    return (
+                      <div key={step} className="flex flex-1 items-center gap-1.5">
+                        <div
+                          className={cn(
+                            'flex h-2 flex-1 overflow-hidden rounded-full bg-muted/50 transition-colors duration-300',
+                            passed && 'bg-primary/28 dark:bg-venus/35',
+                            active && 'bg-primary/55 ring-2 ring-primary/25 dark:bg-venus/55 dark:ring-venus/25',
+                          )}
+                          aria-current={active ? 'step' : undefined}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div key={wizardStep} className="divine-setup-step-animate space-y-8 pb-2">
             {wizardStep === 1 && (
               <>
-                <div className="space-y-2">
-                  <Label>How do you talk to fans?</Label>
-                  <Select value={persona.tone ?? 'friendly'} onValueChange={(v) => setPersona((p) => ({ ...p, tone: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="friendly">Friendly & warm</SelectItem>
-                      <SelectItem value="playful">Playful & teasing</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="casual">Casual & laid-back</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3">
+                  <Label className="text-[13px] font-semibold tracking-tight">Messaging style</Label>
+                  <p className="-mt-1 text-[13px] text-muted-foreground">
+                    Pick one pairing — tone and flirt stay in sync so you aren&apos;t asked twice.
+                  </p>
+                  <div className="grid gap-2.5 sm:grid-cols-2" role="listbox" aria-label="Messaging style">
+                    {DIVINE_VOICE_STYLE_PRESETS.map((preset) => {
+                      const sel = divineVoicePresetIdForPersona(persona) === preset.id
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          role="option"
+                          aria-selected={sel}
+                          data-selected={sel ? 'true' : 'false'}
+                          className="divine-setup-preset-trigger group flex flex-col items-start rounded-2xl border border-border/65 bg-muted/25 px-4 py-3.5 text-left transition-colors duration-200 hover:border-primary/35 hover:bg-muted/40 dark:border-white/[0.08] dark:bg-background/35 dark:hover:bg-background/48"
+                          onClick={() =>
+                            setPersona((p) => ({
+                              ...p,
+                              tone: preset.tone,
+                              flirtyLevel: preset.flirtyLevel,
+                            }))
+                          }
+                        >
+                          <span className="text-[14px] font-semibold tracking-tight text-foreground">{preset.title}</span>
+                          <span className="mt-1 text-[13px] leading-snug text-muted-foreground">{preset.subtitle}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {divineVoicePresetIdForPersona(persona) === null ? (
+                    <p className="text-[12px] text-muted-foreground">
+                      Prefer a rare mix not listed? Finish setup, then open Persona inside the Divine console.
+                    </p>
+                  ) : null}
                 </div>
-                <div className="space-y-2">
-                  <Label>Comfort level with flirty tone</Label>
-                  <Select value={persona.flirtyLevel ?? 'mild'} onValueChange={(v) => setPersona((p) => ({ ...p, flirtyLevel: v as DivineManagerPersona['flirtyLevel'] }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="mild">Mild</SelectItem>
-                      <SelectItem value="moderate">Moderate</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Off-limits (add one at a time)</Label>
-                  <div className="flex gap-2">
+
+                <div className="space-y-2.5">
+                  <Label className="text-[13px] font-semibold tracking-tight">Hard lines</Label>
+                  <p className="text-[13px] text-muted-foreground">Topics or requests Divine never crosses.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <Input
-                      placeholder="e.g. No explicit content, no politics"
+                      placeholder="One line, then Enter"
+                      className="h-11 rounded-xl border-border/50 bg-background/80 sm:flex-1"
                       value={boundaryInput}
                       onChange={(e) => setBoundaryInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -897,7 +1061,8 @@ export default function DivineManagerPage() {
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
+                      className="h-11 shrink-0 rounded-xl px-5"
                       onClick={() => {
                         if (boundaryInput.trim()) {
                           setPersona((p) => ({ ...p, boundaries: [...(p.boundaries ?? []), boundaryInput.trim()] }))
@@ -908,46 +1073,223 @@ export default function DivineManagerPage() {
                       Add
                     </Button>
                   </div>
-                  {(persona.boundaries?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
+                  {(persona.boundaries?.length ?? 0) > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-1" aria-label="Boundaries">
                       {(persona.boundaries ?? []).map((b, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {b}
-                        </Badge>
+                        <li key={`${i}-${b}`}>
+                          <button
+                            type="button"
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/35 py-1.5 pl-3 pr-2 text-left text-[12px] font-medium tracking-tight text-foreground transition-colors hover:bg-muted/50"
+                            onClick={() =>
+                              setPersona((p) => ({
+                                ...p,
+                                boundaries: (p.boundaries ?? []).filter((_, j) => j !== i),
+                              }))
+                            }
+                          >
+                            <span className="min-w-0 truncate">{b}</span>
+                            <X className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="sr-only">Remove boundary</span>
+                          </button>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
+                  ) : (
+                    <p className="text-[12px] italic text-muted-foreground/85">Nothing yet — tap Add when ready.</p>
                   )}
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label className="text-[13px] font-semibold tracking-tight">
+                    Echo lines <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <p className="text-[13px] text-muted-foreground">
+                    Tiny phrases Divine can borrow so drafts feel unmistakably you.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                    <Input
+                      placeholder="One phrase, then Enter"
+                      className="h-11 rounded-xl border-border/50 bg-background/80 sm:flex-1"
+                      value={examplePhraseInput}
+                      onChange={(e) => setExamplePhraseInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && examplePhraseInput.trim()) {
+                          setPersona((p) => ({
+                            ...p,
+                            examplePhrases: [...(p.examplePhrases ?? []), examplePhraseInput.trim()],
+                          }))
+                          setExamplePhraseInput('')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-11 shrink-0 rounded-xl px-5"
+                      onClick={() => {
+                        if (examplePhraseInput.trim()) {
+                          setPersona((p) => ({
+                            ...p,
+                            examplePhrases: [...(p.examplePhrases ?? []), examplePhraseInput.trim()],
+                          }))
+                          setExamplePhraseInput('')
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {(persona.examplePhrases?.length ?? 0) > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-1" aria-label="Example phrases">
+                      {(persona.examplePhrases ?? []).map((phrase, i) => (
+                        <li key={`${i}-${phrase.slice(0, 24)}`}>
+                          <button
+                            type="button"
+                            className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-dashed border-border/60 bg-background/55 py-1.5 pl-3 pr-2 text-left text-[12px] font-medium tracking-tight text-foreground hover:bg-muted/45"
+                            onClick={() =>
+                              setPersona((p) => ({
+                                ...p,
+                                examplePhrases: (p.examplePhrases ?? []).filter((_, j) => j !== i),
+                              }))
+                            }
+                          >
+                            <span className="min-w-0 break-words text-left">{phrase}</span>
+                            <X className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="sr-only">Remove phrase</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
               </>
             )}
 
             {wizardStep === 2 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  Choose your Divine Manager&apos;s style and how often it should ping you.
-                </p>
-                <div className="space-y-3">
+                <div className="space-y-2 rounded-xl border border-border/50 bg-muted/15 p-4 sm:p-5">
+                  <Label>Goals (one at a time)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Grow VIP list, launch collab tier"
+                      value={goalInput}
+                      onChange={(e) => setGoalInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && goalInput.trim()) {
+                          setGoals((g) => ({
+                            ...g,
+                            qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                          }))
+                          setGoalInput('')
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (goalInput.trim()) {
+                          setGoals((g) => ({
+                            ...g,
+                            qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                          }))
+                          setGoalInput('')
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {(goals.qualitativeGoals?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(goals.qualitativeGoals ?? []).map((g, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {g}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid gap-3 pt-2 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target subs (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="—"
+                        value={goals.targetSubscribers ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetSubscribers: raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0)),
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target retention % (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        placeholder="—"
+                        value={goals.targetRetention ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetRetention: raw === '' ? undefined : Math.max(0, Math.min(100, Number(raw) || 0)),
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target ARPU (optional)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder="—"
+                        value={goals.targetARPU ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setGoals((g) => ({
+                            ...g,
+                            targetARPU: raw === '' ? undefined : Math.max(0, Number(raw) || 0),
+                          }))
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">Manager persona and pings.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Manager archetype</Label>
+                    <Label className="text-[13px] font-medium">Archetype</Label>
                     <Select value={managerArchetype} onValueChange={(v) => setManagerArchetype(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hermes">Hermes – Messages & money focus</SelectItem>
-                        <SelectItem value="hephaestus">Hephaestus – Systems & schedules</SelectItem>
-                        <SelectItem value="hestia">Hestia – Retention & VIP care</SelectItem>
-                        <SelectItem value="eros">Eros – Charm & script optimization</SelectItem>
+                        <SelectItem value="hermes">Hermes · messages & revenue</SelectItem>
+                        <SelectItem value="hephaestus">Hephaestus · systems & schedules</SelectItem>
+                        <SelectItem value="hestia">Hestia · retention & VIP</SelectItem>
+                        <SelectItem value="eros">Eros · charm & scripts</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Notification level</Label>
-                    <Select value={notifyLevel} onValueChange={(v: any) => setNotifyLevel(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Label className="text-[13px] font-medium">Notifications</Label>
+                    <Select value={notifyLevel} onValueChange={(v: 'none' | 'only_issues' | 'daily_digest' | 'all') => setNotifyLevel(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Never notify me</SelectItem>
-                        <SelectItem value="only_issues">Only if something breaks or needs approval</SelectItem>
-                        <SelectItem value="daily_digest">Daily summary of moves & money</SelectItem>
-                        <SelectItem value="all">Notify for every action</SelectItem>
+                        <SelectItem value="none">Never</SelectItem>
+                        <SelectItem value="only_issues">Only when something needs you</SelectItem>
+                        <SelectItem value="daily_digest">Daily summary</SelectItem>
+                        <SelectItem value="all">Every action</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1007,12 +1349,14 @@ export default function DivineManagerPage() {
                     />
                   </div>
                   <p className="text-sm font-medium text-foreground pt-2">Voice automation</p>
-                  <p className="text-xs text-muted-foreground pb-2">When using voice control, choose what Divine can do without asking you to confirm.</p>
+                  <p className="text-xs text-muted-foreground pb-2">
+                    Legacy auto shortcuts stay saved; Realtime 2 still asks before external sends, publishing, pricing, DMCA, or billing changes.
+                  </p>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-send mass DMs</p>
-                        <p className="text-xs text-muted-foreground">Divine can send mass messages by voice without confirmation</p>
+                        <p className="font-medium">Mass DM shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare and route mass DM work; final send is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.mass_dm ?? false}
@@ -1026,8 +1370,8 @@ export default function DivineManagerPage() {
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-change prices</p>
-                        <p className="text-xs text-muted-foreground">Divine can apply pricing changes by voice without confirmation</p>
+                        <p className="font-medium">Pricing shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare pricing changes; final apply is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.pricing_changes ?? false}
@@ -1041,8 +1385,8 @@ export default function DivineManagerPage() {
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <p className="font-medium">Allow auto-publish posts</p>
-                        <p className="text-xs text-muted-foreground">Divine can publish content by voice without confirmation</p>
+                        <p className="font-medium">Publish shortcut</p>
+                        <p className="text-xs text-muted-foreground">Prepare publishing flows; final publish is confirmed in-app.</p>
                       </div>
                       <Switch
                         checked={automationRules.voice_auto?.content_publish ?? false}
@@ -1054,7 +1398,7 @@ export default function DivineManagerPage() {
                         }
                       />
                     </div>
-                    <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="space-y-2 pt-4">
                       <Label>Manual End call button</Label>
                       <Select
                         value={automationRules.voice_hangup_policy ?? 'always'}
@@ -1077,29 +1421,10 @@ export default function DivineManagerPage() {
                         Strict mode requires Divine to call voice_allow_user_hangup before End unlocks. Use Force end if stuck.
                       </p>
                     </div>
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <Label>How chatty Divine is</Label>
-                      <Select
-                        value={automationRules.manager_talkativeness ?? 'balanced'}
-                        onValueChange={(v) =>
-                          void persistAutomationRules({
-                            ...automationRules,
-                            manager_talkativeness: v as 'low' | 'balanced' | 'high',
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Brief — short answers</SelectItem>
-                          <SelectItem value="balanced">Balanced</SelectItem>
-                          <SelectItem value="high">More expressive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Applies to voice and text. Brief keeps replies tight; More expressive adds warmth and context when
-                        helpful.
+                    <div className="space-y-2 pt-4">
+                      <Label>Voice personality</Label>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        After setup, open Divine Manager · Preferences · <span className="font-medium text-foreground/90">Personality</span> to tune Talkativeness, momentum, silence timing, and who leads—voice and text Divine follow the same preset.
                       </p>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -1181,57 +1506,125 @@ export default function DivineManagerPage() {
 
             {wizardStep === 4 && (
               <>
-                <p className="font-serif text-sm font-medium text-foreground">Review and activate</p>
-                <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-3">
-                  <p className="text-sm text-muted-foreground">Tone: {persona.tone} · Flirty: {persona.flirtyLevel}</p>
-                  <p className="text-sm text-muted-foreground">Archetype: {managerArchetype}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Automation: {[automationRules.autoPostSchedule?.enabled && 'Posts', automationRules.autoWelcomeDm?.enabled && 'Welcome DMs', automationRules.autoFollowUpAfterTips?.enabled && 'Tip follow-up'].filter(Boolean).join(', ') || 'None'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Notifications: {notifyLevel === 'none' ? 'Never' : notifyLevel === 'only_issues' ? 'Only issues' : notifyLevel === 'daily_digest' ? 'Daily digest' : 'All actions'}
-                  </p>
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Divine Manager is <span className="font-semibold">BETA</span>. It can make mistakes. You remain responsible for all actions.
+                <div className="rounded-xl border border-border/45 bg-muted/20 p-5 sm:p-6">
+                  <p className="text-[13px] font-medium text-foreground">Summary</p>
+                  <dl className="mt-4 space-y-3 text-[13px] text-muted-foreground">
+                    <div className="flex flex-col gap-0.5 pb-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Voice</dt>
+                      <dd className="min-w-0 sm:text-right">{divineVoiceLabelForPersona(persona)}</dd>
+                    </div>
+                    {(persona.boundaries?.length ?? 0) > 0 ? (
+                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                        <dt className="shrink-0 font-medium text-foreground/88">Hard lines</dt>
+                        <dd className="min-w-0 sm:text-right">{(persona.boundaries ?? []).join(' · ')}</dd>
+                      </div>
+                    ) : null}
+                    {(persona.examplePhrases?.length ?? 0) > 0 ? (
+                      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                        <dt className="shrink-0 font-medium text-foreground/88">Echo lines</dt>
+                        <dd className="min-w-0 sm:text-right">
+                          {(persona.examplePhrases ?? []).slice(0, 3).join(' · ')}
+                          {(persona.examplePhrases ?? []).length > 3 ? '…' : ''}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Goals</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {(() => {
+                          const parts: string[] = [...(goals.qualitativeGoals ?? [])]
+                          if (goals.targetSubscribers != null) parts.push(`${goals.targetSubscribers} subs`)
+                          if (goals.targetRetention != null) parts.push(`${goals.targetRetention}% retention`)
+                          if (goals.targetARPU != null) parts.push(`ARPU ${goals.targetARPU}`)
+                          return parts.length > 0 ? parts.join(' · ') : '—'
+                        })()}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Archetype</dt>
+                      <dd className="min-w-0 capitalize sm:text-right">{managerArchetype}</dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Automation</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {[automationRules.autoPostSchedule?.enabled && 'Posts', automationRules.autoWelcomeDm?.enabled && 'Welcome', automationRules.autoFollowUpAfterTips?.enabled && 'Tips'].filter(Boolean).join(' · ') || 'All off'}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                      <dt className="shrink-0 font-medium text-foreground/88">Alerts</dt>
+                      <dd className="min-w-0 sm:text-right">
+                        {notifyLevel === 'none'
+                          ? 'Never'
+                          : notifyLevel === 'only_issues'
+                            ? 'When needed'
+                            : notifyLevel === 'daily_digest'
+                              ? 'Daily summary'
+                              : 'Every action'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
+                    Divine Manager is <span className="font-semibold text-foreground/90">beta</span>. It can slip. You approve what ships.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={betaAcknowledged} onCheckedChange={setBetaAcknowledged} />
-                  <span className="text-xs text-muted-foreground">
-                    I understand this feature is beta and may make mistakes; I remain responsible for all actions.
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <Label>Manager mode</Label>
-                  <Select value={selectedMode} onValueChange={(v: DivineManagerMode) => setSelectedMode(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="off">Off — No suggestions or actions</SelectItem>
-                      <SelectItem value="suggest_only">Suggest only — Manager suggests; you approve</SelectItem>
-                      <SelectItem value="semi_auto">Semi-automatic — Manager can run allowed rules</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-xl border border-border/40 bg-background/55 p-4">
+                    <Switch
+                      checked={betaAcknowledged}
+                      onCheckedChange={setBetaAcknowledged}
+                      className="mt-0.5"
+                      aria-label="Acknowledge beta"
+                    />
+                    <span className="text-[13px] leading-snug text-muted-foreground">
+                      I understand Divine can make mistakes. I approve what ships.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[13px] font-medium">Start mode</Label>
+                    <Select value={selectedMode} onValueChange={(v: DivineManagerMode) => setSelectedMode(v)}>
+                      <SelectTrigger className="h-11 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">Off · paused</SelectItem>
+                        <SelectItem value="suggest_only">Suggest · you approve</SelectItem>
+                        <SelectItem value="semi_auto">Semi-auto · trusted rules run</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </>
             )}
 
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" disabled={wizardStep === 1} onClick={() => setWizardStep((s) => (s - 1) as WizardStep)}>
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                variant="ghost"
+                className="h-11 rounded-full px-5 text-muted-foreground hover:text-foreground"
+                disabled={wizardStep === 1}
+                onClick={() => setWizardStep((s) => (s - 1) as WizardStep)}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" /> Back
               </Button>
               {wizardStep < 4 ? (
-                <Button onClick={() => setWizardStep((s) => (s + 1) as WizardStep)}>
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                <Button className="h-11 rounded-full px-7" onClick={() => setWizardStep((s) => (s + 1) as WizardStep)}>
+                  Continue <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleCompleteWizard} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                  Activate Divine Manager
+                <Button
+                  className="h-11 rounded-full px-7"
+                  onClick={handleCompleteWizard}
+                  disabled={saving || !betaAcknowledged}
+                  title={!betaAcknowledged ? 'Confirm you understand beta limitations' : undefined}
+                >
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                  Activate
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -1242,78 +1635,94 @@ export default function DivineManagerPage() {
 
   return (
     <div className="divine-page-bg min-h-full">
-      <div className="divine-fade-in max-w-4xl mx-auto space-y-10 pb-12 px-4 pt-2">
-        <div className="mb-10 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.06] via-card to-purple-500/[0.07] px-5 py-6 shadow-[0_0_40px_-12px_rgba(168,85,247,0.22),0_0_28px_-14px_rgba(251,191,36,0.12)] dark:border-purple-500/20 dark:from-purple-950/35 dark:via-card dark:to-amber-950/20">
-            <div className="constellation-bg pointer-events-none absolute inset-0 opacity-[0.28] dark:opacity-[0.18]" />
-            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 to-purple-600/15 shadow-[0_0_20px_-6px_rgba(168,85,247,0.35)]">
-                  <Crown className="ai-tools-brand-icon h-7 w-7" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="font-serif text-3xl font-semibold tracking-tight">
-                      <span className="ai-tools-wordmark">Divine Manager</span>
-                    </h1>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide border-amber-500/35 text-foreground">
-                      BETA
-                    </Badge>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Early access</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Your full-time AI manager — voice, text, tools, and protocol tasks in one orbit.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Archetype: {settings.manager_archetype || 'hermes'} · Use the floating crown for voice (launcher first, unless you enable instant start in Voice Control).
-                  </p>
-                </div>
-              </div>
+      <div className="divine-fade-in mx-auto max-w-5xl space-y-8 px-4 pb-20 pt-8 sm:px-6">
+        <DivineManagerCockpit
+          settings={settings}
+          mode={mode}
+          uiMode={uiMode}
+          onUiModeChange={handleUiModeChange}
+          onModeChange={handleUpdateMode}
+          onOpenTextDivine={() => setTextSheetOpen(true)}
+          onStartVoice={() => void startRealtimeVoice()}
+          onPause={() => void handleUpdateMode('off')}
+          onReset={() => void handleResetDivineManager()}
+          resetting={resetting}
+          realtimeStatus={realtimeStatus}
+          sessionPhotoDataUrl={sessionPhotoDataUrl}
+          onSessionPhotoDataUrlChange={(value) => {
+            setSessionPhotoDataUrl(value)
+            if (value === null) {
+              setLastAIToolResult(null)
+              setLastToolName(null)
+              setLastToolResult(null)
+            }
+          }}
+        />
+
+        {uiMode === 'pro' ? (
+        <>
+        <header className="hidden">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-[2.125rem] sm:leading-tight">
+                Divine Manager
+              </h1>
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Beta</span>
             </div>
+            <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+              Voice, chat, and background tasks—one place to steer how your manager works.
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              <span className="text-foreground/80">{settings.manager_archetype || 'hermes'}</span>
+              <span className="mx-2 text-border" aria-hidden>
+                ·
+              </span>
+              Tap the crown to talk; optional instant start lives in Voice Control.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="border-amber-500/25 bg-card/50" asChild>
-              <Link href="/dashboard/ai-studio?tab=tools">AI Studio</Link>
+          <nav className="flex flex-wrap items-center gap-x-3 gap-y-2" aria-label="Shortcuts">
+            <Button type="button" size="sm" className="h-9 rounded-full px-5" onClick={() => setTextSheetOpen(true)}>
+              Message
             </Button>
-            <Button variant="outline" size="sm" className="border-purple-500/20 bg-card/50" asChild>
-              <Link href="/dashboard/commenter">Housekeeping</Link>
-            </Button>
-            <Button variant="outline" size="sm" className="border-amber-500/20 bg-card/50" asChild>
-              <Link href="/dashboard/protection">Protection</Link>
-            </Button>
-            <Button variant="outline" size="sm" className="border-purple-500/15 bg-card/50" asChild>
-              <Link href="/dashboard/mentions">Mentions</Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-border"
-              type="button"
-              onClick={() => setTextSheetOpen(true)}
+            <span className="hidden text-muted-foreground/30 sm:inline" aria-hidden>
+              |
+            </span>
+            <Link
+              href="/dashboard/ai-studio?tab=tools"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
             >
-              Text Divine
-            </Button>
-          </div>
-        </div>
-
-        <div className="h-px bg-gradient-to-r from-transparent via-amber-500/25 to-transparent dark:via-purple-500/20" aria-hidden />
-
-        {settings.beta_acknowledged && mode !== 'off' ? (
-          <div id="divine-section-protocol" className="scroll-mt-24">
-            <DivineWorkflowTodayPlan onOpenTextDivine={() => setTextSheetOpen(true)} />
-          </div>
-        ) : null}
+              AI Studio
+            </Link>
+            <Link
+              href="/dashboard/commenter"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Commenter
+            </Link>
+            <Link
+              href="/dashboard/protection"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Protection
+            </Link>
+            <Link
+              href="/dashboard/mentions"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Mentions
+            </Link>
+          </nav>
+        </header>
 
         <div id="divine-section-mimic" className="scroll-mt-24">
           <MimicTestWizard />
         </div>
 
-        <Card id="divine-section-alerts" className="divine-card scroll-mt-24">
+        <Card id="divine-section-alerts" className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <CardTitle className="font-serif text-lg">Urgent alerts &amp; jobs</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-tight">Alerts &amp; jobs</CardTitle>
             <CardDescription>
-              Large tips can create Divine tasks. DMCA and sensitive flows default to confirmation-first. Job toggles
-              reserve future vault/mass-DM automation (cron uses scheduled tasks).
+              Tip thresholds, DMCA confirmations, and scheduled job flags for semi-automatic runs.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1439,13 +1848,10 @@ export default function DivineManagerPage() {
           </CardContent>
         </Card>
 
-        <Card className="divine-card scroll-mt-24">
+        <Card className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <CardTitle className="font-serif text-lg">Divine messaging</CardTitle>
-            <CardDescription>
-              Composer fill, optional countdown auto-send, floating DM hub, and price-optimizer bias for bundle
-              suggestions.
-            </CardDescription>
+            <CardTitle className="text-base font-semibold tracking-tight">Messaging</CardTitle>
+            <CardDescription>How Divine opens chats, delays sends, and prices bundles in DMs.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 max-w-md">
@@ -1517,7 +1923,7 @@ export default function DivineManagerPage() {
         </Card>
 
         {pendingIntentId && (
-          <Card className="divine-card border-primary/40 bg-primary/5">
+          <Card className="divine-card rounded-2xl border-primary/30 bg-primary/[0.04]">
             <CardContent className="pt-4">
               <p className="text-sm font-medium text-foreground">Action requires your confirmation</p>
               <p className="text-xs text-muted-foreground mt-1">{pendingIntentSummary ?? 'Divine wants to run an action. Confirm to proceed.'}</p>
@@ -1534,26 +1940,30 @@ export default function DivineManagerPage() {
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5" role="group" aria-label="Manager mode">
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="inline-flex rounded-full border border-border/80 bg-muted/20 p-1"
+            role="group"
+            aria-label={tDm('toolbar.modeAria')}
+          >
             {(['off', 'suggest_only', 'semi_auto'] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => handleUpdateMode(m)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   mode === m
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {MODE_LABELS[m]}
+                {divineModeLabel(tDm, m)}
               </button>
             ))}
           </div>
           {mode !== 'off' && (
             <Button variant="ghost" size="sm" onClick={() => handleUpdateMode('off')}>
-              <Pause className="h-4 w-4 mr-1" /> Pause
+              <Pause className="h-4 w-4 mr-1" /> {tDm('toolbar.pause')}
             </Button>
           )}
           <Button
@@ -1564,23 +1974,21 @@ export default function DivineManagerPage() {
             className="text-muted-foreground"
           >
             {resetting && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-            Reset
+            {tDm('toolbar.reset')}
           </Button>
         </div>
 
-      <DivineManagerProtocolTasksCard />
-
-      {settings.beta_acknowledged && mode !== 'off' && (
-        <Card id="divine-section-voice" className="divine-card scroll-mt-24">
+        {settings.beta_acknowledged && mode !== 'off' && (
+        <Card id="divine-section-voice" className="divine-card scroll-mt-24 rounded-2xl">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="font-serif text-lg flex items-center gap-2">
-                  <Mic className="h-5 w-5 text-primary" />
-                  Voice Control
+                <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                  <Mic className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  Voice
                 </CardTitle>
                 <CardDescription>
-                  Live briefings and voice call. Upload a photo, then talk—Divine will analyze, caption, post, and message fans.
+                  Briefings, live calls, photo workflows, and voice-driven actions.
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1595,7 +2003,7 @@ export default function DivineManagerPage() {
                 <Badge
                   variant="secondary"
                   className="text-[10px] font-normal"
-                  title="Voice automation: what Divine can do without confirmation"
+                  title="Voice safety: Realtime 2 still requires confirmation before external actions"
                 >
                   {settings.automation_rules?.voice_auto?.mass_dm ||
                   settings.automation_rules?.voice_auto?.pricing_changes ||
@@ -1611,6 +2019,7 @@ export default function DivineManagerPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <DivineVoiceRateCard />
             <div className="flex flex-col gap-2 rounded-lg border border-amber-500/15 bg-muted/25 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">Floating crown</p>
@@ -1802,7 +2211,7 @@ export default function DivineManagerPage() {
                         <div className="space-y-2">
                           {(lastToolResult.captions as { text?: string; hashtags?: string[] }[]).map((cap, i) => (
                             <div key={i} className="rounded border border-border bg-background/50 p-2 text-xs">
-                              {cap.text && <p className="text-foreground whitespace-pre-wrap">{cap.text}</p>}
+                              {cap.text ? <AiToolMarkdownReadout content={cap.text} variant="neutral" className="text-xs" /> : null}
                               {cap.hashtags && cap.hashtags.length > 0 && (
                                 <p className="text-muted-foreground mt-1">{(cap.hashtags as string[]).join(' ')}</p>
                               )}
@@ -1826,16 +2235,18 @@ export default function DivineManagerPage() {
                           </div>
                         </div>
                       )}
-                      {lastToolResult.content && (
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{String(lastToolResult.content)}</p>
-                      )}
+                      {lastToolResult.content ? (
+                        <AiToolMarkdownReadout content={String(lastToolResult.content)} variant="neutral" className="text-xs text-muted-foreground" />
+                      ) : null}
                     </>
                   )}
                   {(lastToolName === 'get_retention_insights' || lastToolName === 'get_whale_advice') && (
-                    <div className="rounded border border-border bg-background/50 p-2 text-xs text-muted-foreground whitespace-pre-wrap">
-                      {typeof lastToolResult.content === 'string'
-                        ? lastToolResult.content
-                        : JSON.stringify(lastToolResult)}
+                    <div className="rounded border border-border bg-background/50 p-2 text-xs text-muted-foreground">
+                      {typeof lastToolResult.content === 'string' ? (
+                        <AiToolMarkdownReadout content={lastToolResult.content} variant="circeRetention" className="text-xs" />
+                      ) : (
+                        JSON.stringify(lastToolResult)
+                      )}
                     </div>
                   )}
                   {lastToolName === 'predict_income' && (
@@ -1847,7 +2258,9 @@ export default function DivineManagerPage() {
                         return (
                           <>
                             {headline ? <p className="font-medium text-foreground">{headline}</p> : null}
-                            {summary ? <p className="text-muted-foreground whitespace-pre-wrap">{summary}</p> : null}
+                            {summary ? (
+                              <AiToolMarkdownReadout content={summary} variant="income" className="text-xs text-muted-foreground" />
+                            ) : null}
                             {!headline && !summary ? (
                               <pre className="text-muted-foreground whitespace-pre-wrap overflow-x-auto">
                                 {JSON.stringify(lastToolResult, null, 2)}
@@ -1945,41 +2358,18 @@ export default function DivineManagerPage() {
               </div>
             )}
             {realtimeStatus === 'connected' && (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-gradient-to-b from-violet-500/10 to-transparent p-4">
+              <div className="space-y-3">
                 {(intentInProgress || closingPending) ? (
-                  <>
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-gradient-to-b from-violet-500/10 to-transparent p-4">
                     <div className="flex flex-col items-center gap-2">
                       <Hourglass className="h-12 w-12 text-violet-500 animate-spin" style={{ animationDuration: '3s' }} />
                       <p className="text-xs text-muted-foreground">
                         {closingPending ? 'Ending call…' : 'Working…'}
                       </p>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-full max-w-[240px] space-y-1.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">You</p>
-                      <canvas
-                        ref={userVoiceVizRef}
-                        width={240}
-                        height={28}
-                        className="h-7 w-full rounded-lg opacity-90 block"
-                        style={{ background: 'rgba(0,0,0,0.05)' }}
-                      />
-                    </div>
-                    <div className="w-full max-w-[240px] space-y-1.5">
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Divine</p>
-                      <canvas
-                        ref={voiceVizRef}
-                        width={240}
-                        height={28}
-                        className="h-7 w-full rounded-lg opacity-90 block"
-                        style={{ background: 'transparent' }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Listening and speaking…</p>
-                  </>
-                )}
+                  </div>
+                ) : null}
+                <DivineVoiceLiveConsole />
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
@@ -2057,20 +2447,431 @@ export default function DivineManagerPage() {
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
 
-      <Card className="divine-card">
+      <Card className="divine-card rounded-2xl">
         <CardHeader>
-          <CardTitle className="font-serif text-lg flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-primary" />
-            Your preferences
+          <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <Settings2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+            Preferences
           </CardTitle>
-          <CardDescription>Persona, goals, and automation. Editable in a future update.</CardDescription>
+          <CardDescription>Persona, voice, and background automation.</CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p><span className="font-medium text-foreground">Tone:</span> {String(settings.persona?.tone ?? '—')} · Flirty: {String(settings.persona?.flirtyLevel ?? '—')}</p>
           <p><span className="font-medium text-foreground">Archetype:</span> {settings.manager_archetype || 'hermes'}</p>
           <p><span className="font-medium text-foreground">Notifications:</span> {settings.notification_settings?.level ?? 'daily_digest'}</p>
+          <div className="space-y-3 border-t border-border pt-3">
+            <p className="font-medium text-foreground">Goals</p>
+            <p className="text-xs text-muted-foreground">Qualitative targets and optional numbers (subs, retention %, ARPU). Used when Divine plans your week.</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add a goal"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && goalInput.trim()) {
+                    const g = goalsRef.current
+                    void persistGoals({
+                      ...g,
+                      qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                    })
+                    setGoalInput('')
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!goalInput.trim()) return
+                  const g = goalsRef.current
+                  void persistGoals({
+                    ...g,
+                    qualitativeGoals: [...(g.qualitativeGoals ?? []), goalInput.trim()],
+                  })
+                  setGoalInput('')
+                }}
+              >
+                Add
+              </Button>
+            </div>
+            {(goals.qualitativeGoals?.length ?? 0) > 0 && (
+              <ul className="flex flex-wrap gap-1.5">
+                {(goals.qualitativeGoals ?? []).map((g, i) => (
+                  <li key={`${g}-${i}`}>
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer gap-1 pr-1 text-xs font-normal"
+                      onClick={() => {
+                        const g = goalsRef.current
+                        void persistGoals({
+                          ...g,
+                          qualitativeGoals: (g.qualitativeGoals ?? []).filter((_, j) => j !== i),
+                        })
+                      }}
+                    >
+                      {g}
+                      <span className="text-[10px] opacity-70">×</span>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Target subs</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="—"
+                  value={goals.targetSubscribers ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetSubscribers: raw === '' ? undefined : Math.max(0, Math.floor(Number(raw) || 0)),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Target retention %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  placeholder="—"
+                  value={goals.targetRetention ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetRetention: raw === '' ? undefined : Math.max(0, Math.min(100, Number(raw) || 0)),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Target ARPU</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="—"
+                  value={goals.targetARPU ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGoals((prev) => ({
+                      ...prev,
+                      targetARPU: raw === '' ? undefined : Math.max(0, Number(raw) || 0),
+                    }))
+                  }}
+                  onBlur={() => void persistGoals(goalsRef.current)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border pt-8">
+            <BackgroundJobsList />
+          </div>
+          <div className="space-y-10 border-t border-border/80 pt-10">
+            <div className="space-y-2">
+              <h3 className="text-[1.0625rem] font-semibold tracking-tight text-foreground">Personality</h3>
+              <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground">
+                Shape how Divine speaks and who leads the conversation—voice and Divine chat share this preset.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DIVINE_VOICE_PERSONALITY_PRESETS.map((preset) => {
+                const selected = voiceUi.preset_id === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={loading || saving || resetting}
+                    onClick={() => {
+                      setPersonalityDrag({})
+                      patchVoicePersonality(applyVoicePersonalityPreset(voiceUi, preset.id))
+                    }}
+                    className={cn(
+                      'rounded-2xl border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                      selected
+                        ? 'border-foreground/15 bg-foreground/[0.045] text-foreground shadow-sm'
+                        : 'border-border/60 bg-background/40 text-muted-foreground hover:border-foreground/15 hover:bg-muted/40 hover:text-foreground',
+                    )}
+                  >
+                    <span className="block text-[13px] font-semibold tracking-tight">{preset.label}</span>
+                    <span className="mt-1 block text-[11px] leading-relaxed">{preset.description}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <Label className="text-[13px] font-medium text-foreground">Talkativeness</Label>
+                  <span className="hidden text-[11px] text-muted-foreground sm:inline">Quiet · Expressive</span>
+                </div>
+                <Slider
+                  value={[voiceUi.talkativeness]}
+                  max={100}
+                  step={1}
+                  disabled={loading || saving || resetting}
+                  aria-label="Divine talkativeness"
+                  onValueChange={(v) =>
+                    setPersonalityDrag((d) => ({ ...d, talkativeness: v[0] ?? voiceUi.talkativeness }))
+                  }
+                  onValueCommit={(v) =>
+                    patchVoicePersonality({ talkativeness: v[0] ?? voiceUi.talkativeness })
+                  }
+                  className="py-2"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground sm:hidden">
+                  <span>Quiet</span>
+                  <span>Expressive</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Quieter keeps replies lean; fuller adds deliberate warmth—not rambling.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-end justify-between gap-3">
+                  <Label className="text-[13px] font-medium text-foreground">Momentum</Label>
+                  <span className="hidden text-[11px] text-muted-foreground sm:inline">Reactive · Forward</span>
+                </div>
+                <Slider
+                  value={[voiceUi.proactivity]}
+                  max={100}
+                  step={1}
+                  disabled={loading || saving || resetting}
+                  aria-label="Divine momentum and narration"
+                  onValueChange={(v) =>
+                    setPersonalityDrag((d) => ({ ...d, proactivity: v[0] ?? voiceUi.proactivity }))
+                  }
+                  onValueCommit={(v) =>
+                    patchVoicePersonality({ proactivity: v[0] ?? voiceUi.proactivity })
+                  }
+                  className="py-2"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground sm:hidden">
+                  <span>Reactive</span>
+                  <span>Forward</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Reactive waits on you; Forward narrates briefly while tools run—never skipping confirmations on risky sends.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-[13px] font-medium text-foreground">Conversation lead</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: 'creator_led' as DivineVoicePersonalityInitiative, label: 'User-led' },
+                    { id: 'balanced' as DivineVoicePersonalityInitiative, label: 'Balanced' },
+                    { id: 'manager_led' as DivineVoicePersonalityInitiative, label: 'Divine-led' },
+                  ] as const
+                ).map(({ id, label }) => (
+                  <Button
+                    key={id}
+                    type="button"
+                    variant={voiceUi.initiative === id ? 'secondary' : 'outline'}
+                    className={cn(
+                      'h-11 rounded-xl text-[13px] font-normal shadow-none',
+                      voiceUi.initiative === id
+                        ? 'border-foreground/15 bg-muted/80 text-foreground'
+                        : 'border-border/60 text-muted-foreground hover:text-foreground',
+                    )}
+                    disabled={loading || saving || resetting}
+                    onClick={() => patchVoicePersonality({ initiative: id })}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                User-led waits after greetings. Divine-led speaks first, continues after safe navigation, and still asks before risky actions.
+              </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Reasoning</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'low' as DivineRealtimeReasoningEffort, label: 'Low' },
+                      { id: 'medium' as DivineRealtimeReasoningEffort, label: 'Medium' },
+                      { id: 'high' as DivineRealtimeReasoningEffort, label: 'High' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.reasoning_effort === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ reasoning_effort: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Higher reasoning helps multi-step tool routing; lower keeps simple calls snappy.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">App control</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'ask' as DivineNavigationAutonomy, label: 'Ask' },
+                      { id: 'suggest' as DivineNavigationAutonomy, label: 'Suggest' },
+                      { id: 'act' as DivineNavigationAutonomy, label: 'Act' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.navigation_autonomy === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ navigation_autonomy: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Safe navigation can be direct; sends, publishing, DMCA, pricing, and billing still require confirmation.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Tool narration</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'quiet' as DivineToolNarration, label: 'Quiet' },
+                      { id: 'brief' as DivineToolNarration, label: 'Brief' },
+                      { id: 'statusy' as DivineToolNarration, label: 'Status' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.tool_narration === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ tool_narration: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-[13px] font-medium text-foreground">Interruptions</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: 'fast' as DivineInterruptionStyle, label: 'Fast' },
+                      { id: 'balanced' as DivineInterruptionStyle, label: 'Balanced' },
+                      { id: 'patient' as DivineInterruptionStyle, label: 'Patient' },
+                    ] as const
+                  ).map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant={voiceUi.interruption_style === id ? 'secondary' : 'outline'}
+                      className="h-10 rounded-xl text-[12px] font-normal shadow-none"
+                      disabled={loading || saving || resetting}
+                      onClick={() => patchVoicePersonality({ interruption_style: id })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-border/50 bg-muted/[0.15] px-5 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">Studio tuning</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    Silence ladders and microphone sensitivity apply on your next voice call.
+                  </p>
+                </div>
+                <Switch
+                  checked={voiceUi.pro_mode}
+                  disabled={loading || saving || resetting}
+                  onCheckedChange={(c) => patchVoicePersonality({ pro_mode: c })}
+                  aria-label="Enable studio tuning for voice"
+                />
+              </div>
+              <div
+                className={cn(
+                  'grid gap-8 overflow-hidden transition-all duration-300 ease-out',
+                  voiceUi.pro_mode ? 'max-h-[560px] opacity-100 pt-5' : 'max-h-0 opacity-0',
+                )}
+              >
+                <div className="space-y-3">
+                  <Label className="text-[13px] font-medium text-foreground">Silence patience</Label>
+                  <Slider
+                    value={[voiceUi.silence_patience]}
+                    max={100}
+                    step={1}
+                    disabled={loading || saving || resetting || !voiceUi.pro_mode}
+                    aria-label="Silence patience before check-in prompts"
+                    onValueChange={(v) =>
+                      setPersonalityDrag((d) => ({ ...d, silence_patience: v[0] ?? voiceUi.silence_patience }))
+                    }
+                    onValueCommit={(v) =>
+                      patchVoicePersonality({ silence_patience: v[0] ?? voiceUi.silence_patience })
+                    }
+                    className="py-2"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Quick check-ins</span>
+                    <span>Long pauses ok</span>
+                  </div>
+                </div>
+                <div className="space-y-3 pb-1">
+                  <Label className="text-[13px] font-medium text-foreground">Mic pickup</Label>
+                  <Slider
+                    value={[voiceUi.mic_pickup]}
+                    max={100}
+                    step={1}
+                    disabled={loading || saving || resetting || !voiceUi.pro_mode}
+                    aria-label="Microphone sensitivity for voice silence detection"
+                    onValueChange={(v) =>
+                      setPersonalityDrag((d) => ({ ...d, mic_pickup: v[0] ?? voiceUi.mic_pickup }))
+                    }
+                    onValueCommit={(v) =>
+                      patchVoicePersonality({ mic_pickup: v[0] ?? voiceUi.mic_pickup })
+                    }
+                    className="py-2"
+                  />
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Strict</span>
+                    <span>Sensitive</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <p className="font-medium text-foreground">AI voice</p>
           <Select
             value={getDivineVoice(settings.notification_settings?.voice)}
@@ -2216,7 +3017,9 @@ export default function DivineManagerPage() {
           </div>
           <p><span className="font-medium text-foreground">Rules:</span> Auto-post {settings.automation_rules?.autoPostSchedule?.enabled ? 'on' : 'off'}, Welcome DM {settings.automation_rules?.autoWelcomeDm?.enabled ? 'on' : 'off'}, Tip follow-up {settings.automation_rules?.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}</p>
           <p className="font-medium text-foreground pt-2">Voice automation</p>
-          <p className="text-xs text-muted-foreground pb-1">What Divine can do by voice without asking you to confirm.</p>
+          <p className="text-xs text-muted-foreground pb-1">
+            Legacy shortcuts stay saved, but Realtime 2 still pauses for app confirmation before external sends, publishing, pricing, DMCA, or billing changes.
+          </p>
           <div className="flex flex-wrap gap-4 pt-1">
             <div className="flex items-center gap-2">
               <Switch
@@ -2296,6 +3099,8 @@ export default function DivineManagerPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      ) : null}
       {replyContext && (
         <DivineReplyDialog
           open={replyDialogOpen}

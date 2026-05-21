@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { isOnlyFansRateLimitError, isOnlyFansUpstreamTransientError } from '@/lib/onlyfans-api'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import {
   fetchCrmMapForFanIds,
@@ -19,6 +19,12 @@ import {
   adultPlatformBillingGateWhenEitherConnected,
   ONLYFANS_EXPIRED_SESSION_CONNECTION_UPDATE,
 } from '@/lib/onlyfans-api-route'
+import {
+  resolveAllowedFocusPlatforms,
+  subscriptionEnforcesFocusPlatforms,
+  type SubscriptionFocusFields,
+} from '@/lib/billing/platform-variant'
+import { fetchOnlyFansInboxChatsCached, type InboxCachedOfConv } from '@/lib/onlyfans-inbox-chats-cache'
 
 export const maxDuration = 60
 
@@ -31,7 +37,7 @@ type RawConv = {
   crm?: InboxCrmPayload | null
 }
 
-function normalizeOfChat(chat: any): RawConv | null {
+function normalizeOfChat(chat: any): InboxCachedOfConv | null {
   const user = chat?.user || chat?.fan
   if (!user?.id) return null
   const lm = chat?.lastMessage
@@ -106,13 +112,70 @@ export async function GET(request: NextRequest) {
     const tag = searchParams.get('tag')?.trim() || undefined
     const search = searchParams.get('search')?.trim() || undefined
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
+    const forceRefreshInbox = searchParams.get('refresh') === 'true'
+    /** Fansly List Chats: pass previous `meta.fansly_next_cursor` for the next page (ApiFansly cursor pagination). */
+    const fanslyCursor = searchParams.get('fanslyCursor')?.trim() || undefined
+
+    let onlyfansInboxStale = false
+    let onlyfansInboxStaleReason: 'rate_limit' | 'min_refresh' | undefined
+    let onlyfansInboxRetryAfterMs: number | undefined
 
     if (platform === 'onlyfans' || platform === 'fansly' || platform === 'all') {
       const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
       if (billingBlock) return billingBlock
     }
 
+    const { data: subFocus } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,billing_variant,billing_focus_platform,billing_focus_platforms')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    let effectivePlatform: InboxPlatformFilter = platform
+    if (
+      (platform === 'onlyfans' || platform === 'fansly' || platform === 'all') &&
+      subFocus &&
+      subscriptionEnforcesFocusPlatforms(subFocus as SubscriptionFocusFields)
+    ) {
+      const allowed = resolveAllowedFocusPlatforms(
+        (subFocus as SubscriptionFocusFields).billing_focus_platforms,
+        (subFocus as SubscriptionFocusFields).billing_focus_platform,
+      )
+      const ofOk = allowed.includes('onlyfans')
+      const fsOk = allowed.includes('fansly')
+      if (platform === 'onlyfans' && !ofOk) {
+        return NextResponse.json(
+          {
+            error:
+              'OnlyFans is not on your current plan. Change plan in Billing, or choose the network your subscription includes.',
+            code: 'BILLING_FOCUS_PLATFORM_DENIED',
+          },
+          { status: 403 },
+        )
+      }
+      if (platform === 'fansly' && !fsOk) {
+        return NextResponse.json(
+          {
+            error:
+              'Fansly is not on your current plan. Change plan in Billing, or choose the network your subscription includes.',
+            code: 'BILLING_FOCUS_PLATFORM_DENIED',
+          },
+          { status: 403 },
+        )
+      }
+      if (platform === 'all') {
+        if (ofOk && fsOk) effectivePlatform = 'all'
+        else if (ofOk) effectivePlatform = 'onlyfans'
+        else if (fsOk) effectivePlatform = 'fansly'
+      }
+    }
+
     const errors: string[] = []
+    const providerErrors: Partial<Record<'onlyfans' | 'fansly', string>> = {}
+    const noteProviderError = (provider: 'onlyfans' | 'fansly', code: string) => {
+      errors.push(code)
+      if (!providerErrors[provider]) providerErrors[provider] = code
+    }
 
     async function loadOnlyFans(): Promise<RawConv[]> {
       const { data: connection } = await supabase
@@ -124,18 +187,30 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!connection?.access_token) {
-        errors.push('onlyfans_disconnected')
+        noteProviderError('onlyfans', 'onlyfans_disconnected')
         return []
       }
 
-      const api = createOnlyFansAPI()
-      api.setAccountId(connection.access_token)
-      const result = await api.getConversations({ limit, offset })
-      const chats = result.conversations || []
-      return chats.map(normalizeOfChat).filter((x): x is RawConv => x != null)
+      const cached = await fetchOnlyFansInboxChatsCached({
+        userId,
+        accessToken: connection.access_token,
+        mode: { kind: 'paginated', limit, offset },
+        forceRefresh: forceRefreshInbox,
+        normalize: (chat) => normalizeOfChat(chat),
+      })
+      if (cached.stale) {
+        onlyfansInboxStale = true
+        onlyfansInboxStaleReason = cached.code === 'ONLYFANS_RATE_LIMIT' ? 'rate_limit' : 'min_refresh'
+        if (cached.retryAfterMs != null) onlyfansInboxRetryAfterMs = cached.retryAfterMs
+      }
+      return cached.conversations as RawConv[]
     }
 
-    async function loadFansly(): Promise<RawConv[]> {
+    async function loadFansly(): Promise<{
+      convs: RawConv[]
+      fanslyHasMore: boolean
+      fanslyNextCursor: string | null | undefined
+    }> {
       const { data: connection } = await supabase
         .from('platform_connections')
         .select('access_token')
@@ -145,20 +220,28 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!connection?.access_token) {
-        errors.push('fansly_disconnected')
-        return []
+        noteProviderError('fansly', 'fansly_disconnected')
+        return { convs: [], fanslyHasMore: false, fanslyNextCursor: undefined }
       }
 
       const api = createFanslyAPI(connection.access_token)
-      const result = await api.getChats({ limit, offset })
+      const result = fanslyCursor
+        ? await api.getChats({ singlePage: true, cursor: fanslyCursor, limit })
+        : await api.getChats({ limit, offset })
       const chats = result.data || []
-      return chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null)
+      const convs = chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null)
+      return {
+        convs,
+        fanslyHasMore: Boolean(result.hasMore ?? result.nextCursor),
+        fanslyNextCursor: result.nextCursor,
+      }
     }
 
     let raw: RawConv[] = []
     let hasMore = false
+    let fanslyNextCursor: string | null | undefined
 
-    if (platform === 'onlyfans') {
+    if (effectivePlatform === 'onlyfans') {
       try {
         raw = await loadOnlyFans()
         hasMore = raw.length >= limit
@@ -181,13 +264,40 @@ export async function GET(request: NextRequest) {
             { status: 401 },
           )
         }
+        if (isOnlyFansRateLimitError(msg)) {
+          return NextResponse.json(
+            {
+              error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+              code: 'ONLYFANS_RATE_LIMIT',
+            },
+            { status: 429 },
+          )
+        }
+        if (isOnlyFansUpstreamTransientError(msg)) {
+          return NextResponse.json(
+            {
+              error:
+                'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+              code: 'ONLYFANS_UPSTREAM',
+            },
+            { status: 503 },
+          )
+        }
         throw e
       }
-    } else if (platform === 'fansly') {
-      raw = await loadFansly()
-      hasMore = raw.length >= limit
+    } else if (effectivePlatform === 'fansly') {
+      try {
+        const pack = await loadFansly()
+        raw = pack.convs
+        fanslyNextCursor = pack.fanslyNextCursor
+        hasMore = pack.fanslyHasMore
+      } catch {
+        noteProviderError('fansly', 'fansly_fetch_failed')
+        raw = []
+      }
     } else {
-      const pool = Math.min(120, Math.max(limit + offset + 20, limit * 2))
+      // Fixed pool size keeps OnlyFans inbox cache key stable across pagination (see inboxOnlyFansChatsCacheKey pool mode).
+      const pool = 55
       const { data: ofConn } = await supabase
         .from('platform_connections')
         .select('access_token')
@@ -207,15 +317,41 @@ export async function GET(request: NextRequest) {
       const parts: RawConv[] = []
       if (ofConn?.access_token) {
         try {
-          const api = createOnlyFansAPI()
-          api.setAccountId(ofConn.access_token)
-          const result = await api.getConversations({ limit: pool, offset: 0 })
-          const chats = result.conversations || []
-          parts.push(
-            ...chats.map(normalizeOfChat).filter((x): x is RawConv => x != null),
-          )
+          const cached = await fetchOnlyFansInboxChatsCached({
+            userId,
+            accessToken: ofConn.access_token,
+            mode: { kind: 'pool', pool },
+            forceRefresh: forceRefreshInbox,
+            normalize: (chat) => normalizeOfChat(chat),
+          })
+          if (cached.stale) {
+            onlyfansInboxStale = true
+            onlyfansInboxStaleReason =
+              cached.code === 'ONLYFANS_RATE_LIMIT' ? 'rate_limit' : 'min_refresh'
+            if (cached.retryAfterMs != null) onlyfansInboxRetryAfterMs = cached.retryAfterMs
+          }
+          parts.push(...(cached.conversations as RawConv[]))
         } catch (e) {
           const msg = e instanceof Error ? e.message : ''
+          if (isOnlyFansRateLimitError(msg)) {
+            return NextResponse.json(
+              {
+                error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+                code: 'ONLYFANS_RATE_LIMIT',
+              },
+              { status: 429 },
+            )
+          }
+          if (isOnlyFansUpstreamTransientError(msg)) {
+            return NextResponse.json(
+              {
+                error:
+                  'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+                code: 'ONLYFANS_UPSTREAM',
+              },
+              { status: 503 },
+            )
+          }
           if (msg.includes('ONLYFANS_SESSION_EXPIRED')) {
             await supabase
               .from('platform_connections')
@@ -223,12 +359,24 @@ export async function GET(request: NextRequest) {
               .eq('user_id', userId)
               .eq('platform', 'onlyfans')
             await clearOnlyFansDmMessageCacheForUser(supabase, userId)
+            return NextResponse.json(
+              {
+                error: 'OnlyFans session expired',
+                code: 'ONLYFANS_SESSION_EXPIRED',
+                message:
+                  'Your OnlyFans session with our data partner expired. Please reconnect OnlyFans from your dashboard.',
+              },
+              { status: 401 },
+            )
+          }
+          if (isOnlyFansUpstreamTransientError(msg)) {
+            errors.push('onlyfans_upstream_transient')
           } else {
-            errors.push('onlyfans_fetch_failed')
+            noteProviderError('onlyfans', 'onlyfans_fetch_failed')
           }
         }
       } else {
-        errors.push('onlyfans_disconnected')
+        noteProviderError('onlyfans', 'onlyfans_disconnected')
       }
 
       if (fsConn?.access_token) {
@@ -240,10 +388,10 @@ export async function GET(request: NextRequest) {
             ...chats.map(normalizeFanslyChat).filter((x): x is RawConv => x != null),
           )
         } catch {
-          errors.push('fansly_fetch_failed')
+          noteProviderError('fansly', 'fansly_fetch_failed')
         }
       } else {
-        errors.push('fansly_disconnected')
+        noteProviderError('fansly', 'fansly_disconnected')
       }
 
       parts.sort((a, b) => {
@@ -302,11 +450,51 @@ export async function GET(request: NextRequest) {
         platform,
         segment,
         sort,
+        degraded: Object.keys(providerErrors).length > 0,
+        partial:
+          platform === 'all' &&
+          Object.keys(providerErrors).length > 0 &&
+          enriched.length > 0,
+        provider_errors:
+          Object.keys(providerErrors).length > 0 ? providerErrors : undefined,
         errors: errors.length ? errors : undefined,
+        ...(onlyfansInboxStale
+          ? {
+              onlyfans_inbox_stale: true as const,
+              onlyfans_inbox_stale_reason: onlyfansInboxStaleReason,
+              ...(onlyfansInboxRetryAfterMs != null
+                ? { onlyfans_inbox_retry_after_ms: onlyfansInboxRetryAfterMs }
+                : {}),
+            }
+          : {}),
+        ...(effectivePlatform === 'fansly' &&
+        fanslyNextCursor != null &&
+        String(fanslyNextCursor).trim() !== ''
+          ? { fansly_next_cursor: String(fanslyNextCursor).trim() }
+          : {}),
       },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
+    if (isOnlyFansRateLimitError(message)) {
+      return NextResponse.json(
+        {
+          error: 'OnlyFans is temporarily limiting requests. Wait 30–60 seconds and refresh.',
+          code: 'ONLYFANS_RATE_LIMIT',
+        },
+        { status: 429 },
+      )
+    }
+    if (isOnlyFansUpstreamTransientError(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'OnlyFans had a temporary glitch loading chats. Wait a minute and refresh, or open Messages again.',
+          code: 'ONLYFANS_UPSTREAM',
+        },
+        { status: 503 },
+      )
+    }
     return NextResponse.json(
       { error: 'Failed to load inbox', details: message },
       { status: 500 },

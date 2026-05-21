@@ -56,3 +56,8 @@ Open `http://localhost:3010` — you still need a real launch URL from the vault
 
 - Never commit `.env.local`.
 - `FRAME_EXPORT_SECRET` stays **server-only** on this app; the browser calls `/api/export`, which attaches `X-Frame-Export-Secret` to Creatix.
+
+## Markit V5 release docs
+
+- Execution brief: `docs/markit-v5-execution-brief.md`
+- Release checklist/runbook: `docs/markit-v5-release-checklist.md`

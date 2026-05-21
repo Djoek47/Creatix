@@ -19,6 +19,10 @@ import {
   RefreshCw,
   Newspaper,
   AtSign,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
+  ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -26,6 +30,9 @@ import { cn } from '@/lib/utils'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
 import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
+import { useTranslations } from 'next-intl'
 
 // Real SVG Icons for social platforms
 const InstagramIcon = () => (
@@ -89,12 +96,13 @@ interface ReputationAnalysis {
 }
 
 const SOCIAL_PLATFORMS = [
-  { id: 'instagram', name: 'Instagram', color: '#E4405F', icon: InstagramIcon },
-  { id: 'tiktok', name: 'TikTok', color: '#000000', icon: TikTokIcon },
-  { id: 'twitter', name: 'X (Twitter)', color: '#000000', icon: TwitterIcon },
+  { id: 'instagram' as const, color: '#E4405F', icon: InstagramIcon },
+  { id: 'tiktok' as const, color: '#000000', icon: TikTokIcon },
+  { id: 'twitter' as const, color: '#000000', icon: TwitterIcon },
 ]
 
-export function SocialReputationWidget() {
+export function SocialReputationWidget({ variant = 'full' }: { variant?: 'full' | 'compact' }) {
+  const t = useTranslations('dashboard.socialReputation')
   const [profiles, setProfiles] = useState<SocialProfile[]>([])
   const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,7 +116,9 @@ export function SocialReputationWidget() {
   const [lastScanSummary, setLastScanSummary] = useState<string | null>(null)
   const [useAllHandles, setUseAllHandles] = useState(true)
   const [selectedHandles, setSelectedHandles] = useState<Set<string>>(new Set())
+  const [unreviewedCount, setUnreviewedCount] = useState<number | null>(null)
   const supabase = createClient()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const { handles: identityHandles, reload: reloadIdentity } = useScanIdentity()
 
   useEffect(() => {
@@ -116,6 +126,25 @@ export function SocialReputationWidget() {
     loadConnectedPlatforms()
     loadSubscription()
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      const { count } = await supabase
+        .from('reputation_mentions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_reviewed', false)
+      if (!cancelled) setUnreviewedCount(count ?? 0)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase])
 
   useEffect(() => {
     if (identityHandles.length) {
@@ -223,7 +252,7 @@ export function SocialReputationWidget() {
       setNewUsername('')
       setShowAddForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add profile')
+      setError(err instanceof Error ? err.message : t('errors.addProfileFailed'))
     } finally {
       setAnalyzing(null)
     }
@@ -247,13 +276,13 @@ export function SocialReputationWidget() {
 
     try {
       if (identityHandles.length === 0) {
-        setError('No usernames to scan. Connect a platform in Settings → Integrations or add a social handle below.')
+        setError(t('errors.noUsernamesScan'))
         setAnalyzing(null)
         return
       }
 
       if (!useAllHandles && selectedHandles.size === 0) {
-        setError('Select at least one handle, or choose “All identities”.')
+        setError(t('errors.selectHandles'))
         setAnalyzing(null)
         return
       }
@@ -273,28 +302,51 @@ export function SocialReputationWidget() {
 
       const data = await response.json()
 
+      if (response.status === 402) {
+        const payload = data as { used?: number; limit?: number }
+        openCreditInsufficientModal({
+          requiredCredits: CREDITS_REPUTATION_WEB_SCAN,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: t('creditContextReputationScan'),
+        })
+        setError(null)
+        return
+      }
+
       if (!response.ok || data.error) {
         throw new Error(data.error || 'Failed to scan reputation')
       }
 
-      if (isPro && typeof data.inserted === 'number' && data.inserted > 0) {
-        try {
-          await fetch('/api/social/reputation-briefing', { method: 'POST' })
-        } catch {
-          // Briefing is best-effort
-        }
+      try {
+        await fetch('/api/social/reputation-briefing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(handlePayload ? { handles: handlePayload } : {}),
+        })
+      } catch {
+        // Aggregate briefing is best-effort after each scan
       }
 
       const by = data.insertedByChannel as { web_wide?: number; social?: number } | undefined
       const channelPart =
         by && typeof by.web_wide === 'number' && typeof by.social === 'number'
-          ? ` (${by.web_wide} web, ${by.social} social)`
+          ? t('scanSummaryChannels', { web: by.web_wide, social: by.social })
+          : ''
+      const enrichedPart =
+        typeof data.enriched === 'number' && data.enriched > 0
+          ? t('scanSummaryEnriched', { n: data.enriched })
           : ''
       setLastScanSummary(
-        `Scan complete: ${data.inserted} new mentions, ${data.skipped} already known${channelPart}${data.enriched ? `, ${data.enriched} enriched by Venus` : ''}.`,
+        t('scanSummary', {
+          inserted: data.inserted,
+          skipped: data.skipped,
+          channelPart,
+          enrichedPart,
+        }),
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to scan reputation')
+      setError(err instanceof Error ? err.message : t('errors.scanReputationFailed'))
     } finally {
       setAnalyzing(null)
     }
@@ -330,7 +382,7 @@ export function SocialReputationWidget() {
 
       setReputationData(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze reputation')
+      setError(err instanceof Error ? err.message : t('errors.analyzeFailed'))
     } finally {
       setAnalyzing(null)
     }
@@ -345,7 +397,7 @@ export function SocialReputationWidget() {
       const allUsernames = getAllUsernames()
       
       if (allUsernames.length === 0) {
-        setError('No usernames to analyze. Connect a platform or add a social profile first.')
+        setError(t('errors.noUsernamesAnalyze'))
         setAnalyzing(null)
         return
       }
@@ -372,7 +424,7 @@ export function SocialReputationWidget() {
 
       setReputationData(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze reputation')
+      setError(err instanceof Error ? err.message : t('errors.analyzeFailed'))
     } finally {
       setAnalyzing(null)
     }
@@ -414,6 +466,70 @@ export function SocialReputationWidget() {
     }
   }
 
+  const identityCount = identityHandles.length
+  const trackedProfiles = profiles.length
+  const ofConnected = connectedPlatforms.some((p) => p.platform === 'onlyfans')
+  const fsConnected = connectedPlatforms.some((p) => p.platform === 'fansly')
+
+  if (variant === 'compact') {
+    return (
+      <Card className="overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="text-base font-semibold tracking-tight">{t('compactTitle')}</CardTitle>
+          <CardDescription className="text-sm leading-relaxed">
+            {t('compactDescription')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('statHandles')}</p>
+                  <p className="text-lg font-semibold tabular-nums">{identityCount}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('statTracked')}</p>
+                  <p className="text-lg font-semibold tabular-nums">{trackedProfiles}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('adultPlatforms.onlyfans')}</p>
+                  <p className="text-lg font-semibold">{ofConnected ? t('statOn') : t('statDash')}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('adultPlatforms.fansly')}</p>
+                  <p className="text-lg font-semibold">{fsConnected ? t('statOn') : t('statDash')}</p>
+                </div>
+              </div>
+              {unreviewedCount != null && unreviewedCount > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('unreviewedMentions', { count: unreviewedCount })}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('noUnreviewed')}</p>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button className="rounded-full sm:flex-1" asChild>
+                  <Link href="/dashboard/social#reputation" className="gap-2">
+                    {t('openSocialHub')}
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </Button>
+                <Button variant="outline" className="rounded-full sm:flex-1" asChild>
+                  <Link href="/dashboard/settings?tab=integrations">{t('integrations')}</Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
@@ -421,10 +537,10 @@ export function SocialReputationWidget() {
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Search className="h-5 w-5 text-primary" />
-              Social Media Reputation
+              {t('mainTitle')}
             </CardTitle>
             <CardDescription className="text-xs">
-              Track your presence and reputation across social platforms
+              {t('mainSubtitle')}
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -436,14 +552,14 @@ export function SocialReputationWidget() {
                   onClick={() => handleScanReputation('wide')}
                   disabled={analyzing?.startsWith('scan-')}
                   className="gap-1.5"
-                  title="News, magazines, and general web"
+                  title={t('scanNewsWebTitle')}
                 >
                   {analyzing === scanKey('wide') ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Newspaper className="h-4 w-4" />
                   )}
-                  News & web
+                  {t('scanNewsWeb')}
                 </Button>
                 <Button
                   variant="outline"
@@ -451,14 +567,14 @@ export function SocialReputationWidget() {
                   onClick={() => handleScanReputation('social')}
                   disabled={analyzing?.startsWith('scan-')}
                   className="gap-1.5"
-                  title="X, Instagram, TikTok, Reddit-style discovery"
+                  title={t('scanSocialTitle')}
                 >
                   {analyzing === scanKey('social') ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <AtSign className="h-4 w-4" />
                   )}
-                  Scan social
+                  {t('scanSocial')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -472,7 +588,7 @@ export function SocialReputationWidget() {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  Scan both
+                  {t('scanBoth')}
                 </Button>
                 {isPro && (
                   <Button 
@@ -487,23 +603,17 @@ export function SocialReputationWidget() {
                     ) : (
                       <Search className="h-4 w-4" />
                     )}
-                    Full Scan (Pro)
+                    {t('fullScanPro')}
                   </Button>
                 )}
               </>
-            )}
-            {!isPro &&
-              (identityHandles.length > 0 || profiles.length > 0 || connectedPlatforms.length > 0) && (
-              <Badge variant="outline" className="text-xs">
-                Pro scan available with Venus Pro
-              </Badge>
             )}
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => setShowAddForm(!showAddForm)}
             >
-              {showAddForm ? 'Cancel' : 'Add Profile'}
+              {showAddForm ? t('cancel') : t('addProfile')}
             </Button>
           </div>
         </div>
@@ -550,7 +660,7 @@ export function SocialReputationWidget() {
         {connectedPlatforms.length > 0 && (
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">
-              Connected Creator Accounts (used for reputation search):
+              {t('connectedAccountsTitle')}
             </p>
             <div className="flex flex-col gap-2">
               {connectedPlatforms.map((platform) => (
@@ -566,7 +676,7 @@ export function SocialReputationWidget() {
                       }`,
                     }}
                   >
-                    {platform.platform === 'onlyfans' ? 'OnlyFans' : 'Fansly'}
+                    {platform.platform === 'onlyfans' ? t('adultPlatforms.onlyfans') : t('adultPlatforms.fansly')}
                     <span className="font-normal">@{platform.platform_username}</span>
                   </Badge>
                   {platform.niches && platform.niches.length > 0 && (
@@ -599,17 +709,17 @@ export function SocialReputationWidget() {
                     style={selectedPlatform === platform.id ? { backgroundColor: platform.color } : {}}
                   >
                     <Icon />
-                    {platform.name}
+                    {t(`socialPlatforms.${platform.id}`)}
                   </Button>
                 )
               })}
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <Label htmlFor="username" className="sr-only">Username</Label>
+                <Label htmlFor="username" className="sr-only">{t('usernameLabel')}</Label>
                 <Input
                   id="username"
-                  placeholder="Enter username (without @)"
+                  placeholder={t('usernamePlaceholder')}
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                 />
@@ -621,7 +731,7 @@ export function SocialReputationWidget() {
                 {analyzing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  'Connect'
+                  t('connect')
                 )}
               </Button>
             </div>
@@ -645,9 +755,9 @@ export function SocialReputationWidget() {
                 <TwitterIcon />
               </div>
             </div>
-            <h3 className="text-lg font-medium">Track Your Social Reputation</h3>
+            <h3 className="text-lg font-medium">{t('emptyTrackTitle')}</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Add your social media profiles to monitor engagement, followers, and reputation across the web.
+              {t('emptyTrackBody')}
             </p>
           </div>
         ) : (
@@ -676,10 +786,10 @@ export function SocialReputationWidget() {
                             variant="outline" 
                             className={cn('text-xs', getSentimentColor(profile.sentiment))}
                           >
-                            {profile.sentiment}
+                            {t(`sentiment.${profile.sentiment}`)}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{platform?.name}</p>
+                        <p className="text-xs text-muted-foreground">{t(`socialPlatforms.${profile.platform}`)}</p>
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -703,7 +813,7 @@ export function SocialReputationWidget() {
                         disabled={analyzing === profile.platform}
                       >
                         <Search className="mr-1 h-3 w-3" />
-                        Analyze
+                        {t('analyze')}
                       </Button>
                     </div>
                   </div>
@@ -715,21 +825,21 @@ export function SocialReputationWidget() {
                         <Users className="h-3 w-3 text-muted-foreground" />
                         {formatNumber(profile.followers)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Followers</p>
+                      <p className="text-xs text-muted-foreground">{t('followers')}</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-sm font-semibold">
                         <Eye className="h-3 w-3 text-muted-foreground" />
                         {formatNumber(profile.posts)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Posts</p>
+                      <p className="text-xs text-muted-foreground">{t('posts')}</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-sm font-semibold">
                         <Heart className="h-3 w-3 text-muted-foreground" />
                         {formatNumber(profile.avg_likes)}
                       </div>
-                      <p className="text-xs text-muted-foreground">Avg Likes</p>
+                      <p className="text-xs text-muted-foreground">{t('avgLikes')}</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-sm font-semibold">
@@ -740,13 +850,13 @@ export function SocialReputationWidget() {
                         )}
                         {profile.engagement_rate.toFixed(1)}%
                       </div>
-                      <p className="text-xs text-muted-foreground">Engagement</p>
+                      <p className="text-xs text-muted-foreground">{t('engagement')}</p>
                     </div>
                   </div>
 
                   {/* Reputation Score */}
                   <div className="mt-4 flex items-center justify-between rounded-lg bg-background/50 p-3">
-                    <span className="text-sm text-muted-foreground">Reputation Score</span>
+                    <span className="text-sm text-muted-foreground">{t('reputationScore')}</span>
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-24 rounded-full bg-muted">
                         <div 
@@ -771,9 +881,9 @@ export function SocialReputationWidget() {
         {reputationData && (
           <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold">AI Reputation Analysis</h4>
+              <h4 className="font-semibold">{t('aiAnalysisTitle')}</h4>
               <Button variant="ghost" size="sm" onClick={() => setReputationData(null)}>
-                Close
+                {t('close')}
               </Button>
             </div>
             <div className="space-y-3">
@@ -782,25 +892,25 @@ export function SocialReputationWidget() {
                   "rounded-full px-3 py-1 text-sm font-medium",
                   getSentimentColor(reputationData.sentiment)
                 )}>
-                  Overall: {reputationData.sentiment}
+                  {t('overall')}: {t(`sentiment.${reputationData.sentiment}`)}
                 </div>
                 <span className="text-sm">
-                  Score: {reputationData.overall_score}/100
+                  {t('scoreLabel', { score: reputationData.overall_score })}
                 </span>
               </div>
               {reputationData.score && (
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <ThumbsUp className="h-3 w-3 text-green-500" />
-                    Positive: {reputationData.score.positiveCount}
+                    {t('positiveCount', { n: reputationData.score.positiveCount })}
                   </span>
                   <span className="flex items-center gap-1">
                     <Minus className="h-3 w-3 text-yellow-500" />
-                    Neutral: {reputationData.score.neutralCount}
+                    {t('neutralCount', { n: reputationData.score.neutralCount })}
                   </span>
                   <span className="flex items-center gap-1">
                     <ThumbsDown className="h-3 w-3 text-red-500" />
-                    Negative: {reputationData.score.negativeCount}
+                    {t('negativeCount', { n: reputationData.score.negativeCount })}
                   </span>
                 </div>
               )}
@@ -808,12 +918,12 @@ export function SocialReputationWidget() {
               
               {reputationData.mentions.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Recent Mentions Found:</p>
+                  <p className="text-xs font-medium text-muted-foreground">{t('recentMentionsTitle')}</p>
                   {reputationData.mentions.slice(0, 3).map((mention, i) => (
                     <div key={i} className="rounded-lg bg-background/50 p-2 text-xs">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className={cn('text-xs', getSentimentColor(mention.sentiment))}>
-                          {mention.sentiment}
+                          {t(`sentiment.${mention.sentiment}`)}
                         </Badge>
                         <span className="text-muted-foreground">{mention.source}</span>
                       </div>

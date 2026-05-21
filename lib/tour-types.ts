@@ -10,6 +10,8 @@ export interface TourStep {
   targetSelector?: string
   /** If the primary target is missing or not visible (e.g. desktop-only control), try this selector. */
   targetSelectorFallback?: string
+  /** Pixels of padding around the highlighted node (default 5). Lower = tighter to the control. */
+  highlightPaddingPx?: number
 }
 
 export interface TourConfig {

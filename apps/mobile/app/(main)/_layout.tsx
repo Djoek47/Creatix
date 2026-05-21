@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MainHeaderNav } from '@/components/main-header-nav'
 import { useAuth } from '@/contexts/auth'
 import { DivineQuickProvider } from '@/contexts/divine-quick'
+import { DivineVoiceProvider } from '@/contexts/divine-voice'
 import { theme } from '@/constants/theme'
 
 function drawerIcon(name: React.ComponentProps<typeof FontAwesome>['name']) {
@@ -45,8 +46,9 @@ export default function MainDrawerLayout() {
 
   return (
     <GestureHandlerRootView style={styles.flex}>
-      <DivineQuickProvider>
-        <Drawer
+      <DivineVoiceProvider>
+        <DivineQuickProvider>
+          <Drawer
           screenOptions={{
             headerStyle: { backgroundColor: theme.bg },
             headerTintColor: theme.text,
@@ -68,7 +70,12 @@ export default function MainDrawerLayout() {
         />
         <Drawer.Screen
           name="messages"
-          options={{ title: 'Messages', drawerLabel: 'Messages', drawerIcon: drawerIcon('envelope') }}
+          options={{
+            title: 'Messages',
+            drawerLabel: 'Messages',
+            drawerIcon: drawerIcon('envelope'),
+            headerShown: false,
+          }}
         />
         <Drawer.Screen
           name="ai-studio"
@@ -122,8 +129,9 @@ export default function MainDrawerLayout() {
           name="settings"
           options={{ title: 'Settings', drawerLabel: 'Settings', drawerIcon: drawerIcon('cog') }}
         />
-        </Drawer>
-      </DivineQuickProvider>
+          </Drawer>
+        </DivineQuickProvider>
+      </DivineVoiceProvider>
     </GestureHandlerRootView>
   )
 }

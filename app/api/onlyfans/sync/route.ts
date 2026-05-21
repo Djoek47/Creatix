@@ -9,6 +9,7 @@ import {
   inferCreatorPageModelFromApiPayload,
   shouldApplyApiInferenceForCreatorPageModel,
 } from '@/lib/onlyfans/creator-page-model'
+import { onlyFansSubscribersAndFollows } from '@/lib/onlyfans/onlyfans-snapshot-audience'
 
 // POST: Manually trigger sync of OnlyFans data
 export async function POST(request: NextRequest) {
@@ -43,7 +44,19 @@ export async function POST(request: NextRequest) {
     const userData = (accountData as any)?.onlyfans_user_data || {}
 
     let stats = { fans: { total: 0, active: 0, expired: 0, new: 0 }, earnings: { today: 0, thisWeek: 0, thisMonth: 0, total: 0 }, content: { posts: 0, photos: 0, videos: 0 } }
-    let earningsData = { total: 0, subscriptions: 0, tips: 0, messages: 0, posts: 0, streams: 0, referrals: 0, period: { start: '', end: '' } }
+    let earningsData: {
+      total: number
+      subscriptions: number
+      tips: number
+      messages: number
+      posts: number
+      streams: number
+      referrals: number
+      period: { start: string; end: string }
+      today?: number
+      thisDay?: number
+      thisMonth?: number
+    } = { total: 0, subscriptions: 0, tips: 0, messages: 0, posts: 0, streams: 0, referrals: 0, period: { start: '', end: '' } }
     let fansData = { fans: [] as any[], total: 0 }
     let conversationsData = { conversations: [] as any[] }
     let chartData = { data: [] as any[] }
@@ -123,6 +136,9 @@ export async function POST(request: NextRequest) {
       (earningsData?.total ?? 0) ||
       (stats.earnings?.thisMonth ?? 0) ||
       0
+
+    const accountMerged = { ...(userData as object), ...(accountProfile as object) }
+    const { follows: onlyFansFollows } = onlyFansSubscribersAndFollows(stats, accountMerged)
     
     // Use total conversations as a proxy for message activity
     // messages_received = unread count (new messages waiting)
@@ -132,6 +148,7 @@ export async function POST(request: NextRequest) {
       platform: 'onlyfans',
       date: today,
       total_fans: totalFans,
+      total_follows: onlyFansFollows,
       new_fans: stats.fans.new || 0,
       churned_fans: stats.fans.expired || 0,
       revenue: revenueToday || revenueFallbackTotal,
@@ -159,6 +176,7 @@ export async function POST(request: NextRequest) {
           date: point.date,
           revenue: point.amount || 0,
           total_fans: stats.fans.total,
+          total_follows: 0,
           new_fans: 0,
           churned_fans: 0,
           messages_received: 0,

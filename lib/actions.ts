@@ -1,30 +1,9 @@
 'use server'
 
-import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 // Fan Actions
-export async function addFan(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) throw new Error('Not authenticated')
-
-  const { error } = await supabase.from('fans').insert({
-    user_id: user.id,
-    platform: formData.get('platform') as string,
-    platform_fan_id: `local:${randomUUID()}`,
-    username: formData.get('username') as string,
-    display_name: formData.get('display_name') as string || null,
-    subscription_tier: formData.get('tier') as string || 'new',
-    notes: formData.get('notes') as string || null,
-  })
-
-  if (error) throw error
-  revalidatePath('/dashboard/fans', 'page')
-}
-
 export async function updateFan(fanId: string, data: Record<string, unknown>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

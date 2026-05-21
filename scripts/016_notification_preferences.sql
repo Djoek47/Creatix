@@ -16,13 +16,13 @@ COMMENT ON TABLE notification_preferences IS 'Per-user toggles for in-app notifi
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY notification_preferences_select_own ON notification_preferences
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY notification_preferences_insert_own ON notification_preferences
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY notification_preferences_update_own ON notification_preferences
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING ((select auth.uid()) = user_id);
 
 CREATE POLICY notification_preferences_delete_own ON notification_preferences
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE USING ((select auth.uid()) = user_id);

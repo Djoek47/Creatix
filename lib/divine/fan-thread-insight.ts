@@ -139,6 +139,7 @@ async function mergeFanProfileWithLlm(opts: {
   threadExcerpt: string
   previousProfile: unknown
   ofSummary: unknown
+  platform: FanThreadInsightPlatform
 }): Promise<Record<string, unknown> | null> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return null
@@ -147,7 +148,10 @@ async function mergeFanProfileWithLlm(opts: {
     opts.previousProfile && typeof opts.previousProfile === 'object'
       ? JSON.stringify(opts.previousProfile).slice(0, 4000)
       : '{}'
-  const ofS = opts.ofSummary != null ? JSON.stringify(opts.ofSummary).slice(0, 2000) : ''
+  const ofS =
+    opts.platform === 'onlyfans' && opts.ofSummary != null
+      ? JSON.stringify(opts.ofSummary).slice(0, 2000)
+      : ''
 
   try {
     const { generateText } = await import('ai')
@@ -172,13 +176,12 @@ Schema (all keys optional; use arrays of short strings; stay respectful and lega
 Rules:
 - Merge with previous profile: keep stable traits unless the thread clearly contradicts them.
 - Add new facts from the thread excerpt. Prefer recent messages for current requests.
-- OnlyFans summary (if any) is auxiliary—prefer thread for freshness.
+- Auxiliary CRM summary (if any) is secondary—prefer thread for freshness.
 
 Previous profile JSON:
 ${prev}
 
-OnlyFans summary (may be empty):
-${ofS}
+${opts.platform === 'onlyfans' ? `OnlyFans AI summary (may be empty; auxiliary):\n${ofS || '(empty)'}` : 'No separate auxiliary CRM summary for Fansly—use the thread only.'}
 
 Recent thread (truncated):
 ${opts.threadExcerpt.slice(0, 8000)}`,
@@ -383,6 +386,7 @@ export async function refreshFanThreadInsight(
       threadExcerpt: snap.text,
       previousProfile: (ins as { profile_json?: unknown })?.profile_json ?? {},
       ofSummary: (sumRow as { summary_json?: unknown } | null)?.summary_json ?? null,
+      platform,
     })
 
     if (merged) {

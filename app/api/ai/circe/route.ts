@@ -4,6 +4,7 @@ import { gateway } from '@ai-sdk/gateway'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { CREDITS_DIVINE_CHAT_MESSAGE } from '@/lib/billing/credit-economics'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { getOpenAiGatewayMessagingModelId } from '@/lib/billing/messaging-model'
 
 export const maxDuration = 60
 
@@ -62,15 +63,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const modelId = user
+      ? await getOpenAiGatewayMessagingModelId(supabase, user.id)
+      : ('openai/gpt-4o-mini' as const)
     const result = streamText({
-      model: gateway('openai/gpt-4o-mini'),
+      model: gateway(modelId),
       system: CIRCE_SYSTEM_PROMPT,
       messages: await convertToModelMessages(messages),
     })
 
     if (user) {
       try {
-        await consumeAiCredits(supabase, user.id, CREDITS_DIVINE_CHAT_MESSAGE)
+        await consumeAiCredits(
+          supabase,
+          user.id,
+          CREDITS_DIVINE_CHAT_MESSAGE,
+          {
+            reasonCode: 'divine_chat_circe',
+            metadata: { service_display_name: 'Circe' },
+          },
+        )
       } catch {
         // ignore credit errors
       }

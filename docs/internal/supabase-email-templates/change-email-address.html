@@ -1,0 +1,143 @@
+<!--
+  Supabase → Change email address
+  Subject: Confirm your new email — Circe et Venus
+
+  Paste everything after this comment into Message.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+
+<style type="text/css">
+
+  body { margin: 0 !important; padding: 0 !important; -webkit-text-size-adjust: 100%; }
+  .cetv-sheet { margin: 0; padding: 0; border-collapse: collapse; border-spacing: 0; }
+  .cetv-body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }
+  .cetv-title { font-family: 'Cinzel', 'Times New Roman', Georgia, serif !important; letter-spacing: -0.025em !important; }
+  .cev-email-outer { background-color: #f3f1ec !important; }
+  .cev-email-card {
+    background-color: #faf9f6 !important;
+    border: 1px solid #e8e4dc !important;
+    box-shadow: 0 1px 0 rgba(26, 22, 37, 0.04), 0 12px 40px rgba(92, 77, 138, 0.08) !important;
+  }
+  .cev-accent-bar { height: 3px; line-height: 0; font-size: 0; }
+  .cev-accent-purple { background: linear-gradient(90deg, #5c4d8a, #7c6bb8, #5c4d8a) !important; }
+  .cev-accent-gold { background: linear-gradient(90deg, #c9a84c, #e8c468, #b8952e) !important; }
+  .cev-text-muted { color: #6b6578 !important; }
+  .cev-text-body { color: #3f3a4d !important; }
+  .cev-text-strong { color: #1a1626 !important; }
+  .cev-link { color: #5c4d8a !important; text-decoration: none !important; border-bottom: 1px solid rgba(92, 77, 138, 0.35) !important; }
+  @keyframes cev-rainbow-shift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes cev-title-shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.92; }
+  }
+  .cev-rainbow-cta-wrap {
+    display: inline-block;
+    padding: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #e8b84d, #a855f7, #6366f1, #22d3ee, #c026d3, #e8b84d);
+    background-size: 200% 100%;
+    -webkit-animation: cev-rainbow-shift 7s linear infinite;
+    animation: cev-rainbow-shift 7s linear infinite;
+    box-shadow: 0 0 18px -4px rgba(107, 79, 201, 0.35), 0 0 14px -2px rgba(201, 168, 76, 0.28);
+  }
+  .cev-rainbow-cta-inner {
+    display: block;
+    border-radius: 999px;
+    background-color: #faf9f6 !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    color: #1a1626 !important;
+    text-decoration: none !important;
+    text-align: center !important;
+    padding: 14px 28px !important;
+    line-height: 1.35 !important;
+  }
+  .cev-gold-cta {
+    border-radius: 12px !important;
+    background: linear-gradient(180deg, #d4b352, #b8952e) !important;
+    border: 1px solid #a68528 !important;
+    box-shadow: 0 2px 8px rgba(26, 22, 37, 0.12) !important;
+  }
+  .cev-gold-cta a {
+    color: #faf9f6 !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+  }
+  .cev-hero-title-animated {
+    -webkit-animation: cev-title-shimmer 4s ease-in-out infinite;
+    animation: cev-title-shimmer 4s ease-in-out infinite;
+  }
+  @media (prefers-color-scheme: dark) {
+    .cev-email-outer { background-color: #0c0b10 !important; }
+    .cev-email-card {
+      background-color: #13111a !important;
+      border-color: #2a2635 !important;
+      box-shadow: 0 0 0 1px rgba(201, 184, 240, 0.06) !important;
+    }
+    .cev-text-muted { color: #9a94b0 !important; }
+    .cev-text-body { color: #c6c2d8 !important; }
+    .cev-text-strong { color: #f2f0f7 !important; }
+    .cev-link { color: #c9b8f0 !important; border-bottom-color: rgba(201, 184, 240, 0.45) !important; }
+    .cev-rainbow-cta-inner { background-color: #13111a !important; color: #f2f0f7 !important; }
+    .cev-gold-cta { background: linear-gradient(180deg, #d4b352, #9a7d28) !important; }
+  }
+  [data-ogsc] .cev-email-outer, [data-ogsb] .cev-email-outer { background-color: #0c0b10 !important; }
+  [data-ogsc] .cev-email-card, [data-ogsb] .cev-email-card {
+    background-color: #13111a !important;
+    border-color: #2a2635 !important;
+  }
+  [data-ogsc] .cev-text-body, [data-ogsb] .cev-text-body { color: #c6c2d8 !important; }
+  [data-ogsc] .cev-text-strong, [data-ogsb] .cev-text-strong { color: #f2f0f7 !important; }
+  [data-ogsc] .cev-text-muted, [data-ogsb] .cev-text-muted { color: #9a94b0 !important; }
+  [data-ogsc] .cev-rainbow-cta-inner, [data-ogsb] .cev-rainbow-cta-inner {
+    background-color: #13111a !important;
+    color: #f2f0f7 !important;
+  }
+
+</style>
+<table role="presentation" width="100%" bgcolor="#f5f5f7" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f1ec;">
+  <tr>
+    <td align="center" style="padding:52px 20px;">
+      <table role="presentation" width="600" style="width:100%;max-width:600px;border-collapse:separate;">
+        <tr>
+          <td bgcolor="#ffffff" style="border-radius:22px;border:1px solid #d8d8dd;box-shadow:0 6px 20px rgba(0,0,0,0.04);overflow:hidden;">
+            <table width="100%"><tr><td height="3" bgcolor="#5c4dbf"></td></tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:40px 44px 8px;"><img src="https://www.circeetvenus.com/icon.png" width="48" height="48" style="border-radius:999px;" alt="" /></td></tr>
+              <tr><td style="padding:8px 44px 0;">
+                <h1 class="cetv-title" style="margin:0;font-size:26px;line-height:1.12;font-weight:600;color:#1d1d1f;font-family:'Cinzel',Georgia,serif;">Verify new email</h1>
+                <p style="margin:20px 0 0;font-size:17px;line-height:26px;color:#494949;font-family:'DM Sans',sans-serif;">Going forward:<br/><span style="font-size:22px;line-height:30px;font-weight:600;color:#1d1d1f;display:block;margin-top:8px;">{{ .NewEmail }}</span></p>
+                {{ if .Email }}<p style="margin:12px 0 0;font-size:15px;line-height:23px;color:#6e6e73;font-family:'DM Sans',sans-serif;">Previously: {{ .Email }}</p>{{ end }}
+              </td></tr>
+              <tr><td style="padding:34px 44px;text-align:center;">
+                <table align="center" cellpadding="0" cellspacing="0"><tr>
+                  <td align="center" style="padding:0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;"><tr>
+                      <td class="cev-rainbow-cta-wrap" style="padding:2px;border-radius:999px;background:linear-gradient(90deg,#e8b84d,#a855f7,#6366f1,#22d3ee,#c026d3,#e8b84d);background-size:200% 100%;-webkit-animation:cev-rainbow-shift 7s linear infinite;animation:cev-rainbow-shift 7s linear infinite;">
+                        <a class="cev-rainbow-cta-inner" href="{{ .ConfirmationURL }}" style="display:block;border-radius:999px;background-color:#faf9f6;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#1a1626;text-decoration:none;">✦ Confirm</a>
+                      </td>
+                    </tr></table>
+                  </td>
+                </tr></table>
+              </td></tr>
+              <tr><td style="padding:0 44px 42px;">
+                <table width="100%"><tr><td style="border-top:1px solid #ececec;"></td></tr></table>
+                <p style="margin:26px 0 0;font-size:12px;color:#aeaeb2;word-break:break-all;line-height:17px;">{{ .ConfirmationURL }}</p>
+                <p style="margin:22px 0 0;font-size:13px;line-height:20px;color:#86868b;font-family:'DM Sans',sans-serif;">Unsolicited change? Reach <a href="mailto:support@circeetvenus.com" style="color:#5c4dbf;text-decoration:none;border-bottom:1px solid rgba(92,76,191,0.35);padding-bottom:1px;">support@circeetvenus.com</a></p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        {{ if .SiteURL }}<tr><td align="center" style="padding:26px;"><a href="{{ .SiteURL }}" style="font-size:11px;color:#86868b;text-decoration:none;border-bottom:1px solid #dedede;font-family:'DM Sans',sans-serif;">{{ .SiteURL }}</a></td></tr>{{ end }}
+      </table>
+    </td>
+  </tr>
+</table>

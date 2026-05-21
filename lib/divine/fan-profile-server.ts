@@ -3,14 +3,20 @@ import { getFanRecentById } from '@/lib/divine/fan-recents-server'
 import { detectCreatorLikelyFromText, type CreatorDetectorSignal } from '@/lib/divine/creator-detector'
 import type { DivineManagerAutomationRules } from '@/lib/divine-manager'
 import { policySkipExpensiveAiForCreatorLikely } from '@/lib/divine/creator-resource-policy'
+import { deriveProfileType } from '@/lib/fans/profile-evolution'
+import { normalizeAudienceProfileOverride, type FanProfileType } from '@/lib/fans/profile-types'
 
 export type UnifiedFanProfilePayload = {
   fanId: string
   platform: string
   /** Supabase `fans.id` when a CRM row exists (for CRM profile PATCH). */
   crmFanId: string | null
-  /** Manual CRM profile type; null = auto (spend + insights). */
-  audienceProfileOverride: 'whale' | 'creator' | 'fan' | null
+  /** Manual CRM profile type; null = backend-evolved. */
+  audienceProfileOverride: FanProfileType | null
+  /** Effective profile type used by CRM and message surfaces. */
+  profileType: FanProfileType
+  profileTypeSource: 'manual' | 'evolved'
+  profileTypeReason: string
   creatorClassification: string | null
   /** From `fans` row when synced; used for whale/VIP badges. */
   crm: {
@@ -53,6 +59,8 @@ export type UnifiedFanProfilePayload = {
   /** From OnlyFans fan detail API when refreshed. */
   platformAbout: string | null
   platformAboutFetchedAt: string | null
+  platformAboutSource: 'of_api' | 'serper' | 'none'
+  platformAboutFreshness: 'cached' | 'stale' | 'none'
   /** Per-fan: still run AI Chatter / Commenter when heuristics say “likely creator”. */
   treatAsFanForAutomation: boolean
   /** Global Divine setting: skip expensive AI for likely creators (default on). */
@@ -81,6 +89,30 @@ export async function buildUnifiedFanProfile(
       }
     : null
 
+  const fanSelectNew =
+    'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, platform_about_source, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at'
+  const fanSelectLegacy =
+    'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at'
+
+  const fanCrmPromise = (async () => {
+    const newRes = await supabase
+      .from('fans')
+      .select(fanSelectNew)
+      .eq('user_id', userId)
+      .eq('platform', platform)
+      .eq('platform_fan_id', fanId)
+      .maybeSingle()
+    if (!newRes.error) return newRes
+    if (!/platform_about_source/i.test(newRes.error.message ?? '')) return newRes
+    return supabase
+      .from('fans')
+      .select(fanSelectLegacy)
+      .eq('user_id', userId)
+      .eq('platform', platform)
+      .eq('platform_fan_id', fanId)
+      .maybeSingle()
+  })()
+
   const [{ data: ins }, { data: sum }, { data: fanCrm }, { data: dmRow }, { data: churnSnap }] = await Promise.all([
     supabase
       .from('fan_thread_insights')
@@ -99,15 +131,7 @@ export async function buildUnifiedFanProfile(
           .eq('platform_fan_id', fanId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase
-      .from('fans')
-      .select(
-        'id, audience_profile_override, creator_classification, total_spent, subscription_tier, subscription_account_type, subscription_price, subscription_status, platform_about, platform_about_fetched_at, treat_as_fan_for_automation, first_subscribed_at, subscription_start, created_at',
-      )
-      .eq('user_id', userId)
-      .eq('platform', platform)
-      .eq('platform_fan_id', fanId)
-      .maybeSingle(),
+    fanCrmPromise,
     supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', userId).maybeSingle(),
     supabase
       .from('fan_churn_snapshots')
@@ -199,6 +223,7 @@ export async function buildUnifiedFanProfile(
   const fanRow = fanCrm as {
     id?: string
     audience_profile_override?: string | null
+    audienceProfileOverride?: string | null
     creator_classification?: string | null
     total_spent?: string | number | null
     subscription_tier?: string | null
@@ -209,9 +234,11 @@ export async function buildUnifiedFanProfile(
 
   const crmFanId =
     fanRow && typeof fanRow.id === 'string' && fanRow.id.trim() ? fanRow.id.trim() : null
-  const apoRaw = fanRow?.audience_profile_override
-  const audienceProfileOverride: 'whale' | 'creator' | 'fan' | null =
-    apoRaw === 'whale' || apoRaw === 'creator' || apoRaw === 'fan' ? apoRaw : null
+  const apoRaw =
+    fanRow?.audience_profile_override != null && String(fanRow.audience_profile_override).trim() !== ''
+      ? fanRow.audience_profile_override
+      : fanRow?.audienceProfileOverride
+  const audienceProfileOverride: FanProfileType | null = normalizeAudienceProfileOverride(apoRaw)
   const ccRaw = fanRow?.creator_classification
   const creatorClassification =
     typeof ccRaw === 'string' && ccRaw.trim() ? ccRaw.trim().slice(0, 2000) : null
@@ -265,6 +292,60 @@ export async function buildUnifiedFanProfile(
         }
       : null
 
+  let hasPpvSignalFromFan = false
+  let adPatternScore = 0
+  let outboundSellingScore = 0
+  if (platform === 'onlyfans') {
+    const { data: dmRows } = await supabase
+      .from('onlyfans_dm_message_cache')
+      .select('payload')
+      .eq('user_id', userId)
+      .eq('platform_fan_id', fanId)
+      .order('message_created_at', { ascending: false })
+      .limit(120)
+
+    for (const row of (dmRows ?? []) as Array<{ payload?: unknown }>) {
+      const payload = row.payload as Record<string, unknown> | undefined
+      if (!payload || typeof payload !== 'object') continue
+      const text = `${String(payload.text ?? '')} ${String(payload.message ?? '')}`.toLowerCase()
+      const rawPrice = Number(
+        payload.price ??
+          payload.ppvPrice ??
+          (payload.media as Record<string, unknown> | undefined)?.price ??
+          NaN,
+      )
+      if (Number.isFinite(rawPrice) && rawPrice > 0) hasPpvSignalFromFan = true
+      if (/(promo|promotion|sale|collab|sfs|shoutout|telegram|dm me on|menu)/i.test(text)) adPatternScore += 1
+      if (/(buy|tip menu|exclusive pack|custom video|rates? in bio|unlock now|paid content)/i.test(text)) {
+        outboundSellingScore += 1
+      }
+      if (hasPpvSignalFromFan && adPatternScore >= 2 && outboundSellingScore >= 2) break
+    }
+  }
+
+  const profileEvolution = deriveProfileType({
+    manualOverride: audienceProfileOverride,
+    totalSpent: crm?.totalSpent ?? 0,
+    fanTenureDays,
+    creatorLikely: creatorDetector.is_creator_likely,
+    hasPpvSignalFromFan,
+    adPatternScore,
+    outboundSellingScore,
+  })
+
+  const platformAboutSource = (() => {
+    const rowSource = (fanCrm as { platform_about_source?: string | null } | null)?.platform_about_source
+    if (rowSource === 'of_api' || rowSource === 'serper') return rowSource
+    return 'none'
+  })()
+  const platformAboutFreshness: 'cached' | 'stale' | 'none' = (() => {
+    if (!platformAboutFetchedAt) return 'none'
+    const fetchedAtMs = Date.parse(platformAboutFetchedAt)
+    if (Number.isNaN(fetchedAtMs)) return 'none'
+    const age = Date.now() - fetchedAtMs
+    return age <= 24 * 60 * 60 * 1000 ? 'cached' : 'stale'
+  })()
+
   const churnRow = churnSnap as { risk_level?: string; one_line?: string | null; updated_at?: string | null } | null
   const churnSnapshot =
     churnRow && typeof churnRow.risk_level === 'string'
@@ -280,6 +361,9 @@ export async function buildUnifiedFanProfile(
     platform,
     crmFanId,
     audienceProfileOverride,
+    profileType: profileEvolution.profileType,
+    profileTypeSource: profileEvolution.source,
+    profileTypeReason: profileEvolution.reason,
     creatorClassification,
     crm,
     core,
@@ -288,6 +372,8 @@ export async function buildUnifiedFanProfile(
     creatorDetector,
     platformAbout,
     platformAboutFetchedAt,
+    platformAboutSource,
+    platformAboutFreshness,
     treatAsFanForAutomation,
     skipExpensiveAiForCreatorLikely,
     churnSnapshot,

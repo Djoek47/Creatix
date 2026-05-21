@@ -5,13 +5,11 @@
  *
  * LOGIC RULES
  * -----------
- * - OF     : base price, scales by revenue tier (`RAW_TIERS`)
- * - FL     : OF × 0.9, capped at $200 (`flOverride` on top tier)
- * - MV     : flat $39 (ManyVids)
- * - OF+FL  : OF + $20
- * - OF+MV  : OF + $15
- * - FL+MV  : FL + $8
- * - Unified: OF + $25 (all three; cheaper than buying each line solo)
+ * - **OnlyFans, Fansly, Bundled (OF+FL):** list prices are defined per revenue band in `RAW_TIERS` (amended 2026 model).
+ * - **Bundled** = one monthly price for OnlyFans + Fansly together (`of_fl`); this is also what `multi` / legacy `unified` bills.
+ * - **Fansly** uses `flOverride` per band (not a single % of OF).
+ * - **Anti‑piracy storefront connector** on Bundled OF+FL: `ADDON_UNIFIED` (flat; currently $24.99/mo). `of_mv` / `fl_mv` bundle list prices use separate add-ons
+ *   when not overridden. **`mv` (ManyVids solo Focus)** is `MV_FLAT` (currently $25/mo). Separate **Protection** subscriptions ($25/mo) are distinct — see `cev-protection`.
  */
 
 export type PlatformCombo =
@@ -34,14 +32,15 @@ export interface PricingTier {
   savingsPct: Record<'of_fl' | 'of_mv' | 'fl_mv' | 'unified', number>
 }
 
-const MV_FLAT = 39
+const MV_FLAT = 25
 const FL_CAP = 200
 const FL_DISCOUNT = 0.9
 
 const ADDON_FL = 20
 const ADDON_MV_ON_OF = 15
 const ADDON_MV_ON_FL = 8
-const ADDON_UNIFIED = 25
+/** ManyVids storefront connector on bundled OF+FL workspace (Anti‑piracy tier). */
+const ADDON_UNIFIED = 24.99
 
 function flPrice(of: number, override?: number): number {
   if (override !== undefined) return override
@@ -52,36 +51,91 @@ function pct(savings: number, soloSum: number): number {
   return Math.round((savings / soloSum) * 100)
 }
 
+type BundleKey = 'of_fl' | 'of_mv' | 'fl_mv' | 'unified'
+
 interface TierInput {
   label: string
   revenueMin: number | null
   revenueMax: number | null
   of: number
   flOverride?: number
+  /** `of_fl` = Bundled (OnlyFans + Fansly). Optional legacy overrides for of_mv, fl_mv; `unified` defaults to `of_fl`. */
+  bundleList?: Partial<Record<BundleKey, number>>
 }
 
+/** Amended matrix: OF | Fansly | Bundled; Bundled = `of_fl`. */
 const RAW_TIERS: TierInput[] = [
-  { label: 'Under $1k', revenueMin: null, revenueMax: 1000, of: 35 },
-  { label: '$1k – $5k', revenueMin: 1000, revenueMax: 5000, of: 50 },
-  { label: '$5k – $7.5k', revenueMin: 5000, revenueMax: 7500, of: 75 },
-  { label: '$7.5k – $10k', revenueMin: 7500, revenueMax: 10000, of: 100 },
-  { label: '$10k – $15k', revenueMin: 10000, revenueMax: 15000, of: 125 },
-  { label: '$15k – $25k', revenueMin: 15000, revenueMax: 25000, of: 175 },
-  { label: '$25k – $35k', revenueMin: 25000, revenueMax: 35000, of: 225 },
-  { label: '$35k – $45k', revenueMin: 35000, revenueMax: 45000, of: 275 },
-  { label: '$45k – $60k', revenueMin: 45000, revenueMax: 60000, of: 350 },
-  { label: '$60k – $80k', revenueMin: 60000, revenueMax: 80000, of: 425 },
-  { label: '$80k+', revenueMin: 80000, revenueMax: null, of: 500, flOverride: 200 },
+  {
+    label: 'Under $1k',
+    revenueMin: null,
+    revenueMax: 1000,
+    of: 39,
+    flOverride: 35,
+    bundleList: { of_fl: 65 },
+  },
+  {
+    label: '$1k – $5k',
+    revenueMin: 1000,
+    revenueMax: 5000,
+    of: 55,
+    flOverride: 45,
+    bundleList: { of_fl: 85 },
+  },
+  { label: '$5k – $7.5k', revenueMin: 5000, revenueMax: 7500, of: 75, flOverride: 65, bundleList: { of_fl: 120 } },
+  { label: '$7.5k – $10k', revenueMin: 7500, revenueMax: 10000, of: 100, flOverride: 85, bundleList: { of_fl: 160 } },
+  {
+    label: '$10k – $15k',
+    revenueMin: 10000,
+    revenueMax: 15000,
+    of: 175,
+    flOverride: 125,
+    bundleList: { of_fl: 250 },
+  },
+  {
+    label: '$15k – $25k',
+    revenueMin: 15000,
+    revenueMax: 25000,
+    of: 225,
+    flOverride: 150,
+    bundleList: { of_fl: 335 },
+  },
+  {
+    label: '$25k – $35k',
+    revenueMin: 25000,
+    revenueMax: 35000,
+    of: 275,
+    flOverride: 175,
+    bundleList: { of_fl: 400 },
+  },
+  {
+    label: '$35k – $45k',
+    revenueMin: 35000,
+    revenueMax: 45000,
+    of: 300,
+    flOverride: 200,
+    bundleList: { of_fl: 450 },
+  },
+  {
+    label: '$45k – $60k',
+    revenueMin: 45000,
+    revenueMax: 60000,
+    of: 350,
+    flOverride: 225,
+    bundleList: { of_fl: 500 },
+  },
+  { label: '$60k – $80k', revenueMin: 60000, revenueMax: 80000, of: 425, flOverride: 250, bundleList: { of_fl: 600 } },
+  { label: '$80k+', revenueMin: 80000, revenueMax: null, of: 500, flOverride: 300, bundleList: { of_fl: 650 } },
 ]
 
 export const PRICING_TIERS: readonly PricingTier[] = RAW_TIERS.map((input, tierIndex) => {
-  const { label, revenueMin, revenueMax, of, flOverride } = input
+  const { label, revenueMin, revenueMax, of, flOverride, bundleList } = input
   const fl = flPrice(of, flOverride)
   const mv = MV_FLAT
-  const of_fl = of + ADDON_FL
-  const of_mv = of + ADDON_MV_ON_OF
-  const fl_mv = fl + ADDON_MV_ON_FL
-  const unified = of + ADDON_UNIFIED
+  const of_fl = bundleList?.of_fl ?? of + ADDON_FL
+  const of_mv = bundleList?.of_mv ?? of + ADDON_MV_ON_OF
+  const fl_mv = bundleList?.fl_mv ?? fl + ADDON_MV_ON_FL
+  /** Legacy key; customer-facing "multi" / workspace bundle = Bundled (OF+FL), not OF+FL+MV. */
+  const unified = bundleList?.unified ?? of_fl
 
   const soloOFFL = of + fl
   const soloOFMV = of + mv

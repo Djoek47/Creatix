@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 30
 
@@ -17,6 +21,10 @@ const suggestionSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const access = await requireAiToolSessionAndCredits(req, 'ai-chatter')
+  if (!access.ok) return access.response
+  const { supabase, userId, cost, billingToolId } = access.data
+
   const { fanMessage, conversationHistory, fanTier, creatorPersona } = await req.json()
 
   const systemPrompt = `You are an AI assistant helping content creators on platforms like OnlyFans, Fansly, and ManyVids craft engaging replies to their fans.
@@ -52,6 +60,9 @@ Generate reply suggestions and analyze this interaction.`,
       },
     ],
   })
+
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
+  if (!charged.ok) return charged.response
 
   return Response.json(output)
 }

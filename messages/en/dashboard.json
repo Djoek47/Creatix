@@ -1,0 +1,853 @@
+{
+  "pageTitle": "Dashboard",
+  "welcome": "Welcome back",
+  "header": {
+    "aiStudioToolsTitle": "AI Studio — tools library",
+    "aiStudioToolsAria": "Open AI Studio tools",
+    "toolsBadge": "Tools",
+    "searchPlaceholder": "Search fans, content…",
+    "openMenu": "Open menu",
+    "wellbeingAria": "Well-being",
+    "creditChipLoading": "…",
+    "creditsUnavailable": "—",
+    "headerCreditsLinkTitle": "AI credits — Billing",
+    "headerCreditsLinkAria": "AI credits balance, opens Billing",
+    "credits": "credits",
+    "userAvatarAlt": "User",
+    "creatorFallback": "Creator",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
+  "heroes": {
+    "messages_mass": {
+      "eyebrow": "Broadcast",
+      "title": "Mass messages",
+      "subtitle": "Reach your lists with intention — segments, timing, and tone in one flow."
+    },
+    "community_circe_daily": {
+      "eyebrow": "Daily ritual",
+      "title": "Circe's counsel",
+      "subtitle": "Bite-sized strategy from Circe — one luminous insight per day."
+    },
+    "community": {
+      "eyebrow": "Collective · Beta",
+      "title": "Suggestions",
+      "subtitle": "Curated tips and plays—reviewed before they land here."
+    },
+    "messages": {
+      "eyebrow": "Correspondence",
+      "title": "Sacred inbox",
+      "subtitle": "Where desire gets answered — DMs, insights, and mass reach across OnlyFans & Fansly in one velvet command centre."
+    },
+    "ai_studio_chatter": {
+      "eyebrow": "Presence",
+      "title": "AI Chatter",
+      "subtitle": "Train the voice that never sleeps — replies that still sound unmistakably you."
+    },
+    "ai_studio_tools": {
+      "eyebrow": "Toolkit",
+      "title": "AI tools",
+      "subtitle": "Browse, learn what each tool does, then open the one you need. Credits apply where noted."
+    },
+    "ai_studio": {
+      "eyebrow": "Creation",
+      "title": "AI Studio",
+      "subtitle": "Media vault and the full tool library."
+    },
+    "content_new": {
+      "eyebrow": "Compose",
+      "title": "New drop",
+      "subtitle": "Shape the next piece your audience will crave."
+    },
+    "content": {
+      "eyebrow": "Content",
+      "title": "Content",
+      "subtitle": "Plan the week, hold the vault, and scan every post — three calm lenses, one workspace."
+    },
+    "fans": {
+      "eyebrow": "Audience",
+      "title": "Fans",
+      "subtitle": "Synced subscribers from your CRM, search and segments, optional live previews when platforms are connected."
+    },
+    "well_being": {
+      "eyebrow": "Equilibrium",
+      "title": "Well-being",
+      "subtitle": "Light, load, and boundaries—stay consistent without burning out."
+    },
+    "social": {
+      "eyebrow": "Growth",
+      "title": "Social hub",
+      "subtitle": "Draft posts for off-platform reach, manage link-in-bio, and run reputation scans — one quiet workspace."
+    },
+    "analytics": {
+      "eyebrow": "Insight",
+      "title": "Analytics",
+      "subtitle": "Synced snapshots and live partner metrics when connected — revenue, audience, and message activity in one view."
+    },
+    "protection_aegis": {
+      "eyebrow": "Aegis",
+      "title": "Automation",
+      "subtitle": "Circe runs leak scans on your schedule. Venus keeps reputation on Mentions — Aegis never posts for you; drafts only."
+    },
+    "protection": {
+      "eyebrow": "Aegis",
+      "title": "Circe's protection",
+      "subtitle": "Circe for leaks & takedowns. Venus for reputation. One shield — you approve every move."
+    },
+    "mentions": {
+      "eyebrow": "Mentions",
+      "title": "Venus' watch",
+      "subtitle": "Indexed web mentions, sentiment, and a calm review queue."
+    },
+    "settings": {
+      "eyebrow": "Account",
+      "title": "Settings",
+      "subtitle": "Profile, plan, integrations, billing, and privacy—in one calm place."
+    },
+    "divine_manager": {
+      "eyebrow": "Orchestra",
+      "title": "Divine Manager",
+      "subtitle": ""
+    },
+    "guide": {
+      "eyebrow": "Path",
+      "title": "Guide",
+      "subtitle": ""
+    },
+    "workspace_default": {
+      "eyebrow": "Sanctuary",
+      "title": "Workspace",
+      "subtitle": "Your creator cockpit — choose a star from the sidebar."
+    }
+  },
+  "home": {
+    "eyebrow": "Command centre",
+    "titleLead": "Your command ",
+    "titleAccent": "centre",
+    "subtitleMinimal": "Signal over noise — keep the essentials in view.",
+    "subtitleCreative": "Ideas, tools, and rhythm when you are building the next drop.",
+    "subtitleDefault": "Revenue, fans, and protection in one rhythm — move fast where it matters.",
+    "nonApiUpgrade": "Add a full Creatix plan anytime to unlock creator API connections, messaging, AI Studio, and automation — your protection data stays put.",
+    "nonApiUpgradeLink": "Upgrade to full Creatix",
+    "connectPlatforms": "Connect your platforms",
+    "connectPlatformsSuffix": "to unlock live stats and sync.",
+    "trialCtaTitle": "Add a payment method to start your free trial",
+    "trialCtaAria": "Add a payment method to start your free trial",
+    "trialCtaLabel": "Start trial",
+    "planPrefix": "Plan:",
+    "connectedPlatforms": "Connected platforms",
+    "connectedPlatformsAria": "OnlyFans and Fansly connection status"
+  },
+  "connectedPlatformsWidget": {
+    "platformOnlyfans": "OnlyFans",
+    "platformFansly": "Fansly",
+    "onlyfansLogoAlt": "OnlyFans",
+    "fanslyLogoAlt": "Fansly",
+    "refreshAria": "Refresh {platform} data",
+    "lastSyncedLabel": "Last synced:",
+    "statusLabel": "Status:",
+    "clickToRefresh": "Click to refresh",
+    "syncNever": "Never synced",
+    "syncJustNow": "Just now",
+    "syncMinutesAgo": "{count}m ago",
+    "syncHoursAgo": "{count}h ago",
+    "syncDaysAgo": "{count}d ago",
+    "creatorStatus": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "dnd": "Do not disturb",
+      "custom": "Custom"
+    }
+  },
+  "homeTiles": {
+    "messages": {
+      "title": "Messages",
+      "description": "Conversations and mass outreach"
+    },
+    "aiStudio": {
+      "title": "AI Studio",
+      "description": "Tools, churn insight, and creative edge"
+    },
+    "protection": {
+      "title": "Protection",
+      "description": "Leaks, watermarks, and peace of mind"
+    },
+    "wellBeing": {
+      "title": "Well-being",
+      "description": "Rhythm, pressure, and balance"
+    },
+    "creditsPlanner": {
+      "title": "Credits Planner",
+      "description": "Smart premium credit allocation"
+    },
+    "divineManager": "Divine Manager"
+  },
+  "welcomeTour": {
+    "title": "Live app tour",
+    "description": "The live tour loads each area in the app and spotlights it in the sidebar—about thirty short steps with highlights. Use <start>Start live tour</start> or <launch>Launch live tour</launch> in the header for the same full pass from any page.",
+    "startTour": "Start live tour",
+    "launchTour": "Launch live tour",
+    "goDashboard": "Go to dashboard",
+    "guideLink": "Guide",
+    "settingsLink": "Settings"
+  },
+  "widgetsLayout": {
+    "modules": {
+      "signalOverview": "Signal overview",
+      "featuredToolFallback": "Featured tool",
+      "recentFans": "Recent fans",
+      "socialReputation": "Social & reputation",
+      "circeAegis": "Circe Aegis",
+      "revenueRhythm": "Revenue & rhythm",
+      "platformsQuickActions": "Platforms & quick actions",
+      "revenue": "Revenue",
+      "conversations": "Conversations",
+      "alertsOnlyFansFansly": "Alerts · OnlyFans & Fansly"
+    },
+    "options": {
+      "stats": { "label": "Overview stats" },
+      "standardAttraction": {
+        "label": "Featured AI Studio tool",
+        "hint": "Pin any runnable tool from the card below."
+      },
+      "revenue": { "label": "Revenue chart" },
+      "quickColumn": { "label": "Platforms & quick actions" },
+      "messageActivity": { "label": "Conversations" },
+      "alertsColumn": { "label": "Alerts · OnlyFans & Fansly" },
+      "recentFans": { "label": "Recent fans" },
+      "socialRep": {
+        "label": "Social hub (summary)",
+        "hint": "Full scans and handles live on Social."
+      },
+      "aegis": {
+        "label": "Circe Aegis",
+        "hint": "Protection / leak scans"
+      }
+    },
+    "blocksButton": "Blocks",
+    "visibleBlocksTitle": "Visible blocks",
+    "visibleBlocksSubtitle": "Toggle sections, then order them in layout mode.",
+    "optionalBadge": "optional",
+    "resetAll": "Reset all",
+    "resetOrderSplits": "Reset order & splits",
+    "divinePreset": "Divine preset",
+    "layoutMode": "Layout mode",
+    "done": "Done",
+    "customizeHint": "Drag sections by the grip. <pair>Pair with next</pair> for a split row; drag the <gold>gold</gold> / <violet>violet</violet> handle to resize. Saved on this device.",
+    "dragSectionAria": "Drag to reorder section",
+    "pairRevenuePlatforms": "Revenue and Platforms pair automatically when adjacent.",
+    "pairConversationsAlerts": "Conversations and Alerts pair automatically when adjacent.",
+    "pairWithNext": "Pair with next block (side by side on medium+)"
+  },
+  "statsCards": {
+    "totalRevenue": "Total Revenue",
+    "totalFans": "Total Fans",
+    "activeConversations": "Active Conversations",
+    "scheduledContent": "Scheduled Content",
+    "vsLastMonth": "vs last month",
+    "noPriorPeriod": "No prior period yet",
+    "connectToTrack": "Connect platforms to track"
+  },
+  "revenueChart": {
+    "title": "Revenue",
+    "descOnlyfans": "Estimated earnings from synced OnlyFans snapshots.",
+    "descFansly": "Estimated earnings from synced Fansly snapshots.",
+    "descConnect": "Connect a platform to see earnings over time.",
+    "platformSwitcherAria": "Revenue platform",
+    "onlyfans": "OnlyFans",
+    "onlyfansNotConnected": "OnlyFans not connected",
+    "fansly": "Fansly",
+    "fanslyNotConnected": "Fansly not connected",
+    "emptyTitle": "No revenue data yet",
+    "emptyBody": "Connect OnlyFans or Fansly to start tracking earnings on this chart.",
+    "syncHint": "No revenue in this window yet — numbers appear as your platforms sync. Check back after the next sync.",
+    "tooltipLine": "{platform}: {value}"
+  },
+  "quickActions": {
+    "title": "Quick actions",
+    "subtitle": "Common tasks at your fingertips",
+    "upload": { "label": "Upload Content", "description": "Add new photos or videos" },
+    "fans": { "label": "Fans", "description": "Subscribers synced from OnlyFans & Fansly" },
+    "massMessage": { "label": "Mass Message", "description": "Send to multiple fans" },
+    "reports": { "label": "View Reports", "description": "Detailed analytics" },
+    "wellBeing": { "label": "Well-being", "description": "Pressure, mimic profile & cosmic rhythm" },
+    "creditsPlanner": { "label": "Credits Planner", "description": "Allocation strategy for monthly usage" }
+  },
+  "alertsWidget": {
+    "title": "Alerts & Monitoring",
+    "subtitle": "Stay on top of important updates",
+    "emptyTitle": "No Alerts Yet",
+    "emptyBody": "Connect your platforms to start monitoring for leaks and mentions.",
+    "tabLeaks": "Leaks",
+    "tabMentions": "Mentions",
+    "viewAllAlerts": "View All Alerts",
+    "viewAllMentions": "View All Mentions",
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    }
+  },
+  "recentFans": {
+    "title": "Recent Fans",
+    "subtitle": "Latest subscribers across platforms",
+    "viewAll": "View All",
+    "emptyNoneTitle": "No Fans Detected Yet",
+    "emptyNoneBody": "Connect and sync your creator platforms to import your fans into Creatix.",
+    "emptySyncingTitle": "Fans Detected, Syncing Details",
+    "emptySyncingBody": "We see approximately {count} fans from your connected platforms. Detailed fan profiles are still syncing — they'll appear here after your next sync.",
+    "emptySyncingHint": "Use <strong>Connected platforms</strong> at the top of this page: click your OnlyFans or Fansly icon to run a sync and import fan profiles.",
+    "goPlatformSync": "Go to platform sync",
+    "spent": "{amount} spent",
+    "tier": {
+      "whale": "Whale",
+      "regular": "Regular",
+      "new": "New",
+      "inactive": "Inactive"
+    }
+  },
+  "messageActivity": {
+    "title": "Active Conversations",
+    "descUnread": "{count} unread messages",
+    "descRecent": "Recent message activity",
+    "viewAll": "View All",
+    "loadErrorTitle": "Unable to Load Messages",
+    "tryAgain": "Try Again",
+    "emptyTitle": "No Conversations Yet",
+    "emptyBody": "Connect your platforms to see your messages here.",
+    "mediaMessage": "Media message",
+    "unknownUser": "Unknown",
+    "timeNow": "now",
+    "timeMinutes": "{n}m",
+    "timeHours": "{n}h",
+    "timeDays": "{n}d",
+    "fetchFailed": "Failed to fetch conversations",
+    "loadFailed": "Failed to load conversations"
+  },
+  "onlyfansNotifications": {
+    "title": "OnlyFans notifications",
+    "subtitle": "Live alerts from your OnlyFans account",
+    "clear": "Clear",
+    "loading": "Loading notifications…",
+    "unreadLabel": "Unread:",
+    "fallbackItem": "Notification",
+    "emptyList": "No recent notifications from OnlyFans.",
+    "errorSoft": "OnlyFans is having a temporary issue loading notifications. Try again in a minute.",
+    "errorGeneric": "Failed to load OnlyFans notifications",
+    "partialHint": "OnlyFans had a temporary glitch on one feed — counts or list may be incomplete. Try again in a minute.",
+    "markReadFailed": "Failed to mark notifications as read"
+  },
+  "aegisPromo": {
+    "title": "Circe Aegis",
+    "description": "Leak scans, DMCA drafts, and protection cadence — tune scans from one place.",
+    "openLeakQueue": "Open leak queue (priority)",
+    "aegisSettings": "Aegis settings"
+  },
+  "featuredTool": {
+    "pinnedLabel": "Pinned tool",
+    "choosePlaceholder": "Choose a tool",
+    "proSuffix": " (Pro)",
+    "proBadge": "Pro",
+    "openTool": "Open tool"
+  },
+  "socialReputation": {
+    "creditContextReputationScan": "Reputation scan",
+    "compactTitle": "Social & reputation",
+    "compactDescription": "Scans, mentions, and handles — open the full hub to work the full funnel.",
+    "statHandles": "Handles",
+    "statTracked": "Tracked",
+    "statOnlyfans": "OnlyFans",
+    "statFansly": "Fansly",
+    "statOn": "On",
+    "statDash": "—",
+    "unreviewedMentions": "{count, plural, one {# mention to review in Venus’ watch.} other {# mentions to review in Venus’ watch.}}",
+    "noUnreviewed": "No unreviewed mentions right now.",
+    "openSocialHub": "Open Social hub",
+    "integrations": "Integrations",
+    "mainTitle": "Social Media Reputation",
+    "mainSubtitle": "Track your presence and reputation across social platforms",
+    "scanNewsWeb": "News & web",
+    "scanNewsWebTitle": "News, magazines, and general web",
+    "scanSocial": "Scan social",
+    "scanSocialTitle": "X, Instagram, TikTok, Reddit-style discovery",
+    "scanBoth": "Scan both",
+    "fullScanPro": "Full Scan (Pro)",
+    "cancel": "Cancel",
+    "addProfile": "Add Profile",
+    "oauthHint": "Use OAuth usernames from Settings (X, Instagram, TikTok, OnlyFans, Fansly…). Former handles come from Protection when saved.",
+    "openIntegrations": "Open Integrations",
+    "scanSummaryChannels": " ({web} web, {social} social)",
+    "scanSummaryEnriched": ", {n} enriched by Venus",
+    "scanSummary": "Scan complete: {inserted} new mentions, {skipped} already known{channelPart}{enrichedPart}.",
+    "errors": {
+      "noUsernamesScan": "No usernames to scan. Connect a platform in Settings → Integrations or add a social handle below.",
+      "selectHandles": "Select at least one handle, or choose “All identities”.",
+      "addProfileFailed": "Failed to add profile",
+      "analyzeFailed": "Failed to analyze reputation",
+      "noUsernamesAnalyze": "No usernames to analyze. Connect a platform or add a social profile first.",
+      "scanReputationFailed": "Failed to scan reputation"
+    },
+    "connectedAccountsTitle": "Connected Creator Accounts (used for reputation search):",
+    "usernameLabel": "Username",
+    "usernamePlaceholder": "Enter username (without @)",
+    "connect": "Connect",
+    "emptyTrackTitle": "Track Your Social Reputation",
+    "emptyTrackBody": "Add your social media profiles to monitor engagement, followers, and reputation across the web.",
+    "followers": "Followers",
+    "posts": "Posts",
+    "avgLikes": "Avg Likes",
+    "engagement": "Engagement",
+    "reputationScore": "Reputation Score",
+    "analyze": "Analyze",
+    "aiAnalysisTitle": "AI Reputation Analysis",
+    "close": "Close",
+    "overall": "Overall",
+    "scoreLabel": "Score: {score}/100",
+    "positiveCount": "Positive: {n}",
+    "neutralCount": "Neutral: {n}",
+    "negativeCount": "Negative: {n}",
+    "recentMentionsTitle": "Recent Mentions Found:",
+    "socialPlatforms": {
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "twitter": "X (Twitter)"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    },
+    "adultPlatforms": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly"
+    }
+  },
+  "platformConnector": {
+    "overlay": {
+      "title": "Complete sign-in in the OnlyFans window",
+      "securedBy": "Secured by OnlyFansAPI.com",
+      "paused": "This page is paused until you finish or close the sign-in window.",
+      "vpnHint": "Connection may take a minute. VPN or restricted networks can prevent connection—try disabling VPN or using a different network if it fails."
+    },
+    "platforms": {
+      "onlyfans": {
+        "name": "OnlyFans",
+        "description": "Fans, messages, and revenue in one place."
+      },
+      "fansly": {
+        "name": "Fansly",
+        "description": "Subscribers and performance data."
+      }
+    },
+    "bareConnect": {
+      "openBilling": "Open billing",
+      "srConnectOnlyfans": "Connect OnlyFans",
+      "srConnectFansly": "Connect Fansly",
+      "moreInSettings": "More in Settings"
+    },
+    "unifiedUpgrade": {
+      "title": "Unified plan required",
+      "notNow": "Not now",
+      "openBilling": "Open billing",
+      "bodyNoBand": "Your subscription is Focus for the adult billing platform(s) you selected. Adding Fansly (or another platform outside that Focus) requires Unified, priced by your revenue tier. Upgrade under Billing, then connect again.",
+      "bodyWithBand": "Your subscription is Focus for the adult billing platform(s) you selected. Adding Fansly (or another platform outside that Focus) requires Unified, priced by your revenue tier (your band: {band}). Upgrade under Billing, then connect again."
+    },
+    "compact": {
+      "title": "Creator Platforms",
+      "subtitle": "Connect to import your data",
+      "connectedBadge": "{count} Connected",
+      "notConnectedBadge": "Not Connected",
+      "comingSoon": "Coming soon",
+      "integrationInProgress": "Integration in progress",
+      "connected": "Connected",
+      "clickToConnect": "Click to connect",
+      "available": "Available",
+      "syncData": "Sync data",
+      "disconnect": "Disconnect",
+      "connect": "Connect",
+      "manageAll": "Manage All Platforms",
+      "billingLink": "Billing"
+    },
+    "statusEditor": {
+      "label": "Status on this platform",
+      "choosePlaceholder": "Choose status",
+      "dnd": "Do not disturb",
+      "detailCustom": "Type custom status...",
+      "detailOptional": "Optional detail (e.g. back at 6pm)",
+      "noStatus": "No status set",
+      "save": "Save"
+    },
+    "statusPreset": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "custom": "Custom"
+    },
+    "full": {
+      "connectedLabel": "Connected",
+      "notLinked": "Not linked",
+      "pageType": "Page type",
+      "choosePlaceholder": "Choose",
+      "pageFree": "Free page — PPV, tips, messages",
+      "pagePaid": "Paid subscription page",
+      "pageUnknown": "Let Circe infer when possible",
+      "pageInferredHint": "Inferred from your account — correct above if needed.",
+      "whyWeAsk": "Why we ask",
+      "whyWeAskBody": "Free pages monetize with PPV and tips; paid pages use subscriptions. We use this so AI replies match how you earn — separate from per-fan CRM tiers.",
+      "reviewBilling": "Review billing",
+      "billingAlertSuffix": ", or disconnect until your plan matches.",
+      "nicheSummary": "Content niche & boundaries",
+      "nicheHint": "Shapes tone and guardrails for AI replies.",
+      "sync": "Sync",
+      "disconnect": "Disconnect",
+      "connectNamed": "Connect {name}",
+      "lastSynced": "Last synced {date}",
+      "openBilling": "Open billing"
+    },
+    "fanslyDialog": {
+      "title": "Connect Fansly",
+      "fallbackEmail": "your email",
+      "desc2fa": "Enter the code sent to {email}",
+      "descSignIn": "Sign in with your Fansly credentials",
+      "email": "Email",
+      "password": "Password",
+      "emailPlaceholder": "your@email.com",
+      "passwordPlaceholder": "Enter your password",
+      "verificationCode": "Verification Code",
+      "codePlaceholder": "Enter 6-digit code",
+      "codeHint": "Check your email or authenticator app for the code",
+      "submit2fa": "Verify & Connect",
+      "submitConnect": "Connect Fansly",
+      "credentialsNote": "Your credentials are securely encrypted and never stored locally",
+      "resendCode": "Resend code",
+      "resendHint": "Runs sign-in again so Fansly can send a new code. Your password is not stored on our servers."
+    },
+    "errors": {
+      "subscriptionRequired": "Subscription required.",
+      "customStatusDetail": "Custom status requires a detail message.",
+      "savePageTypeFailed": "Failed to save page type",
+      "saveStatusFailed": "Failed to save platform status",
+      "onlyfansAlreadyConnected": "OnlyFans is already connected. Disconnect in Settings if you want to link a different account.",
+      "onlyfansAlreadyConnectedShort": "OnlyFans is already connected.",
+      "fanslyAlreadyConnected": "Fansly is already connected. Disconnect in Settings if you want to link a different account.",
+      "fanslyAlreadyConnectedShort": "Fansly is already connected.",
+      "onlyfansWorkspaceTaken": "This OnlyFans account is already connected to another Circe et Venus workspace. If you believe this is a mistake, please contact support.",
+      "saveConnectionFailed": "Failed to save connection",
+      "getSessionFailed": "Failed to get session",
+      "noSessionToken": "No session token",
+      "startOnlyfansFailed": "Failed to start OnlyFans sign-in",
+      "fanslyFocusUpgrade": "Your plan is Focus for OnlyFans only. Upgrade to Unified under Billing to connect Fansly.",
+      "connectFanslyFailed": "Failed to connect Fansly",
+      "onlyfansSessionExpired": "Your OnlyFans password or session changed. To keep your data safe, we disconnected your OnlyFans account. Please reconnect (use a fresh login; you can try a different proxy if it was stuck).",
+      "syncFailed": "Sync failed",
+      "disconnectFailed": "Failed to disconnect",
+      "disconnectGeneric": "Failed to disconnect",
+      "onlyfansSignInCancelled": "OnlyFans sign-in was cancelled",
+      "onlyfansSignInFailedOrCancelled": "OnlyFans sign-in was cancelled or failed",
+      "onlyfansSignInPopupBlocked": "OnlyFans sign-in window did not open (popup blocked?). Please allow popups and try again."
+    },
+    "success": {
+      "pageTypeSaved": "OnlyFans page type saved for AI & automations.",
+      "onlyfansConnected": "OnlyFans connected as @{username}!",
+      "onlyfansConnectedSyncing": "OnlyFans connected as @{username}! Syncing data...",
+      "onlyfansSynced": "OnlyFans synced! Your revenue data is now available.",
+      "onlyfansConnectedClickSync": "OnlyFans connected! Click Sync to import your data.",
+      "savedStatus": "Saved {platform} status.",
+      "platformDisconnected": "Platform disconnected successfully"
+    }
+  },
+  "scanIdentity": {
+    "allIdentities": "All identities",
+    "manualParen": "manual",
+    "labelFormer": "Former @{handle}",
+    "labelManualSearch": "Manual search @{handle}",
+    "labelSocialProfile": "{platform} ({manual}) @{handle}",
+    "labelPlatformAt": "{platform} @{handle}",
+    "sources": {
+      "former": "Former name",
+      "manual": "Manual"
+    },
+    "platforms": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly",
+      "manyvids": "ManyVids",
+      "loyalfans": "LoyalFans",
+      "twitter": "X",
+      "instagram": "Instagram",
+      "tiktok": "TikTok"
+    }
+  },
+  "protectionEasyHandles": {
+    "emptyTitle": "Connect a social account first",
+    "emptyBody": "Easy mode runs a leak scan using the usernames from your linked platforms—nothing else to configure.",
+    "openIntegrations": "Open Integrations",
+    "proHint": "Need stage names, old @handles, or title phrases? Switch to <pro>Pro</pro> above.",
+    "scanReadySingle": "This identity will be included in this scan—press <invoke>Invoke Scan</invoke> when you're ready.",
+    "scanReadyPlural": "These identities will be included in this scan—press <invoke>Invoke Scan</invoke> when you're ready.",
+    "extrasNote": "Extras (aliases, former names, title phrases) are available in Pro mode."
+  },
+  "messagesChrome": {
+    "aiStudioToolsTitle": "AI Studio tools",
+    "aiStudioToolsAria": "AI Studio tools"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markTabRead": "Mark tab read",
+    "tabLive": "Live",
+    "tabLiveSubtitle": "OnlyFans & Fansly inbox",
+    "tabLiveHint": "Tips · messages · new subscribers",
+    "tabDivine": "Divine",
+    "tabDivineHint": "Leaks · reputation · whales · calendar",
+    "pullDismissed": "{count, plural, one {# platform alert hidden. Restore them below when you want them back in this list.} other {# platform alerts hidden. Restore them below when you want them back in this list.}}",
+    "showAgain": "Show again",
+    "liveEmptyTitle": "No live notifications",
+    "liveEmptyBody": "New messages, tips, and subscriber activity from your connected accounts show up here as they arrive.",
+    "divineEmptyTitle": "No Divine notifications",
+    "divineEmptyBody": "DMCA and leak scans, reputation mentions, whale watch for followed fans, billing, and Divine Manager actions show here.",
+    "briefingLoading": "Briefing…",
+    "briefingButton": "Divine realtime briefing",
+    "briefingHelpAria": "How Divine realtime briefing works",
+    "briefingTooltip": "Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you confirm it is handled. Uses saved unread in this tab only.",
+    "briefingBannerLabel": "Divine",
+    "footerSettings": "View all settings",
+    "bellAria": "Notifications",
+    "bellAriaUnread": "Notifications, {count} unread",
+    "pullNotInInbox": "Not saved to your inbox yet",
+    "fallbackOnlyFansTitle": "OnlyFans notification",
+    "fallbackFanslyTitle": "Fansly notification",
+    "platformAltOnlyFans": "OnlyFans",
+    "platformAltFansly": "Fansly",
+    "briefingNoUnreadSaved": "No unread saved notifications in this tab.",
+    "briefingPullOnlyUnread": "This walkthrough only uses saved inbox items. Open or clear the rows above first, or wait until they sync into your inbox.",
+    "briefingPanelUnavailable": "Divine panel is unavailable — refresh the page and try again.",
+    "briefingFailed": "Briefing failed"
+  },
+  "refresh": {
+    "title": "Sync all connected platforms, then reload (mentions, leaks, dashboard)",
+    "label": "Refresh data",
+    "syncing": "Syncing…"
+  },
+  "startTour": {
+    "linkTitleCompleted": "Run the full live app tour again (navigates real pages with highlights)",
+    "linkTitleNotCompleted": "Start the full live app tour (navigates real pages with highlights)",
+    "launchLiveTour": "Launch live tour",
+    "startLiveTour": "Start live tour"
+  },
+  "tourUi": {
+    "stepProgress": "Step {current} of {total}",
+    "back": "Back",
+    "skipTour": "Skip tour",
+    "next": "Next",
+    "done": "Done",
+    "finishAria": "Finish tour"
+  },
+  "platformStatus": {
+    "sectionTitle": "Platform status",
+    "loading": "Loading connections…",
+    "emptyLead": "No connected platforms. ",
+    "connectInSettings": "Connect in Settings",
+    "errorLoad": "Could not load platforms",
+    "errorCustomDetail": "Custom status needs a short message.",
+    "errorSave": "Save failed",
+    "placeholderCustom": "Custom message (required)",
+    "placeholderOptional": "Optional note (e.g. back at 6pm)",
+    "save": "Save",
+    "srPreset": "Status preset for {platform}",
+    "srDetail": "Optional status detail for {platform}",
+    "customTemplatesLead": "Save custom note templates in ",
+    "customTemplatesTrail": ".",
+    "footnoteLead": "More options in ",
+    "footnoteTrail": ".",
+    "settingsIntegrationsPhrase": "Settings → Integrations",
+    "previewWithDetail": "{preset} - {detail}",
+    "customFallback": "Custom",
+    "presets": {
+      "available": "Available",
+      "away": "Away",
+      "busy": "Busy",
+      "dnd": "Do not disturb",
+      "custom": "Custom"
+    }
+  },
+  "theme": {
+    "toggleSrOnly": "Toggle theme",
+    "venusTitle": "Venus",
+    "venusSubtitle": "Light appearance",
+    "circeTitle": "Circe",
+    "circeSubtitle": "Dark appearance",
+    "systemRowTitle": "Automatically uses light or dark to match your device.",
+    "matchDeviceTitle": "Match device",
+    "matchDeviceSubtitle": "OS light/dark only—not your profile timezone"
+  },
+  "platformStatusLabels": {
+    "onlyfans": "OnlyFans",
+    "fansly": "Fansly",
+    "manyvids": "ManyVids"
+  },
+  "guide": {
+    "gettingStarted": {
+      "title": "Getting started",
+      "description": "Your first steps in Circe et Venus",
+      "body1Rich": "Circe et Venus gives you two divine AIs: <circe>Circe</circe> focuses on retention, analytics, and protection (keeping your fans and content safe). <venus>Venus</venus> focuses on growth, attraction, and reputation (bringing in new fans and opportunities).",
+      "body2Rich": "After sign-up you'll see a short tutorial. You can skip it or complete it, and reopen this Guide anytime from the sidebar. The most important step is connecting <onlyfans>OnlyFans</onlyfans> or <fansly>Fansly</fansly> so we can sync DMs, fans, and insights. ManyVids revenue can factor into <unified>Unified</unified> billing tiers — see Pricing and Billing."
+    },
+    "divineManager": {
+      "title": "Divine Manager — your manager in one orbit",
+      "descriptionRich": "Voice, text, tools, and daily rhythm in one place. Open anytime from the sidebar (crown icon) or <dm>Divine Manager</dm>.",
+      "intro": "Think of Divine Manager as a calm operations lead: it sees your tasks, your platforms, and your preferences, then helps you decide what to do next — by voice, by text, or by nudging the right screen open. It does not replace you; it recommends, drafts, and organizes, and you stay in control of what sends or publishes.",
+      "wizardTitle": "First-time setup (wizard)",
+      "wizardP1Rich": "Until you finish setup, you'll see a four-step wizard: <p1>Persona and boundaries</p1> (tone, flirty level, limits, optional example phrases), <p2>Goals, archetype and notifications</p2> (what you're aiming for, manager style, alert level), <p3>Automation rules</p3> (scheduled help and voice auto options), then <p4>Review and activate</p4> (beta acknowledgment and manager mode). You can change everything later in the console or under Preferences.",
+      "wizardP2Rich": "Deep links: <code1>?section=text</code1> or <code2>?section=chat</code2> opens the text sheet; <code3>?section=protocol</code3> scrolls to the <strong1>Today plan + protocol tasks</strong1> block; <code4>?section=tasks</code4> scrolls straight to the tasks card.",
+      "voiceTitle": "Voice (floating crown)",
+      "voiceP1": "Tap the floating crown to start a live voice session. You can use the launcher (Text Divine, Divine Manager, AI Studio shortcuts) or skip straight into a call if you turn that on in Divine Manager settings. While you speak, Divine can use tools, read your analytics, open Messages, and more — same capabilities as text, tuned for voice.",
+      "voiceP2": "In settings you can choose how chatty Divine is: brief answers, balanced, or a bit more expressive — for both voice and text. You can also choose when the End call button unlocks (always, or only after Divine asks if you need anything else).",
+      "voiceLink": "Voice section",
+      "voiceQuickRich": "Quick entry: <link>Voice section</link>.",
+      "textTitle": "Text chat",
+      "textP1": "Open the text sheet for the same Divine Manager brain when you prefer typing. It shares context with voice and is ideal for longer instructions or pasting links. The same sheet opens when the URL includes ?section=chat.",
+      "textLink": "Open with text focus",
+      "protocolTitle": "Protocol tasks (floating rail)",
+      "protocolP1": "Above the crown, the protocol rail lists open tasks Divine or you added — follow-ups, welcome flows, whale reminders. The panel is collapsible so you can tuck it away when you need a clear screen.",
+      "protocolP2": "AI briefing (linked) uses tasks that are tied to saved inbox notifications. If nothing is linked yet, add tasks from Divine or connect them to the right notification when you set them up.",
+      "bellTitle": "Bell and notifications",
+      "bellP1": "The Live tab shows messages, tips, and updates from connected platforms as they arrive. The Divine tab gathers leaks, reputation, whales, billing, and Divine Manager actions. You can run a briefing from the bell to walk through saved items with Divine (voice or text).",
+      "bellP2Rich": "Rows that are only a preview from the platform may show as <em>not saved to your inbox yet</em> until they sync.",
+      "mimicTitle": "Mimic Test (your voice for fan drafts)",
+      "mimicP1": "The Mimic voice interview captures how you want fans to hear you. That style is used when Divine drafts a fan-facing line for you. Nothing sends automatically — you review first.",
+      "mimicLink": "Mimic section",
+      "todayTitle": "Today plan, tasks and alerts",
+      "todayP1": "The Today plan and task lists help you see what Divine suggests for the day. Automation rules can create tasks for large tips, respect confirmation for sensitive flows, and more — all configurable on the Divine Manager page.",
+      "todayJumpRich": "Jump to <today>Today plan</today>, the <protocol>protocol block</protocol>, or open the <tasks>tasks</tasks> and <alerts>alerts</alerts> sections.",
+      "bgTitle": "Background AI and cron",
+      "bgP": "Enriched background runs in Divine Manager call a scheduled route (GET /api/cron/divine-manager) protected by CRON_SECRET or Vercel Cron (x-vercel-cron). Enable background switches only when that job is configured for your environment.",
+      "tourTip": "Tip: Use Start tour on the Divine Manager page while you are there for a short step-by-step intro (dialog-based tour)."
+    },
+    "connectingPlatforms": {
+      "title": "Connecting your platforms",
+      "description": "Link OnlyFans and Fansly; ManyVids on Unified billing where applicable",
+      "p1Rich": "Go to <integrations>Settings → Integrations</integrations> (or use the platform cards on the dashboard). We use secure, read-only connections: your login credentials are never stored on our servers; they are used only to establish a session with our trusted data partner.",
+      "liOnlyfansRich": "<brand>OnlyFans</brand> — Connect with your OnlyFans email and password. See the OnlyFans section below for tips (proxy, 2FA, face verification, session expiry).",
+      "liFanslyRich": "<brand>Fansly</brand> — Connect with your Fansly username/email and password. You may be asked for 2FA; we'll prompt you in the dialog.",
+      "liManyvidsRich": "<brand>ManyVids</brand> — Used for revenue and Unified-tier pricing when your plan includes it; in-app tools still center on OnlyFans and Fansly surfaces.",
+      "p2": "Once connected, use Sync to pull the latest fans, messages, and earnings. If a platform session expires (e.g. you changed your password or OnlyFans logged you out), we automatically disconnect that account for security. You can reconnect anytime with a fresh login."
+    },
+    "onlyfans": {
+      "title": "OnlyFans connection (detailed)",
+      "description": "Login flow, proxy, 2FA, face verification, and session expiry",
+      "loginTitle": "Login can take up to a minute",
+      "loginP": "OnlyFans authentication runs in the background. We keep polling until it completes. You may see steps like \"Filling out login\" or \"Submitting\" — that's normal. Don't close the dialog until you see success or a request for 2FA/face verification.",
+      "proxyTitle": "Proxy region (US / UK)",
+      "proxyP": "When you connect OnlyFans, you can choose a proxy region (US or UK). If login seems stuck at the form step for a long time, try Start fresh login and switch to the other region (e.g. from US to UK). This often resolves issues related to geography or VPN.",
+      "freshTitle": "Start fresh login",
+      "freshP": "If the connection dialog is stuck (e.g. still \"Filling out login\" after 45+ seconds), use the Start fresh login button. This abandons the current attempt and shows the form again so you can re-enter your credentials and optionally change the proxy. Never reuse a stuck attempt — always start fresh.",
+      "twoFaTitle": "2FA (two-factor authentication)",
+      "twoFaP": "If OnlyFans has 2FA enabled, you'll be asked for the code (from your email or authenticator app). Enter the 6-digit code in the dialog and click Verify and Connect. We keep the same attempt so the code is applied correctly.",
+      "faceTitle": "Face verification",
+      "faceP": "Sometimes OnlyFans requires a quick face check. If so, we show a message and a link: Complete face verification. Open the link in your browser, complete the check, then return to the dialog. We keep polling and will complete the connection once OnlyFans confirms.",
+      "sessionTitle": "Session expired",
+      "sessionP": "If your OnlyFans session expires (e.g. you changed your password, or OnlyFans logged you out), our system detects it when you try to sync or load messages. We automatically disconnect the OnlyFans account in our database so your data stays consistent. You'll see a message like \"Your OnlyFans session expired. Please reconnect.\" Go to Settings → Integrations and connect OnlyFans again with a fresh login (don't reuse an old attempt).",
+      "displayTitle": "Display name",
+      "displayP": "The name shown for your account in our partner's console is your Circe et Venus identity (your profile name or the email you used to sign up with us), not your OnlyFans login email. This helps you and support identify your workspace without exposing your OnlyFans credentials."
+    },
+    "dashboardSection": {
+      "title": "Dashboard",
+      "description": "Your command center",
+      "p1Rich": "The main <dash>Dashboard</dash> shows an overview of revenue, fans, and messages. You get quick access to Circe and Venus, platform connection status, recent fans, and alerts (e.g. leak alerts, mentions). Use the sidebar to go deeper: <dm>Divine Manager</dm>, Analytics (Circe), Fans and Mentions (Venus), Content, Messages, Protection, and AI Studio. The top bar also includes a Well-being shortcut (heart pulse icon) on every page.",
+      "wellbeingLinkRich": "<link>Well-being and cosmic calendar</link> — see the dedicated section below for rhythm, Mimic snapshot, and lunar calendar."
+    },
+    "wellBeing": {
+      "title": "Well-being and cosmic calendar",
+      "description": "Pressure, Mimic snapshot, moon phases, and zodiac — in one gentle view",
+      "p1Rich": "<wb>Well-being</wb> combines conversational load from your connected platforms, your Mimic interview snapshot, and the cosmic calendar so you can see pressure and rhythm in one place.",
+      "p2": "The cosmic calendar opens with a calm hero: a daily affirmation, a large moon phase visual (not just a tiny icon), the current Western zodiac season, and the Chinese zodiac animal for the lunar year. You can scroll horizontally through all twelve Western signs and all twelve lunar animals; your current season and year are highlighted.",
+      "p3": "A moon phase strip shows each phase of the cycle at a glance; the month grid shows the day number and moon emoji for quick scanning. Tap a day for glow score, moon, and sign details for that date.",
+      "p4": "Add your birthday in Settings when you want deeper personalized notes (encryption options may apply); the calendar is still uplifting even before that."
+    },
+    "aiGuides": {
+      "title": "AI Guides: Circe and Venus",
+      "description": "Two divine AIs at your service",
+      "circeTitle": "Circe — Retention and Protection",
+      "circePRich": "Circe helps you keep your audience captivated and your content safe. Use her for: retention analytics, churn prediction, leak detection and DMCA automation, fan engagement scoring, and alerts. Access her from the dashboard or via <analytics>Analytics</analytics> and <protection>Protection</protection>.",
+      "venusTitle": "Venus — Growth and Attraction",
+      "venusPRich": "Venus helps you attract new admirers and grow your reputation. Use her for: growth strategies, optimal posting times, content performance predictions, reputation and sentiment monitoring, and fan acquisition. Access her from the dashboard or via <fans>Fans</fans> and <mentions>Mentions</mentions>.",
+      "studioRich": "<studio>AI Studio</studio> is your media vault (describe content for Divine), safe photo touch-ups, and the full AI tools library (captions, churn, growth, and more).",
+      "dailyTitle": "Daily AI tips from Circe",
+      "dailyP": "Curated, rotating tips for using Circe et Venus well — sync habits, vault notes, mass segments, Protection, and more. Updated with a new \"tip of the day\" on the calendar; the full list lives on one page.",
+      "dailyLink": "Open Daily AI tips from Circe (full page)",
+      "dailyFootRich": "Also linked from <sug>Suggestions</sug> at the top of the screen."
+    },
+    "messagesFans": {
+      "title": "Messages and Fans",
+      "description": "Conversations and fan management",
+      "messagesRich": "<msg>Messages</msg> shows your DMs from connected platforms. You can view conversations and use AI-powered reply suggestions. If OnlyFans session has expired, you'll see an error and need to reconnect OnlyFans from Settings → Integrations before messages load again.",
+      "fansRich": "<fans>Fans</fans> lists your subscribers/fans synced from your platforms. You can see who's active, who might churn, and add manual fans if needed. Tags and notes help Circe et Venus tailor suggestions and respect your boundaries."
+    },
+    "content": {
+      "title": "Content",
+      "description": "Posts and calendar",
+      "pRich": "<content>Content</content> lets you view and manage posts. Connect platforms and sync to import existing content, or create new content. The content calendar helps you plan and schedule aligned with your strategy."
+    },
+    "protection": {
+      "title": "Protection",
+      "description": "Leak detection and DMCA",
+      "pRich": "<prot>Protection</prot> is Circe's domain. Here you get leak alerts and tools to issue DMCA takedowns. We help you find unauthorized use of your content and guide you through the process of protecting your work."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Profile, notifications, integrations, billing",
+      "pRich": "<set>Settings</set> is where you manage your profile (name, avatar), notifications, security (password), billing and subscription, and Integrations (connect/disconnect platforms). Use the Integrations tab for OnlyFans, Fansly, and any other listed platforms, then sync or disconnect as needed."
+    },
+    "troubleshooting": {
+      "title": "Troubleshooting",
+      "description": "Common issues and fixes",
+      "stuckTitle": "OnlyFans login stuck at \"Filling out login\"",
+      "stuckP": "Click Start fresh login, choose the other proxy (US or UK), and try again. Avoid reusing the same attempt.",
+      "expiredTitle": "OnlyFans session expired / \"Please reconnect\"",
+      "expiredP": "We disconnected your OnlyFans account for security. Go to Settings → Integrations and connect OnlyFans again with a fresh login (email + password, then 2FA or face verification if prompted).",
+      "syncTitle": "Messages or sync fail with \"session expired\"",
+      "syncP": "Same as above: reconnect the affected platform from Settings → Integrations.",
+      "twofaTitle": "2FA or face verification not showing",
+      "twofaP": "Make sure you completed the previous step (e.g. entered password and waited). If the dialog closed, open Connect again and start a new login — don't reuse an old attempt ID.",
+      "helpTitle": "Need more help?",
+      "helpPRich": "Contact support at <email>support@circe-venus.com</email> or via the <contact>Contact</contact> page."
+    },
+    "footer": {
+      "goIntegrations": "Go to Integrations"
+    }
+  },
+  "guidePage": {
+    "eyebrow": "Onboarding compass",
+    "title": "Guide and orbital tour",
+    "introRich": "Scroll the <journey>same journey as the full app tour</journey>—each beat floats above the exact surface it describes—then open the <manual>manual chapters</manual> when you want depth (integrations, OnlyFans, troubleshooting).",
+    "startScrolling": "Start scrolling",
+    "jumpToReference": "Jump to reference:",
+    "linkGettingStarted": "Getting started",
+    "linkSuggestions": "Suggestions",
+    "linkDivineManager": "Divine Manager",
+    "linkTroubleshooting": "Troubleshooting",
+    "deepReferenceTitle": "Deep reference",
+    "deepReferenceSubtitle": "Long-form chapters—expand a section or use the links above.",
+    "accordionManual": "Open full manual (integrations, AI, troubleshooting…)",
+    "inTheApp": "In the app",
+    "laneCirce": "Circe lane",
+    "laneVenus": "Venus lane",
+    "laneOrbit": "Orbit",
+    "laneCore": "Core",
+    "openInApp": "Open in app",
+    "orbitalTitle": "Orbital walkthrough",
+    "orbitalSubtitle": "Same story as the live tour—each card explains the step; the tile below is the exact area in the product it belongs to.",
+    "filterAll": "All steps",
+    "filterCirce": "Circe",
+    "filterVenus": "Venus",
+    "filterNeutral": "Neutral",
+    "filterAurora": "Aurora"
+  }
+}

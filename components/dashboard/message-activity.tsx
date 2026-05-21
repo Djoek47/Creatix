@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowRight, MessageSquare, RefreshCw, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { stripHtmlForPreview } from '@/lib/html-utils'
 import { proxyImageUrl } from '@/lib/proxy-image-url'
 
@@ -28,58 +30,69 @@ interface Conversation {
   platform: 'onlyfans' | 'fansly'
 }
 
-// Format time ago
-function timeAgo(dateStr: string): string {
+function intlTagFromPhase1(locale: string): string {
+  if (locale === 'pt') return 'pt-BR'
+  if (locale === 'fr') return 'fr-FR'
+  if (locale === 'es') return 'es-ES'
+  return 'en-US'
+}
+
+function timeAgo(dateStr: string, intlTag: string, t: (key: string, values?: { n?: number }) => string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
-  
-  if (diffMins < 1) return 'now'
-  if (diffMins < 60) return `${diffMins}m`
-  if (diffHours < 24) return `${diffHours}h`
-  if (diffDays < 7) return `${diffDays}d`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+  if (diffMins < 1) return t('timeNow')
+  if (diffMins < 60) return t('timeMinutes', { n: diffMins })
+  if (diffHours < 24) return t('timeHours', { n: diffHours })
+  if (diffDays < 7) return t('timeDays', { n: diffDays })
+  return date.toLocaleDateString(intlTag, { month: 'short', day: 'numeric' })
 }
 
 export function MessageActivity() {
+  const t = useTranslations('dashboard.messageActivity')
+  const locale = useLocale()
+  const intlTag = intlTagFromPhase1(locale)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchConversations = async (refresh = false) => {
-    if (refresh) setIsRefreshing(true)
-    else setIsLoading(true)
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/onlyfans/conversations?limit=5')
-      if (!response.ok) {
-        throw new Error('Failed to fetch conversations')
+  const fetchConversations = useCallback(
+    async (refresh = false) => {
+      if (refresh) setIsRefreshing(true)
+      else setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch('/api/onlyfans/conversations?limit=5')
+        if (!response.ok) {
+          throw new Error(t('fetchFailed'))
+        }
+        const data = await response.json()
+
+        const conversationsWithPlatform = (data.conversations || []).map((conv: Record<string, unknown>) => ({
+          ...conv,
+          platform: 'onlyfans' as const,
+        }))
+
+        setConversations(conversationsWithPlatform as Conversation[])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('loadFailed'))
+      } finally {
+        setIsLoading(false)
+        setIsRefreshing(false)
       }
-      const data = await response.json()
-      
-      // Add platform info to conversations
-      const conversationsWithPlatform = (data.conversations || []).map((conv: any) => ({
-        ...conv,
-        platform: 'onlyfans' as const,
-      }))
-      
-      setConversations(conversationsWithPlatform)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load conversations')
-    } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-    }
-  }
+    },
+    [t],
+  )
 
   useEffect(() => {
-    fetchConversations()
-  }, [])
+    void fetchConversations()
+  }, [fetchConversations])
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
@@ -89,17 +102,17 @@ export function MessageActivity() {
         <div>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Active Conversations
+            {t('title')}
           </CardTitle>
           <CardDescription>
-            {totalUnread > 0 ? `${totalUnread} unread messages` : 'Recent message activity'}
+            {totalUnread > 0 ? t('descUnread', { count: totalUnread }) : t('descRecent')}
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => fetchConversations(true)}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void fetchConversations(true)}
             disabled={isRefreshing}
             className="h-8 w-8"
           >
@@ -107,7 +120,7 @@ export function MessageActivity() {
           </Button>
           <Link href="/dashboard/messages">
             <Button variant="ghost" size="sm" className="gap-1">
-              View All <ArrowRight className="h-4 w-4" />
+              {t('viewAll')} <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -122,10 +135,10 @@ export function MessageActivity() {
             <div className="mb-4 rounded-full bg-destructive/10 p-4">
               <MessageSquare className="h-8 w-8 text-destructive" />
             </div>
-            <h3 className="text-lg font-medium">Unable to Load Messages</h3>
+            <h3 className="text-lg font-medium">{t('loadErrorTitle')}</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">{error}</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchConversations()}>
-              Try Again
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => void fetchConversations()}>
+              {t('tryAgain')}
             </Button>
           </div>
         ) : conversations.length === 0 ? (
@@ -133,15 +146,13 @@ export function MessageActivity() {
             <div className="mb-4 rounded-full bg-muted p-4">
               <MessageSquare className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium">No Conversations Yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Connect your platforms to see your messages here.
-            </p>
+            <h3 className="text-lg font-medium">{t('emptyTitle')}</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t('emptyBody')}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {conversations.slice(0, 5).map((conv) => (
-              <Link 
+              <Link
                 key={`${conv.platform}-${conv.user.id}`}
                 href={`/dashboard/messages?chat=${conv.user.id}&platform=${conv.platform}`}
                 className="block"
@@ -157,12 +168,11 @@ export function MessageActivity() {
                         {conv.user.name?.[0]?.toUpperCase() || conv.user.username?.[0]?.toUpperCase() || '?'}
                       </AvatarFallback>
                     </Avatar>
-                    {/* Platform indicator */}
-                    <div className="absolute -bottom-0.5 -right-0.5 rounded-full bg-background p-0.5 shadow-sm">
-                      <img 
-                        src={conv.platform === 'onlyfans' ? '/onlyfans-logo.png' : '/fansly-logo.png'} 
-                        alt={conv.platform} 
-                        className="h-3 w-3 rounded-sm"
+                    <div className="absolute -bottom-0.5 -right-0.5 max-w-[2.25rem] rounded-sm bg-background p-px shadow-sm">
+                      <img
+                        src={conv.platform === 'onlyfans' ? ONLYFANS_LOGO_SRC : FANSLY_LOGO_SRC}
+                        alt={conv.platform}
+                        className="h-2.5 w-auto max-w-full object-contain object-left"
                       />
                     </div>
                     {conv.unreadCount > 0 && (
@@ -177,17 +187,17 @@ export function MessageActivity() {
                         'font-medium truncate',
                         conv.unreadCount > 0 && 'text-foreground'
                       )}>
-                        {conv.user.name || conv.user.username || 'Unknown'}
+                        {conv.user.name || conv.user.username || t('unknownUser')}
                       </span>
                       <span className="text-xs text-muted-foreground shrink-0">
-                        {conv.lastMessage?.createdAt && timeAgo(conv.lastMessage.createdAt)}
+                        {conv.lastMessage?.createdAt && timeAgo(conv.lastMessage.createdAt, intlTag, t)}
                       </span>
                     </div>
                     <p className={cn(
                       'text-sm truncate',
                       conv.unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'
                     )}>
-                      {stripHtmlForPreview(conv.lastMessage?.text) || 'Media message'}
+                      {stripHtmlForPreview(conv.lastMessage?.text) || t('mediaMessage')}
                     </p>
                   </div>
                 </div>

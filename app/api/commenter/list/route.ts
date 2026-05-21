@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
+import { canConnectAdultPartnerPlatform, type SubscriptionLike } from '@/lib/billing/access'
 
 export const maxDuration = 60
 
 export type CommenterListMeta = {
   onlyfans_connected: boolean
+  fansly_connected: boolean
+  /** Paid plan or active Divine trial — required to link OnlyFans/Fansly in Integrations. */
+  connect_entitlement_ok: boolean
   /** Only set when the comment list is empty and OnlyFans is connected (from API). */
   feed_post_count: number | null
   /** Posts that report at least one comment (OnlyFans API). */
@@ -92,25 +96,43 @@ export async function GET(req: NextRequest) {
 
     const meta: CommenterListMeta = {
       onlyfans_connected: false,
+      fansly_connected: false,
+      connect_entitlement_ok: false,
       feed_post_count: null,
       posts_with_comments: null,
     }
 
     if (list.length === 0) {
-      const { data: conn } = await supabase
-        .from('platform_connections')
-        .select('access_token')
-        .eq('user_id', user.id)
-        .eq('platform', 'onlyfans')
-        .eq('is_connected', true)
-        .maybeSingle()
+      const [{ data: subRow }, { data: conns }] = await Promise.all([
+        supabase.from('subscriptions').select('plan_id, status').eq('user_id', user.id).maybeSingle(),
+        supabase
+          .from('platform_connections')
+          .select('platform, access_token, platform_user_id')
+          .eq('user_id', user.id)
+          .eq('is_connected', true),
+      ])
 
-      meta.onlyfans_connected = Boolean(conn?.access_token)
-      if (conn?.access_token) {
+      meta.connect_entitlement_ok = canConnectAdultPartnerPlatform(subRow as SubscriptionLike | null)
+
+      const ofConn = (conns ?? []).find((c) => (c as { platform?: string }).platform === 'onlyfans') as
+        | { access_token?: string | null }
+        | undefined
+      const fsConn = (conns ?? []).find((c) => (c as { platform?: string }).platform === 'fansly') as
+        | { access_token?: string | null; platform_user_id?: string | null }
+        | undefined
+
+      meta.onlyfans_connected = Boolean(ofConn?.access_token && String(ofConn.access_token).trim() !== '')
+      meta.fansly_connected = Boolean(
+        (fsConn?.access_token && String(fsConn.access_token).trim() !== '') ||
+          (fsConn?.platform_user_id && String(fsConn.platform_user_id).trim() !== ''),
+      )
+
+      const ofToken = ofConn?.access_token && String(ofConn.access_token).trim() !== '' ? String(ofConn.access_token) : null
+      if (ofToken) {
         const billingBlock = await onlyFansBillingGateResponse(supabase)
         if (billingBlock) return billingBlock
         try {
-          const api = createOnlyFansAPI(conn.access_token)
+          const api = createOnlyFansAPI(ofToken)
           const feed = await api.getPosts({ limit: 25, offset: 0 })
           const posts = feed.posts ?? []
           meta.feed_post_count = posts.length

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Shield, Bell, ArrowRight, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import type { LeakAlert, ReputationMention } from '@/lib/types'
 
@@ -27,24 +28,31 @@ const sentimentColors = {
   negative: 'bg-destructive/20 text-destructive border-destructive/30',
 }
 
+const SEVERITY_KEYS = new Set(['critical', 'high', 'medium', 'low'])
+const SENTIMENT_KEYS = new Set(['positive', 'neutral', 'negative'])
+
 export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
+  const t = useTranslations('dashboard.alertsWidget')
   const hasAnyData = leakAlerts.length > 0 || mentions.length > 0
+
+  const severityLabel = (raw: string) =>
+    SEVERITY_KEYS.has(raw) ? t(`severity.${raw as 'critical'}`) : raw
+  const sentimentLabel = (raw: string) =>
+    SENTIMENT_KEYS.has(raw) ? t(`sentiment.${raw as 'positive'}`) : raw
 
   if (!hasAnyData) {
     return (
       <Card className="border-border bg-card">
         <CardHeader className="pb-2">
-          <CardTitle>Alerts & Monitoring</CardTitle>
-          <CardDescription>Stay on top of important updates</CardDescription>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 text-center">
           <div className="mb-4 rounded-full bg-muted p-4">
             <Shield className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">No Alerts Yet</h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Connect your platforms to start monitoring for leaks and mentions.
-          </p>
+          <h3 className="text-lg font-medium">{t('emptyTitle')}</h3>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t('emptyBody')}</p>
         </CardContent>
       </Card>
     )
@@ -53,15 +61,15 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-2">
-        <CardTitle>Alerts & Monitoring</CardTitle>
-        <CardDescription>Stay on top of important updates</CardDescription>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>{t('subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="leaks" className="w-full">
           <TabsList className="mb-4 w-full bg-secondary">
             <TabsTrigger value="leaks" className="flex-1 gap-2">
               <Shield className="h-4 w-4" />
-              Leaks
+              {t('tabLeaks')}
               {leakAlerts.length > 0 && (
                 <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
                   {leakAlerts.length}
@@ -70,7 +78,7 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
             </TabsTrigger>
             <TabsTrigger value="mentions" className="flex-1 gap-2">
               <Bell className="h-4 w-4" />
-              Mentions
+              {t('tabMentions')}
               {mentions.length > 0 && (
                 <Badge className="ml-1 h-5 bg-primary px-1.5 text-xs">
                   {mentions.length}
@@ -88,7 +96,7 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={cn('text-xs capitalize', severityColors[alert.severity])}>
-                      {alert.severity}
+                      {severityLabel(alert.severity)}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{alert.source_platform}</span>
                   </div>
@@ -101,7 +109,7 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
             ))}
             <Link href="/dashboard/protection">
               <Button variant="ghost" size="sm" className="w-full gap-1">
-                View All Alerts <ArrowRight className="h-4 w-4" />
+                {t('viewAllAlerts')} <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </TabsContent>
@@ -115,11 +123,11 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={cn('text-xs capitalize', sentimentColors[mention.sentiment])}>
-                      {mention.sentiment}
+                      {sentimentLabel(mention.sentiment)}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{mention.platform}</span>
                   </div>
-                  <p className="line-clamp-2 text-sm">{mention.content_snippet}</p>
+                  <p className="line-clamp-2 text-sm">{mention.content_preview}</p>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
                   <ExternalLink className="h-4 w-4" />
@@ -128,7 +136,7 @@ export function AlertsWidget({ leakAlerts, mentions }: AlertsWidgetProps) {
             ))}
             <Link href="/dashboard/mentions">
               <Button variant="ghost" size="sm" className="w-full gap-1">
-                View All Mentions <ArrowRight className="h-4 w-4" />
+                {t('viewAllMentions')} <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </TabsContent>

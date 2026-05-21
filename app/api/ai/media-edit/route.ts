@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { applySafePhotoEdit } from '@/lib/media/apply-safe-photo-edit'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 export const maxDuration = 60
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 500 })
   }
 
-  const consumed = await consumeAiCredits(supabase, user.id, photoCost)
+  const consumed = await consumeAiCredits(supabase, user.id, photoCost, ledgerDebitOptsForBillingTool('photo-enhancer'))
   if (!consumed.ok) {
     return NextResponse.json(
       {

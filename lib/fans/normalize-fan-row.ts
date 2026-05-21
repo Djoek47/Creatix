@@ -1,6 +1,7 @@
 import type { Fan } from '@/lib/types'
 import type { SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
 import { subscriptionAccountTypeFromPrice } from '@/lib/fans/subscription-account-type'
+import { normalizeAudienceProfileOverride } from '@/lib/fans/profile-types'
 
 function numOrNull(v: unknown): number | null {
   if (v == null || v === '') return null
@@ -30,6 +31,10 @@ export function normalizeFanFromRow(row: Record<string, unknown>): Fan {
     total_spent: Number(row.total_spent) || 0,
     subscription_price: subPrice,
     subscription_account_type,
+    subscription_status:
+      typeof row.subscription_status === 'string' && row.subscription_status.trim()
+        ? row.subscription_status.trim()
+        : null,
     spend_subscriptions: numOrNull(row.spend_subscriptions),
     spend_tips: numOrNull(row.spend_tips),
     spend_messages: numOrNull(row.spend_messages),
@@ -45,9 +50,11 @@ export function normalizeFanFromRow(row: Record<string, unknown>): Fan {
     created_at: (row.created_at ?? new Date().toISOString()) as string,
     updated_at: (row.updated_at ?? row.created_at ?? new Date().toISOString()) as string,
     audience_profile_override: (() => {
-      const v = row.audience_profile_override
-      if (v === 'auto' || v === 'whale' || v === 'creator' || v === 'fan') return v
-      return null
+      const v =
+        row.audience_profile_override != null && String(row.audience_profile_override).trim() !== ''
+          ? row.audience_profile_override
+          : (row as { audienceProfileOverride?: unknown }).audienceProfileOverride
+      return normalizeAudienceProfileOverride(v)
     })(),
   }
 }

@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Bell, Loader2 } from 'lucide-react'
 import { stripHtml } from '@/lib/html-utils'
+import { createClient } from '@/lib/supabase/client'
 
 type OnlyFansNotification = {
   id: string
@@ -16,8 +18,10 @@ type OnlyFansNotification = {
 }
 
 export function OnlyFansNotificationsCard() {
+  const t = useTranslations('dashboard.onlyfansNotifications')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [partialHint, setPartialHint] = useState<string | null>(null)
   const [counts, setCounts] = useState<Record<string, unknown> | null>(null)
   const [notifications, setNotifications] = useState<OnlyFansNotification[]>([])
   const [marking, setMarking] = useState(false)
@@ -27,24 +31,68 @@ export function OnlyFansNotificationsCard() {
     async function load() {
       setLoading(true)
       setError(null)
+      setPartialHint(null)
       try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) {
+          if (!cancelled) {
+            setCounts(null)
+            setNotifications([])
+          }
+          return
+        }
+        const { data: connection } = await supabase
+          .from('platform_connections')
+          .select('is_connected, access_token')
+          .eq('user_id', user.id)
+          .eq('platform', 'onlyfans')
+          .eq('is_connected', true)
+          .maybeSingle()
+        if (!connection?.is_connected || !connection?.access_token) {
+          if (!cancelled) {
+            setCounts(null)
+            setNotifications([])
+          }
+          return
+        }
         const res = await fetch('/api/onlyfans/notifications')
-        const json = await res.json()
+        const json = (await res.json()) as {
+          error?: string
+          code?: string
+          counts?: Record<string, unknown> | null
+          notifications?: OnlyFansNotification[]
+          stale?: boolean
+        }
         if (!res.ok || json.error) {
           if (!cancelled) {
-            setError(json.error || 'Failed to load OnlyFans notifications')
+            const soft =
+              res.status === 503 ||
+              res.status === 429 ||
+              json.code === 'ONLYFANS_UPSTREAM' ||
+              json.code === 'ONLYFANS_RATE_LIMIT'
+            setError(
+              soft ? t('errorSoft') : json.error || t('errorGeneric'),
+            )
             setCounts(null)
             setNotifications([])
           }
           return
         }
         if (!cancelled) {
+          setPartialHint(
+            json.stale && (json.code === 'ONLYFANS_UPSTREAM' || json.code === 'ONLYFANS_RATE_LIMIT')
+              ? t('partialHint')
+              : null,
+          )
           setCounts(json.counts || null)
           setNotifications(json.notifications || [])
         }
       } catch {
         if (!cancelled) {
-          setError('Failed to load OnlyFans notifications')
+          setError(t('errorGeneric'))
           setCounts(null)
           setNotifications([])
         }
@@ -52,11 +100,11 @@ export function OnlyFansNotificationsCard() {
         if (!cancelled) setLoading(false)
       }
     }
-    load()
+    void load()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   const unread =
     (counts?.unread as number | undefined) ??
@@ -73,12 +121,12 @@ export function OnlyFansNotificationsCard() {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok || json.error) {
-        setError(json.error || 'Failed to mark notifications as read')
+        setError((json.error as string) || t('markReadFailed'))
       } else {
         setCounts((prev) => ({ ...(prev || {}), unread: 0 }))
       }
     } catch {
-      setError('Failed to mark notifications as read')
+      setError(t('markReadFailed'))
     } finally {
       setMarking(false)
     }
@@ -90,36 +138,39 @@ export function OnlyFansNotificationsCard() {
         <div>
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <Bell className="h-4 w-4" />
-            OnlyFans notifications
+            {t('title')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Live alerts from your OnlyFans account
+            {t('subtitle')}
           </CardDescription>
         </div>
         <Button
           variant="outline"
           size="sm"
           disabled={marking || loading}
-          onClick={handleMarkAllRead}
+          onClick={() => void handleMarkAllRead()}
         >
           {marking ? (
             <Loader2 className="h-3 w-3 animate-spin mr-2" />
           ) : null}
-          Clear
+          {t('clear')}
         </Button>
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
-            Loading notifications…
+            {t('loading')}
           </div>
         ) : error ? (
           <p className="text-xs text-muted-foreground">{error}</p>
         ) : (
           <>
+            {partialHint ? (
+              <p className="text-xs text-amber-700 dark:text-amber-500/90">{partialHint}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
-              Unread: <span className="font-medium">{unread}</span>
+              {t('unreadLabel')} <span className="font-medium">{unread}</span>
             </p>
             <ul className="space-y-1.5">
               {notifications.slice(0, 5).map((n) => (
@@ -128,13 +179,13 @@ export function OnlyFansNotificationsCard() {
                   {n.fromUser?.username ? `@${n.fromUser.username}` : ''}
                   {': '}
                   <span className="text-muted-foreground line-clamp-4 break-words">
-                    {stripHtml(n.text || n.title || 'Notification')}
+                    {stripHtml(n.text || n.title || t('fallbackItem'))}
                   </span>
                 </li>
               ))}
               {notifications.length === 0 && (
                 <li className="text-xs text-muted-foreground">
-                  No recent notifications from OnlyFans.
+                  {t('emptyList')}
                 </li>
               )}
             </ul>
@@ -144,4 +195,3 @@ export function OnlyFansNotificationsCard() {
     </Card>
   )
 }
-

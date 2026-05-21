@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createFanslyAPI } from '@/lib/fansly-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 
 // GET: Fetch revenue data from all connected platform APIs
@@ -113,13 +114,108 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Add Fansly data fetch here when available
       if (connection.platform === 'fansly') {
-        // Fansly integration can be added similarly when API is available
-        result.platforms['fansly'] = {
-          revenue: 0,
-          fans: 0,
-          username: connection.platform_username || '',
+        try {
+          const accountId = connection.access_token ?? connection.platform_user_id
+          if (!accountId) {
+            result.platforms['fansly'] = {
+              revenue: 0,
+              fans: 0,
+              username: connection.platform_username || '',
+            }
+            continue
+          }
+
+          const api = createFanslyAPI(String(accountId))
+          const now = new Date()
+          const todayYmd = now.toISOString().slice(0, 10)
+          const monthStartYmd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+            .toISOString()
+            .slice(0, 10)
+          const dow = now.getUTCDay()
+          const mondayOffset = dow === 0 ? -6 : 1 - dow
+          const weekStart = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + mondayOffset),
+          )
+          const weekStartYmd = weekStart.toISOString().slice(0, 10)
+
+          const [profile, earningsDefault, earningsMtd, earningsToday, earningsWeek] =
+            await Promise.all([
+              api.getProfile(String(accountId)).catch(() => null),
+              api.getEarnings(String(accountId)).catch(() => ({
+                total: 0,
+                subscriptions: 0,
+                tips: 0,
+                messages: 0,
+                period: { start: '', end: '' },
+              })),
+              api
+                .getEarnings(String(accountId), { startDate: monthStartYmd, endDate: todayYmd })
+                .catch(() => ({
+                  total: 0,
+                  subscriptions: 0,
+                  tips: 0,
+                  messages: 0,
+                  period: { start: '', end: '' },
+                })),
+              api
+                .getEarnings(String(accountId), { startDate: todayYmd, endDate: todayYmd })
+                .catch(() => ({
+                  total: 0,
+                  subscriptions: 0,
+                  tips: 0,
+                  messages: 0,
+                  period: { start: '', end: '' },
+                })),
+              api
+                .getEarnings(String(accountId), { startDate: weekStartYmd, endDate: todayYmd })
+                .catch(() => ({
+                  total: 0,
+                  subscriptions: 0,
+                  tips: 0,
+                  messages: 0,
+                  period: { start: '', end: '' },
+                })),
+            ])
+
+          const fansTotal = Math.max(0, Math.floor(Number(profile?.subscribersCount ?? 0)))
+          const revTotal = Number(earningsDefault.total) || 0
+          const subPart = Number(earningsDefault.subscriptions) || 0
+          const tipsPart = Number(earningsDefault.tips) || 0
+          const msgPart = Number(earningsDefault.messages) || 0
+
+          result.stats.totalRevenue += revTotal
+          result.stats.breakdown.subscriptions += subPart
+          result.stats.breakdown.tips += tipsPart
+          result.stats.breakdown.messages += msgPart
+
+          result.stats.totalFans += fansTotal
+          result.stats.earnings.today += Number(earningsToday.total) || 0
+          result.stats.earnings.thisWeek += Number(earningsWeek.total) || 0
+          result.stats.earnings.thisMonth += Number(earningsMtd.total) || 0
+          result.stats.earnings.total += revTotal
+
+          const username =
+            (profile?.username && String(profile.username)) ||
+            String(connection.platform_username || '')
+
+          result.platforms['fansly'] = {
+            revenue: revTotal,
+            fans: fansTotal,
+            username,
+          }
+
+          await supabase
+            .from('platform_connections')
+            .update({ last_sync_at: new Date().toISOString() })
+            .eq('id', connection.id)
+        } catch (error) {
+          console.error('Fansly API error:', error)
+          result.platforms['fansly'] = {
+            revenue: 0,
+            fans: 0,
+            username: connection.platform_username || '',
+          }
         }
       }
     }

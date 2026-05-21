@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -8,8 +11,8 @@ type Props = {
   className?: string
 }
 
-/** Matches PRICING_MODEL_HEADLINE with brand emphasis on Focus / Unified */
 export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Props) {
+  const t = useTranslations('marketing')
   const size =
     Tag === 'h1'
       ? 'text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl'
@@ -18,9 +21,14 @@ export function PricingModelHeadline({ compact, as: Tag = 'h2', className }: Pro
         : 'text-3xl sm:text-4xl'
 
   return (
-    <Tag className={cn('font-serif font-semibold tracking-tight', size, className)}>
-      Revenue-based <span className="text-primary">Focus</span> &amp;{' '}
-      <span className="text-primary">Unified</span>
+    <Tag
+      className={cn(
+        'bg-gradient-to-r from-foreground via-primary to-circe-light bg-clip-text font-serif font-semibold tracking-tight text-transparent',
+        size,
+        className,
+      )}
+    >
+      {t('pricing.model.headline')}
     </Tag>
   )
 }

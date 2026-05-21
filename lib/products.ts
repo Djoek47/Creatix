@@ -4,6 +4,7 @@ export interface Product {
   description: string
   priceInCents: number
   priceMonthly?: number
+  credits?: number
   features: string[]
   popular?: boolean
   mode: 'payment' | 'subscription'
@@ -22,16 +23,57 @@ export const PRODUCTS: Product[] = [
   {
     id: 'divine-trial',
     name: 'Divine Trial',
-    description: '14-day free trial with limited features',
+    description: '2-day free trial (card required) with limited features',
     priceInCents: 0,
     priceMonthly: 0,
     features: [
-      '100 AI credits/month',
+      '100 AI credits total',
       '5GB storage',
       'Basic analytics',
       'Email support',
     ],
     mode: 'payment',
+  },
+  {
+    id: 'credit-topup-2000',
+    name: 'Credit Top-Up · 500 credits',
+    description: 'One-time top-up for extra usage this cycle',
+    priceInCents: 500,
+    credits: 500,
+    features: ['500 credits', 'Rolls one extra month', 'Applies instantly after Stripe confirms'],
+    mode: 'payment',
+  },
+  {
+    id: 'credit-topup-5000',
+    name: 'Credit Top-Up · 1,000 credits',
+    description: 'One-time top-up for heavier monthly usage',
+    priceInCents: 1000,
+    credits: 1000,
+    features: ['1,000 credits', 'Rolls one extra month', 'Best for DM + leak scan workflows'],
+    mode: 'payment',
+  },
+  {
+    id: 'credit-topup-10000',
+    name: 'Credit Top-Up · 2,500 credits',
+    description: 'One-time top-up for power users and agencies',
+    priceInCents: 2500,
+    credits: 2500,
+    features: ['2,500 credits', 'Rolls one extra month', 'For high-volume operations'],
+    mode: 'payment',
+  },
+  {
+    id: 'cev-protection',
+    name: 'Protection & Anti-Piracy',
+    description:
+      'Anti-piracy for extra fan and clip storefronts (ManyVids, Clips4Sale, Loyalfans, Fanvue, MYM, and similar). Use on its own or together with your main OnlyFans and Fansly plan.',
+    priceInCents: 2500,
+    priceMonthly: 25,
+    features: [
+      'Leak checks and takedown-oriented workflow',
+      'Stacks with a full creator subscription',
+      'Dedicated Protection hub for those storefronts',
+    ],
+    mode: 'subscription',
   },
 ]
 

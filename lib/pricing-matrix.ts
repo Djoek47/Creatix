@@ -30,12 +30,18 @@ export const REVENUE_TIERS: readonly RevenueTierRow[] = PRICING_TIERS.map((t) =>
   minUsd: t.revenueMin ?? 0,
   maxUsd: t.revenueMax,
   focusBaseUsd: t.prices.of,
+  /** Same as Bundled (OF+FL); `unified` key is legacy alias. */
   multiPriceUsd: t.prices.unified,
 }))
 
 export const TIER_COUNT = CV_TIER_COUNT
 
 export const MANYVIDS_FOCUS_SINGLE_FLAT_USD = BUNDLE_ADDONS.MV_FLAT
+
+/** Anti‑piracy (ManyVids storefront connector) layered on bundled OF+FL — same addon at every revenue band (`ADDON_UNIFIED`). */
+export const BUNDLE_ANTIPIRACY_ADDON_USD = BUNDLE_ADDONS.UNIFIED_ON_OF
+/** Credits included with Anti‑piracy tier in estimator composition breakdown. */
+export const BUNDLE_ANTIPIRACY_SCAN_CREDITS = 800
 
 export const FANSLY_FOCUS_MAX_USD = BUNDLE_ADDONS.FL_CAP
 
@@ -101,7 +107,7 @@ export function twoPlatformFocusUsd(
 export function focusPlatformDisplayName(platform: AdultBillingPlatform): string {
   if (platform === 'onlyfans') return 'OnlyFans'
   if (platform === 'fansly') return 'Fansly'
-  return 'ManyVids'
+  return 'Anti-piracy'
 }
 
 export function focusPlatformsShortLabel(platforms: AdultBillingPlatform[]): string {
@@ -111,16 +117,29 @@ export function focusPlatformsShortLabel(platforms: AdultBillingPlatform[]): str
   return s.map((p) => focusPlatformDisplayName(p)).join(' + ')
 }
 
-function normalizeFocusPlatformsInput(
+/** Single-plan checkout focus list (1–2 platforms). */
+export function normalizeCheckoutFocusPlatforms(
   platforms: AdultBillingPlatform[] | undefined | null,
 ): AdultBillingPlatform[] {
   if (!platforms?.length) return ['onlyfans']
   const sorted = sortFocusPlatforms(platforms)
   if (sorted.length === 0) return ['onlyfans']
   if (sorted.length > 2) {
-    throw new Error('Focus supports at most 2 platforms; use Unified for all three.')
+    throw new Error('Focus supports at most 2 platforms; use Bundled (workspace) for OnlyFans + Fansly together.')
   }
   return sorted
+}
+
+/** Bundled (OF+FL) plus Anti‑piracy storefront tier when workspace includes ManyVids. */
+export function bundledMultiUsdWithPlatforms(
+  tierIndex: number,
+  focusPlatforms?: AdultBillingPlatform[] | ReadonlyArray<AdultBillingPlatform> | null,
+): number {
+  const core = pricingTierAtIndex(tierIndex)
+  if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
+  let base = core.prices.unified
+  if (focusPlatforms == null || !focusPlatforms.some((p) => p === 'manyvids')) return base
+  return base + BUNDLE_ADDONS.UNIFIED_ON_OF
 }
 
 export function getMonthlyPriceUsd(
@@ -130,8 +149,8 @@ export function getMonthlyPriceUsd(
 ): number {
   const core = pricingTierAtIndex(tierIndex)
   if (!core) throw new Error(`Invalid tier index: ${tierIndex}`)
-  if (variant === 'multi') return core.prices.unified
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
+  if (variant === 'multi') return bundledMultiUsdWithPlatforms(tierIndex, focusPlatforms ?? null)
+  const fps = normalizeCheckoutFocusPlatforms(focusPlatforms ?? undefined)
   if (fps.length === 1) {
     if (fps[0] === 'manyvids') return core.prices.mv
     if (fps[0] === 'fansly') return core.prices.fl
@@ -149,38 +168,6 @@ export function getMonthlyPriceCents(
 ): number {
   const usd = getMonthlyPriceUsd(variant, tierIndex, focusPlatforms)
   return Math.round(usd * 100)
-}
-
-export function checkoutProductName(
-  variant: BillingVariant,
-  tierIndex: number,
-  focusPlatforms?: AdultBillingPlatform[] | null,
-): string {
-  const row = getTierByIndex(tierIndex)
-  if (!row) return 'Circe et Venus'
-  if (variant === 'multi') {
-    return `Circe et Venus — Unified — ${row.label}`
-  }
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
-  const label = focusPlatformsShortLabel(fps)
-  return `Circe et Venus — Focus (${label}) — ${row.label}`
-}
-
-export function checkoutProductDescription(
-  variant: BillingVariant,
-  tierIndex: number,
-  focusPlatforms?: AdultBillingPlatform[] | null,
-): string {
-  const row = getTierByIndex(tierIndex)
-  if (!row) return 'Monthly subscription'
-  if (variant === 'multi') {
-    return `Monthly · ${row.label} · All adult platforms in one workspace`
-  }
-  const fps = normalizeFocusPlatformsInput(focusPlatforms ?? undefined)
-  if (fps.length === 1) {
-    return `Monthly · ${row.label} · Full tools for ${focusPlatformDisplayName(fps[0])}`
-  }
-  return `Monthly · ${row.label} · Full tools for ${focusPlatformDisplayName(fps[0])} and ${focusPlatformDisplayName(fps[1])}`
 }
 
 export function tierIndexFromMonthlyRevenue(monthlyRevenueUsd: number): number {
@@ -205,7 +192,7 @@ export function percentSavingsTwoPlatformFocus(
 export const FOCUS_PLATFORM_SAVINGS_PCT = {
   onlyfans: 0,
   fansly: Math.round((1 - BUNDLE_ADDONS.FL_DISCOUNT) * 100),
-  /** ManyVids Focus solo is flat $39 — % vs OF varies by band; 0 = “see matrix”. */
+  /** ManyVids Focus solo is flat (see `MV_FLAT` in circe-venus-pricing) — % vs OF varies by band; 0 = “see matrix”. */
   manyvids: 0,
 } as const satisfies Record<AdultBillingPlatform, number>
 

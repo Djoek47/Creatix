@@ -1,0 +1,109 @@
+{
+  "errors": {
+    "loadSettings": "No se pudieron cargar los ajustes",
+    "saveFailed": "No se pudo guardar",
+    "scanFailed": "No se pudo escanear",
+    "needCreditsBeforeAuto": "Añade al menos {cost, plural, one {# crédito de IA} other {# créditos de IA}} antes de activar los escaneos automáticos (tienes {remaining}). Abre Facturación para recargar."
+  },
+  "loading": "Cargando",
+  "creditContextSettings": "Ajustes de retención por abandono",
+  "creditContextScan": "Escaneo de abandono",
+  "header": {
+    "kicker": "Retención · Créditos cuando una ejecución encuentra coincidencias",
+    "title": "Predictor de abandono",
+    "subtitle": "Detecta fans que pueden enfriarse antes de irse: un informe tranquilo con contexto, ideas y borradores de mensajes."
+  },
+  "scanNow": {
+    "button": "Escanear ahora",
+    "titleInsufficient": "Se necesitan al menos {cost, plural, one {# crédito de IA} other {# créditos de IA}} (tienes {remaining}). Añade créditos en Facturación.",
+    "titleSufficient": "Usa hasta {cost, plural, one {# crédito de IA} other {# créditos de IA}} cuando al menos un fan coincide con tus reglas de abandono (igual que «Créditos por ejecución»). No se cobra si nadie califica.",
+    "balanceLoading": "Cargando saldo…",
+    "balanceLeft": "{remaining} restantes · OnlyFans + Fansly · {cost} si alguien coincide ·",
+    "addCredits": "Añadir créditos",
+    "noneIfEmpty": "ninguno si está vacío"
+  },
+  "oneFan": "Un fan",
+  "calendarCard": {
+    "title": "Próximos lanzamientos para escaneos",
+    "body": "Edita tu calendario de contenido en su propia página para que los escaneos de abandono reflejen lo que realmente planeas publicar.",
+    "linkTease": "Retención de usuarios por teaser"
+  },
+  "autoScans": {
+    "title": "Escaneos automáticos",
+    "description": "Cruza tus reglas de abandono con fans de OnlyFans y Fansly en el CRM. Cobra hasta {credits} {creditsLabel} solo cuando el lote encuentra candidatos—el mismo tope que Escanear ahora. Las ejecuciones programadas respetan {fansPerRun} abajo; Escanear ahora puede revisar listas más amplias.",
+    "credit": "crédito",
+    "credits": "créditos",
+    "fansPerRunHighlight": "Fans por ejecución",
+    "lowCreditsLead": "{remaining} créditos disponibles — se necesitan {cost} por ejecución. ",
+    "lowCreditsBilling": "Facturación",
+    "lowCreditsTail": " · o baja «Créditos por coincidencia» en Configuración.",
+    "balanceLine": "Saldo {remaining}",
+    "switchAria": "Escaneos automáticos de abandono activados",
+    "recurrenceKicker": "Recurrencia",
+    "recurrenceHint": "Desactivado deja solo el escaneo manual.",
+    "frequency": "Frecuencia",
+    "cadenceOff": "Desactivado — solo manual",
+    "cadenceDaily": "Diario",
+    "cadenceWeekly": "Semanal",
+    "hourUtc": "Hora (UTC)",
+    "hourOption": "{hour}:00 UTC",
+    "weeklyFootnote": "Semanal espera al menos siete días desde la ejecución anterior antes de la siguiente ventana. Guarda los cambios con Guardar en Configuración."
+  },
+  "config": {
+    "kicker": "Configuración",
+    "title": "Programación y reglas",
+    "description": "Cualificación, notificaciones y seguimientos. La cadencia se define en Escaneos automáticos arriba; Escanear ahora la ignora.",
+    "whoHeading": "Quién califica",
+    "whoSub": "Fans de OnlyFans y Fansly en tu CRM. Ventanas estrechas significan menos nombres y más precisión.",
+    "renewalWindow": "Ventana de renovación",
+    "renewalHint": "Días hasta el fin de suscripción para incluir.",
+    "quietSubscriber": "Suscriptor en silencio",
+    "quietHint": "Días desde el último mensaje para considerar silencio.",
+    "includeQuietLabel": "Incluir fans en silencio, no solo renovaciones",
+    "includeQuietHelp": "Si está desactivado, solo se consideran suscriptores cerca del vencimiento.",
+    "batchHeading": "Lote y créditos",
+    "batchSub": "Los créditos por coincidencia aplican a todos los flujos. Las ejecuciones programadas usan {fansPerRun}; Escanear ahora analiza todo el CRM sincronizado (OnlyFans + Fansly juntos, hasta 25 candidatos).",
+    "fansPerRun": "Fans por ejecución",
+    "fansPerRunHint": "Escaneos automáticos: máximo por informe (1–25). Escanear ahora considera ambas plataformas juntas, hasta 25 candidatos.",
+    "creditsPerMatch": "Créditos por coincidencia",
+    "creditsPerMatchHint": "Como máximo tras una ejecución con éxito (1–10)."
+  },
+  "notifications": {
+    "heading": "Notificaciones",
+    "sub": "Tras cada ejecución automática, qué debe llegar a tu bandeja.",
+    "runReadyTitle": "Ejecución lista",
+    "runReadyDesc": "Hay un informe nuevo disponible.",
+    "runReadyAria": "Notificar cuando una ejecución termina con coincidencias",
+    "emptyTitle": "Ejecución vacía",
+    "emptyDesc": "Nadie coincidió esta vez.",
+    "emptyAria": "Notificar en ejecución vacía"
+  },
+  "followUps": {
+    "heading": "Seguimientos",
+    "sub": "Tareas opcionales en Manager y en tu lista de protocolo.",
+    "managerTitle": "Manager",
+    "managerDesc": "Tarea sugerida que puedes aceptar o descartar.",
+    "managerAria": "Crear sugerencia en Divine Manager",
+    "protocolTitle": "Protocolo",
+    "protocolDesc": "Ítem de lista con tus otras automatizaciones.",
+    "protocolAria": "Crear tarea de protocolo",
+    "openManager": "Abrir Divine Manager"
+  },
+  "save": {
+    "button": "Guardar",
+    "savedAt": "Guardado {time}",
+    "unsavedHint": "Los cambios no guardados se pierden si sales."
+  },
+  "history": {
+    "kicker": "Historial",
+    "title": "Última ejecución",
+    "completedAt": "Completada {datetime}",
+    "noAutoRunYet": "Aún no hay ejecución automática.",
+    "errorPrefix": "Error:",
+    "digestTimestamp": "{datetime}",
+    "latestOutput": "Última salida",
+    "emptyDigestLead": "Aún no hay resultados. Tras una ejecución programada o manual, aparecerán aquí. Mantén ",
+    "emptyDigestFans": "Fans",
+    "emptyDigestTail": " sincronizado para que renovaciones y gasto sigan precisos."
+  }
+}

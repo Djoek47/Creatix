@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import type { ReputationBriefingPayload } from '@/lib/reputation/briefing'
 import { runReputationBriefingCore } from '@/lib/reputation/briefing-server'
-import { isPaidPlanId } from '@/lib/billing/access'
-
-function isProPlan(planId: string | null | undefined): boolean {
-  const n = planId?.toLowerCase() || null
-  return Boolean(n && isPaidPlanId(n))
-}
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { handles?: string[] }
@@ -16,17 +10,6 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('plan_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  const planId = (subscription as { plan_id?: string } | null)?.plan_id
-  if (!isProPlan(planId)) {
-    return NextResponse.json({ error: 'Venus Pro required for AI reputation briefing' }, { status: 403 })
-  }
 
   const result = await runReputationBriefingCore(supabase, user.id, body)
   if (!result.ok) {

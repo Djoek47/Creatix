@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createOnlyFansAPI } from '@/lib/onlyfans-api'
 import { clearOnlyFansDmMessageCacheForUser } from '@/lib/messages/of-dm-cache'
+import { notifyPlatformConnectionChange } from '@/lib/notifications/platform-connection-notify'
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +57,17 @@ export async function POST(request: NextRequest) {
     }
 
     await clearOnlyFansDmMessageCacheForUser(supabase, user.id)
+
+    if (user.email) {
+      void notifyPlatformConnectionChange({
+        supabase,
+        userId: user.id,
+        userEmail: user.email,
+        platform: 'onlyfans',
+        event: 'disconnected',
+        platformUsername: connection.platform_username ?? null,
+      })
+    }
 
     return NextResponse.json({ 
       success: true, 

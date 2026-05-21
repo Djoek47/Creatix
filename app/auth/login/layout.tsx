@@ -7,6 +7,7 @@ export const metadata: Metadata = buildPublicMetadata({
   description:
     'Log in to Creatix — Circe et Venus: Divine Manager, AI tools, analytics, and integrations for OnlyFans, Fansly, and more.',
   keywords: ['Circe et Venus login', 'Creatix sign in', 'creator dashboard login'],
+  index: false,
 })
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

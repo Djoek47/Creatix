@@ -1,0 +1,42 @@
+Supabase → Authentication → Email templates
+Each .html maps 1:1 to a Dashboard row; paste Body + Subject from header comments.
+
+Identity linked / Identity unlinked
+------------------------------------
+OAuth identity templates (Go template). `.Provider` is a single string; branches are ordered so multiflag matches first:
+• Multi (both platforms): composites such as `onlyfans+fansly`, `ONLYFANS+FANSLY`, `onlyfans_fansly`,
+  `onlyfans,fansly`, `onlyfansfansly`, `multi`, `both`, `of_fl` — shows OnlyFans+Fansly in one row; with the Circe icon above = three marks total.
+• OnlyFans-only / Fansly-only: `onlyfans`, `OnlyFans`, `oauth_onlyfans`, etc. vs `fansly`, `Fansly`, …
+
+Configure the composite slug on your IdP/custom hook if Supabase must emit both platforms in one email.
+They do NOT send for Settings “connect Vault” OAuth callback flows tracked in platform_connections —
+those emails use application Resend (see lib/notifications/platform-connection-notify.ts).
+
+Visual system (aligned with docs/STYLE.md + lib/email/transactional-email-theme.ts)
+----------------------------------------------------------------------------------
+Canvas: Venus outer #f3f1ec · card #faf9f6 / border #e8e4dc · soft purple shadow
+Accent: 3px bar purple | gold | purple (`.cev-accent-bar` triple cells)
+Typography: headline Cinzel ~24–26px (ink #1a1626 or inline near-equivalent) · body DM Sans
+Primary CTA (auth flows with a button): rainbow gradient ring (`.cev-rainbow-cta-wrap` / inner link) — matches dashboard rainbow trial / tools pill
+Secondary / gold CTAs: `.cev-btn-gold` where used
+Security mails: same outer + card + fonts; informational layout (no rainbow CTA unless you add one)
+After editing `transactional-email-theme.ts`, run `pnpm run sync:supabase-email-styles` to refresh `<style>` blocks in these HTML files, then re-paste into Supabase Dashboard.
+Links: purple-tinted underline on hover-capable clients; keep fallbacks readable
+
+Files → Dashboard
+-----------------
+confirm-signup.html              Confirm sign up
+magic-link.html                  Magic link
+reset-password.html              Reset password
+change-email-address.html        Change email address
+invite-user.html                 Invite user
+reauthentication.html            Reauthentication
+security-password-changed.html   Password changed (notification)
+security-email-changed.html      Email address changed (notification)
+security-phone-changed.html      Phone number changed (notification)
+security-mfa-enrolled.html       MFA enrolled (notification)
+security-mfa-unenrolled.html     MFA unenrolled (notification)
+security-identity-linked.html    Identity linked (optional) — OAuth; OF/Fansly logos per `.Provider`
+security-identity-unlinked.html Identity unlinked (optional) — same logo rules as linked
+
+Refs: https://supabase.com/docs/guides/auth/auth-email-templates

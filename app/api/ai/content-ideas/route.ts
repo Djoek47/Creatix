@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
-import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
+import { getBrandContext } from '@/lib/brand/get-brand-context'
+import { evaluateBrandTextCompliance } from '@/lib/brand/brand-governance'
 
 export const maxDuration = 30
 
@@ -23,22 +26,13 @@ const contentIdeasSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient(req)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const ideaCost = getCreditsForToolId('content-ideas')
-  if (user) {
-    const gate = await hasEnoughAiCredits(supabase, user.id, ideaCost)
-    if (!gate.ok) {
-      return Response.json(
-        { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-        { status: 402 },
-      )
-    }
-  }
+  const access = await requireAiToolSessionAndCredits(req, 'content-ideas')
+  if (!access.ok) return access.response
 
-  const { niche, platform, currentTrends } = await req.json()
+  const { supabase, userId, cost, billingToolId } = access.data
+
+  const { niche, platform, currentTrends } = await req.json().catch(() => ({}))
+  const brandContext = await getBrandContext(supabase, userId)
 
   const systemPrompt = `You are a content strategist for adult content creators on platforms like ${platform || 'OnlyFans'}.
 
@@ -49,33 +43,53 @@ Generate creative, engaging content ideas that:
 4. Are diverse in content type
 5. Include seasonal opportunities
 
-Focus on tasteful, high-quality content ideas that build audience and drive subscriptions.`
+Focus on tasteful, high-quality content ideas that build audience and drive subscriptions.
+${brandContext?.compact ? `\nBrand context to follow:\n${brandContext.compact}` : ''}
+`
 
-  const { output } = await generateText({
-    model: 'openai/gpt-4o-mini',
-    output: Output.object({
-      schema: contentIdeasSchema,
-    }),
-    system: systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: `Generate 5 unique content ideas for a ${niche || 'general'} creator on ${platform || 'OnlyFans'}.
+  let output: z.infer<typeof contentIdeasSchema>
+  try {
+    const gen = await generateText({
+      model: 'openai/gpt-4o-mini',
+      output: Output.object({
+        schema: contentIdeasSchema,
+      }),
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Generate 5 unique content ideas for a ${niche || 'general'} creator on ${platform || 'OnlyFans'}.
         
 ${currentTrends ? `Consider these trends: ${currentTrends}` : 'Consider current social media trends.'}
 
 Include a mix of content types and engagement levels.`,
-      },
-    ],
-  })
-
-  if (user) {
-    try {
-      await consumeAiCredits(supabase, user.id, ideaCost)
-    } catch {
-      // ignore credit errors
-    }
+        },
+      ],
+    })
+    output = gen.output
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Content ideas generation failed'
+    return Response.json({ error: message }, { status: 500 })
   }
 
-  return Response.json(output)
+  const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
+  if (!charged.ok) return charged.response
+
+  const complianceText = [
+    output.content,
+    ...output.ideas.map((x) => `${x.title}\n${x.description}`),
+    ...output.suggestions,
+  ].join('\n')
+  const compliance = evaluateBrandTextCompliance(brandContext?.full ?? null, complianceText)
+  if (compliance.blocked) {
+    return Response.json(
+      { error: 'Output blocked by Brand Uniformity policy.', violations: compliance.violations },
+      { status: 422 },
+    )
+  }
+
+  return Response.json({
+    ...output,
+    brandWarnings: [...compliance.violations, ...compliance.warnings],
+  })
 }

@@ -2,9 +2,11 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { TourStep } from '@/lib/tour-types'
 
 const MEASURE_MAX_ATTEMPTS = 32
@@ -32,13 +34,13 @@ function isVisible(el: HTMLElement): boolean {
 
 function measureTarget(step: TourStep): Rect | null {
   const selectors = [step.targetSelector, step.targetSelectorFallback].filter(Boolean) as string[]
+  const pad = typeof step.highlightPaddingPx === 'number' ? Math.max(0, step.highlightPaddingPx) : 5
   for (const sel of selectors) {
     const el = document.querySelector(sel)
     if (!el || !(el instanceof HTMLElement)) continue
     if (!isVisible(el)) continue
     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     const r = el.getBoundingClientRect()
-    const pad = 6
     return {
       top: r.top - pad,
       left: r.left - pad,
@@ -57,8 +59,9 @@ export function TourSpotlight({
   stepIndex,
   onNext,
   onBack,
-  tourId,
+  tourId: _tourId,
 }: TourSpotlightProps) {
+  const tUi = useTranslations('dashboard.tourUi')
   const [mounted, setMounted] = useState(false)
   const [rect, setRect] = useState<Rect | null>(null)
   const primaryActionRef = useRef<HTMLButtonElement>(null)
@@ -164,15 +167,15 @@ export function TourSpotlight({
             {rect ? (
               <>
                 <div
-                  className="pointer-events-auto absolute left-0 right-0 top-0 bg-black/72"
+                  className="pointer-events-auto absolute left-0 right-0 top-0 bg-neutral-950/28 dark:bg-black/32"
                   style={{ height: Math.max(0, rect.top) }}
                 />
                 <div
-                  className="pointer-events-auto absolute bottom-0 left-0 right-0 bg-black/72"
+                  className="pointer-events-auto absolute bottom-0 left-0 right-0 bg-neutral-950/28 dark:bg-black/32"
                   style={{ top: rect.top + rect.height, height: Math.max(0, vh - rect.top - rect.height) }}
                 />
                 <div
-                  className="pointer-events-auto absolute bg-black/72"
+                  className="pointer-events-auto absolute bg-neutral-950/28 dark:bg-black/32"
                   style={{
                     left: 0,
                     width: Math.max(0, rect.left),
@@ -181,7 +184,7 @@ export function TourSpotlight({
                   }}
                 />
                 <div
-                  className="pointer-events-auto absolute bg-black/72"
+                  className="pointer-events-auto absolute bg-neutral-950/28 dark:bg-black/32"
                   style={{
                     left: rect.left + rect.width,
                     right: 0,
@@ -190,7 +193,11 @@ export function TourSpotlight({
                   }}
                 />
                 <motion.div
-                  className="pointer-events-none absolute rounded-lg ring-2 ring-amber-400/90"
+                  className="pointer-events-none absolute rounded-xl ring-2 ring-primary/40 dark:ring-primary/45"
+                  style={{
+                    boxShadow:
+                      '0 0 0 1px color-mix(in oklch, var(--primary) 22%, transparent) inset, 0 0 32px -14px color-mix(in oklch, var(--primary) 22%, transparent), 0 12px 36px -20px rgba(0,0,0,0.4)',
+                  }}
                   initial={false}
                   animate={{
                     top: rect.top,
@@ -202,66 +209,96 @@ export function TourSpotlight({
                 />
               </>
             ) : (
-              <div className="pointer-events-auto absolute inset-0 bg-black/72" />
+              <div className="pointer-events-auto absolute inset-0 bg-neutral-950/28 dark:bg-black/32" />
             )}
           </div>
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-4 pb-6 sm:p-6 sm:pb-8">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-4 pb-6 sm:p-6 sm:pb-10">
             <motion.div
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="pointer-events-auto w-full max-w-md rounded-xl border border-primary/25 bg-card/95 p-4 shadow-2xl backdrop-blur-md outline-none sm:p-5"
-              initial={{ y: 24, opacity: 0 }}
+              className={cn(
+                'pointer-events-auto relative w-full max-w-[26rem] overflow-hidden rounded-[1.25rem] outline-none',
+                'border border-primary/25 bg-background/75 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.55),0_0_60px_-28px_color-mix(in_oklch,var(--primary)_18%,transparent)]',
+                'dark:border-primary/20 dark:bg-white/[0.07]',
+              )}
+              initial={{ y: 28, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+              exit={{ y: 18, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 34 }}
             >
-              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
-                <BookOpen className="h-4 w-4" aria-hidden />
-                <span className="text-xs">
-                  Step {stepIndex + 1} of {steps.length}
-                </span>
-                {process.env.NODE_ENV === 'development' && (
-                  <span className="text-[10px] font-mono opacity-70">{tourId}</span>
-                )}
-              </div>
-              <h2 id={titleId} className="text-lg font-semibold leading-snug">
-                {step.title}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground" aria-live="polite">
-                {step.description}
-              </p>
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <div>
-                  {!isFirst ? (
-                    <Button type="button" variant="outline" size="sm" onClick={onBack} className="gap-1">
-                      <ChevronLeft className="h-4 w-4" />
-                      Back
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-                      Skip tour
-                    </Button>
-                  )}
+              <div
+                className="pointer-events-none absolute inset-0 rounded-[1.25rem] bg-gradient-to-br from-primary/[0.14] via-circe/[0.06] to-transparent opacity-[0.92] dark:from-primary/[0.16] dark:via-circe/[0.08] dark:to-transparent"
+                aria-hidden
+              />
+              <div className="relative px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+                <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/18 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14)] dark:bg-primary/[0.14]">
+                    <BookOpen className="h-[18px] w-[18px] text-primary" strokeWidth={1.75} aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-primary/90 dark:text-primary">
+                      {tUi('stepProgress', { current: stepIndex + 1, total: steps.length })}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {isLast ? (
-                    <Button
-                      ref={primaryActionRef}
-                      type="button"
-                      size="sm"
-                      onClick={onClose}
-                      aria-label="Finish tour"
-                    >
-                      Done
-                    </Button>
-                  ) : (
-                    <Button ref={primaryActionRef} type="button" size="sm" onClick={onNext} className="gap-1">
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  )}
+                <h2 id={titleId} className="text-pretty text-xl font-semibold leading-snug tracking-tight text-foreground">
+                  {step.title}
+                </h2>
+                <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground" aria-live="polite">
+                  {step.description}
+                </p>
+                <div className="mt-6 flex items-center justify-between gap-3 border-t border-primary/15 pt-5 dark:border-primary/12">
+                  <div>
+                    {!isFirst ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={onBack}
+                        className="h-10 gap-1.5 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/10"
+                      >
+                        <ChevronLeft className="h-4 w-4 opacity-70" />
+                        {tUi('back')}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={onClose}
+                        className="h-10 rounded-full px-4 text-[13px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-primary/10"
+                      >
+                        Skip tour
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {isLast ? (
+                      <Button
+                        ref={primaryActionRef}
+                        type="button"
+                        size="sm"
+                        onClick={onClose}
+                        aria-label={tUi('finishAria')}
+                        className="h-10 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] transition-opacity hover:opacity-90"
+                      >
+                        {tUi('done')}
+                      </Button>
+                    ) : (
+                      <Button
+                        ref={primaryActionRef}
+                        type="button"
+                        size="sm"
+                        onClick={onNext}
+                        className="h-10 gap-1 rounded-full bg-primary px-6 text-[13px] font-medium text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset] transition-opacity hover:opacity-90"
+                      >
+                        {tUi('next')}
+                        <ChevronRight className="h-4 w-4 opacity-90" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>

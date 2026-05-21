@@ -9,15 +9,27 @@
  */
 
 import { ALL_TOOLS_META, resolveCanonicalToolId } from '@/lib/ai-tools-data'
-import { isPaidPlanId } from '@/lib/billing/access'
+import { isPaidPlanId, isProtectionPlanId } from '@/lib/billing/access'
 import type { AdultBillingPlatform } from '@/lib/billing/platform-variant'
 import { getMonthlyPriceUsd, TIER_COUNT, type BillingVariant } from '@/lib/pricing-matrix'
 import { getPlanLimits } from '@/lib/billing/plan-limits'
 
 export const CREDIT_USD_VALUE = 0.01
 
-/** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). */
+/** Minimum USD for one-time custom credit top-up (Stripe checkout). Preset packs may be lower. */
+export const CUSTOM_CREDIT_TOPUP_MIN_USD = 5
+
+/** Default USD shown in the custom top-up field (user may lower to the minimum). */
+export const CUSTOM_CREDIT_TOPUP_DEFAULT_USD = 25
+
+/** Included credits per $1 of monthly subscription (20% back at $0.01 per credit). */
+export const CREDITS_PER_SUBSCRIPTION_USD = 20
+
+/** Trial / non-paid plans: fixed monthly cap (also used when plan is unknown). Matches DB default in `079_trial_policy_2_days_250_credits.sql`. */
 export const TRIAL_AI_CREDITS_LIMIT = 100
+
+/** $25/mo Protection (`cev-protection`): fixed monthly AI pool (not 20% of $25). */
+export const PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS = 800
 
 /** Old DB rows used a huge sentinel for “unlimited”; sync + UI ignore these. */
 export const LEGACY_AI_CREDITS_DB_SENTINEL = 999000
@@ -54,13 +66,70 @@ export function creditsForProviderUsdEstimate(providerUsd: number): number {
 
 /** Product-level overrides (routes + Divine tools). Aligned to PROVIDER_USD_ESTIMATE. */
 export const CREDITS_DIVINE_CHAT_MESSAGE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.chatMiniTurn)
+export const CREDITS_MESSAGE_GENERATION_LIGHT = 1
+
+/** Divine Manager text chat: included turns per billing period before wallet debits (same pool as `claim_divine_manager_text_bundle`). Not shown in product copy. */
+export const DIVINE_MANAGER_TEXT_CHAT_INCLUDED_PER_PERIOD = 100
+
+/**
+ * Premium Divine realtime voice (beta): **50 credits per wall-clock minute** while live.
+ * Telemetry debits from whole seconds via {@link divineVoiceCreditsForWholeSeconds}; keep UI in sync.
+ */
+export const DIVINE_VOICE_CREDITS_PER_MINUTE = 50
+
+/** Two-decimal credits/sec for display (50 ÷ 60). */
+export function formatDivineVoiceCreditsPerSecond(): string {
+  return (DIVINE_VOICE_CREDITS_PER_MINUTE / 60).toFixed(2)
+}
+
+export function divineVoiceCreditsPerMinute(): number {
+  return DIVINE_VOICE_CREDITS_PER_MINUTE
+}
+
+/** Bill whole seconds of live voice at the per-minute rate (ceil). */
+export function divineVoiceCreditsForWholeSeconds(wholeSeconds: number): number {
+  const s = Math.max(0, Math.floor(wholeSeconds))
+  if (s <= 0) return 0
+  return Math.ceil((s * DIVINE_VOICE_CREDITS_PER_MINUTE) / 60)
+}
+
+/** Wallet-equivalent USD per minute at {@link CREDIT_USD_VALUE} (informational). */
+export function divineVoiceWalletUsdPerMinute(): number {
+  return divineVoiceCreditsPerMinute() * CREDIT_USD_VALUE
+}
+
+export function formatUsdWalletApprox(usd: number): string {
+  if (!Number.isFinite(usd)) return '—'
+  return `~$${usd.toFixed(2)}`
+}
+
+/** Scan + Circe + Venus + Flirt in one sync package. */
+export const CREDITS_MESSAGE_GENERATION_BUNDLE = CREDITS_MESSAGE_GENERATION_LIGHT * 4
+export const CREDITS_MESSAGE_SEND_PLATFORM = 1
 export const CREDITS_DMCA_CLAIM = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.dmcaClaimPrep)
 export const CREDITS_LEAK_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperLeakScanRun)
+/** Wide + social Serper batch (Mentions “Scan web” / `runReputationScanCore`). */
+export const CREDITS_REPUTATION_WEB_SCAN = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.serperReputationRun)
+export const CREDITS_ONLYFANS_BIO_FALLBACK = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
+/** Fan profile “Refresh bio”: Serper + gpt-4o-mini classification + short bio extract (no OnlyFans API). */
+export const CREDITS_FAN_WEB_BIO_SERPER_AI = creditsForProviderUsdEstimate(
+  PROVIDER_USD_ESTIMATE.toolLight + PROVIDER_USD_ESTIMATE.chatMiniTurn,
+)
+
+/** Expanded AI playbook for locating DMCA / abuse intake on unknown hosts (same unit weight as short gen). */
+export const CREDITS_AI_TAKEDOWN_GUIDE = CREDITS_MESSAGE_GENERATION_LIGHT
+
+/** One focused Grok page verification pass (~light tool workload). `/api/leaks/alerts/[id]/verify` does not debit credits today—used only for surfaced cost parity. */
+export const CREDITS_LEAK_PAGE_VERIFY_ESTIMATE = creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight)
 
 const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'leak-scanner': CREDITS_LEAK_SCAN,
   'divine-chat': CREDITS_DIVINE_CHAT_MESSAGE,
   'mass-dm-composer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
+  'mass-dm-audience-suggester': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'mass-dm-fan-captions': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'mass-dm-ppv-pricing': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
+  'credits-planner': 0,
   'creator-mood-pulse': creditsForProviderUsdEstimate(0.004),
   'revenue-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
   'pricing-optimizer': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolMedium),
@@ -69,6 +138,7 @@ const CREDIT_OVERRIDES_BY_TOOL_ID: Record<string, number> = {
   'frame-studio': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.toolLight),
   'ariadne-trace': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneEmbed),
   'ariadne-detect': creditsForProviderUsdEstimate(PROVIDER_USD_ESTIMATE.ariadneDetect),
+  'onlyfans-bio-fallback': CREDITS_ONLYFANS_BIO_FALLBACK,
 }
 
 export type SubscriptionRowForCredits = {
@@ -82,11 +152,15 @@ export type SubscriptionRowForCredits = {
 
 /**
  * Monthly included credits for the current subscription row.
+ * Protection (`cev-protection`): {@link PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS} fixed.
  * Paid: 20% of monthly USD (after seats) at CREDIT_USD_VALUE per credit.
  * Otherwise: trial cap.
  */
 export function computeMonthlyCreditAllowance(row: SubscriptionRowForCredits): number {
   const planId = String(row.plan_id ?? '')
+  if (isProtectionPlanId(planId)) {
+    return PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS
+  }
   if (!isPaidPlanId(planId)) {
     return TRIAL_AI_CREDITS_LIMIT
   }
@@ -109,14 +183,27 @@ export function computeMonthlyCreditAllowance(row: SubscriptionRowForCredits): n
 }
 
 /**
+ * Monthly included AI credits for marketing UI (same formula as paid `computeMonthlyCreditAllowance`, 1 seat default).
+ * Example: $100/mo → 2_000 credits ($1 subscription = 100 credits).
+ */
+export function includedCreditsForMarketing(monthlySubscriptionUsd: number, seats = 1): number {
+  const total = Math.max(0, monthlySubscriptionUsd) * Math.max(1, Math.floor(seats))
+  return Math.floor((total * 0.2) / CREDIT_USD_VALUE)
+}
+
+/**
  * Monthly cap for UI and server-side gating. Always applies the 20% rule for paid plans and ignores
  * legacy DB values (e.g. 999999) until Stripe/webhook rows are rewritten.
  */
 export function effectiveMonthlyCreditLimit(
   row: SubscriptionRowForCredits & { ai_credits_limit?: number | null },
 ): number {
-  const computed = computeMonthlyCreditAllowance(row)
   const planId = String(row.plan_id ?? '')
+  if (isProtectionPlanId(planId)) {
+    return Math.max(0, computeMonthlyCreditAllowance(row))
+  }
+
+  const computed = computeMonthlyCreditAllowance(row)
   const raw = Number(row.ai_credits_limit ?? NaN)
 
   if (!isPaidPlanId(planId)) {

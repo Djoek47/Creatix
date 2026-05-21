@@ -5,6 +5,7 @@ import {
   type ProtocolPlanLeftoverItem,
   VOICE_MEMORY_ACTION_LOG_MAX,
 } from '@/lib/divine/voice-memory-types'
+import { appendMemory } from '@/lib/divine/divine-memory'
 import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
 import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 
@@ -149,6 +150,19 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
 
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
+
+    const hint = typeof body.resume_hint === 'string' ? body.resume_hint.trim() : ''
+    const actionSummary =
+      body.action?.tool != null ? `${body.action.tool}: ${String(body.action.summary ?? '').trim()}`.trim() : ''
+    const memParts = [hint || null, actionSummary || null].filter((x): x is string => Boolean(x?.length))
+    if (memParts.length > 0) {
+      void appendMemory(supabase, user.id, {
+        source: 'voice',
+        summary: memParts.join(' — ').slice(0, 900),
+        metadata: { tool: body.action?.tool },
+      }).catch(() => undefined)
+    }
+
     return NextResponse.json({ ok: true, memory: merged })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed to update voice memory'
@@ -174,6 +188,7 @@ export async function PATCH(req: NextRequest) {
       clear?: boolean
       /** Set to null to clear deferred navigation after barrier UI applied */
       navigation?: DivineVoiceMemoryPayload['navigation'] | null
+      voice_presence?: DivineVoiceMemoryPayload['voice_presence']
     }
 
     const { data: row, error: fetchErr } = await supabase
@@ -196,6 +211,7 @@ export async function PATCH(req: NextRequest) {
         action_log: [],
         tasks: [],
         navigation: null,
+        voice_presence: prev.voice_presence,
         last_updated_at: new Date().toISOString(),
       }
     } else {
@@ -211,6 +227,12 @@ export async function PATCH(req: NextRequest) {
       merged = mergeMemory(prev, patch)
       if (Object.prototype.hasOwnProperty.call(body, 'navigation') && body.navigation === null) {
         merged.navigation = null
+      }
+      if (body.voice_presence && typeof body.voice_presence === 'object') {
+        merged.voice_presence = {
+          ...(prev.voice_presence ?? {}),
+          ...body.voice_presence,
+        }
       }
     }
 

@@ -1,25 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { isPaidPlanId } from '@/lib/billing/access'
-import { effectiveMonthlyCreditLimit, formatToolCreditCost } from '@/lib/billing/credit-economics'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
+import { formatToolCreditCost, getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { 
   Wand2, 
   PenTool, 
@@ -38,30 +29,34 @@ import {
   ChevronRight,
   Crown,
   BarChart3,
-  Calendar,
   Gift,
   Camera,
-  Mic,
   Users,
   TrendingDown,
   TrendingUp,
   Send,
-  Heart,
   Eye,
   ExternalLink,
   ListTree,
 } from 'lucide-react'
-import { VoiceInputButton } from '@/components/voice-input-button'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
+import { ToolHelpDialog } from '@/components/ai/tool-help-dialog'
+import { runToolInputsSwitch } from '@/components/ai/tool-runners/run-tool-inputs-switch'
+import { EasyProModeToggle } from '@/components/ui/easy-pro-mode-toggle'
+import { useToolRunnerUiMode } from '@/hooks/use-tool-runner-ui-mode'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   compressImageForVision,
   extractVideoFrameAsDataUrl,
 } from '@/components/ai/caption-media-utils'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
 import { getUpcomingCosmicEvents } from '@/lib/calendar/upcoming-cosmic-events'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
 import {
   fetchCrmFansHybrid,
   crmFanToChurnRow,
@@ -71,17 +66,15 @@ import {
 } from '@/lib/crm/fetch-crm-fans-client'
 import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
 
-function formatFantasyCalendarDate(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-}
+import { formatFantasyRunnerDate } from '@/lib/calendar/format-fantasy-runner-date'
+import type { FantasyFanPickerRow, FantasyScheduledRow } from '@/components/ai/tool-runners/fantasy-writer-inputs'
+import type { IncomePredictorFocusMode } from '@/lib/income-predictor/mode'
+import type { LucideIcon } from 'lucide-react'
 
-// Define the non-Pro AI tools that work (caption generator is fused into content-ideas — same runner id, subtabs in UI)
-const workingTools = [
+/** Visual-only fields; names/descriptions come from per-locale `messages` … `ai-tools.json`. */
+const WORKING_TOOL_ROWS = [
   {
     id: 'fantasy-writer',
-    name: 'Fantasy Writer',
-    description: 'Roleplay tied to calendar & fans',
-    longDescription: 'Use cosmic events, your content calendar, and fan CRM — optional scenario or voice.',
     icon: PenTool,
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
@@ -89,10 +82,6 @@ const workingTools = [
   },
   {
     id: 'content-ideas',
-    name: 'Content Ideas',
-    description: 'Trending ideas & AI captions',
-    longDescription:
-      'Switch between trending niche ideas and the caption generator (upload media or describe with text/voice) in one workspace.',
     icon: Lightbulb,
     color: 'text-yellow-500',
     bgColor: 'bg-yellow-500/10',
@@ -100,10 +89,6 @@ const workingTools = [
   },
   {
     id: 'photo-enhancer',
-    name: 'Safe photo touch-up',
-    description: 'AI blur, lighting, emoji — text or voice',
-    longDescription:
-      'Upload a photo, then describe changes in text or voice. AI maps your request to safe blur, brightness, or emoji only (no beautify or inpaint).',
     icon: Camera,
     color: 'text-sky-500',
     bgColor: 'bg-sky-500/10',
@@ -111,88 +96,61 @@ const workingTools = [
   },
   {
     id: 'gift-suggester',
-    name: 'Gift Suggester',
-    description: 'Personalized gift recommendations',
-    longDescription: 'Suggest personalized gifts and rewards for your top fans based on their engagement patterns and preferences.',
     icon: Gift,
     color: 'text-rose-500',
     bgColor: 'bg-rose-500/10',
     borderColor: 'border-rose-500/30',
   },
-]
+  {
+    id: 'brand-uniformity',
+    icon: Sparkles,
+    color: 'text-fuchsia-500',
+    bgColor: 'bg-fuchsia-500/10',
+    borderColor: 'border-fuchsia-500/30',
+  },
+] as const
 
-// Pro tools that require subscription
-const proTools = [
+const PRO_TOOL_ROWS = [
   {
     id: 'pricing-optimizer',
-    name: 'Pricing Optimizer',
-    description: 'AI-powered pricing recommendations',
-    longDescription: 'Get data-driven pricing suggestions for subscriptions, PPV, and custom content based on market analysis.',
     icon: DollarSign,
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
     borderColor: 'border-green-500/30',
-    isPro: true,
   },
   {
     id: 'churn-predictor',
-    name: 'Churn Predictor',
-    description: "Who's at risk — Circe's Oracle for retention",
-    longDescription:
-      'Predict churn risk per fan with CRM + thread context. Former Circe\'s Oracle lives here—batch digests on Dashboard → Retention.',
     icon: TrendingDown,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/35',
-    isPro: true,
   },
   {
     id: 'income-predictor',
-    name: 'Income Predictor',
-    description: 'Partner forecast + cadence + goal realism',
-    longDescription:
-      'OnlyFans partner statistical forecast merged with your snapshots, post rate, calendar buckets, leak context, and next-month targets. Full UI: Analytics → Income Predictor.',
     icon: TrendingUp,
     color: 'text-circe',
     bgColor: 'bg-circe/10',
     borderColor: 'border-circe/35',
-    isPro: true,
   },
   {
     id: 'mass-dm-composer',
-    name: 'Mass DM Composer',
-    description: 'Create personalized mass messages at scale',
-    longDescription: 'Generate personalized mass DM campaigns that feel authentic with dynamic placeholders.',
     icon: Send,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/30',
-    isPro: true,
-  },
-  {
-    id: 'standard-of-attraction',
-    name: 'Standard of Attraction',
-    description: 'Pro rating of how commercially attractive your content is',
-    longDescription: 'Let Venus and Circe rate how commercially attractive your latest photos and videos are—through their eyes—before you post.',
-    icon: Heart,
-    color: 'text-gold',
-    bgColor: 'bg-gold/10',
-    borderColor: 'border-gold/30',
-    isPro: true,
   },
   {
     id: 'competitor-analysis',
-    name: 'Competitor Analysis',
-    description: 'You vs peers in your band & one tier up',
-    longDescription:
-      'Uses your imported CRM fan count vs anonymized cohort quartiles, then contrasts **competitors in your stat band** with what typically works **one tier above**. Add public @handles or positioning notes — no scraping or private data.',
     icon: Eye,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
-    isPro: true,
   },
-]
+] as const
+
+function showToolInSelectorGrid(tool: { id: string }) {
+  return !getToolMeta(resolveCanonicalToolId(tool.id))?.hiddenFromLibrary
+}
 
 // Caption Generator Result Interface
 interface CaptionResult {
@@ -311,19 +269,35 @@ interface PhotoEditIntentResult {
   creditsUsed?: number
 }
 
-type ToolType = typeof workingTools[0] | typeof proTools[0]
+type ToolType = {
+  id: string
+  name: string
+  description: string
+  longDescription: string
+  icon: LucideIcon
+  color: string
+  bgColor: string
+  borderColor: string
+  isPro?: true
+}
 
-function makeGenericTool(toolId: string): ToolType {
-  const meta = getToolMeta(toolId)
+function makeGenericTool(
+  toolId: string,
+  t: ReturnType<typeof useTranslations<'ai-tools'> >,
+): ToolType {
+  const canonical = resolveCanonicalToolId(toolId)
+  const nameKey = `tools.${canonical}.name`
+  const descKey = `tools.${canonical}.description`
+  const longKey = `tools.${canonical}.longDescription`
   return {
     id: toolId,
-    name: meta?.name ?? toolId,
-    description: meta?.description ?? 'AI-powered tool',
-    longDescription: meta?.longDescription ?? 'Describe what you need below and run.',
+    name: t.has(nameKey) ? t(nameKey) : t('selector.genericFallbackName'),
+    description: t.has(descKey) ? t(descKey) : t('selector.genericFallbackDesc'),
+    longDescription: t.has(longKey) ? t(longKey) : t('selector.genericFallbackDesc'),
     icon: Wand2,
-    color: 'text-primary',
-    bgColor: 'bg-primary/10',
-    borderColor: 'border-primary/30',
+    color: 'text-fuchsia-500',
+    bgColor: 'bg-fuchsia-500/10',
+    borderColor: 'border-fuchsia-500/30',
   }
 }
 
@@ -334,22 +308,59 @@ export function AIToolsSelector({
   initialToolId?: string
   backHref?: string
 } = {}) {
+  const t = useTranslations('ai-tools')
+  const workingTools = useMemo(
+    () =>
+      WORKING_TOOL_ROWS.map((row) => {
+        const canonical = resolveCanonicalToolId(row.id)
+        return {
+          ...row,
+          name: t(`tools.${canonical}.name`),
+          description: t(`tools.${canonical}.description`),
+          longDescription: t(`tools.${canonical}.longDescription`),
+        }
+      }),
+    [t],
+  )
+  const proTools = useMemo(
+    () =>
+      PRO_TOOL_ROWS.map((row) => {
+        const canonical = resolveCanonicalToolId(row.id)
+        return {
+          ...row,
+          name: t(`tools.${canonical}.name`),
+          description: t(`tools.${canonical}.description`),
+          longDescription: t(`tools.${canonical}.longDescription`),
+          isPro: true as const,
+        }
+      }),
+    [t],
+  )
+
   const voiceSession = useVoiceSession()
   const photoVoiceImageRef = useRef<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<ToolType | null>(null)
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
   /** Fused "Content Ideas" workspace: trending ideas vs caption generator (same card). */
   const [contentStudioSubtab, setContentStudioSubtab] = useState<'ideas' | 'captions'>('ideas')
   const [resolvingInitial, setResolvingInitial] = useState(!!initialToolId)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<CaptionResult | ContentIdeasResult | AIResult | IncomePredictorApiResult | null>(
-    null,
-  )
+  const [result, setResult] = useState<
+    | CaptionResult
+    | ContentIdeasResult
+    | AIResult
+    | IncomePredictorApiResult
+    | PhotoEditIntentResult
+    | null
+  >(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isPro, setIsPro] = useState(false)
-  const [aiCreditsUsed, setAiCreditsUsed] = useState(0)
-  const [aiCreditsLimit, setAiCreditsLimit] = useState(100)
+  const [toolRunError, setToolRunError] = useState<string | null>(null)
   const supabase = createClient()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
+  const { wallet: creditWallet, loading: creditWalletLoading, refresh: refreshCreditWallet } = useCreditSnapshot()
   
   // Check subscription status
   const loadSubscription = useCallback(async () => {
@@ -358,28 +369,12 @@ export function AIToolsSelector({
     
     const { data } = await supabase
       .from('subscriptions')
-      .select(
-        'plan_id, ai_credits_used, ai_credits_limit, billing_variant, revenue_tier, billing_focus_platform, billing_focus_platforms, billing_seats',
-      )
+      .select('plan_id, status')
       .eq('user_id', user.id)
       .single()
-    
+
     if (data) {
-      const planId = (data as { plan_id?: string | null }).plan_id as string | null | undefined
-      const normalized = planId?.toLowerCase() || null
-      setIsPro(Boolean(normalized && isPaidPlanId(normalized)))
-      setAiCreditsUsed(data.ai_credits_used || 0)
-      setAiCreditsLimit(
-        effectiveMonthlyCreditLimit({
-          plan_id: data.plan_id,
-          billing_variant: (data as { billing_variant?: string | null }).billing_variant,
-          revenue_tier: (data as { revenue_tier?: number | null }).revenue_tier,
-          billing_focus_platform: (data as { billing_focus_platform?: string | null }).billing_focus_platform,
-          billing_focus_platforms: (data as { billing_focus_platforms?: string[] | null }).billing_focus_platforms,
-          billing_seats: (data as { billing_seats?: number | null }).billing_seats,
-          ai_credits_limit: data.ai_credits_limit,
-        }),
-      )
+      setIsPro(canUseCreditGatedProFeature(data as { plan_id?: string | null; status?: string | null }))
     }
   }, [supabase])
   
@@ -388,13 +383,32 @@ export function AIToolsSelector({
   }, [loadSubscription])
 
   /** Which API + form to run when Content Ideas card is open (ideas vs fused caption generator). */
-  const effectiveRunnerId = useMemo(() => {
+  const effectiveRunnerId = useMemo((): string | null => {
     if (!selectedTool) return null
     if (selectedTool.id === 'content-ideas' && contentStudioSubtab === 'captions') {
       return 'caption-generator'
     }
     return selectedTool.id
   }, [selectedTool, contentStudioSubtab])
+
+  const runnerStorageKey = useMemo(
+    () => (effectiveRunnerId ? resolveCanonicalToolId(effectiveRunnerId) : null),
+    [effectiveRunnerId],
+  )
+  const { mode: runnerMode, setMode: setRunnerMode } = useToolRunnerUiMode(runnerStorageKey)
+
+  const isContentStudioIdeasOnly = useMemo(
+    () => selectedTool?.id === 'content-ideas' && contentStudioSubtab === 'ideas',
+    [selectedTool, contentStudioSubtab],
+  )
+  const toolInputsRunnerMode = useMemo(
+    () => (isContentStudioIdeasOnly ? 'easy' : runnerMode),
+    [isContentStudioIdeasOnly, runnerMode],
+  )
+  const showGenerateCreditHint = useMemo(
+    () => (isContentStudioIdeasOnly || runnerMode === 'easy') && Boolean(effectiveRunnerId),
+    [isContentStudioIdeasOnly, runnerMode, effectiveRunnerId],
+  )
 
   useEffect(() => {
     if (!initialToolId) {
@@ -408,7 +422,7 @@ export function AIToolsSelector({
     if (found) {
       setSelectedTool(found)
     } else {
-      setSelectedTool(makeGenericTool(initialToolId) as ToolType)
+      setSelectedTool(makeGenericTool(initialToolId, t))
     }
     if (mappedId === 'content-ideas') {
       setContentStudioSubtab(
@@ -418,8 +432,8 @@ export function AIToolsSelector({
       setContentStudioSubtab('ideas')
     }
     setResolvingInitial(false)
-  }, [initialToolId, searchParams])
-  
+  }, [initialToolId, searchParams, workingTools, proTools, t])
+
   // Form states for different tools
   const [contentType, setContentType] = useState('photo')
   const [competitorTargets, setCompetitorTargets] = useState('')
@@ -441,7 +455,7 @@ export function AIToolsSelector({
   const [churnFanId, setChurnFanId] = useState<string>('manual')
   const [churnExpiringOnly, setChurnExpiringOnly] = useState(false)
   const [churnFans, setChurnFans] = useState<ChurnFanPickerRow[]>([])
-  const [incomePredictorMode, setIncomePredictorMode] = useState<'maintain' | 'grow'>('maintain')
+  const [incomePredictorMode, setIncomePredictorMode] = useState<IncomePredictorFocusMode>('maintain')
   const [incomePredictorGoal, setIncomePredictorGoal] = useState('')
   const [incomeCalendarMode, setIncomeCalendarMode] = useState<'week' | 'month'>('month')
   const [cupidTagChurn, setCupidTagChurn] = useState(true)
@@ -460,27 +474,8 @@ export function AIToolsSelector({
 
   const upcomingCosmicEvents = useMemo(() => getUpcomingCosmicEvents(90), [])
 
-  const [fantasyFans, setFantasyFans] = useState<
-    {
-      id: string
-      username: string | null
-      platform_username: string | null
-      display_name: string | null
-      total_spent: number | null
-      platform: string
-      notes: string | null
-      tags: unknown
-    }[]
-  >([])
-  const [fantasyScheduledContent, setFantasyScheduledContent] = useState<
-    {
-      id: string
-      title: string
-      description: string | null
-      scheduled_at: string | null
-      status: string
-    }[]
-  >([])
+  const [fantasyFans, setFantasyFans] = useState<FantasyFanPickerRow[]>([])
+  const [fantasyScheduledContent, setFantasyScheduledContent] = useState<FantasyScheduledRow[]>([])
   const [fantasyFanId, setFantasyFanId] = useState('')
   const [fantasyHolidayEventId, setFantasyHolidayEventId] = useState('')
   const [fantasyContentId, setFantasyContentId] = useState('')
@@ -547,7 +542,7 @@ export function AIToolsSelector({
         setCrmFansMeta(null)
         setFantasyFans([])
       }
-      setFantasyScheduledContent((contentRes.data as typeof fantasyScheduledContent) || [])
+      setFantasyScheduledContent((contentRes.data as FantasyScheduledRow[]) || [])
     })()
   }, [selectedTool?.id])
   
@@ -573,6 +568,7 @@ export function AIToolsSelector({
 
     setLoading(true)
     setResult(null)
+    setToolRunError(null)
 
     try {
       let response: Response
@@ -596,7 +592,7 @@ export function AIToolsSelector({
             ? (() => {
                 const ev = upcomingCosmicEvents.find((e) => e.id === fantasyHolidayEventId)
                 if (!ev) return undefined
-                return `${ev.holiday.name} (${formatFantasyCalendarDate(ev.date)}, ${ev.holiday.type}). Content angle: ${ev.holiday.contentIdea}`
+                return `${ev.holiday.name} (${formatFantasyRunnerDate(ev.date)}, ${ev.holiday.type}). Content angle: ${ev.holiday.contentIdea}`
               })()
             : undefined
 
@@ -623,9 +619,12 @@ export function AIToolsSelector({
                 const c = fantasyScheduledContent.find((x) => x.id === fantasyContentId)
                 if (!c) return undefined
                 const when = c.scheduled_at
-                  ? formatFantasyCalendarDate(new Date(c.scheduled_at))
+                  ? formatFantasyRunnerDate(new Date(c.scheduled_at))
                   : 'not scheduled yet'
-                return `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.${c.description ? ` Notes: ${c.description}` : ''}`
+                return (
+                  `Your content calendar — "${c.title}" (${c.status}). Target timing: ${when}.` +
+                  (c.description ? ` Notes: ${c.description}` : '')
+                )
               })()
             : undefined
 
@@ -804,17 +803,36 @@ export function AIToolsSelector({
       
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to run tool')
+        if (response.status === 402) {
+          const body = data as { used?: number; limit?: number; code?: string }
+          openCreditInsufficientModal({
+            requiredCredits: getCreditsForToolId(selectedTool.id),
+            used: typeof body.used === 'number' ? body.used : undefined,
+            limit: typeof body.limit === 'number' ? body.limit : undefined,
+            contextLabel: 'AI Studio',
+          })
+          setToolRunError(null)
+          setResult(null)
+          void loadSubscription()
+          void refreshCreditWallet()
+          return
+        }
+        const msg =
+          typeof data.error === 'string'
+            ? data.error
+            : `Request failed (${response.status})`
+      setToolRunError(msg)
+      setResult(null)
+        return
       }
 
       setResult(data)
+      void loadSubscription()
+      void refreshCreditWallet()
     } catch (error) {
       console.error('Tool error:', error)
-      // Set a fallback result for demo purposes
-      setResult({
-        content: 'AI analysis complete. Results are being processed.',
-        suggestions: ['Try again with more details', 'Adjust your parameters'],
-      })
+      setToolRunError(error instanceof Error ? error.message : 'Something went wrong')
+      setResult(null)
     } finally {
       setLoading(false)
     }
@@ -823,6 +841,7 @@ export function AIToolsSelector({
   const resetTool = () => {
     setSelectedTool(null)
     setContentStudioSubtab('ideas')
+    setToolRunError(null)
     setResult(null)
     setContentDescription('')
     setFanMessage('')
@@ -845,875 +864,66 @@ export function AIToolsSelector({
   const renderToolInputs = () => {
     if (!selectedTool || !effectiveRunnerId) return null
 
-    switch (effectiveRunnerId) {
-      case 'caption-generator':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Content Type</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="photo">Photo</SelectItem>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="photoset">Photo Set</SelectItem>
-                    <SelectItem value="story">Story</SelectItem>
-                    <SelectItem value="livestream">Livestream</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Upload photo or video (AI sees the frame)</Label>
-              {captionImageDataUrl ? (
-                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-                  <img
-                    src={captionImageDataUrl}
-                    alt="Preview for caption"
-                    className="max-h-48 w-full object-contain"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute right-2 top-2"
-                    onClick={() => setCaptionImageDataUrl(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp,video/mp4,video/quicktime,video/webm"
-                  className="cursor-pointer"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ''
-                    if (!file) return
-                    try {
-                      if (file.type.startsWith('video/')) {
-                        const frame = await extractVideoFrameAsDataUrl(file)
-                        const blob = await fetch(frame).then((r) => r.blob())
-                        const compressed = await compressImageForVision(
-                          new File([blob], 'frame.jpg', { type: 'image/jpeg' }),
-                        )
-                        setCaptionImageDataUrl(compressed)
-                      } else {
-                        const dataUrl = await compressImageForVision(file)
-                        setCaptionImageDataUrl(dataUrl)
-                      }
-                    } catch {
-                      const reader = new FileReader()
-                      reader.onload = () => setCaptionImageDataUrl(reader.result as string)
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                For video we use one representative frame. In the box below you can ask for post copy—or a short script structure (hook, beats, on-screen text, CTA) for Reels/teasers.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Describe your content (optional if you uploaded media)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                  showTooltip={true}
-                />
-              </div>
-              <Textarea 
-                placeholder="Optional: tone and angle for captions — or ask for a tight video outline (hook → beats → CTA). Example: “30s Reels teaser, flirty, end with PPV link…”"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'fantasy-writer':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tone/Style</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="romantic">Romantic</SelectItem>
-                    <SelectItem value="playful">Playful</SelectItem>
-                    <SelectItem value="mysterious">Mysterious</SelectItem>
-                    <SelectItem value="dominant">Dominant</SelectItem>
-                    <SelectItem value="submissive">Submissive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                Cosmic calendar event (next ~90 days)
-              </Label>
-              <Select
-                value={fantasyHolidayEventId || 'none'}
-                onValueChange={(v) => setFantasyHolidayEventId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — tie fantasy to a holiday / event" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {upcomingCosmicEvents.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>
-                      {formatFantasyCalendarDate(ev.date)} — {ev.holiday.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Your scheduled content (content calendar)</Label>
-              <Select
-                value={fantasyContentId || 'none'}
-                onValueChange={(v) => setFantasyContentId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — match a planned post" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {fantasyScheduledContent.map((row) => (
-                    <SelectItem key={row.id} value={row.id}>
-                      {row.title}
-                      {row.scheduled_at
-                        ? ` · ${formatFantasyCalendarDate(new Date(row.scheduled_at))}`
-                        : ''}{' '}
-                      ({row.status})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fantasyScheduledContent.length === 0 && (
-                <p className="text-xs text-muted-foreground">No items in your content calendar yet. Add posts under Content.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                Fan profile (personalize for one fan)
-              </Label>
-              <Select
-                value={fantasyFanId || 'none'}
-                onValueChange={(v) => setFantasyFanId(v === 'none' ? '' : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional — fantasy tailored to this fan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {fantasyFans.map((f) => {
-                    const h = f.username || f.platform_username || 'fan'
-                    return (
-                      <SelectItem key={f.id} value={f.id}>
-                        @{h} · {f.platform}
-                        {f.total_spent != null ? ` · ~$${f.total_spent}` : ''}
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-              {crmFansMeta?.warnings?.length ? (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  {crmFansMeta.warnings.join(' ')}
-                </p>
-              ) : null}
-              {fantasyFans.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {crmFansMeta == null
-                    ? 'Could not load fans. Refresh the page or try again.'
-                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
-                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync subscribers into this list.'}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Scenario or theme (optional if you picked calendar / fan / scheduled post above)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="e.g. masquerade strangers, slow burn, exclusive VIP vibe — or leave blank and rely on calendar + fan context."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'content-ideas':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your Niche</Label>
-                <Input 
-                  placeholder="e.g., fitness, cosplay, GFE..."
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Any specific trends or themes to explore? (optional)</Label>
-              <Textarea 
-                placeholder="Current trends you've noticed, or themes you want to try..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'photo-enhancer':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Upload photo (JPEG / PNG)</Label>
-              {photoEditImageDataUrl ? (
-                <div className="relative overflow-hidden rounded-lg border border-border bg-muted/30">
-                  <img
-                    src={photoEditImageDataUrl}
-                    alt="Photo to edit"
-                    className="max-h-56 w-full object-contain"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute right-2 top-2"
-                    onClick={() => setPhotoEditImageDataUrl(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <Input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  className="cursor-pointer"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      const compressed = await compressImageForVision(file)
-                      setPhotoEditImageDataUrl(compressed)
-                    } catch {
-                      const reader = new FileReader()
-                      reader.onload = () => setPhotoEditImageDataUrl(reader.result as string)
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                Say what you want in plain language — e.g. &quot;blur the background more&quot;, &quot;brighter&quot;, &quot;heart emoji top right&quot;. Mic uses voice-to-text (same idea as Mimic interview).
-              </p>
-            </div>
-            {voiceSession && (
-              <div className="space-y-2 rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
-                <div className="flex items-center gap-2 text-xs font-medium text-sky-700 dark:text-sky-300">
-                  <Mic className="h-3.5 w-3.5" />
-                  OpenAI Realtime voice (like Mimic interview)
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Speak naturally; the assistant calls the same safe edit pipeline. Keep this tab open. Results appear below when a tool applies.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={
-                      !photoEditImageDataUrl ||
-                      voiceSession.status === 'connecting' ||
-                      voiceSession.status === 'connected'
-                    }
-                    onClick={() =>
-                      void voiceSession.startVoiceCall({
-                        realtimePath: '/api/ai/photo-touchup-realtime',
-                        toolPath: '/api/ai/photo-touchup-voice-tool',
-                        getToolBodyExtras: () => ({
-                          imageBase64: photoVoiceImageRef.current || '',
-                        }),
-                      })
-                    }
-                  >
-                    {voiceSession.status === 'connecting' ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                    <span className="ml-1.5">
-                      {voiceSession.status === 'connected' ? 'Voice active' : 'Start voice session'}
-                    </span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={voiceSession.status !== 'connected'}
-                    onClick={() => voiceSession.endVoiceCall()}
-                  >
-                    End voice
-                  </Button>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {voiceSession.status}
-                  </Badge>
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>How should we touch up this photo?</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                  showTooltip={true}
-                />
-              </div>
-              <Textarea
-                placeholder="e.g. Soften the whole image for privacy, brighten slightly, add a sparkle emoji near the corner…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-        
-      case 'gift-suggester':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Fan context</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setFanMessage((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Who they are, spend level, interests, recent behavior…"
-                value={fanMessage}
-                onChange={(e) => setFanMessage(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Budget or tier hint (optional)</Label>
-              <Input
-                placeholder="e.g. $50–150, or deluxe"
-                value={currentPrice}
-                onChange={(e) => setCurrentPrice(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center space-x-2 rounded-md border border-border p-3">
-              <Checkbox
-                id="gift-wl"
-                checked={giftUseWishlist}
-                onCheckedChange={(c) => setGiftUseWishlist(c === true)}
-              />
-              <label htmlFor="gift-wl" className="text-sm cursor-pointer">
-                Use my saved wishlist links (title + price){' '}
-                <Link href="/dashboard/ai-studio/gifts" className="text-primary underline">
-                  Manage list
-                </Link>
-              </label>
-            </div>
-          </div>
-        )
-        
-      // Pro Tool Inputs
-      case 'churn-predictor':
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-snug">
-              <span className="font-medium text-foreground">Circe&apos;s Oracle</span> is now this tool: pick a fan to see who&apos;s
-              at risk of churning and get concrete retention plays. Batch digests live on{' '}
-              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/retention/churn">
-                Retention
-              </Link>
-              .
-            </p>
-            <div className="space-y-2">
-              <Label>Fan from CRM (spend, renewal dates, thread insight, synced DMs)</Label>
-              <p className="text-xs text-muted-foreground">
-                Open <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/messages">Messages</Link>{' '}
-                for a fan so DMs save to your cache — thread text improves this run even without a separate scan.
-              </p>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="churn-expiring-only"
-                  checked={churnExpiringOnly}
-                  onCheckedChange={(v) => setChurnExpiringOnly(v === true)}
-                />
-                <Label htmlFor="churn-expiring-only" className="text-sm font-normal cursor-pointer">
-                  Only fans with period ending in 14 days (needs sync)
-                </Label>
-              </div>
-              <Select value={churnFanId} onValueChange={setChurnFanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose fan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Manual entry only</SelectItem>
-                  {churnFansFiltered.map((f) => (
-                    <SelectItem key={`${f.platform}-${f.id}`} value={f.id}>
-                      <span className="inline-flex items-center gap-1.5 flex-wrap">
-                        <span className="rounded border border-border px-1 py-0 text-[10px] uppercase text-muted-foreground">
-                          {f.platform === 'onlyfans' ? 'OF' : f.platform === 'fansly' ? 'Fansly' : f.platform}
-                        </span>
-                        <span>
-                          @{f.username}
-                          {f.display_name ? ` (${f.display_name})` : ''} · {Number(f.total_spent ?? 0).toFixed(0)} spend
-                          {f.subscription_expires_at
-                            ? ` · ends ${f.subscription_expires_at.slice(0, 10)}`
-                            : ''}
-                          {f._source !== 'database' ? ' · live list' : ''}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {crmFansMeta?.warnings?.length ? (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  {crmFansMeta.warnings.join(' ')}
-                </p>
-              ) : null}
-              {!churnExpiringOnly && churnFansFiltered.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {crmFansMeta == null
-                    ? 'Could not load fans. Refresh the page or try again.'
-                    : crmFansMeta.onlyFansConnected || crmFansMeta.fanslyConnected
-                      ? 'No CRM rows or live subscribers loaded yet. Open Fans and refresh sync, or check Integrations if a session expired.'
-                      : 'Connect OnlyFans or Fansly in Settings, then open Fans to sync — or pick Manual entry below.'}
-                </p>
-              ) : null}
-              {churnExpiringOnly && churnFansFiltered.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No matches. On Fans, open Sync → Full CRM update so subscription end dates populate.
-                </p>
-              ) : null}
-            </div>
-            {churnFanId === 'manual' ? (
-              <div className="space-y-2">
-                <Label>Fan information</Label>
-                <Textarea
-                  placeholder="Subscription length, spending, patterns…"
-                  value={fanMessage}
-                  onChange={(e) => setFanMessage(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Optional: extra spending / trend notes</Label>
-                <Textarea
-                  placeholder="e.g. tips dropped this month vs last…"
-                  value={fanMessage}
-                  onChange={(e) => setFanMessage(e.target.value)}
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Recent behavior or context (optional)</Label>
-              <Textarea
-                placeholder="Anything that changed lately in DMs or purchases…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'income-predictor':
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-snug">
-              Combines the partner revenue forecast with your synced snapshots, post cadence, and goal realism. For the full
-              calendar and raw forecast JSON, open{' '}
-              <Link className="text-primary underline-offset-2 hover:underline" href="/dashboard/analytics/income-predictor">
-                Income Predictor
-              </Link>
-              .
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Calendar buckets</Label>
-                <Select value={incomeCalendarMode} onValueChange={(v) => setIncomeCalendarMode(v as 'week' | 'month')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="month">Monthly</SelectItem>
-                    <SelectItem value="week">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Mode</Label>
-                <Select value={incomePredictorMode} onValueChange={(v) => setIncomePredictorMode(v as 'maintain' | 'grow')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="maintain">Maintain run rate</SelectItem>
-                    <SelectItem value="grow">Grow (next month $)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {incomePredictorMode === 'grow' ? (
-              <div className="space-y-2">
-                <Label>Target revenue (USD)</Label>
-                <Input
-                  inputMode="decimal"
-                  placeholder="e.g. 12000"
-                  value={incomePredictorGoal}
-                  onChange={(e) => setIncomePredictorGoal(e.target.value)}
-                />
-              </div>
-            ) : null}
-          </div>
-        )
-        
-      case 'mass-dm-composer':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Audience Segment</Label>
-                <Select value={audienceSegment} onValueChange={setAudienceSegment}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Subscribers</SelectItem>
-                    <SelectItem value="new">New Fans (Last 7 days)</SelectItem>
-                    <SelectItem value="inactive">Inactive (30+ days)</SelectItem>
-                    <SelectItem value="whales">Top Spenders</SelectItem>
-                    <SelectItem value="expiring">Expiring Soon</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tone</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="friendly">Friendly</SelectItem>
-                    <SelectItem value="flirty">Flirty</SelectItem>
-                    <SelectItem value="urgent">Urgent/FOMO</SelectItem>
-                    <SelectItem value="exclusive">Exclusive/VIP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Campaign Goal</Label>
-              <Input 
-                placeholder="e.g., Promote new PPV, Re-engage inactive fans..."
-                value={campaignGoal}
-                onChange={(e) => setCampaignGoal(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Call to Action</Label>
-              <Textarea 
-                placeholder="What do you want fans to do after reading?"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[60px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'standard-of-attraction':
-        return (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your Niche (optional)</Label>
-                <Input
-                  placeholder="e.g., fitness, cosplay, GFE..."
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Upload your photo (Grok rates if you&apos;re up to market standards)</Label>
-              {attractionImage ? (
-                <div className="relative rounded-lg border border-border bg-muted/30 overflow-hidden">
-                  <img src={attractionImage} alt="Uploaded for rating" className="max-h-48 w-full object-contain" />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => setAttractionImage(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg"
-                    className="cursor-pointer"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      try {
-                        const dataUrl = await compressImageForVision(file)
-                        setAttractionImage(dataUrl)
-                      } catch {
-                        const reader = new FileReader()
-                        reader.onload = () => setAttractionImage(reader.result as string)
-                        reader.readAsDataURL(file)
-                      }
-                    }}
-                  />
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Upload a photo and Grok will judge commercial attractiveness and whether you meet market standards. Or describe below.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Or describe your content (optional if you uploaded a photo)</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="Describe the content you want rated: setting, outfit, mood, type (photo/video), what’s in frame... The more detail, the better Venus and Circe can judge commercial appeal."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-        )
-
-      case 'competitor-analysis':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              We anchor you on{' '}
-              <strong className="text-foreground">your cohort stat band</strong> (imported fans vs anonymized Creatix
-              quartiles), then compare you to <strong className="text-foreground">named competitors</strong> in the{' '}
-              <strong className="text-foreground">same band</strong> and contrast with{' '}
-              <strong className="text-foreground">one tier above</strong> (next quartile up). Use only public marketing
-              signals — no harassment or private data.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Your niche</Label>
-                <Input
-                  placeholder="e.g., fitness, cosplay, GFE, domme…"
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Primary platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="onlyfans">OnlyFans</SelectItem>
-                    <SelectItem value="fansly">Fansly</SelectItem>
-                    <SelectItem value="mym">MYM</SelectItem>
-                    <SelectItem value="multi">Multi-platform</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Competitors to compare (required for a focused run)</Label>
-              <Textarea
-                placeholder="@handles, public profile links, or notes on who sits near you vs who feels one step ahead (themes, price tier if public, cadence)…"
-                value={competitorTargets}
-                onChange={(e) => setCompetitorTargets(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>What you want out of the comparison</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription((prev) => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea
-                placeholder="e.g., Where I’m weak vs peers in my band · what one-tier-up creators do on promos or DMs · gaps I can own without racing to the bottom…"
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="competitor-web"
-                checked={useCompetitorWebSearch}
-                onCheckedChange={(v) => setUseCompetitorWebSearch(v === true)}
-              />
-              <label htmlFor="competitor-web" className="text-xs leading-snug text-muted-foreground cursor-pointer">
-                Run live web discovery (Serper) for public guides and articles — adds verifiable context. Turn off to use
-                cohort benchmarks + shared library + Community tips only.
-              </label>
-            </div>
-          </div>
-        )
-
-      case 'venus-cupid':
-        return (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">Generate</strong> loads your <strong className="text-foreground">newest fans</strong> from CRM + live
-              OnlyFans/Fansly lists, then suggests how to welcome and engage them. Optional links:{' '}
-              <Link href="/dashboard/retention/churn" className="text-primary underline hover:no-underline">
-                Retention → Churn
-              </Link>
-              ,{' '}
-              <Link href="/dashboard/ai-studio/tools/churn-predictor" className="text-primary underline hover:no-underline">
-                Churn Predictor
-              </Link>
-              .
-            </p>
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
-              <Checkbox
-                id="cupid-churn-tag"
-                checked={cupidTagChurn}
-                onCheckedChange={(v) => setCupidTagChurn(v === true)}
-              />
-              <label htmlFor="cupid-churn-tag" className="cursor-pointer text-xs leading-snug text-muted-foreground">
-                <span className="font-medium text-foreground">Tag CRM fans for churn follow-up</span> — append a short note on
-                each <strong className="text-foreground">saved</strong> fan row so you remember they belong in Churn Predictor /
-                retention workflows (live-only fans need a CRM sync first).
-              </label>
-            </div>
-          </div>
-        )
-        
-      default:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Input</Label>
-                <VoiceInputButton
-                  onTranscript={(text) => setContentDescription(prev => prev + (prev ? ' ' : '') + text)}
-                  size="sm"
-                  variant="ghost"
-                />
-              </div>
-              <Textarea 
-                placeholder="Enter your request..."
-                value={contentDescription}
-                onChange={(e) => setContentDescription(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )
-    }
+    return runToolInputsSwitch({
+      effectiveRunnerId,
+      runnerMode: toolInputsRunnerMode,
+      platform,
+      setPlatform,
+      contentType,
+      setContentType,
+      captionImageDataUrl,
+      setCaptionImageDataUrl,
+      contentDescription,
+      setContentDescription,
+      niche,
+      setNiche,
+      fanMessage,
+      setFanMessage,
+      currentPrice,
+      setCurrentPrice,
+      photoEditImageDataUrl,
+      setPhotoEditImageDataUrl,
+      voiceSession,
+      photoVoiceImageRef,
+      giftUseWishlist,
+      setGiftUseWishlist,
+      churnFanId,
+      setChurnFanId,
+      churnFans,
+      churnFansFiltered,
+      churnExpiringOnly,
+      setChurnExpiringOnly,
+      incomePredictorMode,
+      setIncomePredictorMode,
+      incomePredictorGoal,
+      setIncomePredictorGoal,
+      incomeCalendarMode,
+      setIncomeCalendarMode,
+      campaignGoal,
+      setCampaignGoal,
+      audienceSegment,
+      setAudienceSegment,
+      attractionImage,
+      setAttractionImage,
+      competitorTargets,
+      setCompetitorTargets,
+      useCompetitorWebSearch,
+      setUseCompetitorWebSearch,
+      cupidTagChurn,
+      setCupidTagChurn,
+      upcomingCosmicEvents,
+      fantasyHolidayEventId,
+      setFantasyHolidayEventId,
+      fantasyContentId,
+      setFantasyContentId,
+      fantasyFanId,
+      setFantasyFanId,
+      fantasyFans,
+      fantasyScheduledContent,
+      crmFansMeta,
+    })
   }
-  
+
   // Render caption generator results
   const renderCaptionResults = (captionResult: CaptionResult) => (
     <div className="space-y-6 pt-4 border-t border-border">
@@ -1721,7 +931,7 @@ export function AIToolsSelector({
       <div className="space-y-3">
         <h3 className="text-sm font-medium flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-primary" />
-          Caption Suggestions
+          {t('results.captionSuggestionsTitle')}
         </h3>
         <div className="space-y-3">
           {captionResult.captions.map((caption, index) => (
@@ -1762,7 +972,7 @@ export function AIToolsSelector({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium flex items-center gap-2">
             <Hash className="h-4 w-4 text-primary" />
-            Hashtags
+            {t('results.hashtagsTitle')}
           </h3>
           <Button
             size="sm"
@@ -1792,7 +1002,7 @@ export function AIToolsSelector({
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" />
-              Teaser Message
+              {t('results.teaserMessageTitle')}
             </h4>
             <Button
               size="sm"
@@ -1814,7 +1024,7 @@ export function AIToolsSelector({
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-medium text-green-400 flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5" />
-              PPV Sales Copy
+              {t('results.ppvSalesCopyTitle')}
             </h4>
             <Button
               size="sm"
@@ -1837,7 +1047,7 @@ export function AIToolsSelector({
       <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
         <Clock className="h-5 w-5 text-primary" />
         <div>
-          <p className="text-xs text-muted-foreground">Best Time to Post</p>
+          <p className="text-xs text-muted-foreground">{t('results.bestTimeToPost')}</p>
           <p className="text-sm font-medium">{captionResult.bestPostingTime}</p>
         </div>
       </div>
@@ -1849,22 +1059,22 @@ export function AIToolsSelector({
     <div className="space-y-4 pt-4 border-t border-border">
       <div className="flex items-center gap-3 rounded-lg border border-gold/30 bg-gold/10 p-4">
         <span className="text-3xl font-bold text-gold">{res.score}</span>
-        <span className="text-sm text-muted-foreground">/ 10</span>
+        <span className="text-sm text-muted-foreground">{t('results.outOfTen')}</span>
         <p className="text-sm font-medium flex-1">{res.verdict}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-venus/20 bg-venus/5 p-3">
-          <h4 className="text-xs font-medium text-venus mb-1">Venus</h4>
+          <h4 className="text-xs font-medium text-venus mb-1">{t('results.venusColumn')}</h4>
           <p className="text-sm">{res.venusTake}</p>
         </div>
         <div className="rounded-lg border border-circe/20 bg-circe/5 p-3">
-          <h4 className="text-xs font-medium text-circe-light mb-1">Circe</h4>
+          <h4 className="text-xs font-medium text-circe-light mb-1">{t('results.circeColumn')}</h4>
           <p className="text-sm">{res.circeTake}</p>
         </div>
       </div>
       {res.strengths?.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Strengths</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('results.strengths')}</h4>
           <ul className="space-y-1">
             {res.strengths.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -1877,7 +1087,7 @@ export function AIToolsSelector({
       )}
       {res.improvements?.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Improvements</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('results.improvements')}</h4>
           <ul className="space-y-1">
             {res.improvements.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
@@ -1899,7 +1109,7 @@ export function AIToolsSelector({
       </Badge>
       <div className="relative overflow-hidden rounded-lg border border-border bg-muted/20">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={res.imageBase64} alt="Edited preview" className="max-h-[min(50vh,420px)] w-full object-contain" />
+        <img src={res.imageBase64} alt={t('results.editedPreviewAlt')} className="max-h-[min(50vh,420px)] w-full object-contain" />
       </div>
       <Button
         type="button"
@@ -1911,7 +1121,7 @@ export function AIToolsSelector({
         }}
       >
         <Copy className="h-3.5 w-3.5" />
-        Copy data URL
+        {t('results.copyDataUrl')}
       </Button>
     </div>
   )
@@ -1929,21 +1139,23 @@ export function AIToolsSelector({
         </p>
       ) : null}
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</h4>
-        <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3">{res.executiveSummary}</p>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.summary')}</h4>
+        <div className="rounded-lg border border-border bg-muted/20 p-3">
+          <AiToolMarkdownReadout content={res.executiveSummary} variant="competitor" />
+        </div>
       </div>
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Market context</h4>
-        <p className="whitespace-pre-wrap text-muted-foreground">{res.marketContext}</p>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.marketContext')}</h4>
+        <AiToolMarkdownReadout content={res.marketContext} variant="competitor" className="text-muted-foreground" />
       </div>
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tier note (qualitative)</h4>
-        <p className="whitespace-pre-wrap">{res.qualitativeTierNote}</p>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.tierNoteQualitative')}</h4>
+        <AiToolMarkdownReadout content={res.qualitativeTierNote} variant="competitor" />
       </div>
       {res.peerArchetypes?.length ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Competitors — same band vs one tier up
+            {t('results.competitorsSameBand')}
           </h4>
           <ul className="space-y-3">
             {res.peerArchetypes.map((p, i) => (
@@ -1958,7 +1170,7 @@ export function AIToolsSelector({
       ) : null}
       {res.differentiationAngles?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Differentiation</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.differentiation')}</h4>
           <ul className="space-y-1">
             {res.differentiationAngles.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1971,7 +1183,7 @@ export function AIToolsSelector({
       ) : null}
       {res.postingCadenceIdeas?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Posting &amp; cadence</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.postingCadence')}</h4>
           <ul className="space-y-1">
             {res.postingCadenceIdeas.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1984,7 +1196,7 @@ export function AIToolsSelector({
       ) : null}
       {res.chattingAndDmTips?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chatting &amp; DMs</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.chattingDms')}</h4>
           <ul className="space-y-1">
             {res.chattingAndDmTips.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -1997,7 +1209,7 @@ export function AIToolsSelector({
       ) : null}
       {res.commentingAndSocialTips?.length ? (
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commenting &amp; social</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('results.commentingSocial')}</h4>
           <ul className="space-y-1">
             {res.commentingAndSocialTips.map((x, i) => (
               <li key={i} className="flex gap-2 text-sm">
@@ -2011,17 +1223,17 @@ export function AIToolsSelector({
       {res.cohortPercentileSummary ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Your cohort (imported fans)
+            {t('results.cohortImportedFans')}
           </h4>
-          <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
-            {res.cohortPercentileSummary}
-          </p>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-muted-foreground">
+            <AiToolMarkdownReadout content={res.cohortPercentileSummary} variant="competitor" />
+          </div>
         </div>
       ) : null}
       {res.improvementPriorities?.length ? (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Prioritized improvements
+            {t('results.prioritizedImprovements')}
           </h4>
           <ul className="space-y-1">
             {res.improvementPriorities.map((x, i) => (
@@ -2033,7 +1245,9 @@ export function AIToolsSelector({
           </ul>
         </div>
       ) : null}
-      <p className="text-xs text-amber-600 dark:text-amber-400">{res.caveats}</p>
+      {(res.caveats && String(res.caveats).trim()) ? (
+        <AiToolMarkdownReadout content={res.caveats} variant="caveat" className="text-xs" />
+      ) : null}
     </div>
   )
 
@@ -2045,24 +1259,24 @@ export function AIToolsSelector({
       <div className="space-y-4 border-t border-border pt-4">
         <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-circe/90">
           <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          Income predictor readout
+          {t('results.incomePredictorReadout')}
         </p>
         <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
           {ai?.headline ? <p className="text-sm font-semibold text-foreground">{ai.headline}</p> : null}
           {ai?.summary ? (
-            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{ai.summary}</p>
+            <AiToolMarkdownReadout content={ai.summary} variant="income" className="text-muted-foreground" />
           ) : null}
           {!ai?.headline && !ai?.summary ? (
-            <p className="text-xs text-muted-foreground">No summary returned. Open the full Income Predictor for details.</p>
+            <p className="text-xs text-muted-foreground">{t('results.incomeNoSummary')}</p>
           ) : null}
           {h?.level ? (
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Goal realism:</span>
+              <span className="text-muted-foreground">{t('results.goalRealism')}</span>
               <Badge variant="secondary" className="capitalize">
                 {h.level}
               </Badge>
               {h.suggestedNextTierOrRange ? (
-                <span className="text-muted-foreground">Next band: {h.suggestedNextTierOrRange}</span>
+                <span className="text-muted-foreground">{t('results.nextBand', { band: h.suggestedNextTierOrRange })}</span>
               ) : null}
             </div>
           ) : null}
@@ -2087,12 +1301,10 @@ export function AIToolsSelector({
             <p className="text-xs text-amber-700 dark:text-amber-400">{ctx.partnerForecastError}</p>
           ) : null}
           {typeof ctx?.openLeakAlerts === 'number' && ctx.openLeakAlerts > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Open leak alerts: {ctx.openLeakAlerts} — review under Protection.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('results.openLeakAlerts', { count: ctx.openLeakAlerts })}</p>
           ) : null}
           <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-            <Link href="/dashboard/analytics/income-predictor">Open full Income Predictor</Link>
+            <Link href="/dashboard/analytics/income-predictor">{t('results.openFullIncomePredictor')}</Link>
           </Button>
         </div>
       </div>
@@ -2104,12 +1316,12 @@ export function AIToolsSelector({
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         <Badge variant="secondary" className="gap-1 font-normal">
           <Users className="h-3 w-3" aria-hidden />
-          {Array.isArray(res.newFans) ? res.newFans.length : 0} newest in batch
+          {t('results.cupidNewestInBatch', { count: Array.isArray(res.newFans) ? res.newFans.length : 0 })}
         </Badge>
         {typeof res.markedForChurnCount === 'number' && res.tagForChurn !== false ? (
           <Badge variant="outline" className="gap-1 border-amber-500/35 font-normal text-amber-700 dark:text-amber-300">
             <TrendingDown className="h-3 w-3" aria-hidden />
-            {res.markedForChurnCount} CRM fan{res.markedForChurnCount === 1 ? '' : 's'} tagged for churn follow-up
+            {t('results.cupidChurnTagged', { count: res.markedForChurnCount })}
           </Badge>
         ) : null}
       </div>
@@ -2123,7 +1335,7 @@ export function AIToolsSelector({
       {Array.isArray(res.newFans) && res.newFans.length > 0 ? (
         <div className="rounded-lg border border-border bg-muted/20">
           <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
-            Newest fans (CRM + live lists)
+            {t('selector.cupidNewFansHeading')}
           </div>
           <ul className="max-h-[220px] space-y-1.5 overflow-y-auto p-3 text-xs">
             {res.newFans.map((f) => (
@@ -2146,10 +1358,10 @@ export function AIToolsSelector({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/retention/churn">Retention → Churn</Link>
+          <Link href="/dashboard/retention/churn">{t('selector.cupidRetentionLink')}</Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/ai-studio/tools/churn-predictor">Churn Predictor</Link>
+          <Link href="/dashboard/ai-studio/tools/churn-predictor">{t('selector.cupidChurnToolLink')}</Link>
         </Button>
       </div>
     </div>
@@ -2159,10 +1371,10 @@ export function AIToolsSelector({
     <div className="space-y-3 border-t border-border pt-4">
       <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-violet-300/90 dark:text-violet-200/85">
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        Circe retention readout
+        {t('selector.circeRetentionReadout')}
       </p>
       <div className="rounded-xl border border-violet-500/25 bg-violet-950/25 p-4 dark:bg-violet-950/35">
-        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{res.content}</p>
+        <AiToolMarkdownReadout content={res.content} variant="circeRetention" />
       </div>
       {res.suggestions && res.suggestions.length > 0 && (
         <ul className="space-y-1 text-sm text-muted-foreground">
@@ -2182,7 +1394,7 @@ export function AIToolsSelector({
     <div className="space-y-4 pt-4 border-t border-border">
       <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
         {typeof (res as AIResult).content === 'string' && (res as AIResult).content.trim() ? (
-          <p className="text-sm whitespace-pre-wrap text-foreground">{(res as AIResult).content}</p>
+          <AiToolMarkdownReadout content={(res as AIResult).content} variant="neutral" />
         ) : (
           <pre className="max-h-48 overflow-auto text-left text-xs text-muted-foreground whitespace-pre-wrap break-words">
             {JSON.stringify(res, null, 2)}
@@ -2193,7 +1405,7 @@ export function AIToolsSelector({
         Array.isArray((res as AIResult).suggestions) &&
         (res as AIResult).suggestions!.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Suggestions</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{t('selector.suggestionsHeading')}</h4>
           <ul className="space-y-1">
             {(res as AIResult).suggestions!.map((suggestion, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
@@ -2227,95 +1439,116 @@ export function AIToolsSelector({
               <PenTool className="h-5 w-5 text-primary sparkle-icon" />
               <Sparkles className="h-3 w-3 text-primary absolute -top-1 -right-1 animate-pulse" />
             </div>
-            <span className="rainbow-text">Tools</span>
+            <span className="rainbow-text">{t('selector.gridTitle')}</span>
           </CardTitle>
-          <CardDescription>
-            Choose an AI tool to enhance your content
-          </CardDescription>
+          <CardDescription>{t('selector.gridSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[400px] pr-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {workingTools.map((tool) => (
-                <Card 
-                  key={tool.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
-                  onClick={() => {
-                    if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
-                    setSelectedTool(tool)
-                  }}
-                >
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
-                        <tool.icon className={`h-5 w-5 ${tool.color}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm">{tool.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {tool.description}
-                        </p>
-                        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap className="h-3 w-3" />
-                          {formatToolCreditCost(tool.id)}/use
+              {workingTools.filter(showToolInSelectorGrid).map((tool) => (
+                <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-primary/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId={resolveCanonicalToolId(tool.id)} />
+                  </div>
+                  <Card
+                    className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${tool.borderColor} hover:border-primary/50`}
+                    onClick={() => {
+                      if (tool.id === 'brand-uniformity') {
+                        window.location.href = '/dashboard/brand-uniformity'
+                        return
+                      }
+                      if (tool.id === 'content-ideas') setContentStudioSubtab('ideas')
+                      setSelectedTool(tool)
+                    }}
+                  >
+                    <CardContent className="pt-4 pr-11">
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
+                          <tool.icon className={`h-5 w-5 ${tool.color}`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-semibold">{tool.name}</h3>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
+                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Zap className="h-3 w-3" />
+                            {t('selector.perUse', {
+                              cost: formatToolCreditCost(resolveCanonicalToolId(tool.id)),
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
 
             <div className="mt-6">
               <div className="mb-3 flex items-center gap-2">
                 <ListTree className="h-4 w-4 text-amber-500/90" aria-hidden />
-                <h3 className="text-sm font-semibold text-foreground">Commenter &amp; Housekeeping</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t('selector.commenterFanAtlasTitle')}</h3>
               </div>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Web dashboard tools — same entries as AI Studio → Tools library. Housekeeping runs Smart classify (spend,
-                threads, freeloaders) into OnlyFans lists and Fansly tags from Arrangements.
-              </p>
+              <p className="mb-3 text-xs text-muted-foreground">{t('selector.commenterFanAtlasBlurb')}</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Link href="/dashboard/commenter" className="block">
-                  <Card className="h-full cursor-pointer border-border transition-all hover:border-violet-500/35 hover:shadow-md">
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-lg bg-violet-500/10 p-2.5">
-                          <MessageSquare className="h-5 w-5 text-violet-400" aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1">
-                            <h3 className="text-sm font-semibold">Commenter</h3>
-                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                <div className="relative rounded-xl focus-within:ring-2 focus-within:ring-violet-500/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId="commenter" />
+                  </div>
+                  <Link href="/dashboard/commenter" className="block">
+                    <Card className="h-full cursor-pointer border-border transition-all hover:border-violet-500/35 hover:shadow-md">
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-violet-500/10 p-2.5">
+                            <MessageSquare className="h-5 w-5 text-violet-400" aria-hidden />
                           </div>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            Post comments — draft replies, personas, safety flags.
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-                <Link href="/dashboard/commenter?section=housekeeping" className="block">
-                  <Card className="h-full cursor-pointer border-border transition-all hover:border-amber-500/40 hover:shadow-md">
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-lg bg-amber-500/10 p-2.5">
-                          <ListTree className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1">
-                            <h3 className="text-sm font-semibold">Housekeeping</h3>
-                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <h3 className="text-sm font-semibold">{t('selector.commenterTitle')}</h3>
+                              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t('selector.commenterDesc')}</p>
                           </div>
-                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            Classify by spend &amp; threads; surface freeloaders — sync lists from Arrangements.
-                          </p>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
+                <div className="relative rounded-xl focus-within:ring-2 focus-within:ring-amber-500/35">
+                  <div
+                    className="absolute right-2 top-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <ToolHelpDialog toolId="housekeeping" />
+                  </div>
+                  <Link href="/dashboard/commenter?section=housekeeping" className="block">
+                    <Card className="h-full cursor-pointer border-border transition-all hover:border-amber-500/40 hover:shadow-md">
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-lg bg-amber-500/10 p-2.5">
+                            <ListTree className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <h3 className="text-sm font-semibold">{t('selector.fanAtlasTitle')}</h3>
+                              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t('selector.fanAtlasDesc')}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
               </div>
             </div>
             
@@ -2323,41 +1556,49 @@ export function AIToolsSelector({
             <div className="mt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Crown className="h-4 w-4 text-gold" />
-                <h3 className="font-semibold text-sm text-gold">Pro Tools</h3>
-                {isPro && <Badge className="bg-gold/20 text-gold text-[10px]">Unlocked</Badge>}
+                <h3 className="font-semibold text-sm text-gold">{t('selector.proToolsTitle')}</h3>
+                {isPro && <Badge className="bg-gold/20 text-gold text-[10px]">{t('selector.unlockedBadge')}</Badge>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {proTools.map((tool) => (
-                  <Card 
-                    key={tool.id}
-                    className={`cursor-pointer transition-all ${tool.borderColor} ${
-                      isPro 
-                        ? 'hover:shadow-lg hover:scale-[1.02] hover:border-gold/50' 
-                        : 'opacity-75 hover:opacity-100'
-                    }`}
-                    onClick={() => isPro ? setSelectedTool(tool) : null}
-                  >
-                    <CardContent className="pt-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
-                          <tool.icon className={`h-5 w-5 ${tool.color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-sm">{tool.name}</h3>
-                            {!isPro && <Lock className="h-3 w-3 text-muted-foreground" />}
+                {proTools.filter(showToolInSelectorGrid).map((tool) => (
+                  <div key={tool.id} className="relative rounded-xl focus-within:ring-2 focus-within:ring-gold/40">
+                    <div
+                      className="absolute right-2 top-2 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <ToolHelpDialog toolId={resolveCanonicalToolId(tool.id)} />
+                    </div>
+                    <Card
+                      className={`cursor-pointer transition-all ${tool.borderColor} ${
+                        isPro
+                          ? 'hover:scale-[1.02] hover:border-gold/50 hover:shadow-lg'
+                          : 'opacity-75 hover:opacity-100'
+                      }`}
+                      onClick={() => (isPro ? setSelectedTool(tool) : null)}
+                    >
+                      <CardContent className="pt-4 pr-11">
+                        <div className="flex items-start gap-3">
+                          <div className={`rounded-lg p-2.5 ${tool.bgColor}`}>
+                            <tool.icon className={`h-5 w-5 ${tool.color}`} />
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {tool.description}
-                          </p>
-                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                            <Zap className="h-3 w-3" />
-                            {formatToolCreditCost(tool.id)}/use
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold">{tool.name}</h3>
+                              {!isPro ? <Lock className="h-3 w-3 text-muted-foreground" /> : null}
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{tool.description}</p>
+                            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                              <Zap className="h-3 w-3" />
+                              {t('selector.perUse', {
+                                cost: formatToolCreditCost(resolveCanonicalToolId(tool.id)),
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 ))}
               </div>
               
@@ -2368,15 +1609,13 @@ export function AIToolsSelector({
                       <Crown className="h-5 w-5 text-gold" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-sm text-gold">Unlock Pro Tools</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Get Competitor Analysis, Churn Prediction, Mass DM Composer and more
-                      </p>
+                      <h4 className="font-semibold text-sm text-gold">{t('selector.unlockProTitle')}</h4>
+                      <p className="text-xs text-muted-foreground">{t('selector.unlockProBody')}</p>
                     </div>
                     <Link href="/dashboard/settings?tab=billing">
                       <Button size="sm" variant="outline" className="border-gold/30 text-gold hover:bg-gold/10 hover:text-gold">
                         <Crown className="h-3 w-3 mr-1" />
-                        Upgrade
+                        {t('chrome.upgrade')}
                       </Button>
                     </Link>
                   </div>
@@ -2384,28 +1623,54 @@ export function AIToolsSelector({
               )}
             </div>
             
-            {/* Credits Display */}
-            <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-center justify-between">
+            {/* Credits — wallet total (same source as chat / billing) */}
+            <div
+              className="mt-4 flex items-center justify-between rounded-lg bg-muted/50 p-3"
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
+            >
               <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-sm">AI Credits</span>
+                <Zap className="h-4 w-4 text-primary" aria-hidden />
+                <span className="text-sm">{t('selector.creditsAvailable')}</span>
               </div>
-              <span className="font-medium">{aiCreditsUsed}/{aiCreditsLimit}</span>
+              <span className="font-medium tabular-nums">
+                {creditWalletLoading ? '…' : (creditWallet?.totalRemaining ?? 0).toLocaleString()}
+              </span>
             </div>
           </ScrollArea>
         </CardContent>
       </Card>
     )
   }
-  
+
+  if (!selectedTool) {
+    return (
+      <Card className="border-primary/20">
+        <CardContent className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   // Tool workspace view
   return (
-    <Card className={`min-w-0 border-primary/20 ${selectedTool.borderColor}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <Card
+      className={cn(
+        'min-w-0 gap-0 overflow-hidden rounded-2xl border py-0 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.28)] backdrop-blur-2xl backdrop-saturate-150',
+        'bg-white/52 text-card-foreground dark:bg-slate-950/50 dark:shadow-[0_22px_62px_-30px_rgba(0,0,0,0.55)]',
+        selectedTool.borderColor,
+      )}
+    >
+      <CardHeader className="gap-0 space-y-5 border-b border-border/25 px-6 pb-6 pt-8 dark:border-white/[0.06]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
             {backHref ? (
-              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mt-0.5 h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                asChild
+              >
                 <Link href={backHref}>
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
@@ -2414,87 +1679,158 @@ export function AIToolsSelector({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="mt-0.5 h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
                 onClick={resetTool}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <div className={`rounded-lg p-2 ${selectedTool.bgColor}`}>
+            <div
+              className={cn(
+                'shrink-0 rounded-2xl border border-white/35 p-2.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14)] backdrop-blur-sm dark:border-white/[0.10]',
+                selectedTool.bgColor,
+              )}
+            >
               <selectedTool.icon className={`h-5 w-5 ${selectedTool.color}`} />
             </div>
-            <div>
-              <CardTitle className="text-lg">{selectedTool.name}</CardTitle>
-              <CardDescription className="text-xs">
+            <div className="min-w-0">
+              <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl sm:font-medium">
+                {selectedTool.name}
+              </CardTitle>
+              <CardDescription className="mt-2 max-w-prose text-sm leading-relaxed">
                 {selectedTool.longDescription}
               </CardDescription>
               {selectedTool.id === 'content-ideas' ? (
                 <Tabs
                   value={contentStudioSubtab}
                   onValueChange={(v) => {
-                    setContentStudioSubtab(v as 'ideas' | 'captions')
+                    const next = v as 'ideas' | 'captions'
+                    setContentStudioSubtab(next)
                     setResult(null)
+                    if (pathname === '/dashboard/ai-studio/tools/content-ideas') {
+                      if (next === 'captions') {
+                        router.replace('/dashboard/ai-studio/tools/content-ideas?tab=captions', { scroll: false })
+                      } else {
+                        router.replace('/dashboard/ai-studio/tools/content-ideas', { scroll: false })
+                      }
+                    }
                   }}
                   className="mt-3 w-full max-w-md"
                 >
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="ideas">Ideas</TabsTrigger>
-                    <TabsTrigger value="captions">Captions</TabsTrigger>
+                    <TabsTrigger value="ideas">{t('selector.contentStudioIdeasTab')}</TabsTrigger>
+                    <TabsTrigger value="captions">{t('selector.contentStudioCaptionsTab')}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               ) : null}
             </div>
           </div>
-          <Badge variant="outline" className="gap-1">
-            <Zap className="h-3 w-3" />
-            {formatToolCreditCost(selectedTool.id)}
-          </Badge>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <ToolHelpDialog toolId={resolveCanonicalToolId(selectedTool.id)} />
+            <Link
+              href="/dashboard/settings?tab=billing"
+              title={t('chrome.billingTitle')}
+              className="inline-flex"
+              {...DASHBOARD_CREDIT_SUMMARY_MARK}
+            >
+              <Badge
+                variant="outline"
+                className="gap-1 rounded-full border-border/40 bg-background/45 px-3 py-1 tabular-nums text-[12px] font-normal text-foreground shadow-sm backdrop-blur-sm hover:bg-background/60 dark:border-white/[0.10] dark:bg-white/[0.06]"
+              >
+                <Zap className="h-3 w-3 opacity-70" aria-hidden />
+                {creditWalletLoading
+                  ? '…'
+                  : t('chrome.availableCredits', { count: creditWallet?.totalRemaining ?? 0 })}
+              </Badge>
+            </Link>
+            <Badge
+              variant="outline"
+              className="gap-1 rounded-full border-border/40 bg-background/35 px-3 py-1 tabular-nums text-[12px] font-normal backdrop-blur-sm dark:border-white/[0.10] dark:bg-white/[0.05]"
+            >
+              <Zap className="h-3 w-3 opacity-70" aria-hidden />
+              {effectiveRunnerId
+                ? formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId))
+                : formatToolCreditCost(resolveCanonicalToolId(selectedTool.id))}
+            </Badge>
+          </div>
         </div>
+        {!isContentStudioIdeasOnly ? (
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-muted/15 px-4 py-3.5 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.04]">
+            <p className="text-[13px] leading-snug text-muted-foreground">{t('selector.runnerHintEasyPro')}</p>
+            <EasyProModeToggle
+              value={runnerMode}
+              onChange={setRunnerMode}
+              ariaLabel={t('selector.layoutModeAria')}
+              className="shrink-0 self-start sm:self-center"
+            />
+          </div>
+        ) : null}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 px-6 pb-8 pt-8">
+        {toolRunError ? (
+          <Alert variant="destructive">
+            <AlertTitle>{t('results.toolRunError')}</AlertTitle>
+            <AlertDescription>{toolRunError}</AlertDescription>
+          </Alert>
+        ) : null}
         {renderToolInputs()}
         
         <Button 
           onClick={runTool} 
           disabled={
             loading ||
-            (selectedTool.id === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
+            (effectiveRunnerId === 'standard-of-attraction' && !contentDescription.trim() && !attractionImage) ||
             (selectedTool.id === 'photo-enhancer' && (!photoEditImageDataUrl || !contentDescription.trim())) ||
             (effectiveRunnerId === 'caption-generator' && !contentDescription.trim() && !captionImageDataUrl) ||
             (selectedTool.id === 'fantasy-writer' &&
-              !contentDescription.trim() &&
-              !fantasyHolidayEventId &&
-              !fantasyFanId &&
-              !fantasyContentId) ||
+              (runnerMode === 'easy'
+                ? !contentDescription.trim()
+                : !contentDescription.trim() &&
+                  !fantasyHolidayEventId &&
+                  !fantasyFanId &&
+                  !fantasyContentId)) ||
             (selectedTool.id === 'gift-suggester' && !fanMessage.trim()) ||
             (selectedTool.id === 'competitor-analysis' &&
               !competitorTargets.trim() &&
               !contentDescription.trim() &&
-              !niche.trim())
+              !niche.trim()) ||
+            (selectedTool.id === 'churn-predictor' && churnFanId === 'manual' && !fanMessage.trim()) ||
+            (selectedTool.id === 'mass-dm-composer' && runnerMode === 'easy' && !campaignGoal.trim())
           }
-          className="w-full"
+          className="h-12 w-full rounded-xl text-[15px] font-medium tracking-tight shadow-sm transition-[transform,box-shadow] duration-200 hover:shadow-md active:scale-[0.99]"
         >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
+              {t('results.processing')}
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate
+              <Sparkles className="mr-2 h-4 w-4 opacity-90" />
+              {showGenerateCreditHint && effectiveRunnerId
+                ? t('results.generateWithCost', {
+                    cost: formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId)),
+                  })
+                : t('results.generate')}
             </>
           )}
         </Button>
+        {showGenerateCreditHint && effectiveRunnerId ? (
+          <p className="text-center text-xs text-muted-foreground/90">
+            {t('results.runUsesCreditsWhenDone', {
+              cost: formatToolCreditCost(resolveCanonicalToolId(effectiveRunnerId)),
+            })}
+          </p>
+        ) : null}
         
         {/* Results — scrollable on mobile so page doesn't grow unbounded */}
         {result && (
           <div
             className={cn(
-              'w-full self-start overflow-x-hidden rounded-lg border border-border',
+              'w-full self-start overflow-x-hidden rounded-2xl border border-border/40 bg-background/25 backdrop-blur-sm',
               selectedTool.id === 'churn-predictor' || selectedTool.id === 'income-predictor'
-                ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto bg-muted/15 p-3'
-                : 'max-h-[min(60vh,400px)] overflow-y-auto p-3',
+                ? 'max-h-[min(72vh,560px)] min-h-0 overflow-y-auto p-4 dark:bg-white/[0.03]'
+                : 'max-h-[min(60vh,400px)] overflow-y-auto p-4 dark:bg-white/[0.03]',
             )}
           >
             {effectiveRunnerId === 'caption-generator' && 'captions' in result
@@ -2504,7 +1840,7 @@ export function AIToolsSelector({
                   typeof result === 'object' &&
                   'executiveSummary' in result
                 ? renderCompetitorResults(result as CompetitorInsightResult)
-              : selectedTool.id === 'standard-of-attraction' && 'score' in result
+              : effectiveRunnerId === 'standard-of-attraction' && 'score' in result
                 ? renderAttractionResults(result as AttractionResult)
               : selectedTool.id === 'photo-enhancer' &&
                     result &&
@@ -2512,7 +1848,7 @@ export function AIToolsSelector({
                     'imageBase64' in result &&
                     'explanation' in result
                   ? renderPhotoEditResults(result as PhotoEditIntentResult)
-              : selectedTool.id === 'venus-cupid' && result && typeof result === 'object' && 'content' in result
+              : effectiveRunnerId === 'venus-cupid' && result && typeof result === 'object' && 'content' in result
                 ? renderCupidResults(result as CupidArrowResult)
               : selectedTool.id === 'churn-predictor'
                 ? renderChurnResults(result as AIResult)

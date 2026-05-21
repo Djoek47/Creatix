@@ -1,0 +1,117 @@
+{
+  "errors": {
+    "loadFailed": "Failed to load commenter data.",
+    "syncFailed": "Sync failed",
+    "analyzeFailed": "Analysis failed",
+    "saveFailed": "Failed to save reply",
+    "classifyFailed": "Classification failed",
+    "classifyDisabledArrangements": "Turn on smart lists under Fans → Arrangements first.",
+    "classifyRunFailed": "Could not run classification",
+    "syncLoadCommentsFailed": "Could not load comments"
+  },
+  "sync": {
+    "commentsAdded": "{count, plural, one {Added # comment.} other {Added # comments.}}",
+    "upToDate": "Up to date."
+  },
+  "empty": {
+    "fetching": "Fetching comments…",
+    "noCommentsYet": "No comments yet.",
+    "connectPlatformsEntitled": "Connect OnlyFans or Fansly under Integrations so Creatix can sync post comments here.",
+    "connectPlatformsNeedPlan": "You need an active plan or Divine trial (creator API access) before you can link OnlyFans or Fansly. Open Billing to upgrade, then connect under Integrations.",
+    "ctaBilling": "Billing",
+    "ctaIntegrations": "Connect platforms",
+    "fanslyOnlyNeedOf": "Fansly is linked, but comment sync for this view still pulls from your OnlyFans posts. Add OnlyFans under Integrations to load comments, or use Sync after both are connected.",
+    "feedLoadErrorBefore": "Couldn't load your OnlyFans feed. Tap ",
+    "feedLoadErrorAfter": " to try again.",
+    "noOnlyfansPosts": "You don't have any posts on OnlyFans yet. Publish a post first—comments will show up here when fans engage.",
+    "noCommentsOnPosts": "No comments on your posts yet.",
+    "noCommentsToShowYet": "No comments to show yet."
+  },
+  "header": {
+    "backAiStudio": "AI Studio",
+    "title": "Commenter",
+    "subtitle": "Fan comments on your posts—draft replies here, then paste on OnlyFans or Fansly."
+  },
+  "actions": {
+    "sync": "Sync",
+    "loading": "Loading…"
+  },
+  "detail": {
+    "postMeta": "Post {postId}",
+    "safetyReview": "Safety review",
+    "analysis": {
+      "sentiment": "Sentiment",
+      "action": "Action",
+      "safety": "Safety",
+      "tags": "Tags",
+      "signals": "Signals",
+      "best": "Best"
+    },
+    "suggestedReplies": "Suggested replies",
+    "yourReply": "Your reply",
+    "placeholderReply": "What you posted on OnlyFans (optional note)",
+    "saveNote": "Save note",
+    "refresh": "Refresh",
+    "openDms": "Open DMs",
+    "lastSaved": "Last saved: {time}"
+  },
+  "fanAtlas": {
+    "title": "Fan Atlas",
+    "betaBadge": "Beta",
+    "descStart": "Segment fans from your CRM by",
+    "subscriptionStatus": "subscription status",
+    "lifetimeSpend": "lifetime spend",
+    "descMid": "and the rules in",
+    "arrangementsLink": "Fans → Arrangements",
+    "descEnd": "—then push matches to OnlyFans lists and Fansly tags. Scheduled sync still runs in the background; use the button below when you want an immediate refresh."
+  },
+  "classifyPanel": {
+    "classifyFansNow": "Classify fans now",
+    "editRules": "Edit rules",
+    "integrations": "Integrations",
+    "openArrangements": "Open Arrangements"
+  },
+  "classifyResult": {
+    "title": "Classification complete",
+    "subtitle": "Your CRM rules were applied to OnlyFans lists and Fansly tags.",
+    "emptyLog": "Sync finished. There were no detailed line items to show—your rules may already match the current data.",
+    "statAdded": "Added",
+    "statRemoved": "Removed",
+    "sectionChanges": "What changed",
+    "sectionSkipped": "Skipped",
+    "skippedSummary": "{count, plural, one {# segment was skipped.} other {# segments were skipped.}}",
+    "added": "Added",
+    "removed": "Removed",
+    "inPool": "In segment",
+    "skipDisabled": "Rule is off in Arrangements",
+    "skipNoListOnlyfans": "No OnlyFans list matched—connect OnlyFans or enable auto-create lists",
+    "skipTagFansly": "Fansly tag could not be created",
+    "skipOther": "{detail}",
+    "skipGeneric": "{detail}",
+    "channels": {
+      "fansly_tags": "Fansly tag",
+      "onlyfans_crm": "OnlyFans (CRM)",
+      "onlyfans_api": "OnlyFans (live)",
+      "onlyfans_active_chat": "OnlyFans",
+      "unknown": "Other"
+    },
+    "segments": {
+      "whale_spend": "Whales",
+      "active_chatter": "Active chatters",
+      "cold": "Cold / low engagement",
+      "freeloader_new": "Freeloaders (<45d)",
+      "freeloader_mature": "Freeloaders (45+d)",
+      "spenders": "Spenders",
+      "subscriber_no_extra": "Subscribers, no extra spend",
+      "recent_sub_3d": "Recent subs (3d)",
+      "active_chat": "Active chat"
+    }
+  },
+  "voices": {
+    "circe": "Circe",
+    "venus": "Venus",
+    "flirt": "Flirt",
+    "professional": "Professional",
+    "best": "Best"
+  }
+}

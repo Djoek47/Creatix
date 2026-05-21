@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { denyIfNonApiProtectionTier } from '@/lib/api-non-api-guard'
 import { createHmac, randomBytes } from 'crypto'
 
 const PREFIX = 'cev_live_sk_'
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const nonApi = await denyIfNonApiProtectionTier(request)
+  if (nonApi) return nonApi
+
   const { data, error } = await supabase
     .from('user_api_keys')
     .select('id, key_prefix, name, created_at')
@@ -63,6 +67,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const nonApi = await denyIfNonApiProtectionTier(req)
+  if (nonApi) return nonApi
 
   const body = await req.json().catch(() => ({}))
   const name = typeof body.name === 'string' ? body.name.trim() || null : null

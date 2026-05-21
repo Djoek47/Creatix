@@ -14,6 +14,9 @@ import {
 } from '@/lib/reputation/build-queries'
 import { filterHandlesToAllowed, loadMergedHandlesForUser, normalizeScanHandle } from '@/lib/scan-identity'
 import { isPaidPlanId } from '@/lib/billing/access'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { CREDITS_REPUTATION_WEB_SCAN } from '@/lib/billing/credit-economics'
+import { divineManagerDebitMetadataFixedLine } from '@/lib/billing/divine-manager-ledger'
 
 export type ScanMode = 'wide' | 'social' | 'both'
 
@@ -74,10 +77,16 @@ export type ReputationScanResult =
     }
   | { ok: false; error: string; status: number }
 
+export type ReputationScanLedgerOpts = {
+  /** Overrides ledger display (e.g. Divine Manager · Mentions web scan). */
+  serviceDisplayName: string
+}
+
 export async function runReputationScanCore(
   supabase: SupabaseClient,
   userId: string,
   body: ReputationScanBody,
+  ledger?: ReputationScanLedgerOpts | null,
 ): Promise<ReputationScanResult> {
   const limitPerQuery = Math.min(Math.max(body.limitPerQuery ?? 5, 1), 15)
   const mode: ScanMode = body.mode === 'wide' || body.mode === 'social' ? body.mode : 'both'
@@ -155,7 +164,37 @@ export async function runReputationScanCore(
         'Serper web search is not configured. Add SERPER_API_KEY to your server environment (e.g. Vercel → Environment Variables), then redeploy.',
     }
   }
+
+  const creditGate = await hasEnoughAiCredits(supabase, userId, CREDITS_REPUTATION_WEB_SCAN)
+  if (!creditGate.ok) {
+    return {
+      ok: false,
+      status: 402,
+      error: 'Insufficient AI credits for a web scan. Add credits or wait for your monthly included pool to refresh.',
+    }
+  }
+
   const provider = new SerperProvider(serperKey)
+  const scanReasonRef = `reputation-web-scan:${userId}:${crypto.randomUUID()}`
+
+  const commitScanDebit = async (): Promise<ReputationScanResult | null> => {
+    const debit = await consumeAiCredits(supabase, userId, CREDITS_REPUTATION_WEB_SCAN, {
+      reasonCode: 'reputation_web_scan',
+      reasonRef: scanReasonRef,
+      idempotencyKey: `reputation_web_scan:${scanReasonRef}`,
+      metadata: ledger?.serviceDisplayName
+        ? divineManagerDebitMetadataFixedLine(ledger.serviceDisplayName)
+        : undefined,
+    })
+    if (!debit.ok) {
+      return {
+        ok: false,
+        status: 402,
+        error: 'Insufficient AI credits for a web scan. Add credits or wait for your monthly included pool to refresh.',
+      }
+    }
+    return null
+  }
 
   const wideBase = mode === 'social' ? [] : buildWideWebQueries(handleList)
   const displayWide = mode === 'social' ? [] : buildDisplayNameQueries(displayName)
@@ -171,6 +210,8 @@ export async function runReputationScanCore(
   const candidates = Array.from(mergedMap.values()).slice(0, GLOBAL_CANDIDATE_CAP)
 
   if (candidates.length === 0) {
+    const debitErr = await commitScanDebit()
+    if (debitErr) return debitErr
     return {
       ok: true,
       inserted: 0,
@@ -292,6 +333,9 @@ export async function runReputationScanCore(
       // Grok enrichment is best-effort
     }
   }
+
+  const debitErr = await commitScanDebit()
+  if (debitErr) return debitErr
 
   return {
     ok: true,

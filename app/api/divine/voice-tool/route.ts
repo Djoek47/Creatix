@@ -223,6 +223,7 @@ export async function POST(req: NextRequest) {
         ...base,
         ...refined.patch,
         version: 1,
+        consentFanFacingDrafts: true,
         aiInterviewSummary: refined.summary,
         aiInterviewAt: new Date().toISOString(),
         interviewTranscript: transcript,
@@ -269,7 +270,7 @@ export async function POST(req: NextRequest) {
         id: 'voice',
         function: { name, arguments: JSON.stringify(args) },
       },
-      { cookie, supabase, userId: user.id, divineFull },
+      { cookie, supabase, userId: user.id, divineFull, forceRiskyConfirmation: true },
     )
 
     return NextResponse.json({

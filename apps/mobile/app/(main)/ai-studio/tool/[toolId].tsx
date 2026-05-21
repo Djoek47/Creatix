@@ -120,11 +120,11 @@ export default function ToolRunnerScreen() {
                 void Linking.openURL(housekeepingUrl)
               }}
             >
-              <Text style={styles.buttonText}>Open Housekeeping in browser</Text>
+              <Text style={styles.buttonText}>Open Fan Atlas in browser</Text>
             </Pressable>
           ) : (
             <Text style={styles.error}>
-              Set EXPO_PUBLIC_API_URL to your site origin, then open Commenter → Housekeeping in a browser.
+              Set EXPO_PUBLIC_API_URL to your site origin, then open Commenter → Fan Atlas in a browser.
             </Text>
           )}
           <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>

@@ -1,14 +1,14 @@
 /**
- * Circe et Venus — dark mode aligned with web `app/globals.css` (gold primary, Circe purple).
+ * Circe et Venus — dark mode aligned with web `app/globals.css` (warmer beige neutrals, softer whites).
  */
 export const theme = {
-  bg: '#0a0a0a',
-  surface: '#141414',
-  surfaceElevated: '#1a1a1a',
-  border: '#262626',
-  text: '#fafafa',
-  textMuted: '#a3a3a3',
-  textDim: '#737373',
+  bg: '#0d0c0a',
+  surface: '#171512',
+  surfaceElevated: '#1e1c18',
+  border: '#2a2824',
+  text: '#c9c4bc',
+  textMuted: '#8a857b',
+  textDim: '#6b665e',
   gold: '#d4af37',
   goldMuted: '#b8860b',
   circe: '#805ad5',

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getEmailConfirmationRedirectUrl } from '@/lib/supabase/email-confirmation-redirect'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
@@ -34,8 +35,8 @@ export async function signUp(formData: FormData) {
     email,
     password,
     options: {
-      emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || 
-        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+      emailRedirectTo:
+        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL?.trim() || getEmailConfirmationRedirectUrl(),
       data: {
         full_name: fullName,
       },

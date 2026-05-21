@@ -9,13 +9,16 @@ interface OnboardingProviderProps {
   userId: string
   userName?: string
   onboardingCompleted?: boolean
+  /** Trial card/setup finished before onboarding final step (e.g. sign-up-success). */
+  trialBillingAttached?: boolean
 }
 
-export function OnboardingProvider({ 
-  children, 
-  userId, 
+export function OnboardingProvider({
+  children,
+  userId,
   userName,
-  onboardingCompleted = false 
+  onboardingCompleted = false,
+  trialBillingAttached = false,
 }: OnboardingProviderProps) {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -50,10 +53,11 @@ export function OnboardingProvider({
     <>
       {children}
       {mounted && (
-        <OnboardingModal 
-          open={showOnboarding} 
+        <OnboardingModal
+          open={showOnboarding}
           onComplete={handleComplete}
           userName={userName}
+          trialBillingAttached={trialBillingAttached}
         />
       )}
     </>

@@ -3,7 +3,6 @@ import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { applySafePhotoEdit, parseDataUrl } from '@/lib/media/apply-safe-photo-edit'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 
 /**
  * OpenAI structured outputs (strict) require every `properties` key in `required`.
@@ -101,10 +100,6 @@ export async function executePhotoEditIntent(opts: {
   }
 
   const photoCost = getCreditsForToolId('photo-enhancer')
-  const gate = await hasEnoughAiCredits(opts.supabase, opts.userId, photoCost)
-  if (!gate.ok) {
-    return { ok: false, error: 'AI credits exhausted', status: 402 }
-  }
 
   const userText = `Creator request (may be from voice): "${instruction}"
 
@@ -162,18 +157,14 @@ Return structured fields for exactly one safe operation.`
     return { ok: false, error: out.error, status: 500 }
   }
 
-  const consumed = await consumeAiCredits(opts.supabase, opts.userId, photoCost)
-  if (!consumed.ok) {
-    return { ok: false, error: 'AI credits exhausted', status: 402 }
-  }
-
   return {
     ok: true,
     data: {
       imageBase64: out.imageBase64,
       operation: intent.operation,
       explanation: intent.explanation,
-      creditsUsed: consumed.usedAfter,
+      /** Caller debits via `chargeAiToolCreditsAfterSuccess` using this amount. */
+      creditsUsed: photoCost,
     },
   }
 }

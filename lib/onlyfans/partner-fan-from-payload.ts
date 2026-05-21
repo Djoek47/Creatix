@@ -11,8 +11,9 @@ function num(v: unknown): number {
 }
 
 function mapFanRow(src: Record<string, unknown>): OnlyFansPartnerFanLike | null {
-  const id = src.id ?? src.userId ?? src.user_id
-  if (id == null) return null
+  const rawId = src.id ?? src.userId ?? src.user_id
+  if (rawId == null || (typeof rawId !== 'string' && typeof rawId !== 'number')) return null
+  const id: string | number = rawId
   return {
     id,
     username: String(src.username ?? src.userName ?? '').trim() || undefined,

@@ -4,7 +4,10 @@ import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { callGrokVision } from '@/lib/ai/grok-tools'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
+import { getBrandContext, type BrandContextPayload } from '@/lib/brand/get-brand-context'
+import { evaluateBrandTextCompliance } from '@/lib/brand/brand-governance'
 
 export const maxDuration = 60
 
@@ -31,6 +34,7 @@ function buildSystemPrompt(
   creatorNiche: string | undefined,
   creatorTone: string | undefined,
   hasImage: boolean,
+  brandCompact?: string,
 ) {
   return `You are a social media expert specializing in adult content creator platforms (OnlyFans, Fansly, ManyVids).
 
@@ -48,7 +52,9 @@ Generate captivating captions, hashtags, and sales copy that:
 4. Drive PPV sales and tips
 5. Follow platform guidelines (no explicit language)
 
-Keep suggestions tasteful but enticing - suggestive without being explicit.`
+Keep suggestions tasteful but enticing - suggestive without being explicit.
+${brandCompact ? `\nBrand context to follow:\n${brandCompact}` : ''}
+`
 }
 
 function parseCaptionJson(raw: string): CaptionOutput {
@@ -113,7 +119,12 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Image is too large. Try a smaller file or let us compress in the browser.' }, { status: 400 })
   }
 
-  const systemPrompt = buildSystemPrompt(platform, creatorNiche, creatorTone, hasImage)
+  const supabase = await createRouteHandlerClient(req)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const brandContext = user ? await getBrandContext(supabase, user.id) : null
+  const systemPrompt = buildSystemPrompt(platform, creatorNiche, creatorTone, hasImage, brandContext?.compact)
 
   const userText = hasImage
     ? `Content type: ${contentType}
@@ -150,7 +161,7 @@ Return ONLY valid JSON with this exact shape (no markdown fences):
         jsonMode: true,
       })
       const output = parseCaptionJson(raw)
-      return await finalizeResponse(req, output)
+      return await finalizeResponse(supabase, user?.id ?? null, output, brandContext?.full ?? null)
     } catch {
       // fall through to OpenAI vision
     }
@@ -162,26 +173,42 @@ Return ONLY valid JSON with this exact shape (no markdown fences):
       userText,
       imageDataUrl: hasImage ? imageRaw : undefined,
     })
-    return await finalizeResponse(req, output)
+    return await finalizeResponse(supabase, user?.id ?? null, output, brandContext?.full ?? null)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Caption generation failed'
     return Response.json({ error: message }, { status: 500 })
   }
 }
 
-async function finalizeResponse(req: NextRequest, output: CaptionOutput) {
-  try {
-    const supabase = await createRouteHandlerClient(req)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+async function finalizeResponse(
+  supabase: Awaited<ReturnType<typeof createRouteHandlerClient>>,
+  userId: string | null,
+  output: CaptionOutput,
+  brandProfile: BrandContextPayload['full'] | null,
+) {
+  const complianceText = [
+    ...output.captions.map((c) => c.text),
+    output.teaserMessage,
+    output.ppvSalesCopy,
+  ].join('\n')
+  const compliance = evaluateBrandTextCompliance(brandProfile, complianceText)
+  if (compliance.blocked) {
+    return Response.json(
+      { error: 'Output blocked by Brand Uniformity policy.', violations: compliance.violations },
+      { status: 422 },
+    )
+  }
 
-    if (user) {
-      await consumeAiCredits(supabase, user.id, getCreditsForToolId('caption-generator'))
+  try {
+    if (userId) {
+      await consumeAiCredits(supabase, userId, getCreditsForToolId('caption-generator'), ledgerDebitOptsForBillingTool('caption-generator'))
     }
   } catch {
     // ignore credit errors
   }
 
-  return Response.json(output)
+  return Response.json({
+    ...output,
+    brandWarnings: [...compliance.violations, ...compliance.warnings],
+  })
 }

@@ -1,7 +1,8 @@
 /**
  * Run AI Studio tools by id + args (same routes as the dashboard library; uses session cookie).
  */
-import { getToolMeta } from '@/lib/ai-tools-data'
+import { englishToolDescription, englishToolName } from '@/lib/ai/ai-tools-english-copy'
+import { getToolMeta, resolveCanonicalToolId } from '@/lib/ai-tools-data'
 import { runDivineAiToolServer, isDivineAiToolId, type DivineAiToolId } from '@/lib/divine/run-ai-tool-core'
 
 /** Build a prompt for /api/ai/tool-run when no dedicated API mapping exists. */
@@ -71,22 +72,24 @@ export async function runAiStudioToolServer(
   args: Record<string, unknown>,
   cookie: string,
 ): Promise<RunAiStudioToolResult> {
-  const meta = getToolMeta(toolId)
+  const canonical = resolveCanonicalToolId(toolId)
+  const meta = getToolMeta(canonical)
   if (!meta) {
     return { success: false, error: `Unknown tool id: ${toolId}` }
   }
+  const displayName = englishToolName(canonical)
   if (meta.comingSoon) {
-    return { success: false, error: `${meta.name} is not available yet.` }
+    return { success: false, error: `${displayName} is not available yet.` }
   }
   if (!meta.hasRunner) {
     return {
       success: false,
-      error: `Tool "${meta.name}" has no API runner in AI Studio. Use a listed tool id with hasRunner.`,
+      error: `Tool "${displayName}" has no API runner in AI Studio. Use a listed tool id with hasRunner.`,
     }
   }
   const a = args ?? {}
 
-  if (toolId === 'commenter') {
+  if (canonical === 'commenter') {
     return {
       success: true,
       result: {
@@ -96,21 +99,21 @@ export async function runAiStudioToolServer(
     }
   }
 
-  if (toolId === 'housekeeping') {
+  if (canonical === 'housekeeping') {
     return {
       success: true,
       result: {
         content:
-          'Housekeeping runs Smart classify in the web app: Fans → Arrangements or Commenter → Housekeeping configure segments (spend tiers, active chat/thread activity, cold, freeloader new vs mature, spenders, recent subs). Cron housekeeping-fan-lists pushes matching fans to OnlyFans lists and Fansly CRM tags. No API execution here — open the dashboard to edit rules.',
+          'Fan Atlas runs Smart classify in the web app: Fans → Arrangements or Commenter → Fan Atlas configure segments (spend tiers, active chat/thread activity, cold, freeloader new vs mature, spenders, recent subs). Cron housekeeping-fan-lists pushes matching fans to OnlyFans lists and Fansly CRM tags. No API execution here — open the dashboard to edit rules.',
       },
     }
   }
 
-  if (isDivineAiToolId(toolId)) {
-    return runDivineAiToolServer(toolId as DivineAiToolId, a, cookie)
+  if (isDivineAiToolId(canonical)) {
+    return runDivineAiToolServer(canonical as DivineAiToolId, a, cookie)
   }
 
-  switch (toolId) {
+  switch (canonical) {
     case 'fantasy-writer':
       return postAi('fantasy-writer', {
         scenario: a.scenario ?? a.contentDescription ?? a.description ?? '',
@@ -152,12 +155,17 @@ export async function runAiStudioToolServer(
         subscriberCount: a.subscriberCount ?? a.fanMessage ?? '',
       }, cookie)
     case 'mass-dm-composer':
-      return postAi('mass-dm-composer', {
-        campaign: a.campaign ?? a.campaignGoal ?? '',
-        audienceSegment: a.audienceSegment ?? 'all',
-        tone: a.tone ?? a.contentType ?? 'friendly',
-        callToAction: a.callToAction ?? a.description ?? '',
-      }, cookie)
+      return postAi(
+        'mass-dm-composer',
+        {
+          campaign: a.campaign ?? a.campaignGoal ?? '',
+          audienceSegment: a.audienceSegment ?? 'all',
+          tone: a.tone ?? a.contentType ?? 'friendly',
+          callToAction: a.callToAction ?? a.description ?? '',
+          ...(process.env.OPENAI_WEBHOOK_SECRET?.trim() ? { backgroundJob: true } : {}),
+        },
+        cookie,
+      )
     case 'venus-cupid':
       return postAi('venus-cupid', {
         tagForChurn: a.tagForChurn !== false,
@@ -186,7 +194,7 @@ export async function runAiStudioToolServer(
         success: true,
         result: {
           content:
-            'Frame Studio: open **Dashboard → AI Studio** for Media & vault (video editor toolbar, Replace video, Frame bridge). Deploy the Frame fork separately; set `NEXT_PUBLIC_FRAME_URL` on Creatix. Path: /dashboard/ai-studio',
+            'Frame Studio: open **Dashboard → AI Studio** for Media & vault (trim, Replace video, editor toolbar). If you host the editor yourself, set `NEXT_PUBLIC_FRAME_URL` so the launch button opens your deployment. Path: /dashboard/ai-studio',
         },
       }
     case 'ariadne-trace':
@@ -194,7 +202,7 @@ export async function runAiStudioToolServer(
         success: true,
         result: {
           content:
-            'Ariadne Trace: open **Dashboard → AI Studio → Ariadne** to embed a per-recipient forensic marker on a vault video (`/dashboard/ai-studio/ariadne`). Uses the same API as Frame export when wired.',
+            'Ariadne Trace: **Dashboard → AI Studio → Ariadne** (`/dashboard/ai-studio/ariadne`) — embed a discreet per-fan marker on vault exports so leaked clips are easier to trace back to a recipient when you need to.',
         },
       }
     case 'frame-ai-assist':
@@ -215,8 +223,8 @@ export async function runAiStudioToolServer(
       }
     default: {
       const fromArgs = buildGenericToolRunPrompt(a).trim()
-      const fallback = `The creator is using Divine Manager. Help them with "${meta.name}" (${meta.description}). Give concrete, actionable output they can use today.`
-      return postAi('tool-run', { toolId, prompt: fromArgs || fallback }, cookie)
+      const fallback = `The creator is using Divine Manager. Help them with "${displayName}" (${englishToolDescription(canonical)}). Give concrete, actionable output they can use today.`
+      return postAi('tool-run', { toolId: canonical, prompt: fromArgs || fallback }, cookie)
     }
   }
 }

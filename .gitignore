@@ -7,6 +7,8 @@ __v0_jsx-dev-runtime.ts
 .pnpm-store/
 node_modules/
 lint-out.txt
+tsc-errors.txt
+tsc-out.txt
 *.log
 npm-debug.log*
 pnpm-debug.log*
@@ -26,6 +28,12 @@ dist/
 .idea/
 .cursor/
 *.swp
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Capacitor / native shells (generated at repo root after `npx cap add ios android`)
 # Remove these lines if you intentionally version native projects.

@@ -1,0 +1,117 @@
+{
+  "errors": {
+    "loadFailed": "Échec du chargement des données Commenter.",
+    "syncFailed": "Échec de la synchronisation",
+    "analyzeFailed": "Échec de l'analyse",
+    "saveFailed": "Échec de l'enregistrement de la note",
+    "classifyFailed": "Échec de la classification",
+    "classifyDisabledArrangements": "Activez d'abord les listes intelligentes sous Fans → Arrangements.",
+    "classifyRunFailed": "Impossible d'exécuter la classification",
+    "syncLoadCommentsFailed": "Impossible de charger les commentaires"
+  },
+  "sync": {
+    "commentsAdded": "{count, plural, one {# commentaire ajouté.} other {# commentaires ajoutés.}}",
+    "upToDate": "À jour."
+  },
+  "empty": {
+    "fetching": "Récupération des commentaires…",
+    "noCommentsYet": "Pas encore de commentaires.",
+    "connectPlatformsEntitled": "Connectez OnlyFans ou Fansly dans Intégrations pour que Creatix synchronise ici les commentaires de vos publications.",
+    "connectPlatformsNeedPlan": "Un forfait actif ou l’essai Divine (accès API créateur) est requis avant de lier OnlyFans ou Fansly. Ouvrez Facturation pour passer à un forfait payant, puis connectez-vous sous Intégrations.",
+    "ctaBilling": "Facturation",
+    "ctaIntegrations": "Connecter les plateformes",
+    "fanslyOnlyNeedOf": "Fansly est lié, mais la synchronisation des commentaires pour cette vue s’appuie encore sur vos publications OnlyFans. Ajoutez OnlyFans dans Intégrations pour charger les commentaires, ou utilisez Synchroniser une fois les deux connectés.",
+    "feedLoadErrorBefore": "Impossible de charger votre fil OnlyFans. Appuyez sur ",
+    "feedLoadErrorAfter": " pour réessayer.",
+    "noOnlyfansPosts": "Vous n'avez pas encore de publications sur OnlyFans. Publiez d'abord un post — les commentaires apparaîtront ici lorsque les fans interagiront.",
+    "noCommentsOnPosts": "Pas encore de commentaires sur vos publications.",
+    "noCommentsToShowYet": "Aucun commentaire à afficher pour le moment."
+  },
+  "header": {
+    "backAiStudio": "Studio IA",
+    "title": "Commenter",
+    "subtitle": "Commentaires des fans sur vos publications — rédigez des réponses ici, puis collez-les sur OnlyFans ou Fansly."
+  },
+  "actions": {
+    "sync": "Synchroniser",
+    "loading": "Chargement…"
+  },
+  "detail": {
+    "postMeta": "Publication {postId}",
+    "safetyReview": "Revue sécurité",
+    "analysis": {
+      "sentiment": "Sentiment",
+      "action": "Action",
+      "safety": "Sécurité",
+      "tags": "Étiquettes",
+      "signals": "Signaux",
+      "best": "Meilleur"
+    },
+    "suggestedReplies": "Réponses suggérées",
+    "yourReply": "Votre réponse",
+    "placeholderReply": "Ce que vous avez publié sur OnlyFans (note facultative)",
+    "saveNote": "Enregistrer la note",
+    "refresh": "Actualiser",
+    "openDms": "Ouvrir les MP",
+    "lastSaved": "Dernier enregistrement : {time}"
+  },
+  "fanAtlas": {
+    "title": "Atlas des fans",
+    "betaBadge": "Bêta",
+    "descStart": "Segmentez les fans depuis votre CRM par",
+    "subscriptionStatus": "statut d'abonnement",
+    "lifetimeSpend": "dépense cumulée",
+    "descMid": "et les règles dans",
+    "arrangementsLink": "Fans → Arrangements",
+    "descEnd": "—puis poussez les correspondances vers les listes OnlyFans et les étiquettes Fansly. La synchro planifiée tourne toujours en arrière-plan ; utilisez le bouton ci-dessous pour un rafraîchissement immédiat."
+  },
+  "classifyPanel": {
+    "classifyFansNow": "Classer les fans maintenant",
+    "editRules": "Modifier les règles",
+    "integrations": "Intégrations",
+    "openArrangements": "Ouvrir Arrangements"
+  },
+  "classifyResult": {
+    "title": "Classification terminée",
+    "subtitle": "Vos règles CRM ont été appliquées aux listes OnlyFans et aux étiquettes Fansly.",
+    "emptyLog": "Synchronisation terminée. Aucun détail à afficher — les règles correspondent peut-être déjà aux données.",
+    "statAdded": "Ajouts",
+    "statRemoved": "Retraits",
+    "sectionChanges": "Modifications",
+    "sectionSkipped": "Ignorés",
+    "skippedSummary": "{count, plural, one {# segment ignoré.} other {# segments ignorés.}}",
+    "added": "Ajouts",
+    "removed": "Retraits",
+    "inPool": "Dans le segment",
+    "skipDisabled": "Règle désactivée dans Arrangements",
+    "skipNoListOnlyfans": "Aucune liste OnlyFans — connectez OnlyFans ou activez la création auto des listes",
+    "skipTagFansly": "Impossible de créer l’étiquette Fansly",
+    "skipOther": "{detail}",
+    "skipGeneric": "{detail}",
+    "channels": {
+      "fansly_tags": "Étiquette Fansly",
+      "onlyfans_crm": "OnlyFans (CRM)",
+      "onlyfans_api": "OnlyFans (direct)",
+      "onlyfans_active_chat": "OnlyFans",
+      "unknown": "Autre"
+    },
+    "segments": {
+      "whale_spend": "Baleines",
+      "active_chatter": "Chat actif",
+      "cold": "Froids / faible engagement",
+      "freeloader_new": "Freeloaders (<45j)",
+      "freeloader_mature": "Freeloaders (45+j)",
+      "spenders": "Dépensiers",
+      "subscriber_no_extra": "Abonnés sans dépense extra",
+      "recent_sub_3d": "Nouveaux abonnés (3j)",
+      "active_chat": "Chat actif"
+    }
+  },
+  "voices": {
+    "circe": "Circé",
+    "venus": "Vénus",
+    "flirt": "Flirt",
+    "professional": "Professionnel",
+    "best": "Meilleur"
+  }
+}

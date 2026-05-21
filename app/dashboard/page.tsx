@@ -5,6 +5,12 @@ import { DashboardWidgetsGrid } from '@/components/dashboard/dashboard-widgets-g
 import { DashboardCommandCenter } from '@/components/dashboard/dashboard-command-center'
 import { getDashboardPlanLabel } from '@/lib/dashboard-plan-label'
 import { extractDashboardPreset } from '@/lib/dashboard/dashboard-preset'
+import { resolveWorkspaceCapabilities } from '@/lib/plan-capabilities'
+import { shouldShowDivineTrialStartCard } from '@/lib/billing/access'
+import {
+  onlyFansPartnerAccountIdFromRow,
+  type PlatformConnectionObservedRow,
+} from '@/lib/billing/onlyfans-billing-gate'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -33,7 +39,9 @@ export default async function DashboardPage() {
     supabase.from('platform_connections').select('*').eq('user_id', user.id).eq('is_connected', true),
     supabase
       .from('subscriptions')
-      .select('plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms, revenue_tier')
+      .select(
+        'plan_id, status, revenue_band_label, billing_variant, billing_focus_platform, billing_focus_platforms, revenue_tier, stripe_subscription_id, trial_ends_at, current_period_end',
+      )
       .eq('user_id', user.id)
       .maybeSingle(),
     supabase.from('divine_manager_settings').select('automation_rules').eq('user_id', user.id).maybeSingle(),
@@ -41,12 +49,20 @@ export default async function DashboardPage() {
 
   const dashboardPreset = extractDashboardPreset(divineRow?.automation_rules ?? null)
 
-  // Check if user has any connected platforms
+  // Check if user has any connected platforms (OF row must match ConnectedPlatforms usable filter)
   const hasConnectedPlatforms = (platformConnections?.length || 0) > 0
+  const onlyfansConn = platformConnections?.find((c) => c.platform === 'onlyfans')
+  const connectedOnlyFans =
+    onlyfansConn != null &&
+    onlyFansPartnerAccountIdFromRow(onlyfansConn as PlatformConnectionObservedRow) != null
+  const connectedFansly = platformConnections?.some((c) => c.platform === 'fansly') ?? false
 
   const planLabel = getDashboardPlanLabel(subscription ?? null)
   const revenueTier =
     subscription && typeof subscription.revenue_tier === 'number' ? subscription.revenue_tier : null
+  const workspaceCaps = resolveWorkspaceCapabilities(subscription ?? null)
+  const showStartTrialBillingCta =
+    !workspaceCaps.isNonApiProtectionTier && shouldShowDivineTrialStartCard(subscription ?? null)
 
   // Calculate stats from analytics data - aggregate from both platforms
   const totalRevenue = analytics?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0
@@ -104,13 +120,21 @@ export default async function DashboardPage() {
         <DashboardHero
           planLabel={planLabel}
           hasConnectedPlatforms={hasConnectedPlatforms}
+          connectedOnlyFans={connectedOnlyFans}
+          connectedFansly={connectedFansly}
           mood={dashboardPreset?.mood}
           accent={dashboardPreset?.accent}
           tierIndex={revenueTier}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
+          showStartTrialBillingCta={showStartTrialBillingCta}
         />
       }
       commandStrip={
-        <DashboardCommandTiles accent={dashboardPreset?.accent} tierIndex={revenueTier} />
+        <DashboardCommandTiles
+          accent={dashboardPreset?.accent}
+          tierIndex={revenueTier}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
+        />
       }
       widgetRegion={
         <DashboardWidgetsGrid
@@ -119,10 +143,13 @@ export default async function DashboardPage() {
           stats={stats}
           analytics={analytics || []}
           hasConnectedPlatforms={hasConnectedPlatforms}
+          connectedOnlyFans={connectedOnlyFans}
+          connectedFansly={connectedFansly}
           fans={fans || []}
           totalFans={totalFans}
           leakAlerts={leakAlerts || []}
           mentions={mentions || []}
+          nonApiProtectionTier={workspaceCaps.isNonApiProtectionTier}
         />
       }
     />

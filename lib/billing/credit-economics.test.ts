@@ -5,11 +5,18 @@
  * Aligns with subscriptionFinancialFieldsFromMerged / syncSubscriptionCreditsFromPlanAction (same formula).
  *
  * Example monthly USD by tier (Focus OF single line, from REVENUE_TIERS / getMonthlyPriceUsd):
- * tier 0 → $35 → 20% = $7 → 700 credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
+ * tier 0 → OnlyFans list price from matrix → 20% → credits; tier 10 → $500 → 20% = $100 → 10_000 credits (× seats).
  */
 import assert from 'node:assert/strict'
-import { CREDIT_USD_VALUE, TRIAL_AI_CREDITS_LIMIT, computeMonthlyCreditAllowance } from '@/lib/billing/credit-economics'
-import { PAID_PLAN_ID } from '@/lib/billing/access'
+import {
+  CREDIT_USD_VALUE,
+  TRIAL_AI_CREDITS_LIMIT,
+  PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+  computeMonthlyCreditAllowance,
+  effectiveMonthlyCreditLimit,
+  includedCreditsForMarketing,
+} from '@/lib/billing/credit-economics'
+import { PAID_PLAN_ID, PROTECTION_PLAN_ID } from '@/lib/billing/access'
 import { getMonthlyPriceUsd, TIER_COUNT } from '@/lib/pricing-matrix'
 
 function expectedPaidCredits(
@@ -59,7 +66,7 @@ function run() {
   assert.equal(
     computeMonthlyCreditAllowance(multi),
     expectedPaidCredits('multi', 5, 1),
-    'multi (unified) price at tier 5',
+    'multi (Bundled OF+FL) price at tier 5',
   )
 
   const seats3 = {
@@ -83,6 +90,24 @@ function run() {
     }),
     expectedPaidCredits('single', 0, 1, ['onlyfans']),
     'missing revenue_tier defaults to 0',
+  )
+
+
+  assert.equal(
+    includedCreditsForMarketing(100, 1),
+    2000,
+    '$100/mo → 20% → $20 → 2000 credits at $0.01/credit',
+  )
+
+  assert.equal(
+    computeMonthlyCreditAllowance({ plan_id: PROTECTION_PLAN_ID }),
+    PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+    'protection plan uses fixed monthly credits (not 20% of $25)',
+  )
+  assert.equal(
+    effectiveMonthlyCreditLimit({ plan_id: PROTECTION_PLAN_ID, ai_credits_limit: 999000 }),
+    PROTECTION_PLAN_MONTHLY_INCLUDED_CREDITS,
+    'effective cap for protection ignores legacy huge ai_credits_limit',
   )
 
   console.log('credit-economics.test.ts: all assertions passed')

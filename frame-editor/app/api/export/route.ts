@@ -21,8 +21,9 @@ function isAllowedExportUrl(url: string): boolean {
 }
 
 /**
- * Proxies multipart export to Creatix with the server-only export secret.
- * The browser never sees FRAME_EXPORT_SECRET.
+ * Exports to Creatix without POSTing the video through Creatix's serverless function
+ * (avoids Vercel `FUNCTION_PAYLOAD_TOO_LARGE` / 413). Flow: JSON prepare → PUT to Supabase
+ * signed URL → JSON complete. The browser never sees FRAME_EXPORT_SECRET.
  */
 export async function POST(req: NextRequest) {
   const secret = process.env.FRAME_EXPORT_SECRET
@@ -57,21 +58,68 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing file' }, { status: 400 })
   }
 
-  const out = new FormData()
-  out.append('file', file)
-  out.append('exportToken', exportToken)
+  const prepareUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/prepare')
+  const completeUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/complete')
+  const mime = file.type || 'video/mp4'
 
-  const upstream = await fetch(exportUrl, {
+  const prepRes = await fetch(prepareUrl, {
     method: 'POST',
-    headers: { 'X-Frame-Export-Secret': secret },
-    body: out,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Frame-Export-Secret': secret,
+    },
+    body: JSON.stringify({
+      exportToken,
+      fileName: file.name || 'export.mp4',
+      mimeType: mime,
+      fileSize: file.size,
+    }),
   })
 
-  const text = await upstream.text()
-  const contentType = upstream.headers.get('content-type') || 'application/json'
+  const prepJson = (await prepRes.json().catch(() => ({}))) as Record<string, unknown>
+  if (!prepRes.ok) {
+    return NextResponse.json(prepJson, { status: prepRes.status })
+  }
+
+  const signedUrl = prepJson.signedUrl
+  const path = prepJson.path
+  if (typeof signedUrl !== 'string' || typeof path !== 'string') {
+    return NextResponse.json({ error: 'Invalid prepare response from Creatix' }, { status: 502 })
+  }
+
+  const buf = Buffer.from(await file.arrayBuffer())
+  const putRes = await fetch(signedUrl, {
+    method: 'PUT',
+    body: buf,
+    headers: { 'Content-Type': mime },
+  })
+
+  if (!putRes.ok) {
+    const t = await putRes.text().catch(() => '')
+    return NextResponse.json(
+      { error: `Storage upload failed (${putRes.status}): ${t.slice(0, 400)}` },
+      { status: 502 },
+    )
+  }
+
+  const doneRes = await fetch(completeUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Frame-Export-Secret': secret,
+    },
+    body: JSON.stringify({
+      exportToken,
+      path,
+      mimeType: mime,
+    }),
+  })
+
+  const text = await doneRes.text()
+  const contentType = doneRes.headers.get('content-type') || 'application/json'
 
   return new NextResponse(text, {
-    status: upstream.status,
+    status: doneRes.status,
     headers: { 'Content-Type': contentType },
   })
 }

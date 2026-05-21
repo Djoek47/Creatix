@@ -6,6 +6,7 @@ import { normalizeFanFromRow } from '@/lib/fans/normalize-fan-row'
 import { extractOnlyFansFanRows } from '@/lib/onlyfans/fan-list-extract'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { fanDedupeKey, fanslyLiveToFan, onlyFansLiveRowToFan } from '@/lib/crm/fan-from-live'
+import { subscriptionTierFromTotalSpent } from '@/lib/fans/audience-classification'
 import type { CrmFanListItem } from '@/lib/crm/crm-fan-types'
 import type { Fan } from '@/lib/types'
 import type { CrmFansResponse } from '@/lib/crm/crm-fan-types'
@@ -17,6 +18,28 @@ function enrichDbFan(row: Record<string, unknown>, fan: Fan): CrmFanListItem {
     subscription_tier_raw: (row.subscription_tier as string | null | undefined) ?? null,
     subscription_status_raw: (row.subscription_status as string | null | undefined) ?? null,
     _source: 'database',
+  }
+}
+
+function overlayLiveTotalsOnDbFan(prev: CrmFanListItem, live: Fan): CrmFanListItem {
+  if (live.platform !== prev.platform) return prev
+  const spent = Math.max(Number(prev.total_spent) || 0, Number(live.total_spent) || 0)
+  const subTier = subscriptionTierFromTotalSpent(spent)
+  const tier = (subTier === 'vip' ? 'whale' : subTier) as Fan['tier']
+  return {
+    ...prev,
+    total_spent: spent,
+    tier,
+    subscription_price: prev.subscription_price ?? live.subscription_price ?? null,
+    subscription_expires_at: prev.subscription_expires_at ?? live.subscription_expires_at ?? null,
+    subscription_renews_on: prev.subscription_renews_on ?? live.subscription_renews_on ?? null,
+    subscription_status: prev.subscription_status ?? live.subscription_status ?? null,
+    subscription_account_type: prev.subscription_account_type ?? live.subscription_account_type ?? undefined,
+    avatar_url:
+      prev.avatar_url && String(prev.avatar_url).trim().length > 0
+        ? prev.avatar_url
+        : live.avatar_url,
+    display_name: prev.display_name || live.display_name,
   }
 }
 
@@ -104,7 +127,12 @@ export async function loadHybridCrmFans(
         for (const row of rows) {
           const fan = onlyFansLiveRowToFan(row, userId)
           const k = fanDedupeKey(fan)
-          if (!merged.has(k)) {
+          const prev = merged.get(k)
+          if (prev) {
+            if (prev.platform === 'onlyfans') {
+              merged.set(k, overlayLiveTotalsOnDbFan(prev, fan))
+            }
+          } else {
             merged.set(k, { ...fan, _source: 'live_onlyfans' })
             liveOfAdded++
           }
@@ -138,7 +166,12 @@ export async function loadHybridCrmFans(
             userId,
           )
           const k = fanDedupeKey(fan)
-          if (!merged.has(k)) {
+          const prev = merged.get(k)
+          if (prev) {
+            if (prev.platform === 'fansly') {
+              merged.set(k, overlayLiveTotalsOnDbFan(prev, fan))
+            }
+          } else {
             merged.set(k, { ...fan, _source: 'live_fansly' })
             liveFanslyAdded++
           }

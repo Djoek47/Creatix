@@ -5,7 +5,44 @@
  * Base URL: https://app.onlyfansapi.com/api
  */
 
+import { onlyFansRequestWithPolicy } from '@/lib/onlyfans-request-policy'
+
 const ONLYFANS_API_BASE = 'https://app.onlyfansapi.com/api'
+
+/** Partner caps paginated fan list `limit` at 20 per HTTP request (active/all/expired/latest/top). */
+const OF_FAN_LIST_PAGE_MAX = 20
+
+/**
+ * Partner caps `listUserLists` and `listUserListUsers` `limit` at 50 (OnlyFansAPI validation).
+ */
+export const ONLYFANS_USER_LIST_PAGE_MAX = 50
+
+function capOnlyFansFanListLimit(limit: number): number {
+  return Math.min(OF_FAN_LIST_PAGE_MAX, Math.max(1, Math.floor(limit)))
+}
+
+function capOnlyFansUserListPageLimit(limit: number): number {
+  return Math.min(ONLYFANS_USER_LIST_PAGE_MAX, Math.max(1, Math.floor(limit)))
+}
+
+/** Normalize user-lists payloads from `/user-lists` (array under data, lists, items, or top-level array). */
+export function unwrapOnlyFansUserListsPayload(raw: unknown): Array<{ id: string; name?: string }> {
+  if (!raw || typeof raw !== 'object') return []
+  const o = raw as Record<string, unknown>
+  const arr = o.data ?? o.lists ?? o.items ?? raw
+  if (!Array.isArray(arr)) return []
+  const out: Array<{ id: string; name?: string }> = []
+  for (const row of arr) {
+    if (!row || typeof row !== 'object') continue
+    const r = row as Record<string, unknown>
+    const id = r.id ?? r.userListId
+    if (id == null) continue
+    const item: { id: string; name?: string } = { id: String(id) }
+    if (r.name != null) item.name = String(r.name)
+    out.push(item)
+  }
+  return out
+}
 
 /** Cloudflare / OnlyFans-API rate limit — callers should back off and show a friendly message. */
 export function isOnlyFansRateLimitError(message: string): boolean {
@@ -15,6 +52,18 @@ export function isOnlyFansRateLimitError(message: string): boolean {
     m.includes('too many requests') ||
     (m.includes('cf:') && m.includes('onlyfans'))
   )
+}
+
+/**
+ * Partner / OnlyFans.com flaky responses (e.g. ONLYFANS_COM_ERROR, generic 403).
+ * Not a session expiry — retry later; prefer cached data when the UI already has it.
+ */
+export function isOnlyFansUpstreamTransientError(message: string): boolean {
+  const m = message.toLowerCase()
+  if (m.includes('onlyfans_com_error')) return true
+  if (m.includes('[403]') && m.includes('unknown error')) return true
+  if (m.includes('real performer account')) return true
+  return false
 }
 
 interface OnlyFansAPIOptions {
@@ -415,17 +464,28 @@ class OnlyFansAPI {
     }
     url += endpoint
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
+    const response = await onlyFansRequestWithPolicy({
+      url,
+      init: {
+        ...options,
+        headers,
+      },
+      accountId: this.accountId,
     })
 
     const json = await response.json().catch(() => null)
+    const retryAfter = response.headers.get('retry-after')
 
     // OnlyFans API sometimes returns 200 with an error payload. Normalize both cases here.
     if (!response.ok || (json && typeof json === 'object' && (json as any).error)) {
       const errorCode = (json as any)?.error as string | undefined
       const message = (json as any)?.message || (json as any)?.description || errorCode
+
+      if (response.status === 429) {
+        throw new Error(
+          `ONLYFANS_RATE_LIMIT:${typeof message === 'string' && message ? message : 'Too many requests'}${retryAfter ? `|retry_after=${retryAfter}` : ''}`,
+        )
+      }
 
       // Special case: session expired -> needs re-authentication
       if (errorCode === 'SESSION_EXPIRED:NEEDS_REAUTHENTICATION') {
@@ -448,14 +508,24 @@ class OnlyFansAPI {
       ...(options.headers as Record<string, string> | undefined),
     }
     const url = `${ONLYFANS_API_BASE}${path.startsWith('/') ? path : `/${path}`}`
-    const response = await fetch(url, { ...options, headers })
+    const response = await onlyFansRequestWithPolicy({
+      url,
+      init: { ...options, headers },
+      accountId: this.accountId,
+    })
     const json = await response.json().catch(() => null)
+    const retryAfter = response.headers.get('retry-after')
     if (!response.ok || (json && typeof json === 'object' && (json as { error?: unknown }).error)) {
       const errorCode = (json as { error?: string })?.error
       const message =
         (json as { message?: string })?.message ||
         (json as { description?: string })?.description ||
         errorCode
+      if (response.status === 429) {
+        throw new Error(
+          `ONLYFANS_RATE_LIMIT:${typeof message === 'string' && message ? message : 'Too many requests'}${retryAfter ? `|retry_after=${retryAfter}` : ''}`,
+        )
+      }
       if (errorCode === 'SESSION_EXPIRED:NEEDS_REAUTHENTICATION') {
         throw new Error('ONLYFANS_SESSION_EXPIRED:NEEDS_REAUTHENTICATION')
       }
@@ -522,10 +592,11 @@ class OnlyFansAPI {
   /**
    * List active fans - GET /api/{account}/fans/active
    * Paginated; newest first.
+   * Partner caps `limit` at **20** per request.
    */
   async getFansActive(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/active${suffix}`)
@@ -536,7 +607,7 @@ class OnlyFansAPI {
    */
   async getFansAll(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/all${suffix}`)
@@ -547,7 +618,7 @@ class OnlyFansAPI {
    */
   async getFansExpired(params?: { limit?: number; offset?: number }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/fans/expired${suffix}`)
@@ -563,7 +634,7 @@ class OnlyFansAPI {
     filter?: 'total' | 'only_new' | 'only_renewals'
   }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     if (params?.filter) q.set('filter', params.filter)
     const suffix = q.toString() ? `?${q.toString()}` : ''
@@ -580,7 +651,7 @@ class OnlyFansAPI {
     sort?: 'total' | 'subscriptions' | 'tips' | 'messages' | 'posts' | 'streams'
   }): Promise<{ data: Fan[] }> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    if (params?.limit != null) q.set('limit', String(capOnlyFansFanListLimit(params.limit)))
     if (params?.offset != null) q.set('offset', String(params.offset))
     if (params?.sort) q.set('sort', params.sort)
     const suffix = q.toString() ? `?${q.toString()}` : ''
@@ -747,6 +818,7 @@ class OnlyFansAPI {
     offset?: number
     order?: 'recent' | 'old'
     query?: string
+    unreadOnly?: boolean
   }): Promise<{ 
     conversations: {
       user: Fan
@@ -760,6 +832,7 @@ class OnlyFansAPI {
     if (params?.offset) queryParams.set('offset', params.offset.toString())
     if (params?.order) queryParams.set('order', params.order)
     if (params?.query) queryParams.set('query', params.query)
+    if (params?.unreadOnly) queryParams.set('unreadOnly', 'true')
     
     const response = await this.request<{ data: any[] }>(`/chats?${queryParams.toString()}`)
     
@@ -781,11 +854,14 @@ class OnlyFansAPI {
   async getMessages(chatId: string, params?: {
     limit?: number
     id?: string
+    /** Pagination cursor (mapped to `id` query param for older-only pages). */
+    before?: string
     order?: 'desc' | 'asc'
   }): Promise<{ messages: Message[] }> {
     const queryParams = new URLSearchParams()
     if (params?.limit) queryParams.set('limit', params.limit.toString())
-    if (params?.id) queryParams.set('id', params.id)
+    const cursorId = params?.id ?? params?.before
+    if (cursorId) queryParams.set('id', cursorId)
     if (params?.order) queryParams.set('order', params.order)
     
     const response = await this.request<{ data: any[] }>(`/chats/${chatId}/messages?${queryParams.toString()}`)
@@ -1425,10 +1501,27 @@ class OnlyFansAPI {
 
   async listUserLists(params?: { limit?: number; offset?: number }): Promise<unknown> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    const lim =
+      params?.limit != null ? capOnlyFansUserListPageLimit(params.limit) : ONLYFANS_USER_LIST_PAGE_MAX
+    q.set('limit', String(lim))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/user-lists${suffix}`)
+  }
+
+  /** All creator user lists — paginates with partner max {@link ONLYFANS_USER_LIST_PAGE_MAX} per request. */
+  async listUserListsCollectAll(opts?: { maxPages?: number }): Promise<Array<{ id: string; name?: string }>> {
+    const maxPages = Math.min(Math.max(opts?.maxPages ?? 60, 1), 200)
+    const aggregated: Array<{ id: string; name?: string }> = []
+    let offset = 0
+    for (let page = 0; page < maxPages; page++) {
+      const raw = await this.listUserLists({ limit: ONLYFANS_USER_LIST_PAGE_MAX, offset })
+      const batch = unwrapOnlyFansUserListsPayload(raw)
+      aggregated.push(...batch)
+      if (batch.length < ONLYFANS_USER_LIST_PAGE_MAX) break
+      offset += ONLYFANS_USER_LIST_PAGE_MAX
+    }
+    return aggregated
   }
 
   async createUserList(name: string): Promise<unknown> {
@@ -1440,7 +1533,9 @@ class OnlyFansAPI {
 
   async listUserListUsers(userListId: string, params?: { limit?: number; offset?: number }): Promise<unknown> {
     const q = new URLSearchParams()
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    const lim =
+      params?.limit != null ? capOnlyFansUserListPageLimit(params.limit) : ONLYFANS_USER_LIST_PAGE_MAX
+    q.set('limit', String(lim))
     if (params?.offset != null) q.set('offset', String(params.offset))
     const suffix = q.toString() ? `?${q.toString()}` : ''
     return this.request(`/user-lists/${encodeURIComponent(userListId)}/users${suffix}`)

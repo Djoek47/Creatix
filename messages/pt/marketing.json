@@ -1,0 +1,614 @@
+{
+  "footerTagline": "Um espaço só para OnlyFans e Fansly — mensagens, fãs, ferramentas IA e proteção, com Divine Manager primeiro por voz.",
+  "footerNavigationAria": "Navegação do rodapé",
+  "pricingCycleStorefronts": {
+    "mv": "ManyVids",
+    "mym": "MYM",
+    "c4s": "Clips4Sale",
+    "lf": "LoyalFans",
+    "fv": "Fanvue"
+  },
+  "language": "Idioma do site",
+  "metadataDefaultTitle": "{siteName} — OS divino para criadoras",
+  "demo": {
+    "meta": {
+      "title": "Demo | Circe et Venus",
+      "description": "Explore uma demo guiada do Circe et Venus: gestão com IA, proteção para criadoras, automação e inteligência de crescimento em um só painel.",
+      "keywords": [
+        "demo Circe et Venus",
+        "demo painel para criadoras",
+        "ferramentas IA OnlyFans",
+        "automação Fansly",
+        "automação fluxos de DM",
+        "demo proteção para criadoras"
+      ]
+    },
+    "badge": "Demo do produto",
+    "headline": {
+      "lead": "Cada jogada forte,",
+      "accent": "em um só painel."
+    },
+    "subhead": "Profundidade real do produto—gestão com IA, fluxos de proteção, automação e inteligência de receita trabalhando juntos ao vivo.",
+    "ctaVideoWalkthrough": "Vídeo guiado · em breve",
+    "ctaVideoWalkthroughHint": "Estamos produzindo o vídeo completo. Role a página para o tour escrito do produto.",
+    "ctaTrial": "Começar teste grátis",
+    "ctaTrialHint": "Teste de 2 dias com cartão—mesmos termos da página inicial. Cancele quando quiser em Configurações → Cobrança.",
+    "howItWorks": "Como funciona",
+    "surfaceEyebrow": "Superfície",
+    "surfaceTitle": "Um espaço. Seis responsabilidades.",
+    "surfaceSub": "Sem enfeite: só o que você realmente opera.",
+    "narrativesEyebrow": "Narrativas",
+    "narrativesTitle": "Três histórias para quem decide.",
+    "narrativesSub": "Walkthroughs com peso—crescimento, proteção e comando—não mockups.",
+    "steps": {
+      "0": {
+        "number": "01",
+        "title": "Cadastre-se",
+        "desc": "Teste de 2 dias. Cartão obrigatório."
+      },
+      "1": {
+        "number": "02",
+        "title": "Conecte",
+        "desc": "OnlyFans e/ou Fansly."
+      },
+      "2": {
+        "number": "03",
+        "title": "Fale",
+        "desc": "Divine Manager executa."
+      },
+      "3": {
+        "number": "04",
+        "title": "Cresça",
+        "desc": "Retenção, fãs, receita."
+      }
+    },
+    "capabilities": {
+      "0": {
+        "title": "Gerente IA",
+        "desc": "Execute tarefas diárias de operação em uma camada de comando e copilotos por função."
+      },
+      "1": {
+        "title": "Central unificada de DMs",
+        "desc": "Atenda OnlyFans e Fansly em uma caixa de entrada rica em contexto."
+      },
+      "2": {
+        "title": "Proteção de conteúdo",
+        "desc": "Detecte vazamentos, junte evidências e rascunhe retiradas em minutos."
+      },
+      "3": {
+        "title": "Fluxos de automação",
+        "desc": "Dispare ações recorrentes para alcance, follow-up e operações de conteúdo."
+      },
+      "4": {
+        "title": "Inteligência de receita",
+        "desc": "Acompanhe conversão, retenção e gasto dos fãs sem caos de planilha."
+      },
+      "5": {
+        "title": "Controle primeiro por voz",
+        "desc": "Use o Divine Manager para lançar fluxos e inspecionar performance sem as mãos."
+      }
+    },
+    "flows": {
+      "0": {
+        "label": "História 01",
+        "title": "Da caixa ao upsell em 90 segundos",
+        "detail": "Segmente fãs de alta intenção, redija respostas personalizadas e enfileire follow-ups premium sem sair da conversa.",
+        "bullets": [
+          "A intenção aparece ao lado da conversa",
+          "Ofertas respeitam contexto e tier do fã",
+          "Follow-ups chegam no seu cronograma"
+        ]
+      },
+      "1": {
+        "label": "História 02",
+        "title": "Proteção ponta a ponta",
+        "detail": "Do alerta de vazamento a evidências sólidas: empacotamento, exportações e rascunhos de retirada em um caminho deliberado.",
+        "bullets": [
+          "Fonte e propagação visíveis num relance",
+          "Pacote DMCA pronto após uma revisão",
+          "Status do relatório até a remoção"
+        ]
+      },
+      "2": {
+        "label": "História 03",
+        "title": "Uma visão semanal de comando",
+        "detail": "Saúde da conta, risco de churn e o próximo melhor passo—numa leitura calma, não uma parede de widgets.",
+        "bullets": [
+          "Receita, retenção e velocidade num só quadro",
+          "Segmentos em risco destacados com clareza",
+          "Runbooks que você dispara num clique"
+        ]
+      }
+    }
+  },
+  "pricingCalculator": {
+    "tierBands": {
+      "0": "Até $1k",
+      "1": "$1k – $5k",
+      "2": "$5k – $7,5k",
+      "3": "$7,5k – $10k",
+      "4": "$10k – $15k",
+      "5": "$15k – $25k",
+      "6": "$25k – $35k",
+      "7": "$35k – $45k",
+      "8": "$45k – $60k",
+      "9": "$60k – $80k",
+      "10": "+$80k"
+    },
+    "tierNumberFallback": "nível {tier}",
+    "landingAria": "Estimativa de preço",
+    "landingEyebrow": "Seu plano",
+    "settingsEyebrow": "Estimativa",
+    "settingsEstimateTitle": "Mesma lógica do checkout",
+    "settingsEstimateSubtitle": "Faixa, formato do plano e plataformas batem com o Stripe antes de impostos ou descontos.",
+    "defaultEyebrow": "Preços",
+    "defaultHeading": "O que você paga",
+    "defaultSubtitle": "Escolha a faixa de receita, o formato do plano e as plataformas. Os valores iguais ao Stripe antes de descontos ou impostos.",
+    "revenueBand": "Faixa de receita",
+    "emDashPlaceholder": "—",
+    "linkedBadge": "Vinculado",
+    "revenue": {
+      "helpLockedP1": "Sincronizado com MTD combinado OnlyFans / Fansly — mesma escada do checkout depois da faixa atualizar.",
+      "helpLockedP2": "Faixas abaixo de {band} ficam visíveis, mas não dá para selecionar enquanto as integrações estiverem vinculadas.",
+      "updated": "Atualizado {when}.",
+      "helpLockedP3": "Desconecte integrações para escolher a faixa manualmente.",
+      "helpPartialLinkedP1": "A estimativa usa receita combinada vinculada (OnlyFans + Fansly); todas as faixas aparecem; abaixo de {band} ficam bloqueadas até desconectar — mesma regra do checkout.",
+      "helpSettingsSimple": "O nível espelha o faturamento bruto mensal do checkout.",
+      "helpMarketingSimple": "Mesmos degraus do checkout. Escolha o intervalo que combina com o faturamento bruto mensal.",
+      "linkedMtdLead": "Estimativa MTD vinculada (combinada):",
+      "onlyFansLabel": "OnlyFans {amount}",
+      "fanslyLabel": "Fansly {amount}",
+      "subscribedBelowFloor": "Sua faixa atual fica abaixo do que as contas sugerem. Finalize checkout com a faixa escolhida — a próxima fatura reflete upgrade.",
+      "bandPreviewCycling": "As faixas giram só como prévia — abra o menu ou use receita digitada para parar.",
+      "overrideLabel": "Informe a receita mensal manualmente",
+      "overrideHint": "Quando não há integrações vinculadas — mesma escada do checkout.",
+      "grossMonthlyUsdLabel": "Receita bruta mensal (USD)",
+      "placeholderExample": "ex. 5000",
+      "mapsToSettings": " Equivale a {band}.",
+      "mapsToMarketing": "Igual que em cobrança: {band}.",
+      "requiresMinTier": "Contas vinculadas exigem pelo menos {band}; a prévia usa esse mínimo como no checkout."
+    },
+    "planHeading": "Plano",
+    "singlePlatform": "Uma plataforma",
+    "bundled": "Bundled",
+    "platformsHeading": "Plataformas",
+    "focusPlatform": {
+      "onlyfans": "OnlyFans",
+      "fansly": "Fansly",
+      "antipiracyFocus": "Anti‑pirataria"
+    },
+    "pairFocus": {
+      "ofFansly": "OnlyFans + Fansly: base OnlyFans + {addon}/mês (pacote)",
+      "ofMv": "OnlyFans + ManyVids: base OnlyFans + {addon}/mês (pacote)",
+      "flMv": "Fansly + ManyVids: linha Fansly + {addon}/mês"
+    },
+    "singlePlatformCombined": "Plataforma única ({pair})",
+    "noteSinglePlatform": "Uma plataforma",
+    "pairJoiner": " + ",
+    "breakdown": {
+      "multiplatformProtection": "Proteção multiplataforma",
+      "protectionOnlyLead": "Plano avulso para alertas de vazamento e cobertura estilo DMCA em vitrinas extras.",
+      "bundledOfFl": "Bundled (OnlyFans + Fansly)",
+      "antiPiracyCreditsAllocated": "{credits} créditos · vitrine Anti‑Piracy",
+      "antiPiracyFee": "Anti‑Piracy",
+      "noteBundledSoonSettings": "Uma fatura Bundled. Anti‑Piracy é o conector ManyVids ({credits, number} créditos/ciclo acima). Protection autônomo multiplataforma em breve.",
+      "noteBundledSoonMarketing": "Workspace bundled OF+Fansly; Anti‑Piracy acrescenta ManyVids e a linha. Protection próprio para extra, em breve.",
+      "noteBundledLiveSettings": "Fatura única bundled; Anti‑Piracy = conector ManyVids ({credits, number}/ciclo); Protection cobrado aparte.",
+      "noteBundledLiveMarketing": "Bundled com ManyVids; Protection extra está na página de preços."
+    },
+    "aside": {
+      "estimatedMonthly": "Mensal estimado",
+      "perMo": "/mês",
+      "includedAiCredits": "Créditos de IA inclusos",
+      "creditsExplainSettings": "A cada ciclo para IA neste plano. Recarregue quando quiser.",
+      "creditsExplainMarketing": "Creditados cada ciclo para assistentes e automações.",
+      "composition": "Composição"
+    },
+    "marketing": {
+      "startTrial": "Iniciar teste grátis",
+      "fullPricingPage": "Página completa",
+      "openBilling": "Abrir cobrança"
+    },
+    "subscribePlan": "Assinar — {price}{period}",
+    "subscribeProtection": "Assinar — Protection {price}{period}",
+    "subscribeFromPricingRich": "Assine na <link>página de preços</link>. Totais batem com esta estimativa.",
+    "footer": {
+      "comingSoonBadge": "Em breve",
+      "comingSoonBody": "Cobertura extra própria ainda não abre novas contas — avisamos aqui.",
+      "multiplatformHeading": "Proteção multiplataforma",
+      "multiplatformAria": "Detalhes da proteção além OF/Fansly",
+      "popover": {
+        "sectionStorefronts": "Vitrines",
+        "sectionTools": "Ferramentas"
+      },
+      "tools": {
+        "dmcaScanner": "Scanner DMCA",
+        "leakDetection": "Detecção de vazamentos",
+        "reputationTool": "Reputação",
+        "modelReputation": "Reputação"
+      },
+      "storefront": {
+        "manyvids": "ManyVids",
+        "clips4sale": "Clips4Sale",
+        "fanvue": "Fanvue",
+        "loyalfans": "LoyalFans",
+        "mym": "MYM"
+      },
+      "liveBody": "Cobertura extra além OF/Fansly por {usd}/mês — inclua aqui ou assine separado.",
+      "toggle": {
+        "addedEstimate": "Incluso (+{usd}/mês)",
+        "addEstimate": "Somar (+{usd}/mês)",
+        "protectionOnlyActive": "Só Protection ({usd}/mês)",
+        "protectionOnly": "Só Protection"
+      }
+    }
+  },
+  "home": {
+    "meta": {
+      "title": "Circe et Venus — Área de trabalho para OnlyFans e Fansly",
+      "description": "{body} {trialLine} {pricingTeaser}",
+      "body": "Circe et Venus é uma área de trabalho para criadoras no OnlyFans e Fansly: mensagens, fãs, ferramentas de IA e proteção num só painel — com Divine Manager primeiro por voz.",
+      "keywords": [
+        "SO para criadoras",
+        "gestor OnlyFans",
+        "Fansly",
+        "ManyVids",
+        "Divine Manager",
+        "IA para criadoras",
+        "retenção de fãs",
+        "analíticas para criadoras",
+        "Circe et Venus",
+        "Creatix"
+      ]
+    },
+    "hero": {
+      "headlineEarnMore": "Ganhe mais,",
+      "headlineRunSmarter": "Gerencie melhor,",
+      "headlineGrowFaster": "Cresça mais rápido.",
+      "subhead": "Gestão com IA. Proteja seu conteúdo. Automatize seus processos. Tudo em um só painel.",
+      "platformLogoAlt": "Logotipo {name}",
+      "platformCompatibleBefore": "Compatível com",
+      "ctaTrial": "Começar teste grátis",
+      "upcoming": {
+        "eyebrow": "Em breve",
+        "item0": "Preços — seletor multiplataforma",
+        "pricingCycleCaption": "A Proteção multiplataforma para vitrines extras (além de OnlyFans e Fansly) ainda não está aberta para novas assinaturas. Quando abrirmos inscrições, avisaremos aqui.",
+        "item1": "Markit Editor — editor de vídeo com IA",
+        "item2": "Ariadne — raciocínio e ferramentas",
+        "caption": "Novidades em",
+        "link": "Recursos",
+        "expandAria": "Mostrar o que está em desenvolvimento",
+        "collapseAria": "Ocultar o que está em desenvolvimento"
+      }
+    },
+    "speakSection": {
+      "heading": "Fale. Ela executa."
+    },
+    "goddesses": {
+      "headingAnd": "&",
+      "circeTitle": "Circe",
+      "circeTagline": "Mantenha os fãs encantados — e os ladrões frustrados.",
+      "circeEyebrow": "Retenção · vazamentos · nuances",
+      "circeBullets": {
+        "0": "Radar de churn: quem esfria antes de sumir",
+        "1": "Defesa contra vazamentos com rascunhos prontos para DMCA — menos scroll ansioso, mais ação",
+        "2": "Contexto do fã que lê a sala — respostas mais calorosas, menos mal-entendidos"
+      },
+      "venusTitle": "Venus",
+      "venusTagline": "Transforme atenção em momentum — sem ressaca de hustle.",
+      "venusEyebrow": "Crescimento · menções · momentum",
+      "venusBullets": {
+        "0": "CRM de fãs com sinais de calor e gasto — saiba quem merece seu foco",
+        "1": "Briefings de menções e reputação antes do drama se espalhar",
+        "2": "Ações em massa em comentários e listas — automatize o chato, mantenha o magnetismo"
+      }
+    },
+    "proMode": {
+      "complete": "Completo"
+    },
+    "pricingSwitch": {
+      "startingAt": "A partir de",
+      "perMo": "/mês",
+      "lowBandCaption": "Faixa de receita mais baixa — seu preço escala com o que você ganha. Um só espaço.",
+      "seePricing": "Ver preços",
+      "antiPiracyBundle": "Pacote antipirataria",
+      "antiPiracyAbbrev": "AP",
+      "ariaPlatformPrices": "Preço mensal base por plataforma"
+    },
+    "discover": {
+      "title": "Explorar a plataforma",
+      "sub": "Preços guiados, demo do produto e como começar o onboarding — o mesmo espaço de trabalho.",
+      "navAria": "Destinos do produto",
+      "demoLabel": "Demo",
+      "pricingLabel": "Preços",
+      "featuresLabel": "Recursos",
+      "howLabel": "Como funciona"
+    }
+  },
+  "divineCommandCenter": {
+    "footnote": "Seu império sempre escuta.",
+    "eyebrow": "Divine Manager",
+    "headlineBefore": "Diga e",
+    "headlineAccent": "realize",
+    "body": "Divine Manager é sua sala de comando por voz: pergunte em linguagem natural, receba respostas e dispare ações reais no OnlyFans, Fansly, ManyVids e sua rede social — <bold>muitas vezes sem digitar um caractere.</bold> Ditado de DMs, ajuste de bundles, fila de conteúdo e consulta às analíticas como se a plataforma fosse uma pessoa que nunca julga, nunca dorme e não perde detalhes.",
+    "pillars": {
+      "0": "DMs para fãs e alcance em massa",
+      "1": "Leia estatísticas e defina preços",
+      "2": "Publique e programe conteúdo",
+      "3": "Execute ferramentas de IA e bundles"
+    }
+  },
+  "features": {
+    "meta": {
+      "title": "Recursos | Circe et Venus",
+      "description": "Mensagens, fãs, AI Studio, proteção e analíticas para OnlyFans e Fansly — num só espaço.",
+      "keywords": [
+        "recursos para criadoras",
+        "ferramentas OnlyFans",
+        "DMs Fansly",
+        "proteção vazamentos DMCA",
+        "CRM para criadoras",
+        "assistente IA por voz",
+        "AI Studio",
+        "Circe et Venus"
+      ]
+    },
+    "hero": {
+      "lead": "Tudo,",
+      "accent": "num só lugar.",
+      "subhead": "Comece pelo essencial e expanda para ver fluxos mais profundos de mensagens, retenção, analíticas e proteção."
+    },
+    "explore": {
+      "title": "Próximos passos",
+      "sub": "Compare preços, siga a demo guiada ou veja como funciona o onboarding.",
+      "navAria": "Páginas relacionadas",
+      "pricing": "Planos & preços",
+      "demo": "Demo do produto",
+      "howItWorks": "Como funciona",
+      "home": "Início"
+    },
+    "cards": {
+      "0": {
+        "title": "Caixa unificada",
+        "desc": "DMs do OnlyFans e Fansly num só lugar com contexto rápido do fã."
+      },
+      "1": {
+        "title": "Divine Manager",
+        "desc": "Central de comando por voz ou chat para o dia a dia e o acompanhamento."
+      },
+      "2": {
+        "title": "CRM de fãs",
+        "desc": "Segmentos, gasto, etiquetas e status para priorizar melhor."
+      },
+      "3": {
+        "title": "Proteção",
+        "desc": "Alertas de vazamento, rascunhos prontos para DMCA e histórico de tratamento."
+      },
+      "4": {
+        "title": "Menções",
+        "desc": "Monitoramento de reputação fora da plataforma e fila de revisão."
+      },
+      "5": {
+        "title": "Analíticas",
+        "desc": "Instantâneos de receita e atividade das suas plataformas sincronizadas."
+      },
+      "6": {
+        "title": "AI Studio",
+        "desc": "Legendas, ideias de preços, apoio ao chatter e ferramentas criativas."
+      },
+      "7": {
+        "title": "Calendário de conteúdo",
+        "desc": "Planeje lançamentos, cadência e timing de campanhas num fluxo."
+      }
+    },
+    "capabilities": {
+      "shipped": {
+        "0": "Mensagens em massa com legenda por fã, dicas de PPV e preparação de envio",
+        "1": "Baleias e churn visíveis para acertar o timing de retenção",
+        "2": "Sincronização OnlyFans e Fansly com status de conexão claro",
+        "3": "Saúde de perfil e plataforma num só menu",
+        "4": "Varreduras de proteção e revisão de menções no mesmo fluxo",
+        "5": "Fluxos conscientes de cobrança — uma plataforma vs bundled — sem trocar de conta"
+      },
+      "heading": "Todos os recursos",
+      "intro": "A superfície permanece calma. Embaixo está o workspace completo — a maior parte aparece ao conectar suas plataformas.",
+      "productColumn": "No produto",
+      "betaColumn": "Beta e próximos passos",
+      "betaDisclaimer": "Áreas beta podem mudar comportamento ou elegibilidade ao afinar qualidade. Nada aqui promete preços ou disponibilidade futuros.",
+      "beta": {
+        "0": {
+          "title": "Ariadne",
+          "desc": "Marcadores discretos em exports do vault e detecção de vazamentos para rastrear um clip até cópia ou destinatário."
+        },
+        "1": {
+          "title": "Radar de retenção",
+          "desc": "Varreduras de churn agendadas e resumos em lote enquanto você está fora — créditos só quando há fãs correspondentes."
+        },
+        "2": {
+          "title": "Fronteira do Studio",
+          "desc": "Novos modelos e ferramentas especializadas chegam primeiro ao AI Studio e depois à biblioteca padrão."
+        },
+        "3": {
+          "title": "Frame & Markit",
+          "desc": "Handoff opcional ao editor de frames se sua stack inclui Markit — mesma sessão, menos abas."
+        }
+      }
+    }
+  },
+  "launchList": {
+    "meta": {
+      "title": "Lista de lançamento mobile | Circe et Venus",
+      "description": "Entre na lista de lançamento mobile da Circe et Venus. Acesso prioritário a novidades de iOS e Android.",
+      "keywords": [
+        "lista de lançamento Circe et Venus",
+        "lista de espera mobile",
+        "app iOS criadoras",
+        "app Android criadoras",
+        "acesso antecipado app mobile"
+      ]
+    },
+    "eyebrow": "Lançamento mobile",
+    "title": "Entre na lista",
+    "subhead": "Acesso prioritário quando Circe et Venus chegar ao iOS e Android.",
+    "form": {
+      "name": "Nome",
+      "email": "E-mail",
+      "handle": "Usuário da criadora",
+      "optional": "(opcional)",
+      "notes": "Notas",
+      "placeholderName": "Seu nome",
+      "placeholderEmail": "voce@exemplo.com",
+      "placeholderHandle": "@seuusuario",
+      "placeholderNotes": "Pedidos, prioridades ou contexto para a equipe.",
+      "submit": "Entrar na lista",
+      "submitting": "Entrando…",
+      "successTitle": "Você está na lista",
+      "successBody": "Enviaremos um e-mail quando o acesso mobile abrir.",
+      "errorFallback": "Não foi possível entrar na lista neste momento.",
+      "errorUnexpected": "Erro inesperado ao enviar o formulário.",
+      "payloadTitle": "Alta lista lançamento mobile",
+      "payloadHandleLine": "Usuário criadora: {handle}",
+      "payloadNoNotes": "Sem notas adicionais."
+    }
+  },
+  "mobileApp": {
+    "meta": {
+      "title": "App mobile | Circe et Venus",
+      "description": "O app mobile Circe et Venus está chegando. Prévia da experiência iOS/Android para mensagens, AI Studio, proteção, analíticas e Divine Manager.",
+      "keywords": [
+        "app mobile Circe et Venus",
+        "app criadoras em breve",
+        "gestor OnlyFans mobile",
+        "app Fansly mobile",
+        "Divine Manager mobile",
+        "AI Studio mobile"
+      ]
+    },
+    "badge": "Próximamente",
+    "heroLead": "Centro de comando mobile,",
+    "heroAccent": "feito para criadoras.",
+    "heroSub": "Circe et Venus móvil llega pronto para iOS y Android. Gestiona mensajes, ejecuta herramientas IA y controla tu negocio desde cualquier lugar.",
+    "ctaLaunchList": "Seja a primeira a saber quando lançarmos",
+    "bannerEyebrow": "App móvil",
+    "bannerTitleBefore": "Muy",
+    "bannerTitleAccent": "pronto.",
+    "bannerBody": "Una experiencia nativa premium está en camino. Únete a la lista para acceso prioritario cuando Circe et Venus móvil esté en vivo.",
+    "pillarsSectionTitle": "App móvil",
+    "pillars": {
+      "0": "Ações rápidas na caixa de entrada para criadoras em movimento.",
+      "1": "Fluxos com IA para mensagens, conteúdo e crescimento.",
+      "2": "Experiência focada em proteção com acabamento nativo premium."
+    }
+  },
+  "pricing": {
+    "model": {
+      "trialLine": "Comece com um teste grátis de 2 dias. Cartão obrigatório.",
+      "headline": "Planos simples. Um só espaço.",
+      "creditAllowance": "Planos pagos incluem 20% da sua assinatura em créditos de IA por mês — por exemplo US$ 100/mês geram US$ 20 em créditos (2.000 créditos). US$ 1 de assinatura = 100 créditos."
+    },
+    "meta": {
+      "title": "Preços | Circe et Venus",
+      "description": "Preços de CRM para criadoras por receita mensal: OnlyFans {ofRange}/mês, linha Fansly por faixa, Bundled (OnlyFans + Fansly) {bundledRange}/mês. Protection e antipirataria (plataformas sem API) como complemento de {protectionPrice}/mês. Teste de 2 dias (cartão obrigatório), cobrança por assento nos planos principais."
+    },
+    "seo": {
+      "homeTeaser": "Preços transparentes de {minOfPrice}/mês (OnlyFans uma plataforma) até {maxBundledPrice}/mês (Bundled). Complemento Protection a partir de {protectionPrice}/mês."
+    },
+    "keywords": [
+      "preços para criadoras",
+      "preços ferramentas OnlyFans",
+      "preços Fansly",
+      "ManyVids",
+      "proteção antipirataria",
+      "assinatura por receita",
+      "Circe et Venus",
+      "SaaS para criadoras",
+      "plano uma plataforma",
+      "plano Bundled",
+      "cobrança por assento",
+      "preços plataforma adulta"
+    ],
+    "keywordsOnlyFansEntry": "CRM OnlyFans {entryPrice}",
+    "jsonLd": {
+      "aggregateOfferDescription": "Planos principais {minMonthly}–{maxMonthly} USD/mês; complemento Protection {prot} USD/mês (empilhável)"
+    },
+    "inline": {
+      "blurb": "<sp>Uma plataforma</sp> é uma plataforma ou um par de duas com preços de lista por faixa (ex.: OnlyFans + ManyVids). <bu>Bundled</bu> é OnlyFans + Fansly numa só fatura para essa faixa. <pr>Protection e antipirataria</pr> é um complemento separado de {protectionPrice}/mês para Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM e outras coberturas sem API (empilhável com o plano principal). Bundles de lista como OnlyFans + Fansly usam preços fixos por faixa, não um simples +{bundleAddon}/mês na linha OnlyFans — use a calculadora <calc>Preços</calc> para valores exatos."
+    },
+    "faq": {
+      "heading": "Perguntas",
+      "bundleQuestion": "Uma plataforma vs Bundled?",
+      "bundleAnswer": "Uma plataforma = uma plataforma ou um par com preços por faixa. Bundled = OnlyFans + Fansly juntos. Cobertura sem API (ManyVids, Clips4Sale, etc.) usa o plano Protection separado de {protectionPrice}/mês.",
+      "bundleQuestionJsonLd": "Uma plataforma vs Bundled vs Protection?",
+      "bundleAnswerJsonLd": "Uma plataforma = uma plataforma adulta ou um par de duas. Bundled = OnlyFans + Fansly juntos. Protection = {protectionPrice}/mês antipirataria em Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM e similares; empilhável com o plano principal ou standalone.",
+      "creditsQuestion": "Como funcionam os créditos de IA?",
+      "creditsAnswer": "Planos pagos incluem 20% da sua assinatura em créditos por mês (US$ 1 = 100 créditos). Teste: {trialCredits} créditos no total.",
+      "trialQuestion": "Teste grátis?",
+      "trialAnswerPage": "Veja os termos atuais ao se cadastrar. Faça upgrade ou cancele quando quiser em Configurações → Cobrança.",
+      "trialBillingHint": "Faça upgrade ou cancele quando quiser em Configurações → Cobrança.",
+      "changeQuestion": "Mudar de plano depois?",
+      "changeAnswerJsonLd": "Sim. Troque plataformas, uma plataforma vs Bundled ou faixa em Configurações → Cobrança.",
+      "changeAnswerPagePro": "Sim. Troque plataformas, uma plataforma vs Bundled, Protection ou faixa em Configurações → Cobrança."
+    },
+    "page": {
+      "pickBand": "Escolha sua faixa. Escolha suas plataformas. Só isso.",
+      "toggleBefore": "Ative ",
+      "toggleMatrixWord": "Matriz",
+      "toggleAfter": " para a matriz completa e a comparação de teste.",
+      "proModeMatrix": "Matriz",
+      "fullPriceTableFootnote": "<lead>Protection e antipirataria</lead> (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM e outra cobertura sem API) é um complemento separado de {protectionPrice}/mês — use sozinho ou empilhe com o plano principal. Checkout no app.",
+      "fullPriceTableToggle": "Tabela de preços completa",
+      "matrixColRevenueTier": "Faixa de receita",
+      "matrixColOnlyFans": "OnlyFans",
+      "matrixColFansly": "Fansly",
+      "matrixColBundled": "Bundled (OnlyFans + Fansly)",
+      "trialVsPaidHeading": "Teste vs pago",
+      "trialVsPaidColTrial": "Teste",
+      "trialVsPaidColPaid": "Pago",
+      "comparisonRows": {
+        "0": {
+          "feature": "Teste grátis de 2 dias (cartão obrigatório)"
+        },
+        "1": {
+          "feature": "Créditos IA"
+        },
+        "2": {
+          "feature": "Conexão OnlyFans"
+        },
+        "3": {
+          "feature": "Fansly"
+        },
+        "4": {
+          "feature": "Divine Manager"
+        },
+        "5": {
+          "feature": "Ferramentas de vazamento e reputação"
+        },
+        "6": {
+          "feature": "Suporte prioritário"
+        }
+      },
+      "comparisonLimited": "Limitado",
+      "comparisonAiPaid": "20% da assinatura/mês",
+      "comparisonAiTrial": "{count}/mês"
+    },
+    "marketingSection": {
+      "singleCardTitle": "Uma plataforma (1–2 plataformas)",
+      "singleCardBody": "Escolha as plataformas que usa (uma ou duas no preço single-platform), ou Bundled para OnlyFans + Fansly numa fatura.",
+      "aiCardTitle": "Créditos IA",
+      "bundledCardTitle": "Bundled + Protection",
+      "bundledCardBody": "Bundled é OnlyFans + Fansly. Lojas sem API (Clips4Sale, ManyVids, Loyalfans, Fanvue, MYM) usam o complemento Protection de {protectionPrice}/mês — ver Preços.",
+      "ctaHomePricing": "Preços na página inicial",
+      "ctaFullPricing": "Preços completos"
+    },
+    "enterprise": {
+      "heading": "Estúdios & equipes grandes",
+      "body": "Precisa de assentos agrupados, contratos personalizados, questionários de segurança ou maior volume? Direcionamos enterprise pelo mesmo canal que parcerias e imprensa.",
+      "cta": "Fale conosco",
+      "trustHeading": "Políticas e confiança",
+      "trustBody": "Consulte privacidade, termos e cookies antes de assinar — o pagamento é concluído no app via Stripe.",
+      "linkPrivacy": "Privacidade",
+      "linkTerms": "Termos",
+      "linkCookies": "Cookies"
+    }
+  }
+}

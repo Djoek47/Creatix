@@ -1,184 +1,103 @@
 /**
- * Single source for dashboard page identity: one hero per route (no duplicate header + body titles).
- * Longest URL prefix wins.
+ * Single source for dashboard page identity: routing + hero variant.
+ * Copy lives in messages/{locale}/dashboard.json under dashboard.heroes, keyed by heroKey.
  */
 
+export type DashboardHeroVariant = 'default' | 'ai-tools' | 'minimal' | 'system'
+
 export type DashboardPageMeta = {
-  /** Small caps line above the title */
-  eyebrow: string
-  /** Primary page title (matches visible <h1> in DashboardRouteHero) */
-  title: string
-  subtitle: string
-  /** Gold/purple glow mark + spectrum hover (AI Studio routes) */
-  heroVariant?: 'default' | 'ai-tools'
+  /** Key under `dashboard.heroes` in messages */
+  heroKey: string
+  heroVariant?: DashboardHeroVariant
 }
 
-type Entry = { prefix: string; meta: DashboardPageMeta }
+type Entry = { prefix: string } & DashboardPageMeta
 
 const ENTRIES: Entry[] = [
   {
     prefix: '/dashboard/messages/mass',
-    meta: {
-      eyebrow: 'Broadcast',
-      title: 'Mass messages',
-      subtitle: 'Reach your lists with intention — segments, timing, and tone in one flow.',
-    },
+    heroKey: 'messages_mass',
   },
   {
     prefix: '/dashboard/community/circe-daily',
-    meta: {
-      eyebrow: 'Daily ritual',
-      title: 'Circe’s counsel',
-      subtitle: 'Bite-sized strategy from Circe — one luminous insight per day.',
-    },
+    heroKey: 'community_circe_daily',
   },
   {
     prefix: '/dashboard/community',
-    meta: {
-      eyebrow: 'Collective',
-      title: 'Community wisdom',
-      subtitle: 'Tips and plays from creators who move like you do.',
-    },
+    heroKey: 'community',
   },
   {
     prefix: '/dashboard/messages',
-    meta: {
-      eyebrow: 'Correspondence',
-      title: 'Sacred inbox',
-      subtitle:
-        'Where desire gets answered — DMs, insights, and mass reach across OnlyFans & Fansly in one velvet command centre.',
-    },
+    heroKey: 'messages',
   },
   {
     prefix: '/dashboard/ai-studio/chatter',
-    meta: {
-      eyebrow: 'Presence',
-      title: 'AI Chatter',
-      subtitle: 'Train the voice that never sleeps — replies that still sound unmistakably you.',
-    },
+    heroKey: 'ai_studio_chatter',
   },
   {
     prefix: '/dashboard/ai-studio/tools',
-    meta: {
-      eyebrow: 'Toolkit',
-      title: 'AI tools',
-      subtitle: 'Search, filter, run — credits apply where marked.',
-      heroVariant: 'ai-tools',
-    },
+    heroKey: 'ai_studio_tools',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/ai-studio',
-    meta: {
-      eyebrow: 'Creation',
-      title: 'AI Studio',
-      subtitle: 'Media vault and the full tool library.',
-      heroVariant: 'ai-tools',
-    },
-  },
-  {
-    prefix: '/dashboard/content-library',
-    meta: {
-      eyebrow: 'Archive',
-      title: 'Content library',
-      subtitle: 'Every asset you’ve blessed — search, reuse, and ship faster.',
-    },
+    heroKey: 'ai_studio',
+    heroVariant: 'ai-tools',
   },
   {
     prefix: '/dashboard/content/new',
-    meta: {
-      eyebrow: 'Compose',
-      title: 'New drop',
-      subtitle: 'Shape the next piece your audience will crave.',
-    },
+    heroKey: 'content_new',
   },
   {
     prefix: '/dashboard/content',
-    meta: {
-      eyebrow: 'Rhythm',
-      title: 'Cosmic calendar',
-      subtitle: 'Schedule and orchestrate posts across platforms without losing the plot.',
-    },
-  },
-  {
-    prefix: '/dashboard/fans/new',
-    meta: {
-      eyebrow: 'Ledger',
-      title: 'Welcome a fan',
-      subtitle: 'Add someone beautiful to your inner circle.',
-    },
+    heroKey: 'content',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/fans',
-    meta: {
-      eyebrow: 'Devotion',
-      title: 'Fan sanctum',
-      subtitle: 'Who spends, who stays, who matters — your subscriber universe, distilled.',
-    },
+    heroKey: 'fans',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/well-being',
-    meta: {
-      eyebrow: 'Equilibrium',
-      title: 'Well-being',
-      subtitle: 'Pressure, boundaries, and breath — stay magnetic without burning out.',
-    },
+    heroKey: 'well_being',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/social',
-    meta: {
-      eyebrow: 'Signal',
-      title: 'Social ascent',
-      subtitle: 'Grow beyond the paywall — X, Instagram, TikTok in one orbit.',
-    },
+    heroKey: 'social',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/analytics',
-    meta: {
-      eyebrow: 'Insight',
-      title: 'Analytics',
-      subtitle:
-        'Circe snapshots from your syncs, plus live OnlyFans partner metrics when you are connected — curves, mix, and the story the numbers whisper.',
-    },
+    heroKey: 'analytics',
+    heroVariant: 'minimal',
+  },
+  {
+    prefix: '/dashboard/protection/aegis',
+    heroKey: 'protection_aegis',
   },
   {
     prefix: '/dashboard/protection',
-    meta: {
-      eyebrow: 'Aegis',
-      title: 'Circe’s protection',
-      subtitle: 'Leaks found, claims filed, peace guarded — the shield around your empire.',
-    },
+    heroKey: 'protection',
   },
   {
     prefix: '/dashboard/mentions',
-    meta: {
-      eyebrow: 'Horizon',
-      title: 'Venus’ watch',
-      subtitle: 'Who’s talking, what they feel, where your name travels next.',
-    },
+    heroKey: 'mentions',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/settings',
-    meta: {
-      eyebrow: 'Sovereignty',
-      title: 'Settings',
-      subtitle: 'Account, integrations, and the quiet switches that run your world.',
-    },
+    heroKey: 'settings',
+    heroVariant: 'minimal',
   },
   {
     prefix: '/dashboard/divine-manager',
-    meta: {
-      eyebrow: 'Orchestra',
-      title: 'Divine Manager',
-      subtitle: '',
-    },
+    heroKey: 'divine_manager',
   },
   {
     prefix: '/dashboard/guide',
-    meta: {
-      eyebrow: 'Path',
-      title: 'Guide',
-      subtitle: '',
-    },
+    heroKey: 'guide',
   },
 ]
 
@@ -190,25 +109,26 @@ export function shouldShowDashboardRouteHero(pathname: string | null): boolean {
   if (pathname === '/dashboard/divine-manager' || pathname.startsWith('/dashboard/divine-manager/')) {
     return false
   }
+  if (pathname === '/dashboard/messages' || pathname.startsWith('/dashboard/messages/')) {
+    return false
+  }
   if (pathname === '/dashboard/guide' || pathname.startsWith('/dashboard/guide/')) return false
   return true
 }
 
 export function resolveDashboardPageMeta(pathname: string | null): DashboardPageMeta | null {
   if (!pathname || !pathname.startsWith('/dashboard')) return null
-  for (const { prefix, meta } of SORTED) {
+  for (const { prefix, heroKey, heroVariant } of SORTED) {
     if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
-      return meta
+      return { heroKey, ...(heroVariant != null ? { heroVariant } : {}) }
     }
   }
-  return {
-    eyebrow: 'Sanctuary',
-    title: 'Workspace',
-    subtitle: 'Your creator cockpit — choose a star from the sidebar.',
-  }
+  return { heroKey: 'workspace_default' }
 }
 
-/** Accessible label for top bar (no visible duplicate title). */
-export function getDashboardPageAriaLabel(pathname: string | null): string {
-  return resolveDashboardPageMeta(pathname)?.title ?? 'Dashboard'
+/** Relative to next-intl namespace `dashboard` (e.g. `heroes.settings.title`). */
+export function dashboardHeroTitleKeyFromPath(pathname: string | null): string {
+  const meta = resolveDashboardPageMeta(pathname)
+  if (!meta?.heroKey) return 'pageTitle'
+  return `heroes.${meta.heroKey}.title`
 }

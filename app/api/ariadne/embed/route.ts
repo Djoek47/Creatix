@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyFrameCorsHeaders, frameCorsOptions } from '@/lib/cors-frame'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
-import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
-import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { createAriadneTraceExport } from '@/lib/ariadne/create-ariadne-trace-export'
 import {
-  createAriadnePayload,
-  embedAppendV1,
+  getServiceActorUserId,
+  isServiceRequest,
+  parseServiceHeaders,
+  type ParsedServiceHeaders,
   sha256Hex,
-} from '@/lib/ariadne-embed'
-import { vaultExportObjectPath, VAULT_MEDIA_BUCKET, VAULT_EXPORT_MAX_BYTES } from '@/lib/frame-vault-media'
+  verifyServiceSignature,
+} from '@/lib/ariadne/service-auth'
+import { isMarkitAriadneServiceModeEnabled } from '@/lib/ariadne/feature-flags'
+import {
+  getIdempotencyResult,
+  registerServiceNonce,
+  scopeIdempotencyKey,
+  storeIdempotencyResult,
+} from '@/lib/ariadne/service-request-store'
 
 export const runtime = 'nodejs'
 
@@ -18,180 +25,199 @@ export function OPTIONS(request: NextRequest) {
   return frameCorsOptions(request)
 }
 
-/** Cap for full-file read in one request (serverless); tune with your deployment limits. */
-const ARIADNE_EMBED_MAX_BYTES = Math.min(80 * 1024 * 1024, VAULT_EXPORT_MAX_BYTES)
-
 /**
- * POST JSON: { contentId, recipientKey, source?: 'vault_standalone' | 'frame_export' }
+ * POST JSON:
+ * {
+ *   contentId,
+ *   recipientKey?,
+ *   source?: 'vault_standalone' | 'frame_export' | 'message_send' | 'mass_dm',
+ *   recipient?: { fanId?, platform?, platformFanId?, username?, displayName? },
+ *   origin?: { messageId?, massBatchId? },
+ *   updateContentRow?: boolean
+ * }
  * Downloads vault video, appends Ariadne append-v1 marker, re-uploads, updates content row.
  */
 export async function POST(request: NextRequest) {
   const jc = (data: unknown, status: number) => applyFrameCorsHeaders(request, NextResponse.json(data, { status }))
 
-  let body: { contentId?: string; recipientKey?: string; source?: 'vault_standalone' | 'frame_export' }
+  const endpoint = '/api/ariadne/embed'
+  const serviceRequest = isServiceRequest(request)
+  const userIdempotencyKeyRaw = request.headers.get('x-idempotency-key')?.trim() || null
+  if (serviceRequest && !isMarkitAriadneServiceModeEnabled()) {
+    return jc({ error: 'Markit Ariadne service mode is disabled', code: 'service_mode_disabled' }, 403)
+  }
+  let bodyRaw = ''
+  let body: {
+    contentId?: string
+    recipientKey?: string
+    source?: 'vault_standalone' | 'frame_export' | 'message_send' | 'mass_dm'
+    recipient?: {
+      fanId?: string
+      platform?: 'onlyfans' | 'fansly' | 'mym'
+      platformFanId?: string
+      username?: string
+      displayName?: string
+    }
+    origin?: { messageId?: string; massBatchId?: string }
+    lineage?: { jobId?: string; pipelineVersion?: string; encoderProfile?: string; brandWatermarkDefaults?: unknown }
+    updateContentRow?: boolean
+  }
   try {
-    body = await request.json()
+    bodyRaw = await request.text()
+    body = JSON.parse(bodyRaw)
   } catch {
     return jc({ error: 'Invalid JSON' }, 400)
   }
 
   const contentId = typeof body.contentId === 'string' ? body.contentId : ''
-  const recipientKey = typeof body.recipientKey === 'string' ? body.recipientKey.trim() : ''
-  const source = body.source === 'frame_export' ? 'frame_export' : 'vault_standalone'
+  const source =
+    body.source === 'frame_export' ||
+    body.source === 'message_send' ||
+    body.source === 'mass_dm'
+      ? body.source
+      : 'vault_standalone'
+  const derivedRecipientKey =
+    (typeof body.recipientKey === 'string' ? body.recipientKey.trim() : '') ||
+    body.recipient?.username?.trim() ||
+    body.recipient?.platformFanId?.trim() ||
+    body.recipient?.fanId?.trim() ||
+    ''
 
-  if (!contentId || !recipientKey) {
-    return jc({ error: 'contentId and recipientKey are required' }, 400)
+  if (!contentId || !derivedRecipientKey) {
+    return jc({ error: 'contentId and recipient identity are required' }, 400)
   }
 
   const supabase = await createRouteHandlerClient(request)
   let userId: string | null = null
-  const authHeader = request.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    const tok = authHeader.slice(7).trim()
-    const p = verifyExportToken(tok)
-    if (p && p.contentId === contentId) userId = p.userId
-  }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!userId && user) userId = user.id
-  if (!userId) {
-    return jc({ error: 'Unauthorized' }, 401)
-  }
+  let serviceHeaders: ParsedServiceHeaders | null = null
 
-  const toolCost = getCreditsForToolId('ariadne-trace')
-  const gate = await hasEnoughAiCredits(supabase, userId, toolCost)
-  if (!gate.ok) {
-    return jc(
-      { error: 'Insufficient AI credits', code: 'ai_credits_exhausted', used: gate.used, limit: gate.limit },
-      402,
-    )
-  }
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) {
-    return jc({ error: 'Server misconfiguration' }, 500)
-  }
-
-  const service = createServiceClient(url, key)
-
-  const { data: row, error: fetchErr } = await service
-    .from('content')
-    .select('id, user_id, content_type, file_url, vault_storage_path')
-    .eq('id', contentId)
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (fetchErr || !row) {
-    return jc({ error: 'Not found' }, 404)
-  }
-
-  const ct = String(row.content_type || '').toLowerCase()
-  if (ct !== 'video' && !ct.includes('video')) {
-    return jc({ error: 'Ariadne Trace applies to video content' }, 400)
-  }
-
-  let buf: Buffer
-  try {
-    if (row.vault_storage_path) {
-      const { data: dl, error: dErr } = await service.storage.from(VAULT_MEDIA_BUCKET).download(row.vault_storage_path)
-      if (dErr || !dl) {
-        return jc({ error: dErr?.message || 'Could not download from vault storage' }, 500)
-      }
-      buf = Buffer.from(await dl.arrayBuffer())
-    } else if (row.file_url && /^https?:\/\//i.test(row.file_url)) {
-      const r = await fetch(row.file_url)
-      if (!r.ok) {
-        return jc({ error: 'Could not fetch video URL' }, 502)
-      }
-      buf = Buffer.from(await r.arrayBuffer())
-    } else {
-      return jc({ error: 'No downloadable video on this item' }, 400)
-    }
-  } catch (e) {
-    return jc({ error: e instanceof Error ? e.message : 'Download failed' }, 500)
-  }
-
-  if (buf.length > ARIADNE_EMBED_MAX_BYTES) {
-    return jc(
-      { error: `Video too large for Ariadne embed in this deployment (max ${ARIADNE_EMBED_MAX_BYTES} bytes)` },
-      413,
-    )
-  }
-
-  let payload
-  try {
-    payload = createAriadnePayload({
-      recipientKey,
-      contentId,
-      userId: userId,
+  if (serviceRequest) {
+    const parsed = parseServiceHeaders(request)
+    if (!parsed.ok) return jc({ error: parsed.error }, parsed.status)
+    const verified = verifyServiceSignature({
+      request,
+      headers: parsed.headers,
+      bodySha256: sha256Hex(bodyRaw),
     })
-  } catch (e) {
+    if (!verified.ok) return jc({ error: verified.error }, verified.status)
+    const actor = getServiceActorUserId(parsed.headers)
+    if (!actor) {
+      return jc({ error: 'Unauthorized', code: 'service_actor_required' }, 401)
+    }
+    userId = actor
+    const nonceStatus = await registerServiceNonce({
+      serviceName: parsed.headers.serviceName,
+      nonce: parsed.headers.nonce,
+      requestPath: endpoint,
+      idempotencyKey: parsed.headers.idempotencyKey,
+    })
+    if (!nonceStatus.ok) return jc({ error: nonceStatus.error }, nonceStatus.status)
+    const idem = scopeIdempotencyKey({ userId, rawKey: parsed.headers.idempotencyKey })
+    const replay = await getIdempotencyResult({
+      endpoint,
+      idempotencyKey: idem,
+      serviceName: parsed.headers.serviceName,
+    })
+    if (replay) {
+      return jc(replay.response_body, replay.status_code)
+    }
+    serviceHeaders = parsed.headers
+  } else {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const tok = authHeader.slice(7).trim()
+      const p = verifyExportToken(tok)
+      if (p && p.contentId === contentId) userId = p.userId
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!userId && user) userId = user.id
+    if (!userId) {
+      return jc({ error: 'Unauthorized', code: 'unauthorized' }, 401)
+    }
+    if (userIdempotencyKeyRaw) {
+      const idem = scopeIdempotencyKey({ userId, rawKey: userIdempotencyKeyRaw })
+      const replay = await getIdempotencyResult({
+        endpoint,
+        idempotencyKey: idem,
+        serviceName: 'user',
+      })
+      if (replay) {
+        return jc(replay.response_body, replay.status_code)
+      }
+    }
+  }
+
+  if (!userId) {
+    return jc({ error: 'Unauthorized', code: serviceHeaders ? 'service_actor_required' : 'unauthorized' }, 401)
+  }
+
+  const out = await createAriadneTraceExport({
+    supabase,
+    userId,
+    contentId,
+    recipientKey: derivedRecipientKey,
+    source,
+    recipient: body.recipient,
+    origin: body.origin,
+    lineage: body.lineage
+      ? {
+          jobId: body.lineage.jobId,
+          pipelineVersion: body.lineage.pipelineVersion,
+          encoderProfile: body.lineage.encoderProfile,
+        }
+      : undefined,
+    updateContentRow: source === 'vault_standalone' ? body.updateContentRow !== false : false,
+    billingMode: serviceHeaders ? 'service_m2m' : 'user_credits',
+  })
+  if (!out.ok) {
     return jc(
-      { error: e instanceof Error ? e.message : 'ARIADNE_SECRET / FRAME_BRIDGE_SECRET not configured' },
-      503,
+      {
+        error: out.error,
+        ...(out.code ? { code: out.code } : {}),
+        ...(typeof out.used === 'number' ? { used: out.used } : {}),
+        ...(typeof out.limit === 'number' ? { limit: out.limit } : {}),
+      },
+      out.status,
     )
   }
 
-  const before = sha256Hex(buf)
-  const out = embedAppendV1(buf, payload)
-  const after = sha256Hex(out)
-
-  const path = vaultExportObjectPath(userId, contentId, `ariadne-${payload.payloadId}.mp4`)
-  const { error: upErr } = await service.storage.from(VAULT_MEDIA_BUCKET).upload(path, out, {
-    contentType: 'video/mp4',
-    upsert: true,
-  })
-  if (upErr) {
-    return jc({ error: upErr.message || 'Upload failed' }, 500)
+  const responseBody = {
+    success: true,
+    payloadId: out.payloadId,
+    exportId: out.exportId,
+    algorithmVersion: 'append-v1',
+    downloadUrl: out.downloadUrl,
+    creditsCharged: out.creditsCharged,
+    billingMode: serviceHeaders ? 'service' : 'user_credits',
+    source: out.source,
+    contentId: out.contentId,
+    recipientKey: out.recipientKey,
+    lineage: out.lineage,
   }
 
-  const signedSeconds = 60 * 24 * 60 * 60
-  const { data: signed, error: signErr } = await service.storage.from(VAULT_MEDIA_BUCKET).createSignedUrl(path, signedSeconds)
-  if (signErr || !signed?.signedUrl) {
-    return jc({ error: signErr?.message || 'Could not sign URL' }, 500)
+  if (serviceHeaders) {
+    const idem = scopeIdempotencyKey({ userId, rawKey: serviceHeaders.idempotencyKey })
+    await storeIdempotencyResult({
+      endpoint,
+      idempotencyKey: idem,
+      serviceName: serviceHeaders.serviceName,
+      userId,
+      statusCode: 200,
+      responseBody,
+    })
+  } else if (userIdempotencyKeyRaw) {
+    const idem = scopeIdempotencyKey({ userId, rawKey: userIdempotencyKeyRaw })
+    await storeIdempotencyResult({
+      endpoint,
+      idempotencyKey: idem,
+      serviceName: 'user',
+      userId,
+      statusCode: 200,
+      responseBody,
+    })
   }
 
-  const { error: insErr } = await service.from('ariadne_exports').insert({
-    user_id: userId,
-    content_id: contentId,
-    recipient_key: recipientKey,
-    source,
-    algorithm_version: 'append-v1',
-    payload_id: payload.payloadId,
-    payload_manifest: payload as unknown as Record<string, unknown>,
-    file_sha256_before: before,
-    file_sha256_after: after,
-  })
-
-  if (insErr) {
-    return jc({ error: insErr.message || 'Could not save Ariadne record' }, 500)
-  }
-
-  const patch = {
-    file_url: signed.signedUrl,
-    vault_storage_path: path,
-    updated_at: new Date().toISOString(),
-  }
-  const { error: updErr } = await service.from('content').update(patch).eq('id', contentId).eq('user_id', userId)
-  if (updErr) {
-    return jc({ error: updErr.message || 'Could not update content' }, 500)
-  }
-
-  const debit = await consumeAiCredits(supabase, userId, toolCost)
-  if (!debit.ok) {
-    return jc({ error: 'Credit debit failed after embed' }, 500)
-  }
-
-  return jc(
-    {
-      success: true,
-      payloadId: payload.payloadId,
-      algorithmVersion: 'append-v1',
-      downloadUrl: signed.signedUrl,
-      creditsCharged: toolCost,
-    },
-    200,
-  )
+  return jc(responseBody, 200)
 }

@@ -14,7 +14,8 @@ export function XLogo({ className }: { className?: string }) {
   )
 }
 
-const SUPPORT_EMAIL = 'support@circeetvenus.com'
+/** Public support inbox — marketing footer, contact page, mailto links. */
+export const SUPPORT_EMAIL = 'admin@circeetvenus.com'
 const X_URL = 'https://x.com/circeetvenus'
 
 /**

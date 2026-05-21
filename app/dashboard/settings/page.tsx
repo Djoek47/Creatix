@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,37 +12,51 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  User, Bell, Shield, CreditCard, Upload, Loader2, Check, Moon, Sun,
-  Link2, Database, Settings2, Globe, Download, Trash2, Key, Smartphone,
-  Mail, AlertTriangle, ExternalLink, Zap, RefreshCw, Eye, EyeOff, Sparkles, BookOpen
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  User,
+  Bell,
+  Shield,
+  CreditCard,
+  Upload,
+  Loader2,
+  Check,
+  Moon,
+  Sun,
+  Link2,
+  Database,
+  Settings2,
+  Globe,
+  Download,
+  Trash2,
+  Key,
+  Smartphone,
+  Mail,
+  ExternalLink,
+  Zap,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  BookOpen,
+  Gauge,
+  ChevronDown,
 } from 'lucide-react'
-
-// Social Media Logos
-const TwitterXLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-)
-
-const InstagramLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M12 2c2.717 0 3.056.01 4.122.06 1.065.05 1.79.217 2.428.465.66.254 1.216.598 1.772 1.153a4.908 4.908 0 0 1 1.153 1.772c.247.637.415 1.363.465 2.428.047 1.066.06 1.405.06 4.122 0 2.717-.01 3.056-.06 4.122-.05 1.065-.218 1.79-.465 2.428a4.883 4.883 0 0 1-1.153 1.772 4.915 4.915 0 0 1-1.772 1.153c-.637.247-1.363.415-2.428.465-1.066.047-1.405.06-4.122.06-2.717 0-3.056-.01-4.122-.06-1.065-.05-1.79-.218-2.428-.465a4.89 4.89 0 0 1-1.772-1.153 4.904 4.904 0 0 1-1.153-1.772c-.248-.637-.415-1.363-.465-2.428C2.013 15.056 2 14.717 2 12c0-2.717.01-3.056.06-4.122.05-1.066.217-1.79.465-2.428a4.88 4.88 0 0 1 1.153-1.772A4.897 4.897 0 0 1 5.45 2.525c.638-.248 1.362-.415 2.428-.465C8.944 2.013 9.283 2 12 2zm0 1.802c-2.67 0-2.986.01-4.04.058-.976.045-1.505.207-1.858.344-.466.182-.8.398-1.15.748-.35.35-.566.684-.748 1.15-.137.353-.3.882-.344 1.857-.048 1.055-.058 1.37-.058 4.041 0 2.67.01 2.986.058 4.04.045.976.207 1.505.344 1.858.182.466.399.8.748 1.15.35.35.684.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058 2.67 0 2.987-.01 4.04-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.684.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041 0-2.67-.01-2.986-.058-4.04-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 0 0-.748-1.15 3.098 3.098 0 0 0-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.055-.048-1.37-.058-4.041-.058zm0 3.063a5.135 5.135 0 1 1 0 10.27 5.135 5.135 0 0 1 0-10.27zm0 8.468a3.333 3.333 0 1 0 0-6.666 3.333 3.333 0 0 0 0 6.666zm6.538-8.671a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/>
-  </svg>
-)
-
-const TikTokLogo = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-  </svg>
-)
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from 'next-themes'
 import { BirthdaySettings } from '@/components/settings/birthday-settings'
+import { LocationVaultSettings } from '@/components/settings/location-vault-settings'
 import { BillingSection } from '@/components/settings/billing-section'
+import { UsageCreditsPanel } from '@/components/settings/usage-credits-panel'
 import { SecuritySettings } from '@/components/settings/security-settings'
 import { PlatformConnector } from '@/components/platform/platform-connector'
+import { FanslyEmailTwofaDialog } from '@/components/fansly/fansly-email-twofa-dialog'
 import { HousekeepingListsSettings } from '@/components/settings/housekeeping-lists-settings'
+import { SocialAccountsSettings } from '@/components/settings/social-accounts-settings'
 import { getCirceTipCount } from '@/lib/community/circe-daily-tips'
 import {
   readTipPopupsEnabled,
@@ -50,10 +64,81 @@ import {
   requestTipPopupPreview,
 } from '@/lib/community/tip-popup-prefs'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import {
+  DEFAULT_MIMIC_PROFILE,
+  parseMimicProfile,
+  type MimicProfileV1,
+} from '@/lib/divine/mimic-types'
+import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
+import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
+import { PHASE1_LOCALES } from '@/lib/i18n/routing'
+import type { UiPreferences } from '@/lib/types'
 
-type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'integrations' | 'data' | 'preferences'
+/** Precise, quiet surfaces — no heavy glass or SaaS glow. */
+const SETTINGS_SURFACE = cn(
+  'overflow-hidden rounded-2xl border border-border/55 bg-card',
+  'shadow-[0_1px_2px_rgba(0,0,0,0.045)]',
+  'dark:border-white/[0.07] dark:bg-zinc-950/40 dark:shadow-none',
+)
+
+const SETTINGS_CARD_HEADER =
+  'space-y-2 border-b border-border/45 px-8 pb-6 pt-10 sm:px-10 sm:pb-8 sm:pt-12'
+
+const SETTINGS_CARD_TITLE =
+  'font-sans text-xl font-semibold tracking-[-0.02em] text-foreground sm:text-[1.3125rem]'
+
+const SETTINGS_CARD_DESCRIPTION =
+  'font-sans text-[0.9375rem] leading-relaxed text-muted-foreground max-w-xl'
+
+const SETTINGS_CARD_CONTENT = 'px-8 py-8 sm:px-10 sm:py-10'
+
+const SETTINGS_FIELD_LABEL = 'font-sans text-sm font-medium text-foreground'
+
+const SETTINGS_SECTION_LABEL = 'font-sans text-[0.8125rem] font-medium text-muted-foreground'
+
+const SETTINGS_DESTRUCTIVE_SURFACE = cn(
+  SETTINGS_SURFACE,
+  'border-destructive/20 dark:border-destructive/28',
+)
+
+const SETTINGS_RESOURCE_LINK = cn(
+  'flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground',
+  'transition-colors duration-150 hover:bg-foreground/[0.04] hover:text-foreground dark:hover:bg-white/[0.04]',
+)
+
+type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'usage' | 'integrations' | 'data' | 'preferences'
+
+const TIMEZONE_IDS = [
+  'America/Los_Angeles',
+  'America/Denver',
+  'America/Chicago',
+  'America/New_York',
+  'Europe/London',
+  'Europe/Paris',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+] as const
+
+const GENDER_VALUES = [
+  'unspecified',
+  'woman',
+  'man',
+  'non-binary',
+  'trans-woman',
+  'trans-man',
+  'agender',
+  'other',
+] as const
+
+const PRONOUN_VALUES = ['unspecified', 'she/her', 'he/him', 'they/them', 'she/they', 'he/they', 'custom'] as const
+
+function normalizeDashboardLocale(locale: unknown): string {
+  return typeof locale === 'string' && (PHASE1_LOCALES as readonly string[]).includes(locale) ? locale : 'en'
+}
 
 export default function SettingsPage() {
+  const workspaceCaps = useWorkspaceCapabilities()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<{
@@ -61,6 +146,8 @@ export default function SettingsPage() {
     avatar_url: string
     timezone?: string
     has_birthday_set?: boolean
+    has_location_set?: boolean
+    location_hint?: string | null
     gender_identity?: string | null
     pronouns?: string | null
     pronouns_custom?: string | null
@@ -91,6 +178,11 @@ export default function SettingsPage() {
     notify_subscription_renewed: false,
   })
   const [messagingAutoMarkReadOnOpen, setMessagingAutoMarkReadOnOpen] = useState(false)
+  const [avatarPlatformBusy, setAvatarPlatformBusy] = useState<null | 'onlyfans' | 'fansly'>(null)
+  const [avatarPlatformMessage, setAvatarPlatformMessage] = useState<{
+    variant: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [preferences, setPreferences] = useState({
     language: 'en',
     dateFormat: 'MM/DD/YYYY',
@@ -107,15 +199,58 @@ export default function SettingsPage() {
     instagram: false,
     tiktok: false,
   })
+  const [fanslyTwofaSettingsOpen, setFanslyTwofaSettingsOpen] = useState(false)
+  const [fanslyTwofaSettingsMessage, setFanslyTwofaSettingsMessage] = useState<{
+    variant: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [tipPopupsEnabled, setTipPopupsEnabled] = useState(true)
+  const [mimicProfile, setMimicProfile] = useState<MimicProfileV1>(DEFAULT_MIMIC_PROFILE)
+  const [mimicSaving, setMimicSaving] = useState(false)
+  const [mimicSaveMessage, setMimicSaveMessage] = useState<string | null>(null)
+  const [prefsSaving, setPrefsSaving] = useState(false)
+  const [prefsMessage, setPrefsMessage] = useState<{ variant: 'success' | 'error'; text: string } | null>(null)
+  const t = useTranslations('settings')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const appearanceIsDark = useMemo(() => {
+    if (theme === 'system') {
+      if (resolvedTheme != null) return resolvedTheme === 'dark'
+      if (typeof document !== 'undefined') return document.documentElement.classList.contains('dark')
+      return false
+    }
+    return theme === 'dark'
+  }, [theme, resolvedTheme])
+
+  const navigationTabs = useMemo(
+    () =>
+      [
+        { id: 'profile' as const, icon: User, label: t('tabs.profile') },
+        { id: 'notifications' as const, icon: Bell, label: t('tabs.notifications') },
+        { id: 'security' as const, icon: Shield, label: t('tabs.security') },
+        { id: 'billing' as const, icon: CreditCard, label: t('tabs.billing') },
+        { id: 'usage' as const, icon: Gauge, label: t('tabs.usage') },
+        { id: 'integrations' as const, icon: Link2, label: t('tabs.integrations') },
+        { id: 'data' as const, icon: Database, label: t('tabs.dataPrivacy') },
+        { id: 'preferences' as const, icon: Settings2, label: t('tabs.preferences') },
+      ],
+    [t],
+  )
+
+  const timezoneOptions = useMemo(
+    () =>
+      TIMEZONE_IDS.map((value) => ({
+        value,
+        label: t(`profile.timezones.${value.replace(/\//g, '_').toLowerCase()}` as 'profile.timezones.america_los_angeles'),
+      })),
+    [t],
+  )
 
   // Handle tab from URL query param
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['profile', 'notifications', 'security', 'billing', 'integrations', 'data', 'preferences'].includes(tabParam)) {
+    if (tabParam && ['profile', 'notifications', 'security', 'billing', 'usage', 'integrations', 'data', 'preferences'].includes(tabParam)) {
       setActiveTab(tabParam as SettingsTab)
     }
   }, [searchParams])
@@ -153,6 +288,18 @@ export default function SettingsPage() {
         setHasBirthdaySet(profile.has_birthday_set || false)
       }
 
+      const { data: platformRows } = await supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', user.id)
+
+      setIntegrations((prev) => ({
+        ...prev,
+        onlyfans: platformRows?.some((r) => r.platform === 'onlyfans' && r.is_connected) ?? false,
+        fansly: platformRows?.some((r) => r.platform === 'fansly' && r.is_connected) ?? false,
+        mym: platformRows?.some((r) => r.platform === 'mym' && r.is_connected) ?? false,
+      }))
+
       const prefsRes = await fetch('/api/user/notification-preferences')
       if (prefsRes.ok) {
         const prefs = await prefsRes.json()
@@ -169,6 +316,27 @@ export default function SettingsPage() {
       if (msgReadRes.ok) {
         const mr = await msgReadRes.json()
         setMessagingAutoMarkReadOnOpen(mr.auto_mark_on_open === true)
+      }
+
+      const mimicRes = await fetch('/api/divine/mimic-profile', { credentials: 'include' })
+      if (mimicRes.ok) {
+        const mimicData = (await mimicRes.json()) as { mimic_profile?: unknown }
+        setMimicProfile(parseMimicProfile(mimicData.mimic_profile) ?? DEFAULT_MIMIC_PROFILE)
+      }
+
+      const uiPrefsRes = await fetch('/api/user/ui-preferences', { credentials: 'include' })
+      if (uiPrefsRes.ok) {
+        const payload = (await uiPrefsRes.json()) as { ui_preferences?: UiPreferences }
+        const u = payload.ui_preferences ?? {}
+        setPreferences((prev) => ({
+          ...prev,
+          language: normalizeDashboardLocale(u.locale ?? prev.language),
+          dateFormat: (u.dateFormat as typeof prev.dateFormat) ?? prev.dateFormat,
+          currency: (u.currency as typeof prev.currency) ?? prev.currency,
+          autoSave: u.autoSave ?? prev.autoSave,
+          soundEffects: u.soundEffects ?? prev.soundEffects,
+          cosmicGuidance: u.cosmicGuidance ?? prev.cosmicGuidance,
+        }))
       }
 
       setLoading(false)
@@ -203,6 +371,39 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  async function applyAvatarFromPlatform(platform: 'onlyfans' | 'fansly') {
+    setAvatarPlatformMessage(null)
+    setAvatarPlatformBusy(platform)
+    try {
+      const res = await fetch('/api/user/avatar-from-platform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ platform }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; avatar_url?: string }
+      if (!res.ok) {
+        throw new Error(data.error || t('avatar.loadFailed'))
+      }
+      const url = data.avatar_url
+      if (url) {
+        setProfile((p) => (p ? { ...p, avatar_url: url } : p))
+      }
+      setAvatarPlatformMessage({
+        variant: 'success',
+        text: t('avatar.photoUpdated', { platform: platform === 'onlyfans' ? 'OnlyFans' : 'Fansly' }),
+      })
+      router.refresh()
+    } catch (e) {
+      setAvatarPlatformMessage({
+        variant: 'error',
+        text: e instanceof Error ? e.message : t('avatar.loadFailed'),
+      })
+    } finally {
+      setAvatarPlatformBusy(null)
+    }
+  }
+
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -210,7 +411,7 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount() {
-    if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    if (!confirm(t('confirm.deleteAccount'))) {
       return
     }
     const supabase = createClient()
@@ -218,10 +419,75 @@ export default function SettingsPage() {
     router.push('/')
   }
 
+  async function handleSaveUiPreferences() {
+    setPrefsMessage(null)
+    setPrefsSaving(true)
+    try {
+      const locale = normalizeDashboardLocale(preferences.language)
+      const res = await fetch('/api/user/ui-preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          locale,
+          dateFormat: preferences.dateFormat,
+          currency: preferences.currency,
+          autoSave: preferences.autoSave,
+          soundEffects: preferences.soundEffects,
+          cosmicGuidance: preferences.cosmicGuidance,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        throw new Error(data.error || t('errors.prefsSaveFailed'))
+      }
+      setPreferences((p) => ({ ...p, language: locale }))
+      setPrefsMessage({ variant: 'success', text: t('savedToast') })
+      router.refresh()
+    } catch (e) {
+      setPrefsMessage({
+        variant: 'error',
+        text: e instanceof Error ? e.message : t('errors.prefsSaveFailed'),
+      })
+    } finally {
+      setPrefsSaving(false)
+    }
+  }
+
+  async function handleMimicDraftToggle(nextChecked: boolean) {
+    setMimicSaving(true)
+    setMimicSaveMessage(null)
+    const nextProfile: MimicProfileV1 = { ...mimicProfile, consentFanFacingDrafts: nextChecked }
+    try {
+      const res = await fetch('/api/divine/mimic-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextProfile),
+      })
+      const data = (await res.json().catch(() => ({}))) as { mimic_profile?: unknown; error?: string }
+      if (!res.ok) {
+        throw new Error(data.error || t('errors.mimicUpdateFailed'))
+      }
+      setMimicProfile(parseMimicProfile(data.mimic_profile) ?? nextProfile)
+      setMimicSaveMessage(t('preferences.fanDrafts.saved'))
+    } catch (e) {
+      setMimicSaveMessage(e instanceof Error ? e.message : t('preferences.fanDrafts.saveFailed'))
+    } finally {
+      setMimicSaving(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-[42vh] items-center justify-center px-2">
+        <div
+          className={cn(
+            SETTINGS_SURFACE,
+            'flex w-full max-w-sm items-center justify-center border-dashed py-16',
+          )}
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-label={t('shell.loadingAria')} />
+        </div>
       </div>
     )
   }
@@ -232,251 +498,358 @@ export default function SettingsPage() {
     .join('')
     .toUpperCase() || user?.email?.[0].toUpperCase() || 'U'
 
-  const tabs = [
-    { id: 'profile' as const, icon: User, label: 'Profile' },
-    { id: 'notifications' as const, icon: Bell, label: 'Notifications' },
-    { id: 'security' as const, icon: Shield, label: 'Security' },
-    { id: 'billing' as const, icon: CreditCard, label: 'Billing' },
-    { id: 'integrations' as const, icon: Link2, label: 'Integrations' },
-    { id: 'data' as const, icon: Database, label: 'Data & Privacy' },
-    { id: 'preferences' as const, icon: Settings2, label: 'Preferences' },
-  ]
-
-  const timezones = [
-    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-    { value: 'America/Denver', label: 'Mountain Time (MT)' },
-    { value: 'America/Chicago', label: 'Central Time (CT)' },
-    { value: 'America/New_York', label: 'Eastern Time (ET)' },
-    { value: 'Europe/London', label: 'London (GMT)' },
-    { value: 'Europe/Paris', label: 'Paris (CET)' },
-    { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-    { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
-  ]
-
   const platformIntegrations = [
     { key: 'onlyfans', name: 'OnlyFans', color: 'bg-blue-500', connected: integrations.onlyfans },
     { key: 'fansly', name: 'Fansly', color: 'bg-cyan-500', connected: integrations.fansly },
     { key: 'mym', name: 'MYM', color: 'bg-pink-500', connected: integrations.mym },
   ]
 
-  const socialIntegrations = [
-    { key: 'twitter', name: 'Twitter/X', color: 'bg-slate-900', connected: integrations.twitter, icon: TwitterXLogo },
-    { key: 'instagram', name: 'Instagram', color: 'bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400', connected: integrations.instagram, icon: InstagramLogo },
-    { key: 'tiktok', name: 'TikTok', color: 'bg-black', connected: integrations.tiktok, icon: TikTokLogo },
-  ]
-
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-4 min-w-0">
-        {/* Sidebar Navigation */}
-        <Card className="h-fit border-border bg-card lg:col-span-1 min-w-0">
-          <CardContent className="p-4">
-            <nav className="space-y-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex w-full min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
-                  {tab.label}
-                </button>
-              ))}
+    <div className="settings-shell font-sans antialiased">
+      <div className="mx-auto max-w-6xl pb-24 sm:pb-28">
+        <div className="grid min-w-0 grid-cols-1 gap-12 md:grid-cols-[13.5rem_minmax(0,1fr)] md:gap-14 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-20">
+          <aside
+            className="min-w-0 md:sticky md:top-28 md:self-start"
+            aria-label={t('shell.sidebarNavAria')}
+          >
+            <nav className="flex flex-col gap-0.5">
+              {navigationTabs.map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => {
+                      setActiveTab(tab.id)
+                      router.replace(`/dashboard/settings?tab=${tab.id}`, { scroll: false })
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] transition-[background-color,color,font-weight] duration-150',
+                      isActive
+                        ? 'bg-foreground/[0.06] font-medium text-foreground dark:bg-white/[0.07]'
+                        : 'text-muted-foreground hover:bg-foreground/[0.035] hover:text-foreground dark:hover:bg-white/[0.04]',
+                    )}
+                  >
+                    <tab.icon
+                      className={cn(
+                        'h-[17px] w-[17px] shrink-0',
+                        isActive ? 'text-foreground' : 'text-muted-foreground/70',
+                      )}
+                      strokeWidth={isActive ? 2 : 1.65}
+                    />
+                    <span className="leading-snug">{tab.label}</span>
+                  </button>
+                )
+              })}
             </nav>
-            <Separator className="my-4" />
-            <div className="space-y-1 text-sm">
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Terms of Service
-              </a>
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Privacy Policy
-              </a>
-              <a href="/contact" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg">
-                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                Contact Support
-              </a>
-              <Link
-                href="/dashboard/welcome?openTour=1"
-                className="flex items-center gap-2 min-h-[44px] px-3 py-2 text-muted-foreground hover:text-foreground rounded-lg"
-              >
-                <BookOpen className="h-3 w-3 flex-shrink-0" />
-                Full app tour
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Main Content */}
-        <div className="space-y-6 lg:col-span-3 min-w-0 overflow-x-hidden">
+            <div className="my-8 h-px w-full bg-border/40" />
+
+            <div>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground/75">
+                {t('shell.resources')}
+              </p>
+              <div className="flex flex-col gap-0.5">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  {t('shell.terms')}
+                </a>
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  {t('shell.privacy')}
+                </a>
+                <a
+                  href="/contact"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={SETTINGS_RESOURCE_LINK}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  {t('shell.support')}
+                </a>
+                <Link href="/dashboard/welcome?openTour=1" className={SETTINGS_RESOURCE_LINK}>
+                  <BookOpen className="h-3.5 w-3.5 shrink-0 opacity-50" strokeWidth={1.75} />
+                  {t('shell.appTour')}
+                </Link>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0 space-y-10 overflow-x-hidden sm:space-y-12">
           {/* Profile Section */}
           {activeTab === 'profile' && (
             <>
-            <Card className="border-border bg-card">
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <User className="h-5 w-5" />
-                Profile Information
-              </CardTitle>
-                <CardDescription>
-                  Update your personal details and public profile
-                </CardDescription>
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>{t('profile.title')}</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('profile.description')}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 border-2 border-border">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                  <Avatar className="h-[5.25rem] w-[5.25rem] border border-border/40 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_2px_20px_-6px_rgba(0,0,0,0.45)]">
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary text-2xl text-primary-foreground">
+                    <AvatarFallback className="bg-muted text-xl font-medium tracking-tight text-foreground">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Upload className="h-4 w-4" />
-                      Change Avatar
-                    </Button>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      JPG, PNG or GIF. Max 2MB.
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 rounded-full border-border/45 px-4 text-[0.8125rem] font-normal shadow-none"
+                      >
+                        <Upload className="h-3.5 w-3.5 opacity-70" />
+                        {t('profile.changePhoto')}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!integrations.onlyfans && !integrations.fansly}
+                            className="h-9 gap-1.5 rounded-full border-border/45 px-4 text-[0.8125rem] font-normal shadow-none disabled:opacity-50"
+                          >
+                            <Link2 className="h-3.5 w-3.5 opacity-70" />
+                            {t('profile.fromPlatform')}
+                            <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="min-w-[12rem]">
+                          <DropdownMenuItem
+                            disabled={!integrations.onlyfans || avatarPlatformBusy !== null}
+                            onClick={() => void applyAvatarFromPlatform('onlyfans')}
+                            className="gap-2"
+                          >
+                            OnlyFans
+                            {avatarPlatformBusy === 'onlyfans' ? (
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                            ) : null}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={!integrations.fansly || avatarPlatformBusy !== null}
+                            onClick={() => void applyAvatarFromPlatform('fansly')}
+                            className="gap-2"
+                          >
+                            Fansly
+                            {avatarPlatformBusy === 'fansly' ? (
+                              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                            ) : null}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/75">
+                      {t('profile.photoHint.before')}
+                      <Link
+                        href="/dashboard/settings?tab=integrations"
+                        className="text-foreground/85 underline underline-offset-2 hover:text-foreground"
+                      >
+                        {t('profile.photoHint.link')}
+                      </Link>
+                      {t('profile.photoHint.after')}
                     </p>
+                    {avatarPlatformMessage ? (
+                      <p
+                        className={cn(
+                          'text-[0.75rem] leading-snug',
+                          avatarPlatformMessage.variant === 'success'
+                            ? 'text-emerald-600 dark:text-emerald-400/90'
+                            : 'text-destructive',
+                        )}
+                      >
+                        {avatarPlatformMessage.text}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* Form Fields */}
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-x-8 gap-y-7 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName" className={SETTINGS_FIELD_LABEL}>
+                      {t('profile.fullName')}
+                    </Label>
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Your name"
-                      className="bg-input"
+                      placeholder={t('profile.namePlaceholder')}
+                      className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className={SETTINGS_FIELD_LABEL}>
+                      {t('profile.email')}
+                    </Label>
                     <Input
                       id="email"
                       defaultValue={user?.email || ''}
                       disabled
-                      className="bg-input"
+                      className="h-11 rounded-xl border-border/40 bg-muted/25 text-muted-foreground shadow-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Gender identity (optional)</Label>
+                    <Label htmlFor="gender" className={SETTINGS_FIELD_LABEL}>
+                      {t('profile.gender.label')}
+                      <span className="normal-case tracking-normal text-muted-foreground/60">{t('profile.gender.optional')}</span>
+                    </Label>
                     <Select value={genderIdentity} onValueChange={setGenderIdentity}>
-                      <SelectTrigger id="gender" className="bg-input">
-                        <SelectValue placeholder="Select gender identity" />
+                      <SelectTrigger id="gender" className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
+                        <SelectValue placeholder={t('profile.gender.placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unspecified">Prefer not to say</SelectItem>
-                        <SelectItem value="woman">Woman</SelectItem>
-                        <SelectItem value="man">Man</SelectItem>
-                        <SelectItem value="non-binary">Non-binary</SelectItem>
-                        <SelectItem value="trans-woman">Trans woman</SelectItem>
-                        <SelectItem value="trans-man">Trans man</SelectItem>
-                        <SelectItem value="agender">Agender</SelectItem>
-                        <SelectItem value="other">Other / describe in bio</SelectItem>
+                        {GENDER_VALUES.map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {t(`profile.gender.option.${v}` as 'profile.gender.option.woman')}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Used only so Circe, Venus, and Flirt speak about you correctly.
-                    </p>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">{t('profile.gender.hint')}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pronouns">Pronouns</Label>
+                    <Label htmlFor="pronouns" className={SETTINGS_FIELD_LABEL}>
+                      {t('profile.pronounsLabel')}
+                    </Label>
                     <Select value={pronouns} onValueChange={setPronouns}>
-                      <SelectTrigger id="pronouns" className="bg-input">
-                        <SelectValue placeholder="Select pronouns" />
+                      <SelectTrigger id="pronouns" className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
+                        <SelectValue placeholder={t('profile.pronouns.placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unspecified">Prefer not to say</SelectItem>
-                        <SelectItem value="she/her">She / Her</SelectItem>
-                        <SelectItem value="he/him">He / Him</SelectItem>
-                        <SelectItem value="they/them">They / Them</SelectItem>
-                        <SelectItem value="she/they">She / They</SelectItem>
-                        <SelectItem value="he/they">He / They</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
+                        {PRONOUN_VALUES.map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {t(`profile.pronouns.option.${v}` as 'profile.pronouns.option.she/her')}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {pronouns === 'custom' && (
                       <Input
-                        className="mt-2 bg-input"
-                        placeholder="Enter your pronouns (e.g. fae/faer)"
+                        className="mt-2 h-11 rounded-xl border-border/40 bg-background/40 shadow-none"
+                        placeholder={t('profile.pronouns.customPlaceholder')}
                         value={customPronouns}
                         onChange={(e) => setCustomPronouns(e.target.value)}
                       />
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      We&apos;ll use these everywhere in the app and in AI responses.
-                    </p>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">{t('profile.pronouns.hint')}</p>
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <Label htmlFor="timezone" className={SETTINGS_FIELD_LABEL}>
+                      {t('profile.timezone')}
+                    </Label>
                     <Select value={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger className="bg-input">
-                        <SelectValue placeholder="Select timezone" />
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
+                        <SelectValue placeholder={t('profile.selectTimezone')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {timezones.map((tz) => (
+                        {timezoneOptions.map((tz) => (
                           <SelectItem key={tz.value} value={tz.value}>
                             {tz.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[0.75rem] leading-snug text-muted-foreground/72">
+                      {t('profile.timezoneFootnote')}
+                    </p>
                   </div>
                 </div>
 
-                {/* Theme Toggle */}
-                <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                  <div className="flex items-center gap-3">
-                    {theme === 'dark' ? (
-                      <Moon className="h-5 w-5 text-circe" />
-                    ) : (
-                      <Sun className="h-5 w-5 text-venus" />
-                    )}
-                    <div>
-                      <p className="font-medium">Theme</p>
-                      <p className="text-sm text-muted-foreground">
-                        {theme === 'dark' ? 'Circe (Night Mode)' : 'Venus (Day Mode)'}
+                <div className="flex flex-col gap-5 border-t border-border/30 pt-10 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div
+                      className={cn(
+                        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/35 bg-muted/20',
+                      )}
+                      aria-hidden
+                    >
+                      {appearanceIsDark ? (
+                        <Moon className="h-[18px] w-[18px] text-muted-foreground/65" />
+                      ) : (
+                        <Sun className="h-[18px] w-[18px] text-muted-foreground/65" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('profile.appearance.title')}</p>
+                      <p className="text-[0.8125rem] leading-snug text-muted-foreground/78">
+                        {theme === 'system'
+                          ? appearanceIsDark
+                            ? t('profile.appearance.followingDark')
+                            : t('profile.appearance.followingLight')
+                          : theme === 'dark'
+                            ? t('profile.appearance.pinnedDark')
+                            : t('profile.appearance.pinnedLight')}
                       </p>
+                      {theme === 'system' ? (
+                        <p className="text-[0.75rem] leading-relaxed text-muted-foreground/72">
+                          {t('profile.appearance.systemNote')}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  >
-                    Switch to {theme === 'dark' ? 'Venus' : 'Circe'}
-                  </Button>
+                  <div className="flex shrink-0 flex-col items-stretch gap-2 sm:max-w-[13rem] sm:items-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 rounded-full px-4 text-[0.8125rem] font-normal text-foreground hover:bg-foreground/[0.06]"
+                      onClick={() => setTheme(appearanceIsDark ? 'light' : 'dark')}
+                    >
+                      {appearanceIsDark ? t('profile.appearance.pinVenusLight') : t('profile.appearance.pinCirceDark')}
+                    </Button>
+                    {theme !== 'system' ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-full px-4 text-[0.75rem] font-normal text-muted-foreground hover:text-foreground"
+                        onClick={() => setTheme('system')}
+                      >
+                        {t('profile.appearance.matchDevice')}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleSignOut}>
-                    Sign Out
+                <div className="flex flex-col-reverse items-stretch gap-3 border-t border-border/30 pt-8 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 justify-center rounded-full text-muted-foreground hover:text-foreground sm:justify-start"
+                    onClick={handleSignOut}
+                  >
+                    {t('profile.signOut')}
                   </Button>
-                  <Button onClick={handleSaveProfile} disabled={saving}>
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="h-10 rounded-full px-8 text-[0.9375rem] font-medium shadow-none"
+                  >
                     {saving ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
+                        {t('profile.saving')}
                       </>
                     ) : saved ? (
                       <>
                         <Check className="mr-2 h-4 w-4" />
-                        Saved
+                        {t('profile.saved')}
                       </>
                     ) : (
-                      'Save Changes'
+                      t('profile.save')
                     )}
                   </Button>
                 </div>
@@ -487,49 +860,51 @@ export default function SettingsPage() {
             {user && (
               <BirthdaySettings userId={user.id} hasBirthdaySet={hasBirthdaySet} />
             )}
+
+            {/* Well-being location vault */}
+            {user ? <LocationVaultSettings userId={user.id} /> : null}
           </>
           )}
 
           {/* Notifications Section */}
           {activeTab === 'notifications' && (
-            <Card className="border-border bg-card">
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Bell className="h-5 w-5" />
-                Notification Preferences
-              </CardTitle>
-                <CardDescription>
-                  Choose what notifications you want to receive
-                </CardDescription>
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>{t('notifications.title')}</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('notifications.description')}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
                 <div>
-                  <h4 className="mb-4 font-medium">Alerts</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <h4 className={SETTINGS_SECTION_LABEL}>{t('notifications.alertsHeading')}</h4>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Email Notifications</p>
-                        <p className="text-sm text-muted-foreground">Receive email updates about your account</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.email.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.email.hint')}</p>
                       </div>
                       <Switch 
                         checked={notifications.email}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Leak Alerts</p>
-                        <Badge variant="outline" className="text-circe">Circe</Badge>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.leak.title')}</p>
+                        <Badge variant="outline" className="shrink-0 text-circe">
+                          Circe
+                        </Badge>
                       </div>
                       <Switch 
                         checked={notifications.leakAlerts}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, leakAlerts: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Reputation Alerts</p>
-                        <Badge variant="outline" className="text-venus">Venus</Badge>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.reputation.title')}</p>
+                        <Badge variant="outline" className="shrink-0 text-venus">
+                          Venus
+                        </Badge>
                       </div>
                       <Switch 
                         checked={notifications.reputationAlerts}
@@ -538,17 +913,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-2 font-medium">Platform activity (OnlyFans & Fansly)</h4>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Choose which in-app notifications you get when something happens on your connected platforms—like using OnlyFans or Fansly directly.
+                  <h4 className={SETTINGS_SECTION_LABEL}>{t('notifications.platform.heading')}</h4>
+                  <p className="mb-5 max-w-[40rem] text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                    {t('notifications.platform.intro')}
                   </p>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Every new message</p>
-                        <p className="text-sm text-muted-foreground">Notify me for each new DM received</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.everyMessage.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.everyMessage.hint')}</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_message}
@@ -558,10 +933,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Every new subscriber</p>
-                        <p className="text-sm text-muted-foreground">Notify me when someone subscribes</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.everySubscriber.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.everySubscriber.hint')}</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_subscriber}
@@ -571,10 +946,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">New tips</p>
-                        <p className="text-sm text-muted-foreground">Notify me for tips (e.g. $50+)</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.newTips.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.newTips.hint')}</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_new_tip}
@@ -584,10 +959,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Subscription expired</p>
-                        <p className="text-sm text-muted-foreground">Notify me when a fan’s subscription lapses</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.subExpired.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.subExpired.hint')}</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_subscription_expired}
@@ -597,10 +972,10 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Subscription renewed</p>
-                        <p className="text-sm text-muted-foreground">Notify me when a fan renews</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.subRenewed.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.subRenewed.hint')}</p>
                       </div>
                       <Switch
                         checked={platformNotifPrefs.notify_subscription_renewed}
@@ -612,18 +987,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-2 font-medium">Messages (read state)</h4>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    OnlyFans marks chats as read on their servers when you open them in Creatix—only if you opt in below.
-                    You can always mark read or unread from each thread&apos;s menu. Per-thread overrides live there too.
+                  <h4 className={SETTINGS_SECTION_LABEL}>{t('notifications.messages.heading')}</h4>
+                  <p className="mb-5 max-w-[40rem] text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                    {t('notifications.messages.onlyfansNote')}
                   </p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-medium">Auto-mark as read when I open a thread</p>
-                      <p className="text-sm text-muted-foreground">
-                        Off by default so you can preview without clearing unread until you choose
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.messages.autoMark.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">
+                        {t('notifications.messages.autoMark.hint')}
                       </p>
                     </div>
                     <Switch
@@ -639,44 +1013,44 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <Separator />
+                <Separator className="my-8 bg-border/35" />
                 <div>
-                  <h4 className="mb-4 font-medium">Reports & Updates</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <h4 className={SETTINGS_SECTION_LABEL}>{t('notifications.reports.heading')}</h4>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Daily Digest</p>
-                        <p className="text-sm text-muted-foreground">Daily summary of your activity</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.digest.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.digest.hint')}</p>
                       </div>
                       <Switch 
                         checked={notifications.dailyDigest}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, dailyDigest: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Weekly Report</p>
-                        <p className="text-sm text-muted-foreground">Weekly analytics and insights</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.weekly.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.weekly.hint')}</p>
                       </div>
                       <Switch 
                         checked={notifications.weeklyReport}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReport: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">New Features</p>
-                        <p className="text-sm text-muted-foreground">Get notified about new platform features</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.features.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.features.hint')}</p>
                       </div>
                       <Switch 
                         checked={notifications.newFeatures}
                         onCheckedChange={(checked) => setNotifications({ ...notifications, newFeatures: checked })}
                       />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-medium">Marketing Emails</p>
-                        <p className="text-sm text-muted-foreground">Promotions and special offers</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('notifications.marketing.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('notifications.marketing.hint')}</p>
                       </div>
                       <Switch 
                         checked={notifications.marketingEmails}
@@ -694,30 +1068,36 @@ export default function SettingsPage() {
             <>
               <SecuritySettings />
 
-              <Card className="border-border bg-card">
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Globe className="h-5 w-5" />
-                Active Sessions
-              </CardTitle>
-                  <CardDescription>
-                    Devices where you are currently logged in
-                  </CardDescription>
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>{t('sessions.title')}</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('sessions.description')}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <Globe className="h-5 w-5 text-primary" />
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-4')}>
+                  <div
+                    className={cn(
+                      'flex items-center justify-between gap-4 rounded-2xl border border-border/30 bg-muted/[0.18] px-4 py-4 sm:px-5',
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/30 bg-background/50">
+                        <Globe className="h-5 w-5 text-muted-foreground/70" />
                       </div>
-                      <div>
-                        <p className="font-medium">Current Session</p>
-                        <p className="text-sm text-muted-foreground">Chrome on MacOS - Los Angeles, CA</p>
+                      <div className="min-w-0">
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('sessions.thisDevice')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('sessions.sampleMeta')}</p>
                       </div>
                     </div>
-                    <Badge>Active</Badge>
+                    <Badge className="shrink-0 rounded-full border border-border/40 bg-muted/30 font-normal text-muted-foreground">
+                      {t('sessions.activeBadge')}
+                    </Badge>
                   </div>
-                  <Button variant="outline" className="w-full">Sign Out All Other Sessions</Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full rounded-full border-border/45 text-[0.875rem] font-normal shadow-none"
+                  >
+                    {t('sessions.signOutOthers')}
+                  </Button>
                 </CardContent>
               </Card>
             </>
@@ -728,148 +1108,206 @@ export default function SettingsPage() {
             <BillingSection userId={user?.id} userEmail={user?.email} />
           )}
 
+          {activeTab === 'usage' && <UsageCreditsPanel />}
+
           {/* Integrations Section */}
           {activeTab === 'integrations' && (
-            <div data-tour="settings-integrations" className="flex flex-col gap-6">
-              <PlatformConnector />
+            <div data-tour="settings-integrations" className="flex flex-col gap-8">
+              {workspaceCaps.canUsePlatformIntegrationsSettings ? (
+                <>
+                  <PlatformConnector />
 
-              <HousekeepingListsSettings
-                fanPlatformConnected={integrations.onlyfans || integrations.fansly}
-              />
-
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="font-semibold">Social Media</CardTitle>
-                  <CardDescription>
-                    Connect social accounts for reputation monitoring
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {socialIntegrations.map((social) => (
-                    <div key={social.key} className="flex items-center justify-between rounded-lg border border-border p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${social.color} text-white`}>
-                          <social.icon />
+                  {integrations.fansly ? (
+                    <Card className={SETTINGS_SURFACE}>
+                      <CardHeader className={SETTINGS_CARD_HEADER}>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                            <Shield className="h-5 w-5" aria-hidden />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <CardTitle className={SETTINGS_CARD_TITLE}>
+                              {t('integrations.fanslyTwofaCardTitle')}
+                            </CardTitle>
+                            <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                              {t('integrations.fanslyTwofaCardBody')}
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{social.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {social.connected ? 'Connected' : 'Not connected'}
+                      </CardHeader>
+                      <CardContent className={cn(SETTINGS_CARD_CONTENT, 'pt-0')}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                          onClick={() => {
+                            setFanslyTwofaSettingsMessage(null)
+                            setFanslyTwofaSettingsOpen(true)
+                          }}
+                        >
+                          <Mail className="mr-2 h-4 w-4 opacity-70" aria-hidden />
+                          {t('integrations.fanslyTwofaCardCta')}
+                        </Button>
+                        {fanslyTwofaSettingsMessage ? (
+                          <p
+                            className={cn(
+                              'mt-3 text-[0.8125rem] leading-snug',
+                              fanslyTwofaSettingsMessage.variant === 'success'
+                                ? 'text-emerald-600 dark:text-emerald-400/90'
+                                : 'text-destructive',
+                            )}
+                          >
+                            {fanslyTwofaSettingsMessage.text}
                           </p>
-                        </div>
-                      </div>
-                      <Button 
-                        variant={social.connected ? 'outline' : 'default'} 
-                        size="sm"
-                        onClick={() => {
-                          if (social.connected) {
-                            // Disconnect
-                            fetch(`/api/${social.key}/disconnect`, { method: 'POST' })
-                              .then(() => {
-                                setIntegrations(prev => ({ ...prev, [social.key]: false }))
-                              })
-                          } else {
-                            // Redirect to OAuth
-                            window.location.href = `/api/${social.key}/auth`
-                          }
-                        }}
-                      >
-                        {social.connected ? 'Disconnect' : 'Connect'}
-                      </Button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  <FanslyEmailTwofaDialog
+                    open={fanslyTwofaSettingsOpen}
+                    onOpenChange={setFanslyTwofaSettingsOpen}
+                    onVerified={async () => {
+                      setFanslyTwofaSettingsOpen(false)
+                      setFanslyTwofaSettingsMessage({
+                        variant: 'success',
+                        text: t('integrations.fanslyTwofaCardSuccess'),
+                      })
+                    }}
+                  />
+
+                  <HousekeepingListsSettings
+                    fanPlatformConnected={integrations.onlyfans || integrations.fansly}
+                  />
+
+                  <SocialAccountsSettings
+                    connected={{
+                      twitter: integrations.twitter,
+                      instagram: integrations.instagram,
+                      tiktok: integrations.tiktok,
+                    }}
+                    onConnectedChange={(key, value) =>
+                      setIntegrations((prev) => ({ ...prev, [key]: value }))
+                    }
+                  />
+                </>
+              ) : (
+                <Card className={SETTINGS_SURFACE}>
+                  <CardHeader className={SETTINGS_CARD_HEADER}>
+                    <CardTitle className={SETTINGS_CARD_TITLE}>{t('integrations.apiTitle')}</CardTitle>
+                    <CardDescription className={SETTINGS_CARD_DESCRIPTION}>
+                      {t('integrations.nonApiUpgradeBody')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className={SETTINGS_CARD_CONTENT}>
+                    <Button
+                      asChild
+                      className="h-10 rounded-full px-6 text-[0.875rem] font-medium shadow-none"
+                    >
+                      <Link href="/dashboard/settings?tab=billing">{t('integrations.viewPlans')}</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
           {/* Data & Privacy Section */}
           {activeTab === 'data' && (
             <>
-              <Card className="border-border bg-card">
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Database className="h-5 w-5" />
-                Your Data
-              </CardTitle>
-                  <CardDescription>
-                    Manage and export your data
-                  </CardDescription>
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>{t('data.yours.title')}</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('data.yours.desc')}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Download className="h-5 w-5 text-muted-foreground" />
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3.5">
+                      <Download className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
                       <div>
-                        <p className="font-medium">Export All Data</p>
-                        <p className="text-sm text-muted-foreground">Download a copy of your data</p>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('data.export.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('data.export.hint')}</p>
                       </div>
                     </div>
-                    <Button variant="outline">Request Export</Button>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <RefreshCw className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Sync Data</p>
-                        <p className="text-sm text-muted-foreground">Last synced: 2 hours ago</p>
-                      </div>
-                    </div>
-                    <Button variant="outline">Sync Now</Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="font-semibold">Privacy Settings</CardTitle>
-                  <CardDescription>Control how your data is used</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Analytics & Improvements</p>
-                      <p className="text-sm text-muted-foreground">Help us improve with anonymous usage data</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Personalized AI</p>
-                      <p className="text-sm text-muted-foreground">Allow AI to learn from your preferences</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-destructive/50 bg-card">
-                <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                Danger Zone
-              </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Delete All Data</p>
-                      <p className="text-sm text-muted-foreground">Remove all your data (keeps account)</p>
-                    </div>
-                    <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
-                      Delete Data
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                    >
+                      {t('data.export.cta')}
                     </Button>
                   </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Delete Account</p>
-                      <p className="text-sm text-muted-foreground">Permanently delete account and data</p>
+                  <Separator className="bg-border/35" />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3.5">
+                      <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
+                      <div>
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('data.sync.title')}</p>
+                        <p className="text-[0.8125rem] text-muted-foreground/78">{t('data.sync.hint')}</p>
+                      </div>
                     </div>
-                    <Button variant="destructive" onClick={handleDeleteAccount}>
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-border/45 px-5 text-[0.875rem] font-normal shadow-none"
+                    >
+                      {t('data.sync.cta')}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SETTINGS_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={SETTINGS_CARD_TITLE}>{t('data.privacy.title')}</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('data.privacy.desc')}</CardDescription>
+                </CardHeader>
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('data.analytics.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('data.analytics.hint')}</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('data.aiPersonal.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('data.aiPersonal.hint')}</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SETTINGS_DESTRUCTIVE_SURFACE}>
+                <CardHeader className={SETTINGS_CARD_HEADER}>
+                  <CardTitle className={cn(SETTINGS_CARD_TITLE, 'text-destructive')}>{t('danger.title')}</CardTitle>
+                  <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('danger.desc')}</CardDescription>
+                </CardHeader>
+                <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-5')}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('danger.deleteData.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('danger.deleteData.hint')}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-10 shrink-0 rounded-full border-destructive/35 text-destructive hover:bg-destructive/10"
+                    >
+                      {t('danger.deleteData.cta')}
+                    </Button>
+                  </div>
+                  <Separator className="bg-border/35" />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('danger.deleteAccount.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('danger.deleteAccount.hint')}</p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      className="h-10 shrink-0 rounded-full px-5 shadow-none"
+                      onClick={handleDeleteAccount}
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Account
+                      {t('danger.deleteAccount.cta')}
                     </Button>
                   </div>
                 </CardContent>
@@ -879,37 +1317,37 @@ export default function SettingsPage() {
 
           {/* Preferences Section */}
           {activeTab === 'preferences' && (
-            <Card className="border-border bg-card">
-              <CardHeader>
-<CardTitle className="flex items-center gap-2 font-semibold">
-                <Settings2 className="h-5 w-5" />
-                Preferences
-              </CardTitle>
-                <CardDescription>
-                  Customize your experience
-                </CardDescription>
+            <Card className={SETTINGS_SURFACE}>
+              <CardHeader className={SETTINGS_CARD_HEADER}>
+                <CardTitle className={SETTINGS_CARD_TITLE}>{t('preferences.title')}</CardTitle>
+                <CardDescription className={SETTINGS_CARD_DESCRIPTION}>{t('preferences.description')}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
+              <CardContent className={cn(SETTINGS_CARD_CONTENT, 'space-y-10')}>
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select value={preferences.language} onValueChange={(v) => setPreferences({...preferences, language: v})}>
-                      <SelectTrigger className="bg-input">
+                    <Label className={SETTINGS_FIELD_LABEL}>{t('preferencesLocale')}</Label>
+                    <Select
+                      value={normalizeDashboardLocale(preferences.language)}
+                      onValueChange={(v) => setPreferences({ ...preferences, language: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="de">Deutsch</SelectItem>
-                        <SelectItem value="pt">Português</SelectItem>
+                        <SelectItem value="en">{t('preferences.localeOption.en')}</SelectItem>
+                        <SelectItem value="es">{t('preferences.localeOption.es')}</SelectItem>
+                        <SelectItem value="pt">{t('preferences.localeOption.pt')}</SelectItem>
+                        <SelectItem value="fr">{t('preferences.localeOption.fr')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Date Format</Label>
-                    <Select value={preferences.dateFormat} onValueChange={(v) => setPreferences({...preferences, dateFormat: v})}>
-                      <SelectTrigger className="bg-input">
+                    <Label className={SETTINGS_FIELD_LABEL}>{t('preferencesDateFormat')}</Label>
+                    <Select
+                      value={preferences.dateFormat}
+                      onValueChange={(v) => setPreferences({ ...preferences, dateFormat: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -919,10 +1357,13 @@ export default function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Currency</Label>
-                    <Select value={preferences.currency} onValueChange={(v) => setPreferences({...preferences, currency: v})}>
-                      <SelectTrigger className="bg-input">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className={SETTINGS_FIELD_LABEL}>{t('preferencesCurrency')}</Label>
+                    <Select
+                      value={preferences.currency}
+                      onValueChange={(v) => setPreferences({ ...preferences, currency: v })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-border/40 bg-background/40 shadow-none sm:max-w-md">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -933,53 +1374,137 @@ export default function SettingsPage() {
                         <SelectItem value="AUD">AUD ($)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-[0.75rem] leading-relaxed text-muted-foreground/85 sm:max-w-xl">
+                      {t('preferences.currencyHint')}
+                    </p>
                   </div>
                 </div>
-                <Separator />
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Auto-Save Drafts</p>
-                      <p className="text-sm text-muted-foreground">Automatically save content as you type</p>
-                    </div>
-                    <Switch 
-                      checked={preferences.autoSave}
-                      onCheckedChange={(checked) => setPreferences({...preferences, autoSave: checked})}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Sound Effects</p>
-                      <p className="text-sm text-muted-foreground">Play sounds for notifications</p>
-                    </div>
-                    <Switch 
-                      checked={preferences.soundEffects}
-                      onCheckedChange={(checked) => setPreferences({...preferences, soundEffects: checked})}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">Cosmic Guidance</p>
-                      <Badge variant="outline" className="text-primary">AI</Badge>
-                    </div>
-                    <Switch 
-                      checked={preferences.cosmicGuidance}
-                      onCheckedChange={(checked) => setPreferences({...preferences, cosmicGuidance: checked})}
-                    />
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-4">
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="rounded-2xl border border-border/30 bg-muted/[0.18] p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Daily tip popups</p>
-                        <Badge variant="outline" className="shrink-0 text-circe-light border-circe/40">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('preferences.fanDrafts.title')}</p>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-border/45 text-[0.625rem] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+                        >
+                          {t('preferences.beta')}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                        {t('preferences.fanDrafts.body')}
+                      </p>
+                    </div>
+                    <Switch
+                      className="shrink-0"
+                      checked={mimicProfile.consentFanFacingDrafts === true}
+                      disabled={mimicSaving}
+                      onCheckedChange={(checked) => void handleMimicDraftToggle(checked)}
+                    />
+                  </div>
+                  <p className="mt-4 text-[0.75rem] leading-snug text-muted-foreground/75">
+                    {t('preferences.fanDrafts.tailBefore')}
+                    <Link
+                      href="/dashboard/divine-manager?section=mimic"
+                      className="font-medium text-foreground underline decoration-border/60 underline-offset-4 transition-colors hover:decoration-foreground"
+                    >
+                      {t('preferences.fanDrafts.tailLink')}
+                    </Link>
+                    {t('preferences.fanDrafts.tailAfter')}
+                  </p>
+                  {mimicSaveMessage ? (
+                    <p className="mt-2 text-[0.75rem] text-muted-foreground">{mimicSaveMessage}</p>
+                  ) : null}
+                </div>
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('preferences.autoSave.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('preferences.autoSave.hint')}</p>
+                    </div>
+                    <Switch
+                      checked={preferences.autoSave}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, autoSave: checked })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('preferences.sound.title')}</p>
+                      <p className="text-[0.8125rem] text-muted-foreground/78">{t('preferences.sound.hint')}</p>
+                    </div>
+                    <Switch
+                      checked={preferences.soundEffects}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, soundEffects: checked })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="text-[0.9375rem] font-medium text-foreground">{t('preferences.cosmic.title')}</p>
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 rounded-full border-border/45 text-[0.625rem] font-medium text-muted-foreground"
+                      >
+                        {t('preferences.cosmic.ai')}
+                      </Badge>
+                    </div>
+                    <Switch
+                      checked={preferences.cosmicGuidance}
+                      onCheckedChange={(checked) => setPreferences({ ...preferences, cosmicGuidance: checked })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    className="h-11 w-full rounded-full shadow-none sm:w-auto"
+                    onClick={() => void handleSaveUiPreferences()}
+                    disabled={prefsSaving}
+                  >
+                    {prefsSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        {t('profile.saving')}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" aria-hidden />
+                        {t('savePreferences')}
+                      </>
+                    )}
+                  </Button>
+                  {prefsMessage ? (
+                    <p
+                      className={cn(
+                        'text-sm',
+                        prefsMessage.variant === 'success' ? 'text-muted-foreground' : 'text-destructive',
+                      )}
+                      role={prefsMessage.variant === 'error' ? 'alert' : undefined}
+                    >
+                      {prefsMessage.text}
+                    </p>
+                  ) : null}
+                </div>
+
+                <Separator className="my-2 bg-border/35" />
+
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[0.9375rem] font-medium text-foreground">{t('preferences.tipPopups.title')}</p>
+                        <Badge variant="outline" className="shrink-0 border-border/45 text-circe-light">
                           Circe
                         </Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Random product tips while you use the dashboard (auto-dismiss after you read). The full numbered list lives on the Community tips page — {getCirceTipCount()} tips total.
+                      <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground/78">
+                        {t('preferences.tipPopups.body', { count: getCirceTipCount() })}
                       </p>
                     </div>
                     <Switch
@@ -992,18 +1517,23 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                      <Link href="/dashboard/community/circe-daily">Open full tips page</Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full rounded-full border-border/45 text-[0.8125rem] font-normal shadow-none sm:w-auto"
+                      asChild
+                    >
+                      <Link href="/dashboard/community/circe-daily">{t('preferences.openTips')}</Link>
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="w-full sm:w-auto"
+                      className="h-9 w-full rounded-full text-[0.8125rem] font-normal shadow-none sm:w-auto"
                       disabled={!tipPopupsEnabled}
                       onClick={() => requestTipPopupPreview()}
                     >
-                      Preview a tip
+                      {t('preferences.preview')}
                     </Button>
                   </div>
                 </div>
@@ -1011,6 +1541,7 @@ export default function SettingsPage() {
             </Card>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

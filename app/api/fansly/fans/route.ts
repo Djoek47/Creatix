@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         total_spent: spent,
         subscription_price: null as number | null,
         subscription_account_type: subscriptionAccountTypeFromPrice(null),
+        subscription_status: sub.subscription_status,
         subscription_start: row.subscribedAt ? String(row.subscribedAt) : null,
         subscription_expires_at: sub.subscription_expires_at,
         subscription_renews_on: null as string | null,

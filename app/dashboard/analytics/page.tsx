@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { mapContentFromDbRows } from '@/lib/content/map-content-from-db'
 import {
   onlyFansPartnerAccountIdFromRow,
   type PlatformConnectionObservedRow,
@@ -30,6 +31,12 @@ export default async function AnalyticsPage() {
   const hasOnlyFansConnected =
     onlyFansPartnerAccountIdFromRow(onlyfansRow as PlatformConnectionObservedRow) != null
 
+  const fanslyRow = (connections || []).find((c) => c.platform === 'fansly')
+  const hasFanslyConnected = Boolean(
+    fanslyRow &&
+      (Boolean(fanslyRow.access_token?.trim()) || Boolean(String(fanslyRow.platform_user_id || '').trim())),
+  )
+
   const { data: analytics } = await supabase
     .from('analytics_snapshots')
     .select('*')
@@ -37,7 +44,7 @@ export default async function AnalyticsPage() {
     .order('date', { ascending: false })
     .limit(30)
 
-  const { data: content } = await supabase
+  const { data: contentRows } = await supabase
     .from('content')
     .select('*')
     .eq('user_id', user.id)
@@ -45,30 +52,31 @@ export default async function AnalyticsPage() {
     .order('created_at', { ascending: false })
     .limit(10)
 
+  const content = mapContentFromDbRows(contentRows ?? [])
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-end">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <ConnectedPlatforms />
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            className="hidden sm:inline-flex border-circe/40 text-circe-light hover:bg-circe/10"
-          >
-            <Link href="/dashboard/retention/churn">
-              <Moon className="mr-1 h-4 w-4" />
-              Churn Predictor
-            </Link>
-          </Button>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-8 pb-4 sm:pb-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <ConnectedPlatforms />
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className="h-9 w-fit shrink-0 rounded-full border-border/70 shadow-none"
+        >
+          <Link href="/dashboard/retention/churn">
+            <Moon className="mr-2 h-4 w-4 text-muted-foreground" aria-hidden />
+            Churn predictor
+          </Link>
+        </Button>
       </div>
 
       <AnalyticsDashboard
         analytics={(analytics as any) || []}
         connections={(connections as any) || []}
-        content={(content as any) || []}
+        content={content}
         hasOnlyFansConnected={hasOnlyFansConnected}
+        hasFanslyConnected={hasFanslyConnected}
       />
     </div>
   )

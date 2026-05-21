@@ -1,25 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'node:crypto'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { DIVINE_MANAGER_AI_STUDIO_TOOL_IDS } from '@/lib/ai-tools-data'
 import { getArchetypeFlavor } from '@/lib/divine-manager-archetypes'
-import { getDivineVoice } from '@/lib/divine-manager'
+import { getDivineVoice, type DivineManagerAutomationRules } from '@/lib/divine-manager'
 import type { DivineVoiceMemoryPayload } from '@/lib/divine/voice-memory-types'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
+import { getMemoryContext } from '@/lib/divine/divine-memory'
 import { claimDivineSessionLease } from '@/lib/divine/divine-session-lease'
 import {
   managerTalkativenessRealtimeBlock,
   normalizeManagerTalkativeness,
 } from '@/lib/divine/manager-talkativeness'
+import { personalityRealtimeBlock, resolveVoicePersonality } from '@/lib/divine/voice-personality'
 import { runProtocolPlanRollover, utcPlanDateString } from '@/lib/divine/protocol-plan-rollover'
 import { sortProtocolTasksForPlan } from '@/lib/divine/sort-protocol-tasks'
 import type { CreatorProtocolTaskRow } from '@/lib/creator-protocol-task-types'
 import { isLeftoverTask } from '@/lib/creator-protocol-task-types'
 import { logUsageEvent } from '@/lib/usage/server-log'
+import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
+import { checkDivineVoiceRealtimeMonthCap } from '@/lib/billing/divine-voice-fairuse'
+import { applyMarkitCorsHeaders, markitCorsOptions } from '@/lib/cors-markit'
+import { getOpenAIRealtimeModel } from '@/lib/openai/realtime-model'
+import { buildDivineRealtimeSessionConfig } from '@/lib/divine/realtime-agent-harness'
+import { DIVINE_GUIDE_CONTROL_IDS } from '@/lib/divine/page-control-registry'
 
 export const maxDuration = 30
 
+export async function OPTIONS(req: NextRequest) {
+  return markitCorsOptions(req)
+}
+
 type FocusedFan = { id?: string; username?: string | null; name?: string | null }
+
+type DivineRealtimeContext = {
+  surface?: string
+  importUrl?: string
+  timelineSummary?: string
+  path?: string
+  title?: string
+  visibleSummary?: string
+  guideControls?: Array<{ id?: string; label?: string; action?: string; available?: boolean }>
+  reason?: string
+  capturedAt?: string
+}
+
+function jsonCors(request: NextRequest, data: Record<string, unknown>, status: number) {
+  const res = NextResponse.json(data, { status })
+  return applyMarkitCorsHeaders(request, res)
+}
 
 /**
  * POST: create a full-duplex Realtime (WebRTC) session with Divine Manager context.
@@ -35,7 +65,7 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return jsonCors(req, { error: 'Unauthorized' }, 401)
     }
 
     // Realtime API requires an OpenAI API key (sk-...). Do NOT use Vercel AI Gateway key (vck_...) here —
@@ -44,12 +74,29 @@ export async function POST(req: NextRequest) {
       process.env.OPENAI_BASE_URL?.replace(/\/$/, '') || 'https://api.openai.com'
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey || !apiKey.startsWith('sk-')) {
-      return NextResponse.json(
+      return jsonCors(
+        req,
         {
           error:
             'Realtime requires OPENAI_API_KEY (OpenAI key starting with sk-). Do not use the Vercel AI Gateway key here.',
         },
-        { status: 503 },
+        503,
+      )
+    }
+
+    const { data: subRow } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,divine_voice_premium')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!hasDivineVoicePremium(subRow as SubscriptionRowForPremiumDivine | null)) {
+      console.warn(
+        JSON.stringify({ route: 'divine-manager-realtime', event: 'premium_denied', userId: user.id }),
+      )
+      return jsonCors(
+        req,
+        { error: 'Divine voice requires Premium.', code: 'divine_voice_premium_required' },
+        403,
       )
     }
 
@@ -58,6 +105,7 @@ export async function POST(req: NextRequest) {
     let divineSessionId: string | undefined
     let notificationSecretaryMode = false
     let notificationSecretaryLines: string[] = []
+    let clientContext: DivineRealtimeContext | undefined
     const contentType = req.headers.get('content-type') || ''
     if (contentType.startsWith('application/json')) {
       const body = (await req.json().catch(() => ({}))) as {
@@ -66,10 +114,12 @@ export async function POST(req: NextRequest) {
         mode?: string
         notification_secretary?: { lines?: string[] }
         divine_session_id?: string
+        context?: DivineRealtimeContext
       }
       sdp = body.sdp
       focusedFan = body.focusedFan
       divineSessionId = typeof body.divine_session_id === 'string' ? body.divine_session_id : undefined
+      clientContext = body.context
       if (body.mode === 'notification_secretary' && Array.isArray(body.notification_secretary?.lines)) {
         notificationSecretaryMode = true
         notificationSecretaryLines = body.notification_secretary!.lines!
@@ -82,14 +132,26 @@ export async function POST(req: NextRequest) {
     }
 
     if (!sdp?.trim()) {
-      return NextResponse.json({ error: 'Missing SDP body' }, { status: 400 })
+      return jsonCors(req, { error: 'Missing SDP body' }, 400)
+    }
+
+    const capCheck = await checkDivineVoiceRealtimeMonthCap(user.id)
+    if (!capCheck.ok) {
+      return jsonCors(
+        req,
+        {
+          error: 'Divine voice monthly session limit reached. Try again next month or contact support.',
+          code: capCheck.code,
+        },
+        429,
+      )
     }
 
     const sid = divineSessionId?.trim()
     if (sid) {
       const claim = await claimDivineSessionLease(supabase, user.id, sid)
       if (!claim.ok) {
-        return NextResponse.json({ error: claim.message }, { status: 403 })
+        return jsonCors(req, { error: claim.message }, 403)
       }
     }
 
@@ -155,10 +217,14 @@ export async function POST(req: NextRequest) {
             .join(', ') || 'none'}. Offer briefly to continue that work or start fresh; if they decline, move on.`
         : ''
 
+    const episodicBlock = await getMemoryContext(supabase, user.id)
+    const episodicLine = episodicBlock.trim() ? `\n\n${episodicBlock.trim()}` : ''
+
     const persona = settings?.persona ?? {}
     const goals = settings?.goals ?? {}
     const rules = settings?.automation_rules ?? {}
     const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
+    const resolvedVoicePersonality = resolveVoicePersonality(rules as DivineManagerAutomationRules)
     const notify = settings?.notification_settings ?? {}
     const archetype = settings?.manager_archetype || 'hermes'
     const archetypeFlavor = getArchetypeFlavor(archetype)
@@ -206,13 +272,35 @@ export async function POST(req: NextRequest) {
 
     const protocolTasksBlock = `\n\nToday’s Plan & protocol rail: Same task list as the dashboard. Use notifications_panel to open or close the notifications popover (open true/false), optional tab live or divine, optional scrollToId with a CRM notification UUID. Use creator_task_add with priority_tier: 1=notifications (importance) first, 2=DMs/messaging, 3=protection/reputation, 4=content/posting (optional suggested_post_window for best visibility). Optional plan_date YYYY-MM-DD (UTC). Incomplete tasks from a prior day become leftovers on the next day. creator_task_set_status (task_id, status pending|executing|done|failed) updates the floating list. For in-app Divine-tab CRM notifications: divine_crm_notifications_mark_read marks read (keeps row); divine_crm_notifications_remove or protocol_complete_for_notification removes from the bell and marks linked protocol tasks done.`
 
+    const markitContextBlock =
+      clientContext?.surface === 'markit'
+        ? `\n\nSURFACE: Markit video editor. The creator is in the in-browser video editor (not the main dashboard). Import: ${String(clientContext.importUrl || 'none').slice(0, 500)}. Timeline: ${String(clientContext.timelineSummary || 'n/a').slice(0, 1200)}. Prefer concise, edit-focused answers; if a tool or flow only exists in the main app, say so and suggest they open the dashboard.`
+        : ''
+    const guideControlsLine =
+      Array.isArray(clientContext?.guideControls) && clientContext.guideControls.length > 0
+        ? ` Audited controls currently reported by the page: ${clientContext.guideControls
+            .filter((control) => control && control.available !== false && control.id)
+            .map((control) => `${String(control.id).slice(0, 80)} (${String(control.label || 'control').slice(0, 80)}; ${String(control.action || 'guide').slice(0, 40)})`)
+            .join(', ')
+            .slice(0, 1200)}.`
+        : ''
+    const dashboardContextBlock =
+      clientContext && clientContext.surface !== 'markit'
+        ? `\n\nCURRENT DASHBOARD SCREEN (from the browser): ${String(clientContext.title || 'Dashboard').slice(0, 160)} at ${String(clientContext.path || '/dashboard').slice(0, 260)}. Visible summary: ${String(clientContext.visibleSummary || 'not captured yet').slice(0, 1800)}.${guideControlsLine} If the creator asks whether a page loaded, what is open, or what data is visible, use this context first instead of asking them to confirm. If context reason mentions refresh, treat data as refreshing/settled according to that reason and keep the voice session alive.`
+        : ''
+
+    const voiceSurface: 'dashboard' | 'markit' = clientContext?.surface === 'markit' ? 'markit' : 'dashboard'
+    console.info(
+      JSON.stringify({ route: 'divine-manager-realtime', event: 'session_negotiate', surface: voiceSurface, userId: user.id }),
+    )
+
     const instructions = `You are the Divine Manager, a Jarvis-style voice companion for a creator. You speak in real time over voice. Be a calm, confident manager. Never role-play as the creator; never claim to have already sent messages or changed prices. You only describe what you see and what you recommend. Respect boundaries and platform safety. Avoid explicit or illegal content.
 
 Creator persona: tone ${persona.tone ?? 'friendly'}, flirty level ${persona.flirtyLevel ?? 'mild'}. Boundaries: ${(persona.boundaries ?? []).join('; ') || 'none specified'}.
 Goals: ${(goals.qualitativeGoals ?? []).join(', ') || 'general growth'}.
 Manager archetype: ${archetype}. ${archetypeFlavor}
 Mode: ${settings?.mode ?? 'suggest_only'}. Notifications: ${notify.level ?? 'daily_digest'}.
-Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.${managerTalkativenessRealtimeBlock(talkLevel)}
+Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcome DM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tip follow-up=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}.${managerTalkativenessRealtimeBlock(talkLevel)}${personalityRealtimeBlock(resolvedVoicePersonality)}
 
 Manager task queue (legacy suggestions):
 ${taskSummary}
@@ -226,15 +314,17 @@ ${analyticsTotals ? `\n${analyticsTotals}` : ''}
 
 You have access to the creator's analytics: fans, revenue, and platform breakdown; use this when they ask about performance, sales, or growth.
 
+Phase 1 guided teaching: on Well-being, explain the state strip, lunar calendar, flow state, light/place, positioning awareness, and golden-hour timing. On Protection, explain scan setup, filters, leak cards, classification controls, and DMCA Self-Takedown; prepare but never execute takedown/classification changes without confirmation. On Messages, focus the fan, explain the thread, highlight the composer, and fill drafts; sending still requires confirmation unless explicitly requested through the normal confirmation path. On Social, highlight platform target, templates, AI generation, composer, and share/copy actions; draft first and confirm before posting or sending. Use only registered elementId values from page context or the ui_navigate schema.
+
     You can see and act on OnlyFans fans, followings, message engagement, and queue: list_fans (filter: active, expired, latest, top, expiring_soon from CRM sync — optional expiringWithinDays 1–90, default 14) for who are my fans, top spenders, expired subs, or subs ending soon; get_fan_subscription_history for a specific fan's renewals; list_followings for who the creator follows; get_top_message for the best-performing message and its buyers; get_message_engagement (type direct or mass) for how DMs or mass messages performed; publish_queue_item to publish a saved post or saved mass message. Prefer the smallest set of API calls that answers the question: e.g. "who spent the most this month" → list_fans with filter=top; "how did yesterday's mass message do" → get_message_engagement with type=mass; "publish my saved post about the new set" → look up queue then publish_queue_item with that queueId.
 
-When OnlyFans is connected, you have full access to DMs and content: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. get_dm_thread lets you scan and read the full chat with a specific fan. If a DM thread is not found (for example, the fan or conversation was deleted), tell the creator that the thread is no longer available and suggest picking another fan instead of treating it as a generic error. get_reply_suggestions and get_dm_thread_and_suggestions run Scan Thread plus Circe/Venus/Flirt reply lines synchronously (blocking until done). For a long scan while the creator does something else (e.g. open Analytics or ask get_stats), use start_thread_scan_async instead: it queues a background scan, may navigate them to Analytics, and registers tasks in voice memory. Use get_task_status to see pending or completed tasks and navigation. When they want both a background scan and stats, call start_thread_scan_async first, then get_stats; the app will return them to Messages with suggestions when every barrier task finishes—do not claim the scan is done until get_task_status shows the scan task done or the creator sees the in-app handoff. send_message defaults to the in-app composer (typing animation + optional countdown)—use for welcomes and normal DMs. Only use direct_send or mode send_now|api for immediate server-side send when the creator asks for that explicitly. list_content shows their content calendar and scheduled posts. For vault sales metadata: list_vault_for_dm lists content ids; get_content_sales_metadata reads one item's saved notes and tags; upsert_content_sales_notes saves after a short structured interview—stay professional, respect their stated boundaries, fan-facing sales angles only. recommend_dm_bundle accepts content_ids to pull saved metadata into bundle pricing.${platformConnectionLine}${focusedFanLine}${voiceMemoryLine}
+When OnlyFans is connected, you have full access to DMs and content: get_dm_conversations returns fan names, usernames, and fanIds—use it to find a user by name. get_dm_thread lets you scan and read the full chat with a specific fan. If a DM thread is not found (for example, the fan or conversation was deleted), tell the creator that the thread is no longer available and suggest picking another fan instead of treating it as a generic error. get_reply_suggestions and get_dm_thread_and_suggestions run Scan Thread plus Circe/Venus/Flirt reply lines synchronously (blocking until done). BACKGROUND SCAN NARRATIVE: start_thread_scan_async queues work and returns immediately—this turn the scan is not finished. Never imply Circe/Venus/Flirt panels are populated yet; say queued or running. Tell them to check get_task_status, wait briefly then get_fan_thread_insights (or get_background_job when relevant). When multitasking stats too, call start_thread_scan_async first then get_stats; do not describe full scan outputs until tasks show done or insights tools succeed. send_message defaults to the in-app composer (typing animation + optional countdown)—use for welcomes and normal DMs. Only use direct_send or mode send_now|api for immediate server-side send when the creator asks for that explicitly. list_content shows their content calendar and scheduled posts. For vault sales metadata: list_vault_for_dm lists content ids; get_content_sales_metadata reads one item's saved notes and tags; upsert_content_sales_notes saves after a short structured interview—stay professional, respect their stated boundaries, fan-facing sales angles only. recommend_dm_bundle accepts content_ids to pull saved metadata into bundle pricing.${platformConnectionLine}${focusedFanLine}${voiceMemoryLine}${episodicLine}
 
 DM name lookup: Tool output includes spellback ("I heard …") and [divine_lookup_meta:…]. Say the spellback out loud. If the meta says fuzzy_confirm_required, multi_match_confirm_required, or fuzzy_ambiguous, ask the creator to confirm which fan or fanId before continuing—do not insist the chat is already open. Do not call get_dm_conversations or lookup_fan again with the same name query in the same turn; ask a clarifying question instead.
 
-Speak in second person ("you"). Keep replies actionable but advisory. Be concise; this is a live conversation. Text chat has the full tool list; voice uses the same server-side tools—if something fails, suggest using Divine text chat for that action.
+Speak in second person ("you"). Keep replies actionable but advisory. Be concise; this is a live conversation. Text chat has the full tool list; voice uses the same server-side tools—if something fails, apologize briefly, say what failed plainly, and offer a recovery path such as trying again or using Divine text chat. If you misheard, interrupted, moved too fast, or navigation does not land as expected, repair naturally instead of going silent.
 
-    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch and profile merge for a fanId. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish, publish_queue_item) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state above, not assumptions, when deciding what should run.${protocolTasksBlock}${secretaryBlock}`
+    The creator only uploads one photo and talks to you—no typing. You manage everything by voice. When they say "how does this look", "rate this", or "analyze my photo", use analyze_content (their uploaded photo is analyzed automatically). For a Supabase storage image URL they paste, use analyze_image_from_url. When they say "write a caption", "caption this", or "what should I say", use generate_caption. Prefer get_dm_thread_and_suggestions when they need both thread context and reply ideas. draft_fan_reply drafts a fan-facing line from Mimic Test (review only). When they say "will this do well" or "viral potential", use predict_viral. When they say "post this and send to my fans" or "share with my subs", chain: generate_caption first, then content_publish with the caption, then mass_dm with a teaser to active subs—the app may ask them to confirm before sending. For "who might leave" or "retention" use get_retention_insights. For "whales", "top fans", or "high-value fans" use get_whale_advice or list_fans with filter=top. For "which fans spent the most", "top 10 fans", or "who are my biggest spenders" use list_fans with filter=top (and optional sort). For "how did my mass message perform" or "last mass DM stats" use get_message_engagement with type=mass. For "publish my saved post" or "send my saved mass DM" use publish_queue_item with the queue id (you may need to describe that they should confirm in the app if you do not have the queue id). You can create in-app reminders with send_notification. For leaks/DMCA review use list_leak_alerts or run_leak_scan only when they ask. Reputation identities: add_reputation_identity / remove_reputation_identity for manual mention handles; add_leak_search_identity / remove_leak_search_identity for former usernames and leak title hints used in Protection search. run_reputation_scan discovers new web/social mentions. trigger_reputation_briefing generates the aggregate briefing (Pro); get_reputation_briefing reads the latest saved briefing; list_reputation_briefings lists recent history. get_fan_thread_insights returns stored thread snapshot, merged personality profile_json, and fan AI summary for a fanId (background refresh keeps snapshots updated after new messages). refresh_fan_thread_scan forces a fresh fetch from OnlyFans. To open Messages for a specific fan once you know their fanId, prefer ui_focus_fan; use ui_navigate to /dashboard/messages only for the inbox without a fan. For "navigate and explain" requests, call ui_navigate with the destination and a short label; the client will continue your explanation after the page-ready signal. get_dm_conversations resolves names to fanIds; prefer lookup_fan for a quick name/username search (cache first). run_ai_studio_tool runs a dashboard AI Studio tool by toolId plus args (same tools as AI Studio). After every navigation, fan lookup, thread scan, or tool call, you must verbally summarize what happened and what the creator should know next. Do not wait for another microphone event after tools complete. A multi-step request like "open messages, find Alex, and give me an overview" is not complete when the page opens; it is complete only after you speak the overview. "Thinking" is temporary, never a final state: once a tool result, page-ready signal, error, timeout recovery, or confirmation requirement arrives, speak the outcome immediately. If context or a tool signal is missing, apologize briefly, say what you know, offer one retry or recheck, and do not go silent. The app may show "Thinking" while tools run; once the tool result arrives, finish the spoken answer immediately. The app does not auto-disconnect for short silence by default; an optional long idle timeout may be configured server-side and does not apply while tools run, while your response is expected, or while you (the assistant) are speaking. Ask "anything else?" before they go quiet too long, and use end_call only when they are clearly done. Do NOT call end_call until you have finished speaking after any tools (including slow ones like analyze_content, pricing, or publish). After completing their request—or if they interrupt—still ask out loud: "Is there anything else you want me to do?" and wait for their answer. Immediately after asking that question, call voice_allow_user_hangup so the creator can use the End button when strict hangup mode is enabled. Only after they clearly indicate they are done or say goodbye, say a brief goodbye and then call end_call. Never end_call in the same turn as a tool before you have verbally confirmed they need nothing else. For any other action (send a mass DM, get stats, publish content, create a task), briefly say what you are about to do, then call the appropriate tool. For risky actions (mass DM, pricing, publish_queue_item, content_publish) the app may ask the creator to confirm; if so, tell them to say "yes" or confirm in the app. Always describe the action before calling a tool. Use actual connection state and current dashboard screen context above, not assumptions, when deciding what should run.${markitContextBlock}${dashboardContextBlock}${protocolTasksBlock}${secretaryBlock}`
 
     const tools = [
       {
@@ -380,7 +470,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'start_thread_scan_async',
         description:
-          'Queue a background DM thread scan (Circe/Venus/Flirt package) without blocking the voice session. Use when the scan may take a long time and the creator may switch to Analytics or ask for stats while it runs. Returns immediately; use get_task_status for progress. The app may open Analytics; when all barrier tasks complete, it returns to Messages with suggestions.',
+          'Queue a BACKGROUND DM thread scan (Circe/Venus/Flirt package). Returns immediately—results are NOT ready in this turn. Say queued or running, not finished. Creator checks get_task_status, waits then get_fan_thread_insights, or get_background_job when applicable. Never imply panels are populated until tools confirm.',
         parameters: {
           type: 'object',
           properties: {
@@ -1038,7 +1128,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
         type: 'function' as const,
         name: 'ui_navigate',
         description:
-          'Open a dashboard screen in the app. For Divine Manager sections use ?section=mimic (Mimic Test), voice (voice call), tasks (today plan), or alerts (urgent jobs). For Messages, use /dashboard/messages for inbox only; to open a specific fan chat use ui_focus_fan. For connection setup use /dashboard/settings?tab=integrations.',
+          'Open a dashboard screen in the app. When explaining a page, include label and optional elementId so the client can guide/highlight a safe known section. For Divine Manager sections use ?section=mimic (Mimic Test), voice (voice call), tasks (today plan), or alerts (urgent jobs). For Messages, use /dashboard/messages for inbox only; to open a specific fan chat use ui_focus_fan. For connection setup use /dashboard/settings?tab=integrations.',
         parameters: {
           type: 'object',
           properties: {
@@ -1049,6 +1139,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
                 '/dashboard/messages',
                 '/dashboard/content',
                 '/dashboard/protection',
+                '/dashboard/well-being',
                 '/dashboard/mentions',
                 '/dashboard/commenter',
                 '/dashboard/fans',
@@ -1068,6 +1159,15 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
                 '/dashboard/settings?tab=integrations',
                 '/dashboard/guide',
               ],
+            },
+            elementId: {
+              type: 'string',
+              enum: DIVINE_GUIDE_CONTROL_IDS,
+              description: 'Optional known DOM id to scroll/highlight after navigation. Do not invent arbitrary selectors.',
+            },
+            label: {
+              type: 'string',
+              description: 'Optional short human label for the highlighted area.',
             },
           },
           required: ['path'],
@@ -1201,13 +1301,20 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
     ]
 
     const voice = getDivineVoice(notify?.voice)
-    const sessionConfig = {
-      type: 'realtime',
-      model: 'gpt-realtime',
+    const realtimeModel = getOpenAIRealtimeModel()
+    const sessionConfig = buildDivineRealtimeSessionConfig({
+      model: realtimeModel,
       instructions,
-      audio: { output: { voice } },
+      voice,
       tools,
-    }
+      personality: resolvedVoicePersonality,
+      traceGroupId: sid || user.id,
+      traceMetadata: {
+        user_id: user.id,
+        surface: voiceSurface,
+        divine_session_id: sid || null,
+      },
+    })
 
     const formData = new FormData()
     formData.set('sdp', sdp)
@@ -1218,6 +1325,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        'OpenAI-Safety-Identifier': createHash('sha256').update(user.id).digest('hex'),
       },
       body: formData,
     })
@@ -1225,10 +1333,7 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
     if (!res.ok) {
       const errText = await res.text()
       console.error('[divine-manager-realtime] OpenAI error:', res.status, errText)
-      return NextResponse.json(
-        { error: 'Realtime session failed', details: errText.slice(0, 200) },
-        { status: res.status === 401 ? 503 : res.status }
-      )
+      return jsonCors(req, { error: 'Realtime session failed', details: errText.slice(0, 200) }, res.status === 401 ? 503 : res.status)
     }
 
     const answerSdp = await res.text()
@@ -1237,20 +1342,25 @@ Speak in second person ("you"). Keep replies actionable but advisory. Be concise
       userId: user.id,
       feature: 'divine-manager-realtime-session',
       provider: 'openai',
-      model: 'gpt-realtime',
+      model: realtimeModel,
       usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
       metadata: {
         kind: 'webrtc_sdp_exchange',
+        surface: voiceSurface,
+        divine_usage_parent: 'divine_manager',
         note: 'Token/cost for Realtime is session-based; see OpenAI usage dashboard. Client also reports voice state time to admin.',
       },
     })
 
-    return new NextResponse(answerSdp, {
-      headers: { 'Content-Type': 'application/sdp' },
-    })
+    return applyMarkitCorsHeaders(
+      req,
+      new NextResponse(answerSdp, {
+        headers: { 'Content-Type': 'application/sdp' },
+      }),
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Realtime session failed'
     console.error('[divine-manager-realtime]', err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return jsonCors(req, { error: message }, 500)
   }
 }

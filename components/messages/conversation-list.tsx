@@ -55,10 +55,10 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <div className="flex h-full w-full min-h-0 flex-col overflow-hidden bg-card">
-      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2.5">
         {conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <p className="text-sm text-muted-foreground">None match</p>
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <p className="text-sm font-medium text-muted-foreground">None match</p>
             <p className="mt-1 text-xs text-muted-foreground">Adjust segments or search above</p>
           </div>
         ) : (

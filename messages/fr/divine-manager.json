@@ -1,0 +1,12 @@
+{
+  "modes": {
+    "off": "Désactivé",
+    "suggest_only": "Suggestions uniquement",
+    "semi_auto": "Semi-automatique"
+  },
+  "toolbar": {
+    "modeAria": "Mode gestionnaire",
+    "pause": "Pause",
+    "reset": "Réinitialiser"
+  }
+}

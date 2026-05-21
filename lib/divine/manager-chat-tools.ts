@@ -1,6 +1,7 @@
 /**
  * Shared Divine Manager tool execution for chat and voice (single source of truth).
  */
+import { randomUUID } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { executeDivineIntentPost, type IntentBody } from '@/lib/divine/divine-intent-execute'
 import { runLeakScan } from '@/lib/leaks/run-scan'
@@ -27,9 +28,8 @@ import {
   toCandidates,
   truncatePreservingLookupMeta,
 } from '@/lib/divine/divine-lookup-meta'
-import { loadDivineDmThread } from '@/lib/divine/divine-dm-thread'
+import { loadOnlyFansMessagingContext } from '@/lib/divine/onlyfans-messaging-context'
 import { isDivineFullAccess, DIVINE_FULL_UPGRADE_MESSAGE } from '@/lib/divine/divine-full-access'
-import { isPaidPlanId } from '@/lib/billing/access'
 import { draftFanReplyWithMimic } from '@/lib/divine/draft-fan-reply'
 import { refreshFanThreadInsight } from '@/lib/divine/fan-thread-insight'
 import { processPlatformPostCommentById } from '@/lib/commenter/process-comment'
@@ -41,6 +41,15 @@ import { getStats } from '@/lib/divine-intent-actions'
 import { getVoiceMemoryPayload } from '@/lib/divine/voice-memory-server'
 import { queueThreadScanBackgroundJob, recordStatsTaskForBarrier } from '@/lib/divine/thread-scan-async'
 import { getSettings } from '@/lib/divine-manager'
+import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import {
+  CREDITS_LEAK_SCAN,
+  CREDITS_MESSAGE_GENERATION_BUNDLE,
+} from '@/lib/billing/credit-economics'
+import {
+  divineManagerDebitMetadata,
+  divineManagerSubserviceDisplayName,
+} from '@/lib/billing/divine-manager-ledger'
 import {
   dashboardPatchFromToolArgs,
   mergeDashboardPresetIntoRules,
@@ -50,6 +59,13 @@ import { isLeakStatusActive } from '@/lib/leaks/leak-detection-status'
 import { getPlatformConnectionSnapshot } from '@/lib/divine/platform-connection-status'
 import { formatCreatorOnlyFansPageModelForAi } from '@/lib/onlyfans/creator-page-model'
 import { formatFanCommerceContextForAi, type SubscriptionAccountType } from '@/lib/fans/subscription-account-type'
+import { isAllowedUiNavigatePath } from '@/lib/divine/app-action-registry'
+import { isRegisteredDivineGuideControl } from '@/lib/divine/page-control-registry'
+
+export {
+  REGISTERED_DASHBOARD_ROUTES as ALLOWED_UI_PATHS,
+  isAllowedUiNavigatePath,
+} from '@/lib/divine/app-action-registry'
 
 export const AI_TOOL_NAME_TO_ID: Record<string, string> = {
   analyze_content: 'standard-of-attraction',
@@ -87,6 +103,8 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
   'get_reputation_briefing',
   'list_reputation_briefings',
   'get_task_status',
+  'get_recent_failures',
+  'get_background_job',
   'list_vault_for_dm',
   'get_content_sales_metadata',
   'list_recent_comment_analyses',
@@ -98,92 +116,9 @@ export const CONTEXT_TOOL_NAMES = new Set<string>([
 
 export type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
 
-export const ALLOWED_UI_PATHS = new Set<string>([
-  '/dashboard',
-  '/dashboard/messages',
-  '/dashboard/content',
-  '/dashboard/protection',
-  '/dashboard/mentions',
-  '/dashboard/fans',
-  '/dashboard/analytics',
-  '/dashboard/analytics/income-predictor',
-  '/dashboard/divine-manager',
-  '/dashboard/ai-studio',
-  '/dashboard/social',
-  '/dashboard/settings',
-  '/dashboard/guide',
-  '/dashboard/commenter',
-])
-
-const AI_STUDIO_TOOL_PATH = /^\/dashboard\/ai-studio\/tools\/[a-z0-9][a-z0-9-]{0,79}$/i
-
-/** Allows dashboard links with validated query params (Divine Manager section, AI Studio tab/ai). */
-export function isAllowedUiNavigatePath(path: string): boolean {
-  const trimmed = path.trim()
-  if (!trimmed.startsWith('/dashboard')) return false
-  if (ALLOWED_UI_PATHS.has(trimmed)) return true
-  const base = trimmed.split('?')[0]
-  if (!ALLOWED_UI_PATHS.has(base)) {
-    if (AI_STUDIO_TOOL_PATH.test(base)) return !trimmed.includes('?')
-    return false
-  }
-  if (!trimmed.includes('?')) return true
-  try {
-    const qs = trimmed.slice(trimmed.indexOf('?'))
-    const params = new URLSearchParams(qs)
-    const keys = [...params.keys()]
-    if (base === '/dashboard/divine-manager') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'section') return false
-      const v = params.get('section') ?? ''
-      return /^[a-z0-9_-]{1,40}$/i.test(v)
-    }
-    if (base === '/dashboard/ai-studio') {
-      for (const k of keys) {
-        if (k !== 'tab' && k !== 'ai') return false
-      }
-      const tab = params.get('tab')
-      if (
-        tab &&
-        !['library', 'vault', 'tools', 'overview', 'circe', 'venus', 'cosmic', 'chatter'].includes(tab)
-      ) {
-        return false
-      }
-      const ai = params.get('ai')
-      if (ai && !['circe', 'venus'].includes(ai)) return false
-      return true
-    }
-    if (base === '/dashboard/messages') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'fanId') return false
-      const fanId = params.get('fanId') ?? ''
-      return /^[a-z0-9_-]{1,64}$/i.test(fanId)
-    }
-    if (base === '/dashboard/settings') {
-      if (keys.length === 0) return true
-      if (keys.length !== 1 || keys[0] !== 'tab') return false
-      const tab = params.get('tab') ?? ''
-      return ['profile', 'notifications', 'security', 'billing', 'integrations', 'data', 'preferences'].includes(tab)
-    }
-    return false
-  } catch {
-    return false
-  }
-}
-
 export function getBaseUrl(): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-}
-
-async function isProPlanUser(supabase: SupabaseClient, userId: string): Promise<boolean> {
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('plan_id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  const pid = String((subscription as { plan_id?: string } | null)?.plan_id ?? '').toLowerCase()
-  return isPaidPlanId(pid)
 }
 
 function parseHandlesArg(raw: unknown): string[] {
@@ -198,20 +133,21 @@ function parseTitleHintsArg(raw: unknown): string[] {
   return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((s) => s.trim())
 }
 
+export type DivineContext = {
+  supabase: SupabaseClient
+  userId: string
+}
+
 export async function runAITool(
   toolName: string,
   args: Record<string, unknown>,
   cookie: string,
+  billing?: DivineContext,
 ): Promise<{ success: boolean; result?: unknown; error?: string }> {
   const toolId = AI_TOOL_NAME_TO_ID[toolName]
   if (!toolId) return { success: false, error: 'Unknown AI tool' }
   if (!isDivineAiToolId(toolId)) return { success: false, error: 'Unknown AI tool' }
-  return runDivineAiToolServer(toolId, args, cookie)
-}
-
-export type DivineContext = {
-  supabase: SupabaseClient
-  userId: string
+  return runDivineAiToolServer(toolId, args, cookie, billing)
 }
 
 export function parseOpenPanelArg(raw: unknown): 'scan' | 'circe' | 'venus' | 'flirt' | 'all' | undefined {
@@ -226,6 +162,29 @@ export function openPanelToHighlightPanel(
 ): 'circe' | 'venus' | 'flirt' | null {
   if (openPanel === 'circe' || openPanel === 'venus' || openPanel === 'flirt') return openPanel
   return null
+}
+
+async function billDmSuggestionBundle(
+  supabase: SupabaseClient,
+  userId: string,
+  fanId: string,
+  reasonSuffix: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_GENERATION_BUNDLE, {
+    reasonCode: 'message_generation_bundle',
+    reasonRef: `dm_reply_package:${fanId}:${reasonSuffix}`,
+    idempotencyKey: `dm_reply_package:${userId}:${fanId}:${reasonSuffix}`,
+    metadata: {
+      ...divineManagerDebitMetadata('DM reply pack (Circe · Venus · Flirt · Scan)', null),
+    },
+  })
+  if (!debit.ok) {
+    return {
+      ok: false,
+      message: `Insufficient AI credits (${debit.used}/${debit.limit} used this cycle).`,
+    }
+  }
+  return { ok: true }
 }
 
 function formatDmReplyToolText(
@@ -626,8 +585,30 @@ export async function runContextTool(
       const strict = args.strict !== false
       const include_content_titles = args.include_content_titles !== false
       const payload = { aliases, former_usernames, title_hints, include_content_titles, urls, strict }
+
+      const gate = await hasEnoughAiCredits(ctx.supabase, ctx.userId, CREDITS_LEAK_SCAN)
+      if (!gate.ok) {
+        return `Insufficient AI credits for a Protection leak scan (${gate.used}/${gate.limit} used this cycle). Open Protection to run a scan when you have credits, or add credits under Billing.`
+      }
+
+      const debitLeakScan = async (): Promise<string | null> => {
+        const idem = randomUUID()
+        const debit = await consumeAiCredits(ctx.supabase, ctx.userId, CREDITS_LEAK_SCAN, {
+          reasonCode: 'leak_scan',
+          reasonRef: `divine_manager_run_leak_scan:${ctx.userId}:${idem}`,
+          idempotencyKey: `divine_manager_run_leak_scan:${ctx.userId}:${idem}`,
+          metadata: divineManagerDebitMetadata('Leak Scanner', 'leak-scanner'),
+        })
+        if (!debit.ok) {
+          return `Insufficient AI credits for a Protection leak scan (${debit.used}/${debit.limit} used this cycle).`
+        }
+        return null
+      }
+
       const { ok: divineFull } = await isDivineFullAccess(ctx.supabase, ctx.userId)
       if (divineFull) {
+        const payErr = await debitLeakScan()
+        if (payErr) return payErr
         void runLeakScan(ctx.supabase, {
           userId: ctx.userId,
           ...payload,
@@ -641,6 +622,8 @@ export async function runContextTool(
       if (!result.success) {
         return `Leak scan failed: ${result.message ?? 'unknown error'}`
       }
+      const payErr = await debitLeakScan()
+      if (payErr) return `${payErr} (Scan results are available in Protection; contact support if credits did not apply.)`
       return [
         `Leak scan finished.`,
         `New alerts inserted: ${result.inserted}.`,
@@ -704,21 +687,30 @@ export async function runContextTool(
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
-      const out = await loadDivineDmThread(ctx.supabase, ctx.userId, String(fanId), 50)
-      if (!out.ok) {
-        if (out.notFound) return out.error || `This fan's thread is no longer available on OnlyFans.`
-        if (out.error === 'OnlyFans not connected') {
+      const threadCtx = await loadOnlyFansMessagingContext(ctx.supabase, ctx.userId, {
+        fanId: String(fanId),
+      })
+      if ('error' in threadCtx) {
+        if (threadCtx.notFound) return threadCtx.error || `This fan's thread is no longer available on OnlyFans.`
+        if (threadCtx.error === 'OnlyFans not connected') {
           return 'OnlyFans is not connected. Connect OnlyFans in Settings → Integrations.'
         }
-        return out.error
+        return threadCtx.error
       }
-      const thread = out.thread.slice(-40).map((m) => `${m.from}: ${m.text.slice(0, 400)}`)
-      return thread.length ? `Thread:\n${thread.join('\n')}` : 'No messages in thread.'
+      const preview = threadCtx.threadPreview.trim()
+      return preview ? `Thread:\n${preview}` : 'No messages in thread.'
     }
     if (name === 'get_reply_suggestions') {
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
+      const billed = await billDmSuggestionBundle(
+        ctx.supabase,
+        ctx.userId,
+        String(fanId),
+        `tool:get_reply_suggestions:${Date.now()}`,
+      )
+      if (!billed.ok) return billed.message
       const data = await fetchDmReplySuggestionsPackage(ctx.supabase, ctx.userId, { fanId: String(fanId) })
       return formatDmReplyToolText('get_reply_suggestions', data)
     }
@@ -738,12 +730,22 @@ export async function runContextTool(
         mimicRaw: (st as { mimic_profile?: unknown } | null)?.mimic_profile,
       })
       if (!result.ok) return result.error
+      if ('pending' in result && result.pending) {
+        return `Queued background Mimic draft (job ${result.jobId}). ${result.note}`
+      }
       return `${result.text}\n\n— ${result.note}`
     }
     if (name === 'get_dm_thread_and_suggestions') {
       if (!ctx) return 'Context unavailable.'
       const fanId = args.fanId
       if (!fanId) return 'fanId is required.'
+      const billed = await billDmSuggestionBundle(
+        ctx.supabase,
+        ctx.userId,
+        String(fanId),
+        `tool:get_dm_thread_and_suggestions:${Date.now()}`,
+      )
+      if (!billed.ok) return billed.message
       const pkg = await fetchDmReplySuggestionsPackage(ctx.supabase, ctx.userId, { fanId: String(fanId) })
       return formatDmReplyToolText('get_dm_thread_and_suggestions', pkg)
     }
@@ -822,8 +824,6 @@ export async function runContextTool(
     }
     if (name === 'trigger_reputation_briefing') {
       if (!ctx) return 'Context unavailable.'
-      const pro = await isProPlanUser(ctx.supabase, ctx.userId)
-      if (!pro) return 'Venus Pro required for AI reputation briefing.'
       const handles = parseHandlesArg(args.handles)
       const result = await runReputationBriefingCore(ctx.supabase, ctx.userId, {
         handles: handles.length ? handles : undefined,
@@ -838,11 +838,16 @@ export async function runContextTool(
       const handles = parseHandlesArg(args.handles)
       const limitPerQuery =
         typeof args.limitPerQuery === 'number' ? Math.min(Math.max(args.limitPerQuery, 1), 50) : undefined
-      const res = await runReputationScanCore(ctx.supabase, ctx.userId, {
-        mode,
-        handles: handles.length ? handles : undefined,
-        limitPerQuery,
-      })
+      const res = await runReputationScanCore(
+        ctx.supabase,
+        ctx.userId,
+        {
+          mode,
+          handles: handles.length ? handles : undefined,
+          limitPerQuery,
+        },
+        { serviceDisplayName: divineManagerSubserviceDisplayName('Mentions web scan') },
+      )
       if (!res.ok) return res.error
       return [
         `Reputation scan complete (mode ${res.mode}).`,
@@ -1267,6 +1272,61 @@ export async function runContextTool(
       ].join('\n')
       return summary.slice(0, 3800)
     }
+    if (name === 'get_recent_failures') {
+      if (!ctx) return 'Context unavailable.'
+      const limRaw = typeof args.limit === 'number' ? args.limit : 8
+      const limit = Math.max(1, Math.min(20, Math.floor(limRaw) || 8))
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+      const { data: fails, error: failErr } = await ctx.supabase
+        .from('divine_manager_tasks')
+        .select('id,type,status,payload,created_at,source,category')
+        .eq('user_id', ctx.userId)
+        .eq('status', 'failed')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      const { data: errs, error: errLogErr } = await ctx.supabase
+        .from('api_error_logs')
+        .select('id,route,http_status,message,created_at')
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since)
+        .ilike('route', '%divine-manager%')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      const parts: string[] = []
+      parts.push(`window: last 24h`)
+      if (failErr) parts.push(`divine_manager_tasks query error: ${failErr.message}`)
+      else parts.push(`divine_manager_tasks_failed: ${JSON.stringify(fails ?? [])}`)
+      if (errLogErr) parts.push(`api_error_logs query error: ${errLogErr.message}`)
+      else parts.push(`api_error_logs_divine_routes: ${JSON.stringify(errs ?? [])}`)
+      return parts.join('\n').slice(0, 6000)
+    }
+    if (name === 'get_background_job') {
+      if (!ctx) return 'Context unavailable.'
+      const jobId =
+        typeof args.job_id === 'string'
+          ? args.job_id.trim()
+          : typeof (args as { jobId?: string }).jobId === 'string'
+            ? String((args as { jobId?: string }).jobId).trim()
+            : ''
+      if (!jobId || !/^[0-9a-f-]{36}$/i.test(jobId)) {
+        return 'Provide job_id (UUID from openai_jobs row).'
+      }
+      const { data: job, error } = await ctx.supabase
+        .from('openai_jobs')
+        .select(
+          'id,response_id,feature,model,status,error_code,error_message,divine_manager_task_id,request_metadata,result_summary,usage_input_tokens,usage_output_tokens,usage_total_tokens,estimated_usd,created_at,completed_at',
+        )
+        .eq('user_id', ctx.userId)
+        .eq('id', jobId)
+        .maybeSingle()
+      if (error) return `Could not read job: ${error.message}`
+      if (!job) return 'Background job not found.'
+      return JSON.stringify(job).slice(0, 8000)
+    }
     if (name === 'apply_dashboard_preset') {
       if (!ctx) return 'Context unavailable.'
       const patch = dashboardPatchFromToolArgs(args)
@@ -1313,7 +1373,7 @@ export async function runIntent(
   type: string,
   args: Record<string, unknown>,
   cookie: string,
-  ctx?: { supabase: SupabaseClient },
+  ctx?: { supabase: SupabaseClient; forceConfirmation?: boolean },
 ): Promise<{
   status: string
   intent_id?: string
@@ -1323,6 +1383,7 @@ export async function runIntent(
   error?: string
 }> {
   const body = buildIntentRequestBody(type, args) as IntentBody
+  if (ctx?.forceConfirmation === true) body.force_confirmation = true
 
   if (ctx?.supabase) {
     const {
@@ -1490,6 +1551,7 @@ export async function runToolCall(
     supabase: SupabaseClient
     userId: string
     divineFull: boolean
+    forceRiskyConfirmation?: boolean
   },
 ): Promise<{
   tool_call_id: string
@@ -1499,6 +1561,7 @@ export async function runToolCall(
   lookupMeta?: DivineLookupMeta | null
 }> {
   const { cookie, supabase, userId } = opts
+  const intentCtx = { supabase, forceConfirmation: opts.forceRiskyConfirmation === true }
   const name = tc.function.name
   let args: Record<string, unknown> = {}
   try {
@@ -1871,10 +1934,30 @@ export async function runToolCall(
         uiActions,
       }
     }
-    uiActions.push({ type: 'navigate', path })
+    const elementId = typeof args.elementId === 'string' ? args.elementId.trim() : ''
+    const label = typeof args.label === 'string' ? args.label.trim() : ''
+    if (elementId && !isRegisteredDivineGuideControl(elementId, path)) {
+      return {
+        tool_call_id: tc.id,
+        content:
+          'That guided control is not registered for this dashboard route. Use one of the audited page controls surfaced in page context.',
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
+    if (elementId || label) {
+      uiActions.push({
+        type: 'guide_focus',
+        path,
+        elementId: elementId || undefined,
+        label: label || undefined,
+      })
+    } else {
+      uiActions.push({ type: 'navigate', path })
+    }
     return {
       tool_call_id: tc.id,
-      content: `Opening ${path} in the app.`,
+      content: elementId || label ? `Opening ${path} and highlighting the guided area.` : `Opening ${path} in the app.`,
       pendingConfirmations: emptyPending,
       uiActions,
     }
@@ -2122,7 +2205,7 @@ export async function runToolCall(
   const isContextTool = CONTEXT_TOOL_NAMES.has(name)
 
   if (isAITool) {
-    const out = await runAITool(name, args, cookie)
+    const out = await runAITool(name, args, cookie, { supabase, userId })
     const summary = out.success
       ? typeof out.result === 'object' && out.result !== null && 'content' in out.result
         ? String((out.result as { content: string }).content).slice(0, 500)
@@ -2138,6 +2221,20 @@ export async function runToolCall(
     }
     const openPanel = parseOpenPanelArg(args.openPanel)
     const highlightPanel = openPanelToHighlightPanel(openPanel)
+    const billed = await billDmSuggestionBundle(
+      supabase,
+      userId,
+      fanId,
+      `${name}:${tc.id}`,
+    )
+    if (!billed.ok) {
+      return {
+        tool_call_id: tc.id,
+        content: billed.message,
+        pendingConfirmations: emptyPending,
+        uiActions,
+      }
+    }
     const pkg = await fetchDmReplySuggestionsPackage(supabase, userId, { fanId })
     const toolKey =
       name === 'get_reply_suggestions'
@@ -2233,12 +2330,12 @@ export async function runToolCall(
   const pendingConfirmations: Array<{ type: string; intent_id: string; summary?: string }> = []
 
   if (name === 'get_notifications') {
-    const intentRes = await runIntent('get_notifications_summary', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('get_notifications_summary', intentBody, cookie, intentCtx)
     const summary = (intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)).slice(0, 4000)
     return { tool_call_id: tc.id, content: summary, pendingConfirmations, uiActions }
   }
   if (name === 'list_notifications') {
-    const intentRes = await runIntent('list_notifications', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('list_notifications', intentBody, cookie, intentCtx)
     let summary = intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)
     const r = intentRes as { notifications?: unknown[] }
     if (Array.isArray(r.notifications) && r.notifications.length) {
@@ -2247,7 +2344,7 @@ export async function runToolCall(
     return { tool_call_id: tc.id, content: summary.slice(0, 6000), pendingConfirmations, uiActions }
   }
   if (name === 'mark_notifications_read') {
-    const intentRes = await runIntent('mark_notifications_read', intentBody, cookie, { supabase })
+    const intentRes = await runIntent('mark_notifications_read', intentBody, cookie, intentCtx)
     const summary = (intentRes.summary ?? intentRes.message ?? JSON.stringify(intentRes)).slice(0, 2000)
     return { tool_call_id: tc.id, content: summary, pendingConfirmations, uiActions }
   }
@@ -2291,7 +2388,7 @@ export async function runToolCall(
     }
   }
 
-  const intentRes = await runIntent(name, intentBody, cookie, { supabase })
+  const intentRes = await runIntent(name, intentBody, cookie, intentCtx)
   let summary =
     intentRes.summary ??
     intentRes.message ??
@@ -2299,19 +2396,21 @@ export async function runToolCall(
     (intentRes.status && intentRes.status !== 'executed' ? `Intent status: ${intentRes.status}` : undefined) ??
     JSON.stringify(intentRes)
   const dataIntent = name as string
-  if (dataIntent === 'list_fans' && Array.isArray((intentRes as { fans?: unknown[] }).fans)) {
-    const fans = (intentRes as { fans: unknown[] }).fans
+  if (dataIntent === 'list_fans' && Array.isArray((intentRes as unknown as { fans?: unknown[] }).fans)) {
+    const fans = (intentRes as unknown as { fans: unknown[] }).fans
     summary += '\n' + JSON.stringify(fans.slice(0, 30)).slice(0, 3000)
   } else if (
     dataIntent === 'get_fan_subscription_history' &&
-    Array.isArray((intentRes as { history?: unknown[] }).history)
+    Array.isArray((intentRes as unknown as { history?: unknown[] }).history)
   ) {
-    summary += '\n' + JSON.stringify((intentRes as { history: unknown[] }).history).slice(0, 2000)
+    summary += '\n' + JSON.stringify((intentRes as unknown as { history: unknown[] }).history).slice(0, 2000)
   } else if (
     dataIntent === 'list_followings' &&
-    Array.isArray((intentRes as { followings?: unknown[] }).followings)
+    Array.isArray((intentRes as unknown as { followings?: unknown[] }).followings)
   ) {
-    summary += '\n' + JSON.stringify((intentRes as { followings: unknown[] }).followings.slice(0, 20)).slice(0, 2000)
+    summary +=
+      '\n' +
+      JSON.stringify((intentRes as unknown as { followings: unknown[] }).followings.slice(0, 20)).slice(0, 2000)
   } else if (dataIntent === 'get_top_message') {
     const r = intentRes as { message?: unknown; buyers?: unknown[] }
     if (r.message) summary += '\nMessage: ' + JSON.stringify(r.message).slice(0, 1000)

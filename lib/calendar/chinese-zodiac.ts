@@ -31,16 +31,8 @@ export function getChineseNewYearDate(year: number): Date {
   return new Date(year, 1, 1)
 }
 
-export type ChineseZodiacAnimal = {
-  id: string
-  animal: string
-  han: string
-  emoji: string
-  vibe: string
-}
-
-/** 12-year cycle: Rat (1900) … Pig */
-export const CHINESE_ZODIAC: ChineseZodiacAnimal[] = [
+/** Twelve lunar animals (Rat … Pig), ordered from 1900 onward — compile-time literal unions for fields. */
+export const CHINESE_ZODIAC = [
   { id: 'rat', animal: 'Rat', han: '鼠', emoji: '🐀', vibe: 'Quick wit, charm, new starts' },
   { id: 'ox', animal: 'Ox', han: '牛', emoji: '🐂', vibe: 'Steady strength, quiet luxury' },
   { id: 'tiger', animal: 'Tiger', han: '虎', emoji: '🐅', vibe: 'Bold moves, magnetic courage' },
@@ -53,7 +45,26 @@ export const CHINESE_ZODIAC: ChineseZodiacAnimal[] = [
   { id: 'rooster', animal: 'Rooster', han: '雞', emoji: '🐓', vibe: 'Confidence, flair, dawn energy' },
   { id: 'dog', animal: 'Dog', han: '狗', emoji: '🐕', vibe: 'Loyalty, heart, protection' },
   { id: 'pig', animal: 'Pig', han: '豬', emoji: '🐷', vibe: 'Abundance, pleasure, ease' },
-]
+] as const
+
+/** Entry from {@link CHINESE_ZODIAC}: twelve lunar animals with literals for id / emoji / han / animal names. */
+export type ChineseZodiacAnimal = (typeof CHINESE_ZODIAC)[number]
+
+export type ChineseZodiacId = ChineseZodiacAnimal['id']
+
+type ChineseZodiacIndex =
+  | 0
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5
+  | 6
+  | 7
+  | 8
+  | 9
+  | 10
+  | 11
 
 /** Lunar year for a calendar date (before CNY counts as previous zodiac year). */
 export function getLunarYear(d: Date): number {
@@ -62,8 +73,11 @@ export function getLunarYear(d: Date): number {
   return d < cny ? y - 1 : y
 }
 
-export function getChineseZodiacForDate(d: Date): ChineseZodiacAnimal {
-  const lunarYear = getLunarYear(d)
+function lunarYearToZodiacIndex(lunarYear: number): ChineseZodiacIndex {
   const idx = ((lunarYear - 1900) % 12 + 12) % 12
-  return CHINESE_ZODIAC[idx]!
+  return idx as ChineseZodiacIndex
+}
+
+export function getChineseZodiacForDate(d: Date): ChineseZodiacAnimal {
+  return CHINESE_ZODIAC[lunarYearToZodiacIndex(getLunarYear(d))]
 }

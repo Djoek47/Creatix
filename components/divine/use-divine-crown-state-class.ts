@@ -7,7 +7,7 @@ import { useVoiceSession } from '@/components/divine/voice-session-context'
  * Crown FAB colors:
  * - Pill **expanded** during a call: gold / silver / purple / rainbow / red (rich state).
  * - Pill **collapsed** during a call: same **semantic hues as the in-pill Mic** (emerald = live/listening, amber = connecting, red = error).
- * - Idle: yellow.
+ * - Idle: Divine Manager–style gold (light) / purple (dark) shimmer on FAB.
  */
 export function useDivineCrownStateClass(pillExpanded: boolean): string {
   const voice = useVoiceSession()
@@ -45,9 +45,11 @@ export function useDivineCrownStateClass(pillExpanded: boolean): string {
   if (status === 'connecting') return 'divine-crown-standby-gold'
   if (status === 'idle') return 'divine-crown-inactive-yellow'
 
-  if (status === 'connected' && voiceSurfaceState === 'working') return 'divine-crown-live-purple'
+  /* Expanded (or any non-collapsed) call UI: traffic-style RGY — green listen, amber busy/speaking, red error above */
+  if (status === 'connected' && voiceSurfaceState === 'thinking') return 'divine-crown-standby-gold'
   if (status === 'connected' && voiceSurfaceState === 'speaking') return 'divine-crown-standby-gold'
-  if (status === 'connected' && voiceSurfaceState === 'idle') return 'divine-crown-listening-silver'
+  if (status === 'connected' && voiceSurfaceState === 'needs_attention') return 'divine-crown-ending-red'
+  if (status === 'connected' && voiceSurfaceState === 'listening') return 'divine-crown-listening-silver'
 
   return 'divine-crown-inactive-yellow'
 }

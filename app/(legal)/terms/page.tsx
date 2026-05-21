@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
 import { ThemedLogo } from '@/components/themed-logo'
@@ -23,6 +24,7 @@ function Caps({ children, className }: { children: React.ReactNode; className?: 
 
 export default function TermsOfServicePage() {
   const router = useRouter()
+  const t = useTranslations('legal')
 
   const handleBack = () => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -42,19 +44,15 @@ export default function TermsOfServicePage() {
           </Link>
           <Button variant="ghost" onClick={handleBack} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t('back')}
           </Button>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-        <p className="text-sm font-medium text-muted-foreground">circeetvenus.com</p>
-        <h1 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">
-          Terms of Service &amp; User Agreement
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-          Effective date: April 1, 2026
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">{t('siteDomain')}</p>
+        <h1 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">{t('terms.title')}</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">{t('terms.effective')}</p>
 
         <article className="prose prose-invert mt-10 max-w-full space-y-10 text-muted-foreground prose-headings:font-semibold prose-headings:text-foreground prose-p:leading-relaxed prose-li:marker:text-primary">
           <section>
@@ -445,6 +443,58 @@ export default function TermsOfServicePage() {
               You are responsible for ensuring that any content you upload complies with applicable privacy laws,
               including laws governing the personal data of your fans and subscribers.
             </p>
+            <h3 className="mt-6 text-lg font-medium text-foreground">
+              14.1 Data Privacy Compliance — GDPR and CCPA
+            </h3>
+            <p className="mt-4">
+              Circe et Venus Inc. is committed to protecting the privacy of all users of this Service in accordance with
+              applicable data protection laws, including the General Data Protection Regulation (EU) 2016/679
+              (&quot;GDPR&quot;) for users located in the European Economic Area or the United Kingdom, and the
+              California Consumer Privacy Act of 2018 (Cal. Civ. Code § 1798.100 et seq.) and the California Privacy Rights
+              Act of 2020 (&quot;CCPA/CPRA&quot;) for users who are California residents.
+            </p>
+            <p className="mt-4">
+              <strong className="font-semibold text-foreground">GDPR Rights.</strong> If you are located in the EEA or
+              UK, you have the right to: (i) access the personal data we hold about you; (ii) request correction of
+              inaccurate personal data; (iii) request erasure of your personal data, subject to applicable legal
+              obligations; (iv) object to or request restriction of certain processing activities; (v) request
+              portability of your personal data in a structured, machine-readable format; and (vi) withdraw consent at
+              any time where processing is based on consent, without affecting the lawfulness of prior processing. To
+              exercise any of these rights, please contact us at the address provided in{' '}
+              <Link href="#notices" className="text-primary underline underline-offset-2 hover:no-underline">
+                Section 20.6 (Notices)
+              </Link>
+              . We will respond to verified requests within thirty (30) days, subject to any extensions permitted by
+              applicable law. Where required, Circe et Venus Inc. acts as a data controller with respect to personal data
+              collected directly from users, and as a data processor with respect to any personal data users provide
+              relating to their own subscribers or audiences.
+            </p>
+            <p className="mt-4">
+              <strong className="font-semibold text-foreground">CCPA/CPRA Rights.</strong> If you are a California
+              resident, you have the right to: (i) know what personal information we collect, use, disclose, or sell;
+              (ii) request deletion of your personal information, subject to applicable exceptions; (iii) opt out of the
+              sale or sharing of your personal information; (iv) correct inaccurate personal information we hold about
+              you; and (v) limit the use and disclosure of sensitive personal information. Circe et Venus Inc. does not
+              sell personal information as defined under the CCPA/CPRA. We do not discriminate against users who exercise
+              their privacy rights. To submit a verifiable consumer request, please contact us at the address provided in{' '}
+              <Link href="#notices" className="text-primary underline underline-offset-2 hover:no-underline">
+                Section 20.6 (Notices)
+              </Link>
+              . We will respond within forty-five (45) days, with a possible extension of an additional forty-five (45)
+              days where reasonably necessary.
+            </p>
+            <p className="mt-4">
+              <strong className="font-semibold text-foreground">General.</strong> Personal data collected through this
+              Service is processed only for the purposes described in our{' '}
+              <Link href="/privacy" className="text-primary underline underline-offset-2 hover:no-underline">
+                Privacy Policy
+              </Link>
+              , which is incorporated by reference into these Terms. We implement appropriate technical and
+              organizational measures to protect personal data against unauthorized access, loss, or disclosure. We
+              retain personal data only for as long as necessary to fulfill the purposes for which it was collected or
+              as required by applicable law. Users who believe their data protection rights have been violated may lodge
+              a complaint with the relevant supervisory authority in their jurisdiction.
+            </p>
           </section>
 
           <section>
@@ -558,14 +608,24 @@ export default function TermsOfServicePage() {
               Nothing in these Terms creates a partnership, joint venture, agency, or employment relationship between you
               and the Company.
             </p>
-            <h3 className="mt-6 text-lg font-medium text-foreground">20.6 Notices</h3>
+            <h3 id="notices" className="mt-6 scroll-mt-24 text-lg font-medium text-foreground">
+              20.6 Notices
+            </h3>
             <p>
               Notices from the Company may be provided by email, in-platform notifications, or posting to the website.
               Notices to the Company may be sent to:{' '}
               <a href="mailto:legal@circeetvenus.com" className="text-primary underline underline-offset-2">
                 legal@circeetvenus.com
               </a>
-              .
+              . Privacy and data-protection requests may also be sent to{' '}
+              <a href="mailto:admin@circeetvenus.com" className="text-primary underline underline-offset-2">
+                admin@circeetvenus.com
+              </a>
+              ; see our{' '}
+              <Link href="/privacy" className="text-primary underline underline-offset-2 hover:no-underline">
+                Privacy Policy
+              </Link>{' '}
+              for how we handle personal data.
             </p>
             <h3 className="mt-6 text-lg font-medium text-foreground">20.7 Language</h3>
             <p>

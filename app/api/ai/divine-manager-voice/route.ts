@@ -2,14 +2,133 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateTextWithOpenAI } from '@/lib/divine-openai'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { getDivineVoice } from '@/lib/divine-manager'
-import {
-  managerTalkativenessVoiceScriptLine,
-  normalizeManagerTalkativeness,
-} from '@/lib/divine/manager-talkativeness'
-
-type VoiceMode = 'intro' | 'ongoing' | 'what_next'
+import { hasDivineVoicePremium, type SubscriptionRowForPremiumDivine } from '@/lib/billing/premium-divine'
+import { buildVoiceBriefPrompts, type VoiceBriefMode } from '@/lib/divine/divine-manager-voice-brief-prompt'
+import { createOpenAiBackgroundJob } from '@/lib/openai/background-jobs'
 
 export const maxDuration = 60
+
+async function synthOpenAiTts(script: string, apiKey: string, voiceChoice: ReturnType<typeof getDivineVoice>): Promise<{
+  ok: boolean
+  audioBase64?: string
+  error?: string
+}> {
+  const ttsInput = script.slice(0, 4096)
+  const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini-tts',
+      voice: voiceChoice,
+      input: ttsInput,
+    }),
+  })
+  if (!ttsRes.ok) {
+    const errText = await ttsRes.text()
+    console.error('[divine-manager-voice] TTS error:', ttsRes.status, errText)
+    return { ok: false, error: errText.slice(0, 200) }
+  }
+  const audioBuffer = await ttsRes.arrayBuffer()
+  return { ok: true, audioBase64: Buffer.from(audioBuffer).toString('base64') }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createRouteHandlerClient(req)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const jobId = typeof searchParams.get('jobId') === 'string' ? searchParams.get('jobId')!.trim() : ''
+    const includeTts = searchParams.get('includeTts') === '1' || searchParams.get('tts') === '1'
+
+    if (!jobId) {
+      return NextResponse.json({ error: 'jobId required' }, { status: 400 })
+    }
+
+    const { data: job, error } = await supabase
+      .from('openai_jobs')
+      .select('id,user_id,status,feature,result_summary,error_message')
+      .eq('id', jobId)
+      .maybeSingle()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    const row = job as {
+      user_id?: string
+      status?: string
+      feature?: string
+      result_summary?: { script?: unknown; mode?: unknown } | null
+      error_message?: string | null
+    } | null
+    if (!row || row.user_id !== user.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    if (!['completed', 'failed', 'cancelled'].includes(String(row.status))) {
+      return NextResponse.json({
+        status: row.status ?? 'queued',
+        pending: true,
+      })
+    }
+
+    if (String(row.feature) !== 'briefing_script') {
+      return NextResponse.json({
+        status: row.status,
+        pending: false,
+        error: `job is ${row.feature}, not briefing_script`,
+      })
+    }
+
+    const script =
+      typeof row.result_summary?.script === 'string' ? row.result_summary.script.trim() : ''
+    if (String(row.status) !== 'completed' || !script) {
+      return NextResponse.json({
+        status: row.status,
+        pending: false,
+        script: '',
+        error: row.error_message || 'empty_script',
+      })
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY?.trim()
+
+    let audioBase64: string | undefined
+
+    const { data: settings } = await supabase
+      .from('divine_manager_settings')
+      .select('notification_settings')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const voiceChoice = getDivineVoice(
+      (settings as { notification_settings?: { voice?: string } } | null)?.notification_settings?.voice,
+    )
+
+    if (includeTts && apiKey) {
+      const synth = await synthOpenAiTts(script, apiKey, voiceChoice)
+      if (synth.ok && synth.audioBase64) audioBase64 = synth.audioBase64
+    }
+
+    return NextResponse.json({
+      status: row.status,
+      pending: false,
+      script,
+      audio: audioBase64 ?? null,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Briefing lookup failed'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,8 +140,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { data: subVoice } = await supabase
+      .from('subscriptions')
+      .select('plan_id,status,divine_voice_premium')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!hasDivineVoicePremium(subVoice as SubscriptionRowForPremiumDivine | null)) {
+      return NextResponse.json(
+        { error: 'Divine voice requires Premium.', code: 'divine_voice_premium_required' },
+        { status: 403 },
+      )
+    }
+
     const body = await req.json().catch(() => ({}))
-    const mode: VoiceMode = ['intro', 'ongoing', 'what_next'].includes(body.mode)
+    const mode: VoiceBriefMode = ['intro', 'ongoing', 'what_next'].includes(body.mode)
       ? body.mode
       : 'intro'
 
@@ -39,6 +170,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const voiceChoice = getDivineVoice(settings?.notification_settings?.voice)
+
     const { data: tasks } = await supabase
       .from('divine_manager_tasks')
       .select('*')
@@ -53,103 +186,58 @@ export async function POST(req: NextRequest) {
       .order('date', { ascending: false })
       .limit(7)
 
-    const persona = settings.persona || {}
-    const rules = settings.automation_rules || {}
-    const talkLevel = normalizeManagerTalkativeness(rules.manager_talkativeness)
-    const notify = settings.notification_settings || {}
 
-    const taskSummary =
-      tasks
-        ?.slice(0, 10)
-        .map(
-          (t) =>
-            `[${t.status}] ${t.type}${
-              t.category ? ` (${t.category})` : ''
-            }: ${String(t.payload?.summary || '').slice(0, 80)}`
-        )
-        .join('\n') || 'No tasks yet.'
 
-    const analyticsSummary =
-      analytics && analytics.length
-        ? analytics
-            .map((row) => `${row.date} ${row.platform}: fans=${row.fans ?? 'n/a'}, revenue=${row.revenue ?? 'n/a'}`)
-            .join('\n')
-        : 'No recent analytics snapshots.'
-
-    const modeLine =
-      mode === 'intro'
-        ? 'Give a concise 30 to 60 second style briefing with: key wins, current risks, and the top three things the creator should do today.'
-        : mode === 'ongoing'
-          ? 'Give one or two brief sentences about any new or changed priorities since last time. If nothing has changed, say that clearly.'
-          : 'Give a ranked list of two or three concrete next actions the creator should take right now.'
-
-    const system = `You are the Divine Manager, a Jarvis-style voice companion for a creator.
-Speak as a calm, confident manager. Never role-play as the creator, and never claim to have already sent messages or changed prices.
-You only describe what you see and what you recommend. Respect boundaries, niches, and platform safety rules.
-Avoid explicit or illegal content entirely. The creator may have OnlyFans and/or Fansly connected; when referring to platforms, subscribers, or messages, use these names (OnlyFans, Fansly) so the creator knows which platform you mean.`
-
-    const userPrompt = `Creator persona:
-- Tone: ${persona.tone ?? 'friendly'}
-- Flirty level: ${persona.flirtyLevel ?? 'mild'}
-- Boundaries: ${(persona.boundaries ?? []).join('; ') || 'none specified'}
-
-Manager settings:
-- Archetype: ${settings.manager_archetype || 'hermes'}
-- Mode: ${settings.mode}
-- Notifications: ${notify.level ?? 'daily_digest'}
-- Automation: posts=${rules.autoPostSchedule?.enabled ? 'on' : 'off'}, welcomeDM=${rules.autoWelcomeDm?.enabled ? 'on' : 'off'}, tipFollowup=${rules.autoFollowUpAfterTips?.enabled ? 'on' : 'off'}
-
-Recent tasks:
-${taskSummary}
-
-Recent analytics (most recent first):
-${analyticsSummary}
-
-Now, in your spoken response:
-${modeLine}
-
-${managerTalkativenessVoiceScriptLine(talkLevel)}
-
-Speak directly to the creator, but in second person (\"you\"). Keep it actionable but advisory, not absolute. Do not read raw JSON or bullet syntax; speak like a human manager.`
-
-    const { text } = await generateTextWithOpenAI({
-      system,
-      prompt: userPrompt,
-      maxTokens: 400,
-      temperature: 0.6,
+    const { system, userPrompt } = buildVoiceBriefPrompts({
+      settings: settings as unknown as Record<string, unknown>,
+      tasks: tasks as unknown as Parameters<typeof buildVoiceBriefPrompts>[0]['tasks'],
+      analytics: analytics ?? undefined,
+      mode,
     })
 
-    const script = text.trim()
-    if (!script) return NextResponse.json({ script: '', error: 'Empty script' }, { status: 500 })
+    const webhookConfigured = Boolean(process.env.OPENAI_WEBHOOK_SECRET?.trim())
 
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) return NextResponse.json({ script, error: 'TTS not configured' }, { status: 200 })
+    if (!webhookConfigured) {
+      const { text } = await generateTextWithOpenAI({
+        system,
+        prompt: userPrompt,
+        maxTokens: 400,
+        temperature: 0.6,
+      })
 
-    const voice = getDivineVoice(settings?.notification_settings?.voice)
-    const ttsInput = script.slice(0, 4096)
-    const ttsRes = await fetch('https://api.openai.com/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini-tts',
-        voice,
-        input: ttsInput,
-      }),
-    })
-    if (!ttsRes.ok) {
-      const errText = await ttsRes.text()
-      console.error('[divine-manager-voice] TTS error:', ttsRes.status, errText)
-      return NextResponse.json({ script, error: 'TTS failed' }, { status: 200 })
+      const scriptSync = text.trim()
+      if (!scriptSync)
+        return NextResponse.json({ script: '', error: 'Empty script' }, { status: 500 })
+
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey)
+        return NextResponse.json({ script: scriptSync, error: 'TTS not configured' }, { status: 200 })
+
+      const synthSync = await synthOpenAiTts(scriptSync, apiKey, voiceChoice)
+      if (!synthSync.ok || !synthSync.audioBase64) {
+        console.error('[divine-manager-voice] TTS error', synthSync.error)
+        return NextResponse.json({ script: scriptSync, error: 'TTS failed' }, { status: 200 })
+      }
+      return NextResponse.json({ script: scriptSync, audio: synthSync.audioBase64 })
     }
-    const audioBuffer = await ttsRes.arrayBuffer()
-    const audioBase64 = Buffer.from(audioBuffer).toString('base64')
-    return NextResponse.json({ script, audio: audioBase64 })
+
+    const q = await createOpenAiBackgroundJob({
+      userId: user.id,
+      feature: 'briefing_script',
+      instructions: system,
+      input: userPrompt,
+      requestMetadata: { mode, voice_preset: typeof voiceChoice === 'string' ? voiceChoice : 'default' },
+    })
+    if (!q.ok || !q.jobId) {
+      return NextResponse.json({ error: q.error || 'failed to enqueue briefing' }, { status: 502 })
+    }
+    return NextResponse.json({
+      pending: true,
+      jobId: q.jobId,
+      hint: `GET /api/ai/divine-manager-voice?jobId=${q.jobId}&includeTts=1 until status completes.`,
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Divine Manager voice failed'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
-

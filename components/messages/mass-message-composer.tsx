@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -16,11 +17,24 @@ import {
 } from '@/components/ui/select'
 import { Send, Loader2, Check, AlertCircle, Users, Megaphone, DollarSign, Paperclip, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FanslyEmailTwofaDialog } from '@/components/fansly/fansly-email-twofa-dialog'
+import { isFanslyEmailTwofaGraceActive } from '@/lib/fansly/fansly-twofa-session-grace'
 
 interface ConnectedPlatform {
   platform: string
   platform_username: string
   is_connected: boolean
+}
+
+type MassPostBody = {
+  message: string
+  platforms: string[]
+  filter?: string
+  price?: number
+  mediaIds?: string[]
+  /** Merged from manual text + Fansly uploads before POST. */
+  fanslyMediaIds?: string[]
+  userLists?: string[]
 }
 
 export type MassMessageComposerProps = {
@@ -41,6 +55,7 @@ export function MassMessageComposer({
   message: controlledMessage,
   onMessageChange,
 }: MassMessageComposerProps) {
+  const tm = useTranslations('massCampaign')
   const [internalMessage, setInternalMessage] = useState('')
   const message = controlledMessage !== undefined ? controlledMessage : internalMessage
   const setMessage = onMessageChange ?? setInternalMessage
@@ -49,8 +64,12 @@ export function MassMessageComposer({
   const [filter, setFilter] = useState<'all' | 'active' | 'expired' | 'renewing'>('all')
   const [price, setPrice] = useState<string>('')
   const [mediaIds, setMediaIds] = useState<string[]>([])
+  const [fanslyMediaIdsText, setFanslyMediaIdsText] = useState('')
+  const [fanslyUploadedIds, setFanslyUploadedIds] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadingFansly, setUploadingFansly] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const fanslyFileInputRef = useRef<HTMLInputElement>(null)
   const [isSending, setIsSending] = useState(false)
   const [ofUserLists, setOfUserLists] = useState<{ id: string; name: string }[]>([])
   const [selectedListIds, setSelectedListIds] = useState<string[]>([])
@@ -62,7 +81,11 @@ export function MassMessageComposer({
     results: Record<string, { success: boolean; sent?: number; failed?: number; error?: string }>
   } | null>(null)
 
+  const [fanslyTwofaOpen, setFanslyTwofaOpen] = useState(false)
+  const pendingMassBodyRef = useRef<MassPostBody | null>(null)
+
   const supabase = useMemo(() => createClient(), [])
+  const t = useTranslations('messages.layout')
 
   useEffect(() => {
     async function loadPlatforms() {
@@ -89,6 +112,8 @@ export function MassMessageComposer({
         setMessage('')
         setPrice('')
         setMediaIds([])
+        setFanslyMediaIdsText('')
+        setFanslyUploadedIds([])
         setSelectedListIds([])
         setOfUserLists([])
       }
@@ -151,90 +176,155 @@ export function MassMessageComposer({
     }
   }
 
-  const handleSend = async () => {
-    if (!message || platforms.length === 0) return
+  const handleFanslyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files?.length) return
+    setUploadingFansly(true)
+    try {
+      const { uploadLocalFileToFanslyMedia } = await import('@/lib/fansly-upload-client')
+      for (let i = 0; i < files.length; i++) {
+        const data = await uploadLocalFileToFanslyMedia(files[i])
+        if (data.id) setFanslyUploadedIds((prev) => [...prev, data.id])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUploadingFansly(false)
+      e.target.value = ''
+    }
+  }
 
-    setIsSending(true)
-    setResults(null)
+  const parseFanslyMediaIds = () =>
+    fanslyMediaIdsText
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
 
+  const buildMassPostBody = (): MassPostBody => {
     const priceNum = price.trim() ? parseFloat(price) : undefined
-    const body: {
-      message: string
-      platforms: string[]
-      filter?: string
-      price?: number
-      mediaIds?: string[]
-      userLists?: string[]
-    } = {
+    const body: MassPostBody = {
       message,
       platforms,
       filter,
     }
     if (priceNum != null && !Number.isNaN(priceNum) && priceNum >= 0) body.price = priceNum
     if (mediaIds.length > 0) body.mediaIds = mediaIds
+    const flMerged = Array.from(new Set([...fanslyUploadedIds, ...parseFanslyMediaIds()]))
+    if (flMerged.length > 0) body.fanslyMediaIds = flMerged
     if (platforms.includes('onlyfans') && selectedListIds.length > 0) body.userLists = selectedListIds
+    return body
+  }
 
-    try {
-      const response = await fetch('/api/messages/mass', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+  const executeMassPost = async (body: MassPostBody) => {
+    const response = await fetch('/api/messages/mass', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await response.json()
+
+    if (response.ok && data.success !== false) {
+      setResults({
+        success: data.success !== false,
+        totalSent: data.totalSent ?? 0,
+        totalFailed: data.totalFailed ?? 0,
+        results: data.results ?? {},
       })
-      const data = await response.json()
+    } else {
+      setResults({
+        success: false,
+        totalSent: data.totalSent ?? 0,
+        totalFailed: 1,
+        results: {
+          request: { success: false, error: data.error || tm('composer.sendFailedGeneric') },
+        },
+      })
+    }
+  }
 
-      if (response.ok && data.success !== false) {
-        setResults({
-          success: data.success !== false,
-          totalSent: data.totalSent ?? 0,
-          totalFailed: data.totalFailed ?? 0,
-          results: data.results ?? {},
-        })
-      } else {
-        setResults({
-          success: false,
-          totalSent: data.totalSent ?? 0,
-          totalFailed: 1,
-          results: {
-            request: { success: false, error: data.error || 'Failed to send' },
+  const handleSend = async () => {
+    if (!message || platforms.length === 0) return
+
+    const body = buildMassPostBody()
+    const priceNum = price.trim() ? parseFloat(price) : undefined
+    const fanslyIds = Array.from(new Set([...fanslyUploadedIds, ...parseFanslyMediaIds()]))
+    const fanslyEffectiveMedia =
+      fanslyIds.length > 0
+        ? fanslyIds
+        : platforms.length === 1 && platforms[0] === 'fansly' && mediaIds.length > 0
+          ? mediaIds
+          : []
+    if (
+      platforms.includes('fansly') &&
+      typeof priceNum === 'number' &&
+      priceNum > 0 &&
+      fanslyEffectiveMedia.length === 0
+    ) {
+      setResults({
+        success: false,
+        totalSent: 0,
+        totalFailed: 1,
+        results: {
+          request: {
+            success: false,
+            error: tm('composer.paidFanslyValidation'),
           },
-        })
-      }
+        },
+      })
+      return
+    }
+
+    const needsFanslyTwofa =
+      platforms.includes('fansly') && typeof window !== 'undefined' && !isFanslyEmailTwofaGraceActive()
+
+    if (needsFanslyTwofa) {
+      pendingMassBodyRef.current = body
+      setFanslyTwofaOpen(true)
+      return
+    }
+
+    setIsSending(true)
+    setResults(null)
+    try {
+      await executeMassPost(body)
     } catch {
       setResults({
         success: false,
         totalSent: 0,
         totalFailed: platforms.length,
         results: {
-          request: { success: false, error: 'Network error' },
+          request: { success: false, error: tm('composer.networkError') },
         },
       })
+    } finally {
+      setIsSending(false)
     }
-    setIsSending(false)
   }
 
   const platformConfig: Record<string, { label: string; color: string }> = {
-    onlyfans: { label: 'OnlyFans', color: '#00AFF0' },
-    fansly: { label: 'Fansly', color: '#009FFF' },
+    onlyfans: { label: tm('audience.platformOnlyfans'), color: '#00AFF0' },
+    fansly: { label: tm('audience.platformFansly'), color: '#009FFF' },
   }
 
   const inner = (
-    <div className={`space-y-4 py-4 ${className ?? ''}`}>
+    <>
+    <div className={`space-y-6 py-4 ${className ?? ''}`}>
       <div className="space-y-2">
-        <Label>Message</Label>
+        <Label className="text-xs font-medium text-muted-foreground">{tm('composer.messageLabel')}</Label>
         <Textarea
-          placeholder="Type your message here..."
+          placeholder={tm('composer.messagePlaceholder')}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="min-h-32"
+          className="min-h-32 rounded-2xl border-border/50 bg-background/80 text-[15px] leading-relaxed"
         />
-        <p className="text-xs text-muted-foreground">{message.length} characters</p>
+        <p className="text-[11px] text-muted-foreground">{tm('composer.charCount', { count: message.length })}</p>
       </div>
 
-      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-        <p className="text-xs font-medium text-foreground">Optional: paid (PPV) content</p>
-        <p className="text-xs text-muted-foreground">
-          Attach media and/or set a price so fans pay to unlock this message. Leave price empty for a free message.
-        </p>
+      <div className="space-y-4 rounded-2xl border border-border/40 bg-muted/20 p-5">
+        <div>
+          <p className="text-sm font-light tracking-tight text-foreground">{tm('composer.ppvTitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tm('composer.ppvHint')}</p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -242,10 +332,10 @@ export function MassMessageComposer({
               type="number"
               min={0}
               step={0.01}
-              placeholder="Price (e.g. 4.99)"
+              placeholder={tm('composer.pricePlaceholder')}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-28"
+              className="h-9 w-28 rounded-xl border-border/50 bg-background/80"
             />
           </div>
           <input
@@ -260,36 +350,78 @@ export function MassMessageComposer({
             type="button"
             variant="outline"
             size="sm"
+            className="h-9 rounded-xl"
             disabled={uploading || !platforms.includes('onlyfans')}
             onClick={() => fileInputRef.current?.click()}
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-            {uploading ? 'Uploading…' : 'Attach media (OF)'}
+            {uploading ? tm('composer.uploadingOf') : tm('composer.attachOf')}
           </Button>
         </div>
         {mediaIds.length > 0 && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {mediaIds.map((id) => (
-              <Badge key={id} variant="secondary" className="gap-1">
+              <Badge key={id} variant="secondary" className="gap-1 rounded-full font-mono text-[10px] font-normal">
                 {id.slice(0, 8)}…
-                <button type="button" aria-label="Remove" onClick={() => setMediaIds((p) => p.filter((x) => x !== id))}>
+                <button type="button" aria-label={tm('composer.removeMediaAria')} onClick={() => setMediaIds((p) => p.filter((x) => x !== id))}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
           </div>
         )}
-        {!platforms.includes('onlyfans') && platforms.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Media upload is available when OnlyFans is selected. Fansly media can be added when supported.
-          </p>
+        {platforms.includes('fansly') && (
+          <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+            <input
+              ref={fanslyFileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={handleFanslyFileUpload}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl"
+                disabled={uploadingFansly}
+                onClick={() => fanslyFileInputRef.current?.click()}
+              >
+                {uploadingFansly ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {uploadingFansly ? tm('composer.uploadingFansly') : tm('composer.attachFansly')}
+              </Button>
+              {fanslyUploadedIds.map((id) => (
+                <Badge key={id} variant="secondary" className="gap-1 rounded-full font-mono text-[10px] font-normal">
+                  {id.slice(0, 10)}…
+                  <button type="button" aria-label={tm('composer.removeMediaAria')} onClick={() => setFanslyUploadedIds((p) => p.filter((x) => x !== id))}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-muted-foreground">{tm('composer.fanslyIdsLabel')}</Label>
+              <Input
+                value={fanslyMediaIdsText}
+                onChange={(e) => setFanslyMediaIdsText(e.target.value)}
+                placeholder={tm('composer.fanslyIdsPlaceholder')}
+                className="rounded-xl border-border/50 bg-background/80 font-mono text-xs"
+              />
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">{tm('composer.fanslyDualHint')}</p>
+          </div>
+        )}
+        {!platforms.includes('onlyfans') && platforms.length > 0 && !platforms.includes('fansly') && (
+          <p className="text-xs leading-relaxed text-muted-foreground">{tm('composer.ofOnlyMediaHint')}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label>Send to platforms</Label>
+        <Label>{t('sendToPlatforms')}</Label>
         {connectedPlatforms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No platforms connected. Connect your accounts first.</p>
+          <p className="text-sm text-muted-foreground">{t('noPlatformsConnected')}</p>
         ) : (
           <div className="space-y-2">
             {connectedPlatforms.map((platform) => {
@@ -321,33 +453,31 @@ export function MassMessageComposer({
       </div>
 
       <div className="space-y-2">
-        <Label>Send to</Label>
+        <Label>{t('sendTo')}</Label>
         <Select value={filter} onValueChange={(v: typeof filter) => setFilter(v)}>
-          <SelectTrigger>
+          <SelectTrigger className="rounded-xl border-border/50 bg-background/80">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                All Subscribers
+                {tm('composer.filterAll')}
               </div>
             </SelectItem>
-            <SelectItem value="active">Active Subscribers Only</SelectItem>
-            <SelectItem value="expired">Expired Subscribers Only</SelectItem>
-            <SelectItem value="renewing">Auto-Renewing Subscribers</SelectItem>
+            <SelectItem value="active">{tm('composer.filterActive')}</SelectItem>
+            <SelectItem value="expired">{tm('composer.filterExpired')}</SelectItem>
+            <SelectItem value="renewing">{tm('composer.filterRenewing')}</SelectItem>
           </SelectContent>
         </Select>
         {platforms.includes('onlyfans') && (
-          <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-            <p className="text-xs font-medium">OnlyFans user lists (optional)</p>
-            <p className="text-xs text-muted-foreground">
-              Target specific lists instead of the subscriber filter above. Leave empty to use the filter.
-            </p>
+          <div className="space-y-2 rounded-2xl border border-border/40 bg-muted/20 p-4">
+            <p className="text-xs font-medium text-foreground">{tm('composer.ofListsTitle')}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">{tm('composer.ofListsHint')}</p>
             {listsLoading ? (
-              <p className="text-xs text-muted-foreground">Loading lists…</p>
+              <p className="text-xs text-muted-foreground">{tm('composer.listsLoading')}</p>
             ) : ofUserLists.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No lists found. Create lists in OnlyFans or configure segments under Fans → Arrangements.</p>
+              <p className="text-xs text-muted-foreground">{t('noListsFound')}</p>
             ) : (
               <div className="max-h-36 space-y-2 overflow-y-auto">
                 {ofUserLists.map((l) => (
@@ -369,29 +499,37 @@ export function MassMessageComposer({
       </div>
 
       {results && (
-        <div className={`rounded-lg p-4 ${results.success ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
+        <div
+          className={`rounded-2xl border p-5 ${
+            results.success ? 'border-emerald-500/20 bg-emerald-500/[0.06]' : 'border-destructive/20 bg-destructive/[0.06]'
+          }`}
+        >
           <div className="mb-2 flex items-center gap-2">
             {results.success ? (
-              <Check className="h-5 w-5 text-green-500" />
+              <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             ) : (
               <AlertCircle className="h-5 w-5 text-destructive" />
             )}
-            <span className="font-medium">{results.success ? 'Messages Sent!' : 'Partial Success'}</span>
+            <span className="text-sm font-medium tracking-tight">
+              {results.success ? tm('composer.resultsTitleOk') : tm('composer.resultsTitlePartial')}
+            </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Sent to {results.totalSent} subscribers
-            {results.totalFailed > 0 && `, ${results.totalFailed} failed`}
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {tm('composer.resultsReach', { sent: results.totalSent })}
+            {results.totalFailed > 0 ? tm('composer.resultsFailedSuffix', { failed: results.totalFailed }) : ''}
           </p>
           {results.results &&
             Object.entries(results.results).map(([platform, result]) => (
-              <div key={platform} className="mt-2 flex items-center gap-2 text-sm">
+              <div key={platform} className="mt-3 flex items-center gap-2 text-sm">
                 {result.success ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 ) : (
                   <AlertCircle className="h-4 w-4 text-destructive" />
                 )}
                 <span className="capitalize">{platform}</span>
-                {result.sent && <span className="text-muted-foreground">({result.sent} sent)</span>}
+                {result.sent != null && result.sent > 0 ? (
+                  <span className="text-muted-foreground">({tm('composer.sentCountLabel', { count: result.sent })})</span>
+                ) : null}
                 {result.error && <span className="text-xs text-destructive">{result.error}</span>}
               </div>
             ))}
@@ -399,39 +537,65 @@ export function MassMessageComposer({
       )}
 
       <Button
-        className="w-full gap-2"
+        className="h-11 w-full gap-2 rounded-xl font-medium shadow-sm"
         onClick={handleSend}
         disabled={isSending || !message || platforms.length === 0}
-        style={{
-          background: platforms.length > 0 && message ? 'linear-gradient(135deg, #00AFF0, #009FFF)' : undefined,
-        }}
       >
         {isSending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Sending to {platforms.length} platform(s)...
+            {tm('composer.sendingStatus')}
           </>
         ) : (
           <>
             <Send className="h-4 w-4" />
-            Send to All ({platforms.length})
+            {tm('composer.sendCta', { count: platforms.length })}
           </>
         )}
       </Button>
     </div>
+
+    <FanslyEmailTwofaDialog
+      open={fanslyTwofaOpen}
+      onOpenChange={(open) => {
+        setFanslyTwofaOpen(open)
+        if (!open) pendingMassBodyRef.current = null
+      }}
+      onVerified={async () => {
+        const toSend = pendingMassBodyRef.current
+        if (!toSend) return
+        pendingMassBodyRef.current = null
+        setFanslyTwofaOpen(false)
+        setIsSending(true)
+        setResults(null)
+        try {
+          await executeMassPost(toSend)
+        } catch {
+          setResults({
+            success: false,
+            totalSent: 0,
+            totalFailed: toSend.platforms.length,
+            results: {
+              request: { success: false, error: tm('composer.networkError') },
+            },
+          })
+        } finally {
+          setIsSending(false)
+        }
+      }}
+    />
+    </>
   )
 
   if (embedded) {
     return (
       <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
-        <div className="mb-2">
-          <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <Megaphone className="h-5 w-5" />
-            Send mass message
+        <div className="mb-6 space-y-2 border-b border-border/30 pb-6">
+          <h3 className="flex items-center gap-2 text-xl font-light tracking-tight">
+            <Megaphone className="h-5 w-5 text-muted-foreground" />
+            {tm('embedded.title')}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            OnlyFans and Fansly support paid (PPV) content: attach media and set a price so fans pay to unlock.
-          </p>
+          <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{tm('embedded.subtitle')}</p>
         </div>
         {inner}
       </div>

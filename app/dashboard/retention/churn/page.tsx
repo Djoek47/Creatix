@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,12 +15,29 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, RadioTower, Sparkles, BarChart3, Bell, ListTodo, Calendar, ScanLine } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
+import { Loader2, RadioTower, BarChart3, Bell, ListTodo, ScanLine, Coins, CalendarDays, AlertCircle } from 'lucide-react'
 import type { CirceChurnSettingsRow } from '@/lib/circe-churn/run-for-user'
+import { AiToolMarkdownReadout } from '@/components/ai/ai-tool-markdown-readout'
+
+const surfaceCard =
+  'rounded-2xl border border-border/35 bg-card/60 shadow-none backdrop-blur-sm dark:border-border/25 dark:bg-card/45'
+const insetFieldGroup =
+  'rounded-2xl border border-border/25 bg-muted/[0.04] p-5 sm:p-6 dark:bg-muted/[0.07]'
+const sectionKicker = 'text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/75'
+const sectionHeading = 'text-lg font-semibold tracking-tight text-foreground sm:text-xl'
+const sectionSub = 'mt-2 max-w-prose text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]'
+const blockHeading = 'text-[15px] font-semibold tracking-tight text-foreground'
+const blockSub = 'mt-1.5 max-w-prose text-[13px] leading-relaxed text-muted-foreground'
+const labelClass = 'text-[13px] font-medium text-foreground/90'
 
 export default function ChurnPredictorHubPage() {
+  const t = useTranslations('retention-churn')
+  const { wallet, loading: creditsLoading, refresh: refreshCredits } = useCreditSnapshot()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,8 +55,6 @@ export default function ChurnPredictorHubPage() {
   const [creditsPerRun, setCreditsPerRun] = useState(2)
   const [linkMgr, setLinkMgr] = useState(true)
   const [linkProto, setLinkProto] = useState(true)
-  const [teaseFutureContent, setTeaseFutureContent] = useState(true)
-  const [calendarTeaserNotes, setCalendarTeaserNotes] = useState('')
 
   const [scanning, setScanning] = useState(false)
 
@@ -54,7 +70,7 @@ export default function ChurnPredictorHubPage() {
       const res = await fetch('/api/circe-churn/settings')
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Could not load settings')
+        setError(typeof data.error === 'string' ? data.error : t('errors.loadSettings'))
         return
       }
       const s = data.settings as CirceChurnSettingsRow & {
@@ -73,30 +89,20 @@ export default function ChurnPredictorHubPage() {
       setCreditsPerRun(s.credits_per_run ?? 2)
       setLinkMgr(s.link_divine_manager_tasks !== false)
       setLinkProto(s.link_protocol_tasks !== false)
-      setTeaseFutureContent(s.tease_future_content !== false)
-      setCalendarTeaserNotes(s.calendar_teaser_notes?.trim() ? String(s.calendar_teaser_notes) : '')
       setLastRunAt(s.last_run_at)
       setLastError(s.last_run_error)
       setDigest(s.last_digest_markdown ?? null)
       setDigestAt(s.last_digest_at ?? null)
     } catch {
-      setError('Could not load settings')
+      setError(t('errors.loadSettings'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void load()
   }, [load])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.location.hash !== '#future-tease') return
-    requestAnimationFrame(() => {
-      document.getElementById('future-tease')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [])
 
   const save = async () => {
     setSaving(true)
@@ -119,13 +125,23 @@ export default function ChurnPredictorHubPage() {
           credits_per_run: creditsPerRun,
           link_divine_manager_tasks: linkMgr,
           link_protocol_tasks: linkProto,
-          tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
         }),
       })
       const data = await res.json().catch(() => ({}))
+      if (res.status === 402) {
+        const payload = data as { used?: number; limit?: number }
+        const perRun = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+        openCreditInsufficientModal({
+          requiredCredits: perRun,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: t('creditContextSettings'),
+        })
+        await refreshCredits()
+        return
+      }
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Save failed')
+        setError(typeof data.error === 'string' ? data.error : t('errors.saveFailed'))
         return
       }
       const s = data.settings as CirceChurnSettingsRow & { last_digest_markdown?: string | null }
@@ -134,7 +150,7 @@ export default function ChurnPredictorHubPage() {
       setDigest(s.last_digest_markdown ?? null)
       setSavedAt(new Date().toLocaleTimeString())
     } catch {
-      setError('Save failed')
+      setError(t('errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -144,32 +160,28 @@ export default function ChurnPredictorHubPage() {
     setScanning(true)
     setError(null)
     try {
-      const saveFirst = await fetch('/api/circe-churn/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tease_future_content: teaseFutureContent,
-          calendar_teaser_notes: calendarTeaserNotes.trim() || null,
-        }),
-      })
-      if (!saveFirst.ok) {
-        const data = await saveFirst.json().catch(() => ({}))
-        setError(typeof data.error === 'string' ? data.error : 'Could not save teaser settings')
-        return
-      }
       const res = await fetch('/api/circe-churn/run', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (res.status === 402) {
-        setError(typeof data.error === 'string' ? data.error : 'Insufficient AI credits')
+        const payload = data as { used?: number; limit?: number }
+        const cost = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+        openCreditInsufficientModal({
+          requiredCredits: cost,
+          used: typeof payload.used === 'number' ? payload.used : undefined,
+          limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+          contextLabel: t('creditContextScan'),
+        })
+        await refreshCredits()
         return
       }
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Scan failed')
+        setError(typeof data.error === 'string' ? data.error : t('errors.scanFailed'))
         return
       }
       await load()
+      await refreshCredits()
     } catch {
-      setError('Scan failed')
+      setError(t('errors.scanFailed'))
     } finally {
       setScanning(false)
     }
@@ -177,290 +189,484 @@ export default function ChurnPredictorHubPage() {
 
   const hourOptions = Array.from({ length: 24 }, (_, i) => i)
 
+  const scanCreditCost = Math.min(10, Math.max(1, Math.round(Number(creditsPerRun) || 2)))
+  const creditsRemaining = wallet?.totalRemaining ?? 0
+  const canAffordScan = !creditsLoading && creditsRemaining >= scanCreditCost
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="h-7 w-7 animate-spin opacity-80" aria-hidden />
+        <p className="text-[13px] tracking-wide text-muted-foreground/90">{t('loading')}</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-10">
-      <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/50 via-background to-fuchsia-950/30 p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-200/90">
-              <Sparkles className="h-3 w-3 text-amber-300/90" />
-              Pro · background job · same credit model as manual runs
+    <div className="mx-auto max-w-2xl space-y-10 pb-16 pt-1 sm:space-y-12 sm:pb-20">
+      <header className="space-y-8">
+        <div className="flex flex-col gap-10 sm:flex-row sm:items-end sm:justify-between sm:gap-14">
+          <div className="max-w-md space-y-6">
+            <p className={sectionKicker}>{t('header.kicker')}</p>
+            <div className="space-y-4">
+              <h1 className="text-balance font-sans text-[32px] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-[36px]">
+                {t('header.title')}
+              </h1>
+              <p className="text-pretty text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
+                {t('header.subtitle')}
+              </p>
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Churn Predictor</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              While you are offline, Circe scans CRM fans whose subscriptions are ending soon or who have gone quiet in
-              DMs. She batches them into one retention digest: likely reasons they drift, treats (including ideas to
-              unlock or gift past PPV), and draft messages—plus Divine notifications when a run completes.
-            </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              type="button"
-              className="shrink-0 bg-violet-600 text-white hover:bg-violet-500"
-              disabled={scanning}
-              onClick={() => void runScanNow()}
-            >
-              {scanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanLine className="mr-2 h-4 w-4" />}
-              Scan now
-            </Button>
-            <Button asChild variant="secondary" className="shrink-0 border border-white/10">
-              <Link href="/dashboard/ai-studio/tools/churn-predictor">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Deep dive one fan
-              </Link>
-            </Button>
+          <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:items-stretch">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-end">
+              <div className="flex flex-col gap-2 sm:items-end">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 rounded-xl px-7 text-[15px] font-medium shadow-sm"
+                  disabled={scanning || creditsLoading || !canAffordScan}
+                  onClick={() => void runScanNow()}
+                  title={
+                    !canAffordScan && !creditsLoading
+                      ? t('scanNow.titleInsufficient', { cost: scanCreditCost, remaining: creditsRemaining })
+                      : t('scanNow.titleSufficient', { cost: scanCreditCost })
+                  }
+                >
+                  {scanning ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanLine className="mr-2 h-4 w-4 opacity-90" strokeWidth={2} />
+                  )}
+                  {t('scanNow.button')}
+                </Button>
+                <p className="flex max-w-[16rem] items-start gap-2 text-[12px] leading-snug text-muted-foreground sm:text-right">
+                  <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                  <span>
+                    {creditsLoading ? (
+                      t('scanNow.balanceLoading')
+                    ) : (
+                      <>
+                        {t('scanNow.balanceLeft', { remaining: creditsRemaining, cost: scanCreditCost })}{' '}
+                        {!canAffordScan ? (
+                          <Link
+                            href="/dashboard/settings?tab=billing"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            {t('scanNow.addCredits')}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground/85">{t('scanNow.noneIfEmpty')}</span>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </p>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 rounded-xl border-border/50 bg-background/50 px-6 text-[15px] font-medium shadow-none backdrop-blur-sm"
+              >
+                <Link href="/dashboard/ai-studio/tools/churn-predictor">
+                  <BarChart3 className="mr-2 h-4 w-4 opacity-70" strokeWidth={2} />
+                  {t('oneFan')}
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
+        <div
+          role="alert"
+          className={cn(
+            'flex gap-4 rounded-2xl border border-border/40 bg-muted/[0.15] px-5 py-4 backdrop-blur-[2px]',
+            'dark:border-white/[0.08] dark:bg-white/[0.04]',
+          )}
+        >
+          <span
+            className="mt-0.5 flex h-[2.875rem] w-[3px] shrink-0 rounded-full bg-gradient-to-b from-amber-500/90 to-amber-600/70 dark:from-amber-400/75 dark:to-amber-500/55"
+            aria-hidden
+          />
+          <div className="flex min-w-0 flex-1 gap-3">
+            <AlertCircle
+              className="mt-[1px] h-[17px] w-[17px] shrink-0 text-amber-600/85 dark:text-amber-400/70"
+              strokeWidth={1.85}
+              aria-hidden
+            />
+            <p className="min-w-0 text-[14px] leading-[1.55] tracking-[-0.015em] text-foreground/[0.92]">{error}</p>
+          </div>
         </div>
       ) : null}
 
-      <section id="future-tease">
-        <Card className="border-border border-amber-500/15 bg-amber-500/[0.03]">
-          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <div className="rounded-lg bg-amber-500/15 p-2">
-              <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardContent className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-muted/[0.08]">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
             </div>
-            <div className="flex-1 space-y-1">
-              <CardTitle className="text-lg">Future content &amp; calendar teases</CardTitle>
-              <CardDescription>
-                For fans at risk of churning, batch digests can include teaser lines (feed, story, DM) and calendar-style
-                hints — pair with your real schedule so Circe does not invent drops.
-              </CardDescription>
+            <div className="min-w-0 space-y-1">
+              <p className="text-[14px] font-semibold text-foreground">{t('calendarCard.title')}</p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{t('calendarCard.body')}</p>
             </div>
-            <Switch
-              checked={teaseFutureContent}
-              onCheckedChange={setTeaseFutureContent}
-              aria-label="Include future content teasers in digest"
-            />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="cal-notes">Upcoming drops &amp; calendar (optional)</Label>
-              <Textarea
-                id="cal-notes"
-                placeholder="e.g. Fri: themed set · Sun evening live · next week: collab — anything you want teasers to align with"
-                value={calendarTeaserNotes}
-                onChange={(e) => setCalendarTeaserNotes(e.target.value.slice(0, 4000))}
-                className="min-h-[100px] resize-y"
-                disabled={!teaseFutureContent}
-              />
-              <p className="text-xs text-muted-foreground">
-                Saved with <span className="font-medium text-foreground">Save</span> below, or automatically when you
-                press Scan now.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <RadioTower className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1">
-            <CardTitle className="text-lg">Background radar</CardTitle>
-            <CardDescription>
-              Hourly cron checks your UTC slot; daily/weekly cadence controls how often a run actually fires. Each run
-              charges <span className="font-medium text-foreground">{creditsPerRun} AI credits</span> when fans match
-              your rules (same family as the 2-credit manual Churn Predictor).
-            </CardDescription>
-          </div>
-          <Switch checked={enabled} onCheckedChange={setEnabled} aria-label="Churn background enabled" />
-        </CardHeader>
+          <Button asChild variant="outline" className="h-10 shrink-0 rounded-xl px-4">
+            <Link href="/dashboard/retention/tease">{t('calendarCard.linkTease')}</Link>
+          </Button>
+        </CardContent>
       </Card>
 
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Schedule &amp; rules</CardTitle>
-          <CardDescription>Who gets picked: expiring subscriptions and/or unusually quiet active subs.</CardDescription>
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="space-y-0 border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+          <div className="flex flex-row items-start gap-4">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+              <RadioTower className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                  {t('autoScans.title')}
+                </CardTitle>
+                <Switch
+                  checked={enabled}
+                  disabled={creditsLoading}
+                  onCheckedChange={(v) => {
+                    if (v && !canAffordScan) {
+                      setError(t('errors.needCreditsBeforeAuto', { cost: scanCreditCost, remaining: creditsRemaining }))
+                      return
+                    }
+                    setEnabled(v)
+                  }}
+                  aria-label={t('autoScans.switchAria')}
+                  className="mt-0.5 shrink-0 data-[state=checked]:shadow-sm"
+                />
+              </div>
+              <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground sm:text-[14px]">
+                {t('autoScans.description', {
+                  credits: creditsPerRun,
+                  creditsLabel: creditsPerRun === 1 ? t('autoScans.credit') : t('autoScans.credits'),
+                  fansPerRun: t('autoScans.fansPerRunHighlight'),
+                })}
+              </p>
+              {!creditsLoading && !canAffordScan ? (
+                <div
+                  className={cn(
+                    'rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-4 py-3 text-[13px] leading-snug text-amber-950 dark:border-amber-400/25 dark:bg-amber-500/[0.07] dark:text-amber-100/95',
+                  )}
+                  role="status"
+                >
+                  {t('autoScans.lowCreditsLead', { remaining: creditsRemaining, cost: scanCreditCost })}
+                  <Link href="/dashboard/settings?tab=billing" className="font-medium underline underline-offset-2">
+                    {t('autoScans.lowCreditsBilling')}
+                  </Link>
+                  {t('autoScans.lowCreditsTail')}
+                </div>
+              ) : !creditsLoading ? (
+                <p className="text-[12px] tabular-nums text-muted-foreground/85">
+                  {t('autoScans.balanceLine', { remaining: creditsRemaining })}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Cadence</Label>
-              <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="off">Off</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-5 px-6 pb-7 pt-6 sm:px-8">
+          <div className={insetFieldGroup}>
+            <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/75">
+                  {t('autoScans.recurrenceKicker')}
+                </p>
+                <p className="mt-1 text-[12px] text-muted-foreground/88">{t('autoScans.recurrenceHint')}</p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Run hour (UTC)</Label>
-              <Select
-                value={String(runHourUtc)}
-                onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {hourOptions.map((h) => (
-                    <SelectItem key={h} value={String(h)}>
-                      {h.toString().padStart(2, '0')}:00 UTC
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="exp-d">Flag subs ending within (days)</Label>
-              <Input
-                id="exp-d"
-                type="number"
-                min={1}
-                max={90}
-                value={expiringWithinDays}
-                onChange={(e) => setExpiringWithinDays(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="stale-d">&quot;Quiet&quot; = no DM this many days</Label>
-              <Input
-                id="stale-d"
-                type="number"
-                min={3}
-                max={60}
-                value={staleDays}
-                onChange={(e) => setStaleDays(Number(e.target.value))}
-              />
+            <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
+              <div className="space-y-2">
+                <Label htmlFor="churn-cadence-auto" className={labelClass}>
+                  {t('autoScans.frequency')}
+                </Label>
+                <Select value={runCadence} onValueChange={(v) => setRunCadence(v as 'off' | 'daily' | 'weekly')}>
+                  <SelectTrigger id="churn-cadence-auto" className="h-11 rounded-xl border-border/40 bg-background/60 text-[14px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">{t('autoScans.cadenceOff')}</SelectItem>
+                    <SelectItem value="daily">{t('autoScans.cadenceDaily')}</SelectItem>
+                    <SelectItem value="weekly">{t('autoScans.cadenceWeekly')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="churn-hour-auto" className={labelClass}>
+                  {t('autoScans.hourUtc')}
+                </Label>
+                <Select value={String(runHourUtc)} onValueChange={(v) => setRunHourUtc(Number.parseInt(v, 10))}>
+                  <SelectTrigger
+                    id="churn-hour-auto"
+                    className="h-11 rounded-xl border-border/40 bg-background/60 text-[14px] tabular-nums"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {hourOptions.map((h) => (
+                      <SelectItem key={h} value={String(h)}>
+                        {t('autoScans.hourOption', { hour: h.toString().padStart(2, '0') })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
+          <p className="text-[12px] leading-relaxed text-muted-foreground/80">{t('autoScans.weeklyFootnote')}</p>
+        </CardContent>
+      </Card>
 
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="stale-include"
-              checked={includeStale}
-              onCheckedChange={(v) => setIncludeStale(v === true)}
-            />
-            <label htmlFor="stale-include" className="text-sm text-muted-foreground leading-snug cursor-pointer">
-              Include active subs who are quiet (not only expiring). Turn off to only watch renewal windows.
-            </label>
-          </div>
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="space-y-3 border-b border-border/25 px-6 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8">
+          <p className={sectionKicker}>{t('config.kicker')}</p>
+          <CardTitle className={`${sectionHeading} font-sans`}>{t('config.title')}</CardTitle>
+          <CardDescription className={`${sectionSub} !mt-3 max-w-none`}>{t('config.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-0 px-6 pb-8 pt-8 sm:px-8 sm:pb-10 sm:pt-10">
+          {/* Who qualifies */}
+          <section className="space-y-6 pb-12 sm:pb-14" aria-labelledby="churn-who-heading">
+            <div>
+              <h2 id="churn-who-heading" className={blockHeading}>
+                {t('config.whoHeading')}
+              </h2>
+              <p className={blockSub}>{t('config.whoSub')}</p>
+            </div>
+            <div className={insetFieldGroup}>
+              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+                <div className="space-y-2">
+                  <Label htmlFor="exp-d" className={labelClass}>
+                    {t('config.renewalWindow')}
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.renewalHint')}</p>
+                  <Input
+                    id="exp-d"
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={expiringWithinDays}
+                    onChange={(e) => setExpiringWithinDays(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stale-d" className={labelClass}>
+                    {t('config.quietSubscriber')}
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.quietHint')}</p>
+                  <Input
+                    id="stale-d"
+                    type="number"
+                    min={3}
+                    max={60}
+                    value={staleDays}
+                    onChange={(e) => setStaleDays(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+              </div>
+              <div className="mt-8 flex gap-4 rounded-xl border border-border/25 bg-background/40 px-4 py-4 dark:bg-background/20">
+                <Checkbox
+                  id="stale-include"
+                  className="mt-0.5 border-border/50"
+                  checked={includeStale}
+                  onCheckedChange={(v) => setIncludeStale(v === true)}
+                />
+                <div className="min-w-0">
+                  <label htmlFor="stale-include" className="cursor-pointer text-[14px] font-medium text-foreground">
+                    {t('config.includeQuietLabel')}
+                  </label>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{t('config.includeQuietHelp')}</p>
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="max-f">Max fans per batch</Label>
-              <Input
-                id="max-f"
-                type="number"
-                min={1}
-                max={25}
-                value={maxFans}
-                onChange={(e) => setMaxFans(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="credits">Credits per run</Label>
-              <Input
-                id="credits"
-                type="number"
-                min={1}
-                max={10}
-                value={creditsPerRun}
-                onChange={(e) => setCreditsPerRun(Number(e.target.value))}
-              />
-            </div>
-          </div>
+          <div className="h-px bg-border/30" aria-hidden />
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-3">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Notifications</span>
+          {/* Batch size & credits */}
+          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-batch-heading">
+            <div>
+              <h2 id="churn-batch-heading" className={blockHeading}>
+                {t('config.batchHeading')}
+              </h2>
+              <p className={blockSub}>
+                {t('config.batchSub', { fansPerRun: t('config.fansPerRun') })}
+              </p>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Digest ready (Divine tab)</span>
-              <Switch checked={notifySummary} onCheckedChange={setNotifySummary} />
+            <div className={insetFieldGroup}>
+              <div className="grid gap-8 sm:grid-cols-2 sm:gap-10">
+                <div className="space-y-2">
+                  <Label htmlFor="max-f" className={labelClass}>
+                    {t('config.fansPerRun')}
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.fansPerRunHint')}</p>
+                  <Input
+                    id="max-f"
+                    type="number"
+                    min={1}
+                    max={25}
+                    value={maxFans}
+                    onChange={(e) => setMaxFans(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credits" className={labelClass}>
+                    {t('config.creditsPerMatch')}
+                  </Label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground/85">{t('config.creditsPerMatchHint')}</p>
+                  <Input
+                    id="credits"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={creditsPerRun}
+                    onChange={(e) => setCreditsPerRun(Number(e.target.value))}
+                    className="h-11 rounded-xl border-border/40 text-[14px] tabular-nums"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Ping when no one matched (empty run)</span>
-              <Switch checked={notifyEmpty} onCheckedChange={setNotifyEmpty} />
-            </div>
-          </div>
+          </section>
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-violet-500/[0.06] p-3">
-            <div className="flex items-center gap-2">
-              <ListTodo className="h-4 w-4 text-violet-500" />
-              <span className="text-sm font-medium">Divine Manager &amp; protocol</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Each batch can add a <span className="font-medium text-foreground">suggested manager task</span> (type{' '}
-              <code className="rounded bg-muted px-1">churn_retention_digest</code>) and a{' '}
-              <span className="font-medium text-foreground">protocol to-do</span> on the floating rail — same paths as
-              whale tips and other Divine automations.
-            </p>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Create Divine Manager suggestion</span>
-              <Switch checked={linkMgr} onCheckedChange={setLinkMgr} />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Create protocol task</span>
-              <Switch checked={linkProto} onCheckedChange={setLinkProto} />
-            </div>
-            <Button variant="link" className="h-auto justify-start p-0 text-xs" asChild>
-              <Link href="/dashboard/divine-manager">Open Divine Manager</Link>
-            </Button>
-          </div>
+          <div className="h-px bg-border/30" aria-hidden />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => void save()} disabled={saving}>
+          {/* Notifications */}
+          <section className="space-y-6 py-12 sm:py-14" aria-labelledby="churn-notify-heading">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+                <Bell className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
+              </div>
+              <div>
+                <h2 id="churn-notify-heading" className={blockHeading}>
+                  {t('notifications.heading')}
+                </h2>
+                <p className={`${blockSub} !mt-2`}>{t('notifications.sub')}</p>
+              </div>
+            </div>
+            <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">{t('notifications.runReadyTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('notifications.runReadyDesc')}</p>
+                </div>
+                <Switch
+                  checked={notifySummary}
+                  onCheckedChange={setNotifySummary}
+                  aria-label={t('notifications.runReadyAria')}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">{t('notifications.emptyTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('notifications.emptyDesc')}</p>
+                </div>
+                <Switch checked={notifyEmpty} onCheckedChange={setNotifyEmpty} aria-label={t('notifications.emptyAria')} />
+              </div>
+            </div>
+          </section>
+
+          <div className="h-px bg-border/30" aria-hidden />
+
+          {/* Follow-ups */}
+          <section className="space-y-6 py-12 sm:pb-10 sm:pt-14" aria-labelledby="churn-followups-heading">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-muted/[0.08]">
+                <ListTodo className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
+              </div>
+              <div>
+                <h2 id="churn-followups-heading" className={blockHeading}>
+                  {t('followUps.heading')}
+                </h2>
+                <p className={`${blockSub} !mt-2`}>{t('followUps.sub')}</p>
+              </div>
+            </div>
+            <div className="divide-y divide-border/25 overflow-hidden rounded-2xl border border-border/25 bg-muted/[0.04] dark:bg-muted/[0.06]">
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">{t('followUps.managerTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('followUps.managerDesc')}</p>
+                </div>
+                <Switch checked={linkMgr} onCheckedChange={setLinkMgr} aria-label={t('followUps.managerAria')} />
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5 sm:py-4">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[14px] font-medium text-foreground">{t('followUps.protocolTitle')}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{t('followUps.protocolDesc')}</p>
+                </div>
+                <Switch checked={linkProto} onCheckedChange={setLinkProto} aria-label={t('followUps.protocolAria')} />
+              </div>
+            </div>
+            <Link
+              href="/dashboard/divine-manager"
+              className="inline-flex text-[14px] font-medium text-foreground underline-offset-[5px] transition hover:underline"
+            >
+              {t('followUps.openManager')}
+            </Link>
+          </section>
+
+          <div className="flex flex-col gap-4 border-t border-border/25 pt-10 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving}
+              className="h-12 rounded-xl px-8 text-[15px] font-medium shadow-sm"
+            >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save
+              {t('save.button')}
             </Button>
-            {savedAt ? <span className="text-xs text-muted-foreground">Saved {savedAt}</span> : null}
+            {savedAt ? (
+              <span className="text-[13px] tabular-nums text-muted-foreground">{t('save.savedAt', { time: savedAt })}</span>
+            ) : (
+              <span className="text-[13px] text-muted-foreground/80">{t('save.unsavedHint')}</span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Last run</CardTitle>
-          <CardDescription>
-            {lastRunAt ? `Completed ${new Date(lastRunAt).toLocaleString()}` : 'No background run yet.'}
+      <Card className={cn(surfaceCard, 'overflow-hidden')}>
+        <CardHeader className="border-b border-border/25 px-6 py-6 sm:px-8 sm:py-7">
+          <p className={sectionKicker}>{t('history.kicker')}</p>
+          <CardTitle className="mt-2 font-sans text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {t('history.title')}
+          </CardTitle>
+          <CardDescription className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+            {lastRunAt
+              ? t('history.completedAt', { datetime: new Date(lastRunAt).toLocaleString() })
+              : t('history.noAutoRunYet')}
             {lastError ? (
-              <span className="mt-1 block text-destructive">Error: {lastError}</span>
+              <span className="mt-2 block text-[13px] text-destructive">
+                {t('history.errorPrefix')} {lastError}
+              </span>
             ) : null}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 py-6 sm:px-8 sm:py-7">
           {digest ? (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                {digestAt ? `Digest ${new Date(digestAt).toLocaleString()}` : 'Latest digest'}
+            <div className="space-y-3">
+              <p className="text-[12px] tabular-nums text-muted-foreground">
+                {digestAt
+                  ? t('history.digestTimestamp', { datetime: new Date(digestAt).toLocaleString() })
+                  : t('history.latestOutput')}
               </p>
-              <div className="max-h-[480px] overflow-y-auto rounded-lg border border-border bg-muted/20 p-4">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">{digest}</pre>
+              <div className="max-h-[480px] overflow-y-auto rounded-xl border border-border/35 bg-muted/[0.06] p-5 dark:bg-muted/[0.08]">
+                <AiToolMarkdownReadout content={digest} variant="circeRetention" className="text-[13px]" />
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              No digest yet. When background churn runs on your schedule, the latest batch report will show here. Sync
-              OnlyFans or Fansly from{' '}
-              <Link href="/dashboard/fans" className="text-circe underline-offset-4 hover:underline">
-                Fans
-              </Link>{' '}
-              so subscription end dates and spend match the platform.
+            <p className="text-[14px] leading-relaxed text-muted-foreground">
+              {t('history.emptyDigestLead')}
+              <Link href="/dashboard/fans" className="font-medium text-foreground underline-offset-4 hover:underline">
+                {t('history.emptyDigestFans')}
+              </Link>
+              {t('history.emptyDigestTail')}
             </p>
           )}
         </CardContent>

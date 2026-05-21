@@ -1,23 +1,59 @@
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
-import { buildPricingMetaDescription, buildPricingSoftwareOfferGraph } from '@/lib/seo/pricing-seo'
+import { SEO_PRIMARY_LOCALE } from '@/lib/seo-public-paths'
+import { buildPricingSoftwareOfferGraph, type PricingSoftwareOfferCopy } from '@/lib/seo/pricing-seo'
 
 type FaqItem = { question: string; answer: string }
 
-export function PricingJsonLd({ faqs }: { faqs: FaqItem[] }) {
-  const base = getAppUrl()
-  const url = getCanonicalUrl('/pricing')
-  const description = buildPricingMetaDescription()
+type Props = {
+  faqs: FaqItem[]
+  pageTitle: string
+  pageDescription: string
+  softwareOfferCopy: PricingSoftwareOfferCopy
+  /** Locale-prefixed path, e.g. `/en/pricing` — must match page canonical. */
+  canonicalPathname: string
+}
 
-  const graph = [
+export function PricingJsonLd({
+  faqs,
+  pageTitle,
+  pageDescription,
+  softwareOfferCopy,
+  canonicalPathname,
+}: Props) {
+  const base = getAppUrl()
+  const url = getCanonicalUrl(canonicalPathname)
+  const localeSeg = canonicalPathname.split('/').filter(Boolean)[0] ?? SEO_PRIMARY_LOCALE
+  const homeUrl = getCanonicalUrl(`/${localeSeg}`)
+
+  const graph: Record<string, unknown>[] = [
     {
       '@type': 'WebPage',
       '@id': `${url}#webpage`,
       url,
-      name: 'Pricing | Circe et Venus',
-      description,
+      name: pageTitle,
+      description: pageDescription,
       isPartOf: { '@type': 'WebSite', '@id': `${base}/#website`, url: base },
+      breadcrumb: { '@id': `${url}#breadcrumb` },
     },
-    ...buildPricingSoftwareOfferGraph(url),
+    {
+      '@type': 'BreadcrumbList',
+      '@id': `${url}#breadcrumb`,
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Home',
+          item: homeUrl,
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Pricing',
+          item: url,
+        },
+      ],
+    },
+    ...buildPricingSoftwareOfferGraph(url, softwareOfferCopy),
     {
       '@type': 'FAQPage',
       '@id': `${url}#faq`,

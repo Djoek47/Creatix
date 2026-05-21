@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +24,8 @@ type CreatorMoodResult = {
 }
 
 export function CreatorMoodPulse() {
+  const tMood = useTranslations('wellbeing.mood')
+  const tPulse = useTranslations('wellbeing.creatorMoodPulse')
   const [energy, setEnergy] = useState([3])
   const [stress, setStress] = useState([3])
   const [focus, setFocus] = useState([3])
@@ -59,7 +62,7 @@ export function CreatorMoodPulse() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError((data as { error?: string }).error || 'Check-in failed')
+        setError((data as { error?: string }).error || tPulse('checkInFailed'))
         return
       }
       setResult(data as CreatorMoodResult)
@@ -75,16 +78,13 @@ export function CreatorMoodPulse() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4 text-venus" />
-          Mood pulse (constellation check-in)
+          {tPulse('title')}
         </CardTitle>
-        <CardDescription>
-          A quick non-clinical game: pick up to three emojis, slide your energy, add a line if you want—then get a
-          grounded ritual for the next hour.
-        </CardDescription>
+        <CardDescription>{tPulse('description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Constellation — tap up to 3</Label>
+          <Label className="text-xs text-muted-foreground">{tMood('constellationLabel')}</Label>
           <div className="flex flex-wrap gap-2">
             {CONSTELLATION.map((e) => (
               <button
@@ -108,21 +108,21 @@ export function CreatorMoodPulse() {
         <div className="grid gap-6 sm:grid-cols-3">
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span>Energy</span>
+              <span>{tMood('energy')}</span>
               <span className="text-muted-foreground">{energy[0]}/5</span>
             </div>
             <Slider value={energy} min={1} max={5} step={1} onValueChange={setEnergy} />
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span>Stress</span>
+              <span>{tMood('stress')}</span>
               <span className="text-muted-foreground">{stress[0]}/5</span>
             </div>
             <Slider value={stress} min={1} max={5} step={1} onValueChange={setStress} />
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span>Focus</span>
+              <span>{tMood('focus')}</span>
               <span className="text-muted-foreground">{focus[0]}/5</span>
             </div>
             <Slider value={focus} min={1} max={5} step={1} onValueChange={setFocus} />
@@ -131,7 +131,7 @@ export function CreatorMoodPulse() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>One line (optional)</Label>
+            <Label>{tMood('oneLineOptional')}</Label>
             <VoiceInputButton
               onTranscript={(text) => setMicroStory((prev) => prev + (prev ? ' ' : '') + text)}
               size="sm"
@@ -139,7 +139,7 @@ export function CreatorMoodPulse() {
             />
           </div>
           <Textarea
-            placeholder="What’s alive for you right now—one sentence is enough."
+            placeholder={tPulse('microPlaceholder')}
             value={microStory}
             onChange={(e) => setMicroStory(e.target.value)}
             className="min-h-[72px] resize-none"
@@ -152,12 +152,12 @@ export function CreatorMoodPulse() {
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Reading the pulse…
+              {tPulse('readingPulse')}
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4" />
-              Get my ritual
+              {tPulse('getRitual')}
             </>
           )}
         </Button>
@@ -180,7 +180,7 @@ export function CreatorMoodPulse() {
               </ul>
             </div>
             <div className="rounded-md bg-muted/40 p-3 text-sm">
-              <span className="font-medium">Next hour: </span>
+              <span className="font-medium">{tPulse('nextHourPrefix')} </span>
               {result.nextHourRitual}
             </div>
           </div>

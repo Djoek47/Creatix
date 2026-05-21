@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "homeAria": "Circe et Venus home"
+  },
+  "hero": {
+    "kicker": "Company",
+    "title": "About",
+    "lead": "We build one calm workspace for serious creators — messages, fans, AI tools, and protection — with voice-first control when you want it."
+  },
+  "mission": {
+    "title": "Mission",
+    "p1": "Tools that used to sit behind agencies should sit behind you. We ship software that respects your time, your data, and the way you already work.",
+    "p2": "Circe stands for retention and depth. Venus stands for growth and reach. Together they describe one product, not two products bolted together."
+  },
+  "dual": {
+    "circeTitle": "Circe",
+    "circeBody": "Retention, rhythm, and protection — fewer leaks in the hull, fewer fires in the inbox.",
+    "venusTitle": "Venus",
+    "venusBody": "Growth and presentation — clearer offers, cleaner surfaces, more room to scale."
+  },
+  "values": {
+    "title": "Principles",
+    "oneTitle": "Privacy by default",
+    "oneBody": "Your accounts and content stay yours. We design for least exposure and clear controls.",
+    "twoTitle": "Craft over noise",
+    "twoBody": "Every surface earns its pixels. No clutter, no dark patterns, no toy dashboards.",
+    "threeTitle": "Human in the loop",
+    "threeBody": "AI assists; you decide. Voice and text stay aligned with how you actually operate."
+  },
+  "closing": {
+    "line": "Built by people who ship product and understand the work on the other side of the screen."
+  },
+  "cta": {
+    "title": "Start",
+    "subtitle": "Trial on the site. Billing and plans live in Settings when you are ready.",
+    "primary": "Create account",
+    "secondary": "Contact"
+  },
+  "footer": {
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "cookies": "Cookies",
+    "contact": "Contact"
+  }
+}

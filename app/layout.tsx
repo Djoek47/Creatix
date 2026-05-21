@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Cinzel, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { TrialSignupTransitionRoot } from '@/components/marketing/trial-signup-transition-root'
 import { ThemeProvider } from '@/components/theme-provider'
 import { CookieConsent } from '@/components/cookie-consent'
 import { getAppUrl, getCanonicalUrl } from '@/lib/site-url'
@@ -147,8 +148,11 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
+          storageKey="creatix-ui-theme"
         >
-          {children}
+          <TrialSignupTransitionRoot>
+            {children}
+          </TrialSignupTransitionRoot>
           <CookieConsent />
         </ThemeProvider>
         <Analytics />

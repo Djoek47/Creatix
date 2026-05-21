@@ -168,11 +168,3 @@ export function VoiceInputButton({
     </TooltipProvider>
   )
 }
-
-// Declare global types
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
-  }
-}

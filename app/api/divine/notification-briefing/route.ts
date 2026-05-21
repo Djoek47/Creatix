@@ -183,7 +183,7 @@ ${contextBlocks.join('\n')}`,
             ? it.suggested_action.trim()
             : ''
         const todoLines = Array.isArray(it.todos)
-          ? it.todos.filter((t): t is string => typeof t === 'string' && t.trim()).slice(0, 5)
+          ? it.todos.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 5)
           : []
         const bodyParts = [
           action,

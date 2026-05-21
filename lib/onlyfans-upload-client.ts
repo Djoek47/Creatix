@@ -19,7 +19,7 @@ async function uploadViaMultipart(file: File): Promise<OnlyFansUploadResult> {
   if (res.status === 413) {
     throw new Error('413_PAYLOAD_TOO_LARGE')
   }
-  const data = (await res.json()) as { id?: string; error?: string }
+  const data = (await res.json()) as { id?: string; error?: string; url?: string; type?: string }
   if (!res.ok || !data.id) {
     throw new Error(data.error || `Upload failed (${res.status})`)
   }

@@ -2,6 +2,13 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getAppCreditUsdEstimate } from '@/lib/admin/credit-usd'
 import { effectiveMonthlyCreditLimit } from '@/lib/billing/credit-economics'
 import { resolveAdminOverviewRange, type AdminOverviewRangeMode } from '@/lib/admin/time-range'
+import {
+  estimateCashForCredits,
+  estimateCreditsForFeatureUsd,
+  getFeatureUsdPerCredit,
+  getHybridCreditModel,
+  type HybridCreditModel,
+} from '@/lib/admin/hybrid-credit-model'
 
 function sinceDaysIso(days: number): string {
   return new Date(Date.now() - days * 86400000).toISOString()
@@ -145,6 +152,45 @@ export type FeatureProviderSpendRow = {
   events: number
 }
 
+export type UsageByToolRow = {
+  feature: string
+  estimated_usd: number
+  estimated_credits: number
+  effective_cash_usd: number
+  usd_per_credit: number
+  tokens: number
+  events: number
+}
+
+export type UsageByUserRow = {
+  user_id: string
+  email: string | null
+  full_name: string | null
+  estimated_usd: number
+  estimated_credits: number
+  effective_cash_usd: number
+  tokens: number
+  events: number
+}
+
+export type CommunityTipModerationRow = {
+  id: string
+  title: string
+  body: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  user_id: string
+  author_name: string | null
+  author_email: string | null
+}
+
+export type CommunityTipCounts = {
+  pending: number
+  approved: number
+  rejected: number
+}
+
 export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats>> & {
   /** Selected time window (from URL filter). */
   rangeTitle: string
@@ -158,11 +204,20 @@ export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats
   /** Feature × provider bucket (top rows by USD for display). */
   featureProviderRows: FeatureProviderSpendRow[]
   topUsers: UserUsageRow[]
+  usageByToolRows: UsageByToolRow[]
+  usageByUserRows: UsageByUserRow[]
+  hybridCreditModel: HybridCreditModel
+  creditsModeledInWindow: number
+  creditsCashEquivalentInWindow: number
   /** Sum of subscriptions.ai_credits_used (in-app “AI credit” meter). */
   appAiCreditsUsedTotal: number
   /** USD display equivalent: appAiCreditsUsedTotal × appCreditUsdRate (see ADMIN_APP_CREDIT_USD_ESTIMATE). */
   appCreditsUsdEquivalent: number
   appCreditUsdRate: number
+  walletTotalRemainingAllUsers: number
+  walletIncludedRemainingAllUsers: number
+  walletPurchasedRemainingAllUsers: number
+  walletRowsCount: number
   /** Subscriptions rows counted for credits sum. */
   subscriptionsRowCount: number
   authUsersTotal: number
@@ -173,6 +228,7 @@ export type AdminOverviewExtended = Awaited<ReturnType<typeof adminOverviewStats
   usageEventsTruncated: boolean
   /** Outbound DMs logged in message_send_events for the window. */
   messageSendsInWindow: number
+  communityTipCounts: CommunityTipCounts
   /** Divine voice surface time (ms) summed across users for UTC days in range. */
   voiceStateMs: { idle: number; working: number; speaking: number; total: number }
 }
@@ -215,6 +271,23 @@ async function sumVoiceStateMsForDayRange(
   return { idle, working, speaking, total: idle + working + speaking }
 }
 
+async function getCommunityTipCounts(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+): Promise<CommunityTipCounts> {
+  const { data, error } = await supabase.from('community_tips').select('status').limit(5000)
+  if (error || !data?.length) {
+    return { pending: 0, approved: 0, rejected: 0 }
+  }
+  const counts: CommunityTipCounts = { pending: 0, approved: 0, rejected: 0 }
+  for (const row of data as { status?: string }[]) {
+    const status = String(row.status ?? '').toLowerCase()
+    if (status === 'pending') counts.pending += 1
+    else if (status === 'approved') counts.approved += 1
+    else if (status === 'rejected') counts.rejected += 1
+  }
+  return counts
+}
+
 /** Overview metrics + per-user top list, provider buckets, app credits, auth activity. */
 export async function adminOverviewExtended(
   rangeParams?: { range?: string | null; day?: string | null },
@@ -223,11 +296,24 @@ export async function adminOverviewExtended(
   const range = resolveAdminOverviewRange(rangeParams ?? {})
   const since7 = sinceDaysIso(7)
 
-  const [events30, topUsers, subsAgg, authAgg, usage7, errWindow, profCount, messageSendsInWindow, voiceStateMs] =
+  const [
+    events30,
+    topUsers,
+    subsAgg,
+    walletsAgg,
+    authAgg,
+    usage7,
+    errWindow,
+    profCount,
+    messageSendsInWindow,
+    voiceStateMs,
+    communityTipCounts,
+  ] =
     await Promise.all([
       fetchUsageEventsSince(supabase, range.sinceIso, range.untilIso),
       adminUsersUsageSummary(12, range.sinceIso, range.untilIso),
       supabase.from('subscriptions').select('ai_credits_used'),
+      supabase.from('credit_wallets').select('included_credits_remaining,purchased_credits_remaining'),
       collectAuthActivityStats(supabase),
       supabase.from('ai_usage_events').select('estimated_usd').gte('created_at', since7),
       supabase
@@ -238,6 +324,7 @@ export async function adminOverviewExtended(
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       countMessageSendsInRange(supabase, range.sinceIso, range.untilIso),
       sumVoiceStateMsForDayRange(supabase, range.voiceDayStart, range.voiceDayEnd),
+      getCommunityTipCounts(supabase),
     ])
 
   const estimatedUsd30d = events30.reduce((s, r) => s + Number(r.estimated_usd ?? 0), 0)
@@ -324,6 +411,67 @@ export async function adminOverviewExtended(
     .sort((a, b) => b.estimated_usd - a.estimated_usd)
     .slice(0, 40)
 
+  const hybridCreditModel = getHybridCreditModel()
+  const usageByToolRows: UsageByToolRow[] = featureRows.map((row) => {
+    const estimatedCredits = estimateCreditsForFeatureUsd(row.feature, row.estimated_usd, hybridCreditModel)
+    return {
+      feature: row.feature,
+      estimated_usd: row.estimated_usd,
+      estimated_credits: Math.round(estimatedCredits * 10000) / 10000,
+      effective_cash_usd: Math.round(estimateCashForCredits(estimatedCredits, hybridCreditModel) * 1e6) / 1e6,
+      usd_per_credit: getFeatureUsdPerCredit(row.feature, hybridCreditModel),
+      tokens: row.tokens,
+      events: row.events,
+    }
+  })
+
+  const byUser = new Map<string, { usd: number; credits: number; tokens: number; events: number }>()
+  for (const row of events30) {
+    if (!row.user_id) continue
+    const feature = String(row.feature ?? 'unknown').trim() || 'unknown'
+    const usd = Number(row.estimated_usd ?? 0)
+    const credits = estimateCreditsForFeatureUsd(feature, usd, hybridCreditModel)
+    const tt =
+      row.total_tokens != null && Number(row.total_tokens) > 0
+        ? Number(row.total_tokens)
+        : Number(row.input_tokens ?? 0) + Number(row.output_tokens ?? 0)
+    const cur = byUser.get(row.user_id) ?? { usd: 0, credits: 0, tokens: 0, events: 0 }
+    cur.usd += usd
+    cur.credits += credits
+    cur.tokens += tt
+    cur.events += 1
+    byUser.set(row.user_id, cur)
+  }
+  const usageByUserIds = [...byUser.keys()].slice(0, 1200)
+  const { data: usageByUserProfiles } = usageByUserIds.length
+    ? await supabase.from('profiles').select('id, email, full_name').in('id', usageByUserIds)
+    : { data: [] as { id: string; email: string | null; full_name: string | null }[] }
+  const userProfileMap = new Map(
+    (usageByUserProfiles ?? []).map((row) => [
+      String((row as { id: string }).id),
+      row as { email?: string | null; full_name?: string | null },
+    ]),
+  )
+  const usageByUserRows: UsageByUserRow[] = [...byUser.entries()]
+    .map(([userId, row]) => {
+      const p = userProfileMap.get(userId)
+      return {
+        user_id: userId,
+        email: p?.email ?? null,
+        full_name: p?.full_name ?? null,
+        estimated_usd: Math.round(row.usd * 1e6) / 1e6,
+        estimated_credits: Math.round(row.credits * 10000) / 10000,
+        effective_cash_usd: Math.round(estimateCashForCredits(row.credits, hybridCreditModel) * 1e6) / 1e6,
+        tokens: row.tokens,
+        events: row.events,
+      }
+    })
+    .sort((a, b) => b.effective_cash_usd - a.effective_cash_usd)
+    .slice(0, 25)
+
+  const creditsModeledInWindow = usageByToolRows.reduce((sum, row) => sum + row.estimated_credits, 0)
+  const creditsCashEquivalentInWindow = usageByToolRows.reduce((sum, row) => sum + row.effective_cash_usd, 0)
+
   const subsRows = subsAgg.data ?? []
   const appAiCreditsUsedTotal = subsRows.reduce(
     (s, r) => s + Number((r as { ai_credits_used?: number }).ai_credits_used ?? 0),
@@ -331,6 +479,16 @@ export async function adminOverviewExtended(
   )
   const appCreditUsdRate = getAppCreditUsdEstimate()
   const appCreditsUsdEquivalent = Math.round(appAiCreditsUsedTotal * appCreditUsdRate * 1e6) / 1e6
+  const walletRows = walletsAgg.data ?? []
+  const walletIncludedRemainingAllUsers = walletRows.reduce(
+    (sum, row) => sum + Number((row as { included_credits_remaining?: number }).included_credits_remaining ?? 0),
+    0,
+  )
+  const walletPurchasedRemainingAllUsers = walletRows.reduce(
+    (sum, row) => sum + Number((row as { purchased_credits_remaining?: number }).purchased_credits_remaining ?? 0),
+    0,
+  )
+  const walletTotalRemainingAllUsers = walletIncludedRemainingAllUsers + walletPurchasedRemainingAllUsers
 
   return {
     estimatedUsd30d,
@@ -347,16 +505,26 @@ export async function adminOverviewExtended(
     featureRows,
     featureProviderRows,
     topUsers,
+    usageByToolRows,
+    usageByUserRows,
+    hybridCreditModel,
+    creditsModeledInWindow,
+    creditsCashEquivalentInWindow,
     appAiCreditsUsedTotal,
     appCreditsUsdEquivalent,
     appCreditUsdRate,
     subscriptionsRowCount: subsRows.length,
+    walletTotalRemainingAllUsers,
+    walletIncludedRemainingAllUsers,
+    walletPurchasedRemainingAllUsers,
+    walletRowsCount: walletRows.length,
     authUsersTotal: authAgg.total,
     authSignedInLast7d: authAgg.signedIn7d,
     authSignedInLast30d: authAgg.signedIn30d,
     aggregateSignInSpanHours: authAgg.aggregateSignInSpanHours,
     usageEventsTruncated,
     messageSendsInWindow,
+    communityTipCounts,
     voiceStateMs,
   }
 }
@@ -529,6 +697,7 @@ export async function adminUserDetail(userId: string) {
     aggRows,
     msgCountRes,
     { data: voiceDailyRows },
+    { data: creditWallet },
   ] = await Promise.all([
     supabase.from('profiles').select('id, email, full_name, role, created_at').eq('id', userId).maybeSingle(),
     supabase
@@ -564,6 +733,11 @@ export async function adminUserDetail(userId: string) {
       .eq('user_id', userId)
       .gte('day_utc', dayStart90)
       .lte('day_utc', todayUtc),
+    supabase
+      .from('credit_wallets')
+      .select('included_credits_remaining,purchased_credits_remaining,included_cycle_end')
+      .eq('user_id', userId)
+      .maybeSingle(),
   ])
 
   const webhookRes = await supabase
@@ -689,6 +863,21 @@ export async function adminUserDetail(userId: string) {
     usageByProvider90d,
     appCreditUsdRate,
     appCreditsUsdEquivalent,
+    creditWallet: creditWallet
+      ? {
+          included_remaining: Number(
+            (creditWallet as { included_credits_remaining?: number }).included_credits_remaining ?? 0,
+          ),
+          purchased_remaining: Number(
+            (creditWallet as { purchased_credits_remaining?: number }).purchased_credits_remaining ?? 0,
+          ),
+          total_remaining:
+            Number((creditWallet as { included_credits_remaining?: number }).included_credits_remaining ?? 0) +
+            Number((creditWallet as { purchased_credits_remaining?: number }).purchased_credits_remaining ?? 0),
+          included_cycle_end:
+            (creditWallet as { included_cycle_end?: string | null }).included_cycle_end ?? null,
+        }
+      : null,
   }
 }
 
@@ -714,6 +903,8 @@ export type AdminDirectoryRow = {
   role: string | null
   created_at: string | null
   estimated_usd_30d: number
+  estimated_credits_30d: number
+  cash_equivalent_usd_30d: number
   events_30d: number
   tokens_30d: number
 }
@@ -730,15 +921,19 @@ export async function adminDirectoryRows(opts: {
 
   const { data: usageRows } = await supabase
     .from('ai_usage_events')
-    .select('user_id, estimated_usd, input_tokens, output_tokens')
+    .select('user_id, feature, estimated_usd, input_tokens, output_tokens')
     .gte('created_at', since)
     .not('user_id', 'is', null)
 
-  const usageMap = new Map<string, { usd: number; events: number; tokens: number }>()
+  const hybridCreditModel = getHybridCreditModel()
+  const usageMap = new Map<string, { usd: number; credits: number; events: number; tokens: number }>()
   for (const row of usageRows ?? []) {
     const uid = String((row as { user_id: string }).user_id)
-    const cur = usageMap.get(uid) ?? { usd: 0, events: 0, tokens: 0 }
-    cur.usd += Number((row as { estimated_usd?: number }).estimated_usd ?? 0)
+    const cur = usageMap.get(uid) ?? { usd: 0, credits: 0, events: 0, tokens: 0 }
+    const usd = Number((row as { estimated_usd?: number }).estimated_usd ?? 0)
+    const feature = String((row as { feature?: string }).feature ?? 'unknown').trim() || 'unknown'
+    cur.usd += usd
+    cur.credits += estimateCreditsForFeatureUsd(feature, usd, hybridCreditModel)
     cur.events += 1
     cur.tokens +=
       Number((row as { input_tokens?: number }).input_tokens ?? 0) +
@@ -764,6 +959,9 @@ export async function adminDirectoryRows(opts: {
       role: (p as { role?: string | null }).role ?? null,
       created_at: (p as { created_at?: string | null }).created_at ?? null,
       estimated_usd_30d: Math.round((u?.usd ?? 0) * 10000) / 10000,
+      estimated_credits_30d: Math.round((u?.credits ?? 0) * 1000) / 1000,
+      cash_equivalent_usd_30d:
+        Math.round(estimateCashForCredits(u?.credits ?? 0, hybridCreditModel) * 10000) / 10000,
       events_30d: u?.events ?? 0,
       tokens_30d: u?.tokens ?? 0,
     }
@@ -866,4 +1064,50 @@ export async function adminRecentAuditLog(limit = 100) {
     .order('created_at', { ascending: false })
     .limit(limit)
   return data ?? []
+}
+
+export async function adminCommunityTipsQueue(
+  opts?: { status?: 'pending' | 'approved' | 'rejected' | 'all'; limit?: number },
+): Promise<CommunityTipModerationRow[]> {
+  const supabase = createServiceRoleClient()
+  const status = opts?.status ?? 'pending'
+  const limit = Math.min(Math.max(opts?.limit ?? 120, 1), 500)
+  let query = supabase
+    .from('community_tips')
+    .select('id,title,body,status,created_at,updated_at,user_id')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (status !== 'all') {
+    query = query.eq('status', status)
+  }
+  const { data, error } = await query
+  if (error || !data?.length) return []
+
+  const ids = [...new Set((data as { user_id: string }[]).map((row) => row.user_id))]
+  const { data: profiles } = ids.length
+    ? await supabase.from('profiles').select('id, full_name, email').in('id', ids)
+    : { data: [] as { id: string; full_name: string | null; email: string | null }[] }
+  const profileMap = new Map(
+    (profiles ?? []).map((row) => [
+      String((row as { id: string }).id),
+      row as { full_name?: string | null; email?: string | null },
+    ]),
+  )
+
+  return (data as {
+    id: string
+    title: string
+    body: string
+    status: 'pending' | 'approved' | 'rejected'
+    created_at: string
+    updated_at: string
+    user_id: string
+  }[]).map((row) => {
+    const profile = profileMap.get(row.user_id)
+    return {
+      ...row,
+      author_name: profile?.full_name ?? null,
+      author_email: profile?.email ?? null,
+    }
+  })
 }

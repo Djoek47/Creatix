@@ -1,0 +1,45 @@
+{
+  "nav": {
+    "homeAria": "Início Circe et Venus"
+  },
+  "hero": {
+    "kicker": "Empresa",
+    "title": "Sobre",
+    "lead": "Construímos um espaço de trabalho sóbrio para criadoras e criadores sérios — mensagens, fãs, ferramentas de IA e proteção — com controle por voz quando você quiser."
+  },
+  "mission": {
+    "title": "Missão",
+    "p1": "Ferramentas que antes ficavam atrás de agências devem ficar atrás de você. Entregamos software que respeita seu tempo, seus dados e seu jeito de trabalhar.",
+    "p2": "Circe é retenção e profundidade. Venus é crescimento e alcance. Juntas descrevem um produto só, não dois colados."
+  },
+  "dual": {
+    "circeTitle": "Circe",
+    "circeBody": "Ritmo, retenção e proteção — menos vazamentos, menos caos na caixa de entrada.",
+    "venusTitle": "Venus",
+    "venusBody": "Crescimento e apresentação — ofertas mais claras, superfícies mais limpas, mais folga para escalar."
+  },
+  "values": {
+    "title": "Princípios",
+    "oneTitle": "Privacidade por padrão",
+    "oneBody": "Suas contas e seu conteúdo continuam seus. Desenhamos para mínima exposição e controles claros.",
+    "twoTitle": "Ofício em vez de ruído",
+    "twoBody": "Cada tela merece seus pixels. Sem poluição, sem padrões escuros, sem painéis de brinquedo.",
+    "threeTitle": "Humano no circuito",
+    "threeBody": "A IA auxilia; você decide. Voz e texto alinhados ao seu jeito real de operar."
+  },
+  "closing": {
+    "line": "Feito por pessoas que entregam produto e entendem o trabalho do outro lado da tela."
+  },
+  "cta": {
+    "title": "Começar",
+    "subtitle": "Teste no site. Cobrança e planos ficam em Configurações quando você estiver pronta.",
+    "primary": "Criar conta",
+    "secondary": "Contato"
+  },
+  "footer": {
+    "terms": "Termos",
+    "privacy": "Privacidade",
+    "cookies": "Cookies",
+    "contact": "Contato"
+  }
+}

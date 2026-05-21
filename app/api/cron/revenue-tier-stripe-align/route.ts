@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
-import { isPaidPlanId, PAID_PLAN_ID } from '@/lib/billing/access'
+import { isPaidPlanId } from '@/lib/billing/access'
 import {
   computeRequiredRevenueTierFromScopedObservations,
   scopedObservationFromFanslyRow,
@@ -9,8 +9,11 @@ import {
   type PlatformConnectionObservedRow,
 } from '@/lib/billing/onlyfans-billing-gate'
 import { DEFAULT_BILLING_SEATS, MAX_BILLING_SEATS } from '@/lib/billing/seats'
-import { sortFocusPlatforms, type AdultBillingPlatform } from '@/lib/billing/platform-variant'
-import { getMonthlyPriceCents, getTierByIndex, type BillingVariant } from '@/lib/pricing-matrix'
+import { type BillingVariant } from '@/lib/pricing-matrix'
+import {
+  focusPlatformsForPaidSubscriptionRow,
+  updateStripePaidSubscriptionItemToTier,
+} from '@/lib/billing/stripe-paid-tier-subscription-update'
 
 export const maxDuration = 300
 
@@ -28,18 +31,6 @@ type ConnRow = {
 function clampSeats(n: number | null | undefined): number {
   if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_BILLING_SEATS
   return Math.min(MAX_BILLING_SEATS, Math.max(1, Math.floor(n)))
-}
-
-function focusPlatformsForSub(row: {
-  billing_variant: string | null
-  billing_focus_platforms: unknown
-}): AdultBillingPlatform[] | undefined {
-  if (row.billing_variant === 'multi') return undefined
-  const raw = row.billing_focus_platforms
-  if (Array.isArray(raw) && raw.length > 0) {
-    return sortFocusPlatforms(raw as string[])
-  }
-  return ['onlyfans']
 }
 
 /**
@@ -178,69 +169,19 @@ export async function GET(req: Request) {
     }
 
     const variant: BillingVariant = r.billing_variant === 'multi' ? 'multi' : 'single'
-    const focusPlatforms = focusPlatformsForSub(r)
+    const focusPlatforms = focusPlatformsForPaidSubscriptionRow(r)
     const seats = clampSeats(r.billing_seats)
-    let unitCents: number
-    try {
-      unitCents = getMonthlyPriceCents(variant, required, focusPlatforms)
-    } catch (e) {
-      errors.push(`${r.user_id}: price ${e instanceof Error ? e.message : String(e)}`)
-      continue
-    }
 
     try {
-      const sub = await stripe.subscriptions.retrieve(r.stripe_subscription_id, {
-        expand: ['items.data.price.product'],
-      })
-      const item = sub.items.data[0]
-      if (!item?.id) {
-        errors.push(`${r.user_id}: no subscription item`)
-        continue
-      }
-      const productRef = item.price?.product
-      const productId =
-        typeof productRef === 'string'
-          ? productRef
-          : productRef && typeof productRef === 'object' && 'id' in productRef
-            ? String((productRef as { id: string }).id)
-            : null
-      if (!productId) {
-        errors.push(`${r.user_id}: missing Stripe product on subscription item`)
-        continue
-      }
-
-      const tierRow = getTierByIndex(required)
-      const fps = variant === 'multi' ? [] : (focusPlatforms ?? ['onlyfans'])
-      const focusList = fps.join(',')
-      const focusLegacy = fps[0] ?? 'onlyfans'
-
-      const meta: Record<string, string> = {
-        ...(sub.metadata ?? {}),
-        productId: (sub.metadata?.productId as string) || PAID_PLAN_ID,
+      await updateStripePaidSubscriptionItemToTier({
+        stripe,
+        stripeSubscriptionId: r.stripe_subscription_id,
         userId: r.user_id,
-        billingVariant: variant,
-        revenueTier: String(required),
-        revenueBandLabel: tierRow?.label ?? '',
-        focusPlatforms: focusList,
-        focusPlatform: focusLegacy,
-        seats: String(seats),
-      }
-
-      await stripe.subscriptions.update(r.stripe_subscription_id, {
-        items: [
-          {
-            id: item.id,
-            price_data: {
-              currency: 'usd',
-              product: productId,
-              recurring: { interval: 'month' },
-              unit_amount: unitCents,
-            },
-            quantity: seats,
-          },
-        ],
-        proration_behavior: 'none',
-        metadata: meta,
+        variant,
+        focusPlatforms,
+        seats,
+        targetTierIndex: required,
+        prorationBehavior: 'none',
       })
       updated++
     } catch (e) {

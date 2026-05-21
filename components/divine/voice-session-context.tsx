@@ -8,27 +8,43 @@ import {
   useMemo,
   useRef,
   useState,
-    type ReactNode,
+  type ReactNode,
 } from 'react'
 import { useDivinePanel, type FocusedFan } from '@/components/divine/divine-panel-context'
 import { getOrCreateDivineSessionId } from '@/lib/divine/divine-client-session-id'
 import type { DivineUiAction } from '@/lib/divine/divine-ui-actions'
+import { isRegisteredDivineGuideControl } from '@/lib/divine/page-control-registry'
 import { formatFanLookupHint } from '@/lib/divine/divine-lookup-meta'
 import type { DivineLookupMeta } from '@/lib/divine/divine-lookup-meta'
 import type { DivineVoiceDisconnectReason } from '@/lib/divine/voice-memory-types'
-import type { VoiceHangupPolicy } from '@/lib/divine-manager'
+import type { DivineVoicePresence } from '@/lib/divine/voice-memory-types'
+import type { DivineVoicePersonalityStored, VoiceHangupPolicy } from '@/lib/divine-manager'
 import {
-  DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD,
-  DIVINE_VOICE_SILENCE_MS,
   DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS,
-  DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS,
   DIVINE_VOICE_SILENCE_PROMPT_FINAL,
   DIVINE_VOICE_SILENCE_PROMPT_FIRST,
+  buildVoiceSilenceConfig,
   isRealtimeUserSpeechEvent,
+  voiceSilenceProtocolTotalMs,
+  type VoiceSilenceTimingConfig,
 } from '@/lib/divine/voice-silence-prompts'
+import { getMicThreshold } from '@/lib/divine/voice-personality'
+import { orderRealtimeToolCalls, realtimeWorkingLabel } from '@/lib/divine/realtime-agent-harness'
+import {
+  buildPostNavigationPrompt,
+  buildVoiceStartupPrompt,
+  nextVoicePresenceAfterGreeting,
+  nextVoicePresenceAfterUserSpeech,
+  nextVoicePresenceOnStart,
+} from '@/lib/divine/voice-presence'
 
 /** Must stay below `voice-tool` route `maxDuration` so the client fails first with a clear message, not a generic hang. */
 const VOICE_TOOL_FETCH_TIMEOUT_MS = 115_000
+const VOICE_INPUT_DEVICE_LS_KEY = 'divine_voice_input_device_v1'
+const VOICE_OUTPUT_DEVICE_LS_KEY = 'divine_voice_output_device_v1'
+const POST_TOOL_CONTINUATION_MS = 2400
+const PAGE_READY_TIMEOUT_MS = 4500
+const GENERAL_THINKING_TIMEOUT_MS = 14_000
 
 function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
   try {
@@ -40,9 +56,28 @@ function summarizeVoiceToolArgs(args: Record<string, unknown>): string {
 }
 
 /** Realtime API uses `call_id` on function_call items to pair with function_call_output; `id` is the item id. */
-function extractRealtimeFunctionCallId(item: { call_id?: string; id?: string }): string | undefined {
+function extractRealtimeFunctionCallId(item: {
+  call_id?: string
+  id?: string
+  name?: string
+  arguments?: unknown
+}): string | undefined {
   const cid = item.call_id ?? item.id
   return typeof cid === 'string' && cid.length > 0 ? cid : undefined
+}
+
+function parseRealtimeToolArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {}
+    } catch {
+      return {}
+    }
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
 }
 
 /** When no call_id is available, inject the tool text as a user message so the model still sees the result. */
@@ -78,13 +113,46 @@ function triggerRealtimeAssistantResponse(dc: RTCDataChannel) {
 
 type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
-/** Purple = tool/model work; gold = assistant speaking; idle = neither. */
-export type VoiceSurfaceState = 'idle' | 'working' | 'speaking'
+/** Listening = awaiting creator; thinking = model/tool work; speaking = assistant audio; needs_attention = failure/confirmation. */
+export type VoiceSurfaceState = 'listening' | 'thinking' | 'speaking' | 'needs_attention'
+
+type DivinePageContext = {
+  surface?: string
+  path?: string
+  title?: string
+  visibleSummary?: string
+  guideControls?: Array<{ id?: string; label?: string; action?: string; available?: boolean }>
+  reason?: string
+  capturedAt?: string
+}
+
+type VoiceOperationKind = 'navigation' | 'tool_result' | 'page_context' | 'briefing' | 'refresh' | 'guided_action'
+type VoiceOperationStatus = 'spoken_success' | 'spoken_error' | 'needs_confirmation' | 'retrying' | 'cancelled'
+
+type PendingVoiceOperation = {
+  id: number
+  kind: VoiceOperationKind
+  label: string
+  startedAt: number
+  timeoutMs: number
+  retryCount: number
+  path?: string
+  recoveryPrompt?: string
+}
+
+export type DivineVoiceTranscriptTurn = {
+  id: string
+  text: string
+  final: boolean
+  at: number
+}
 
 export type VoiceSessionContextValue = {
   status: VoiceStatus
-  /** Derived from remote audio (speaking) vs in-flight tools (working). */
+  /** Derived from remote audio, in-flight tools, and pending post-tool spoken follow-ups. */
   voiceSurfaceState: VoiceSurfaceState
+  /** Friendly current batch label, e.g. "checking inbox", while voice tools are running. */
+  voiceWorkLabel: string | null
   /** True while waiting to hang up after `end_call` (assistant audio + silence gate). */
   closingPending: boolean
   error: string | null
@@ -104,8 +172,20 @@ export type VoiceSessionContextValue = {
   sendBriefingQuestion: (text: string, opts?: { allowHangupAfterMs?: number }) => Promise<void>
   remoteVoiceStream: MediaStream | null
   localVoiceStream: MediaStream | null
-  voiceVizRef: React.RefObject<HTMLCanvasElement>
-  userVoiceVizRef: React.RefObject<HTMLCanvasElement>
+  voiceVizRef: React.RefObject<HTMLCanvasElement | null>
+  userVoiceVizRef: React.RefObject<HTMLCanvasElement | null>
+  remoteVoiceLevel: number
+  localVoiceLevel: number
+  audioInputDevices: MediaDeviceInfo[]
+  audioOutputDevices: MediaDeviceInfo[]
+  selectedAudioInputId: string
+  selectedAudioOutputId: string
+  setAudioInputDevice: (deviceId: string) => Promise<void>
+  setAudioOutputDevice: (deviceId: string) => Promise<void>
+  refreshAudioDevices: () => Promise<void>
+  outputDeviceSelectionSupported: boolean
+  voiceTranscript: DivineVoiceTranscriptTurn[]
+  clearVoiceTranscript: () => void
   focusedFanForVoice: FocusedFan | null
   setFocusedFanForVoice: (fan: FocusedFan | null) => void
   /** From Divine Manager settings; when after_closing_prompt, End is gated until voice_allow_user_hangup runs. */
@@ -118,6 +198,10 @@ export type VoiceSessionContextValue = {
   forceEndVoiceCall: () => void
   /** Last ~30s of the staged silence protocol (47s + 60s) — crown shows rainbow. */
   silenceProtocolRainbowActive: boolean
+  /** OpenAI Realtime + TTS; paid add-on, Divine trial, paid Stripe `trialing`, or env grant. */
+  divineVoicePremium: boolean
+  /** Re-read subscription from the server (e.g. after billing) so the launcher updates without a full reload. */
+  refreshDivineVoiceEntitlement: () => Promise<void>
 }
 
 const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
@@ -126,14 +210,63 @@ export function useVoiceSession(): VoiceSessionContextValue | null {
   return useContext(VoiceSessionContext)
 }
 
-export function VoiceSessionProvider({ children }: { children: ReactNode }) {
+export function VoiceSessionProvider({
+  children,
+  divineVoicePremium = false,
+}: {
+  children: ReactNode
+  /** Set from server; when false, voice calls are disabled (Premium add-on + paid plan). */
+  divineVoicePremium?: boolean
+}) {
   const divinePanel = useDivinePanel()
+  /** When non-null, overrides server prop (after client entitlement fetch). Cleared when the prop changes. */
+  const [premiumFetched, setPremiumFetched] = useState<boolean | null>(null)
+  const divineVoicePremiumLive = premiumFetched !== null ? premiumFetched : divineVoicePremium
+
+  useEffect(() => {
+    setPremiumFetched(null)
+  }, [divineVoicePremium])
+
+  const refreshDivineVoiceEntitlement = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing/divine-voice-entitlement', { credentials: 'include' })
+      if (!res.ok) return
+      const j = (await res.json().catch(() => ({}))) as { divineVoicePremium?: unknown }
+      if (typeof j.divineVoicePremium === 'boolean') {
+        setPremiumFetched(j.divineVoicePremium)
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const input = window.localStorage.getItem(VOICE_INPUT_DEVICE_LS_KEY)
+      const output = window.localStorage.getItem(VOICE_OUTPUT_DEVICE_LS_KEY)
+      if (input) setSelectedAudioInputId(input)
+      if (output) setSelectedAudioOutputId(output)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const [status, setStatus] = useState<VoiceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [remoteVoiceStream, setRemoteVoiceStream] = useState<MediaStream | null>(null)
   const [localVoiceStream, setLocalVoiceStream] = useState<MediaStream | null>(null)
   const voiceVizRef = useRef<HTMLCanvasElement | null>(null)
   const userVoiceVizRef = useRef<HTMLCanvasElement | null>(null)
+  const [remoteVoiceLevel, setRemoteVoiceLevel] = useState(0)
+  const [localVoiceLevel, setLocalVoiceLevel] = useState(0)
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState('default')
+  const [selectedAudioOutputId, setSelectedAudioOutputId] = useState('default')
+  const [voiceTranscript, setVoiceTranscript] = useState<DivineVoiceTranscriptTurn[]>([])
+  const outputDeviceSelectionSupported =
+    typeof HTMLMediaElement !== 'undefined' &&
+    'setSinkId' in HTMLMediaElement.prototype
   const [focusedFanForVoice, setFocusedFanForVoice] = useState<FocusedFan | null>(null)
   const [closingPending, setClosingPending] = useState(false)
   const [voiceHangupPolicy, setVoiceHangupPolicy] = useState<VoiceHangupPolicy>('always')
@@ -142,6 +275,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const toolPathRef = useRef('/api/divine/voice-tool')
   const getToolBodyExtrasRef = useRef<() => Record<string, unknown>>(() => ({}))
   const realtimeBodyExtrasRef = useRef<Record<string, unknown>>({})
+  const pageContextRef = useRef<DivinePageContext | null>(null)
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -157,14 +291,32 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   /** True while assistant TTS/audio energy is above threshold (pauses idle disconnect). */
   const assistantSpeakingRef = useRef(false)
   const prevRemoteLoudRef = useRef(false)
+  const assistantResponsePendingRef = useRef(false)
+  const assistantContinuationForcedRef = useRef(false)
+  const postToolContinuationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingVoiceOperationRef = useRef<PendingVoiceOperation | null>(null)
+  const pendingVoiceOperationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const voiceOperationSeqRef = useRef(0)
+  const resolveVoiceOperationRef = useRef<(status: VoiceOperationStatus, prompt?: string) => void>(() => {})
+  const beginVoiceOperationRef = useRef<
+    (operation: Omit<PendingVoiceOperation, 'id' | 'startedAt' | 'retryCount'> & { retryCount?: number }) => number
+  >(() => 0)
+  const failVoiceOperationRef = useRef<(id: number) => void>(() => {})
   const idleMsRef = useRef<number | null>(null)
+  /** Silence ladder timing from Divine Manager patience slider (default = legacy 47s/60s). */
+  const silenceTimingRef = useRef<VoiceSilenceTimingConfig>(buildVoiceSilenceConfig(50))
+  const micEnergyThresholdRef = useRef(getMicThreshold(50))
+  const voicePersonalityRef = useRef<DivineVoicePersonalityStored | null>(null)
+  const voicePresenceRef = useRef<DivineVoicePresence>({})
+  const lastPresenceSpeechPatchRef = useRef(0)
   const lastPendingConfirmationsRef = useRef<
     Array<{ type: string; intent_id: string; summary?: string }>
   >([])
   const scheduleIdleDisconnectRef = useRef<() => void>(() => {})
   const resumeBriefingSentRef = useRef(false)
-  const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('idle')
-  const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('idle')
+  const [voiceSurfaceState, setVoiceSurfaceState] = useState<VoiceSurfaceState>('listening')
+  const [voiceWorkLabel, setVoiceWorkLabel] = useState<string | null>(null)
+  const voiceSurfaceStateRef = useRef<VoiceSurfaceState>('listening')
   const telemetryPendingRef = useRef({ idle: 0, working: 0, speaking: 0 })
   const telemetryTickRef = useRef(0)
 
@@ -184,6 +336,95 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   const markUserSpeechRef = useRef<() => void>(() => {})
   const startSilenceWatchdogRef = useRef<() => void>(() => {})
 
+  const refreshAudioDevices = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      setAudioInputDevices(devices.filter((device) => device.kind === 'audioinput'))
+      setAudioOutputDevices(devices.filter((device) => device.kind === 'audiooutput'))
+    } catch {
+      /* Permission may not be granted yet; retry after getUserMedia succeeds. */
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshAudioDevices()
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.addEventListener) return
+    const onDeviceChange = () => {
+      void refreshAudioDevices()
+    }
+    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
+  }, [refreshAudioDevices])
+
+  const setAudioOutputDevice = useCallback(
+    async (deviceId: string) => {
+      const next = deviceId || 'default'
+      setSelectedAudioOutputId(next)
+      try {
+        window.localStorage.setItem(VOICE_OUTPUT_DEVICE_LS_KEY, next)
+      } catch {
+        /* ignore */
+      }
+      const audio = audioRef.current as (HTMLAudioElement & {
+        setSinkId?: (sinkId: string) => Promise<void>
+      }) | null
+      if (!audio?.setSinkId) return
+      await audio.setSinkId(next)
+    },
+    [],
+  )
+
+  const setAudioInputDevice = useCallback(
+    async (deviceId: string) => {
+      const next = deviceId || 'default'
+      setSelectedAudioInputId(next)
+      try {
+        window.localStorage.setItem(VOICE_INPUT_DEVICE_LS_KEY, next)
+      } catch {
+        /* ignore */
+      }
+      if (statusRef.current !== 'connected' && statusRef.current !== 'connecting') return
+      if (typeof navigator === 'undefined') return
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: next === 'default' ? true : { deviceId: { exact: next } },
+      })
+      const nextTrack = nextStream.getAudioTracks()[0]
+      if (!nextTrack) {
+        nextStream.getTracks().forEach((track) => track.stop())
+        throw new Error('Selected microphone did not provide an audio track.')
+      }
+      const pc = pcRef.current
+      const sender = pc?.getSenders().find((s) => s.track?.kind === 'audio')
+      if (sender) {
+        await sender.replaceTrack(nextTrack)
+      }
+      const previous = streamRef.current
+      previous?.getTracks().forEach((track) => track.stop())
+      streamRef.current = nextStream
+      setLocalVoiceStream(nextStream)
+      await refreshAudioDevices()
+    },
+    [refreshAudioDevices],
+  )
+
+  const clearVoiceTranscript = useCallback(() => {
+    setVoiceTranscript([])
+  }, [])
+
+  const patchVoicePresence = useCallback((presence: DivineVoicePresence) => {
+    voicePresenceRef.current = {
+      ...voicePresenceRef.current,
+      ...presence,
+    }
+    void fetch('/api/divine/voice-memory', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_presence: voicePresenceRef.current }),
+    }).catch(() => undefined)
+  }, [])
+
   useEffect(() => {
     statusRef.current = status
   }, [status])
@@ -191,6 +432,93 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     voiceSurfaceStateRef.current = voiceSurfaceState
   }, [voiceSurfaceState])
+
+  const sendPageContextToRealtime = useCallback((context: DivinePageContext) => {
+    const dc = oaiDataChannelRef.current
+    if (!dc || dc.readyState !== 'open' || statusRef.current !== 'connected') return
+    const text = [
+      '[App context update]',
+      `Current page: ${context.title || 'Dashboard'} (${context.path || '/dashboard'})`,
+      context.reason ? `Reason: ${context.reason}` : null,
+      context.visibleSummary ? `Visible page summary: ${context.visibleSummary}` : null,
+      Array.isArray(context.guideControls) && context.guideControls.length
+        ? `Audited guide controls on this page: ${context.guideControls
+            .filter((control) => control.available !== false && control.id)
+            .map((control) => `${control.id} (${control.label || 'control'}; ${control.action || 'guide'})`)
+            .join(', ')}`
+        : null,
+      'Use this as passive screen context for the next answer. Do not reply to this update by itself.',
+    ]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 2400)
+    dc.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text }],
+        },
+      }),
+    )
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onPageContext = (event: Event) => {
+      const detail = (event as CustomEvent<DivinePageContext>).detail
+      if (!detail || typeof detail !== 'object') return
+      const next: DivinePageContext = {
+        surface: typeof detail.surface === 'string' ? detail.surface.slice(0, 40) : 'dashboard',
+        path: typeof detail.path === 'string' ? detail.path.slice(0, 240) : undefined,
+        title: typeof detail.title === 'string' ? detail.title.slice(0, 140) : undefined,
+        visibleSummary:
+          typeof detail.visibleSummary === 'string' ? detail.visibleSummary.replace(/\s+/g, ' ').trim().slice(0, 1800) : undefined,
+        guideControls: Array.isArray(detail.guideControls)
+          ? detail.guideControls
+              .map((control) => ({
+                id: typeof control.id === 'string' ? control.id.slice(0, 80) : undefined,
+                label: typeof control.label === 'string' ? control.label.slice(0, 120) : undefined,
+                action: typeof control.action === 'string' ? control.action.slice(0, 40) : undefined,
+                available: control.available === true,
+              }))
+              .filter((control) => control.id)
+              .slice(0, 30)
+          : undefined,
+        reason: typeof detail.reason === 'string' ? detail.reason.slice(0, 80) : undefined,
+        capturedAt: typeof detail.capturedAt === 'string' ? detail.capturedAt.slice(0, 40) : new Date().toISOString(),
+      }
+      pageContextRef.current = next
+      sendPageContextToRealtime(next)
+      const op = pendingVoiceOperationRef.current
+      if (op?.kind === 'navigation') {
+        const expected = op.path?.split('?')[0]
+        const actual = next.path?.split('?')[0]
+        const readyReason =
+          next.reason === 'route_settled' ||
+          next.reason === 'data_refresh_settled' ||
+          next.reason === 'requested_recheck'
+        if (readyReason && (!expected || expected === actual || next.reason === 'requested_recheck')) {
+          resolveVoiceOperationRef.current(
+            'spoken_success',
+            `${buildPostNavigationPrompt(op.path || next.path || '/dashboard')}\n\nPage-ready context: ${next.title || 'Dashboard'} at ${next.path || '/dashboard'}. Visible summary: ${next.visibleSummary || 'No visible summary captured.'}`,
+          )
+        }
+      }
+    }
+    window.addEventListener('creatix:divine-page-context', onPageContext)
+    return () => window.removeEventListener('creatix:divine-page-context', onPageContext)
+  }, [sendPageContextToRealtime])
+
+  const clearPostToolContinuation = useCallback(() => {
+    assistantResponsePendingRef.current = false
+    assistantContinuationForcedRef.current = false
+    if (postToolContinuationTimerRef.current) {
+      clearTimeout(postToolContinuationTimerRef.current)
+      postToolContinuationTimerRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const raw = process.env.NEXT_PUBLIC_DIVINE_VOICE_IDLE_MS
@@ -266,10 +594,17 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(endCallRafRef.current)
         endCallRafRef.current = null
       }
+      if (pendingVoiceOperationTimerRef.current) {
+        clearTimeout(pendingVoiceOperationTimerRef.current)
+        pendingVoiceOperationTimerRef.current = null
+      }
+      pendingVoiceOperationRef.current = null
+      clearPostToolContinuation()
       setClosingPending(false)
       toolInFlightRef.current = false
       lastPendingConfirmationsRef.current = []
-      setVoiceSurfaceState('idle')
+      setVoiceWorkLabel(null)
+      setVoiceSurfaceState('listening')
       assistantSpeakingRef.current = false
       prevRemoteLoudRef.current = false
       const pc = pcRef.current
@@ -285,6 +620,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       audioRef.current = null
       setRemoteVoiceStream(null)
       setLocalVoiceStream(null)
+      setRemoteVoiceLevel(0)
+      setLocalVoiceLevel(0)
       oaiDataChannelRef.current = null
       setStatus('idle')
       setError(null)
@@ -313,14 +650,19 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         ),
       }).catch(() => undefined)
     },
-    [cancelIdleTimer],
+    [cancelIdleTimer, clearPostToolContinuation],
   )
 
   const scheduleIdleDisconnect = useCallback(() => {
     const ms = idleMsRef.current
     if (ms == null || ms <= 0) return
     cancelIdleTimer()
-    if (toolInFlightRef.current || assistantSpeakingRef.current) return
+    if (
+      toolInFlightRef.current ||
+      assistantSpeakingRef.current ||
+      assistantResponsePendingRef.current ||
+      pendingVoiceOperationRef.current
+    ) return
     idleTimeoutRef.current = setTimeout(() => {
       idleTimeoutRef.current = null
       endVoiceCall('idle_timeout')
@@ -361,6 +703,14 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         response: { modalities: ['audio'] },
       }),
     )
+    assistantResponsePendingRef.current = true
+    beginVoiceOperationRef.current({
+      kind: 'briefing',
+      label: 'Preparing a response...',
+      timeoutMs: GENERAL_THINKING_TIMEOUT_MS,
+      recoveryPrompt:
+        '[Thinking recovery] You started preparing a spoken response, but no audio began. Apologize briefly, answer from the latest context if possible, and ask what the creator wants next. Do not wait for more microphone input.',
+    })
     scheduleIdleDisconnectRef.current()
 
     const ms = opts?.allowHangupAfterMs
@@ -372,6 +722,153 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     sendBriefingQuestionRef.current = sendBriefingQuestion
   }, [sendBriefingQuestion])
+
+  const clearVoiceOperation = useCallback((status: VoiceOperationStatus = 'cancelled') => {
+    if (pendingVoiceOperationTimerRef.current) {
+      clearTimeout(pendingVoiceOperationTimerRef.current)
+      pendingVoiceOperationTimerRef.current = null
+    }
+    if (status !== 'retrying') {
+      pendingVoiceOperationRef.current = null
+    }
+  }, [])
+
+  const forceVoiceRecovery = useCallback((prompt: string, label = 'Finishing the answer...') => {
+    const dc = oaiDataChannelRef.current
+    if (!dc || dc.readyState !== 'open' || statusRef.current !== 'connected') return
+    assistantResponsePendingRef.current = true
+    assistantContinuationForcedRef.current = true
+    cancelIdleTimerRef.current()
+    setVoiceWorkLabel(label)
+    dc.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: prompt }],
+        },
+      }),
+    )
+    triggerRealtimeAssistantResponse(dc)
+    if (postToolContinuationTimerRef.current) clearTimeout(postToolContinuationTimerRef.current)
+    postToolContinuationTimerRef.current = setTimeout(() => {
+      postToolContinuationTimerRef.current = null
+      if (!assistantResponsePendingRef.current || !assistantContinuationForcedRef.current || assistantSpeakingRef.current) return
+      assistantResponsePendingRef.current = false
+      assistantContinuationForcedRef.current = false
+      setVoiceWorkLabel('Needs attention')
+      setVoiceSurfaceState('needs_attention')
+      scheduleIdleDisconnectRef.current()
+    }, 10_000)
+  }, [])
+
+  const failVoiceOperation = useCallback((id: number) => {
+    const op = pendingVoiceOperationRef.current
+    if (!op || op.id !== id) return
+
+    if (op.kind === 'navigation' && op.retryCount < 1) {
+      const retry: PendingVoiceOperation = { ...op, retryCount: op.retryCount + 1, startedAt: Date.now() }
+      pendingVoiceOperationRef.current = retry
+      setVoiceWorkLabel('Checking the page...')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatix:divine-request-page-context'))
+      }
+      pendingVoiceOperationTimerRef.current = setTimeout(() => failVoiceOperationRef.current(retry.id), retry.timeoutMs)
+      return
+    }
+
+    clearVoiceOperation('spoken_error')
+    const recovery =
+      op.recoveryPrompt ||
+      `[Thinking recovery] I was waiting on ${op.label || op.kind}, but the completion signal did not arrive. Apologize briefly, say what you know, offer to retry or recheck, and do not wait for more microphone input.`
+    forceVoiceRecovery(recovery, 'Recovering...')
+    setVoiceSurfaceState('needs_attention')
+  }, [clearVoiceOperation, forceVoiceRecovery])
+
+  const beginVoiceOperation = useCallback(
+    (operation: Omit<PendingVoiceOperation, 'id' | 'startedAt' | 'retryCount'> & { retryCount?: number }) => {
+      clearVoiceOperation('cancelled')
+      const id = ++voiceOperationSeqRef.current
+      const next: PendingVoiceOperation = {
+        id,
+        startedAt: Date.now(),
+        retryCount: operation.retryCount ?? 0,
+        ...operation,
+      }
+      pendingVoiceOperationRef.current = next
+      assistantResponsePendingRef.current = true
+      cancelIdleTimerRef.current()
+      setVoiceWorkLabel(next.label || 'Thinking...')
+      pendingVoiceOperationTimerRef.current = setTimeout(() => failVoiceOperationRef.current(id), next.timeoutMs)
+      return id
+    },
+    [clearVoiceOperation],
+  )
+
+  const resolveVoiceOperation = useCallback(
+    (status: VoiceOperationStatus, prompt?: string) => {
+      clearVoiceOperation(status)
+      if (status === 'needs_confirmation') {
+        setVoiceSurfaceState('needs_attention')
+      }
+      if (prompt) {
+        forceVoiceRecovery(prompt, status === 'needs_confirmation' ? 'Waiting for confirmation...' : 'Finishing the answer...')
+      }
+      if (!prompt && status !== 'needs_confirmation') {
+        setVoiceWorkLabel(null)
+      }
+    },
+    [clearVoiceOperation, forceVoiceRecovery],
+  )
+
+  useEffect(() => {
+    beginVoiceOperationRef.current = beginVoiceOperation
+    resolveVoiceOperationRef.current = resolveVoiceOperation
+    failVoiceOperationRef.current = failVoiceOperation
+  }, [beginVoiceOperation, failVoiceOperation, resolveVoiceOperation])
+
+  const armPostToolContinuation = useCallback((reason: 'paired' | 'fallback' | 'briefing' = 'paired') => {
+    beginVoiceOperationRef.current({
+      kind: reason === 'briefing' ? 'briefing' : 'tool_result',
+      label: reason === 'briefing' ? 'Preparing a response...' : 'Thinking...',
+      timeoutMs: GENERAL_THINKING_TIMEOUT_MS,
+      recoveryPrompt:
+        '[Thinking recovery] A tool or page action finished, but the spoken answer did not start. Apologize briefly, summarize the completed result or error, offer one retry/recheck option, and do not wait for more microphone input.',
+    })
+    assistantResponsePendingRef.current = true
+    assistantContinuationForcedRef.current = false
+    cancelIdleTimerRef.current()
+    setVoiceWorkLabel(reason === 'briefing' ? 'Preparing a response...' : 'Thinking...')
+    if (postToolContinuationTimerRef.current) clearTimeout(postToolContinuationTimerRef.current)
+    postToolContinuationTimerRef.current = setTimeout(() => {
+      postToolContinuationTimerRef.current = null
+      if (!assistantResponsePendingRef.current || assistantContinuationForcedRef.current) return
+      if (statusRef.current !== 'connected') return
+      if (assistantSpeakingRef.current) return
+      const dc = oaiDataChannelRef.current
+      if (!dc || dc.readyState !== 'open') return
+      assistantContinuationForcedRef.current = true
+      dc.send(
+        JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text:
+                  '[Continuation watchdog] Finish the answer to the creator now based on the completed tool result. Do not wait for more microphone input. If you navigated or opened a fan, summarize what was done and give the requested overview.',
+              },
+            ],
+          },
+        }),
+      )
+      triggerRealtimeAssistantResponse(dc)
+      setVoiceWorkLabel('Finishing the answer...')
+    }, POST_TOOL_CONTINUATION_MS)
+  }, [])
 
   const runFinalSilenceClose = useCallback(async (genAtStart: number) => {
     if (silenceGenRef.current !== genAtStart) return
@@ -385,7 +882,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       silenceFailsafeTimerRef.current = null
       if (silenceGenRef.current !== genAtStart) return
       scheduleGracefulEndCallRef.current?.()
-    }, DIVINE_VOICE_SILENCE_MS.endCallFailsafe)
+    }, silenceTimingRef.current.endCallFailsafe)
   }, [])
 
   const startSilenceWatchdog = useCallback(() => {
@@ -396,12 +893,19 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     silenceSecondTimerRef.current = null
     silenceFailsafeTimerRef.current = null
 
+    if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current || pendingVoiceOperationRef.current) {
+      silenceWatchdogEpochRef.current = null
+      return
+    }
+
+    const cfg = silenceTimingRef.current
     const gen = silenceGenRef.current
     silenceWatchdogEpochRef.current = Date.now()
     silenceFirstTimerRef.current = setTimeout(() => {
       silenceFirstTimerRef.current = null
       if (silenceGenRef.current !== gen) return
       if (statusRef.current !== 'connected') return
+      if (toolInFlightRef.current || assistantResponsePendingRef.current || assistantSpeakingRef.current || pendingVoiceOperationRef.current) return
       void (async () => {
         try {
           await sendBriefingQuestionRef.current(DIVINE_VOICE_SILENCE_PROMPT_FIRST)
@@ -414,12 +918,15 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
           if (silenceGenRef.current !== gen) return
           if (statusRef.current !== 'connected') return
           void runFinalSilenceClose(gen)
-        }, DIVINE_VOICE_SILENCE_MS.afterFirst)
+        }, cfg.afterFirst)
       })()
-    }, DIVINE_VOICE_SILENCE_MS.first)
+    }, cfg.first)
   }, [runFinalSilenceClose])
 
   const markUserSpeech = useCallback(() => {
+    if (!assistantResponsePendingRef.current) {
+      clearPostToolContinuation()
+    }
     silenceGenRef.current += 1
     if (silenceFirstTimerRef.current) clearTimeout(silenceFirstTimerRef.current)
     if (silenceSecondTimerRef.current) clearTimeout(silenceSecondTimerRef.current)
@@ -429,7 +936,12 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     silenceFailsafeTimerRef.current = null
     scheduleIdleDisconnectRef.current()
     startSilenceWatchdog()
-  }, [startSilenceWatchdog])
+    const now = Date.now()
+    if (now - lastPresenceSpeechPatchRef.current > 10_000) {
+      lastPresenceSpeechPatchRef.current = now
+      patchVoicePresence(nextVoicePresenceAfterUserSpeech(voicePresenceRef.current, new Date(now)))
+    }
+  }, [clearPostToolContinuation, patchVoicePresence, startSilenceWatchdog])
 
   useEffect(() => {
     markUserSpeechRef.current = markUserSpeech
@@ -439,25 +951,43 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     startSilenceWatchdogRef.current = startSilenceWatchdog
   }, [startSilenceWatchdog])
 
-  const refreshVoiceHangupPolicy = useCallback(async () => {
+  const refreshVoiceManagerClientSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/divine/manager-settings', { credentials: 'include' })
       const json = (await res.json().catch(() => ({}))) as {
         voice_hangup_policy?: VoiceHangupPolicy
+        voice_personality?: DivineVoicePersonalityStored
       }
       if (json.voice_hangup_policy === 'after_closing_prompt') {
         setVoiceHangupPolicy('after_closing_prompt')
       } else {
         setVoiceHangupPolicy('always')
       }
+      if (json.voice_personality && typeof json.voice_personality === 'object') {
+        const vp = json.voice_personality
+        voicePersonalityRef.current = vp
+        silenceTimingRef.current = buildVoiceSilenceConfig(
+          typeof vp.silence_patience === 'number' ? vp.silence_patience : 50,
+        )
+        micEnergyThresholdRef.current = getMicThreshold(
+          typeof vp.mic_pickup === 'number' ? vp.mic_pickup : 50,
+        )
+      } else {
+        voicePersonalityRef.current = null
+        silenceTimingRef.current = buildVoiceSilenceConfig(50)
+        micEnergyThresholdRef.current = getMicThreshold(50)
+      }
     } catch {
+      voicePersonalityRef.current = null
       setVoiceHangupPolicy('always')
+      silenceTimingRef.current = buildVoiceSilenceConfig(50)
+      micEnergyThresholdRef.current = getMicThreshold(50)
     }
   }, [])
 
   useEffect(() => {
-    void refreshVoiceHangupPolicy()
-  }, [refreshVoiceHangupPolicy])
+    void refreshVoiceManagerClientSettings()
+  }, [refreshVoiceManagerClientSettings])
 
   const startVoiceCall = useCallback(async (opts?: {
     realtimePath?: string
@@ -467,29 +997,44 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     realtimeBodyExtras?: Record<string, unknown>
   }) => {
     if (status === 'connecting' || status === 'connected') return
+    if (!divineVoicePremiumLive) {
+      setError('Divine voice is Premium — realtime audio, tools, and dashboard handoff.')
+      setStatus('idle')
+      return
+    }
     realtimePathRef.current = opts?.realtimePath || '/api/ai/divine-manager-realtime'
     toolPathRef.current = opts?.toolPath || '/api/divine/voice-tool'
     getToolBodyExtrasRef.current = typeof opts?.getToolBodyExtras === 'function' ? opts.getToolBodyExtras : () => ({})
     realtimeBodyExtrasRef.current =
       opts?.realtimeBodyExtras && typeof opts.realtimeBodyExtras === 'object' ? opts.realtimeBodyExtras : {}
     setError(null)
+    setVoiceWorkLabel(null)
+    setVoiceTranscript([])
     setUserHangupAllowed(false)
     speechEventSeenRef.current = false
-    await refreshVoiceHangupPolicy()
+    await refreshVoiceManagerClientSettings()
     setStatus('connecting')
     try {
       if (typeof navigator === 'undefined') {
         throw new Error('Navigator not available')
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: selectedAudioInputId === 'default' ? true : { deviceId: { exact: selectedAudioInputId } },
+      })
       streamRef.current = stream
       setLocalVoiceStream(stream)
+      await refreshAudioDevices()
       const pc = new RTCPeerConnection()
       pcRef.current = pc
 
       const audioEl = document.createElement('audio')
       audioEl.autoplay = true
       audioEl.setAttribute('playsinline', 'true')
+      if (selectedAudioOutputId !== 'default' && 'setSinkId' in audioEl) {
+        await (audioEl as HTMLAudioElement & { setSinkId: (sinkId: string) => Promise<void> }).setSinkId(
+          selectedAudioOutputId,
+        )
+      }
       audioRef.current = audioEl
       pc.ontrack = (e) => {
         if (e.streams[0]) {
@@ -567,6 +1112,9 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
         try {
           const payload = JSON.parse(event.data as string) as {
             type?: string
+            item_id?: string
+            delta?: string
+            transcript?: string
             tool_calls?: Array<{
               id?: string
               call_id?: string
@@ -581,6 +1129,68 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
           if (isRealtimeUserSpeechEvent(payload)) {
             speechEventSeenRef.current = true
             markUserSpeechRef.current()
+          }
+
+          if (
+            typeof payload.type === 'string' &&
+            (payload.type.includes('response.audio') ||
+              payload.type.includes('response.output_audio') ||
+              payload.type === 'output_audio_buffer.started')
+          ) {
+            clearPostToolContinuation()
+            resolveVoiceOperationRef.current('spoken_success')
+          }
+
+          if (
+            payload.type === 'conversation.item.input_audio_transcription.delta' &&
+            typeof payload.item_id === 'string' &&
+            typeof payload.delta === 'string'
+          ) {
+            const delta = payload.delta
+            setVoiceTranscript((turns) => {
+              const idx = turns.findIndex((turn) => turn.id === payload.item_id)
+              if (idx === -1) {
+                return [
+                  ...turns.slice(-5),
+                  { id: payload.item_id!, text: delta, final: false, at: Date.now() },
+                ]
+              }
+              const next = [...turns]
+              next[idx] = {
+                ...next[idx],
+                text: `${next[idx].text}${delta}`,
+                final: false,
+                at: Date.now(),
+              }
+              return next.slice(-6)
+            })
+          }
+
+          if (
+            payload.type === 'conversation.item.input_audio_transcription.completed' &&
+            typeof payload.item_id === 'string' &&
+            typeof payload.transcript === 'string'
+          ) {
+            const transcript = payload.transcript.trim()
+            if (transcript) {
+              setVoiceTranscript((turns) => {
+                const idx = turns.findIndex((turn) => turn.id === payload.item_id)
+                if (idx === -1) {
+                  return [
+                    ...turns.slice(-5),
+                    { id: payload.item_id!, text: transcript, final: true, at: Date.now() },
+                  ]
+                }
+                const next = [...turns]
+                next[idx] = {
+                  ...next[idx],
+                  text: transcript,
+                  final: true,
+                  at: Date.now(),
+                }
+                return next.slice(-6)
+              })
+            }
           }
 
           /**
@@ -742,82 +1352,71 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
           const toolCalls =
             payload?.tool_calls ??
             (payload as { tool_calls?: Array<{ name?: string; arguments?: string }> })?.tool_calls
-          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-            // Execute tools in parallel to reduce wall-time.
-            // Keep `end_call` last so we don't close the session before other tools finish.
-            const endCallToolCalls = toolCalls.filter((tc) => tc.name === 'end_call')
-            const parallelToolCalls = toolCalls.filter((tc) => tc.name && tc.name !== 'end_call')
-
+          const runToolBatch = async (
+            calls: Array<{ id?: string; call_id?: string; name?: string; arguments?: unknown }>,
+          ) => {
+            const ordered = orderRealtimeToolCalls(calls)
             let needAssistantResponse = false
-            const results = await Promise.all(
-              parallelToolCalls.map(async (tc) => {
-                const name = tc.name
-                const args =
-                  typeof tc.arguments === 'string'
-                    ? (() => {
-                        try {
-                          return JSON.parse(tc.arguments!)
-                        } catch {
-                          return {}
-                        }
-                      })()
-                    : (tc.arguments ?? {}) as Record<string, unknown>
-                const callId = extractRealtimeFunctionCallId(tc)
-                const summary = await runTool(name!, args)
-                return finalizeRealtimeToolOutput(callId, summary, name!)
-              }),
-            )
-            if (results.some((r) => r === 'paired')) needAssistantResponse = true
+            let fallbackResponseStarted = false
+            let navigationStarted = false
 
-            for (const tc of endCallToolCalls) {
-              if (!tc.name) continue
-              const args =
-                typeof tc.arguments === 'string'
-                  ? (() => {
-                      try {
-                        return JSON.parse(tc.arguments!)
-                      } catch {
-                        return {}
-                      }
-                    })()
-                  : (tc.arguments ?? {}) as Record<string, unknown>
-              const callId = extractRealtimeFunctionCallId(tc)
-              const summary = await runTool(tc.name, args)
-              if (finalizeRealtimeToolOutput(callId, summary, tc.name) === 'paired') {
-                needAssistantResponse = true
-              }
+            const runOne = async (tc: { id?: string; call_id?: string; name?: string; arguments?: unknown }) => {
+              if (!tc.name) return 'fallback' as const
+              const summary = await runTool(tc.name, parseRealtimeToolArgs(tc.arguments))
+              if (tc.name === 'ui_navigate') navigationStarted = true
+              return finalizeRealtimeToolOutput(extractRealtimeFunctionCallId(tc), summary, tc.name)
             }
+
+            if (ordered.parallel.length > 0) {
+              setVoiceWorkLabel(realtimeWorkingLabel(ordered.parallel.map((tc) => tc.name ?? '')))
+              const results = await Promise.all(ordered.parallel.map(runOne))
+              if (results.some((r) => r === 'paired')) needAssistantResponse = true
+              if (results.some((r) => r === 'fallback')) fallbackResponseStarted = true
+            }
+
+            for (const tc of ordered.serial) {
+              setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
+              const result = await runOne(tc)
+              if (result === 'paired') needAssistantResponse = true
+              if (result === 'fallback') fallbackResponseStarted = true
+            }
+
+            for (const tc of ordered.endCall) {
+              setVoiceWorkLabel(realtimeWorkingLabel(tc.name ? [tc.name] : []))
+              const result = await runOne(tc)
+              if (result === 'paired') needAssistantResponse = true
+              if (result === 'fallback') fallbackResponseStarted = true
+            }
+
+            setVoiceWorkLabel(null)
+            if (fallbackResponseStarted && !navigationStarted) armPostToolContinuation('fallback')
+            return navigationStarted ? false : needAssistantResponse
+          }
+          if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+            const needAssistantResponse = await runToolBatch(
+              toolCalls as Array<{ id?: string; call_id?: string; name?: string; arguments?: unknown }>,
+            )
             if (needAssistantResponse) {
               triggerRealtimeAssistantResponse(dc)
+              armPostToolContinuation('paired')
               scheduleIdleDisconnectRef.current()
             }
             return
           }
           if (payload?.type === 'response.done' && Array.isArray(payload.response?.output)) {
-            // Parallelize function_call tool runs and send outputs back per call_id.
+            // Batch safe reads in parallel, then run state-changing or confirmation-gated calls serially.
             const fnItems = payload.response.output.filter(
               (item) => item?.type === 'function_call' && item.name,
-            ) as Array<{ id?: string; call_id?: string; name: string; arguments?: string }>
+            ) as Array<{ id?: string; call_id?: string; name: string; arguments?: unknown }>
 
-            const doneResults = await Promise.all(
-              fnItems.map(async (item) => {
-                const args =
-                  typeof item.arguments === 'string'
-                    ? (() => {
-                        try {
-                          return JSON.parse(item.arguments!)
-                        } catch {
-                          return {}
-                        }
-                      })()
-                    : {}
-
-                const summary = await runTool(item.name, args as Record<string, unknown>)
-                return finalizeRealtimeToolOutput(extractRealtimeFunctionCallId(item), summary, item.name)
-              }),
-            )
-            if (doneResults.some((r) => r === 'paired')) {
+            if (await runToolBatch(fnItems)) {
               triggerRealtimeAssistantResponse(dc)
+              armPostToolContinuation('paired')
+              scheduleIdleDisconnectRef.current()
+            } else if (fnItems.length === 0 && assistantResponsePendingRef.current) {
+              clearPostToolContinuation()
+              resolveVoiceOperationRef.current('spoken_success')
+              setVoiceWorkLabel(null)
               scheduleIdleDisconnectRef.current()
             }
           }
@@ -832,12 +1431,23 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       const res = await fetch(realtimePathRef.current, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sdp: offer.sdp ?? '',
-          focusedFan: focusedFanForVoice,
-          divine_session_id: getOrCreateDivineSessionId(),
-          ...realtimeBodyExtrasRef.current,
-        }),
+        body: JSON.stringify((() => {
+          const extras = realtimeBodyExtrasRef.current
+          const extraContext =
+            extras.context && typeof extras.context === 'object' && !Array.isArray(extras.context)
+              ? (extras.context as Record<string, unknown>)
+              : {}
+          return {
+            sdp: offer.sdp ?? '',
+            focusedFan: focusedFanForVoice,
+            divine_session_id: getOrCreateDivineSessionId(),
+            ...extras,
+            context: {
+              ...(pageContextRef.current ?? {}),
+              ...extraContext,
+            },
+          }
+        })()),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -856,9 +1466,12 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
               status?: string
               resume_hint?: string
               action_log?: Array<{ tool: string }>
+              voice_presence?: DivineVoicePresence
             }
           }
           const m = memJson.memory
+          const presenceOnStart = nextVoicePresenceOnStart(m?.voice_presence ?? voicePresenceRef.current)
+          patchVoicePresence(presenceOnStart)
           const hasResumeContext =
             m?.resume_hint ||
             (Array.isArray(m?.action_log) && m.action_log.length > 0)
@@ -868,6 +1481,15 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
               `The last voice session ended before everything finished. Resume hint: ${m.resume_hint}. Ask briefly if they want to continue that or start fresh; if they decline, move on.`,
               { allowHangupAfterMs: 10_000 },
             )
+            patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
+            return
+          }
+          const initiative = voicePersonalityRef.current?.initiative ?? 'manager_led'
+          const startup = buildVoiceStartupPrompt(voicePresenceRef.current, initiative)
+          if (startup.shouldSpeak && startup.prompt && !resumeBriefingSentRef.current) {
+            resumeBriefingSentRef.current = true
+            await sendBriefingQuestion(startup.prompt, { allowHangupAfterMs: 10_000 })
+            patchVoicePresence(nextVoicePresenceAfterGreeting(voicePresenceRef.current))
           }
         } catch {
           // ignore resume prompt failures
@@ -880,7 +1502,21 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       setStatus('error')
       playCue('error')
     }
-  }, [endVoiceCall, playCue, status, divinePanel, sendBriefingQuestion, refreshVoiceHangupPolicy])
+  }, [
+    endVoiceCall,
+    playCue,
+    status,
+    divinePanel,
+    sendBriefingQuestion,
+    refreshVoiceManagerClientSettings,
+    divineVoicePremiumLive,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    refreshAudioDevices,
+    patchVoicePresence,
+    armPostToolContinuation,
+    clearPostToolContinuation,
+  ])
 
   /** Arm optional idle disconnect + staged silence watchdog when connected. */
   useEffect(() => {
@@ -894,6 +1530,56 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       silenceWatchdogEpochRef.current = null
     }
   }, [status])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onGuideFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ elementId?: string | null; label?: string | null }>).detail
+      const elementId = typeof detail?.elementId === 'string' ? detail.elementId.trim() : ''
+      if (!elementId || !isRegisteredDivineGuideControl(elementId, window.location.pathname)) return
+      window.setTimeout(() => {
+        const el = document.getElementById(elementId)
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const previousOutline = el.style.outline
+        const previousOutlineOffset = el.style.outlineOffset
+        const previousBoxShadow = el.style.boxShadow
+        el.style.outline = '2px solid rgba(217, 119, 6, 0.88)'
+        el.style.outlineOffset = '6px'
+        el.style.boxShadow =
+          '0 0 0 8px rgba(217, 119, 6, 0.12), 0 0 0 14px rgba(124, 58, 237, 0.09), 0 0 42px rgba(168, 85, 247, 0.18)'
+        window.setTimeout(() => {
+          el.style.outline = previousOutline
+          el.style.outlineOffset = previousOutlineOffset
+          el.style.boxShadow = previousBoxShadow
+        }, 4200)
+      }, 450)
+    }
+
+    const onGuidedNavigation = (event: Event) => {
+      if (statusRef.current !== 'connected') return
+      const detail = (event as CustomEvent<{ path?: string | null }>).detail
+      const path = typeof detail?.path === 'string' ? detail.path : '/dashboard'
+      beginVoiceOperationRef.current({
+        kind: 'navigation',
+        label: 'Opening the page...',
+        path,
+        timeoutMs: PAGE_READY_TIMEOUT_MS,
+        recoveryPrompt:
+          `${buildPostNavigationPrompt(path)}\n\nI opened the page, but I did not receive the page-ready signal in time. Apologize briefly, explain what should be on this page, and offer to recheck. Do not wait for more microphone input.`,
+      })
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('creatix:divine-request-page-context'))
+      }, 900)
+    }
+
+    window.addEventListener('creatix:divine-guide-focus', onGuideFocus)
+    window.addEventListener('creatix:divine-guided-navigation', onGuidedNavigation)
+    return () => {
+      window.removeEventListener('creatix:divine-guide-focus', onGuideFocus)
+      window.removeEventListener('creatix:divine-guided-navigation', onGuidedNavigation)
+    }
+  }, [patchVoicePresence])
 
   useEffect(() => {
     if (status !== 'connected') return
@@ -915,17 +1601,17 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       a.getByteFrequencyData(buf)
       let sum = 0
       for (let i = 0; i < buf.length; i++) sum += buf[i]
-      if (sum / buf.length > DIVINE_VOICE_SILENCE_MIC_FALLBACK_THRESHOLD) {
+      if (sum / buf.length > micEnergyThresholdRef.current) {
         markUserSpeechRef.current()
       }
     }, 220)
     return () => clearInterval(id)
   }, [status])
 
-  /** Purple (working) vs gold (speaking) vs idle. */
+  /** Listening vs thinking vs speaking vs needs_attention. */
   useEffect(() => {
     if (status !== 'connected') {
-      setVoiceSurfaceState('idle')
+      setVoiceSurfaceState(status === 'error' ? 'needs_attention' : 'listening')
       return
     }
     const id = setInterval(() => {
@@ -943,16 +1629,20 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       prevRemoteLoudRef.current = remoteLoud
       if (!prev && remoteLoud) {
         cancelIdleTimerRef.current()
+        clearPostToolContinuation()
+        resolveVoiceOperationRef.current('spoken_success')
       }
       if (prev && !remoteLoud) {
         scheduleIdleDisconnectRef.current()
+        startSilenceWatchdogRef.current()
       }
       if (remoteLoud) setVoiceSurfaceState('speaking')
-      else if (toolInFlightRef.current) setVoiceSurfaceState('working')
-      else setVoiceSurfaceState('idle')
+      else if (toolInFlightRef.current || assistantResponsePendingRef.current || pendingVoiceOperationRef.current) setVoiceSurfaceState('thinking')
+      else if (lastPendingConfirmationsRef.current.length > 0) setVoiceSurfaceState('needs_attention')
+      else setVoiceSurfaceState('listening')
     }, 140)
     return () => clearInterval(id)
-  }, [status])
+  }, [clearPostToolContinuation, status])
 
   /** Accumulate WebRTC time per voice surface state; POST to /api/divine/voice-telemetry every 10s. */
   useEffect(() => {
@@ -966,6 +1656,10 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       if (idle + working + speaking < 1) return
       telemetryPendingRef.current = { idle: 0, working: 0, speaking: 0 }
       try {
+        const telemetry_flush_id =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`
         await fetch('/api/divine/voice-telemetry', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -974,6 +1668,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
             idle_ms: Math.round(idle),
             working_ms: Math.round(working),
             speaking_ms: Math.round(speaking),
+            telemetry_flush_id,
           }),
         })
       } catch {
@@ -987,8 +1682,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       const d = now - telemetryTickRef.current
       telemetryTickRef.current = now
       const surf = voiceSurfaceStateRef.current
-      if (surf === 'idle') telemetryPendingRef.current.idle += d
-      else if (surf === 'working') telemetryPendingRef.current.working += d
+      if (surf === 'listening') telemetryPendingRef.current.idle += d
+      else if (surf === 'thinking' || surf === 'needs_attention') telemetryPendingRef.current.working += d
       else if (surf === 'speaking') telemetryPendingRef.current.speaking += d
     }, 1000)
     const post = setInterval(() => {
@@ -1010,10 +1705,9 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
 
   // Divine (remote) waveform: react to sound with lower smoothing so it fluctuates visibly
   useEffect(() => {
-    if (!remoteVoiceStream || !voiceVizRef.current) return
+    if (!remoteVoiceStream) return
     const canvas = voiceVizRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ctx = canvas?.getContext('2d') ?? null
     try {
       const audioContext = new AudioContext()
       const source = audioContext.createMediaStreamSource(remoteVoiceStream)
@@ -1027,6 +1721,10 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       const draw = () => {
         rafId = requestAnimationFrame(draw)
         analyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+        setRemoteVoiceLevel(Math.min(1, (sum / dataArray.length) / 96))
+        if (!canvas || !ctx) return
         const w = canvas.width
         const h = canvas.height
         ctx.clearRect(0, 0, w, h)
@@ -1052,7 +1750,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       return () => {
         cancelAnimationFrame(rafId)
         remoteAnalyserRef.current = null
-        audioContext.close()
+        setRemoteVoiceLevel(0)
+        audioContext.close().catch(() => undefined)
       }
     } catch {
       return undefined
@@ -1061,10 +1760,9 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
 
   // User (local mic) waveform: same style, amber color, fluctuates with your voice
   useEffect(() => {
-    if (!localVoiceStream || !userVoiceVizRef.current) return
+    if (!localVoiceStream) return
     const canvas = userVoiceVizRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ctx = canvas?.getContext('2d') ?? null
     try {
       const audioContext = new AudioContext()
       const source = audioContext.createMediaStreamSource(localVoiceStream)
@@ -1078,6 +1776,10 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       const draw = () => {
         rafId = requestAnimationFrame(draw)
         analyser.getByteFrequencyData(dataArray)
+        let sum = 0
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+        setLocalVoiceLevel(Math.min(1, (sum / dataArray.length) / 90))
+        if (!canvas || !ctx) return
         const w = canvas.width
         const h = canvas.height
         ctx.clearRect(0, 0, w, h)
@@ -1103,7 +1805,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       return () => {
         cancelAnimationFrame(rafId)
         localAnalyserRef.current = null
-        audioContext.close()
+        setLocalVoiceLevel(0)
+        audioContext.close().catch(() => undefined)
       }
     } catch {
       return undefined
@@ -1121,15 +1824,17 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     const epoch = silenceWatchdogEpochRef.current
     if (epoch == null) return false
     const elapsed = Date.now() - epoch
+    const protocolTotal = voiceSilenceProtocolTotalMs(silenceTimingRef.current)
     return (
-      elapsed >= DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS - DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS &&
-      elapsed < DIVINE_VOICE_SILENCE_PROTOCOL_TOTAL_MS
+      elapsed >= protocolTotal - DIVINE_VOICE_SILENCE_PROTOCOL_RAINBOW_LAST_MS &&
+      elapsed < protocolTotal
     )
   }, [status, silenceProtocolTick])
 
   const value: VoiceSessionContextValue = {
     status,
     voiceSurfaceState,
+    voiceWorkLabel,
     closingPending,
     error,
     startVoiceCall,
@@ -1139,6 +1844,18 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     localVoiceStream,
     voiceVizRef,
     userVoiceVizRef,
+    remoteVoiceLevel,
+    localVoiceLevel,
+    audioInputDevices,
+    audioOutputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    setAudioInputDevice,
+    setAudioOutputDevice,
+    refreshAudioDevices,
+    outputDeviceSelectionSupported,
+    voiceTranscript,
+    clearVoiceTranscript,
     focusedFanForVoice,
     setFocusedFanForVoice,
     voiceHangupPolicy,
@@ -1146,6 +1863,8 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     canManualHangup,
     forceEndVoiceCall,
     silenceProtocolRainbowActive,
+    divineVoicePremium: divineVoicePremiumLive,
+    refreshDivineVoiceEntitlement,
   }
 
   return (
@@ -1154,4 +1873,3 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
     </VoiceSessionContext.Provider>
   )
 }
-

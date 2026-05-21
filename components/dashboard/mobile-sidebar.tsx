@@ -1,13 +1,20 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemedLogo } from '@/components/themed-logo'
+import { useTranslations } from 'next-intl'
+import { AiStudioNavStar } from '@/components/dashboard/ai-studio-nav-star'
+import { SidebarBrandLockup } from '@/components/dashboard/sidebar-brand-lockup'
 import { cn } from '@/lib/utils'
+import {
+  DASHBOARD_MESSAGES_NAV_HREF,
+  dashboardMessagesNavIconClass,
+  dashboardMessagesNavLabelClass,
+} from '@/lib/dashboard-nav-messages-accent'
 import {
   LayoutDashboard,
   Users,
-  Calendar,
   MessageSquare,
   BarChart3,
   Shield,
@@ -18,192 +25,404 @@ import {
   Star,
   Crown,
   Share2,
-  Library,
-  Lightbulb,
+  Layers,
   BookOpen,
   HeartPulse,
   MessagesSquare,
   Activity,
+  LucideIcon,
 } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/types'
 import { SheetClose } from '@/components/ui/sheet'
+import { SidebarSystemStatus } from '@/components/dashboard/sidebar-system-status'
+import { SidebarDivineManagerCrown } from '@/components/dashboard/sidebar-divine-manager-crown'
+import { MessagesNavUnreadSweep } from '@/components/dashboard/messages-nav-unread-sweep'
+import { useMessagesNavUnreadTotal } from '@/hooks/use-messages-nav-unread-total'
+import { useWorkspaceCapabilities } from '@/components/dashboard/workspace-capabilities-context'
+import { triggerDashboardRealmEntrance } from '@/components/dashboard/dashboard-realm-entrance'
+import { useDashboardPulseOptional } from '@/components/dashboard/dashboard-pulse-provider'
+import { wellbeingNavTextPulseClass, type PulseSeverity } from '@/lib/wellbeing/pulse-engine'
+import {
+  bottomTwinChipIconClasses,
+  bottomTwinInnerMobile,
+  bottomTwinRimGold,
+  bottomTwinRimPurple,
+} from '@/components/dashboard/sidebar-bottom-nav-tokens'
 
 interface MobileSidebarProps {
   user: User
   profile: Profile | null
 }
 
-const circeNavigation = [
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Retention', href: '/dashboard/retention/churn', icon: Activity },
-  { name: 'Protection', href: '/dashboard/protection', icon: Shield },
+interface NavItem {
+  nameKey: string
+  href: string
+  icon: LucideIcon
+  activeMatch?: readonly string[]
+}
+
+function navItemIsActive(pathname: string, item: NavItem): boolean {
+  if (item.href === '/dashboard/fans') {
+    return pathname === '/dashboard/fans'
+  }
+  if (item.activeMatch?.length) {
+    return item.activeMatch.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  }
+  return pathname === item.href || pathname.startsWith(`${item.href}/`)
+}
+
+const circeNavigation: NavItem[] = [
+  { nameKey: 'sidebar.analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { nameKey: 'sidebar.protection', href: '/dashboard/protection', icon: Shield },
+  { nameKey: 'sidebar.retention', href: '/dashboard/retention/churn', icon: Activity },
 ]
 
-const venusNavigation = [
-  { name: 'Fans', href: '/dashboard/fans', icon: Users },
-  { name: 'Housekeeping', href: '/dashboard/commenter', icon: MessagesSquare },
-  { name: 'Mentions', href: '/dashboard/mentions', icon: TrendingUp },
+const venusNavigation: NavItem[] = [
+  { nameKey: 'sidebar.fans', href: '/dashboard/fans', icon: Users },
+  { nameKey: 'sidebar.mentions', href: '/dashboard/mentions', icon: TrendingUp },
+  { nameKey: 'sidebar.fanAtlas', href: '/dashboard/commenter', icon: MessagesSquare },
 ]
 
-const silverNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Divine Manager', href: '/dashboard/divine-manager', icon: Crown },
-  { name: 'Content', href: '/dashboard/content', icon: Calendar },
-  { name: 'Well-being', href: '/dashboard/well-being', icon: HeartPulse },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'Social', href: '/dashboard/social', icon: Share2 },
-  { name: 'Content library', href: '/dashboard/content-library', icon: Library },
+/** Match desktop sidebar: ~9% larger than text-sm; icons scale with row */
+const mobileNavText = 'text-[0.95rem] leading-snug'
+const mobileNavIcon = 'h-[1.125rem] w-[1.125rem]'
+
+const silverNavigation: NavItem[] = [
+  { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { nameKey: 'sidebar.divineManager', href: '/dashboard/divine-manager', icon: Crown },
+  { nameKey: 'sidebar.content', href: '/dashboard/content', icon: Layers },
+  { nameKey: 'sidebar.wellbeing', href: '/dashboard/well-being', icon: HeartPulse },
+  { nameKey: 'sidebar.messages', href: '/dashboard/messages', icon: MessageSquare },
+  { nameKey: 'sidebar.social', href: '/dashboard/social', icon: Share2 },
 ]
 
-const aiStudioNavigation = [
-  { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Star },
+const aiStudioNavigation: NavItem[] = [
+  { nameKey: 'sidebar.aiStudio', href: '/dashboard/ai-studio', icon: Star },
 ]
 
-const bottomNavigation = [
-  { name: 'Community', href: '/dashboard/community', icon: Lightbulb },
-  { name: 'Guide', href: '/dashboard/guide', icon: BookOpen },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+const bottomNavigation: NavItem[] = [
+  {
+    nameKey: 'sidebar.guide',
+    href: '/dashboard/guide',
+    icon: BookOpen,
+    activeMatch: ['/dashboard/guide', '/dashboard/community'],
+  },
+  { nameKey: 'sidebar.settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function MobileSidebar({ profile }: MobileSidebarProps) {
+export function MobileSidebar({ user, profile: _profile }: MobileSidebarProps) {
   const pathname = usePathname()
+  const tNav = useTranslations('navigation')
+  const pulseOptional = useDashboardPulseOptional()
+  const pulseNavSeverity = pulseOptional?.pulse?.severity
+  const caps = useWorkspaceCapabilities()
+  const messagesNavUnread = useMessagesNavUnreadTotal(caps.canUseMessaging)
+  const [compactMobile, setCompactMobile] = useState(false)
 
-  const NavLink = ({ item, variant = 'default' }: { item: typeof silverNavigation[0], variant?: 'default' | 'circe' | 'venus' | 'ai-studio' }) => {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+  const handleRealmReload = () => {
+    const hue = document.documentElement.classList.contains('dark') ? 'purple' : 'gold'
+    triggerDashboardRealmEntrance(hue)
+    window.location.assign(`/dashboard?realm=${Date.now()}`)
+  }
+
+  useEffect(() => {
+    const checkCompact = () => {
+      setCompactMobile(window.innerHeight < 760 || window.innerWidth < 360)
+    }
+    checkCompact()
+    window.addEventListener('resize', checkCompact)
+    return () => window.removeEventListener('resize', checkCompact)
+  }, [])
+
+  const navTextClass = compactMobile ? 'text-[0.86rem] leading-snug' : mobileNavText
+  const navIconClass = compactMobile ? 'h-4 w-4' : mobileNavIcon
+
+  const footerGuideNav = bottomNavigation[0]
+  const footerSettingsNav = bottomNavigation[1]
+  const footerGuideActive = navItemIsActive(pathname, footerGuideNav)
+  const footerSettingsActive = navItemIsActive(pathname, footerSettingsNav)
+
+  const NavLink = ({
+    item,
+    variant = 'default',
+    pulseNavSeverity: pulseSev,
+    messagesUnreadTotal,
+  }: {
+    item: NavItem
+    variant?: 'default' | 'circe' | 'venus' | 'ai-studio'
+    pulseNavSeverity?: PulseSeverity
+    messagesUnreadTotal?: number
+  }) => {
+    const isActive = navItemIsActive(pathname, item)
     const isAiStudio = variant === 'ai-studio'
-    
+    const isDivineManager = item.href === '/dashboard/divine-manager'
+    const isMessagesNav =
+      variant === 'default' && item.href === DASHBOARD_MESSAGES_NAV_HREF
+
+    const wellbeingPulseClass =
+      item.href === '/dashboard/well-being' && pulseSev
+        ? pulseSev === 'intervene'
+          ? 'sidebar-nav-pulse-intervene'
+          : pulseSev === 'attend'
+            ? 'sidebar-nav-pulse-attend'
+            : 'sidebar-nav-pulse-steady'
+        : null
+
+    const wellbeingTextPulseClass =
+      item.href === '/dashboard/well-being' ? wellbeingNavTextPulseClass(pulseSev) : null
+
     const variantStyles = {
       default: {
-        // Black in light mode, white/silver in dark mode
-        active: 'bg-foreground/10 text-foreground',
-        inactive: 'text-foreground/70 hover:bg-foreground/5 hover:text-foreground',
-        icon: 'text-foreground'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-foreground/48 group-hover:text-foreground/78',
       },
       circe: {
-        active: 'bg-circe/20 text-circe-light',
-        inactive: 'text-foreground/70 hover:bg-circe/10 hover:text-circe-light',
-        icon: 'text-circe-light'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-circe-light/42 group-hover:text-circe-light/72',
       },
       venus: {
-        // Gold on hover only (idle neutral like default; active = amber)
-        active: 'bg-amber-500/20 text-amber-500 dark:text-amber-400',
-        inactive:
-          'text-foreground/70 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400',
-        icon: 'text-amber-500 dark:text-amber-400'
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-muted/38 hover:text-foreground',
+        icon: 'text-gold/45 group-hover:text-gold/78',
       },
       'ai-studio': {
-        // Rainbow/multicolor — gradient always on; stronger when active / hover
-        active: 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 animate-gradient-x',
-        inactive:
-          'bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-500/10 hover:from-pink-500/15 hover:via-purple-500/15 hover:to-cyan-500/15',
-        icon: 'text-purple-500'
-      }
+        active: 'bg-muted/55 text-foreground',
+        inactive: 'text-foreground/68 hover:bg-transparent active:bg-transparent hover:text-foreground',
+        icon: 'text-primary/50 group-hover:text-primary/85 dark:text-amber-200/45 dark:group-hover:text-amber-200/88',
+      },
     }
     
     const styles = variantStyles[variant]
     
-    return (
-      <SheetClose asChild>
-        <Link
-          href={item.href}
-          data-tour={item.href}
+    const messagesUnreadCount = messagesUnreadTotal ?? 0
+    const messagesUnreadAccent = isMessagesNav && messagesUnreadCount > 0
+
+    const linkClassName = cn(
+      'group',
+      compactMobile
+        ? 'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors duration-150 ease-out'
+        : 'flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 font-medium transition-colors duration-150 ease-out',
+      navTextClass,
+      isActive ? styles.active : styles.inactive,
+    )
+
+    const labelCol = (
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-2',
+          isMessagesNav && !messagesUnreadAccent && 'relative z-[1]',
+        )}
+      >
+        <span
           className={cn(
-            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors',
-            isActive ? styles.active : styles.inactive
+            isAiStudio && 'sidebar-ai-studio-text font-medium tracking-tight',
+            isDivineManager && 'sidebar-divine-manager-text font-semibold tracking-tight',
+            isMessagesNav && dashboardMessagesNavLabelClass(isActive),
+            wellbeingTextPulseClass,
+            (wellbeingTextPulseClass || isDivineManager) && 'transition-colors duration-150 ease-out',
           )}
         >
-          <item.icon className={cn(
-            'h-5 w-5 flex-shrink-0', 
-            isActive && styles.icon,
-            isAiStudio && 'animate-hue-rotate'
-          )} />
-          <span
-            className={cn(
-              isAiStudio &&
-                'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent',
-              isAiStudio && !isActive && 'opacity-90',
-            )}
-          >
-            {item.name}
-          </span>
-        </Link>
-      </SheetClose>
+          {tNav(item.nameKey)}
+        </span>
+      </div>
     )
+
+    const linkEl = (
+      <Link
+        href={item.href}
+        data-tour={item.href}
+        className={linkClassName}
+        aria-current={isActive ? 'page' : undefined}
+      >
+        {isAiStudio ? (
+          <>
+            <span className="ai-studio-nav-star-slot inline-flex shrink-0 rounded-lg">
+              <span className="ai-studio-nav-star-pad inline-flex items-center justify-center rounded-md">
+                <AiStudioNavStar gradientSlot="sidebar-mobile" className={cn(navIconClass, 'shrink-0')} />
+              </span>
+            </span>
+            {labelCol}
+          </>
+        ) : isDivineManager ? (
+          <>
+            <SidebarDivineManagerCrown gradientSlot="sidebar-mobile" iconBoxClass={cn(navIconClass, 'flex-shrink-0')} />
+            {labelCol}
+          </>
+        ) : messagesUnreadAccent ? (
+          <span className="relative z-[1] flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-md">
+            <MessagesNavUnreadSweep unreadTotal={messagesUnreadCount} />
+            <item.icon
+              className={cn(
+                navIconClass,
+                'relative z-[1] flex-shrink-0',
+                'messages-nav-bubble-icon messages-nav-bubble-icon--unread',
+                dashboardMessagesNavIconClass(isActive),
+              )}
+              fill="currentColor"
+              fillOpacity={0.28}
+            />
+            {labelCol}
+          </span>
+        ) : (
+          <>
+            <item.icon
+              className={cn(
+                navIconClass,
+                'relative z-[1] flex-shrink-0',
+                wellbeingPulseClass
+                  ? cn(wellbeingPulseClass, isActive && 'opacity-100', 'transition-colors duration-150 ease-out')
+                  : isMessagesNav
+                    ? dashboardMessagesNavIconClass(isActive)
+                    : cn('transition-colors duration-150 ease-out', isActive ? 'text-foreground' : styles.icon),
+              )}
+              {...(isMessagesNav ? { fill: 'currentColor', fillOpacity: 0.14 } : {})}
+            />
+            {labelCol}
+          </>
+        )}
+      </Link>
+    )
+
+    return <SheetClose asChild>{linkEl}</SheetClose>
   }
 
   return (
-    <div className="flex h-full flex-col bg-card">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-4">
-        <ThemedLogo 
-          width={36} 
-          height={36} 
-          className="flex-shrink-0 rounded-full"
-          priority
-        />
-        <span className="font-serif text-sm font-semibold tracking-wider text-primary dark:text-circe-light">
-          CIRCE ET VENUS
-        </span>
-      </div>
+    <div className="mobile-dashboard-nav flex h-full flex-col bg-card">
+      <SidebarBrandLockup onRealmClick={handleRealmReload} variant="mobile" />
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-6 overflow-y-auto p-4">
-        {/* Dashboard, Content, Messages - Black light/White dark */}
+      <nav
+        className={cn(
+          'sidebar-nav-scroll flex flex-1 flex-col gap-6 overflow-y-auto',
+          compactMobile ? 'p-3' : 'p-4',
+        )}
+      >
         <div className="space-y-1">
           {silverNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="default" />
+            <NavLink
+              key={item.href}
+              item={item}
+              variant="default"
+              pulseNavSeverity={item.href === '/dashboard/well-being' ? pulseNavSeverity : undefined}
+              messagesUnreadTotal={
+                item.href === DASHBOARD_MESSAGES_NAV_HREF ? messagesNavUnread : undefined
+              }
+            />
           ))}
         </div>
 
-        {/* AI Studio - Rainbow/Multicolor */}
         <div className="space-y-1">
           {aiStudioNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="ai-studio" />
+            <NavLink key={item.href} item={item} variant="ai-studio" />
           ))}
         </div>
 
-        {/* Circe's Domain */}
         <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Moon className="h-4 w-4 text-circe-light" />
-            <span className="text-xs font-medium uppercase tracking-wider text-circe-light/70">
-              Circe
+          <div className="mb-0.5 flex items-center gap-2 px-1">
+            <Moon
+              className={cn(
+                compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                'circe-nav-moon-glow shrink-0 text-circe-light/45 dark:text-circe-light/55',
+              )}
+              aria-hidden
+            />
+            <span
+              className={cn(
+                'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',
+                compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
+              )}
+            >
+              {tNav('sidebar.circeSection')}
             </span>
           </div>
           {circeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="circe" />
+            <NavLink key={item.href} item={item} variant="circe" />
           ))}
         </div>
 
-        {/* Venus's Domain - Gold */}
         <div className="space-y-1">
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Sun className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-            <span className="text-xs font-medium uppercase tracking-wider text-amber-600/70 dark:text-amber-500/70">
-              Venus
+          <div className="mb-0.5 flex items-center gap-2 px-1">
+            <Sun
+              className={cn(
+                compactMobile ? 'h-3 w-3' : 'h-3.5 w-3.5',
+                'venus-nav-sun-glow shrink-0 text-gold/48 dark:text-gold/55',
+              )}
+              aria-hidden
+            />
+            <span
+              className={cn(
+                'font-semibold uppercase leading-none tracking-[0.14em] text-foreground/38',
+                compactMobile ? 'text-[0.6rem]' : 'text-[0.625rem]',
+              )}
+            >
+              {tNav('sidebar.venusSection')}
             </span>
           </div>
           {venusNavigation.map((item) => (
-            <NavLink key={item.name} item={item} variant="venus" />
+            <NavLink key={item.href} item={item} variant="venus" />
           ))}
         </div>
       </nav>
 
-      {/* Bottom */}
-      <div className="border-t border-border p-4">
-        {bottomNavigation.map((item) => (
-          <NavLink key={item.name} item={item} variant="default" />
-        ))}
+      <div
+        className={cn(
+          'border-t border-border/50 bg-gradient-to-b from-transparent to-muted/30',
+          compactMobile ? 'px-3 pb-3 pt-4' : 'px-4 pb-4 pt-5',
+        )}
+      >
+        <div className="flex gap-2">
+          <div className={cn('flex min-w-min flex-[5]', bottomTwinRimPurple)}>
+            <SheetClose asChild>
+              <Link
+                href={footerGuideNav.href}
+                data-tour={footerGuideNav.href}
+                className={cn(
+                  bottomTwinInnerMobile,
+                  'justify-start gap-2 px-2.5 text-[0.8125rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  footerGuideActive
+                    ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                    : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
+                )}
+                aria-current={footerGuideActive ? 'page' : undefined}
+              >
+                <BookOpen
+                  className={bottomTwinChipIconClasses('guide', footerGuideActive, 'sheet')}
+                  aria-hidden
+                />
+                <span className="shrink-0 whitespace-nowrap">{tNav(footerGuideNav.nameKey)}</span>
+              </Link>
+            </SheetClose>
+          </div>
+          <div className={cn('flex min-w-min flex-[9]', bottomTwinRimGold)}>
+            <SheetClose asChild>
+              <Link
+                href={footerSettingsNav.href}
+                data-tour={footerSettingsNav.href}
+                className={cn(
+                  bottomTwinInnerMobile,
+                  'w-full justify-center gap-2 px-2.5 text-[0.8125rem] font-semibold outline-none ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  footerSettingsActive
+                    ? 'bg-muted/52 text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]'
+                    : 'text-foreground/75 hover:bg-muted/45 hover:text-foreground active:bg-muted/52',
+                )}
+                aria-current={footerSettingsActive ? 'page' : undefined}
+              >
+                <Settings
+                  className={bottomTwinChipIconClasses('settings', footerSettingsActive, 'sheet')}
+                  aria-hidden
+                />
+                <span className="shrink-0 whitespace-nowrap">{tNav(footerSettingsNav.nameKey)}</span>
+              </Link>
+            </SheetClose>
+          </div>
+        </div>
 
-        {profile && (
-          <div className="mt-4 rounded-lg bg-muted/50 p-3">
-            <p className="truncate text-sm font-medium text-amber-600 dark:text-circe-light">
-              {profile.full_name || 'Divine Creator'}
-            </p>
-            <p className="truncate text-xs text-amber-600/70 dark:text-circe-light/70">
-              {profile.email}
-            </p>
+        {!compactMobile && (
+          <div className="mt-4 border-t border-border/40 pt-4">
+            <SidebarSystemStatus variant="mobile" />
           </div>
         )}
       </div>

@@ -4,11 +4,20 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createFanslyAPI } from '@/lib/fansly-api'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import { createTask } from '@/lib/divine-manager'
 import type { DivineManagerSettingsRow } from '@/lib/divine-manager'
 import { formatOnlyFansText } from '@/lib/onlyfans-text'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
+import {
+  consumeAiCredits,
+  hasEnoughAiCredits,
+} from '@/lib/billing/consume-ai-credits'
+import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 
 export type MassDmParams = {
   message: string
@@ -126,7 +135,10 @@ export async function executeMassDm(
         const api = createOnlyFansAPI(connection.access_token)
         const result = await api.sendMassMessage({
           text: message,
-          mediaIds: params.mediaIds,
+          mediaFiles:
+            Array.isArray(params.mediaIds) && params.mediaIds.length > 0
+              ? params.mediaIds.map((id) => (typeof id === 'number' ? id : String(id)))
+              : undefined,
           price: params.price,
         })
         results.onlyfans = {
@@ -238,6 +250,10 @@ export async function executeSendMessage(
   if (!connection) {
     return { success: false, summary: `${platform} is not connected.` }
   }
+  const check = await hasEnoughAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM)
+  if (!check.ok) {
+    return { success: false, summary: `Insufficient AI credits (${check.used}/${check.limit}).` }
+  }
   try {
     if (platform === 'onlyfans') {
       const bad = validateChatMediaIdsForSend(mediaIds)
@@ -251,14 +267,31 @@ export async function executeSendMessage(
         previews: Array.isArray(previews) && previews.length > 0 ? previews : undefined,
         rfTag: Array.isArray(rfTag) && rfTag.length > 0 ? rfTag : undefined,
       })
+      const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM, {
+        reasonCode: 'message_send_platform',
+        reasonRef: `intent_send:onlyfans:${fanId}:${Date.now()}`,
+        idempotencyKey: `intent_send:onlyfans:${userId}:${fanId}:${Date.now()}`,
+        metadata: { source: 'divine_intent_send' },
+      })
+      if (!debit.ok) return { success: false, summary: `Insufficient AI credits (${debit.used}/${debit.limit}).` }
       return { success: true, summary: `Message sent to fan on OnlyFans.` }
     }
     if (platform === 'fansly') {
       const api = createFanslyAPI()
       const result = await api.sendMessage(connection.platform_user_id, String(fanId), {
         text: message.trim(),
-        mediaIds: Array.isArray(mediaIds) && mediaIds.length > 0 ? mediaIds : undefined,
+        mediaIds:
+          Array.isArray(mediaIds) && mediaIds.length > 0
+            ? mediaIds.map((id) => String(id))
+            : undefined,
       })
+      const debit = await consumeAiCredits(supabase, userId, CREDITS_MESSAGE_SEND_PLATFORM, {
+        reasonCode: 'message_send_platform',
+        reasonRef: `intent_send:fansly:${fanId}:${Date.now()}`,
+        idempotencyKey: `intent_send:fansly:${userId}:${fanId}:${Date.now()}`,
+        metadata: { source: 'divine_intent_send' },
+      })
+      if (!debit.ok) return { success: false, summary: `Insufficient AI credits (${debit.used}/${debit.limit}).` }
       if (result?.success) return { success: true, summary: 'Message sent to fan on Fansly.' }
       return { success: false, summary: 'Failed to send on Fansly.' }
     }
@@ -687,32 +720,75 @@ export async function getOnlyFansNotificationSummary(
   if (!connection?.access_token) {
     return { success: false, summary: 'OnlyFans is not connected.' }
   }
+  const api = createOnlyFansAPI()
+  api.setAccountId(connection.access_token)
+
+  let counts: Awaited<ReturnType<typeof api.getNotificationCounts>> | null = null
+  let notifications: Awaited<ReturnType<typeof api.listNotifications>>['notifications'] = []
+  let lastErr: string | null = null
+
   try {
-    const api = createOnlyFansAPI()
-    api.setAccountId(connection.access_token)
-    const counts = await api.getNotificationCounts()
-    const { notifications } = await api.listNotifications({ limit: 25 })
+    counts = await api.getNotificationCounts()
+  } catch (e) {
+    lastErr = e instanceof Error ? e.message : String(e)
+  }
 
-    const tipCount = (counts as Record<string, unknown>).tips ?? (counts as Record<string, unknown>).tip ?? 0
-    const fanCount = (counts as Record<string, unknown>).fans ?? (counts as Record<string, unknown>).new_fans ?? 0
-    const messageCount =
-      (counts as Record<string, unknown>).messages ??
-      (counts as Record<string, unknown>).new_messages ??
-      0
+  try {
+    const { notifications: list } = await api.listNotifications({ limit: 25 })
+    notifications = list
+  } catch (e) {
+    lastErr = e instanceof Error ? e.message : String(e)
+  }
 
-    const parts: string[] = []
-    if (fanCount) parts.push(`${fanCount} new fan${Number(fanCount) === 1 ? '' : 's'}`)
-    if (tipCount) parts.push(`${tipCount} new tip${Number(tipCount) === 1 ? '' : 's'}`)
-    if (messageCount) parts.push(`${messageCount} new message${Number(messageCount) === 1 ? '' : 's'}`)
-    const summary =
-      parts.length > 0
-        ? `OnlyFans notifications: ${parts.join(', ')}.`
-        : 'No notable new OnlyFans notifications right now.'
+  if (counts == null && notifications.length === 0 && lastErr) {
+    if (isOnlyFansRateLimitError(lastErr)) {
+      return {
+        success: false,
+        summary: 'OnlyFans is temporarily limiting notification checks. Try again in a minute.',
+      }
+    }
+    if (isOnlyFansUpstreamTransientError(lastErr)) {
+      return {
+        success: false,
+        summary:
+          'OnlyFans had a temporary glitch loading notifications. Try again shortly, or reconnect OnlyFans in Settings if this keeps happening.',
+      }
+    }
+    return { success: false, summary: lastErr }
+  }
 
-    return { success: true, summary, counts, notifications }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to fetch OnlyFans notifications'
-    return { success: false, summary: msg }
+  const tipCount =
+    counts != null
+      ? (counts as Record<string, unknown>).tips ?? (counts as Record<string, unknown>).tip ?? 0
+      : 0
+  const fanCount =
+    counts != null
+      ? (counts as Record<string, unknown>).fans ?? (counts as Record<string, unknown>).new_fans ?? 0
+      : 0
+  const messageCount =
+    counts != null
+      ? (counts as Record<string, unknown>).messages ??
+        (counts as Record<string, unknown>).new_messages ??
+        0
+      : 0
+
+  const parts: string[] = []
+  if (fanCount) parts.push(`${fanCount} new fan${Number(fanCount) === 1 ? '' : 's'}`)
+  if (tipCount) parts.push(`${tipCount} new tip${Number(tipCount) === 1 ? '' : 's'}`)
+  if (messageCount) parts.push(`${messageCount} new message${Number(messageCount) === 1 ? '' : 's'}`)
+  let summary =
+    parts.length > 0
+      ? `OnlyFans notifications: ${parts.join(', ')}.`
+      : 'No notable new OnlyFans notifications right now.'
+  if (lastErr && (counts == null || notifications.length === 0)) {
+    summary += ' (Partial: OnlyFans returned an error for one feed; try again in a minute.)'
+  }
+
+  return {
+    success: true,
+    summary,
+    counts: counts ?? { total: 0, unread: 0 },
+    notifications,
   }
 }
 
@@ -744,6 +820,19 @@ export async function listOnlyFansNotifications(
     return { success: true, summary, notifications }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to list OnlyFans notifications'
+    if (isOnlyFansRateLimitError(msg)) {
+      return {
+        success: false,
+        summary: 'OnlyFans is temporarily limiting notification checks. Try again in a minute.',
+      }
+    }
+    if (isOnlyFansUpstreamTransientError(msg)) {
+      return {
+        success: false,
+        summary:
+          'OnlyFans had a temporary glitch listing notifications. Try again shortly, or reconnect OnlyFans in Settings if this keeps happening.',
+      }
+    }
     return { success: false, summary: msg }
   }
 }
@@ -769,6 +858,19 @@ export async function markOnlyFansNotificationsRead(
     return { success: true, summary: 'Marked all OnlyFans notifications as read.' }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to mark OnlyFans notifications as read'
+    if (isOnlyFansRateLimitError(msg)) {
+      return {
+        success: false,
+        summary: 'OnlyFans is temporarily limiting requests. Wait a minute, then try marking read again.',
+      }
+    }
+    if (isOnlyFansUpstreamTransientError(msg)) {
+      return {
+        success: false,
+        summary:
+          'OnlyFans had a temporary glitch. Wait a minute and try again, or reconnect OnlyFans in Settings if this persists.',
+      }
+    }
     return { success: false, summary: msg }
   }
 }

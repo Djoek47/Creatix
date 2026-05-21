@@ -1,0 +1,618 @@
+{
+  "tabs": {
+    "profile": "Perfil",
+    "notifications": "Notificaciones",
+    "security": "Seguridad",
+    "billing": "Facturación",
+    "usage": "Uso",
+    "integrations": "Integraciones",
+    "dataPrivacy": "Datos y privacidad",
+    "preferences": "Preferencias"
+  },
+  "shell": {
+    "sidebarNavAria": "Navegación de ajustes",
+    "loadingAria": "Cargando ajustes",
+    "resources": "Recursos",
+    "terms": "Términos",
+    "privacy": "Privacidad",
+    "support": "Soporte",
+    "appTour": "Tour de la app"
+  },
+  "preferencesLocale": "Idioma",
+  "preferencesDateFormat": "Formato de fecha",
+  "preferencesCurrency": "Moneda",
+  "savePreferences": "Guardar preferencias",
+  "savedToast": "Preferencias guardadas.",
+  "preferences": {
+    "title": "Preferencias",
+    "description": "Idioma, borradores y guías discretas en la app.",
+    "fanDrafts": {
+      "title": "Borradores públicos para fans (Mimic)",
+      "body": "Deja que Mimic redacte respuestas para revisar en Divine y Mensajes; primero revisión salvo política contraria.",
+      "tailBefore": "Para mejores resultados, termina ",
+      "tailLink": "test de Mimic",
+      "tailAfter": " en Divine Manager.",
+      "saved": "Ajuste de Mimic guardado.",
+      "saveFailed": "No se pudo guardar el ajuste de Mimic."
+    },
+    "autoSave": {
+      "title": "Autoguardar borradores",
+      "hint": "Guarda mientras escribes"
+    },
+    "sound": {
+      "title": "Sonido",
+      "hint": "Sonidos de interfaz para avisos"
+    },
+    "cosmic": {
+      "title": "Guía cósmica",
+      "ai": "IA"
+    },
+    "beta": "Beta",
+    "tipPopups": {
+      "body": "Ideas breves al moverte por el panel: desactiva para evitar ventanas aleatorias (siempre puedes abrir el archivo). Lista: {count} consejos en Circe daily.",
+      "title": "Ventanas de consejos"
+    },
+    "openTips": "Ver consejos",
+    "preview": "Vista previa",
+    "localeOption": {
+      "en": "English",
+      "es": "Español",
+      "pt": "Portugués",
+      "fr": "Francés"
+    },
+    "currencyHint": "Los análisis y totales sincronizados desde las plataformas (ingresos, gasto de fans, etc.) se muestran en esta moneda con tipos de referencia del BCE en tiempo casi real (actualizados aprox. cada hora). Suscripciones, créditos y el checkout siguen en USD."
+  },
+  "profile": {
+    "title": "Perfil",
+    "description": "Nombre, foto y cómo te habla la app.",
+    "photoHint": {
+      "before": "JPEG o PNG, hasta 2 MB — o tu avatar público desde una cuenta vinculada en ",
+      "link": "Integraciones",
+      "after": "."
+    },
+    "changePhoto": "Cambiar foto",
+    "fromPlatform": "Desde plataforma",
+    "fullName": "Nombre completo",
+    "namePlaceholder": "Tu nombre",
+    "email": "Correo",
+    "gender": {
+      "label": "Identidad de género ",
+      "optional": "(opcional)",
+      "placeholder": "Elige identidad",
+      "hint": "Para que Circe, Venus y Flirt te nombren bien.",
+      "option": {
+        "unspecified": "Prefiero no decir",
+        "woman": "Mujer",
+        "man": "Hombre",
+        "non-binary": "No binario",
+        "trans-woman": "Mujer trans",
+        "trans-man": "Hombre trans",
+        "agender": "Agénero",
+        "other": "Otro / en biografía"
+      }
+    },
+    "pronounsLabel": "Pronombres",
+    "pronouns": {
+      "placeholder": "Elige pronombres",
+      "hint": "Visible en el producto y en textos IA.",
+      "customPlaceholder": "p. ej. fae/faer",
+      "option": {
+        "unspecified": "Prefiero no decir",
+        "she/her": "Ella",
+        "he/him": "Él",
+        "they/them": "Elle",
+        "she/they": "Ella / elle",
+        "he/they": "Él / elle",
+        "custom": "Personalizado"
+      }
+    },
+    "timezone": "Zona horaria",
+    "selectTimezone": "Elige zona",
+    "timezoneFootnote": "Solo calendarios y recordatorios. No cambia claro/oscur — usa Apariencia más abajo o el control del header.",
+    "appearance": {
+      "title": "Apariencia",
+      "followingDark": "Siguiendo dispositivo — Circe (oscuro)",
+      "followingLight": "Siguiendo dispositivo — Venus (claro)",
+      "pinnedDark": "Fijado — Circe (oscuro)",
+      "pinnedLight": "Fijado — Venus (claro)",
+      "systemNote": "Claro/oscur sólo del sistema. Los horarios usan tu zona configurada.",
+      "pinVenusLight": "Fijar Venus (claro)",
+      "pinCirceDark": "Fijar Circe (oscuro)",
+      "matchDevice": "Igual que el dispositivo"
+    },
+    "signOut": "Cerrar sesión",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "timezones": {
+      "america_los_angeles": "Pacífico (PT)",
+      "america_denver": "Montaña (MT)",
+      "america_chicago": "Centro (CT)",
+      "america_new_york": "Este (ET)",
+      "europe_london": "Londres (GMT)",
+      "europe_paris": "París (CET)",
+      "asia_tokyo": "Tokio (JST)",
+      "australia_sydney": "Sídney (AEST)"
+    }
+  },
+  "securityCard": {
+    "title": "Seguridad",
+    "description": "Protege tu identidad en Circe y las integraciones",
+    "passwordHeading": "Contraseña de acceso",
+    "currentPasswordPlaceholder": "Contraseña actual",
+    "newPasswordPlaceholder": "Nueva contraseña",
+    "updatePassword": "Actualizar contraseña",
+    "errors": {
+      "fillBoth": "Introduce la actual y la nueva.",
+      "newTooShort": "La nueva debe tener al menos 6 caracteres.",
+      "noEmail": "No hay correo en la cuenta.",
+      "currentWrong": "La contraseña actual no es correcta.",
+      "updateFailed": "No se pudo actualizar la contraseña."
+    },
+    "successUpdated": "Contraseña actualizada."
+  },
+  "locationVault": {
+    "title": "Bóveda de ubicación Golden Hour",
+    "description": "Guarda una ubicación opcional para predicciones de atardecer y recomendaciones de posición.",
+    "encryptedBadge": "Cifrado",
+    "encryptionNote": "Se guarda cifrado y se usa en el servidor para derivar clima y luz. Las coordenadas crudas no aparecen en bienestar.",
+    "loading": "Cargando ubicación...",
+    "useCurrent": "Usar mi ubicación actual",
+    "gpsHint": "¿Sin GPS? Elige una ciudad predefinida abajo.",
+    "quickPicks": "Accesos rápidos",
+    "preset": {
+      "montreal": "Montreal, Canadá",
+      "la": "Los Ángeles, EE. UU.",
+      "miami": "Miami, EE. UU.",
+      "london": "Londres, Reino Unido"
+    },
+    "searchPlaceholder": "Opcional: buscar ciudad (ej. Montreal, Canadá)",
+    "searchHint": "La búsqueda manual es opcional. La mayoría usa ubicación o un atajo.",
+    "savedLine": "Ubicación guardada:",
+    "save": "Guardar ubicación",
+    "remove": "Quitar",
+    "successSaved": "Ubicación guardada de forma segura.",
+    "successRemoved": "Ubicación eliminada del cofre.",
+    "errors": {
+      "saveFailed": "No se pudo guardar",
+      "queryTooShort": "Elige un atajo, tu ubicación o escribe una ciudad.",
+      "geoUnavailable": "La geolocalización no está disponible.",
+      "permissionDenied": "Permiso de ubicación denegado. Actívalo e inténtalo de nuevo.",
+      "timeout": "Tiempo agotado. Inténtalo de nuevo.",
+      "genericGeo": "No se pudo leer tu ubicación.",
+      "deleteFailed": "No se pudo eliminar"
+    }
+  },
+  "birthdayVault": {
+    "title": "Bóveda cumpleaños cósmico",
+    "badge": "Cifrado sin conocimiento",
+    "description": "Tus datos de nacimiento alimentan lecturas personalizadas. Cifrados: solo tú accedes.",
+    "securityTitle": "Seguridad sin conocimiento",
+    "securityBody": "Tu cumple se cifra en tu dispositivo antes de guardarse. Nosotros no lo vemos. Solo tú, con tu frase secreta.",
+    "emptyTitle": "Abre tu potencial cósmico",
+    "emptyBody": "Añade tu cumple para lecturas, timing y consejos cósmicos personalizados.",
+    "setupCta": "Configurar cumple cósmico",
+    "dialogSetupTitle": "Introduce tu fecha de nacimiento",
+    "dialogSetupDescription": "Tus datos se cifrarán con tu frase secreta antes de guardarse.",
+    "birthDateLabel": "Fecha de nacimiento *",
+    "includeTime": "Incluir hora para precisión día/noche",
+    "birthTimePlaceholder": "Hora (opcional)",
+    "birthTimeHintOn": "La hora habilita lecturas día/noche y mayor precisión.",
+    "birthTimeHintOff": "La hora es opcional pero mejora la precisión.",
+    "previewPrefix": "Vista previa:",
+    "previewElement": "Elemento",
+    "previewModality": "Modalidad",
+    "previewLifePath": "Camino de vida",
+    "dayBorn": "Nacido de día (energía solar)",
+    "nightBorn": "Nacido de noche (energía lunar)",
+    "passphraseLabel": "Frase secreta *",
+    "passphrasePlaceholder": "Crea una frase fuerte",
+    "confirmPassphraseLabel": "Confirma la frase *",
+    "confirmPassphrasePlaceholder": "Confirma tu frase",
+    "passphraseWarnTitle": "Importante:",
+    "passphraseWarnBody": "No podemos recuperar tu frase. Si la olvidas, deberás borrar y volver a introducir los datos.",
+    "cancel": "Cancelar",
+    "encrypting": "Cifrando…",
+    "encryptSave": "Cifrar y guardar",
+    "lockedTitle": "Datos de cumple bloqueados",
+    "lockedHint": "Introduce tu frase para desbloquear",
+    "unlock": "Desbloquear",
+    "dialogUnlockTitle": "Desbloquea tus datos cósmicos",
+    "dialogUnlockDescription": "Introduce tu frase para descifrar y ver tus datos.",
+    "unlockPassphraseLabel": "Frase secreta",
+    "unlockPassphrasePlaceholder": "Introduce tu frase",
+    "decrypting": "Descifrando…",
+    "forgotPassphrase": "¿Olvidaste tu frase?",
+    "deleteStartOver": "Borrar y empezar de nuevo",
+    "dialogDeleteTitle": "Borrar datos de cumple",
+    "dialogDeleteDescription": "Se borrarán de forma permanente. Podrás configurarlo de nuevo.",
+    "dialogDeleteDescriptionShort": "Se borrarán de forma permanente.",
+    "deleting": "Borrando…",
+    "deletePermanently": "Borrar permanentemente",
+    "lock": "Bloquear",
+    "delete": "Borrar",
+    "tabOverview": "Resumen",
+    "tabNumerology": "Numerología",
+    "tabTiming": "Momento óptimo",
+    "tabCosmic": "Cósmico",
+    "dayBornSoul": "Alma del día",
+    "nightBornSoul": "Alma nocturna",
+    "birthTimeUnknown": "Hora de nacimiento desconocida",
+    "labelRulingPlanet": "Planeta regente",
+    "labelLuckyDay": "Día afortunado",
+    "keyTraits": "Rasgos clave",
+    "compatibleSigns": "Signos compatibles",
+    "lifePathNumber": "Número del camino de vida",
+    "personalYearLabel": "Año personal ({year})",
+    "chineseZodiac": "Zodiaco chino",
+    "luckyNumbers": "Números de la suerte",
+    "bestPostingDays": "Mejores días para publicar",
+    "luckyPostingHours": "Horas afortunadas para publicar",
+    "monthlyPowerDays": "Días de poder cada mes",
+    "monthlyPowerHint": "Cada mes estas fechas alinean con tu energía",
+    "retrogradeTitle": "Aviso retrógrado",
+    "dayBornLabel": "Día de nacimiento",
+    "seasonBornLabel": "Estación de nacimiento",
+    "birthstoneLabel": "Piedra natalicia",
+    "birthFlowerLabel": "Flor natalicia",
+    "moonPhaseTitle": "Fase lunar al nacer",
+    "cosmicAdviceTitle": "Consejo cósmico personalizado",
+    "atTime": " a las ",
+    "err": {
+      "cryptoUnsupported": "Tu navegador no tiene cifrado requerido.",
+      "noBirthDate": "Introduce tu fecha",
+      "passphraseShort": "La frase debe tener al menos 8 caracteres",
+      "passphraseMismatch": "Las frases no coinciden",
+      "saveFailed": "No se pudo guardar. Reinténtalo.",
+      "needPassphrase": "Introduce tu frase",
+      "wrongPassphrase": "Frase incorrecta. Inténtalo de nuevo.",
+      "unlockFailed": "No se pudo desbloquer. Revisa la frase.",
+      "deleteFailed": "No se pudo borrar."
+    },
+    "successStored": "¡Tu cumple se guardó con seguridad!",
+    "successDeleted": "Los datos se eliminaron de forma permanente."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "description": "Elige de qué quieres saber.",
+    "alertsHeading": "Alertas",
+    "email": {
+      "title": "Por correo",
+      "hint": "Actualizaciones de cuenta por correo"
+    },
+    "leak": {
+      "title": "Alertas de filtraciones"
+    },
+    "reputation": {
+      "title": "Alertas de reputación"
+    },
+    "platform": {
+      "intro": "Avisos cuando cambia algo en plataformas conectadas (p. ej. OnlyFans o Fansly).",
+      "heading": "Actividad en la plataforma"
+    },
+    "everyMessage": {
+      "title": "Cada mensaje nuevo",
+      "hint": "Avisar por cada nuevo DM"
+    },
+    "everySubscriber": {
+      "title": "Cada nueva suscripción",
+      "hint": "Cuando alguien se suscribe"
+    },
+    "newTips": {
+      "title": "Nuevas propinas",
+      "hint": "p. ej. tips de más de US$50"
+    },
+    "subExpired": {
+      "title": "Suscripción vencida",
+      "hint": "Cuando vence una suscripción"
+    },
+    "subRenewed": {
+      "title": "Suscripción renovada",
+      "hint": "Cuando renovó un fan"
+    },
+    "messages": {
+      "heading": "Mensajes",
+      "onlyfansNote": "OnlyFans puede marcar chats leídos al abrir hilos aquí sólo si lo activas. Puedes cambiar el estado en cada chat.",
+      "autoMark": {
+        "title": "Marcar leído al abrir hilo",
+        "hint": "Por defecto apagado: las vistas previas no pierden sin leer"
+      }
+    },
+    "reports": {
+      "heading": "Informes y actualizaciones"
+    },
+    "digest": {
+      "title": "Resumen diario",
+      "hint": "Resumen de tu actividad"
+    },
+    "weekly": {
+      "title": "Informe semanal",
+      "hint": "Analíticas y destacados"
+    },
+    "features": {
+      "title": "Novedades del producto",
+      "hint": "Anuncios del producto"
+    },
+    "marketing": {
+      "title": "Correo de marketing",
+      "hint": "Ofertas y novedades nuestras"
+    }
+  },
+  "sessions": {
+    "title": "Sesiones activas",
+    "description": "Dispositivos donde iniciaste sesión.",
+    "thisDevice": "Este dispositivo",
+    "sampleMeta": "Chrome en macOS · Los Ángeles",
+    "activeBadge": "Activo",
+    "signOutOthers": "Cerrar otras sesiones"
+  },
+  "integrations": {
+    "apiTitle": "API e integraciones",
+    "viewPlans": "Ver planes",
+    "nonApiUpgradeBody": "Añade un plan Creatix completo cuando quieras para desbloquear conexiones API de creadora, mensajes, AI Studio y automatización: tus datos de protección se mantienen.",
+    "fanslyTwofaCardTitle": "Sesión Fansly por email",
+    "fanslyTwofaCardBody": "Ejecuta el OTP por email de ApiFansly para que tu cuenta Fansly conectada tenga una sesión verificada para acciones sensibles. También omite la comprobación por email en mensajes masivos durante unos 15 minutos en esta pestaña.",
+    "fanslyTwofaCardCta": "Verificar con código por email",
+    "fanslyTwofaCardSuccess": "Sesión Fansly verificada. Los envíos masivos desde Mensajes no pedirán otro código aquí durante unos 15 minutos."
+  },
+  "data": {
+    "yours": {
+      "title": "Tus datos",
+      "desc": "Exporta o refresca lo que guardamos."
+    },
+    "export": {
+      "title": "Exportación",
+      "hint": "Descarga una copia",
+      "cta": "Pedir exportación"
+    },
+    "sync": {
+      "title": "Sincronizar",
+      "hint": "Última sync hace 2 horas",
+      "cta": "Sincronizar ahora"
+    },
+    "privacy": {
+      "title": "Privacidad",
+      "desc": "Telemetría y personalización."
+    },
+    "analytics": {
+      "title": "Analítica",
+      "hint": "Uso anónimo para mejorar el producto"
+    },
+    "aiPersonal": {
+      "title": "IA personalizada",
+      "hint": "Según tus preferencias"
+    }
+  },
+  "danger": {
+    "title": "Zona de peligro",
+    "desc": "Acciones irreversibles — sólo si estás segura.",
+    "deleteData": {
+      "title": "Eliminar datos",
+      "hint": "Borra datos; conservas la cuenta",
+      "cta": "Eliminar datos"
+    },
+    "deleteAccount": {
+      "title": "Eliminar cuenta",
+      "hint": "Eliminación permanente del perfil",
+      "cta": "Eliminar cuenta"
+    }
+  },
+  "errors": {
+    "prefsSaveFailed": "No se pudieron guardar.",
+    "mimicUpdateFailed": "No se pudieron actualizar los ajustes de Mimic.",
+    "deleteAccountCancelled": "Cancelado."
+  },
+  "confirm": {
+    "deleteAccount": "¿Seguro que quieres borrar tu cuenta? No se puede deshacer."
+  },
+  "avatar": {
+    "photoUpdated": "Foto de perfil actualizada desde {platform}.",
+    "loadFailed": "No pudimos cargar la foto desde la plataforma."
+  },
+  "mfa": {
+    "title": "Autenticación en dos pasos",
+    "on": "Activo",
+    "off": "Inactivo",
+    "description": "Introduce un código corto tras la contraseña. Las frases de cifrado en otras partes no son esta.",
+    "sessionPrefix": "Sesión ·",
+    "sessionAal2": "Autenticador verificado",
+    "sessionAal1": "Solo contraseña",
+    "addAuthenticator": "Añadir autenticador",
+    "factorDefaultName": "Autenticador",
+    "friendlyApiName": "App de autenticación",
+    "remove": "Quitar",
+    "dialogTitle": "Vincula autenticador",
+    "dialogDescription": "Escanea el código QR y introduce el OTP de seis dígitos.",
+    "preparing": "Preparando…",
+    "manualEntry": "¿Sin escaneo? Entra manual",
+    "confirmationCode": "Código de confirmación",
+    "otpAria": "Código de seis dígitos",
+    "cancel": "Cancelar",
+    "verify": "Verificar",
+    "err": {
+      "enrollUnavailable": "2FA no disponible por ahora. Inténtalo luego.",
+      "enrollStart": "No se pudo iniciar. Reinténtalo.",
+      "incorrectCode": "Código incorrecto.",
+      "verifyUnexpected": "Verificación falló.",
+      "removeDetailed": "No se quitó este dispositivo. Vuelve a iniciar sesión.",
+      "removeGeneric": "No se quitó."
+    },
+    "success": {
+      "linked": "Autenticador vinculado.",
+      "removed": "Autenticador quitado."
+    }
+  },
+  "housekeeping": {
+    "title": "Planes (listas inteligentes)",
+    "description": "Clasifica fans por gasto y actividad, sincroniza listas/tags. Configura en Fans → Planes.",
+    "cta": "Abrir planes"
+  },
+  "social": {
+    "title": "Redes sociales",
+    "description": "Para reputación — solo tu conectar o desconectar.",
+    "twitter": "Twitter/X",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "connected": "Conectado",
+    "notLinked": "Sin enlace",
+    "disconnect": "Desconectar",
+    "connect": "Conectar"
+  },
+  "usageCredits": {
+    "title": "Uso y créditos",
+    "subtitle": "Inclusos más recargas. Las recargas siguen tras el ciclo.",
+    "available": "Disponible",
+    "creditsWord": "créditos",
+    "balanceAria": "Saldo {includedPct}% incl. / {purchasedPct}% comprado",
+    "included": "Incluidos",
+    "purchased": "Comprados",
+    "thisCycle": "Este ciclo: {used} / {limit} incluidos usados",
+    "spendTitle": "Intel de gastos",
+    "spendDescription": "Actividad: qué usa créditos y cada línea del libro.",
+    "tierBadge": "Ranking por claridad",
+    "openPlannerFull": "Abrir vista completa",
+    "weekToggle": "Esta semana",
+    "monthToggle": "Este mes",
+    "periodSpend": "Gasto período",
+    "creditsDebited": "créditos debitados",
+    "ledgerLines": "Líneas",
+    "visibleWindow": "visibles en ventana",
+    "topMover": "Motor principal",
+    "topMoverSubtitle": "Mayor débito",
+    "catLeaderboard": "Ranking categorías",
+    "noDebitYet": "Sin gastos este período aún.",
+    "rankPrimaryDriver": "Principal uso",
+    "rankByDebit": "Por débitos",
+    "activityFeed": "Actividad",
+    "feed": {
+      "none": "Sin movimientos",
+      "entries": "{count, plural, one {# movimiento} other {# movimientos}}",
+      "emptyBody": "Vacío hasta que muevan créditos."
+    },
+    "allocationTitle": "Planificación",
+    "allocationDescription": "Mismo playbook que Herramientas junto al gasto.",
+    "loadingCredits": "Cargando créditos",
+    "ledger": {
+      "debit": "Débito",
+      "credit": "Crédito",
+      "expireAdjustment": "Ciclo"
+    },
+    "periodCaption": {
+      "weekFallback": "Últimos 7 días",
+      "monthFallback": "Mes hasta hoy"
+    }
+  },
+  "billing": {
+    "planSectionTitle": "Plan y facturación",
+    "planSectionDescription": "Suscripción, créditos y acciones.",
+    "divineTrial": "Prueba Divine",
+    "active": "Activo",
+    "free": "Gratis",
+    "trial": "Prueba",
+    "trialEnds": "Termina {date}",
+    "trialEnded": "Terminó {date}",
+    "trialExpired": "Prueba terminada",
+    "trialRedeemed": "Prueba canjeada",
+    "renews": "Renueva {date}",
+    "renewsSoon": "Renueva pronto",
+    "viewPlansBelow": "Planes abajo",
+    "perMonth": "/ mes",
+    "manageBilling": "Gestionar facturación",
+    "paymentMethod": "Método de pago",
+    "cancelSubscription": "Cancelar suscripción",
+    "viewPlans": "Ver planes",
+    "period": "Período",
+    "daysLeft": "días restantes",
+    "daysUntilEnd": "días hasta fin",
+    "aiCreditsLabel": "Créditos IA",
+    "includedPurchasedMix": "{included} incl. · {purchased} comprados",
+    "trialPool": "Bolsa trial: {n} créditos (tarjeta verificada).",
+    "activateAfterStripe": "Créditos al configurar tarjeta en Stripe.",
+    "bankedTrialCreditsApply": "{count, plural, one {# crédito de prueba se aplicará al mejorar tu plan} other {# créditos de prueba se aplicarán al mejorar tu plan}}",
+    "creditsPerUsd": "{n} créditos por $1.",
+    "storageLabel": "Almacenamiento",
+    "messagesLabel": "Mensajes",
+    "messagesSubtitle": "este mes (est.)",
+    "subscriptionEnding": "Suscripción terminando",
+    "subscriptionEndingBody": "El acceso sigue hasta {date}.",
+    "periodEndFallback": "fin del período",
+    "resumeBilling": "Reactivar cobro",
+    "payCompleteTitle": "Pago listo",
+    "payPendingTitle": "Pago registrado",
+    "payFinalizingTitle": "Finalizando",
+    "syncingCredits": "Pago OK. Sincronizando créditos…",
+    "paySuccessMsg": "Pago correcto — créditos actualizados.",
+    "payReconcileMsg": "Pago confirmado; conciliación en curso.",
+    "refreshBalance": "Actualizar saldo",
+    "walletUpdated": "Cartera actualizada",
+    "notSyncedYet": "Sin sincronizar",
+    "syncTitle": "Sync",
+    "topUpTitle": "Recargar créditos",
+    "topUpDescription": "Recarga rápida. Los comprados ruedan un mes extra.",
+    "customAmount": "Monto propio",
+    "customMinCheckout": "Mínimo ${min} checkout ({perUsd}/$1)",
+    "purchaseCredits": "Comprar créditos",
+    "creditsUsdLine": "${usd} · {credits} créditos",
+    "enterAtLeast": "Mínimo ${min}",
+    "creditsStarterLine": "500 créditos",
+    "creditsStarterPrice": "$5",
+    "creditsMidLine": "1 000 créditos",
+    "creditsMidPrice": "$10",
+    "creditsPlusLine": "2 500 créditos",
+    "creditsPlusPrice": "$25",
+    "plannerCardTitle": "Planner de créditos",
+    "plannerCardSubtitle": "Planificación día a día en el dashboard.",
+    "openPlanner": "Abrir planner",
+    "pricingPlansTitle": "Planes y precios",
+    "pricingPlansDescriptionLead": "Mismos niveles que",
+    "publicPricingLink": "página pública",
+    "pricingPlansDescriptionTrail": "El checkout usa el total mostrado abajo.",
+    "manyvidsCheckboxAria": "Incluir cobertura antipiratería para otras tiendas con plan Bundled. {credits, number} créditos IA por ciclo.",
+    "antipiracyOtherPlatformsTitle": "Cobertura antipiratería en otras plataformas",
+    "coverageInfoTrigger": "Cobertura",
+    "antipiracyPopoverStorefrontsTitle": "Vitrinas",
+    "antipiracyPopoverStorefrontsBody": "Misma familia de cobertura que la fila multiplataforma en precios (Clips4Sale, Fanvue, Loyalfans, MYM y similares). Incluida en el total del workspace — no es suscripción aparte.",
+    "antipiracyPopoverStandaloneRich": "La Protección independiente más amplia (cargo aparte) <highlight>llegará pronto</highlight> desde la tarjeta de abajo — aún no abrimos altas nuevas.",
+    "antipiracyPopoverStandaloneAvailable": "Para protección independiente en más sitios, usa el complemento Protection de abajo (cargo aparte).",
+    "antipiracySrOnlyLead": "Cobertura antipiratería para vitrinas adicionales solo con plan Bundled. {credits, number} créditos IA por ciclo. El precio sigue tu banda de ingresos.",
+    "antipiracySrOnlyComingSoon": "La Protection multipataforma independiente de abajo llegará pronto para nuevas suscripciones.",
+    "antipiracySrOnlySeparate": "El complemento Protection de abajo se factura aparte.",
+    "estimateAntiPiracyAddon": "Complemento antipiratería",
+    "estimateFocusTotal": "Total Focus",
+    "estimateAddon": "Estimado del complemento",
+    "perMoAbbrev": "/mes",
+    "fullRevenueBandMatrix": "Matriz completa de bandas de ingreso",
+    "showAllTiers": "Ver todos los niveles",
+    "matrixColRevenue": "Ingresos",
+    "matrixColOnlyfans": "OnlyFans",
+    "matrixColFansly": "Fansly",
+    "matrixColBundled": "Bundled (OnlyFans + Fansly)",
+    "protectionStandaloneEyebrow": "Independiente",
+    "protectionPlanFallbackName": "Protection y antipiratería",
+    "comingSoonBadge": "Próximamente",
+    "protectionDescComingSoon": "La antipiratería independiente para vitrinas extra estará como suscripción Protection propia — aún no abrimos altas. El complemento ManyVids Bundled de arriba sigue en tu suscripción principal si lo eliges.",
+    "protectionDescLive": "Antipiratería mensual independiente para vitrinas extra: fugas de contenido, retiradas y hub Protection. Cargo aparte frente a planes de una sola plataforma o Bundled: ManyVids en el Bundled de arriba forma parte de esa suscripción; Protection es propia para cobertura más amplia.",
+    "protectionActiveOnAccount": "Activo en tu cuenta.",
+    "protectionEnrollmentClosed": "Las altas nuevas aún no están abiertas. Activaremos el checkout aquí cuando abra el registro de Protection multipataforma.",
+    "monthlyEyebrow": "Mensual",
+    "protectionUpdatePayment": "Actualizar pago",
+    "protectionSubscribeCta": "Suscribirse — {price}{period}",
+    "trialCardEyebrow": "Prueba",
+    "trialUnlockHeading": "Desbloquear acceso de prueba",
+    "trialUnlockBody": "Añade una tarjeta — sin cargo hasta que termine la prueba. Los créditos se activan cuando Stripe confirme el método de pago.",
+    "trialDueToday": "A pagar hoy",
+    "trialPoolActiveLine": "{credits, number} créditos IA en el pool de prueba mientras dure.",
+    "trialAddCardCta": "Añadir tarjeta · iniciar prueba",
+    "trialFinePrint": "La facturación empieza al terminar la prueba salvo que canceles antes. Al completar Stripe Checkout autorizas cargos futuros.",
+    "documentsEyebrow": "Documentos",
+    "invoicesHeading": "Facturas",
+    "invoicesDescription": "Gestionado por Stripe: el mismo libro y recibos que Checkout y tu portal de facturación.",
+    "viewInvoices": "Ver facturas",
+    "opensStripePortal": "Abre el portal de cliente de Stripe",
+    "invoicesNothingYet": "Nada por ahora",
+    "invoicesSubscribeHint": "Al suscribirte, los PDF aparecerán aquí — Stripe los envía automáticamente.",
+    "antipiracyBundledWorkspace": "Workspace Bundled",
+    "storageTooltipVault": "Vault Creatix: tope de {quotaMb} MB ({quotaSource}). Uso desde Supabase Storage.",
+    "storageTooltipFallback": "Tope de almacenamiento: {capMb} MB. Conecta para ver uso en vivo del vault."
+  }
+}

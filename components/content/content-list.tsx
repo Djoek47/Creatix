@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { MoreHorizontal, Edit, Copy, Trash2, Image, Video, FileText, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Content } from '@/lib/types'
+import type { Content, Platform } from '@/lib/types'
 
 interface ContentListProps {
   content: Content[]
@@ -33,10 +33,12 @@ const statusColors = {
   archived: 'bg-secondary text-secondary-foreground border-border',
 }
 
-const platformColors = {
+const platformColors: Record<Platform, string> = {
   onlyfans: 'bg-[#00AFF0]/20 text-[#00AFF0]',
   mym: 'bg-[#FF4D67]/20 text-[#FF4D67]',
   fansly: 'bg-[#009FFF]/20 text-[#009FFF]',
+  manyvids: 'bg-violet-500/20 text-violet-400',
+  loyalfans: 'bg-fuchsia-500/20 text-fuchsia-400',
 }
 
 export function ContentList({ content }: ContentListProps) {

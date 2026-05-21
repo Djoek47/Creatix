@@ -1,0 +1,154 @@
+{
+  "steps": {
+    "full-01": {
+      "title": "Bem-vindo ao Circe et Venus",
+      "description": "Este tour percorre a app real: cada passo abre a página certa e destaca onde essa área vive na barra lateral (ou na página). Usa Seguinte para avançar — cerca de trinta passos curtos.",
+      "subjectLabel": "Cartão de boas-vindas"
+    },
+    "full-02": {
+      "title": "Como a app se encaixa",
+      "description": "Pensa num único espaço de trabalho para o teu negócio como criadora: fans, receita, caixa de entrada, retenção, conformidade e ajudantes IA. A barra lateral esquerda é o teu mapa; cada secção abaixo aprofunda.",
+      "subjectLabel": "Visão geral"
+    },
+    "full-03": {
+      "title": "Início do painel",
+      "description": "Abre o Painel quando quiseres para estatísticas, plataformas ligadas e atalhos. Depois deste tour, usa Iniciar tour ao vivo ou Lançar tour ao vivo no topo para repetir o mesmo tour completo a partir de qualquer página.",
+      "subjectLabel": "Painel"
+    },
+    "full-04": {
+      "title": "Divine Manager",
+      "description": "A coroa na barra lateral: controlo por voz e texto do teu assistente IA — plano de hoje, tarefas de protocolo, Mimic, notificações e ferramentas sem sair da página. A primeira visita abre um assistente de configuração curto; links do Guia e `?section=protocol`, `tasks` ou `chat` entram direto.",
+      "subjectLabel": "Divine Manager"
+    },
+    "full-05": {
+      "title": "Conteúdo",
+      "description": "Planeia publicações no calendário, gere o teu cofre de media e revê cada linha — Agenda, Cofre e Todas as publicações num só espaço calmo.",
+      "subjectLabel": "Conteúdo"
+    },
+    "full-06": {
+      "title": "Bem-estar",
+      "description": "Um carril mais calmo: instantâneo Mimic, calendário cósmico, hábitos — em conjunto com o trabalho, não substitui apoio profissional.",
+      "subjectLabel": "Bem-estar"
+    },
+    "full-07": {
+      "title": "Mensagens",
+      "description": "DMs unificados OnlyFans e Fansly. Atualiza conversas quando precisares do contexto mais recente; parte dos media pode abrir totalmente só na app oficial da plataforma.",
+      "subjectLabel": "Mensagens"
+    },
+    "full-08": {
+      "title": "Mensagem em massa",
+      "description": "A partir de Mensagens ou AI Studio: compõe difusões para segmentos — separado do chat 1:1; verifica conformidade das tuas plataformas.",
+      "subjectLabel": "Mensagem em massa"
+    },
+    "full-09": {
+      "title": "Social",
+      "description": "Promoção multi-plataforma e sinais de reputação fora das plataformas adultas — usa com Menções para uma visão completa.",
+      "subjectLabel": "Social"
+    },
+    "full-10": {
+      "title": "Visão geral do AI Studio",
+      "description": "Media e Cofre mais a biblioteca de ferramentas: legendas, churn, concorrência, presentes, Cupid para fans novos e mais. Ferramentas Pro mostram custo em créditos.",
+      "subjectLabel": "AI Studio"
+    },
+    "full-11": {
+      "title": "Créditos IA e Pro",
+      "description": "Muitas execuções consomem créditos IA (vê subscrição e cartões de ferramentas). Faz upgrade ou gere limites em Definições e faturação quando precisares de mais margem.",
+      "subjectLabel": "Ferramentas e créditos"
+    },
+    "full-13": {
+      "title": "AI Studio: Chatter e presentes",
+      "description": "O AI Chatter gere vias de automação de DM quando ativado. A lista de desejos liga ferramentas a links reais de produtos que guardas — útil para fluxos de sugestão de presentes.",
+      "subjectLabel": "Chatter e presentes"
+    },
+    "full-14": {
+      "title": "Circe vs Venus",
+      "description": "Circe (roxo): retenção, analítica, proteção — mantém fans e receita seguros. Venus (dourado): crescimento — fans, comentador público, menções. Ambas podem alimentar personas IA nas ferramentas.",
+      "subjectLabel": "Circe vs Venus"
+    },
+    "full-15": {
+      "title": "Analíticas",
+      "description": "Tendências de receita e fans, instantâneos e caminhos para ferramentas mais profundas como Income Predictor para previsões e metas.",
+      "subjectLabel": "Analíticas"
+    },
+    "full-16": {
+      "title": "Income Predictor",
+      "description": "Dentro de Analíticas: mistura estatísticas do parceiro com a tua cadência, metas e contexto — para planear o mês seguinte, não como garantia.",
+      "subjectLabel": "Income Predictor"
+    },
+    "full-17": {
+      "title": "Hub de retenção e churn",
+      "description": "Varreduras de churn agendadas, fans em risco pelas tuas regras, protocolos e tarefas — alinhado com jobs em segundo plano e notificações quando ativos.",
+      "subjectLabel": "Retenção e churn"
+    },
+    "full-18": {
+      "title": "Ferramenta Churn Predictor",
+      "description": "No AI Studio: leituras de churn por fan com registos de fan e contexto de conversa — diferente do relatório por lotes de Retenção; usa ambos para estratégia.",
+      "subjectLabel": "Churn Predictor (ferramenta)"
+    },
+    "full-19": {
+      "title": "Proteção",
+      "description": "Alertas de fugas, varreduras, apoio DMCA — revê itens abertos com regularidade; liga plataformas para sinais atualizados.",
+      "subjectLabel": "Proteção"
+    },
+    "full-20": {
+      "title": "Aegis",
+      "description": "Subárea de Proteção para o hub Aegis quando configurado — lugar central para fluxos avançados de proteção junto de fugas.",
+      "subjectLabel": "Aegis"
+    },
+    "full-21": {
+      "title": "Fans",
+      "description": "Pesquisa, etiquetas, notas, acordos — o teu sistema de registo de subscritores entre plataformas; sincroniza a partir de integrações.",
+      "subjectLabel": "Fans"
+    },
+    "full-22": {
+      "title": "Classificação de fans",
+      "description": "Regras para etiquetar fans por comportamento ou gasto; os resultados alimentam listas e automações — mantém alinhamento com segmentos Fan Atlas.",
+      "subjectLabel": "Classificação de fans"
+    },
+    "full-23": {
+      "title": "Comentador",
+      "description": "Comentários de posts e stories OnlyFans: rascunhos de persona (Circe, Venus, Flirt, Pro), sinalizadores de segurança, rever antes de publicar. Fan Atlas (classificação inteligente): gasto, atividade na conversa, buckets de freeloader — sincroniza para listas OnlyFans e tags Fansly a partir de Fans → Acordos ou esta página.",
+      "subjectLabel": "Comentador"
+    },
+    "full-25": {
+      "title": "Menções",
+      "description": "Reputação e sinais tipo menção — junta com Social para como falam de ti fora da plataforma.",
+      "subjectLabel": "Menções"
+    },
+    "full-26": {
+      "title": "Comunidade",
+      "description": "Dicas e ideias entre pares — não é suporte oficial; usa o Guia para documentação do produto.",
+      "subjectLabel": "Comunidade"
+    },
+    "full-27": {
+      "title": "Dicas diárias da Circe",
+      "description": "Hábitos e âncoras na Comunidade ou ligados a partir de Bem-estar — estrutura opcional para rotinas.",
+      "subjectLabel": "Dicas diárias Circe"
+    },
+    "full-28": {
+      "title": "Guia",
+      "description": "Ajuda longa e links profundos — marca como favorito. Quando os rótulos da UI mudam, o Guia e este tour atualizam juntos.",
+      "subjectLabel": "Guia (esta página)"
+    },
+    "full-29": {
+      "title": "Definições",
+      "description": "Integrações (OnlyFans, Fansly, faturação), preferências, segurança, regras de listas Fan Atlas de relance — liga contas cedo para dados de fans fiáveis.",
+      "subjectLabel": "Definições"
+    },
+    "full-30": {
+      "title": "As integrações importam",
+      "description": "Sem plataformas ligadas, listas em tempo real e webhooks são limitados — volta a ligar se a sessão expirar; podem aplicar-se limites de faturação a dados de plataformas adultas.",
+      "subjectLabel": "Integrações"
+    },
+    "full-31": {
+      "title": "Cabeçalho: tour ao vivo",
+      "description": "Em qualquer página, Iniciar tour ao vivo ou Lançar tour ao vivo no cabeçalho abre de novo este tour completo (via Boas-vindas). Em ecrãs pequenos, usa o menu se o controlo do cabeçalho estiver escondido.",
+      "subjectLabel": "Iniciar tour (cabeçalho)"
+    },
+    "full-32": {
+      "title": "Já tens orientação",
+      "description": "Explora a barra lateral na ordem que quiseres. Repete este tour quando quiseres a partir do cabeçalho ou do Guia. Abre o Guia para profundidade e resolução de problemas.",
+      "subjectLabel": "Pronto"
+    }
+  }
+}

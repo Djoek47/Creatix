@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,9 +23,12 @@ import {
 } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport, type UIMessage } from 'ai'
+import { textFromUiMessage } from '@/lib/ai/ui-message-text'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { NICHE_LABELS, NicheKey } from '@/lib/niches'
+import { NicheKey, isAllowedNiche } from '@/lib/niches'
+import { useTranslations } from 'next-intl'
 
 interface GrowthSuggestion {
   id: string
@@ -95,6 +98,7 @@ const growthSuggestions: GrowthSuggestion[] = [
 export function VenusAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const tNiche = useTranslations('niches')
   const [repLoading, setRepLoading] = useState(false)
   const [repError, setRepError] = useState<string | null>(null)
   const [reputation, setReputation] = useState<ReputationAnalysis | null>(null)
@@ -102,15 +106,25 @@ export function VenusAssistant() {
   const [niches, setNiches] = useState<string[]>([])
   
   const [input, setInput] = useState('')
-  const { messages, sendMessage, status } = useChat({
-    api: '/api/ai/venus',
-    initialMessages: [
+  const venusTransport = useMemo(() => new DefaultChatTransport({ api: '/api/ai/venus' }), [])
+  const venusWelcomeMessages = useMemo(
+    () => [
       {
         id: 'welcome',
-        role: 'assistant',
-        content: "Welcome, beautiful creator. I am Venus, goddess of love and attraction. My divine sight reveals the paths to grow your following and enhance your irresistible allure. What aspects of your empire do you wish to expand?"
-      }
-    ]
+        role: 'assistant' as const,
+        parts: [
+          {
+            type: 'text' as const,
+            text: 'Welcome, beautiful creator. I am Venus, goddess of love and attraction. My divine sight reveals the paths to grow your following and enhance your irresistible allure. What aspects of your empire do you wish to expand?',
+          },
+        ],
+      },
+    ],
+    [],
+  )
+  const { messages, sendMessage, status } = useChat({
+    transport: venusTransport,
+    messages: venusWelcomeMessages,
   })
   const isLoading = status === 'streaming' || status === 'submitted'
 
@@ -118,7 +132,7 @@ export function VenusAssistant() {
     e.preventDefault()
     const text = input.trim()
     if (!text || isLoading) return
-    sendMessage(text)
+    void sendMessage({ text })
     setInput('')
   }
   
@@ -245,7 +259,7 @@ export function VenusAssistant() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div ref={scrollRef} className="h-[300px] overflow-y-auto space-y-4 rounded-lg bg-gradient-to-b from-gold/5 to-transparent p-4">
-              {messages.map((msg) => (
+              {messages.map((msg: UIMessage) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     msg.role === 'user' 
@@ -255,7 +269,7 @@ export function VenusAssistant() {
                     {msg.role === 'assistant' && (
                       <div className="text-xs font-medium text-gold mb-1">Venus</div>
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{textFromUiMessage(msg)}</p>
                   </div>
                 </div>
               ))}
@@ -414,7 +428,7 @@ export function VenusAssistant() {
                   <div className="flex flex-wrap gap-1 max-w-xs justify-end">
                     {niches.map((niche) => (
                       <Badge key={niche} variant="outline" className="text-[10px]">
-                        {NICHE_LABELS[niche as NicheKey] || niche}
+                        {isAllowedNiche(niche) ? tNiche(`labels.${niche as NicheKey}`) : niche}
                       </Badge>
                     ))}
                   </div>

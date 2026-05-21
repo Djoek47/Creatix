@@ -2,33 +2,91 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { UIMessage } from 'ai'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { isPaidSubscription } from '@/lib/billing'
+import { AssistPanel } from '@/components/frame-workspace/assist-panel'
+import { DivineActionPanel } from '@/components/frame-workspace/divine-action-panel'
+import { ManualExportPanel } from '@/components/frame-workspace/manual-export-panel'
+import { RouteNav, viewTitle } from '@/components/frame-workspace/route-nav'
+import { TracePanel } from '@/components/frame-workspace/trace-panel'
+import type { EditorView, Preset } from '@/components/frame-workspace/types'
+import type { BrandWatermarkDefaults } from '@/lib/brand/brand-profile-types'
 import presetsData from '@/lib/data/frame-edit-presets.json'
+import { applyDivineEditorActions, dryRunDivineEditorActions, type AppliedDivineAction } from '@/lib/frame/divine/action-applier'
+import type { DivineEditorAction } from '@/lib/frame/divine/actions'
+import { useFrameExport } from '@/lib/frame/use-frame-export'
+import { useFrameRender } from '@/lib/frame/use-frame-render'
+import { useFrameTrace } from '@/lib/frame/use-frame-trace'
+import { useFrameAssist } from '@/lib/frame/use-frame-assist'
+import { buildEditPlan, type AspectPreset, type EditOutputFormat } from '@/lib/frame/export/edit-plan'
+import { hashPlanJson } from '@/lib/frame/export/plan-hash'
+import {
+  FRAME_LIBRARY_SELECTION_KEY,
+  type LibrarySelectionItem,
+  useProjectDraft,
+} from '@/lib/frame/timeline/use-project-draft'
 
 const CREATIX = process.env.NEXT_PUBLIC_CREATIX_APP_URL || 'https://www.circeetvenus.com'
+const MARKIT_BRIDGE_CONTEXT_KEY = 'markit:bridge-context:v1'
+const MARKIT_TRACE_OPERATIONS_ENABLED = process.env.NEXT_PUBLIC_MARKIT_TRACE_OPERATIONS_ENABLED !== 'false'
+const MARKIT_RENDER_QUEUE_ENABLED = process.env.NEXT_PUBLIC_MARKIT_RENDER_QUEUE_ENABLED !== 'false'
+const MARKIT_DIVINE_ACTIONS_ENABLED = process.env.NEXT_PUBLIC_MARKIT_DIVINE_ACTIONS_ENABLED === 'true'
 
-type Preset = {
-  id: string
-  label: string
-  description: string
-  tags: string[]
-}
+type EditorShellMode = 'simple' | 'pro'
 
-export function EditorApp() {
+export function EditorApp({
+  initialView = 'setup',
+  shellPath,
+  editorMode = 'pro',
+}: {
+  initialView?: EditorView
+  shellPath?: string
+  editorMode?: EditorShellMode
+}) {
   const sp = useSearchParams()
   const importUrl = sp.get('importUrl') || ''
   const exportUrl = sp.get('exportUrl') || ''
   const exportToken = sp.get('exportToken') || ''
+  const contentId = sp.get('contentId') || ''
+  const viewParam = (sp.get('view') || '').toLowerCase()
+  const focusClipId = sp.get('focusClip') || ''
+  const activeView: EditorView =
+    viewParam === 'setup' || viewParam === 'edit' || viewParam === 'export' || viewParam === 'detect'
+      ? (viewParam as EditorView)
+      : initialView
 
   const hasVaultBridge = Boolean(importUrl && exportUrl && exportToken)
+
+  useEffect(() => {
+    if (!contentId || !exportToken) return
+    const payload = {
+      contentId,
+      exportToken,
+      importUrl,
+      exportUrl,
+      savedAt: new Date().toISOString(),
+    }
+    const serialized = JSON.stringify(payload)
+    try {
+      window.sessionStorage.setItem(MARKIT_BRIDGE_CONTEXT_KEY, serialized)
+    } catch {
+      // best-effort persistence
+    }
+    try {
+      window.localStorage.setItem(MARKIT_BRIDGE_CONTEXT_KEY, serialized)
+    } catch {
+      // best-effort persistence
+    }
+  }, [contentId, exportToken, importUrl, exportUrl])
 
   const [sessionUserId, setSessionUserId] = useState<string | null>(null)
   const [paid, setPaid] = useState<boolean | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [entitlementReady, setEntitlementReady] = useState(false)
+  const [libraryHydrated, setLibraryHydrated] = useState(false)
+  const [librarySyncNotice, setLibrarySyncNotice] = useState<string | null>(null)
+  const [autoRecipientClipId, setAutoRecipientClipId] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -64,114 +122,124 @@ export function EditorApp() {
       })
   }, [authReady, sessionUserId])
 
-  const [exportStatus, setExportStatus] = useState<string | null>(null)
-  const [exportBusy, setExportBusy] = useState(false)
+  useEffect(() => {
+    if (!authReady) return
+    let cancelled = false
+    void fetch('/api/brand/profile', { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) return null
+        return res.json()
+      })
+      .then((data) => {
+        if (cancelled || !data?.profile?.watermarkDefaults) return
+        const defaults = data.profile.watermarkDefaults as BrandWatermarkDefaults
+        setBrandWatermarkDefaults(defaults)
+        if (defaults.traceRecipientPrefix) {
+          setTraceRecipientKey((prev) => (prev.trim() ? prev : `${defaults.traceRecipientPrefix}-`))
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [authReady])
+
+  const [brandWatermarkDefaults, setBrandWatermarkDefaults] = useState<BrandWatermarkDefaults | null>(null)
 
   const canManualExport = hasVaultBridge
-
-  const pushFile = useCallback(
-    async (file: File) => {
-      if (!hasVaultBridge) return
-      setExportBusy(true)
-      setExportStatus(null)
-      try {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('exportUrl', exportUrl)
-        fd.append('exportToken', exportToken)
-        const res = await fetch('/api/export', { method: 'POST', body: fd })
-        const text = await res.text()
-        if (!res.ok) {
-          setExportStatus(`Upload failed (${res.status}): ${text.slice(0, 400)}`)
-        } else {
-          setExportStatus('Saved to your vault. Refresh Media & vault on Circe et Venus.')
-        }
-      } catch (e) {
-        setExportStatus(e instanceof Error ? e.message : 'Upload failed')
-      } finally {
-        setExportBusy(false)
-      }
-    },
-    [exportToken, exportUrl, hasVaultBridge],
-  )
-
-  const sendSourceToVault = useCallback(async () => {
-    if (!importUrl || !hasVaultBridge) return
-    setExportBusy(true)
-    setExportStatus(null)
-    try {
-      const res = await fetch(importUrl, { method: 'GET', mode: 'cors' })
-      if (!res.ok) {
-        setExportStatus(`Could not read source (${res.status}).`)
-        setExportBusy(false)
-        return
-      }
-      const blob = await res.blob()
-      const file = new File([blob], 'from-frame.mp4', { type: blob.type || 'video/mp4' })
-      await pushFile(file)
-    } catch (e) {
-      setExportStatus(
-        e instanceof Error
-          ? `${e.message} — If CORS failed, confirm NEXT_PUBLIC_FRAME_URL on Creatix matches this host.`
-          : 'Could not fetch source',
-      )
-      setExportBusy(false)
-    }
-  }, [hasVaultBridge, importUrl, pushFile])
-
-  const [chatInput, setChatInput] = useState('')
-  const [chatMessages, setChatMessages] = useState<{ id: string; role: 'user' | 'assistant'; text: string }[]>([])
-  const chatMessagesRef = useRef(chatMessages)
-  useEffect(() => {
-    chatMessagesRef.current = chatMessages
-  }, [chatMessages])
-  const [aiBusy, setAiBusy] = useState(false)
-  const [aiError, setAiError] = useState<string | null>(null)
+  const tracedExportEnabled = process.env.NEXT_PUBLIC_FRAMER_TRACED_EXPORT_ENABLED === 'true'
+  const traceOperationsEnabled = tracedExportEnabled && MARKIT_TRACE_OPERATIONS_ENABLED
+  const renderQueueEnabled = MARKIT_RENDER_QUEUE_ENABLED
+  const divineActionsEnabled = MARKIT_DIVINE_ACTIONS_ENABLED && editorMode === 'pro'
+  const { exportStatus, exportBusy, pushFile, sendSourceToVault } = useFrameExport({
+    hasVaultBridge,
+    importUrl,
+    exportUrl,
+    exportToken,
+  })
 
   /** AI debits credits on Creatix; vault bridge token or signed-in session both work. */
   const canUseAi = hasVaultBridge || Boolean(sessionUserId)
-
-  const runAssist = useCallback(
-    async (userText: string) => {
-      if (!canUseAi || aiBusy) return
-      const userMsg = { id: crypto.randomUUID(), role: 'user' as const, text: userText }
-      const next = [...chatMessagesRef.current, userMsg]
-      setChatMessages(next)
-      chatMessagesRef.current = next
-      setAiBusy(true)
-      setAiError(null)
-      try {
-        const ui: UIMessage[] = next.map((m) => ({
-          id: m.id,
-          role: m.role,
-          parts: [{ type: 'text', text: m.text }],
-        }))
-        const res = await fetch('/api/ai-assist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ messages: ui, vaultExportToken: exportToken || undefined }),
-        })
-        const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string }
-        if (!res.ok) {
-          setAiError(data.error || res.statusText)
-          return
-        }
-        const reply = typeof data.text === 'string' ? data.text : ''
-        const withAssistant = [
-          ...next,
-          { id: crypto.randomUUID(), role: 'assistant' as const, text: reply || '(empty response)' },
-        ]
-        setChatMessages(withAssistant)
-        chatMessagesRef.current = withAssistant
-      } catch (e) {
-        setAiError(e instanceof Error ? e.message : 'Request failed')
-      } finally {
-        setAiBusy(false)
-      }
-    },
-    [aiBusy, canUseAi, exportToken],
+  const { chatInput, setChatInput, chatMessages, aiBusy, aiError, runAssist, submitChat } = useFrameAssist({
+    canUseAi,
+    vaultExportToken: exportToken,
+  })
+  const {
+    project,
+    setProjectName,
+    resetProject,
+    addPlaceholderClip,
+    importLibrarySelection,
+    setImageClipDuration,
+    setClipTrim,
+    setClipCrop,
+    summary: projectSummary,
+    lastSavedAt,
+  } = useProjectDraft()
+  const focusedClip = useMemo(() => {
+    if (!focusClipId) return null
+    const clip = project.timeline.clips.find((item) => item.id === focusClipId)
+    if (!clip) return null
+    const media = project.media.find((item) => item.id === clip.mediaId)
+    const track = project.timeline.tracks.find((item) => item.id === clip.trackId)
+    return {
+      id: clip.id,
+      mediaName: media?.name || 'Imported clip',
+      trackLabel: track?.label || 'Track',
+      startSec: clip.startSec,
+      endSec: clip.outSec,
+      durationSec: Math.max(0, clip.outSec - clip.inSec),
+    }
+  }, [focusClipId, project.media, project.timeline.clips, project.timeline.tracks])
+  const [exportFormat, setExportFormat] = useState<EditOutputFormat>('mp4')
+  const [aspectPreset, setAspectPreset] = useState<AspectPreset>('9:16-of')
+  const editPlan = useMemo(
+    () => buildEditPlan(project, { format: exportFormat, aspect: aspectPreset }),
+    [aspectPreset, exportFormat, project],
   )
+  const editPlanJson = useMemo(() => JSON.stringify(editPlan, null, 2), [editPlan])
+  const planHash = useMemo(() => hashPlanJson(editPlanJson), [editPlanJson])
+  const encoderProfile = useMemo(() => `${exportFormat}-${aspectPreset}`, [aspectPreset, exportFormat])
+  const {
+    traceRecipientKey,
+    setTraceRecipientKey,
+    traceBatchRaw,
+    setTraceBatchRaw,
+    traceBusy,
+    traceStatus,
+    detectFile,
+    setDetectFile,
+    detectBusy,
+    detectResult,
+    setDetectResult,
+    traceHistory,
+    traceRuns,
+    canTrace,
+    canRunDetect,
+    handleSingleTrace,
+    handleBatchTrace,
+    retryTraceRun,
+    runDetect,
+  } = useFrameTrace({
+    creatixBase: CREATIX,
+    tracedExportEnabled,
+    contentId,
+    exportToken,
+    brandWatermarkDefaults,
+    encoderProfile,
+    planHash,
+    focusedClip,
+  })
+  const { renderRuns, renderBusy, renderStatus, queueRender, retryRenderRun } = useFrameRender({
+    contentId,
+    exportToken,
+    editPlan,
+    encoderProfile,
+    planHash,
+    exportFormat,
+    aspectPreset,
+    focusedClip,
+  })
 
   const presets = useMemo(() => (presetsData as { presets: Preset[] }).presets || [], [])
   const taxonomy = useMemo(
@@ -187,6 +255,147 @@ export function EditorApp() {
   /** Direct visit without vault bridge: require sign-in + active paid plan */
   const gateBlocked =
     !hasVaultBridge && entitlementReady && (sessionUserId === null || paid === false)
+  const availableViews: EditorView[] =
+    editorMode === 'simple' ? ['setup', 'edit', 'export'] : ['setup', 'edit', 'export', 'detect']
+  const fallbackView = availableViews.includes(initialView) ? initialView : availableViews[0]
+  const resolvedView = availableViews.includes(activeView) ? activeView : fallbackView
+
+  const routeWithBridge = (view: EditorView) => {
+    const nextParams = new URLSearchParams(sp.toString())
+    if (view === 'setup') {
+      nextParams.delete('view')
+    } else {
+      nextParams.set('view', view)
+    }
+    if (shellPath) {
+      const query = nextParams.toString()
+      return `${shellPath}${query ? `?${query}` : ''}`
+    }
+    if (view === 'setup') {
+      const query = nextParams.toString()
+      return `/${query ? `?${query}` : ''}`
+    }
+    const query = nextParams.toString()
+    return `/${view}${query ? `?${query}` : ''}`
+  }
+  const modeRoute = (mode: EditorShellMode) => {
+    const query = sp.toString()
+    return `/editor/${mode}${query ? `?${query}` : ''}`
+  }
+  const focusClipInExport = useCallback(
+    (clipId: string) => {
+      const params = new URLSearchParams(sp.toString())
+      params.set('view', 'export')
+      params.set('focusClip', clipId)
+      const targetPath = shellPath || '/editor'
+      window.location.href = `${targetPath}?${params.toString()}`
+    },
+    [shellPath, sp],
+  )
+  const applyDivineActions = useCallback(
+    (actions: DivineEditorAction[]): AppliedDivineAction[] =>
+      applyDivineEditorActions(actions, {
+        setProjectName,
+        addPlaceholderClip,
+        setExportFormat,
+        setAspectPreset,
+        setTraceRecipientKey,
+        setTraceBatchRaw,
+        focusClipInExport,
+        setImageClipDuration,
+        setClipTrim,
+        setClipCrop,
+        hasClip: (clipId: string) => project.timeline.clips.some((clip) => clip.id === clipId),
+        hasImageClip: (clipId: string) => {
+          const clip = project.timeline.clips.find((item) => item.id === clipId)
+          if (!clip) return false
+          return project.media.some((item) => item.id === clip.mediaId && item.kind === 'image')
+        },
+        hasVisualClip: (clipId: string) => {
+          const clip = project.timeline.clips.find((item) => item.id === clipId)
+          if (!clip) return false
+          return project.media.some((item) => item.id === clip.mediaId && (item.kind === 'image' || item.kind === 'video'))
+        },
+      }),
+    [
+      addPlaceholderClip,
+      focusClipInExport,
+      project.timeline.clips,
+      project.media,
+      setAspectPreset,
+      setExportFormat,
+      setTraceBatchRaw,
+      setImageClipDuration,
+      setClipTrim,
+      setClipCrop,
+      setProjectName,
+      setTraceRecipientKey,
+    ],
+  )
+  const previewDivineActions = useCallback(
+    (actions: DivineEditorAction[]): AppliedDivineAction[] =>
+      dryRunDivineEditorActions(actions, {
+        hasClip: (clipId: string) => project.timeline.clips.some((clip) => clip.id === clipId),
+        hasImageClip: (clipId: string) => {
+          const clip = project.timeline.clips.find((item) => item.id === clipId)
+          if (!clip) return false
+          return project.media.some((item) => item.id === clip.mediaId && item.kind === 'image')
+        },
+        hasVisualClip: (clipId: string) => {
+          const clip = project.timeline.clips.find((item) => item.id === clipId)
+          if (!clip) return false
+          return project.media.some((item) => item.id === clip.mediaId && (item.kind === 'image' || item.kind === 'video'))
+        },
+      }),
+    [project.timeline.clips, project.media],
+  )
+
+  useEffect(() => {
+    if (libraryHydrated) return
+    if (sp.get('from') !== 'library') return
+    setLibraryHydrated(true)
+    try {
+      const raw = window.sessionStorage.getItem(FRAME_LIBRARY_SELECTION_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { items?: LibrarySelectionItem[]; timestamp?: number }
+      if (!parsed.items || parsed.items.length === 0) return
+      importLibrarySelection(parsed.items)
+      setLibrarySyncNotice(`Imported ${parsed.items.length} library item${parsed.items.length === 1 ? '' : 's'} into draft`)
+    } catch {
+      setLibrarySyncNotice('Library import was unavailable in this session')
+    }
+  }, [importLibrarySelection, libraryHydrated, sp])
+
+  const showSetup = resolvedView === 'setup'
+  const showEdit = resolvedView === 'edit'
+  const showExport = resolvedView === 'export'
+  const showDetect = resolvedView === 'detect'
+  const showManualExport = showSetup || showExport
+  const showTracePanel = editorMode === 'pro' && (showExport || showDetect)
+  const focusClipInPlan = useMemo(
+    () => (focusedClip ? editPlan.clips.some((clip) => clip.id === focusedClip.id) : false),
+    [editPlan.clips, focusedClip],
+  )
+
+  useEffect(() => {
+    if (!showExport || !focusedClip) return
+    if (autoRecipientClipId === focusedClip.id) return
+    if (traceRecipientKey.trim()) return
+    const projectPart = project.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 18)
+    const mediaPart = focusedClip.mediaName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 18)
+    const clipPart = focusedClip.id.replace(/[^a-z0-9]/gi, '').slice(-6).toLowerCase()
+    const generated = [projectPart || 'project', mediaPart || 'clip', clipPart || 'focus'].join('-')
+    setTraceRecipientKey(generated)
+    setAutoRecipientClipId(focusedClip.id)
+  }, [autoRecipientClipId, focusedClip, project.name, setTraceRecipientKey, showExport, traceRecipientKey])
 
   return (
     <div className="bg-gradient-frame min-h-screen">
@@ -195,6 +404,22 @@ export function EditorApp() {
           <div>
             <p className="font-serif-display text-primary text-lg font-semibold tracking-wider">CIRCE ET VENUS</p>
             <p className="text-muted-foreground text-xs">Frame — video bridge</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground rounded-full border p-1 text-[11px]" style={{ borderColor: 'var(--border)' }}>
+              <Link
+                href={modeRoute('simple')}
+                className={`rounded-full px-3 py-1 ${editorMode === 'simple' ? 'bg-primary text-primary-foreground' : ''}`}
+              >
+                Simple
+              </Link>
+              <Link
+                href={modeRoute('pro')}
+                className={`rounded-full px-3 py-1 ${editorMode === 'pro' ? 'bg-primary text-primary-foreground' : ''}`}
+              >
+                Pro
+              </Link>
+            </div>
           </div>
           <nav className="flex flex-wrap items-center gap-3 text-sm">
             <a
@@ -230,6 +455,22 @@ export function EditorApp() {
           </nav>
         </div>
       </header>
+      <div className="mx-auto mt-4 flex max-w-7xl items-center justify-between gap-3 px-4">
+        <div className="flex items-center gap-2">
+          <h1 className="font-serif-display text-base font-semibold sm:text-lg">{viewTitle(resolvedView)}</h1>
+          <span className="text-muted-foreground rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]">
+            {editorMode}
+          </span>
+        </div>
+        <RouteNav activeView={resolvedView} routeWithBridge={routeWithBridge} views={availableViews} />
+      </div>
+      {librarySyncNotice ? (
+        <div className="mx-auto mt-2 max-w-7xl px-4">
+          <p className="text-muted-foreground rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+            {librarySyncNotice}
+          </p>
+        </div>
+      ) : null}
 
       {!hasVaultBridge && (!authReady || !entitlementReady) ? (
         <p className="text-muted-foreground px-4 py-20 text-center text-sm">Loading…</p>
@@ -263,178 +504,154 @@ export function EditorApp() {
         </div>
       ) : (
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-2">
-          <section className="space-y-4">
-            <h2 className="font-serif-display text-lg font-semibold">Preview &amp; manual export</h2>
-            <p className="text-muted-foreground text-sm">
-              <strong>No credits</strong> for uploads using the buttons below. Credits apply to{' '}
-              <strong>Frame Assist</strong> (chat) and future automated scene/audio tools.
-            </p>
-
-            {!importUrl ? (
+          {showManualExport ? (
+            <ManualExportPanel
+              showSetup={showSetup}
+              creatixBase={CREATIX}
+              importUrl={importUrl}
+              hasVaultBridge={hasVaultBridge}
+              sessionUserId={sessionUserId}
+              paid={paid}
+              contentId={contentId}
+              canManualExport={canManualExport}
+              exportBusy={exportBusy}
+              exportStatus={exportStatus}
+              sendSourceToVault={sendSourceToVault}
+              pushFile={pushFile}
+            />
+          ) : (
+            <section className="space-y-4">
               <div
-                className="rounded-xl border p-6 text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+                className="rounded-xl border border-dashed p-4 text-sm"
+                style={{ borderColor: 'var(--border)' }}
               >
-                No <code className="text-[var(--circe-light)]">importUrl</code>. Launch from{' '}
-                <a href={`${CREATIX}/dashboard/ai-studio`} className="text-[var(--circe-light)] underline">
-                  Media &amp; vault
-                </a>{' '}
-                on the main site.
+                <p className="text-muted-foreground">
+                  This workspace is focused on {showEdit ? 'editing' : 'detection'}.
+                </p>
               </div>
+            </section>
+          )}
+
+          <section className="space-y-4">
+            {showEdit ? (
+              <AssistPanel
+                presets={presets}
+                taxonomy={taxonomy}
+                canUseAi={canUseAi}
+                aiBusy={aiBusy}
+                aiError={aiError}
+                chatInput={chatInput}
+                chatMessages={chatMessages}
+                setChatInput={setChatInput}
+                insertPreset={insertPreset}
+                submitChat={submitChat}
+                projectName={project.name}
+                projectSummary={projectSummary}
+                editorMode={editorMode}
+                mediaItems={project.media}
+                timelineTracks={project.timeline.tracks}
+                timelineClips={project.timeline.clips}
+                focusClipInExport={focusClipInExport}
+                setProjectName={setProjectName}
+                addPlaceholderClip={addPlaceholderClip}
+                setImageClipDuration={setImageClipDuration}
+                resetProject={resetProject}
+                lastSavedAt={lastSavedAt}
+              />
+            ) : null}
+            {showEdit && editorMode === 'pro' ? (
+              <DivineActionPanel enabled={divineActionsEnabled} onPreview={previewDivineActions} onApply={applyDivineActions} />
+            ) : null}
+            {showEdit && editorMode === 'simple' ? (
+              <div className="rounded-xl border border-dashed p-3" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Simple mode keeps editing lightweight. Divine action streams and advanced trace/render automation are Pro-only.
+                </p>
+                <Link
+                  href={routeWithBridge('edit').replace('/editor/simple', '/editor/pro')}
+                  className="mt-2 inline-flex rounded-full border px-3 py-1.5 text-xs"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  Switch to Pro mode
+                </Link>
+              </div>
+            ) : null}
+
+            {showTracePanel ? (
+              <TracePanel
+                showExport={showExport}
+                creatixBase={CREATIX}
+                tracedExportEnabled={tracedExportEnabled}
+                traceOperationsEnabled={traceOperationsEnabled}
+                renderQueueEnabled={renderQueueEnabled}
+                brandWatermarkDefaults={brandWatermarkDefaults}
+                traceRecipientKey={traceRecipientKey}
+                setTraceRecipientKey={setTraceRecipientKey}
+                traceBatchRaw={traceBatchRaw}
+                setTraceBatchRaw={setTraceBatchRaw}
+                traceBusy={traceBusy}
+                traceStatus={traceStatus}
+                canTrace={canTrace}
+                canRunDetect={canRunDetect}
+                detectBusy={detectBusy}
+                detectResult={detectResult}
+                setDetectFile={setDetectFile}
+                setDetectResult={setDetectResult}
+                handleSingleTrace={handleSingleTrace}
+                handleBatchTrace={handleBatchTrace}
+                runDetect={runDetect}
+                contentId={contentId}
+                exportToken={exportToken}
+                exportFormat={exportFormat}
+                setExportFormat={setExportFormat}
+                aspectPreset={aspectPreset}
+                setAspectPreset={setAspectPreset}
+                editPlanJson={editPlanJson}
+                encoderProfile={encoderProfile}
+                planHash={planHash}
+                traceHistory={traceHistory}
+                traceRuns={traceRuns}
+                retryTraceRun={retryTraceRun}
+                renderRuns={renderRuns}
+                renderBusy={renderBusy}
+                renderStatus={renderStatus}
+                queueRender={queueRender}
+                retryRenderRun={retryRenderRun}
+                focusedClip={focusedClip}
+                focusClipInPlan={focusClipInPlan}
+              />
             ) : (
-              <div
-                className="overflow-hidden rounded-xl border"
-                style={{ borderColor: 'var(--border)', background: '#000' }}
-              >
-                <video key={importUrl} src={importUrl} controls playsInline className="max-h-[55vh] w-full" />
+              <div className="rounded-xl border border-dashed p-4" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {editorMode === 'simple'
+                    ? 'Simple mode keeps export lightweight. Open Pro mode for trace generation and leak detection.'
+                    : 'Use Export and Detect views for trace generation and attribution.'}
+                </p>
+                {editorMode === 'simple' ? (
+                  <Link
+                    href={routeWithBridge('edit').replace('/editor/simple', '/editor/pro')}
+                    className="mt-3 inline-flex rounded-full border px-3 py-1.5 text-xs"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    Open Pro mode
+                  </Link>
+                ) : null}
               </div>
             )}
-
-            <div
-              className="flex flex-wrap gap-2 rounded-xl border p-4"
-              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-            >
-              <button
-                type="button"
-                disabled={!canManualExport || exportBusy}
-                onClick={() => void sendSourceToVault()}
-                className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
-              >
-                Send source file to vault
-              </button>
-              <label className="cursor-pointer rounded-lg border px-4 py-2 text-sm" style={{ borderColor: 'var(--border)' }}>
-                <input
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  disabled={!canManualExport || exportBusy}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) void pushFile(f)
-                    e.target.value = ''
-                  }}
-                />
-                Upload edited file…
-              </label>
-            </div>
-            {exportStatus ? (
-              <p className="text-muted-foreground rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
-                {exportStatus}
-              </p>
-            ) : null}
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-serif-display text-lg font-semibold">Frame Assist</h2>
-            <p className="text-muted-foreground text-sm">
-              Uses your <strong>AI credits</strong> on Circe et Venus (same metering as the dashboard). Sign in, or open
-              from the vault so the bridge token applies. Divine Manager can steer workflows from the main app — this
-              panel is the in-editor assistant.
-            </p>
-
-            <div
-              className="rounded-xl border p-4"
-              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-            >
-              <p className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">Presets &amp; tags</p>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {presets.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => insertPreset(p)}
-                    disabled={!canUseAi || aiBusy}
-                    className="rounded-full border px-3 py-1 text-xs transition-colors hover:bg-white/5 disabled:opacity-40"
-                    style={{ borderColor: 'var(--border)' }}
-                    title={p.description}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-muted-foreground text-xs">Taxonomy: {taxonomy.join(' · ')}</p>
-            </div>
-
-            <div
-              className="flex min-h-[220px] flex-col rounded-xl border"
-              style={{ borderColor: 'var(--border)', background: 'oklch(0.1 0.01 285)' }}
-            >
-              <div className="max-h-64 flex-1 space-y-2 overflow-y-auto p-3 text-sm">
-                {chatMessages.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    Ask for cuts, pacing, hooks, captions, or library tags — tuned for adult creator workflows.
-                  </p>
-                ) : (
-                  chatMessages.map((m) => (
-                    <div key={m.id} className={m.role === 'user' ? 'text-foreground' : 'text-[var(--circe-light)]'}>
-                      <span className="text-muted-foreground text-xs uppercase">{m.role}</span>
-                      <p className="whitespace-pre-wrap">{m.text}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-              <form
-                className="border-t p-2"
-                style={{ borderColor: 'var(--border)' }}
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  const t = chatInput.trim()
-                  if (!t || !canUseAi) return
-                  void runAssist(t)
-                  setChatInput('')
-                }}
-              >
-                <div className="flex gap-2">
-                  <input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder={canUseAi ? 'Ask Frame Assist…' : 'Sign in or use vault bridge for AI'}
-                    disabled={!canUseAi || aiBusy}
-                    className="focus:ring-primary flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 disabled:opacity-40"
-                    style={{ borderColor: 'var(--border)', background: 'oklch(0.12 0.01 285)' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!canUseAi || aiBusy || !chatInput.trim()}
-                    className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
-                  >
-                    Send
-                  </button>
-                </div>
-              </form>
-            </div>
-            {aiError ? <p className="text-sm text-red-400">{aiError}</p> : null}
-
-            <div
-              className="rounded-xl border p-4"
-              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-            >
-              <h3 className="font-serif-display mb-2 text-base font-semibold">Ariadne Trace</h3>
-              <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
-                Per-recipient <strong>forensic marking</strong>: invisible, signal-level identifiers embedded in exports
-                so leaked copies can be traced — aligned with DMCA workflows. Not a visible watermark; designed for
-                detection after re-encode. Configure recipient keys from the vault / Ariadne flows on the main site.
-              </p>
-              <a
-                href={`${CREATIX}/dashboard/ai-studio`}
-                className="text-[var(--circe-light)] text-sm underline"
-              >
-                Open Ariadne &amp; protection tools →
-              </a>
-            </div>
-
-            <div
-              className="rounded-xl border border-dashed p-4"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                <strong>Roadmap:</strong> auto-clips from scene changes, audio peaks, and motion (adult workflow
-                presets), voice-driven edits via Divine, and deeper NexGuard-style robustness for Ariadne Trace.
-              </p>
-            </div>
           </section>
         </div>
       )}
+      <footer className="border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="text-muted-foreground mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.16em]">
+          <p>
+            <span className="text-[var(--primary)]">●</span> Ready · {projectSummary.clips} clip
+            {projectSummary.clips === 1 ? '' : 's'}
+          </p>
+          <p>
+            <span className="text-[var(--gold)]">●</span> {editorMode} mode · {projectSummary.durationSec}s timeline
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }

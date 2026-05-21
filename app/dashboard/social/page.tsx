@@ -1,11 +1,9 @@
 import { SocialDashboard } from '@/components/social/social-dashboard'
-import { CommunityLinksManager } from '@/components/community/community-links-manager'
 
 export default function SocialPage() {
   return (
-    <div className="space-y-12 p-4 pb-10 sm:p-6">
+    <div className="mx-auto min-w-0 max-w-6xl pb-12 sm:pb-16">
       <SocialDashboard />
-      <CommunityLinksManager />
     </div>
   )
 }

@@ -69,19 +69,21 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
       const res = await fetch(`/api/content/vault/${id}/frame-session`)
       const j = (await res.json()) as {
         error?: string
+        markitLaunchUrl?: string | null
         frameLaunchUrl?: string | null
         assetProxyUrl?: string
+        markitConfigured?: boolean
         frameConfigured?: boolean
       }
       if (!res.ok) {
         setLaunchMsg(j.error || 'Could not start editor session')
         return
       }
-      const url = j.frameLaunchUrl || j.assetProxyUrl
+      const url = j.markitLaunchUrl || j.frameLaunchUrl || j.assetProxyUrl
       if (url) window.open(url, '_blank', 'noopener,noreferrer')
-      if (!j.frameConfigured) {
+      if (!(j.markitConfigured ?? j.frameConfigured)) {
         setLaunchMsg(
-          'NEXT_PUBLIC_FRAME_URL is not set — opened the asset proxy only. Deploy Frame separately, or use Replace video in the vault item.',
+          'The Creatix editor route is unavailable, so the asset proxy opened instead. Use Replace video in the vault item if needed.',
         )
       } else {
         setOpen(false)
@@ -106,64 +108,95 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           className={cn(
-            'h-auto rounded-xl border border-border/80 bg-card/80 px-4 py-3 text-sm font-medium shadow-sm transition hover:bg-accent/50 sm:py-2.5',
+            'group relative h-auto overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-500/[0.1] via-card/85 to-purple-500/[0.12] px-4 py-3 text-sm font-medium',
+            'shadow-[inset_0_0_0_1px_rgba(251,191,36,0.22),0_0_18px_-6px_rgba(168,85,247,0.28),0_0_14px_-4px_rgba(251,191,36,0.2)]',
+            'transition-all duration-300',
+            'hover:border-amber-400/50 hover:bg-gradient-to-br hover:from-amber-500/[0.14] hover:via-card/90 hover:to-purple-500/[0.16]',
+            'hover:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.35),0_0_24px_-4px_rgba(168,85,247,0.38),0_0_18px_-2px_rgba(251,191,36,0.28)]',
+            'dark:border-amber-500/30 dark:from-amber-500/[0.12] dark:via-card/80 dark:to-purple-500/[0.14] dark:hover:from-amber-500/[0.16] dark:hover:via-card/85 dark:hover:to-purple-500/[0.18]',
+            'sm:py-2.5',
             className,
           )}
         >
           <span className="flex items-center justify-center gap-2">
-            <Clapperboard className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-            Video editor
+            <Clapperboard
+              className="h-4 w-4 shrink-0 text-amber-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-all group-hover:text-amber-200 group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]"
+              aria-hidden
+            />
+            <span>Video editor</span>
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0 text-[0.62rem] uppercase leading-none tracking-tight text-amber-500 sm:text-[0.7rem] sm:tracking-wide">
+              Beta
+            </span>
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit a vault video</DialogTitle>
-          <DialogDescription>
-            Opens the Frame bridge in a new tab. Pick a video below, or add one to your Creatix vault first.
+      <DialogContent
+        overlayClassName="bg-zinc-950/40 backdrop-blur-[3px]"
+        className={cn(
+          'gap-0 overflow-hidden rounded-[1.35rem] border border-black/[0.06] p-0 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.38)] duration-300',
+          'max-w-[calc(100%-2rem)] sm:max-w-[440px]',
+          'bg-white/82 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-zinc-950/78 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.75)]',
+          '[&_[data-slot=dialog-close]]:top-5 [&_[data-slot=dialog-close]]:right-5 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:opacity-55 [&_[data-slot=dialog-close]]:ring-offset-transparent hover:[&_[data-slot=dialog-close]]:opacity-100 hover:[&_[data-slot=dialog-close]]:bg-muted/60',
+        )}
+      >
+        <DialogHeader className="space-y-3 px-8 pb-7 pt-9 text-left sm:space-y-3.5">
+          <DialogTitle className="text-[1.5rem] font-semibold leading-tight tracking-[-0.02em] sm:text-[1.625rem]">
+            Edit a vault video
+          </DialogTitle>
+          <DialogDescription className="text-[15px] leading-[1.55] text-muted-foreground/88">
+            Opens the Creatix editor with the selected vault video already loaded. Choose a video below, or add one to your vault first.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[min(70vh,480px)] pr-3">
-          <div className="space-y-4">
+        <ScrollArea className="max-h-[min(58vh,432px)] px-8 pb-2 [&_[data-slot=scroll-area-viewport]]:scroll-smooth">
+          <div className="space-y-8 pb-8 pr-3">
             {loading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex justify-center py-14">
+                <Loader2 className="h-7 w-7 animate-spin text-muted-foreground/35" />
               </div>
             ) : loadError ? (
-              <p className="text-sm text-destructive">{loadError}</p>
+              <p className="text-[15px] leading-snug text-destructive">{loadError}</p>
             ) : playable.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[15px] leading-[1.6] text-muted-foreground/88">
                 No videos with a hosted file yet. Create a vault item below and attach an MP4, or open an item in Media
                 &amp; vault and use Replace video.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="flex flex-col gap-2">
                 {playable.map((r) => (
                   <li key={r.id}>
-                    <Button
+                    <button
                       type="button"
-                      variant="secondary"
-                      className="h-auto w-full justify-between gap-2 py-2 text-left font-normal"
                       disabled={launchingId !== null}
                       onClick={() => void openEditor(r.id)}
-                    >
-                      <span className="line-clamp-2 min-w-0 flex-1">{r.title || 'Untitled'}</span>
-                      {launchingId === r.id ? (
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                      ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">Open</span>
+                      className={cn(
+                        'flex w-full items-start justify-between gap-4 rounded-xl border border-border/50 bg-muted/25 px-4 py-3.5 text-left transition-[background-color,border-color,transform] duration-200',
+                        'hover:border-border/70 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        'disabled:pointer-events-none disabled:opacity-45',
+                        'active:scale-[0.99]',
                       )}
-                    </Button>
+                    >
+                      <span className="line-clamp-2 min-w-0 flex-1 text-[15px] font-medium leading-snug tracking-[-0.01em] text-foreground">
+                        {r.title || 'Untitled'}
+                      </span>
+                      {launchingId === r.id ? (
+                        <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground/60" />
+                      ) : (
+                        <span className="shrink-0 pt-0.5 text-[13px] font-medium text-muted-foreground/70">Open</span>
+                      )}
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
-            <div className="border-t border-border pt-4">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Add to Creatix vault</p>
+            <div className="border-t border-border/45 pt-8">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+                Add to vault
+              </p>
               <VaultQuickAdd
                 compact
+                presentation="modal"
                 onSuccess={() => {
                   void loadItems()
                 }}
@@ -172,7 +205,7 @@ export function VideoEditorToolbarButton({ className }: { className?: string }) 
           </div>
         </ScrollArea>
         {launchMsg && (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-950 dark:text-amber-100">
+          <p className="mx-8 mb-8 mt-1 rounded-xl border border-border/55 bg-muted/35 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
             {launchMsg}
           </p>
         )}

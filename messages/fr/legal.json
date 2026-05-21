@@ -1,0 +1,43 @@
+{
+  "back": "Retour",
+  "siteDomain": "circeetvenus.com",
+  "contact": {
+    "eyebrow": "Assistance",
+    "title": "Comment pouvons-nous vous aider ?",
+    "subtitle": "Nous lisons chaque message et répondons par e-mail.",
+    "signedInAs": "Connecté en tant que",
+    "topicLabel": "Sujet",
+    "topics": {
+      "general": "Général",
+      "billing": "Facturation",
+      "technical": "Technique",
+      "other": "Autre"
+    },
+    "messageLabel": "Message",
+    "messagePlaceholder": "Quelques phrases suffisent.",
+    "messageRequired": "Veuillez saisir un message.",
+    "submit": "Envoyer",
+    "submitting": "Envoi…",
+    "successTitle": "Envoyé.",
+    "successBody": "Nous répondrons à l’adresse e-mail de votre compte.",
+    "sendAnother": "Nouveau message",
+    "errorGeneric": "Une erreur s’est produite. Réessayez.",
+    "errorSignIn": "Votre session a expiré. Reconnectez-vous et réessayez.",
+    "errorMembersOnly": "Ce canal est réservé aux membres actifs. Consultez les offres pour vous abonner.",
+    "gateSignInTitle": "Assistance membres",
+    "gateSignInBody": "Connectez-vous pour écrire à l’équipe.",
+    "gateSignInCta": "Se connecter",
+    "gateSubscribeTitle": "Réservé aux membres",
+    "gateSubscribeBody": "L’assistance est disponible pour les abonnés et l’essai actif.",
+    "gateSubscribeCta": "Voir les offres",
+    "footerLegalAria": "Mentions légales"
+  },
+  "terms": {
+    "title": "Conditions d’utilisation et accord utilisateur",
+    "effective": "Date d’entrée en vigueur : 1er avril 2026"
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour : 9 mars 2026"
+  }
+}

@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse, after } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  isOnlyFansRateLimitError,
+  isOnlyFansUpstreamTransientError,
+} from '@/lib/onlyfans-api'
 import {
   clearOnlyFansDmMessageCacheForUser,
   loadOnlyFansDmMessageCache,
@@ -14,6 +18,13 @@ import {
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
+import {
+  consumeAiCredits,
+  hasEnoughAiCredits,
+  insufficientAiCreditsResponse,
+} from '@/lib/billing/consume-ai-credits'
+import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
+import { CREDITS_MESSAGE_SEND_PLATFORM } from '@/lib/billing/credit-economics'
 
 class OnlyFansNotConnectedError extends Error {
   override readonly name = 'OnlyFansNotConnectedError'
@@ -27,20 +38,23 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ fanId: string }> }
 ) {
+  const { fanId } = await params
+  const supabase = await createRouteHandlerClient(request)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const billingBlock = await onlyFansBillingGateResponse(supabase)
+  if (billingBlock) return billingBlock
+
+  const { searchParams } = new URL(request.url)
+  const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '100', 10)), 100)
+
   try {
-    const { fanId } = await params
-    const supabase = await createRouteHandlerClient(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const billingBlock = await onlyFansBillingGateResponse(supabase)
-    if (billingBlock) return billingBlock
-
-    const { searchParams } = new URL(request.url)
-    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '100', 10)), 100)
     const before = searchParams.get('before') || undefined
     const forceRefresh = searchParams.get('refresh') === '1'
 
@@ -172,14 +186,33 @@ export async function GET(
     console.error('Failed to fetch messages:', error)
     const msg = error instanceof Error ? error.message : String(error)
     const rateLimited = isOnlyFansRateLimitError(msg)
+    const upstreamTransient = isOnlyFansUpstreamTransientError(msg)
+    if (rateLimited || upstreamTransient) {
+      const readLimit = Math.min(OF_DM_CACHE_READ_MAX, Math.max(limit, 100))
+      const { messages: cached } = await loadOnlyFansDmMessageCache(supabase, user.id, fanId, readLimit)
+      if (cached.length > 0) {
+        return NextResponse.json({
+          messages: sortOnlyFansMessagesAsc(cached),
+          source: 'cache',
+          stale: true,
+          code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : 'ONLYFANS_UPSTREAM',
+        })
+      }
+    }
     return NextResponse.json(
       {
         error: rateLimited
           ? 'OnlyFans is temporarily limiting requests. Wait a minute, then refresh or reopen this chat.'
-          : 'Failed to load messages',
-        code: rateLimited ? 'ONLYFANS_RATE_LIMIT' : undefined,
+          : upstreamTransient
+            ? 'OnlyFans had a temporary glitch. Wait a minute, then refresh or reopen this chat.'
+            : 'Failed to load messages',
+        code: rateLimited
+          ? 'ONLYFANS_RATE_LIMIT'
+          : upstreamTransient
+            ? 'ONLYFANS_UPSTREAM'
+            : undefined,
       },
-      { status: rateLimited ? 429 : 500 },
+      { status: rateLimited ? 429 : upstreamTransient ? 503 : 500 },
     )
   }
 }
@@ -251,6 +284,9 @@ export async function POST(
       }
     }
 
+    const check = await hasEnoughAiCredits(supabase, user.id, CREDITS_MESSAGE_SEND_PLATFORM)
+    if (!check.ok) return insufficientAiCreditsResponse(check.used, check.limit)
+
     const result = await api.sendMessage(fanId, {
       text: trimmed || '',
       mediaFiles: hasMedia ? mediaIds : undefined,
@@ -258,7 +294,45 @@ export async function POST(
       price: typeof price === 'number' && price >= 0 ? price : undefined,
     })
 
+    const reasonRef = `onlyfans_send:${fanId}:${String((result as { id?: string | number }).id ?? '')}`
+    const debit = await consumeAiCredits(supabase, user.id, CREDITS_MESSAGE_SEND_PLATFORM, {
+      reasonCode: 'message_send_platform',
+      reasonRef,
+      idempotencyKey: `${reasonRef}:${user.id}`,
+      metadata: {
+        endpoint: '/api/onlyfans/messages/[fanId]',
+        fan_id: fanId,
+      },
+    })
+    if (!debit.ok) return insufficientAiCreditsResponse(debit.used, debit.limit)
+
     await upsertOnlyFansDmMessageCache(supabase, user.id, fanId, [result])
+
+    if (typeof price === 'number' && price > 0) {
+      let updateRes = await supabase
+        .from('fans')
+        .update({
+          audience_profile_override: 'paying_creator',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('platform', 'onlyfans')
+        .eq('platform_fan_id', String(fanId))
+        .is('audience_profile_override', null)
+
+      if (updateRes.error && /fans_audience_profile_override_check/i.test(updateRes.error.message ?? '')) {
+        updateRes = await supabase
+          .from('fans')
+          .update({
+            audience_profile_override: toLegacyAudienceProfileType('paying_creator'),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+          .eq('platform', 'onlyfans')
+          .eq('platform_fan_id', String(fanId))
+          .is('audience_profile_override', null)
+      }
+    }
 
     logMessageSendEvent({
       userId: user.id,

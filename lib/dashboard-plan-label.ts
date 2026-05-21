@@ -1,4 +1,10 @@
-import { isPaidPlanId, TRIAL_PLAN_ID } from '@/lib/billing/access'
+import {
+  FREE_PLAN_ID,
+  isPaidPlanId,
+  isPaidSubscription,
+  TRIAL_PLAN_ID,
+  divineTrialSubtitleBadge,
+} from '@/lib/billing/access'
 import { focusPlatformsShortLabel } from '@/lib/pricing-matrix'
 import { resolveAllowedFocusPlatforms } from '@/lib/billing/platform-variant'
 
@@ -9,13 +15,33 @@ export type SubscriptionRowForPlan = {
   billing_variant?: string | null
   billing_focus_platform?: string | null
   billing_focus_platforms?: string[] | null
+  stripe_subscription_id?: string | null
+  trial_ends_at?: string | null
+  current_period_end?: string | null
 }
 
 /** Short label for dashboard hero chip (no PII). */
 export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undefined): string | null {
-  if (!row?.plan_id) return 'Trial'
+  if (!row) return null
+
+  const trialBadge = divineTrialSubtitleBadge({
+    plan_id: row.plan_id,
+    status: row.status,
+    stripe_subscription_id: row.stripe_subscription_id,
+    trial_ends_at: row.trial_ends_at,
+    current_period_end: row.current_period_end,
+  })
+  if (trialBadge === 'expired') return 'Trial expired'
+  if (trialBadge === 'redeemed') return 'Trial redeemed'
+
+  if (!row.plan_id) return 'Trial'
   const pid = row.plan_id.toLowerCase()
   const st = (row.status || '').toLowerCase()
+
+  /** Stale paid SKU (e.g. cev-paid) after cancel / past_due / etc. — avoid "Cev Paid" title case. */
+  if (isPaidPlanId(pid) && !isPaidSubscription(row)) {
+    return 'Free plan'
+  }
 
   const paidish = st === 'active' || st === 'trialing'
   if (paidish && isPaidPlanId(pid)) {
@@ -38,6 +64,8 @@ export function getDashboardPlanLabel(row: SubscriptionRowForPlan | null | undef
   }
 
   if (pid === TRIAL_PLAN_ID || st === 'trial') return 'Trial'
+
+  if (pid === FREE_PLAN_ID) return 'Free plan'
 
   return pid
     .split('-')

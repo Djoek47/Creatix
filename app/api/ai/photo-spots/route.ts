@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
+import {
+  chargeAiToolCreditsAfterSuccess,
+  requireAiToolSessionAndCredits,
+} from '@/lib/ai/assert-ai-tool-access'
 
 export const maxDuration = 30
 
@@ -22,6 +26,10 @@ const photoSpotSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const access = await requireAiToolSessionAndCredits(req, 'content-ideas')
+    if (!access.ok) return access.response
+    const { supabase, userId, cost, billingToolId } = access.data
+
     const { lat, lng, city, country, userRequest, contentType, zodiacSign, moonPhase } = await req.json()
 
     const prompt = `You are Venus, the AI goddess of attraction and growth, helping content creators find perfect photo spots.
@@ -55,6 +63,9 @@ Be specific to the location - mention actual neighborhoods, types of venues, or 
         schema: photoSpotSchema,
       }),
     })
+
+    const charged = await chargeAiToolCreditsAfterSuccess(supabase, userId, cost, billingToolId)
+    if (!charged.ok) return charged.response
 
     return Response.json(result.experimental_output)
   } catch (error) {

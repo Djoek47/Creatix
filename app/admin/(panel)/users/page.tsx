@@ -3,6 +3,7 @@ import { adminDirectoryRows } from '@/lib/admin/queries'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type SearchParams = { q?: string; sort?: string }
 
@@ -15,16 +16,43 @@ export default async function AdminUsersPage({
   const q = typeof sp.q === 'string' ? sp.q : ''
   const sortRaw = typeof sp.sort === 'string' ? sp.sort : 'usage'
   const sort = sortRaw === 'created' || sortRaw === 'email' ? sortRaw : 'usage'
+  const rows = await adminDirectoryRows({ q, sort, limit: 220 })
 
-  const rows = await adminDirectoryRows({ q, sort, limit: 200 })
+  const totalCash = rows.reduce((sum, row) => sum + Number(row.cash_equivalent_usd_30d ?? 0), 0)
+  const totalCredits = rows.reduce((sum, row) => sum + Number(row.estimated_credits_30d ?? 0), 0)
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-semibold text-foreground">Users</h1>
+        <h1 className="font-serif text-2xl font-semibold text-foreground">Creators & usage</h1>
         <p className="text-sm text-muted-foreground">
-          Search profiles, sort by usage (30d) or account metadata. Connection status is on each user&apos;s detail page.
+          Discover top credit consumers, margin-sensitive creators, and user-level service usage trends.
         </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Creators shown</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl tabular-nums">{rows.length.toLocaleString()}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Modeled credits (30d)</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl tabular-nums">
+            {totalCredits.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Modeled cash eq. (30d)</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl tabular-nums">
+            {totalCash.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })}
+          </CardContent>
+        </Card>
       </div>
 
       <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/admin/users" method="get">
@@ -36,7 +64,7 @@ export default async function AdminUsersPage({
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             aria-label="Sort by"
           >
-            <option value="usage">Sort: est. cost (30d)</option>
+            <option value="usage">Sort: modeled usage (30d)</option>
             <option value="created">Sort: created (newest)</option>
             <option value="email">Sort: email</option>
           </select>
@@ -50,17 +78,18 @@ export default async function AdminUsersPage({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
+              <TableHead>Creator</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead className="text-right">Est. USD (30d)</TableHead>
+              <TableHead className="text-right">Provider USD (30d)</TableHead>
+              <TableHead className="text-right">Credits (30d)</TableHead>
+              <TableHead className="text-right">Cash Eq. (30d)</TableHead>
               <TableHead className="text-right">Events</TableHead>
-              <TableHead className="text-right">Tokens</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground">
+                <TableCell colSpan={6} className="text-muted-foreground">
                   No users match.
                 </TableCell>
               </TableRow>
@@ -68,10 +97,7 @@ export default async function AdminUsersPage({
               rows.map((r) => (
                 <TableRow key={r.user_id}>
                   <TableCell>
-                    <Link
-                      href={`/admin/users/${r.user_id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
+                    <Link href={`/admin/users/${r.user_id}`} className="font-medium text-primary hover:underline">
                       {r.full_name || r.email || r.user_id.slice(0, 8)}
                     </Link>
                     {r.email ? <div className="text-xs text-muted-foreground">{r.email}</div> : null}
@@ -81,11 +107,20 @@ export default async function AdminUsersPage({
                     {Number(r.estimated_usd_30d).toLocaleString(undefined, {
                       style: 'currency',
                       currency: 'USD',
-                      maximumFractionDigits: 4,
+                      maximumFractionDigits: 2,
                     })}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{r.events_30d}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.tokens_30d.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {Number(r.estimated_credits_30d).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {Number(r.cash_equivalent_usd_30d).toLocaleString(undefined, {
+                      style: 'currency',
+                      currency: 'USD',
+                      maximumFractionDigits: 2,
+                    })}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{r.events_30d.toLocaleString()}</TableCell>
                 </TableRow>
               ))
             )}

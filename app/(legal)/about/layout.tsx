@@ -1,19 +1,16 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+
 import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
 export const metadata: Metadata = buildPublicMetadata({
   path: '/about',
-  title: 'About Us | Circe et Venus',
+  title: 'About | Circe et Venus',
   description:
-    'Meet the team behind Circe et Venus: AI and tools built for adult creators — retention (Circe), growth (Venus), and a voice-first Divine Manager.',
-  keywords: [
-    'Circe et Venus about',
-    'Creatix company',
-    'creator platform team',
-    'OnlyFans software company',
-  ],
+    'Circe et Venus — one workspace for creators: messages, fans, AI tools, protection, and voice-first control.',
+  keywords: ['Circe et Venus', 'Creatix', 'creator platform', 'about'],
 })
 
-export default function AboutLayout({ children }: { children: React.ReactNode }) {
+export default function AboutLayout({ children }: { children: ReactNode }) {
   return children
 }

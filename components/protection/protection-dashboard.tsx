@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } fro
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { LeakAlert, LeakDetectionStatus, LeakDistributionIntent, LeakUserCaseStatus } from '@/lib/types'
-import { LEAK_OUTCOME_OPTIONS } from '@/lib/leaks/leak-detection-status'
+import type { LeakAlert, LeakMediaType, LeakSeverity } from '@/lib/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -19,23 +18,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import {
   Loader2,
   ExternalLink,
   Upload,
   FileText,
-  Shield,
-  ChevronDown,
   Filter,
   RotateCcw,
-  Copy,
+  Coins,
+  Shield,
+  RefreshCw,
+  ScanSearch,
   Mail,
 } from 'lucide-react'
-import { getHostReportDestinations } from '@/lib/dmca/host-report-destinations'
+import type { LeakAttributionApiResponse, MarkitAttributionResult } from '@/lib/ariadne/attribution-types'
 import { cn } from '@/lib/utils'
+import { normalizeDiscoveryHostNeedles } from '@/lib/leaks/discovery-focus'
 import { useScanIdentity } from '@/hooks/use-scan-identity'
-import { ScanHandlePicker } from '@/components/dashboard/scan-handle-picker'
+import { ProtectionProScanSetup } from '@/components/protection/protection-pro-scan-setup'
 import {
   Select,
   SelectContent,
@@ -44,13 +44,51 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { isPaidPlanId } from '@/lib/billing/access'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import type { LeakMediaType, LeakSeverity } from '@/lib/types'
+import { CREDITS_LEAK_SCAN } from '@/lib/billing/credit-economics'
+import { DASHBOARD_CREDIT_SUMMARY_MARK } from '@/lib/dashboard-credit-summary-marker'
+import { InsufficientCreditsCallout } from '@/components/billing/insufficient-credits-callout'
+import { useCreditInsufficientModal } from '@/components/billing/credit-insufficient-modal-context'
+import { useCreditSnapshot } from '@/hooks/use-credit-snapshot'
+import { ProtectionModeToggle } from '@/components/protection/protection-mode-toggle'
+import { parseLeakMeta, formatNotesLine } from '@/lib/leaks/leak-notes-meta'
+import { LeakAlertCard } from '@/components/protection/leak-alert-card'
+import { HostReportDestinationUI } from '@/components/protection/host-report-destinations-ui'
+import { ProtectionEasyHandles } from '@/components/protection/protection-easy-handles'
+import { getPrimaryMailtoRecipientForDestinations } from '@/lib/dmca/host-report-destinations'
+import { buildDmcaNoticeMailtoHref } from '@/lib/dmca/dmca-notice-mailto'
+import { scanSourcePlatformKey } from '@/lib/scan-identity'
 
 type Props = {
   activeAlerts: LeakAlert[]
   /** Pre-filled from profile; user can edit before scanning */
   suggestedAlias?: string | null
+}
+
+const PROTECTION_UI_MODE_KEY = 'protection_ui_mode'
+
+/** Mini marks for social platforms wired in Settings → Integrations (matches settings tab). */
+function MiniTwitterLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} fill="currentColor" aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  )
+}
+
+function MiniInstagramLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} fill="currentColor" aria-hidden>
+      <path d="M12 2c2.717 0 3.056.01 4.122.06 1.065.05 1.79.217 2.428.465.66.254 1.216.598 1.772 1.153a4.908 4.908 0 0 1 1.153 1.772c.247.637.415 1.363.465 2.428.047 1.066.06 1.405.06 4.122 0 2.717-.01 3.056-.06 4.122-.05 1.065-.218 1.79-.465 2.428a4.883 4.883 0 0 1-1.153 1.772 4.915 4.915 0 0 1-1.772 1.153c-.637.247-1.363.415-2.428.465-1.066.047-1.405.06-4.122.06-2.717 0-3.056-.01-4.122-.06-1.065-.05-1.79-.218-2.428-.465a4.89 4.89 0 0 1-1.772-1.153 4.904 4.904 0 0 1-1.153-1.772c-.248-.637-.415-1.363-.465-2.428C2.013 15.056 2 14.717 2 12c0-2.717.01-3.056.06-4.122.05-1.066.217-1.79.465-2.428a4.88 4.88 0 0 1 1.153-1.772A4.897 4.897 0 0 1 5.45 2.525c.638-.248 1.362-.415 2.428-.465C8.944 2.013 9.283 2 12 2zm0 1.802c-2.67 0-2.986.01-4.04.058-.976.045-1.505.207-1.858.344-.466.182-.8.398-1.15.748-.35.35-.566.684-.748 1.15-.137.353-.3.882-.344 1.857-.048 1.055-.058 1.37-.058 4.041 0 2.67.01 2.986.058 4.04.045.976.207 1.505.344 1.858.182.466.399.8.748 1.15.35.35.684.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058 2.67 0 2.987-.01 4.04-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.684.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041 0-2.67-.01-2.986-.058-4.04-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 0 0-.748-1.15 3.098 3.098 0 0 0-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.055-.048-1.37-.058-4.041-.058zm0 3.063a5.135 5.135 0 1 1 0 10.27 5.135 5.135 0 0 1 0-10.27zm0 8.468a3.333 3.333 0 1 0 0-6.666 3.333 3.333 0 0 0 0 6.666zm6.538-8.671a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z" />
+    </svg>
+  )
+}
+
+function MiniTikTokLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} fill="currentColor" aria-hidden>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  )
 }
 
 function parseAliases(raw: string): string[] {
@@ -67,235 +105,6 @@ function parseTitleHints(raw: string): string[] {
     .filter(Boolean)
 }
 
-function parseLeakMeta(notes: string | null): {
-  urgency?: string
-  rationale?: string
-  pageVerified?: boolean
-  evidenceAccessibility?: string
-  reviewConclusion?: string
-  distributionNuance?: string
-  suggestedUserAction?: string
-  contactHint?: string
-  contactUrl?: string
-  contactEmail?: string
-} {
-  try {
-    const j = JSON.parse(notes || '{}') as {
-      grok?: {
-        urgency?: string
-        rationale?: string
-        evidenceAccessibility?: string
-        reviewConclusion?: string
-        distributionNuance?: string
-        suggestedUserAction?: string
-        contactHint?: string
-        contactUrl?: string
-        contactEmail?: string
-      }
-      pageVerify?: { verifiedLikelyMatch?: boolean }
-    }
-    const g = j.grok
-    return {
-      urgency: g?.urgency,
-      rationale: g?.rationale,
-      pageVerified: j.pageVerify?.verifiedLikelyMatch,
-      evidenceAccessibility: g?.evidenceAccessibility,
-      reviewConclusion: g?.reviewConclusion,
-      distributionNuance: g?.distributionNuance,
-      suggestedUserAction: g?.suggestedUserAction,
-      contactHint: g?.contactHint,
-      contactUrl: g?.contactUrl,
-      contactEmail: g?.contactEmail,
-    }
-  } catch {
-    return {}
-  }
-}
-
-const REVIEW_BADGE: Record<string, string> = {
-  likely_infringing: 'Likely infringing',
-  non_conclusive: 'Non-conclusive',
-  non_conclusive_needs_access: 'Needs sign-in to verify',
-}
-
-const ACCESS_BADGE: Record<string, string> = {
-  public_snippet: 'Public snippet',
-  likely_paywall_or_sign_in: 'Paywall / sign-in likely',
-  unknown: 'Unknown access',
-}
-
-const SUGGESTED_ACTION_LABEL: Record<string, string> = {
-  review_when_signed_in: 'Review when signed in',
-  dmca_if_confirmed_match: 'DMCA if you confirm a match',
-  monitor: 'Monitor',
-  ignore_if_intentionally_public: 'OK if intentionally public',
-}
-
-const CASE_STATUS_OPTIONS: { value: LeakUserCaseStatus; label: string }[] = [
-  { value: 'open', label: 'Open' },
-  { value: 'contacted', label: 'Contacted platform' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'unresolved', label: 'Unresolved' },
-  { value: 'needs_help', label: 'Needs more help' },
-  { value: 'snoozed', label: 'Snoozed' },
-  { value: 'waived', label: 'Not pursuing (waived)' },
-]
-
-const DISTRIBUTION_OPTIONS: { value: LeakDistributionIntent; label: string }[] = [
-  { value: 'unspecified', label: 'Not specified' },
-  { value: 'paid_only_elsewhere', label: 'Paid / exclusive elsewhere' },
-  { value: 'ok_if_free', label: 'OK if free everywhere I choose' },
-  { value: 'cross_post_consented', label: 'Cross-post / consent nuance' },
-]
-
-function HostReportDestinationUI({
-  sourceUrl,
-  notes,
-  variant,
-}: {
-  sourceUrl: string
-  notes: string | null
-  variant: 'inline' | 'panel'
-}): ReactNode {
-  const { links, hintText } = useMemo(
-    () => getHostReportDestinations(sourceUrl, notes),
-    [sourceUrl, notes],
-  )
-  const hasOnlyGuidance = useMemo(
-    () => links.length > 0 && links.every((l) => l.source === 'guidance'),
-    [links],
-  )
-  const [copied, setCopied] = useState(false)
-
-  const copyHint = useCallback(() => {
-    if (!hintText) return
-    void navigator.clipboard.writeText(hintText).then(() => {
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    })
-  }, [hintText])
-
-  if (links.length === 0 && !hintText) return null
-
-  const linkButtons = links.map((link, idx) =>
-    link.kind === 'url' ? (
-      <Button key={`url-${idx}-${link.href}`} asChild variant="outline" size="sm">
-        <a href={link.href} target="_blank" rel="noreferrer">
-          <ExternalLink className="mr-2 h-4 w-4" />
-          {link.label}
-        </a>
-      </Button>
-    ) : (
-      <Button key={`mailto-${idx}-${link.href}`} asChild variant="outline" size="sm">
-        <a href={link.href}>
-          <Mail className="mr-2 h-4 w-4" />
-          {link.label}
-        </a>
-      </Button>
-    ),
-  )
-
-  const hintBlock =
-    hintText != null && hintText.length > 0 ? (
-      <div
-        className={cn(
-          'flex items-start gap-2',
-          variant === 'inline' ? 'w-full basis-full text-[10px]' : 'text-xs',
-        )}
-      >
-        <p className="min-w-0 flex-1 break-words text-muted-foreground">{hintText}</p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={copyHint}
-          title={copied ? 'Copied' : 'Copy hint'}
-          aria-label={copied ? 'Copied' : 'Copy where-to-report hint'}
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    ) : null
-
-  if (variant === 'panel') {
-    return (
-      <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
-        <div>
-          <p className="text-xs font-medium text-foreground">Where to send your notice</p>
-          <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-            {hasOnlyGuidance ? (
-              <>
-                We don&apos;t have a verified DMCA or abuse URL for this host from the scan. Use Google to find the
-                site&apos;s legal or abuse contact, or a third-party takedown service. Re-verify page only checks whether
-                the page likely matches your content—it does not discover WHOIS or contact forms. Creatix does not file
-                with third parties (not legal advice).
-              </>
-            ) : (
-              <>
-                Links open public copyright or abuse pages when we know them. You pick the right channel and submit
-                yourself—Creatix does not file with third parties (not legal advice).
-              </>
-            )}
-          </p>
-        </div>
-        {linkButtons.length > 0 ? <div className="flex flex-wrap gap-2">{linkButtons}</div> : null}
-        {hintBlock}
-      </div>
-    )
-  }
-
-  return (
-    <>
-      {linkButtons}
-      {hintBlock}
-    </>
-  )
-}
-
-function defaultSnoozeIso(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  return d.toISOString()
-}
-
-function toDatetimeLocalValue(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function detectionOutcomeOptionsFor(alert: LeakAlert) {
-  const cur = alert.status as LeakDetectionStatus
-  const base = LEAK_OUTCOME_OPTIONS
-  if (base.some((o) => o.value === cur)) return base
-  return [
-    {
-      value: cur,
-      label: String(cur).replace(/_/g, ' '),
-      hint: 'Current value',
-    },
-    ...base,
-  ]
-}
-
-function formatNotesLine(notes: string | null): string {
-  const m = parseLeakMeta(notes)
-  const parts: string[] = []
-  if (m.urgency) parts.push(`Urgency: ${m.urgency}`)
-  if (m.rationale) parts.push(m.rationale)
-  if (m.pageVerified != null) parts.push(`Page verify: ${m.pageVerified ? 'likely match' : 'unclear'}`)
-  if (parts.length) return parts.join(' · ')
-  try {
-    const j = JSON.parse(notes || '{}') as { title?: string; snippet?: string }
-    return [j.title, j.snippet].filter(Boolean).join(' · ').slice(0, 280)
-  } catch {
-    return notes?.slice(0, 200) || ''
-  }
-}
-
 function urgencyRank(u: string | undefined): number {
   if (u === 'immediate') return 0
   if (u === 'soon') return 1
@@ -304,6 +113,46 @@ function urgencyRank(u: string | undefined): number {
 }
 
 const ALL_SEVERITIES: LeakSeverity[] = ['critical', 'high', 'medium', 'low']
+
+/**
+ * Severity toggles — light: soft semantic fill + dark label (WCAG-friendly); dark: deeper matte + light label.
+ * No outer glows; one hairline border + subtle inset highlight only (calm, legible).
+ */
+const SEVERITY_FILTER_ON: Record<LeakSeverity, string> = {
+  critical: cn(
+    'border-red-600/35 bg-red-50 text-red-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-red-500/45 dark:bg-red-950/55 dark:text-red-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]',
+  ),
+  high: cn(
+    'border-orange-600/32 bg-orange-50 text-orange-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-orange-500/42 dark:bg-orange-950/50 dark:text-orange-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)]',
+  ),
+  medium: cn(
+    'border-amber-700/28 bg-amber-50 text-amber-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-amber-500/38 dark:bg-amber-950/45 dark:text-amber-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]',
+  ),
+  low: cn(
+    'border-sky-600/32 bg-sky-50 text-sky-950',
+    'shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.72)]',
+    'dark:border-sky-500/40 dark:bg-sky-950/50 dark:text-sky-50',
+    'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)]',
+  ),
+}
+
+const SEVERITY_FILTER_OFF = cn(
+  'border-border/65 bg-card/70 text-foreground/78',
+  'shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_0_rgba(255,255,255,0.55)]',
+  'hover:border-border hover:bg-muted/55 hover:text-foreground',
+  'dark:border-border/55 dark:bg-background/35 dark:text-muted-foreground',
+  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
+  'dark:hover:bg-muted/35 dark:hover:text-foreground',
+)
 
 function severityRank(s: string | undefined): number {
   if (s === 'critical') return 0
@@ -315,6 +164,7 @@ function severityRank(s: string | undefined): number {
 
 export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const router = useRouter()
+  const { openCreditInsufficientModal } = useCreditInsufficientModal()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
 
@@ -325,6 +175,8 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [includeContentTitles, setIncludeContentTitles] = useState(true)
   const [strictScan, setStrictScan] = useState(true)
   const [scanSummary, setScanSummary] = useState<string | null>(null)
+  const { wallet: creditWallet, loading: creditsWalletLoading, error: creditsLoadError, refresh: refreshLeakScanCredits } =
+    useCreditSnapshot()
   const [saveIdentityLoading, setSaveIdentityLoading] = useState(false)
   const [manualUrl, setManualUrl] = useState('')
   const [manualLoading, setManualLoading] = useState(false)
@@ -342,10 +194,21 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [aegisLastRun, setAegisLastRun] = useState<string | null>(null)
 
   const { handles: identityHandles, contentTitles } = useScanIdentity()
-  const [useAllLeakHandles] = useState(false)
+  const connectedMonetizationForToggle = useMemo(() => {
+    const keys = new Set(identityHandles.map((h) => scanSourcePlatformKey(h.source)))
+    const out: ('onlyfans' | 'fansly')[] = []
+    if (keys.has('onlyfans')) out.push('onlyfans')
+    if (keys.has('fansly')) out.push('fansly')
+    return out
+  }, [identityHandles])
+
+  const [uiMode, setUiMode] = useState<'easy' | 'pro'>('easy')
+  const [useAllLeakHandles, setUseAllLeakHandles] = useState(true)
   const [selectedLeakHandles, setSelectedLeakHandles] = useState<Set<string>>(new Set())
   const [focusContentId, setFocusContentId] = useState<string>('')
   const [focusTitleFilter, setFocusTitleFilter] = useState('')
+  const [focusHostsInput, setFocusHostsInput] = useState('')
+  const [scanFocusMedia, setScanFocusMedia] = useState<'all' | 'video' | 'photo'>('all')
   const leakHandlesInit = useRef(false)
   const urlFiltersSynced = useRef(false)
 
@@ -357,6 +220,21 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
   const [filterText, setFilterText] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [verifyLoadingId, setVerifyLoadingId] = useState<string | null>(null)
+  const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null)
+  const [attributionByAlertId, setAttributionByAlertId] = useState<
+    Record<string, LeakAttributionApiResponse>
+  >({})
+  const [attributionErrorByAlertId, setAttributionErrorByAlertId] = useState<Record<string, string>>({})
+
+  /** `mailto:` for the open DMCA dialog — prefers an abuse/inbox email when the scan surfaced one */
+  const dmcaEmailCompose = useMemo(() => {
+    if (!selectedAlert || !noticeText.trim()) return null
+    const to = getPrimaryMailtoRecipientForDestinations(selectedAlert.source_url, selectedAlert.notes ?? null)
+    return {
+      href: buildDmcaNoticeMailtoHref({ to, body: noticeText }),
+      hasResolvedTo: Boolean(to?.trim()),
+    }
+  }, [selectedAlert, noticeText])
 
   useEffect(() => {
     if (urlFiltersSynced.current) return
@@ -389,6 +267,12 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const v = window.localStorage.getItem(PROTECTION_UI_MODE_KEY)
+    if (v === 'pro') setUiMode('pro')
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     if (leakHandlesInit.current) return
     leakHandlesInit.current = true
     try {
@@ -403,12 +287,61 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }, [identityHandles])
 
-  const severityColors: Record<string, string> = {
-    critical: 'bg-destructive/20 text-destructive border-destructive/30',
-    high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    low: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  }
+  useEffect(() => {
+    if (uiMode === 'easy') {
+      setUseAllLeakHandles(true)
+    }
+  }, [uiMode])
+
+  useEffect(() => {
+    if (!identityHandles.length) return
+    if (useAllLeakHandles) {
+      setSelectedLeakHandles(new Set(identityHandles.map((h) => h.value)))
+      return
+    }
+    setSelectedLeakHandles((prev) => {
+      const allowed = new Set(identityHandles.map((h) => h.value))
+      return new Set(Array.from(prev).filter((h) => allowed.has(h)))
+    })
+  }, [identityHandles, useAllLeakHandles])
+
+  const persistUiMode = useCallback((mode: 'easy' | 'pro') => {
+    setUiMode(mode)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(PROTECTION_UI_MODE_KEY, mode)
+    }
+  }, [])
+
+  const handleToggleLeakHandle = useCallback((value: string) => {
+    setSelectedLeakHandles((prev) => {
+      const next = new Set(prev)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('protection_selected_handles', JSON.stringify(Array.from(next)))
+      }
+      return next
+    })
+  }, [])
+
+  const handleUseAllLeakHandlesChange = useCallback((enabled: boolean) => {
+    setUseAllLeakHandles(enabled)
+  }, [])
+
+  const handleSelectAllLeakHandles = useCallback(() => {
+    const all = displayHandles.map((h) => h.value)
+    setSelectedLeakHandles(new Set(all))
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify(all))
+    }
+  }, [displayHandles])
+
+  const handleClearLeakHandles = useCallback(() => {
+    setSelectedLeakHandles(new Set())
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('protection_selected_handles', JSON.stringify([]))
+    }
+  }, [])
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -496,6 +429,32 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }, [supabase, formerInput, titleHintsInput])
 
+  const clearSavedProfileHints = useCallback(async () => {
+    setSaveIdentityLoading(true)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase
+        .from('profiles')
+        .update({
+          former_usernames: [],
+          leak_search_title_hints: [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+      setFormerInput('')
+      setTitleHintsInput('')
+      setAliasInput('')
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('protection_selected_handles')
+      }
+    } finally {
+      setSaveIdentityLoading(false)
+    }
+  }, [supabase])
+
   const sortedAlerts = useMemo(() => {
     return [...activeAlerts].sort((a, b) => {
       const sr = severityRank(a.severity) - severityRank(b.severity)
@@ -518,6 +477,46 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
       return hay.includes(q)
     })
   }, [sortedAlerts, severityFilters, mediaFilter, filterText])
+
+  const { confirmedAlerts, queueAlerts } = useMemo(() => {
+    const confirmed = filteredAlerts.filter((a) => a.status === 'confirmed')
+    const queue = filteredAlerts.filter((a) => a.status !== 'confirmed')
+    return { confirmedAlerts: confirmed, queueAlerts: queue }
+  }, [filteredAlerts])
+
+  const runLeakUrlAttribution = useCallback(
+    async (alert: LeakAlert) => {
+      setTraceLoadingId(alert.id)
+      setAttributionErrorByAlertId((prev) => {
+        const next = { ...prev }
+        delete next[alert.id]
+        return next
+      })
+      try {
+        const res = await fetch(`/api/leaks/alerts/${alert.id}/attribution`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': crypto.randomUUID(),
+          },
+          body: JSON.stringify({}),
+        })
+        const data = (await res.json().catch(() => ({}))) as LeakAttributionApiResponse & { error?: string }
+        if (!res.ok) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Attribution scan failed')
+        }
+        setAttributionByAlertId((prev) => ({ ...prev, [alert.id]: data }))
+      } catch (e) {
+        setAttributionErrorByAlertId((prev) => ({
+          ...prev,
+          [alert.id]: e instanceof Error ? e.message : 'Attribution scan failed',
+        }))
+      } finally {
+        setTraceLoadingId(null)
+      }
+    },
+    [],
+  )
 
   const verifyLeakPage = useCallback(
     async (alertId: string) => {
@@ -555,30 +554,67 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     [router],
   )
 
+  const creditsRemaining = creditWallet?.totalRemaining
+  const leakScanCostLabel = `${CREDITS_LEAK_SCAN} credit${CREDITS_LEAK_SCAN === 1 ? '' : 's'}`
+  const leakScanBlockedByBalance = typeof creditsRemaining === 'number' && creditsRemaining < CREDITS_LEAK_SCAN
+
   const runScan = async () => {
     setScanLoading(true)
     setScanSummary(null)
     try {
-      const aliases = parseAliases(aliasInput)
-      if (selectedLeakHandles.size === 0) {
+      const isEasy = uiMode === 'easy'
+      if (isEasy) {
+        if (identityHandles.length === 0) {
+          setScanSummary('Connect at least one account in Integrations, then run Easy scan.')
+          return
+        }
+      } else if (selectedLeakHandles.size === 0) {
         setScanSummary('Select at least one identity before running Protection scan.')
         return
       }
-      const focusHandlesPayload = Array.from(selectedLeakHandles)
+
+      const focusHandlesPayload = isEasy
+        ? identityHandles.map((h) => h.value)
+        : Array.from(selectedLeakHandles)
+
       const focusTitlesPayload = parseTitleHints(focusTitleFilter)
-      const body: Record<string, unknown> = {
-        aliases,
-        former_usernames: parseAliases(formerInput),
-        title_hints: parseTitleHints(titleHintsInput),
-        include_content_titles: includeContentTitles,
-        strict: strictScan,
-      }
-      body.focus_handles = focusHandlesPayload
-      if (focusContentId) {
-        body.content_ids = [focusContentId]
-      }
-      if (focusTitlesPayload.length) {
-        body.focus_title_hints = focusTitlesPayload
+      const body: Record<string, unknown> = isEasy
+        ? {
+            aliases: [],
+            former_usernames: [],
+            title_hints: [],
+            include_content_titles: false,
+            strict: true,
+            focus_handles: focusHandlesPayload,
+          }
+        : {
+            aliases: parseAliases(aliasInput),
+            former_usernames: parseAliases(formerInput),
+            title_hints: parseTitleHints(titleHintsInput),
+            include_content_titles: includeContentTitles,
+            strict: strictScan,
+            focus_handles: focusHandlesPayload,
+          }
+
+      if (!isEasy) {
+        if (focusContentId) {
+          body.content_ids = [focusContentId]
+        }
+        if (focusTitlesPayload.length) {
+          body.focus_title_hints = focusTitlesPayload
+        }
+        const hostNeedles = normalizeDiscoveryHostNeedles(
+          focusHostsInput
+            .split(/[\n,;]+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+        )
+        if (hostNeedles.length > 0) {
+          body.focus_hosts = hostNeedles
+        }
+        if (scanFocusMedia !== 'all') {
+          body.focus_media = scanFocusMedia
+        }
       }
 
       const res = await fetch('/api/leaks/scan', {
@@ -590,6 +626,7 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         inserted?: number
         skipped?: number
         filteredStrict?: number
+        filteredFocus?: number
         pageVerifyCount?: number
         message?: string
         error?: string
@@ -598,14 +635,30 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         setScanSummary(
           `Added ${data.inserted ?? 0} new alert(s). Skipped duplicates: ${data.skipped ?? 0}.` +
             (typeof data.filteredStrict === 'number' ? ` Filtered by strict mode: ${data.filteredStrict}.` : '') +
+            (typeof data.filteredFocus === 'number' && data.filteredFocus > 0
+              ? ` Routed out by Precision: ${data.filteredFocus}.`
+              : '') +
             (typeof data.pageVerifyCount === 'number' && data.pageVerifyCount > 0
               ? ` Critical pages verified: ${data.pageVerifyCount}.`
               : '') +
             (data.message ? ` ${data.message}` : ''),
         )
       } else {
-        setScanSummary(data.error || 'Scan failed.')
+        const base = data.error || 'Scan failed.'
+        if (res.status === 402) {
+          const payload = data as { used?: number; limit?: number }
+          openCreditInsufficientModal({
+            requiredCredits: CREDITS_LEAK_SCAN,
+            used: typeof payload.used === 'number' ? payload.used : undefined,
+            limit: typeof payload.limit === 'number' ? payload.limit : undefined,
+            contextLabel: 'Leak scan',
+          })
+          setScanSummary(null)
+        } else {
+          setScanSummary(base)
+        }
       }
+      void refreshLeakScanCredits()
       router.refresh()
     } finally {
       setScanLoading(false)
@@ -629,6 +682,11 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }
 
+  const stripLeakAttributionForDmca = (r: LeakAttributionApiResponse): MarkitAttributionResult => {
+    const { creditsCharged: _c, leak_alert_id: _l, fetched_url: _f, ...rest } = r
+    return rest
+  }
+
   const startDmcaFromAlert = async (alert: LeakAlert) => {
     setSelectedAlert(alert)
     setDmcaOpen(true)
@@ -637,10 +695,15 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     setNoticeText('')
     setProofPaths([])
     try {
+      const trace = attributionByAlertId[alert.id]
+      const body: Record<string, unknown> = { leakAlertId: alert.id }
+      if (trace) {
+        body.ariadneAttributionEvidence = stripLeakAttributionForDmca(trace)
+      }
       const res = await fetch('/api/dmca/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leakAlertId: alert.id }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (res.ok) {
@@ -682,266 +745,224 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
     }
   }
 
+  const aegisStatusTitle =
+    aegisEnabled === null
+      ? 'Configure scheduled scans in the hub'
+      : `Background scans ${aegisEnabled ? 'on' : 'off'}${
+          aegisLastRun ? ` · Last run ${new Date(aegisLastRun).toLocaleString()}` : ''
+        }`
+
   return (
-    <div className="space-y-4 min-w-0">
-      <p className="text-xs text-muted-foreground">
-        Automated search surfaces candidates for your review. Confirm each link before sending a DMCA notice.
+    <div className="min-w-0 space-y-6 sm:space-y-8">
+      <div id="protection-scan-setup" data-divine-control="protection-scan-setup" className="scroll-mt-28 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-base font-semibold tracking-tight text-foreground sm:text-[1.0625rem]">Scan setup</p>
+          {uiMode === 'easy' ? (
+            <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground/88">
+              <span className="font-medium text-foreground/90">Easy</span> uses linked accounts only.{' '}
+              <span className="font-medium text-foreground/90">Pro</span> adds per-handle control, saved aliases, stricter matching, and manual URLs.
+            </p>
+          ) : (
+            <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground/85">
+              Shape this run precisely—handles, hints, filtering, focus, and manual reports stay in sync.
+            </p>
+          )}
+        </div>
+        <ProtectionModeToggle
+          value={uiMode}
+          onChange={persistUiMode}
+          className="shrink-0"
+          connectedPlatforms={connectedMonetizationForToggle}
+        />
+      </div>
+
+      <p
+        className={cn(
+          'flex flex-wrap items-center gap-x-5 gap-y-1 border-b pb-4 text-[13px] text-muted-foreground/85 motion-safe:transition-colors sm:gap-x-8',
+          uiMode === 'pro' ? 'border-white/[0.06] pb-5' : 'border-border/45',
+        )}
+      >
+        <Link
+          href="/dashboard/protection/aegis"
+          className={cn(
+            'inline-flex items-center gap-1.5 underline-offset-[5px] transition hover:underline',
+            uiMode === 'pro' ? 'font-medium text-foreground/90 hover:text-foreground' : 'font-medium text-foreground',
+          )}
+          title={aegisStatusTitle}
+        >
+          {aegisEnabled === true ? (
+            <Shield
+              className="h-4 w-4 shrink-0 text-emerald-400/95 dark:text-emerald-400/90"
+              aria-hidden
+            />
+          ) : null}
+          <span>Aegis</span>
+        </Link>
+        <Link
+          href="/dashboard/settings?tab=integrations"
+          className={cn(
+            'inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 underline-offset-[5px] transition hover:underline',
+            uiMode === 'pro' ? 'font-medium text-foreground/90 hover:text-foreground' : 'font-medium text-foreground',
+          )}
+          title="Connect accounts so scans include linked usernames"
+        >
+          <RefreshCw
+            className="h-3.5 w-3.5 shrink-0 text-emerald-500 motion-safe:animate-[spin_10s_linear_infinite] dark:text-emerald-400"
+            aria-hidden
+          />
+          <span className="-mr-0.5 inline-flex items-center gap-0.5" aria-hidden>
+            <MiniTwitterLogo className="h-3 w-3 text-slate-200/90 dark:text-slate-100/85" />
+            <MiniInstagramLogo className="h-3 w-3 text-pink-400/95 dark:text-pink-300/85" />
+            <MiniTikTokLogo className="h-3 w-3 text-cyan-200/90 dark:text-cyan-200/80" />
+          </span>
+          <span className="-ml-0.5">Integrations</span>
+        </Link>
       </p>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2">
-          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground">Circe&apos;s Aegis</p>
-            <p className="text-xs text-muted-foreground">
-              {aegisEnabled === null
-                ? 'Configure scheduled leak scans and optional DMCA drafts in the hub.'
-                : `Background scans ${aegisEnabled ? 'on' : 'off'}`}
-              {aegisEnabled !== null && aegisLastRun
-                ? ` · Last scheduled run ${new Date(aegisLastRun).toLocaleString()}`
-                : ''}
-              {aegisEnabled === true && !aegisLastRun ? ' · No run logged yet' : ''}
+      {uiMode === 'easy' ? (
+        <section className="space-y-3" aria-labelledby="scan-accounts-heading">
+          <div>
+            <h2 id="scan-accounts-heading" className="text-[15px] font-semibold tracking-tight text-foreground">
+              Connected accounts
+            </h2>
+            <p className="mt-1 text-[13px] leading-snug text-muted-foreground/85">
+              The scan uses usernames from platforms you have linked—no extra configuration.
             </p>
           </div>
-        </div>
-        <Button variant="secondary" size="sm" className="shrink-0" asChild>
-          <Link href="/dashboard/protection/aegis">Open Aegis hub</Link>
-        </Button>
-      </div>
+          <ProtectionEasyHandles handles={identityHandles} />
+        </section>
+      ) : null}
 
-      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
-          Connect creator and social accounts under Integrations so scans include every OAuth username (X, IG, TikTok,
-          OnlyFans, Fansly…).
-        </p>
-        <Button variant="outline" size="sm" className="shrink-0" asChild>
-          <Link href="/dashboard/settings?tab=integrations">Open Integrations</Link>
-        </Button>
-      </div>
-
-      <div className="rounded-lg border border-circe/30 bg-circe/5 p-3 text-sm">
-        <p className="font-medium text-foreground">Start here</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Pick identities below, run <strong>Invoke Scan</strong> or paste a link, then use the filters to focus on the
-          worst leaks first (defaults to <strong>critical</strong> and <strong>high</strong>).
-        </p>
-      </div>
-
-      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" type="button" className="flex w-full items-center justify-between gap-2 text-sm">
-            Advanced identity hints (extra aliases, saved former names, title phrases)
-            <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', advancedOpen && 'rotate-180')} />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 data-[state=open]:pt-3">
-          <div className="space-y-2">
-            <Label htmlFor="alias-input" className="text-xs text-muted-foreground">
-              Extra names and handles (comma or line; searched in addition to connected platforms)
-            </Label>
-            <Textarea
-              id="alias-input"
-              value={aliasInput}
-              onChange={(e) => setAliasInput(e.target.value)}
-              placeholder="e.g. stage name, alternate @handles"
-              className="min-h-[72px] text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="former-input" className="text-xs text-muted-foreground">
-              Former / old usernames (comma or line; saved to your profile for every scan)
-            </Label>
-            <Textarea
-              id="former-input"
-              value={formerInput}
-              onChange={(e) => setFormerInput(e.target.value)}
-              placeholder="Handles you used before a rebrand"
-              className="min-h-[56px] text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="title-hints" className="text-xs text-muted-foreground">
-              Content titles / phrases to search (one per line; merged with your library titles when enabled below)
-            </Label>
-            <Textarea
-              id="title-hints"
-              value={titleHintsInput}
-              onChange={(e) => setTitleHintsInput(e.target.value)}
-              placeholder="Exact or partial video or set titles that might appear on leak sites"
-              className="min-h-[72px] text-sm"
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2">
-          <Checkbox
-            id="include-content-titles"
-            checked={includeContentTitles}
-            onCheckedChange={(v) => setIncludeContentTitles(v === true)}
-          />
-          <label htmlFor="include-content-titles" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-            Include published / scheduled titles from your content library in search queries (caps apply).
-          </label>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={saveIdentityLoading}
-          onClick={saveSearchIdentity}
-        >
-          {saveIdentityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Save former names &amp; title hints
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={saveIdentityLoading}
-          onClick={async () => {
-            setSaveIdentityLoading(true)
-            try {
-              const {
-                data: { user },
-              } = await supabase.auth.getUser()
-              if (!user) return
-              await supabase
-                .from('profiles')
-                .update({
-                  former_usernames: [],
-                  leak_search_title_hints: [],
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', user.id)
-              setFormerInput('')
-              setTitleHintsInput('')
-              setAliasInput('')
-              if (typeof window !== 'undefined') {
-                window.localStorage.removeItem('protection_selected_handles')
-              }
-            } finally {
-              setSaveIdentityLoading(false)
-            }
-          }}
-        >
-          Delete saved identities
-        </Button>
-      </div>
-
-      <div className="flex items-start gap-2">
-        <Checkbox
-          id="strict-scan"
-          checked={strictScan}
-          onCheckedChange={(v) => setStrictScan(v === true)}
+      {uiMode === 'pro' ? (
+        <ProtectionProScanSetup
+          displayHandles={displayHandles}
+          useAllLeakHandles={useAllLeakHandles}
+          onUseAllLeakHandlesChange={handleUseAllLeakHandlesChange}
+          selectedLeakHandles={selectedLeakHandles}
+          onToggleLeakHandle={handleToggleLeakHandle}
+          includeContentTitles={includeContentTitles}
+          onIncludeContentTitlesChange={setIncludeContentTitles}
+          strictScan={strictScan}
+          onStrictScanChange={setStrictScan}
+          advancedOpen={advancedOpen}
+          onAdvancedOpenChange={setAdvancedOpen}
+          aliasInput={aliasInput}
+          onAliasInputChange={setAliasInput}
+          formerInput={formerInput}
+          onFormerInputChange={setFormerInput}
+          titleHintsInput={titleHintsInput}
+          onTitleHintsInputChange={setTitleHintsInput}
+          saveIdentityLoading={saveIdentityLoading}
+          onSaveIdentity={saveSearchIdentity}
+          onClearSavedHints={clearSavedProfileHints}
+          contentTitles={contentTitles}
+          focusContentId={focusContentId}
+          onFocusContentIdChange={setFocusContentId}
+          focusTitleFilter={focusTitleFilter}
+          onFocusTitleFilterChange={setFocusTitleFilter}
+          focusHostsInput={focusHostsInput}
+          onFocusHostsInputChange={setFocusHostsInput}
+          scanFocusMedia={scanFocusMedia}
+          onScanFocusMediaChange={setScanFocusMedia}
         />
-        <label htmlFor="strict-scan" className="text-xs text-muted-foreground leading-snug cursor-pointer">
-          Strict mode: only keep search results that likely match your content (Venus Pro: AI-assisted filtering;
-          keyword match otherwise). Your manually pasted links are always kept.
-        </label>
-      </div>
+      ) : null}
 
-      {displayHandles.length > 0 && (
-        <ScanHandlePicker
-          handles={displayHandles}
-          useAll={useAllLeakHandles}
-          onUseAllChange={(v) => {
-            if (!v) return
-          }}
-          selected={selectedLeakHandles}
-          onToggle={(value) => {
-            setSelectedLeakHandles((prev) => {
-              const next = new Set(prev)
-              if (next.has(value)) next.delete(value)
-              else next.add(value)
-              if (typeof window !== 'undefined') {
-                window.localStorage.setItem(
-                  'protection_selected_handles',
-                  JSON.stringify(Array.from(next)),
-                )
-              }
-              return next
-            })
-          }}
-          idPrefix="leak-scan"
-        />
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Optional: one library item (adds its title to the scan)</Label>
-          <Select value={focusContentId || '__none__'} onValueChange={(v) => setFocusContentId(v === '__none__' ? '' : v)}>
-            <SelectTrigger className="text-sm">
-              <SelectValue placeholder="All library titles (or pick one)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No single-item focus</SelectItem>
-              {contentTitles.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.title.length > 64 ? `${c.title.slice(0, 64)}…` : c.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-5 border-t border-border/45 pt-6 sm:pt-8">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <div
+            className={cn(
+              'inline-flex max-w-full items-center gap-2 rounded-xl border border-border/55 bg-muted/30 px-3 py-1.5 tabular-nums dark:bg-muted/20',
+              leakScanBlockedByBalance && 'border-destructive/35 bg-destructive/8 text-destructive',
+            )}
+            title="AI credit wallet: included monthly pool plus any purchases."
+            {...DASHBOARD_CREDIT_SUMMARY_MARK}
+          >
+            <Coins className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+            {creditsWalletLoading && !creditsLoadError ? (
+              <span className="text-[13px] text-muted-foreground">Loading credits…</span>
+            ) : creditsLoadError ? (
+              <span className="text-[13px] text-destructive">{creditsLoadError}</span>
+            ) : (
+              <span className="text-[13px] text-muted-foreground/90">
+                <span className="font-semibold text-foreground">
+                  {typeof creditsRemaining === 'number' ? creditsRemaining.toLocaleString() : '—'}
+                </span>
+                <span> credits · </span>
+                <span className="font-medium text-foreground/90">{leakScanCostLabel}</span>
+                <span> per {uiMode === 'easy' ? 'scan' : 'Pro scan'}</span>
+              </span>
+            )}
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="focus-title-filter" className="text-xs text-muted-foreground">
-            Optional: narrow title queries (one phrase per line; must match merged titles)
-          </Label>
-          <Textarea
-            id="focus-title-filter"
-            value={focusTitleFilter}
-            onChange={(e) => setFocusTitleFilter(e.target.value)}
-            placeholder="e.g. part of a video title"
-            className="min-h-[56px] text-sm"
+
+        {leakScanBlockedByBalance ? (
+          <InsufficientCreditsCallout
+            requiredCredits={CREDITS_LEAK_SCAN}
+            actionContext="a protection leak scan"
           />
-        </div>
-      </div>
+        ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap items-center gap-2">
+        <div
+          className={cn(
+            'flex flex-col gap-6',
+            uiMode === 'pro' ? 'lg:flex-row lg:items-start lg:justify-between lg:gap-10' : '',
+          )}
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
             <Button
-              className="gap-2 bg-circe hover:bg-circe/90"
+              className={cn(
+                'h-11 gap-2 rounded-xl bg-foreground px-6 text-[15px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/88 disabled:pointer-events-none disabled:opacity-35',
+              )}
               onClick={runScan}
               disabled={
                 scanLoading ||
-                selectedLeakHandles.size === 0
+                leakScanBlockedByBalance ||
+                (uiMode === 'easy' ? identityHandles.length === 0 : selectedLeakHandles.size === 0)
+              }
+              title={
+                leakScanBlockedByBalance
+                  ? 'Add AI credits in Billing to run a leak scan.'
+                  : `Debits ${leakScanCostLabel} from your balance.`
               }
             >
-              {scanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Invoke Scan
+              {scanLoading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <ScanSearch className="h-4 w-4 shrink-0" aria-hidden />}
+              {uiMode === 'easy' ? 'Run scan' : 'Run Pro scan'}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="border-venus/40 text-venus hover:bg-venus/10"
-            >
-              <Link href="/dashboard/ai-studio/tools">Open Venus Pro</Link>
-            </Button>
+            {scanSummary ? (
+              <p className="text-[13px] leading-relaxed text-muted-foreground/88 sm:max-w-xl">{scanSummary}</p>
+            ) : null}
           </div>
-          {scanSummary ? <p className="text-xs text-muted-foreground sm:max-w-md">{scanSummary}</p> : null}
-        </div>
-        <div className="w-full sm:max-w-md">
-          <Label htmlFor="manual-url" className="text-xs text-muted-foreground">
-            Bring your own link
-          </Label>
-          <div className="mt-1 flex gap-2">
-            <Input
-              id="manual-url"
-              value={manualUrl}
-              onChange={(e) => setManualUrl(e.target.value)}
-              placeholder="Paste infringing URL…"
-            />
-            <Button variant="outline" onClick={reportManual} disabled={manualLoading || !manualUrl.trim()}>
-              {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Report
-            </Button>
-          </div>
+
+          {uiMode === 'pro' ? (
+            <div className="w-full shrink-0 space-y-3 rounded-[1.125rem] border border-white/[0.08] bg-background/30 px-5 py-4 backdrop-blur-[2px] dark:bg-background/[0.12] lg:max-w-[min(100%,20rem)]">
+              <div>
+                <Label htmlFor="manual-url" className="text-[14px] font-medium tracking-tight text-foreground">
+                  Report a URL
+                </Label>
+                <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/85">
+                  Outside the automated run—still recorded with your leaks.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  id="manual-url"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="Paste URL…"
+                  className="h-10 rounded-xl text-[13px] md:text-sm"
+                />
+                <Button
+                  variant="outline"
+                  className="h-10 shrink-0 rounded-xl px-4"
+                  onClick={reportManual}
+                  disabled={manualLoading || !manualUrl.trim()}
+                >
+                  {manualLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Report
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -951,38 +972,50 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           {alertUpdateError}
         </p>
       ) : null}
-      <div className="rounded-lg border border-border bg-muted/15 p-3 space-y-3">
+      <div id="protection-filter-queue" data-divine-control="protection-filter-queue" className="relative scroll-mt-28 overflow-hidden rounded-xl border border-violet-500/15 bg-gradient-to-b from-muted/25 via-background/40 to-muted/10 p-3 shadow-sm ring-1 ring-inset ring-white/[0.04] space-y-3 transition-shadow duration-300 hover:shadow-md hover:ring-violet-500/20">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent motion-safe:animate-pulse motion-safe:[animation-duration:2.4s] motion-reduce:opacity-50"
+          aria-hidden
+        />
         <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-          <span className="text-xs font-medium text-foreground">Filter queue</span>
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/[0.12] text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+            <Filter className="h-4 w-4 shrink-0" aria-hidden />
+          </div>
+          <span className="text-xs font-medium tracking-tight text-foreground">Filter queue</span>
         </div>
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] uppercase text-muted-foreground mr-1">Severity</span>
-          {ALL_SEVERITIES.map((s) => (
-            <Button
-              key={s}
-              type="button"
-              size="sm"
-              variant={severityFilters.has(s) ? 'secondary' : 'outline'}
-              className="h-7 text-xs capitalize"
-              onClick={() => {
-                setSeverityFilters((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(s)) next.delete(s)
-                  else next.add(s)
-                  if (next.size === 0) next.add(s)
-                  return next
-                })
-              }}
-            >
-              {s}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Severity</span>
+          {ALL_SEVERITIES.map((s) => {
+            const on = severityFilters.has(s)
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setSeverityFilters((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(s)) next.delete(s)
+                    else next.add(s)
+                    if (next.size === 0) next.add(s)
+                    return next
+                  })
+                }}
+                className={cn(
+                  'h-7 min-w-[4.75rem] rounded-md border px-3 text-xs font-medium capitalize sm:min-w-0',
+                  'transition-all duration-300 ease-out motion-safe:hover:scale-[1.02] active:scale-[0.98]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  on ? SEVERITY_FILTER_ON[s] : SEVERITY_FILTER_OFF,
+                )}
+              >
+                {s}
+              </button>
+            )
+          })}
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs"
+            className="h-7 text-xs text-foreground/80 hover:bg-muted/50 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
             onClick={() => setSeverityFilters(new Set(ALL_SEVERITIES))}
           >
             All
@@ -991,10 +1024,10 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 text-xs gap-1"
+            className="h-7 gap-1 text-xs text-amber-800 hover:bg-amber-500/12 hover:text-amber-950 dark:text-amber-200/90 dark:hover:bg-amber-500/10 dark:hover:text-amber-50"
             onClick={() => setSeverityFilters(new Set(['critical', 'high']))}
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw className="h-3 w-3 motion-safe:transition-transform motion-safe:duration-500 hover:rotate-[-25deg]" />
             Priority
           </Button>
         </div>
@@ -1028,225 +1061,81 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
           />
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Showing {filteredAlerts.length} of {sortedAlerts.length} in the active queue.
+          Showing{' '}
+          <span className="tabular-nums font-medium text-foreground">{filteredAlerts.length}</span>
+          {' of '}
+          <span className="tabular-nums text-foreground/80">{sortedAlerts.length}</span>
+          {' '}matching filters
+          {confirmedAlerts.length > 0 ? (
+            <span className="text-muted-foreground/85">
+              {' '}
+              — <span className="tabular-nums">{confirmedAlerts.length}</span> confirmed (pinned above triage)
+            </span>
+          ) : null}
+          .
         </p>
       </div>
-      <div className="space-y-3">
-        {filteredAlerts.map((alert) => {
-          const meta = parseLeakMeta(alert.notes)
-          const caseStatus = (alert.user_case_status as LeakUserCaseStatus | undefined) || 'open'
-          const distIntent =
-            (alert.creator_distribution_intent as LeakDistributionIntent | undefined) || 'unspecified'
-          const urgencyClass =
-            meta.urgency === 'immediate'
-              ? 'border-destructive text-destructive'
-              : meta.urgency === 'soon'
-                ? 'border-orange-500 text-orange-400'
-                : 'border-muted-foreground/50 text-muted-foreground'
-          const nuanceText = meta.distributionNuance || alert.ai_nuance_summary || ''
-          return (
-            <div
-              key={alert.id}
-              className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/30 p-4"
-            >
-              <div className="min-w-0 w-full space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-xs capitalize',
-                      severityColors[alert.severity] || 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {alert.severity || 'unknown'}
-                  </Badge>
-                  {alert.media_type && alert.media_type !== 'unknown' ? (
-                    <Badge variant="outline" className="text-xs capitalize border-primary/30">
-                      {alert.media_type}
-                    </Badge>
-                  ) : null}
-                  {(alert.reappearance_count ?? 0) > 0 ? (
-                    <Badge variant="secondary" className="text-xs">
-                      Resurfaced ×{alert.reappearance_count}
-                    </Badge>
-                  ) : null}
-                  {meta.urgency ? (
-                    <Badge variant="outline" className={cn('text-xs capitalize', urgencyClass)}>
-                      {meta.urgency}
-                    </Badge>
-                  ) : null}
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {alert.status.replace('_', ' ')}
-                  </Badge>
-                  {meta.reviewConclusion ? (
-                    <Badge variant="secondary" className="text-xs">
-                      {REVIEW_BADGE[meta.reviewConclusion] || meta.reviewConclusion}
-                    </Badge>
-                  ) : null}
-                  {meta.evidenceAccessibility && meta.evidenceAccessibility !== 'public_snippet' ? (
-                    <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400">
-                      {ACCESS_BADGE[meta.evidenceAccessibility] || meta.evidenceAccessibility}
-                    </Badge>
-                  ) : null}
-                  <span className="text-xs text-muted-foreground">{alert.source_platform}</span>
-                </div>
-                <p className="block w-full max-w-full whitespace-normal text-sm break-words [overflow-wrap:anywhere]">
-                  {alert.source_url}
-                </p>
-                {nuanceText ? (
-                  <p className="text-xs text-muted-foreground line-clamp-4">{nuanceText}</p>
-                ) : null}
-                {alert.notes ? (
-                  <div className="text-xs text-muted-foreground line-clamp-2">{formatNotesLine(alert.notes)}</div>
-                ) : null}
-                {(meta.distributionNuance || meta.suggestedUserAction || meta.rationale) && (
-                  <details className="rounded-md border border-border bg-muted/20 p-2 text-xs">
-                    <summary className="cursor-pointer font-medium text-foreground">AI triage detail</summary>
-                    <div className="mt-2 space-y-2 text-muted-foreground">
-                      {meta.suggestedUserAction ? (
-                        <p>
-                          <span className="font-medium text-foreground">Suggested action: </span>
-                          {SUGGESTED_ACTION_LABEL[meta.suggestedUserAction] || meta.suggestedUserAction}
-                        </p>
-                      ) : null}
-                      {meta.distributionNuance ? (
-                        <p>
-                          <span className="font-medium text-foreground">Distribution nuance: </span>
-                          {meta.distributionNuance}
-                        </p>
-                      ) : null}
-                      {meta.rationale ? (
-                        <p>
-                          <span className="font-medium text-foreground">Rationale: </span>
-                          {meta.rationale}
-                        </p>
-                      ) : null}
-                      <p className="text-[11px] italic">
-                        AI uses search snippets only—not legal advice. You confirm before any DMCA.
-                      </p>
-                    </div>
-                  </details>
-                )}
-                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-end">
-                  <div className="space-y-1 min-w-[220px] max-w-full">
-                    <Label className="text-[10px] text-muted-foreground">Detection outcome</Label>
-                    <Select
-                      value={alert.status}
-                      onValueChange={(v) => {
-                        void patchLeakAlert(alert.id, { status: v as LeakDetectionStatus })
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Set outcome" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[min(320px,70vh)]">
-                        {detectionOutcomeOptionsFor(alert).map((o) => (
-                          <SelectItem key={o.value} value={o.value} className="text-xs" title={o.hint}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1 min-w-[160px]">
-                    <Label className="text-[10px] text-muted-foreground">Your case status</Label>
-                    <Select
-                      value={caseStatus}
-                      onValueChange={(v) => {
-                        const next = v as LeakUserCaseStatus
-                        const payload: Record<string, unknown> = { user_case_status: next }
-                        if (next === 'snoozed') {
-                          payload.snooze_until = alert.snooze_until || defaultSnoozeIso()
-                        }
-                        void patchLeakAlert(alert.id, payload)
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CASE_STATUS_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {caseStatus === 'snoozed' ? (
-                    <div className="space-y-1 min-w-[200px]">
-                      <Label className="text-[10px] text-muted-foreground">Snooze until (local time)</Label>
-                      <Input
-                        type="datetime-local"
-                        className="h-9 text-xs"
-                        defaultValue={toDatetimeLocalValue(alert.snooze_until)}
-                        key={`${alert.id}-${alert.snooze_until ?? 'none'}`}
-                        onBlur={(e) => {
-                          const v = e.target.value
-                          if (!v) return
-                          const iso = new Date(v).toISOString()
-                          void patchLeakAlert(alert.id, { user_case_status: 'snoozed', snooze_until: iso })
-                        }}
-                      />
-                    </div>
-                  ) : null}
-                  <div className="space-y-1 min-w-[180px]">
-                    <Label className="text-[10px] text-muted-foreground">Your content intent</Label>
-                    <Select
-                      value={distIntent}
-                      onValueChange={(v) => {
-                        void patchLeakAlert(alert.id, {
-                          creator_distribution_intent: v as LeakDistributionIntent,
-                        })
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DISTRIBUTION_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="flex w-full min-w-0 flex-wrap gap-2 border-t border-border/60 pt-3 sm:pt-4">
-                <Button asChild variant="outline" size="sm">
-                  <a href={alert.source_url} target="_blank" rel="noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View
-                  </a>
-                </Button>
-                <HostReportDestinationUI
-                  sourceUrl={alert.source_url}
-                  notes={alert.notes ?? null}
-                  variant="inline"
-                />
-                {isPro && alert.severity === 'critical' ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={verifyLoadingId === alert.id}
-                    onClick={() => void verifyLeakPage(alert.id)}
-                  >
-                    {verifyLoadingId === alert.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Re-verify page
-                  </Button>
-                ) : null}
-                <Button size="sm" onClick={() => startDmcaFromAlert(alert)}>
-                  Download DMCA
-                </Button>
-              </div>
+      <div className="space-y-8">
+        {confirmedAlerts.length > 0 ? (
+          <section id="protection-confirmed-leaks" data-divine-control="protection-confirmed-leaks" className="scroll-mt-28 space-y-3" aria-labelledby="confirmed-leaks-heading">
+            <div>
+              <h2 id="confirmed-leaks-heading" className="text-[13px] font-semibold tracking-tight text-foreground">
+                Confirmed · act next
+              </h2>
+              <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-muted-foreground">
+                You marked these as your content—follow up soon. Undo sends the row back to triage; “Not mine” dismisses it.
+              </p>
             </div>
-          )
-        })}
+            <div className="space-y-4">
+              {confirmedAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:fill-mode-both motion-reduce:animate-none"
+                >
+                  <LeakAlertCard
+                    alert={alert}
+                    presentation="confirmedLane"
+                    meta={parseLeakMeta(alert.notes)}
+                    isPro={isPro}
+                    verifying={verifyLoadingId === alert.id}
+                    tracing={traceLoadingId === alert.id}
+                    attribution={attributionByAlertId[alert.id]}
+                    attributionError={attributionErrorByAlertId[alert.id] ?? null}
+                    onPatch={(id, body) => void patchLeakAlert(id, body)}
+                    onVerify={(id) => void verifyLeakPage(id)}
+                    onTrace={(a) => void runLeakUrlAttribution(a)}
+                    onDmca={startDmcaFromAlert}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {queueAlerts.length > 0 ? (
+          <section id="protection-triage-queue" data-divine-control="protection-triage-queue" className="scroll-mt-28 space-y-5" aria-labelledby={confirmedAlerts.length > 0 ? 'triage-queue-heading' : undefined}>
+            {confirmedAlerts.length > 0 ? (
+              <h2 id="triage-queue-heading" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Triage
+              </h2>
+            ) : null}
+            {queueAlerts.map((alert) => (
+              <LeakAlertCard
+                key={alert.id}
+                alert={alert}
+                meta={parseLeakMeta(alert.notes)}
+                isPro={isPro}
+                verifying={verifyLoadingId === alert.id}
+                tracing={traceLoadingId === alert.id}
+                attribution={attributionByAlertId[alert.id]}
+                attributionError={attributionErrorByAlertId[alert.id] ?? null}
+                onPatch={(id, body) => void patchLeakAlert(id, body)}
+                onVerify={(id) => void verifyLeakPage(id)}
+                onTrace={(a) => void runLeakUrlAttribution(a)}
+                onDmca={startDmcaFromAlert}
+              />
+            ))}
+          </section>
+        ) : null}
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         Circe does not log into paywalled or member-only pages. When a result looks like ads or sign-in walls, treat
@@ -1254,93 +1143,167 @@ export function ProtectionDashboard({ activeAlerts, suggestedAlias }: Props) {
         helps draft and track.
       </p>
 
-      {/* DMCA modal */}
+      {/* DMCA modal — calm document shell; third-party assisted filing is roadmap-only */}
       <Dialog open={dmcaOpen} onOpenChange={setDmcaOpen}>
         <DialogTrigger asChild>
           <span />
         </DialogTrigger>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>DMCA Takedown Notice</DialogTitle>
-            <DialogDescription>
-              Review your DMCA draft for this leak. Attach proof files, then download the notice to send it to the host
-              yourself—Creatix does not submit notices automatically.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent
+          overlayClassName="bg-black/50 backdrop-blur-[3px]"
+          className={cn(
+            'gap-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-background p-0 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_32px_120px_-24px_rgba(0,0,0,0.55)]',
+            'flex max-h-[min(92dvh,880px)] w-[min(100vw-1.5rem,40rem)] max-w-none flex-col sm:max-w-none',
+            '[&>[data-slot=dialog-close]]:top-5 [&>[data-slot=dialog-close]]:right-5 [&>[data-slot=dialog-close]]:rounded-full [&>[data-slot=dialog-close]]:size-9 [&>[data-slot=dialog-close]]:opacity-50 hover:[&>[data-slot=dialog-close]]:opacity-100',
+          )}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <DialogHeader className="space-y-0 px-8 pb-0 pt-9 pr-16 text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/90">Notice</p>
+              <DialogTitle className="mt-2 text-[1.375rem] font-semibold leading-tight tracking-[-0.035em] text-foreground sm:text-[1.5rem]">
+                DMCA Self-Takedown
+              </DialogTitle>
+              <DialogDescription className="mt-3 max-w-[38ch] text-[15px] leading-[1.55] tracking-[-0.012em] text-muted-foreground">
+                Review the draft. Add proof, then download and send it to the host yourself—Creatix does not submit notices
+                for you.
+              </DialogDescription>
+              {selectedAlert && attributionByAlertId[selectedAlert.id] ? (
+                <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground/90">
+                  The description field includes your latest “Trace to original recipient” summary for this row.
+                </p>
+              ) : null}
 
-          {selectedAlert ? (
-            <HostReportDestinationUI
-              variant="panel"
-              sourceUrl={selectedAlert.source_url}
-              notes={selectedAlert.notes ?? null}
-            />
-          ) : null}
-
-          {dmcaLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : !claimId ? (
-            <div className="text-sm text-muted-foreground">Unable to generate claim.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs whitespace-pre-wrap">
-                {noticeText || 'Notice generated.'}
+              <div
+                className="mt-6 flex flex-col gap-3 rounded-xl border border-border/40 bg-muted/[0.14] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 dark:bg-muted/10"
+                role="status"
+                aria-label="Third-party assisted filing is not available yet"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/85">
+                    Third-party filing
+                  </p>
+                  <p className="text-[12.5px] leading-snug text-muted-foreground">
+                    Submission via portals like DMCA.com (not affiliated). Not automated today.
+                  </p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 rounded-md border border-border/50 bg-background/65 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+                >
+                  Coming soon
+                </Badge>
               </div>
+            </DialogHeader>
 
-              <div className="space-y-2">
-                <Label className="text-sm">Proof of ownership (required)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) uploadProof(f)
-                      e.currentTarget.value = ''
+            <div className="mt-8 border-t border-border/35 px-8 pb-2 pt-8">
+              {selectedAlert ? (
+                <HostReportDestinationUI
+                  variant="panel"
+                  sourceUrl={selectedAlert.source_url}
+                  notes={selectedAlert.notes ?? null}
+                />
+              ) : null}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-2 pt-6">
+              {dmcaLoading ? (
+                <div className="flex min-h-[12rem] items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/70" aria-hidden />
+                </div>
+              ) : !claimId ? (
+                <p className="text-[13px] text-muted-foreground">Unable to generate claim.</p>
+              ) : (
+                <div className="space-y-8 pb-8">
+                  <div className="space-y-2.5">
+                    <Label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Draft
+                    </Label>
+                    <div
+                      className={cn(
+                        'max-h-[min(42vh,300px)] overflow-y-auto overscroll-contain rounded-xl border border-border/35',
+                        'bg-muted/[0.18] px-4 py-3.5 font-mono text-[11.5px] leading-[1.65] tracking-[0.02em]',
+                        'text-foreground/90 subpixel-antialiased dark:bg-muted/15',
+                      )}
+                    >
+                      <pre className="whitespace-pre-wrap break-words font-mono text-[inherit]">{noticeText || 'Notice generated.'}</pre>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Proof of ownership
+                    </Label>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <Input
+                        type="file"
+                        className="h-11 cursor-pointer rounded-xl border-border/40 bg-background/50 text-[13px] file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-[12px] file:font-medium"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) uploadProof(f)
+                          e.currentTarget.value = ''
+                        }}
+                        disabled={proofUploading}
+                      />
+                      <Button variant="outline" size="sm" className="h-11 shrink-0 rounded-xl" disabled>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload
+                      </Button>
+                    </div>
+                    {proofPaths.length > 0 ? (
+                      <p className="text-[12px] text-muted-foreground">{proofPaths.length} file(s) attached.</p>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">Attach at least one file before download.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {!dmcaLoading && claimId ? (
+              <div className="shrink-0 border-t border-border/35 bg-muted/[0.06] px-8 py-5 dark:bg-muted/5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {dmcaEmailCompose ? (
+                      <Button asChild className="h-11 w-full rounded-xl sm:w-auto">
+                        <a href={dmcaEmailCompose.href} rel="nofollow" aria-label="Open your email app with this DMCA draft">
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send via email
+                        </a>
+                      </Button>
+                    ) : null}
+                    <Button
+                      asChild
+                      variant="outline"
+                      disabled={proofPaths.length === 0}
+                      className="h-11 w-full rounded-xl border-border/45 sm:w-auto"
+                    >
+                      <a href={`/api/dmca/claim/${claimId}/download`}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Download notice
+                      </a>
+                    </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="h-11 rounded-xl text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setDmcaOpen(false)
+                      setSelectedAlert(null)
                     }}
-                    disabled={proofUploading}
-                  />
-                  <Button variant="outline" disabled>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload
+                  >
+                    Close
                   </Button>
                 </div>
-                {proofPaths.length > 0 ? (
-                  <div className="text-xs text-muted-foreground">
-                    {proofPaths.length} proof file(s) attached.
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">
-                    Upload at least 1 proof file before downloading.
-                  </div>
-                )}
+                {dmcaEmailCompose && !dmcaEmailCompose.hasResolvedTo ? (
+                  <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+                    Add the site’s abuse contact in <span className="font-medium text-foreground/90">To:</span>
+                    {' — we couldn’t derive it from this scan.'}
+                  </p>
+                ) : null}
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  asChild
-                  disabled={proofPaths.length === 0}
-                >
-                  <a href={`/api/dmca/claim/${claimId}/download`}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Download DMCA Notice
-                  </a>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDmcaOpen(false)
-                    setSelectedAlert(null)
-                  }}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-

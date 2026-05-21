@@ -1,14 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { OnlyFansCreatorPageModel } from '@/lib/onlyfans/creator-page-model'
 import { parseOnlyFansCreatorPageModel } from '@/lib/onlyfans/creator-page-model'
+import {
+  formatCreatorStatusLabel,
+  normalizeCreatorStatusDetail,
+  normalizeCreatorStatusPreset,
+} from '@/lib/creator-platform-status'
 
 export type PlatformConnectionSnapshot = {
   onlyfansConnected: boolean
   onlyfansUsername: string | null
   /** Creator page: free vs paid sub (not per-fan CRM tier). */
   onlyfansCreatorPageModel: OnlyFansCreatorPageModel
+  onlyfansCreatorStatus: string | null
   fanslyConnected: boolean
   fanslyUsername: string | null
+  fanslyCreatorStatus: string | null
 }
 
 export type RuntimePlatform = 'onlyfans' | 'fansly'
@@ -31,31 +38,44 @@ export async function getPlatformConnectionSnapshot(
 ): Promise<PlatformConnectionSnapshot> {
   const { data } = await supabase
     .from('platform_connections')
-    .select('platform, platform_username, is_connected, onlyfans_creator_page_model')
+    .select(
+      'platform, platform_username, is_connected, onlyfans_creator_page_model, creator_status_preset, creator_status_detail',
+    )
     .eq('user_id', userId)
     .in('platform', ['onlyfans', 'fansly'])
 
   let onlyfansConnected = false
   let onlyfansUsername: string | null = null
   let onlyfansCreatorPageModel: OnlyFansCreatorPageModel = 'unknown'
+  let onlyfansCreatorStatus: string | null = null
   let fanslyConnected = false
   let fanslyUsername: string | null = null
+  let fanslyCreatorStatus: string | null = null
 
   for (const row of data || []) {
     const platform = String((row as { platform?: string }).platform ?? '')
     const connected = (row as { is_connected?: boolean }).is_connected === true
     const usernameRaw = (row as { platform_username?: string | null }).platform_username
     const username = typeof usernameRaw === 'string' && usernameRaw.trim() ? usernameRaw.trim() : null
+    const statusPreset = normalizeCreatorStatusPreset(
+      (row as { creator_status_preset?: string | null }).creator_status_preset,
+    )
+    const statusDetail = normalizeCreatorStatusDetail(
+      (row as { creator_status_detail?: string | null }).creator_status_detail,
+    )
+    const statusLabel = formatCreatorStatusLabel(statusPreset, statusDetail)
     if (platform === 'onlyfans' && connected) {
       onlyfansConnected = true
       if (username) onlyfansUsername = username
       onlyfansCreatorPageModel = parseOnlyFansCreatorPageModel(
         (row as { onlyfans_creator_page_model?: string | null }).onlyfans_creator_page_model,
       )
+      if (statusLabel) onlyfansCreatorStatus = statusLabel
     }
     if (platform === 'fansly' && connected) {
       fanslyConnected = true
       if (username) fanslyUsername = username
+      if (statusLabel) fanslyCreatorStatus = statusLabel
     }
   }
 
@@ -63,8 +83,10 @@ export async function getPlatformConnectionSnapshot(
     onlyfansConnected,
     onlyfansUsername,
     onlyfansCreatorPageModel,
+    onlyfansCreatorStatus,
     fanslyConnected,
     fanslyUsername,
+    fanslyCreatorStatus,
   }
 }
 

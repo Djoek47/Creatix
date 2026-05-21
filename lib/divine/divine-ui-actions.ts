@@ -40,6 +40,12 @@ export const DIVINE_COMPOSER_MEDIA_MAX = 12
 export type DivineUiAction =
   | { type: 'navigate'; path: string }
   | {
+      type: 'guide_focus'
+      path?: string
+      elementId?: string
+      label?: string
+    }
+  | {
       type: 'focus_fan'
       fanId: string
       /** Default navigate: open Messages route. overlay: floating DM panel (see dm_focus_mode). */
@@ -180,6 +186,35 @@ export function applyDivineUiActions(
     }
     if (a.type === 'navigate' && a.path.startsWith('/dashboard')) {
       router.push(a.path)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('creatix:divine-guided-navigation', {
+            detail: { path: a.path },
+          }),
+        )
+      }
+    }
+    if (a.type === 'guide_focus') {
+      const path = typeof a.path === 'string' && a.path.startsWith('/dashboard') ? a.path : null
+      if (path) router.push(path)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('creatix:divine-guide-focus', {
+            detail: {
+              path,
+              elementId: typeof a.elementId === 'string' ? a.elementId : null,
+              label: typeof a.label === 'string' ? a.label.slice(0, 120) : null,
+            },
+          }),
+        )
+        if (path) {
+          window.dispatchEvent(
+            new CustomEvent('creatix:divine-guided-navigation', {
+              detail: { path },
+            }),
+          )
+        }
+      }
     }
     if (a.type === 'focus_fan' && a.fanId) {
       const id = String(a.fanId).trim()

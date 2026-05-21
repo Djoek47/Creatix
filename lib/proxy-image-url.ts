@@ -7,14 +7,22 @@
  * which uses OnlyFansAPI's media/download path (same as upload pipeline) so the
  * bytes are fetched in an allowed context and streamed to the signed-in client.
  *
- * Fansly: unsigned URLs can use `/api/proxy/image` (referrer/hotlink). Signed
- * CloudFront URLs are tried via proxy when possible; the browser may still load
- * the raw URL as a fallback (see `buildMediaSrcChain` in chat-window).
+ * Fansly **avatars / list thumbnails**: simple `/api/proxy/image` (Referer) works and is cheap.
+ *
+ * Fansly **chat attachments / PPV / vault bytes** often need CloudFront signing (`MissingKey-Pair-Id` on bare
+ * URLs). Use `proxyFanslyAttachmentUrl()` for those — it routes through ApiFansly partner download:
+ *   GET /api/fansly/media/download?cdnUrl=...
+ * @see https://docs.apifansly.com/api-reference/media/download-media
  */
 
-function isCloudFrontSigned(url: string): boolean {
-  const q = url.toLowerCase()
-  return q.includes('signature=') || q.includes('policy=') || q.includes('key-pair-id=')
+function isFanslyCdnHost(url: string): boolean {
+  const lower = url.toLowerCase()
+  return (
+    lower.includes('fansly.com') ||
+    lower.includes('cdn.fansly.com') ||
+    lower.includes('media.fansly.com') ||
+    lower.includes('thumbs.fansly.com')
+  )
 }
 
 function isOnlyFansCdnHost(url: string): boolean {
@@ -34,16 +42,26 @@ export function proxyImageUrl(url: string | null | undefined): string | undefine
     return `/api/onlyfans/media/download?cdnUrl=${encodeURIComponent(url)}`
   }
 
-  const lower = url.toLowerCase()
-  const isFanslyHost =
-    lower.includes('fansly.com') ||
-    lower.includes('cdn.fansly.com') ||
-    lower.includes('media.fansly.com') ||
-    lower.includes('thumbs.fansly.com')
-
-  if (!isFanslyHost) return url
-
-  if (isCloudFrontSigned(url)) return url
+  if (!isFanslyCdnHost(url)) return url
 
   return `/api/proxy/image?url=${encodeURIComponent(url)}`
+}
+
+/**
+ * Fansly chat / vault **media files** (photos, videos, PPV) — partner download handles CloudFront signing.
+ * For **profile avatars** and conversation list thumbs, use `proxyImageUrl` instead.
+ */
+export function proxyFanslyAttachmentUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  if (!isFanslyCdnHost(url)) return undefined
+  return `/api/fansly/media/download?cdnUrl=${encodeURIComponent(url)}`
+}
+
+/**
+ * Use in **chat bubbles**, **vault previews**, and any Fansly **attachment** surface.
+ * Fansly → partner download; OnlyFans → partner download via `proxyImageUrl`; other URLs pass through.
+ */
+export function proxifyChatOrVaultMediaUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  return proxyFanslyAttachmentUrl(url) ?? proxyImageUrl(url)
 }

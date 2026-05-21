@@ -2,6 +2,49 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { onlyFansBillingGateResponse } from '@/lib/onlyfans-api-route'
 
+type CachedOnlyFansMedia = {
+  bytes: Uint8Array
+  contentType: string
+  contentLength?: string
+  expiresAtMs: number
+  lastAccessedAtMs: number
+}
+
+const IMAGE_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const IMAGE_CACHE_MAX_ENTRIES = 300
+const IMAGE_CACHE_MAX_BYTES = 2 * 1024 * 1024
+
+function getMediaCache(): Map<string, CachedOnlyFansMedia> {
+  const holder = globalThis as typeof globalThis & {
+    __creatixOnlyFansMediaCache?: Map<string, CachedOnlyFansMedia>
+  }
+  if (!holder.__creatixOnlyFansMediaCache) {
+    holder.__creatixOnlyFansMediaCache = new Map()
+  }
+  return holder.__creatixOnlyFansMediaCache
+}
+
+function makeCacheKey(userId: string, cdnUrl: string): string {
+  return `${userId}::${cdnUrl.trim()}`
+}
+
+function pruneMediaCache(cache: Map<string, CachedOnlyFansMedia>) {
+  const now = Date.now()
+  for (const [key, value] of cache.entries()) {
+    if (value.expiresAtMs <= now) {
+      cache.delete(key)
+    }
+  }
+  if (cache.size <= IMAGE_CACHE_MAX_ENTRIES) return
+  const ordered = Array.from(cache.entries()).sort(
+    (a, b) => a[1].lastAccessedAtMs - b[1].lastAccessedAtMs,
+  )
+  const toRemove = cache.size - IMAGE_CACHE_MAX_ENTRIES
+  for (let i = 0; i < toRemove; i += 1) {
+    cache.delete(ordered[i][0])
+  }
+}
+
 /**
  * GET: Proxy download for OnlyFans CDN media.
  * Query: ?cdnUrl=ENCODED_CDN_URL
@@ -29,6 +72,22 @@ export async function GET(req: NextRequest) {
     const cdnUrl = req.nextUrl.searchParams.get('cdnUrl')
     if (!cdnUrl) {
       return NextResponse.json({ error: 'cdnUrl query param is required' }, { status: 400 })
+    }
+
+    const cache = getMediaCache()
+    const cacheKey = makeCacheKey(user.id, cdnUrl)
+    const cached = cache.get(cacheKey)
+    if (cached && cached.expiresAtMs > Date.now()) {
+      cached.lastAccessedAtMs = Date.now()
+      return new NextResponse(cached.bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': cached.contentType,
+          ...(cached.contentLength ? { 'Content-Length': cached.contentLength } : {}),
+          'Cache-Control': 'private, max-age=21600, stale-while-revalidate=86400',
+          'X-Creatix-Media-Cache': 'HIT',
+        },
+      })
     }
 
     const { data: connection } = await supabase
@@ -67,12 +126,41 @@ export async function GET(req: NextRequest) {
 
     const contentType = res.headers.get('content-type') || 'application/octet-stream'
     const contentLength = res.headers.get('content-length')
+    const contentLengthNum = contentLength ? Number(contentLength) : NaN
+    const canCacheImage =
+      contentType.startsWith('image/') &&
+      (Number.isNaN(contentLengthNum) || contentLengthNum <= IMAGE_CACHE_MAX_BYTES)
+
+    if (canCacheImage) {
+      const bytes = new Uint8Array(await res.arrayBuffer())
+      if (bytes.byteLength <= IMAGE_CACHE_MAX_BYTES) {
+        cache.set(cacheKey, {
+          bytes,
+          contentType,
+          contentLength: String(bytes.byteLength),
+          expiresAtMs: Date.now() + IMAGE_CACHE_TTL_MS,
+          lastAccessedAtMs: Date.now(),
+        })
+        pruneMediaCache(cache)
+      }
+      return new NextResponse(bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': String(bytes.byteLength),
+          'Cache-Control': 'private, max-age=21600, stale-while-revalidate=86400',
+          'X-Creatix-Media-Cache': 'MISS',
+        },
+      })
+    }
 
     return new NextResponse(res.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         ...(contentLength ? { 'Content-Length': contentLength } : {}),
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=3600',
+        'X-Creatix-Media-Cache': 'BYPASS',
       },
     })
   } catch (err) {

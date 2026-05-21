@@ -15,8 +15,13 @@ function hasPlayableMedia(fileUrl: string | null | undefined, storagePath: strin
   return /^https?:\/\//i.test(fileUrl.trim())
 }
 
+function editorLaunchUrl(base: string, params: Record<string, string>) {
+  const query = new URLSearchParams(params)
+  return `${base}/editor?${query.toString()}`
+}
+
 /**
- * Start Frame bridge: signed asset proxy URL + export token for POST /frame-export.
+ * Start the in-Creatix editor bridge: signed asset proxy URL + export token for save-back.
  * Requires authenticated user who owns the content row.
  */
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -37,7 +42,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
 
   let { data: row, error } = await supabase
     .from('content')
-    .select('id, user_id, content_type, file_url, vault_storage_path')
+    .select('id, user_id, title, content_type, file_url, vault_storage_path')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -45,7 +50,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   if (error && /vault_storage_path|column/i.test(error.message || '')) {
     const fb = await supabase
       .from('content')
-      .select('id, user_id, content_type, file_url')
+      .select('id, user_id, title, content_type, file_url')
       .eq('id', id)
       .eq('user_id', user.id)
       .maybeSingle()
@@ -60,7 +65,7 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   const storagePath = (row as { vault_storage_path?: string | null }).vault_storage_path
 
   if (!isVideoContentType(row.content_type)) {
-    return NextResponse.json({ error: 'Frame editing is only available for video items' }, { status: 400 })
+    return NextResponse.json({ error: 'Markit editing is only available for video items' }, { status: 400 })
   }
 
   if (!hasPlayableMedia(row.file_url, storagePath)) {
@@ -78,27 +83,36 @@ export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: st
   const exportToken = createExportToken(id, user.id, 7200)
   const assetProxyUrl = `${base}/api/content/vault/${id}/asset?t=${encodeURIComponent(assetToken)}`
   const exportUrl = `${base}/api/content/vault/${id}/frame-export`
-  const frameBase = (process.env.NEXT_PUBLIC_FRAME_URL || '').replace(/\/$/, '')
-  const frameConfigured = frameBase.length > 0
-  const frameLaunchUrl = frameConfigured
-    ? `${frameBase}/?importUrl=${encodeURIComponent(assetProxyUrl)}&exportUrl=${encodeURIComponent(exportUrl)}&exportToken=${encodeURIComponent(exportToken)}`
-    : null
+  const frameBase = base
+  const frameLaunchUrl = editorLaunchUrl(frameBase, {
+    importUrl: assetProxyUrl,
+    exportUrl,
+    exportToken,
+    contentId: id,
+    title: row.title || 'Creatix vault video',
+  })
 
   const ariadneEmbedApiUrl = `${base}/api/ariadne/embed`
   const frameAssistApiUrl = `${base}/api/frame/ai/assist`
+  const exportPrepareUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/prepare')
+  const exportCompleteUrl = exportUrl.replace(/\/frame-export\/?$/, '/frame-export/complete')
 
   return NextResponse.json({
     contentId: id,
     assetProxyUrl,
     exportToken,
     exportUrl,
+    exportPrepareUrl,
+    exportCompleteUrl,
     ariadneEmbedApiUrl,
     frameAssistApiUrl,
     frameBaseUrl: frameBase || null,
     frameLaunchUrl,
-    frameConfigured,
+    markitBaseUrl: frameBase || null,
+    markitLaunchUrl: frameLaunchUrl,
+    frameConfigured: true,
+    markitConfigured: true,
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
-    instructions:
-      'Open frameLaunchUrl in a new tab (when Frame is deployed). Configure your Frame fork to POST exported files to exportUrl with headers X-Frame-Export-Secret and form field exportToken, or use Replace video in the vault to upload manually. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" } (session cookie or same-site auth). Frame AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.',
+    instructions: `Open markitLaunchUrl to launch the same-domain Creatix editor. The editor receives importUrl, exportUrl, and exportToken, imports the vault media, and can save an export back to this vault item. Large video exports can use exportPrepareUrl/exportCompleteUrl. Optional: POST JSON to ariadneEmbedApiUrl with { contentId, recipientKey, source: "frame_export" }. Editor AI Assist: POST frameAssistApiUrl with { messages } and Authorization: Bearer <exportToken>.`,
   })
 }

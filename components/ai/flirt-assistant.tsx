@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Heart, Sparkles, Send, Loader2, SmilePlus } from 'lucide-react'
 import { VoiceInputButton } from '@/components/voice-input-button'
 import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport, type UIMessage } from 'ai'
+import { textFromUiMessage } from '@/lib/ai/ui-message-text'
 
 const FLIRT_LEVEL_LABELS: Record<number, string> = {
   1: 'Soft & playful',
@@ -23,20 +25,37 @@ export function FlirtAssistant() {
   const [keywords, setKeywords] = useState('')
   const [input, setInput] = useState('')
 
-  const { messages, sendMessage, status } = useChat({
-    api: '/api/ai/flirt',
-    body: {
-      explicitnessLevel: flirtLevel,
-      inspirationKeywords: keywords,
-    },
-    initialMessages: [
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/ai/flirt',
+        body: {
+          explicitnessLevel: flirtLevel,
+          inspirationKeywords: keywords,
+        },
+      }),
+    [flirtLevel, keywords],
+  )
+
+  const flirtWelcomeMessages = useMemo(
+    () => [
       {
         id: 'welcome',
-        role: 'assistant',
-        content:
-          "Mmm, hey there. I'm your Flirt mode – here just to tease, charm, and keep things deliciously fun with your fans. No strategy talk, no business voice… just natural, flowing flirting that matches the vibe you choose. What kind of energy are we playing with tonight?",
+        role: 'assistant' as const,
+        parts: [
+          {
+            type: 'text' as const,
+            text: "Mmm, hey there. I'm your Flirt mode – here just to tease, charm, and keep things deliciously fun with your fans. No strategy talk, no business voice… just natural, flowing flirting that matches the vibe you choose. What kind of energy are we playing with tonight?",
+          },
+        ],
       },
     ],
+    [],
+  )
+
+  const { messages, sendMessage, status } = useChat({
+    transport,
+    messages: flirtWelcomeMessages,
   })
 
   const isLoading = status === 'streaming' || status === 'submitted'
@@ -45,7 +64,7 @@ export function FlirtAssistant() {
     e.preventDefault()
     const text = input.trim()
     if (!text || isLoading) return
-    sendMessage(text)
+    void sendMessage({ text })
     setInput('')
   }
 
@@ -91,7 +110,7 @@ export function FlirtAssistant() {
               ref={scrollRef}
               className="h-[300px] space-y-4 overflow-y-auto rounded-lg bg-gradient-to-b from-pink-500/10 to-transparent p-4"
             >
-              {messages.map((msg) => (
+              {messages.map((msg: UIMessage) => (
                 <div
                   key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -106,7 +125,7 @@ export function FlirtAssistant() {
                     {msg.role === 'assistant' && (
                       <div className="mb-1 text-xs font-medium text-pink-200">Flirt</div>
                     )}
-                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                    <p className="whitespace-pre-wrap text-sm">{textFromUiMessage(msg)}</p>
                   </div>
                 </div>
               ))}

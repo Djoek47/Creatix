@@ -3,10 +3,10 @@ import { buildPublicMetadata } from '@/lib/seo/marketing-metadata'
 
 export const metadata: Metadata = buildPublicMetadata({
   path: '/contact',
-  title: 'Contact | Circe et Venus',
+  title: 'Support | Circe et Venus',
   description:
-    'Contact Circe et Venus support: questions about Creatix, billing, integrations (OnlyFans, Fansly), partnerships, and press.',
-  keywords: ['Circe et Venus contact', 'Creatix support', 'creator platform help'],
+    'Member support for Creatix — billing, product help, and integrations. Sign in with an active subscription or trial.',
+  keywords: ['Circe et Venus support', 'Creatix help', 'member support'],
 })
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {

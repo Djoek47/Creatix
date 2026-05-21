@@ -1,8 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
-import { Bell, Check, MessageSquare, Shield, TrendingUp, Users, X, Star, Sparkles } from 'lucide-react'
+import {
+  Bell,
+  Check,
+  CircleHelp,
+  MessageSquare,
+  Shield,
+  TrendingUp,
+  Users,
+  X,
+  Star,
+  Sparkles,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -11,9 +22,17 @@ import {
 } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { ONLYFANS_LOGO_SRC, FANSLY_LOGO_SRC } from '@/lib/platform-logos'
 import { createClient } from '@/lib/supabase/client'
+import type { Locale as DateFnsLocale } from 'date-fns'
 import { formatDistanceToNow } from 'date-fns'
+import { enUS } from 'date-fns/locale/en-US'
+import { es } from 'date-fns/locale/es'
+import { fr } from 'date-fns/locale/fr'
+import { ptBR } from 'date-fns/locale/pt-BR'
+import { useLocale, useTranslations } from 'next-intl'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { CRM_NOTIFICATION_ID_RE } from '@/lib/notification-briefing-types'
@@ -23,8 +42,18 @@ import {
 } from '@/lib/dashboard/notification-ui-bridge'
 import { executeNotificationSecretaryBriefing } from '@/lib/divine/notification-secretary-briefing-client'
 import { stripHtml } from '@/lib/html-utils'
+import {
+  applyPullNotificationOverlay,
+  clearPullDismissed,
+  countPullDismissed,
+  dismissPullNotification,
+  markAllPullNotificationsRead,
+  markPullNotificationRead,
+} from '@/lib/platform-pull-notification-state'
+import { ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS } from '@/lib/onlyfans-client-throttle'
 
 type NotificationOrigin = 'platform_webhook' | 'divine_app' | 'platform_pull'
+type ConnectedPlatformState = Record<'onlyfans' | 'fansly', boolean>
 
 interface Notification {
   id: string
@@ -79,16 +108,27 @@ function isDivineProductNotification(n: Notification): boolean {
     'dmca',
   ])
   if (primary.has(kind)) return true
+  if (kind === 'wellbeing_break_nudge') return true
   if (kind.startsWith('divine_') || kind === 'task' || kind === 'intent') return true
   return false
 }
 
 export function Notifications() {
+  const t = useTranslations('dashboard')
+  const intlLocale = useLocale()
+  const dateFnsLocale = useMemo<DateFnsLocale>(() => {
+    const map: Record<string, DateFnsLocale> = { en: enUS, es, fr, pt: ptBR }
+    return map[intlLocale] ?? enUS
+  }, [intlLocale])
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const [dbNotifications, setDbNotifications] = useState<Notification[]>([])
   const [ofPullNotifications, setOfPullNotifications] = useState<Notification[]>([])
   const [fanslyPullNotifications, setFanslyPullNotifications] = useState<Notification[]>([])
+  const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatformState>({
+    onlyfans: false,
+    fansly: false,
+  })
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -99,12 +139,49 @@ export function Notifications() {
   /** Divine voice: scroll this CRM id into view when popover opens. */
   const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
   const supabase = createClient()
+  /** Skip duplicate platform pull when popover opens shortly after prefetch for the same user (aligned with server min refresh). */
+  const onlyFansPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
+  const fanslyPullLastOkRef = useRef<{ userId: string | null; at: number }>({ userId: null, at: 0 })
+  /** After stale ONLYFANS_RATE_LIMIT JSON from `/api/onlyfans/notifications`, pause pulls until `retry_after_ms` elapsed (cap 120s). */
+  const onlyFansPullBackoffUntilRef = useRef(0)
 
-  const loadOnlyFansPull = useCallback(async () => {
+  const loadOnlyFansPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    if (!connectedPlatforms.onlyfans) {
+      setOfPullNotifications([])
+      return
+    }
+    const force = opts?.force === true
+    const last = onlyFansPullLastOkRef.current
+    if (!force && uid && Date.now() < onlyFansPullBackoffUntilRef.current) {
+      return
+    }
+    if (
+      !force &&
+      uid &&
+      last.userId === uid &&
+      last.at > 0 &&
+      Date.now() - last.at < ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS
+    ) {
+      return
+    }
     try {
       const res = await fetch('/api/onlyfans/notifications')
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok || json.error || !Array.isArray(json.notifications)) {
+      const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      const backoffMs =
+        typeof json.retry_after_ms === 'number' && json.retry_after_ms > 0
+          ? Math.min(json.retry_after_ms, 120_000)
+          : 0
+      if (!force && json.code === 'ONLYFANS_RATE_LIMIT' && backoffMs > 0) {
+        onlyFansPullBackoffUntilRef.current = Date.now() + backoffMs
+      }
+      const stale = json.stale === true
+      if (
+        !res.ok ||
+        !Array.isArray(json.notifications) ||
+        (typeof json.error === 'string' &&
+          json.error.length > 0 &&
+          !stale)
+      ) {
         setOfPullNotifications([])
         return
       }
@@ -116,7 +193,7 @@ export function Notifications() {
             ? n.title
             : typeof n.type === 'string'
               ? n.type
-              : 'OnlyFans notification',
+              : t('notifications.fallbackOnlyFansTitle'),
         ),
         description: stripHtml(
           typeof n.text === 'string' && n.text.trim().length
@@ -139,56 +216,81 @@ export function Notifications() {
         avatar_url: null,
         origin: 'platform_pull' as const,
       }))
-      setOfPullNotifications(ofNotifs)
+      setOfPullNotifications(applyPullNotificationOverlay(uid, ofNotifs))
+      onlyFansPullLastOkRef.current = { userId: uid, at: Date.now() }
+      if (json.code !== 'ONLYFANS_RATE_LIMIT') {
+        onlyFansPullBackoffUntilRef.current = 0
+      }
     } catch {
       setOfPullNotifications([])
     }
-  }, [])
+  }, [connectedPlatforms.onlyfans, t])
 
-  const loadFanslyPull = useCallback(async () => {
+  const loadFanslyPull = useCallback(async (uid: string | null, opts?: { force?: boolean }) => {
+    if (!connectedPlatforms.fansly) {
+      setFanslyPullNotifications([])
+      return
+    }
+    const force = opts?.force === true
+    const last = fanslyPullLastOkRef.current
+    if (
+      !force &&
+      uid &&
+      last.userId === uid &&
+      last.at > 0 &&
+      Date.now() - last.at < ONLYFANS_PLATFORM_PULL_MIN_INTERVAL_MS
+    ) {
+      return
+    }
     try {
       const res = await fetch('/api/fansly/notifications')
       const json = await res.json().catch(() => ({}))
-      if (!res.ok || !Array.isArray(json.notifications)) {
+      if (!res.ok || json.error || !Array.isArray(json.notifications)) {
         setFanslyPullNotifications([])
         return
       }
-      const fsNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => ({
-        id: `fs-${String(n.id ?? n.notificationId ?? '')}`,
-        type: 'system',
-        title: stripHtml(
-          typeof n.title === 'string' && n.title.trim().length
-            ? n.title
-            : typeof n.type === 'string'
-              ? n.type
-              : 'Fansly notification',
-        ),
-        description: stripHtml(
-          typeof n.text === 'string' && n.text.trim().length
-            ? n.text
-            : typeof n.body === 'string' && n.body.trim().length
-              ? n.body
-              : typeof n.message === 'string'
-                ? n.message
-                : '',
-        ),
-        read: false,
-        created_at:
-          typeof n.createdAt === 'string'
-            ? n.createdAt
-            : typeof n.date === 'string'
-              ? n.date
-              : new Date().toISOString(),
-        link: '/dashboard/messages',
-        platform: 'fansly',
-        avatar_url: null,
-        origin: 'platform_pull' as const,
-      }))
-      setFanslyPullNotifications(fsNotifs)
+      const fsNotifs: Notification[] = json.notifications.map((n: Record<string, unknown>) => {
+        const fanId = typeof n.fanId === 'string' && n.fanId.trim().length ? n.fanId.trim() : ''
+        return {
+          id: `fs-${String(n.id ?? n.notificationId ?? '')}`,
+          type: 'system',
+          title: stripHtml(
+            typeof n.title === 'string' && n.title.trim().length
+              ? n.title
+              : typeof n.type === 'string'
+                ? n.type
+                : t('notifications.fallbackFanslyTitle'),
+          ),
+          description: stripHtml(
+            typeof n.text === 'string' && n.text.trim().length
+              ? n.text
+              : typeof n.body === 'string' && n.body.trim().length
+                ? n.body
+                : typeof n.message === 'string'
+                  ? n.message
+                  : '',
+          ),
+          read: false,
+          created_at:
+            typeof n.createdAt === 'string'
+              ? n.createdAt
+              : typeof n.date === 'string'
+                ? n.date
+                : new Date().toISOString(),
+          link: fanId
+            ? `/dashboard/messages?platform=fansly&chat=${encodeURIComponent(fanId)}`
+            : '/dashboard/messages?platform=fansly',
+          platform: 'fansly',
+          avatar_url: null,
+          origin: 'platform_pull' as const,
+        }
+      })
+      setFanslyPullNotifications(applyPullNotificationOverlay(uid, fsNotifs))
+      fanslyPullLastOkRef.current = { userId: uid, at: Date.now() }
     } catch {
       setFanslyPullNotifications([])
     }
-  }, [])
+  }, [connectedPlatforms.fansly, t])
 
   const loadNotifications = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -200,21 +302,36 @@ export function Notifications() {
 
     setUserId(user.id)
 
-    const { data: dbNotifications, error } = await supabase
-      .from('notifications')
-      .select(
-        'id, type, title, description, read, created_at, link, platform, avatar_url, origin, platform_fan_id, metadata',
-      )
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const [notificationResult, connectionResult] = await Promise.all([
+      supabase
+        .from('notifications')
+        .select(
+          'id, type, title, description, read, created_at, link, platform, avatar_url, origin, platform_fan_id, metadata',
+        )
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('platform_connections')
+        .select('platform, is_connected')
+        .eq('user_id', user.id)
+        .in('platform', ['onlyfans', 'fansly']),
+    ])
 
-    if (error) {
-      console.error('Error loading notifications:', error)
+    const nextConnected: ConnectedPlatformState = {
+      onlyfans: (connectionResult.data ?? []).some((row) => row.platform === 'onlyfans' && row.is_connected === true),
+      fansly: (connectionResult.data ?? []).some((row) => row.platform === 'fansly' && row.is_connected === true),
+    }
+    setConnectedPlatforms(nextConnected)
+    if (!nextConnected.onlyfans) setOfPullNotifications([])
+    if (!nextConnected.fansly) setFanslyPullNotifications([])
+
+    if (notificationResult.error) {
+      console.error('Error loading notifications:', notificationResult.error)
       setDbNotifications([])
       return
     }
 
-    setDbNotifications((dbNotifications || []) as Notification[])
+    setDbNotifications((notificationResult.data || []) as Notification[])
   }, [supabase])
 
   useEffect(() => {
@@ -260,19 +377,36 @@ export function Notifications() {
     return () => clearTimeout(t)
   }, [open, scrollTargetId])
 
+  /** Prefetch platform pull feeds so the bell badge includes OF + Fansly without opening first. */
+  useEffect(() => {
+    if (!userId) return
+    if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: false })
+    if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: false })
+  }, [userId, connectedPlatforms.onlyfans, connectedPlatforms.fansly, loadOnlyFansPull, loadFanslyPull])
+
   useEffect(() => {
     if (!open || !userId) return
-    void loadOnlyFansPull()
-    void loadFanslyPull()
-  }, [open, userId, loadOnlyFansPull, loadFanslyPull])
+    if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: false })
+    if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: false })
+  }, [open, userId, connectedPlatforms.onlyfans, connectedPlatforms.fansly, loadOnlyFansPull, loadFanslyPull])
+
+  const visibleDbNotifications = useMemo(
+    () =>
+      dbNotifications.filter((n) => {
+        if (n.platform === 'onlyfans') return connectedPlatforms.onlyfans
+        if (n.platform === 'fansly') return connectedPlatforms.fansly
+        return true
+      }),
+    [connectedPlatforms.fansly, connectedPlatforms.onlyfans, dbNotifications],
+  )
 
   const liveDb = useMemo(
-    () => dbNotifications.filter((n) => isLiveOrigin(n.origin)),
-    [dbNotifications],
+    () => visibleDbNotifications.filter((n) => isLiveOrigin(n.origin)),
+    [visibleDbNotifications],
   )
   const divineDb = useMemo(
-    () => dbNotifications.filter((n) => isDivineOrigin(n.origin)),
-    [dbNotifications],
+    () => visibleDbNotifications.filter((n) => isDivineOrigin(n.origin)),
+    [visibleDbNotifications],
   )
 
   const liveList = useMemo(() => {
@@ -289,11 +423,11 @@ export function Notifications() {
   const displayed = tab === 'live' ? liveList : divineList
 
   const unreadCount = useMemo(() => {
-    const dbUnread = dbNotifications.filter((n) => !n.read).length
+    const dbUnread = visibleDbNotifications.filter((n) => !n.read).length
     const ofUnread = ofPullNotifications.filter((n) => !n.read).length
     const fsUnread = fanslyPullNotifications.filter((n) => !n.read).length
     return dbUnread + ofUnread + fsUnread
-  }, [dbNotifications, ofPullNotifications, fanslyPullNotifications])
+  }, [fanslyPullNotifications, ofPullNotifications, visibleDbNotifications])
 
   const runBriefing = async () => {
     setBriefingLoading(true)
@@ -311,8 +445,8 @@ export function Notifications() {
       if (unreadUuids.length === 0) {
         setBriefingText(
           pullOnlyUnread > 0
-            ? 'This walkthrough only uses saved inbox items. Open or clear the rows above first, or wait until they sync into your inbox.'
-            : 'No unread saved notifications in this tab.',
+            ? t('notifications.briefingPullOnlyUnread')
+            : t('notifications.briefingNoUnreadSaved'),
         )
         return
       }
@@ -323,7 +457,7 @@ export function Notifications() {
       }
 
       if (!divinePanel) {
-        setBriefingText('Divine panel is unavailable — refresh the page and try again.')
+        setBriefingText(t('notifications.briefingPanelUnavailable'))
         return
       }
 
@@ -339,7 +473,7 @@ export function Notifications() {
         setBriefingText(result.error)
       }
     } catch {
-      setBriefingText('Briefing failed')
+      setBriefingText(t('notifications.briefingFailed'))
     } finally {
       setBriefingLoading(false)
     }
@@ -351,6 +485,7 @@ export function Notifications() {
     setFanslyPullNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
 
     if (id.startsWith('of-') || id.startsWith('fs-')) {
+      if (userId) markPullNotificationRead(userId, id)
       return
     }
 
@@ -369,6 +504,12 @@ export function Notifications() {
 
   const markAllAsRead = async () => {
     if (tab === 'live') {
+      if (userId) {
+        markAllPullNotificationsRead(userId, [
+          ...ofPullNotifications.map((n) => n.id),
+          ...fanslyPullNotifications.map((n) => n.id),
+        ])
+      }
       setOfPullNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
       setFanslyPullNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     }
@@ -408,6 +549,7 @@ export function Notifications() {
     setFanslyPullNotifications((prev) => prev.filter((n) => n.id !== id))
 
     if (id.startsWith('of-') || id.startsWith('fs-')) {
+      if (userId) dismissPullNotification(userId, id)
       return
     }
 
@@ -437,16 +579,44 @@ export function Notifications() {
   }
 
   const channelUnread = displayed.filter((n) => !n.read).length
+  const pullDismissedCount = userId ? countPullDismissed(userId) : 0
+  const hasUnread = unreadCount > 0
+
+  const bellTriggerClass = cn(
+    'relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full text-muted-foreground hover:bg-muted/35 hover:text-foreground sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0',
+    hasUnread &&
+      'text-amber-600/85 ring-1 ring-amber-500/22 dark:text-amber-300/90 dark:ring-amber-500/28',
+  )
+
+  const unreadPipInner = cn(
+    'flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full px-0.5',
+    'bg-background/95 dark:bg-slate-950/92',
+  )
+
+  const unreadPipText = cn(
+    'bg-gradient-to-r from-amber-600 via-fuchsia-600 to-violet-600 bg-clip-text text-[9px] font-semibold tabular-nums leading-none text-transparent',
+    'dark:from-amber-200 dark:via-fuchsia-300 dark:to-violet-300',
+  )
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="relative h-11 w-11 min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0">
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary dark:bg-circe text-[10px] font-bold text-primary-foreground dark:text-circe-foreground">
-            {unreadCount > 9 ? '9+' : unreadCount}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={bellTriggerClass}
+        aria-label={hasUnread ? t('notifications.bellAriaUnread', { count: unreadCount }) : t('notifications.bellAria')}
+      >
+        <Bell className="h-5 w-5" aria-hidden />
+        {hasUnread ? (
+          <span
+            className="header-tools-rainbow-pip pointer-events-none absolute -right-0.5 -top-0.5 inline-flex"
+            aria-hidden
+          >
+            <span className={cn(unreadPipInner, unreadCount > 9 && 'min-w-[1.375rem] px-1')}>
+              <span className={unreadPipText}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+            </span>
           </span>
-        )}
+        ) : null}
       </Button>
     )
   }
@@ -460,55 +630,88 @@ export function Notifications() {
       }}
     >
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-11 w-11 min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {unreadCount > 9 ? '9+' : unreadCount}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={bellTriggerClass}
+          aria-label={
+            hasUnread ? t('notifications.bellAriaUnread', { count: unreadCount }) : t('notifications.bellAria')
+          }
+        >
+          <Bell className="h-5 w-5" aria-hidden />
+          {hasUnread ? (
+            <span
+              className="header-tools-rainbow-pip pointer-events-none absolute -right-0.5 -top-0.5 inline-flex"
+              aria-hidden
+            >
+              <span className={cn(unreadPipInner, unreadCount > 9 && 'min-w-[1.375rem] px-1')}>
+                <span className={unreadPipText}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              </span>
             </span>
-          )}
+          ) : null}
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="flex max-h-[min(80vh,400px)] min-h-0 w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-96"
+        collisionPadding={12}
+        className={cn(
+          'flex max-h-[min(88dvh,560px)] w-[min(calc(100vw-1rem),20rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-96',
+          'min-h-0 min-[480px]:min-h-[min(58dvh,380px)] sm:min-h-[min(72dvh,440px)]',
+          'rounded-2xl border border-white/45 bg-white/72 text-popover-foreground shadow-[0_24px_80px_-24px_rgba(15,23,42,0.32)] backdrop-blur-2xl backdrop-saturate-150',
+          'dark:border-white/[0.10] dark:bg-slate-950/58 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.62)]',
+        )}
         align="end"
       >
         <Tabs
           value={tab}
           onValueChange={(v) => setTab(v as 'live' | 'divine')}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
         >
-          <div className="flex flex-shrink-0 flex-col gap-2 border-b border-border p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Notifications</h3>
+          <div className="flex flex-shrink-0 flex-col gap-3 border-b border-border/35 bg-foreground/[0.02] px-5 pb-4 pt-5 backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-[1.0625rem] font-semibold leading-none tracking-tight text-foreground">
+                {t('notifications.title')}
+              </h3>
               {channelUnread > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-auto px-2 py-1 text-xs"
+                  className="h-8 shrink-0 rounded-full border border-border/45 bg-background/45 px-3 text-[11px] font-medium text-foreground shadow-none transition-[background-color,border-color] duration-200 ease-out hover:bg-background/70"
                   onClick={markAllAsRead}
                 >
-                  Mark tab read
+                  {t('notifications.markTabRead')}
                 </Button>
               )}
             </div>
-            <TabsList className="!h-auto min-h-0 grid w-full grid-cols-2 gap-1 overflow-visible py-1">
+            <TabsList className="!grid !h-auto min-h-0 w-full grid-cols-2 gap-1 overflow-visible rounded-xl border border-border/30 bg-background/35 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md dark:bg-white/[0.04]">
               <TabsTrigger
                 value="live"
-                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+                className={cn(
+                  '!h-auto min-h-[3.75rem] !items-start !justify-start flex-col gap-1 whitespace-normal rounded-lg border border-transparent py-2.5 pl-2.5 pr-2 text-left leading-snug transition-[background-color,box-shadow,border-color,color] duration-200 ease-out',
+                  'data-[state=active]:border-border/40 data-[state=active]:bg-background/88 data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                  'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
+                )}
               >
-                <span className="text-sm font-medium">Live</span>
-                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  Messages & tips from your platforms
+                <span className="text-[13px] font-semibold tracking-tight">{t('notifications.tabLive')}</span>
+                <span className="flex min-w-0 flex-col gap-0.5 text-left">
+                  <span className="text-[11px] font-medium leading-snug text-foreground/78">
+                    {t('notifications.tabLiveSubtitle')}
+                  </span>
+                  <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
+                    {t('notifications.tabLiveHint')}
+                  </span>
                 </span>
               </TabsTrigger>
               <TabsTrigger
                 value="divine"
-                className="!h-auto min-h-[3.5rem] flex-col gap-0.5 whitespace-normal py-2 text-center leading-tight"
+                className={cn(
+                  '!h-auto min-h-[3.75rem] !items-start !justify-start flex-col gap-1 whitespace-normal rounded-lg border border-transparent py-2.5 pl-2.5 pr-2 text-left leading-snug transition-[background-color,box-shadow,border-color,color] duration-200 ease-out',
+                  'data-[state=active]:border-border/40 data-[state=active]:bg-background/88 data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+                  'data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-background/40',
+                )}
               >
-                <span className="text-sm font-medium">Divine</span>
-                <span className="break-words px-0.5 text-[10px] font-normal text-muted-foreground">
-                  Leaks · reputation · whales
+                <span className="text-[13px] font-semibold tracking-tight">{t('notifications.tabDivine')}</span>
+                <span className="break-words text-[11px] font-normal leading-snug text-muted-foreground">
+                  {t('notifications.tabDivineHint')}
                 </span>
               </TabsTrigger>
             </TabsList>
@@ -516,22 +719,42 @@ export function Notifications() {
 
           <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
             <TabsContent value="live" className="m-0">
+              {userId && pullDismissedCount > 0 ? (
+                <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-foreground/[0.025] px-4 py-2.5 backdrop-blur-sm">
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    {t('notifications.pullDismissed', { count: pullDismissedCount })}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 shrink-0 whitespace-nowrap px-2 text-[11px]"
+                    onClick={() => {
+                      clearPullDismissed(userId)
+                      if (connectedPlatforms.onlyfans) void loadOnlyFansPull(userId, { force: true })
+                      if (connectedPlatforms.fansly) void loadFanslyPull(userId, { force: true })
+                    }}
+                  >
+                    {t('notifications.showAgain')}
+                  </Button>
+                </div>
+              ) : null}
               {liveList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No live notifications</p>
-                  <p className="mt-1 px-4 text-xs text-muted-foreground/80">
-                    New messages, tips, and subscriber activity from your connected accounts show up here as they
-                    arrive.
+                <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
+                  <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
+                  <p className="text-[15px] font-medium text-muted-foreground">{t('notifications.liveEmptyTitle')}</p>
+                  <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
+                    {t('notifications.liveEmptyBody')}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/45">
                   {liveList.map((notification) => (
                     <NotificationRow
                       key={notification.id}
                       notification={notification}
                       mounted={mounted}
+                      dateFnsLocale={dateFnsLocale}
                       markAsRead={markAsRead}
                       removeNotification={removeNotification}
                     />
@@ -541,20 +764,21 @@ export function Notifications() {
             </TabsContent>
             <TabsContent value="divine" className="m-0">
               {divineList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Bell className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No Divine notifications</p>
-                  <p className="mt-1 px-4 text-xs text-muted-foreground/80">
-                    DMCA and leak scans, reputation mentions, whale watch for followed fans, billing, and Divine Manager actions show here.
+                <div className="flex min-h-[12rem] flex-col items-center justify-center px-4 py-16 text-center sm:min-h-[14rem] sm:py-20">
+                  <Bell className="mb-3 h-9 w-9 text-muted-foreground/85" />
+                  <p className="text-[15px] font-medium text-muted-foreground">{t('notifications.divineEmptyTitle')}</p>
+                  <p className="mt-2 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground/80">
+                    {t('notifications.divineEmptyBody')}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border/45">
                   {divineList.map((notification) => (
                     <NotificationRow
                       key={notification.id}
                       notification={notification}
                       mounted={mounted}
+                      dateFnsLocale={dateFnsLocale}
                       markAsRead={markAsRead}
                       removeNotification={removeNotification}
                     />
@@ -566,37 +790,62 @@ export function Notifications() {
         </Tabs>
 
         {briefingText && (
-          <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Divine</p>
-            <p className="mt-1 whitespace-pre-wrap">{briefingText}</p>
+          <div className="max-h-28 flex-shrink-0 overflow-y-auto border-t border-border/40 bg-foreground/[0.02] px-4 py-3 text-xs text-muted-foreground backdrop-blur-sm">
+            <p className="text-[11px] font-semibold tracking-tight text-foreground">
+              {t('notifications.briefingBannerLabel')}
+            </p>
+            <p className="mt-1.5 whitespace-pre-wrap leading-relaxed">{briefingText}</p>
           </div>
         )}
 
-        <div className="flex flex-shrink-0 flex-col gap-1 border-t border-border p-2">
+        <div className="flex flex-shrink-0 flex-col gap-3 border-t border-border/40 bg-foreground/[0.02] p-4 backdrop-blur-sm">
+          <div className="flex items-stretch gap-2">
+            <Button
+              size="sm"
+              className={cn(
+                'h-10 min-w-0 flex-1 gap-2 rounded-xl border-0 bg-foreground font-medium text-background shadow-sm',
+                'transition-opacity duration-200 ease-out hover:opacity-90',
+                'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
+              )}
+              disabled={briefingLoading || !userId || !divinePanel}
+              onClick={() => void runBriefing()}
+            >
+              {briefingLoading ? (
+                t('notifications.briefingLoading')
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                  {t('notifications.briefingButton')}
+                </>
+              )}
+            </Button>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/45 bg-background/50 text-muted-foreground shadow-sm transition-[background-color,color,border-color] duration-200 hover:bg-background/75 hover:text-foreground"
+                  aria-label={t('notifications.briefingHelpAria')}
+                >
+                  <CircleHelp className="h-5 w-5" aria-hidden />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="max-w-[18rem] px-3 py-3 text-left text-[11px] leading-relaxed text-background"
+              >
+                {t('notifications.briefingTooltip')}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Button
-            size="sm"
-            className={cn(
-              'divine-notification-briefing-btn w-full gap-2 border-0 font-semibold',
-              'disabled:animate-none disabled:opacity-50 disabled:shadow-none',
-            )}
-            disabled={briefingLoading || !userId || !divinePanel}
-            onClick={() => void runBriefing()}
+            variant="ghost"
+            className="h-9 w-full justify-center rounded-lg text-sm text-muted-foreground transition-colors duration-200 hover:bg-background/50 hover:text-foreground"
+            onClick={() => setOpen(false)}
+            asChild
           >
-            {briefingLoading ? (
-              'Briefing…'
-            ) : (
-              <>
-                <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden />
-                Divine realtime briefing
-              </>
-            )}
-          </Button>
-          <p className="px-1 text-center text-[10px] text-muted-foreground">
-            Human-style voice + panel walkthrough. Each unread item is added to your protocol task list until you
-            confirm it is handled. Uses saved unread in this tab only.
-          </p>
-          <Button variant="ghost" className="w-full justify-center text-sm" onClick={() => setOpen(false)} asChild>
-            <a href="/dashboard/settings">View all settings</a>
+            <a href="/dashboard/settings">{t('notifications.footerSettings')}</a>
           </Button>
         </div>
       </PopoverContent>
@@ -607,20 +856,25 @@ export function Notifications() {
 function NotificationRow({
   notification,
   mounted,
+  dateFnsLocale,
   markAsRead,
   removeNotification,
 }: {
   notification: Notification
   mounted: boolean
+  dateFnsLocale: DateFnsLocale
   markAsRead: (id: string) => void
   removeNotification: (id: string) => void
 }) {
+  const t = useTranslations('dashboard')
+  const onlyFansAlt = t('notifications.platformAltOnlyFans')
+  const fanslyAlt = t('notifications.platformAltFansly')
   return (
     <div
       data-notification-id={notification.id}
       className={cn(
-        'relative flex gap-3 p-4 transition-colors hover:bg-muted/50',
-        !notification.read && 'bg-primary/5',
+        'relative flex gap-3 p-4 transition-colors duration-200 ease-out hover:bg-foreground/[0.04]',
+        !notification.read && 'bg-foreground/[0.03]',
       )}
     >
       <div className="mt-0.5 flex-shrink-0">
@@ -640,17 +894,17 @@ function NotificationRow({
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted ring-2 ring-border">
                 {notification.platform === 'onlyfans' ? (
-                  <img src="/onlyfans-logo.png" alt="OnlyFans" className="h-5 w-5 object-contain" />
+                  <img src={ONLYFANS_LOGO_SRC} alt={onlyFansAlt} className="h-5 w-auto max-w-[4.5rem] object-contain object-left" />
                 ) : (
-                  <img src="/fansly-logo.png" alt="Fansly" className="h-5 w-5 object-contain" />
+                  <img src={FANSLY_LOGO_SRC} alt={fanslyAlt} className="h-5 w-auto max-w-[3.5rem] object-contain object-left" />
                 )}
               </div>
             )}
             <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-muted overflow-hidden">
               {notification.platform === 'onlyfans' ? (
-                <img src="/onlyfans-logo.png" alt="" className="h-3 w-3 object-contain" />
+                <img src={ONLYFANS_LOGO_SRC} alt="" className="h-2.5 w-auto max-w-[2.25rem] object-contain object-left" />
               ) : (
-                <img src="/fansly-logo.png" alt="" className="h-3 w-3 object-contain" />
+                <img src={FANSLY_LOGO_SRC} alt="" className="h-2.5 w-auto max-w-[2rem] object-contain object-left" />
               )}
             </div>
           </div>
@@ -666,10 +920,14 @@ function NotificationRow({
           }}
           className="block"
         >
-          <p className={cn('text-sm', !notification.read && 'font-medium')}>{stripHtml(notification.title)}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{stripHtml(notification.description)}</p>
+          <p className={cn('text-balance break-words text-sm', !notification.read && 'font-medium')}>
+            {stripHtml(notification.title)}
+          </p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
+            {stripHtml(notification.description)}
+          </p>
           {notification.origin === 'platform_pull' && (
-            <p className="mt-0.5 text-[10px] text-muted-foreground/70">Not saved to your inbox yet</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground/70">{t('notifications.pullNotInInbox')}</p>
           )}
           {isDivineOrigin(notification.origin) && typeof notification.metadata?.kind === 'string' && (
             <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
@@ -677,21 +935,41 @@ function NotificationRow({
             </p>
           )}
           <p className="mt-1 text-xs text-muted-foreground/70">
-            {mounted ? formatDistanceToNow(new Date(notification.created_at), { addSuffix: true }) : ''}
+            {mounted
+              ? formatDistanceToNow(new Date(notification.created_at), {
+                  addSuffix: true,
+                  locale: dateFnsLocale,
+                })
+              : ''}
           </p>
         </a>
       </div>
       <div className="flex flex-shrink-0 gap-1">
         {!notification.read && (
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => markAsRead(notification.id)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void markAsRead(notification.id)
+            }}
+          >
             <Check className="h-3 w-3" />
           </Button>
         )}
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           className="h-6 w-6 text-muted-foreground hover:text-destructive"
-          onClick={() => removeNotification(notification.id)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            void removeNotification(notification.id)
+          }}
         >
           <X className="h-3 w-3" />
         </Button>

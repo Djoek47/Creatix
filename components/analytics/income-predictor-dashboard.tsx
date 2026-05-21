@@ -22,7 +22,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 const STORAGE_KEY_GOAL = 'income_predictor_goal_usd'
 
 type CalendarMode = 'week' | 'month'
-type Mode = 'maintain' | 'grow'
+type Mode = 'maintain' | 'grow' | 'next_tier'
 
 type IncomePredictorResponse = {
   context: {
@@ -156,7 +156,7 @@ export function IncomePredictorDashboard() {
             <Target className="h-4 w-4 text-circe" />
             Plan inputs
           </CardTitle>
-          <CardDescription>Calendar density, growth mode, and optional next-month target.</CardDescription>
+          <CardDescription>Calendar density, focus (steady, next tier, or custom), and optional USD target.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -184,24 +184,67 @@ export function IncomePredictorDashboard() {
           </div>
 
           <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground">Mode</Label>
+            <Label className="text-xs text-muted-foreground">Focus</Label>
             <RadioGroup
               value={mode}
-              onValueChange={(v) => setMode(v as Mode)}
-              className="flex flex-col gap-2 sm:flex-row sm:gap-6"
+              onValueChange={(v) => {
+                const next = v as Mode
+                setMode(next)
+                if (next !== 'grow') setGoalUsd('')
+              }}
+              className="flex flex-col gap-3"
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="maintain" id="maintain" />
-                <Label htmlFor="maintain" className="font-normal cursor-pointer">
-                  Maintain current run rate
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="grow" id="grow" />
-                <Label htmlFor="grow" className="font-normal cursor-pointer">
-                  Grow — set next month target ($)
-                </Label>
-              </div>
+              <label
+                htmlFor="ip-dash-maintain"
+                className={cn(
+                  'flex cursor-pointer gap-3 rounded-xl border px-3.5 py-3 transition-colors',
+                  mode === 'maintain'
+                    ? 'border-foreground/18 bg-muted/25 dark:border-white/[0.12]'
+                    : 'border-border/50 hover:bg-muted/15',
+                )}
+              >
+                <RadioGroupItem value="maintain" id="ip-dash-maintain" className="mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1 space-y-0.5">
+                  <span className="block text-sm font-medium text-foreground">Steady pace</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground">
+                    Hold your current monthly run rate.
+                  </span>
+                </span>
+              </label>
+              <label
+                htmlFor="ip-dash-next"
+                className={cn(
+                  'flex cursor-pointer gap-3 rounded-xl border px-3.5 py-3 transition-colors',
+                  mode === 'next_tier'
+                    ? 'border-foreground/18 bg-muted/25 dark:border-white/[0.12]'
+                    : 'border-border/50 hover:bg-muted/15',
+                )}
+              >
+                <RadioGroupItem value="next_tier" id="ip-dash-next" className="mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1 space-y-0.5">
+                  <span className="block text-sm font-medium text-foreground">Next tier</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground">
+                    Next revenue band—the same ladder as subscription pricing.
+                  </span>
+                </span>
+              </label>
+              <label
+                htmlFor="ip-dash-grow"
+                className={cn(
+                  'flex cursor-pointer gap-3 rounded-xl border px-3.5 py-3 transition-colors',
+                  mode === 'grow'
+                    ? 'border-foreground/18 bg-muted/25 dark:border-white/[0.12]'
+                    : 'border-border/50 hover:bg-muted/15',
+                )}
+              >
+                <RadioGroupItem value="grow" id="ip-dash-grow" className="mt-0.5 shrink-0" />
+                <span className="min-w-0 flex-1 space-y-0.5">
+                  <span className="block text-sm font-medium text-foreground">Custom target</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground">
+                    Set your own next-month revenue in USD.
+                  </span>
+                </span>
+              </label>
             </RadioGroup>
             {mode === 'grow' ? (
               <div className="max-w-xs space-y-1">

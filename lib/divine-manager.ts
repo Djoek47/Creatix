@@ -72,6 +72,38 @@ export interface DivineManagerAutomationJobs {
 /** When manual End call is allowed in the voice UI (see voice_allow_user_hangup tool). */
 export type VoiceHangupPolicy = 'always' | 'after_closing_prompt'
 
+/** Who leads the agenda in voice/text; separate from talkativeness sliders. */
+export type DivineVoicePersonalityInitiative = 'creator_led' | 'balanced' | 'manager_led'
+export type DivineVoicePersonalityPresetId =
+  | 'quiet_operator'
+  | 'balanced_partner'
+  | 'proactive_manager'
+  | 'studio_director'
+export type DivineRealtimeReasoningEffort = 'low' | 'medium' | 'high'
+export type DivineInterruptionStyle = 'fast' | 'balanced' | 'patient'
+export type DivineNavigationAutonomy = 'ask' | 'suggest' | 'act'
+export type DivineToolNarration = 'quiet' | 'brief' | 'statusy'
+
+/** Fine-grained Divine voice persona (stored under `automation_rules.voice_personality`). */
+export interface DivineVoicePersonalityStored {
+  /** Optional preset seed; manual slider edits remain authoritative after it is applied. */
+  preset_id?: DivineVoicePersonalityPresetId
+  /** 0 = quiet/concise, 50 = balanced, 100 = expressive */
+  talkativeness: number
+  /** 0 = reactive, 100 = forward narration during tools */
+  proactivity: number
+  initiative: DivineVoicePersonalityInitiative
+  reasoning_effort?: DivineRealtimeReasoningEffort
+  interruption_style?: DivineInterruptionStyle
+  navigation_autonomy?: DivineNavigationAutonomy
+  tool_narration?: DivineToolNarration
+  /** Pro: idle ladder timing (maps to silence ms server-side). */
+  silence_patience: number
+  /** Pro: mic energy sensitivity (higher = more sensitive). */
+  mic_pickup: number
+  pro_mode: boolean
+}
+
 /** How Divine focuses a fan from tools: full Messages route vs floating overlay. */
 export type DmFocusMode = 'navigate' | 'overlay'
 
@@ -141,8 +173,10 @@ export interface DivineManagerAutomationRules {
    * When false (default), crown opens a launcher with Voice as the primary action.
    */
   voice_fab_skip_launcher?: boolean
-  /** Voice + text: brief vs default vs more expressive (default balanced). */
+  /** Voice + text: brief vs default vs more expressive (legacy; synced from voice_personality on save when set). */
   manager_talkativeness?: 'low' | 'balanced' | 'high'
+  /** Creator-tuned Divine voice personality (Realtime + briefing + silence/mic tuning). */
+  voice_personality?: DivineVoicePersonalityStored
   /** Optional onboarding overrides (e.g. user marked "I've set up AI Chatter"). */
   divine_onboarding_checklist?: Record<string, boolean>
   divine_background_ops?: DivineBackgroundOps
@@ -155,6 +189,7 @@ export interface DivineManagerAutomationRules {
     | DivineManagerAutomationJobs
     | DivineBackgroundOps
     | DivineDashboardPreset
+    | DivineVoicePersonalityStored
     | Record<string, boolean>
     | VoiceHangupPolicy
     | DmFocusMode
@@ -227,24 +262,33 @@ export type HousekeepingListsConfig = FanClassifyConfig
 /** Prefix for system-managed Fansly tags created by classify sync. */
 export const FAN_CLASSIFY_MANAGED_TAG_PREFIX = 'Creatix classify — '
 
+const FAN_CLASSIFY_LIST_SHORT_NAMES: Record<FanClassifySegmentKey, string> = {
+  whale_spend: 'Whales',
+  active_chatter: 'Active chatters',
+  cold: 'Cold / low engagement',
+  freeloader_new: 'Freeloaders (<45d)',
+  freeloader_mature: 'Freeloaders (45+d)',
+  spenders: 'Spenders',
+  subscriber_no_extra: 'Subscribers, no extra spend',
+  recent_sub_3d: 'Recent subs (3d)',
+}
+
+/** User-facing name on list/tag without the managed prefix (UI only; sync still uses full name). */
+export function fanClassifyListShortName(segment: FanClassifySegmentKey): string {
+  return FAN_CLASSIFY_LIST_SHORT_NAMES[segment]
+}
+
 export function defaultFanClassifyListName(segment: FanClassifySegmentKey): string {
-  const labels: Record<FanClassifySegmentKey, string> = {
-    whale_spend: 'Whales',
-    active_chatter: 'Active chatters',
-    cold: 'Cold / low engagement',
-    freeloader_new: 'Freeloaders (<45d)',
-    freeloader_mature: 'Freeloaders (45+d)',
-    spenders: 'Spenders',
-    subscriber_no_extra: 'Subscribers, no extra spend',
-    recent_sub_3d: 'Recent subs (3d)',
-  }
-  return `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}${labels[segment]}`
+  return `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}${fanClassifyListShortName(segment)}`
 }
 
 /** Default OnlyFans list / Fansly tag for “active chat” auto-sync. */
 export const FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME = `${FAN_CLASSIFY_MANAGED_TAG_PREFIX}Active chat`
 
-/** Default Smart classify segment toggles for new setups (legacy API segments off). */
+/** UI label for active-chat list/tag (no managed prefix). */
+export const FAN_CLASSIFY_ACTIVE_CHAT_SHORT_LABEL = 'Active chat'
+
+/** Default Smart classify segment toggles for new setups (optional OnlyFans rules off). */
 export function defaultSmartClassifySegments(): FanClassifySegmentRule[] {
   return [
     { segment: 'freeloader_new', enabled: true },

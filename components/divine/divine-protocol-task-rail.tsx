@@ -1,29 +1,174 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useProtocolTasks } from '@/components/divine/protocol-tasks-context'
 import { useDivinePanel } from '@/components/divine/divine-panel-context'
 import { useVoiceSession } from '@/components/divine/voice-session-context'
 import { useDivineProtocolBriefing } from '@/components/divine/use-divine-protocol-briefing'
-import { ProtocolOpenTasksList } from '@/components/divine/protocol-task-ui'
-import { Sparkles, Loader2, ChevronDown } from 'lucide-react'
+import { ProtocolOpenTasksListPeek } from '@/components/divine/protocol-task-ui'
+import { Sparkles, Loader2, ChevronDown, ChevronRight, Layers2 } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  protocolRailLayersIconClass,
+  type ProtocolRailLayersTone,
+} from '@/components/divine/use-protocol-rail-layers-accent'
 
-export function DivineProtocolTaskRail() {
+const DISPLAY_LEVEL_KEY = 'divine-protocol-rail-level-v2'
+/** Pre–three-tier installs used this key; migrate once */
+const LEGACY_DISPLAY_LEVEL_KEY = 'divine-protocol-rail-level'
+
+/**
+ * One-time: users who collapsed the rail to tier 2 (“micro-dot only”) thought the chip disappeared.
+ * Bumps them back to tier 1 (Tasks · purpose). They can re-select the dot via the layers control.
+ */
+const MICRO_DOT_UI_RESTORE_KEY = 'divine-protocol-rail-micro-dot-restored-202604'
+
+/** Glass shell — outer stack (both lanes sit on this surface). */
+const railGlassShell = cn(
+  'divine-protocol-stack-shell overflow-hidden rounded-2xl border shadow-[0_22px_60px_-28px_rgba(109,40,217,0.12)] backdrop-blur-2xl backdrop-saturate-150 touch-pan-y',
+  'border-white/45 bg-white/[0.82] ring-1 ring-black/[0.04]',
+  'dark:border-white/[0.09] dark:bg-slate-950/[0.74] dark:shadow-[0_28px_72px_-32px_rgba(0,0,0,0.55)] dark:ring-white/[0.05]',
+)
+
+/** Protocols row: light = violet (flipped), dark = warm gold. */
+const railProtocolsLane = cn(
+  'shrink-0 border-b backdrop-blur-md',
+  'border-violet-200/45 bg-gradient-to-r from-violet-500/[0.09] via-fuchsia-500/[0.06] to-violet-600/[0.08]',
+  'dark:border-amber-400/25 dark:from-amber-500/16 dark:via-amber-400/10 dark:to-amber-600/14',
+)
+
+/** Body / briefing / task list: light = soft gold wash, dark = violet depth (opposite of protocols lane in each mode). */
+const railBodyLane = cn(
+  'border-t backdrop-blur-xl',
+  'border-amber-100/55 bg-gradient-to-b from-amber-50/85 via-white/55 to-violet-50/[0.28]',
+  'dark:border-violet-500/20 dark:from-violet-950/38 dark:via-slate-950/22 dark:to-fuchsia-950/28',
+)
+
+/** Scrollable task list — frosted inset panel (reads over body lane gradient). */
+const railTaskListGlassScroll = cn(
+  'mx-2 mb-2 mt-0.5 rounded-xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.48)] backdrop-blur-lg backdrop-saturate-[1.15]',
+  'border-white/42 bg-white/[0.38]',
+  'dark:border-violet-400/16 dark:bg-slate-950/40 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]',
+)
+
+const railProtocolsChip = cn(
+  'rounded-xl border shadow-sm backdrop-blur-xl transition-colors duration-200',
+  'border-violet-300/35 bg-gradient-to-br from-violet-500/[0.08] to-fuchsia-500/[0.06] hover:from-violet-500/12 hover:to-fuchsia-500/10',
+  'dark:border-amber-400/22 dark:bg-gradient-to-br dark:from-amber-500/12 dark:to-amber-600/10 dark:hover:from-amber-500/16 dark:hover:to-amber-600/14',
+)
+
+/** 0 = full “Protocols & tasks”, 1 = “Tasks · purpose”, 2 = micro dot only */
+type DisplayLevel = 0 | 1 | 2
+
+function loadDisplayLevel(): DisplayLevel {
+  if (typeof window === 'undefined') return 0
+  const v2 = window.localStorage.getItem(DISPLAY_LEVEL_KEY)
+  if (v2 === '0' || v2 === '1' || v2 === '2') {
+    let d = Number.parseInt(v2, 10) as DisplayLevel
+    if (d === 2 && window.localStorage.getItem(MICRO_DOT_UI_RESTORE_KEY) === null) {
+      try {
+        window.localStorage.setItem(MICRO_DOT_UI_RESTORE_KEY, '1')
+        window.localStorage.setItem(DISPLAY_LEVEL_KEY, '1')
+      } catch {
+        /* ignore */
+      }
+      d = 1
+    }
+    return d
+  }
+  const leg = window.localStorage.getItem(LEGACY_DISPLAY_LEVEL_KEY)
+  /* Older two-tier installs: land on Tasks · purpose (readable) vs easy-to-miss dot */
+  if (leg === '1' || leg === '2') return 0
+  /* Default collapsed chip: full “Protocols & tasks” header (wider extender). Tier 1 = Tasks · purpose; 2 = dot. */
+  return 0
+}
+
+/** Tooltip text for Layers — hide-strip control (paired with tinted icon). */
+function layersCollapseCopy(accentTone: ProtocolRailLayersTone) {
+  switch (accentTone) {
+    case 'purple':
+      return {
+        titleStrip: 'New protocol task · collapses protocols strip · crown unchanged',
+        ariaStrip: 'Hide protocols strip · new task queued',
+      }
+    case 'orange':
+      return {
+        titleStrip: 'Open tasks · hide protocols strip · crown unchanged',
+        ariaStrip: 'Hide protocols strip · tasks to finish',
+      }
+    case 'green':
+      return {
+        titleStrip: 'Nothing open · hide protocols strip · crown unchanged',
+        ariaStrip: 'Hide protocols strip · queue clear',
+      }
+    default:
+      return {
+        titleStrip: 'Hide protocols strip — crown stays',
+        ariaStrip: 'Hide protocols & tasks strip',
+      }
+  }
+}
+
+export function DivineProtocolTaskRail({
+  onCollapseProtocolRail,
+  acknowledgeNewGlow,
+  layersAccentTone = 'muted',
+  layersToneClassName,
+}: {
+  onCollapseProtocolRail?: () => void
+  acknowledgeNewGlow?: () => void
+  layersAccentTone?: ProtocolRailLayersTone
+  layersToneClassName?: string
+} = {}) {
   const { tasks, loading, error, refresh } = useProtocolTasks()
   const divinePanel = useDivinePanel()
   const voiceSession = useVoiceSession()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [displayLevel, setDisplayLevel] = useState<DisplayLevel>(0)
   /** True once this session had at least one open task — used to auto-collapse the empty rail. */
   const hadOpenTasksRef = useRef(false)
+
+  useEffect(() => {
+    setDisplayLevel(loadDisplayLevel())
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(DISPLAY_LEVEL_KEY, String(displayLevel))
+  }, [displayLevel])
 
   const openTasks = useMemo(
     () => tasks.filter((t) => t.status === 'pending' || t.status === 'executing'),
     [tasks],
   )
+
+  const hasOpenWork = openTasks.length > 0
+  /**
+   * When work is open, always show tier-0 “Protocols & tasks » N open” (Layers + chevron + title + count).
+   * Otherwise compact tiers (Tasks · purpose / dot) make that row disappear — users assumed it broke.
+   */
+  const headerLevel: DisplayLevel = menuOpen ? 0 : hasOpenWork ? 0 : displayLevel
+
+  useEffect(() => {
+    if (menuOpen) acknowledgeNewGlow?.()
+  }, [menuOpen, acknowledgeNewGlow])
+
+  const layersBtnClassName = cn(
+    'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
+    layersToneClassName ?? protocolRailLayersIconClass(layersAccentTone ?? 'muted'),
+  )
+
+  const collapseCopy = useMemo(() => layersCollapseCopy(layersAccentTone ?? 'muted'), [layersAccentTone])
+
+  const onLayersCollapseRailClick = (e: MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!onCollapseProtocolRail) return
+    if (menuOpen) setMenuOpen(false)
+    onCollapseProtocolRail()
+  }
 
   const { runBriefingUnified, briefingLoading, briefingHint } = useDivineProtocolBriefing(
     openTasks,
@@ -45,125 +190,280 @@ export function DivineProtocolTaskRail() {
     }
   }, [showEmptyShell])
 
-  /** Empty + collapsed: keep a compact control so protocol/tasks stay reachable next to the crown. */
+  const triggerMeta = (compact: boolean) => {
+    if (showEmptyShell) {
+      return (
+        <span className={cn('text-muted-foreground/80 tabular-nums', compact ? 'text-[11px]' : 'text-[12px]')}>
+          None open
+        </span>
+      )
+    }
+    if (hasOpenWork) {
+      return (
+        <span className={cn('text-muted-foreground/85 tabular-nums', compact ? 'text-[11px]' : 'text-[12px]')}>
+          {openTasks.length} open
+        </span>
+      )
+    }
+    if (loading) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/75">
+          <Loader2 className="h-3 w-3 animate-spin opacity-70" aria-hidden />
+          Loading
+        </span>
+      )
+    }
+    return null
+  }
+
+  /** Empty + collapsed: full label, compact “Tasks · purpose”, or micro dot */
   if (showEmptyShell && !menuOpen) {
+    const lv = displayLevel
     return (
-      <button
-        type="button"
-        className="divine-protocol-stack-shell inline-flex w-fit max-w-[min(92vw,400px)] items-center justify-between gap-2 rounded-lg border border-dashed border-amber-500/25 bg-card/70 px-3 py-2 text-left text-xs backdrop-blur-sm transition-colors hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
-        onClick={() => setMenuOpen(true)}
-      >
-        <span className="font-medium text-foreground">Protocols &amp; tasks</span>
-        <span className="text-[11px] text-muted-foreground">Show panel</span>
-      </button>
+      <div className={cn(railGlassShell, 'flex w-fit max-w-[min(92vw,400px)] items-center gap-1 px-1 py-1')}>
+        {onCollapseProtocolRail ? (
+          <button
+            type="button"
+            className={layersBtnClassName}
+            onClick={onLayersCollapseRailClick}
+            title={collapseCopy.titleStrip}
+            aria-label={collapseCopy.ariaStrip}
+          >
+            <Layers2 className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only">Hide protocols strip</span>
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={cn(
+            railProtocolsChip,
+            'inline-flex items-center justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+            lv === 2 ? 'h-9 min-w-9 rounded-full border p-0' : 'max-w-full gap-3 rounded-2xl px-4 py-2.5',
+            lv === 1 && 'max-w-[min(88vw,17rem)]',
+          )}
+          onClick={() => setMenuOpen(true)}
+          aria-label={
+            lv === 2
+              ? 'Protocols and tasks — no open work'
+              : lv === 1
+                ? 'Tasks and purpose — no open work'
+                : 'Open protocols and tasks panel, none open'
+          }
+        >
+          {lv === 2 ? (
+            <span
+              className="mx-auto block h-2 w-2 rounded-full bg-muted-foreground/35 ring-1 ring-border/60"
+              aria-hidden
+            />
+          ) : lv === 1 ? (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[12px] font-semibold tracking-tight text-foreground">Tasks · purpose</span>
+              <span className="text-[11px] leading-snug text-muted-foreground/80">Queue &amp; briefing — open</span>
+            </div>
+          ) : (
+            <>
+              <span className="text-[13px] font-semibold tracking-tight text-foreground">Protocols &amp; tasks</span>
+              <span className="text-[12px] text-muted-foreground/80">Open</span>
+            </>
+          )}
+        </button>
+      </div>
     )
   }
 
   return (
     <div
       className={cn(
-        'divine-protocol-stack-shell overflow-hidden rounded-lg backdrop-blur-sm',
+        railGlassShell,
         menuOpen && !showEmptyShell ? 'w-[min(92vw,400px)]' : 'w-fit max-w-[min(92vw,400px)]',
         showEmptyShell
-          ? 'border border-dashed border-amber-500/20 bg-card/60'
-          : 'flex max-h-[min(40vh,320px)] flex-col border border-amber-500/15 bg-card/95 shadow-md',
+          ? cn(
+              'border-dashed border-violet-200/55 bg-white/[0.72] dark:border-white/[0.14] dark:bg-slate-950/55',
+              menuOpen && 'flex min-h-[11rem] max-h-[min(78dvh,calc(100dvh-9rem))] flex-col',
+            )
+          : cn(
+              'flex w-full shrink-0 flex-col',
+              menuOpen && 'min-h-[11rem] max-h-[min(78dvh,calc(100dvh-9rem))]',
+            ),
       )}
     >
       <Collapsible
         open={menuOpen}
         onOpenChange={setMenuOpen}
-        className={cn(!showEmptyShell && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
+        /* flex-1 only while open so body fills shell; avoid basis-0 (collapses rail when toggling chevron). */
+        className={cn('flex min-h-0 flex-col', menuOpen && 'flex-1')}
       >
-        <div className="flex justify-end px-2 pt-1">
+        <div
+          className={cn(
+            'flex min-h-9 w-full min-w-0 items-center gap-1.5 pt-3 sm:gap-2',
+            headerLevel === 2 && !menuOpen ? 'justify-center px-2' : 'justify-start px-3',
+          )}
+        >
+          {onCollapseProtocolRail ? (
+            <button
+              type="button"
+              className={layersBtnClassName}
+              onClick={onLayersCollapseRailClick}
+              title={collapseCopy.titleStrip}
+              aria-label={collapseCopy.ariaStrip}
+            >
+              <Layers2 className="h-3.5 w-3.5" aria-hidden />
+              <span className="sr-only">Hide protocols strip</span>
+            </button>
+          ) : null}
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="inline-flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40"
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                'text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+                headerLevel === 2
+                  ? 'inline-flex min-h-9 min-w-9 items-center justify-center rounded-full hover:bg-foreground/[0.04] dark:hover:bg-white/[0.06]'
+                  : headerLevel === 1
+                    ? cn(
+                        railProtocolsChip,
+                        'inline-flex w-fit max-w-[min(calc(100%-2.75rem),19rem)] flex-col items-start gap-0.5 px-2.5 py-1.5 sm:items-end sm:text-right',
+                      )
+                    : cn(
+                        railProtocolsChip,
+                        'inline-flex min-h-9 min-w-0 flex-1 items-center gap-2 px-3 py-2 sm:flex-initial sm:gap-2.5',
+                      ),
+              )}
+              aria-label={
+                headerLevel === 2
+                  ? hasOpenWork
+                    ? `Protocols and tasks, ${openTasks.length} open`
+                    : 'Protocols and tasks, no open items'
+                  : headerLevel === 1
+                    ? hasOpenWork
+                      ? `Tasks and purpose, ${openTasks.length} open`
+                      : 'Tasks and purpose'
+                    : undefined
+              }
             >
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-                  menuOpen ? 'rotate-0' : '-rotate-90',
-                )}
-                aria-hidden
-              />
-              <span className="text-xs font-medium">Protocols & tasks</span>
-              {showEmptyShell ? (
-                <span className="text-[11px] text-muted-foreground">— none open</span>
-              ) : openTasks.length > 0 ? (
-                <span className="text-[10px] text-muted-foreground tabular-nums">{openTasks.length} open</span>
-              ) : loading ? (
-                <span className="text-[10px] text-muted-foreground">Loading…</span>
-              ) : null}
+              {headerLevel === 2 ? (
+                hasOpenWork ? (
+                  <span
+                    className="h-2 w-2 rounded-full bg-primary ring-2 ring-primary/25 dark:bg-venus dark:ring-venus/25"
+                    aria-hidden
+                  />
+                ) : (
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/35 ring-1 ring-border/50" aria-hidden />
+                )
+              ) : headerLevel === 1 ? (
+                <>
+                  <span className="text-[12px] font-semibold tracking-tight text-foreground">Tasks · purpose</span>
+                  {triggerMeta(true)}
+                </>
+              ) : (
+                <>
+                  {menuOpen ? (
+                    <ChevronDown
+                      className="h-4 w-4 shrink-0 text-muted-foreground/80 transition-transform duration-200 ease-out"
+                      aria-hidden
+                    />
+                  ) : (
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground/80"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="min-w-0 text-[13px] font-semibold tracking-tight text-foreground">
+                    Protocols &amp; tasks
+                  </span>
+                  {triggerMeta(false)}
+                </>
+              )}
             </button>
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent
-          className={cn(!showEmptyShell && 'min-h-0 flex-1 overflow-hidden data-[state=open]:flex data-[state=open]:flex-col')}
+          className={cn(
+            !showEmptyShell &&
+              'flex min-h-0 flex-col overflow-hidden data-[state=open]:flex-1',
+          )}
         >
           {showEmptyShell ? (
-            <div className="flex flex-col items-end gap-1 px-3 pb-2 pt-0 text-right">
+            <div className={cn(railBodyLane, 'flex flex-col items-stretch gap-3 px-4 pb-4 pt-3')}>
               <Button
                 type="button"
-                variant="secondary"
                 size="sm"
-                className="h-7 gap-1 text-[11px]"
+                className={cn(
+                  'h-9 w-full justify-center gap-2 rounded-xl border border-transparent text-[13px] font-semibold tracking-[-0.01em] text-white shadow-md transition-[filter,opacity] hover:brightness-[1.05] disabled:opacity-45',
+                  'bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-800',
+                  'dark:from-violet-500 dark:via-fuchsia-500 dark:to-violet-600',
+                )}
                 disabled={briefingLoading}
                 onClick={() => void runBriefingUnified()}
               >
-                {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Divine realtime briefing
+                {briefingLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                )}
+                Realtime briefing
               </Button>
               {briefingHint ? (
-                <p className="max-w-[280px] text-[10px] text-muted-foreground">{briefingHint}</p>
-              ) : (
-                <p className="max-w-[280px] text-[10px] text-muted-foreground">
-                  Same as the bell: human-style voice + secretary panel. New briefings add protocol tasks linked to each
-                  notification until you mark them handled. Collapse this bar when empty to hide it completely.
-                </p>
-              )}
+                <p className="text-[12px] leading-relaxed text-muted-foreground/85">{briefingHint}</p>
+              ) : null}
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex flex-shrink-0 items-center justify-end gap-1 border-b border-amber-500/10 px-3 pb-2">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+              <div className="flex flex-shrink-0 items-center justify-end gap-2 border-b border-border/40 px-4 pb-3 pt-1">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-[10px]"
+                  className="h-9 rounded-xl px-3 text-[12px] font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => void refresh()}
                 >
                   Refresh
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
                   size="sm"
-                  className="h-7 gap-1 text-[10px]"
+                  className="h-9 gap-2 rounded-xl bg-foreground px-3.5 text-[12px] font-medium text-background shadow-none hover:bg-foreground/88 disabled:opacity-45"
                   disabled={briefingLoading}
                   onClick={() => void runBriefingUnified()}
                 >
-                  {briefingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {briefingLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                  )}
                   Realtime briefing
                 </Button>
               </div>
               {briefingHint ? (
-                <p className="border-b border-border px-3 py-1.5 text-[10px] text-muted-foreground">{briefingHint}</p>
+                <p className="border-b border-violet-200/30 px-4 py-2.5 text-[12px] leading-snug text-muted-foreground/85 dark:border-violet-400/12">
+                  {briefingHint}
+                </p>
               ) : null}
               {error ? (
-                <p className="px-3 py-2 text-[10px] text-destructive">
+                <p className="px-4 py-3 text-[12px] text-destructive">
                   Could not load tasks ({error}). Run DB migration 046.
                 </p>
               ) : null}
-              <ScrollArea className="min-h-0 flex-1">
-                <div className="flex flex-col gap-2 p-2">
+              <div
+                className={cn(
+                  railTaskListGlassScroll,
+                  'min-h-0 min-w-0 max-h-[min(52dvh,calc(100dvh-20rem))] shrink touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 py-2 [scrollbar-gutter:stable]',
+                )}
+              >
+                <div className="flex flex-col gap-2 px-1 py-0.5">
                   {loading && !openTasks.length ? (
-                    <p className="px-1 text-center text-[11px] text-muted-foreground">Loading…</p>
+                    <div className="flex flex-col items-center justify-center gap-2 py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-violet-400/50 dark:text-muted-foreground/50" aria-hidden />
+                      <p className="text-[12px] text-muted-foreground/75">Loading tasks</p>
+                    </div>
                   ) : (
-                    <ProtocolOpenTasksList tasks={openTasks} textAlign="right" />
+                    <>
+                      {/* Peek: read-only; Done / inbox only on Divine Manager */}
+                      <ProtocolOpenTasksListPeek tasks={openTasks} textAlign="right" railBodyFlip />
+                    </>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </CollapsibleContent>

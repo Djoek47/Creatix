@@ -1,123 +1,280 @@
 'use client'
 
+import { MarketingConversionClickListener } from '@/components/marketing/marketing-conversion-click-listener'
+import { MarketingHeroTrialCta } from '@/components/marketing/marketing-hero-trial-cta'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ThemedLogo } from '@/components/themed-logo'
+import { useTranslations } from 'next-intl'
+import { useState } from 'react'
+
+import { Link as IntlLink, usePathname } from '@/lib/i18n/navigation'
+import { MarketingBrandLogo } from '@/components/marketing/marketing-brand-logo'
 import { Button } from '@/components/ui/button'
 import { FooterSupportSocial } from '@/components/marketing/footer-support-social'
-import { ArrowRight } from 'lucide-react'
+import { MarketingFooterThemeIcon } from '@/components/marketing/marketing-footer-theme-icon'
+import { MarketingLocaleSwitcher } from '@/components/marketing/marketing-locale-switcher'
+import {
+  DEFAULT_AUTH_SIGNIN_HREF,
+  useTrialSignupTransition,
+} from '@/components/marketing/trial-signup-transition'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { LogIn, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 
-const nav = [
-  { href: '/', label: 'Home' },
-  { href: '/features', label: 'Features' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/how-it-works', label: 'How it works' },
-] as const
+const MAIN_NAV_HREFS = ['/', '/features', '/demo', '/mobile-app', '/pricing'] as const
 
 export function MarketingSiteChrome({ children }: { children: ReactNode }) {
+  const tNav = useTranslations('navigation')
+  const tf = useTranslations('navigation.footerNav')
+  const tCommon = useTranslations('common')
+  const tm = useTranslations('marketing')
   const pathname = usePathname() ?? '/'
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { beginSignupTransition, isTransitioning } = useTrialSignupTransition()
+
+  function goSignIn() {
+    beginSignupTransition(DEFAULT_AUTH_SIGNIN_HREF)
+  }
+
+  const mainNavItems = MAIN_NAV_HREFS.map((href) => ({
+    href,
+    label:
+      href === '/'
+        ? tNav('marketingNav.home')
+        : href === '/features'
+          ? tNav('marketingNav.features')
+          : href === '/demo'
+            ? tNav('marketingNav.demo')
+            : href === '/mobile-app'
+              ? tNav('marketingNav.mobileApp')
+              : tNav('marketingNav.pricing'),
+  }))
+
+  const footerExtraItems = [
+    { href: '/about', label: tf('about') },
+    { href: '/privacy', label: tf('privacy') },
+    { href: '/terms', label: tf('terms') },
+  ]
+
+  function activeFor(itemHref: (typeof MAIN_NAV_HREFS)[number]): boolean {
+    const p = pathname || '/'
+    if (itemHref === '/') {
+      return p === '/' || p === ''
+    }
+    return p === itemHref || p.startsWith(`${itemHref}/`)
+  }
 
   return (
-    <div className="relative min-h-screen min-w-0 overflow-x-hidden bg-background constellation-bg">
+    <MarketingConversionClickListener>
+      <div className="relative min-h-screen min-w-0 bg-background constellation-bg">
       <div className="marketing-aurora" aria-hidden />
 
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/75 backdrop-blur-xl">
-        <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4 sm:h-16 sm:px-6">
-          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <ThemedLogo width={36} height={36} className="shrink-0 rounded-full sm:h-10 sm:w-10" priority />
-            <span className="hidden truncate font-serif text-base font-semibold tracking-wider text-primary sm:inline sm:text-lg">
+      <header className="fixed top-0 left-0 right-0 z-50 overflow-visible border-b border-border/40 bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+        <nav
+          className={cn(
+            'relative mx-auto flex h-14 w-full min-w-0 max-w-7xl items-center gap-2 sm:h-16 sm:gap-4',
+            'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+            'sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]',
+          )}
+        >
+          <IntlLink
+            href="/"
+            className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60 sm:gap-3"
+          >
+            <MarketingBrandLogo
+              width={36}
+              height={36}
+              className="size-8 shrink-0 sm:size-10"
+              variant="header"
+              priority
+            />
+            <span className="hidden truncate font-serif text-[0.9375rem] font-semibold leading-none tracking-[0.12em] text-primary sm:inline sm:text-base sm:tracking-[0.1em]">
               CIRCE ET VENUS
             </span>
-          </Link>
-          <div className="hidden items-center gap-1 md:flex">
-            {nav.map((item) => {
-              const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          </IntlLink>
+          <div className="hidden flex-1 items-center justify-center gap-0.5 md:flex">
+            {mainNavItems.map((item) => {
+              const active = activeFor(item.href as (typeof MAIN_NAV_HREFS)[number])
               return (
-                <Link key={item.href} href={item.href}>
+                <IntlLink key={item.href} href={item.href as (typeof MAIN_NAV_HREFS)[number]}>
                   <span
                     className={cn(
-                      'relative rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      active
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground',
+                      'relative block rounded-lg px-3 py-2 text-[13px] font-medium tracking-[-0.01em] transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {active ? (
-                      <span className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-circe via-primary to-fuchsia-400 opacity-90" />
+                      <span
+                        className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-circe via-primary to-fuchsia-400 opacity-90"
+                        aria-hidden
+                      />
                     ) : null}
                     <span className="relative">{item.label}</span>
                   </span>
-                </Link>
+                </IntlLink>
               )
             })}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-foreground/85">
-                Sign in
-              </Button>
-            </Link>
-            <Link href="/auth/sign-up">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-0.5 sm:gap-2">
+            <div className="hidden md:flex">
+              <MarketingLocaleSwitcher variant="header" />
+            </div>
+            <div className="hidden max-[379px]:inline-flex items-center md:hidden">
               <Button
-                size="sm"
-                className="gap-1.5 bg-gradient-to-r from-primary via-primary to-circe/90 px-3 text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-[0.97] sm:px-4"
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={isTransitioning}
+                className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 text-foreground/85 hover:bg-muted/50"
+                aria-label={tCommon('signIn')}
+                onClick={goSignIn}
               >
-                <span className="hidden sm:inline">Begin</span>
-                <span className="sm:hidden">Start</span>
-                <ArrowRight className="h-4 w-4" />
+                <LogIn className="h-5 w-5" aria-hidden />
               </Button>
-            </Link>
+            </div>
+            <div className="hidden min-[380px]:inline-flex items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isTransitioning}
+                className="h-9 shrink-0 px-1.5 text-[12px] font-medium text-foreground/85 hover:bg-transparent hover:text-foreground sm:px-3 sm:text-sm"
+                onClick={goSignIn}
+              >
+                {tCommon('signIn')}
+              </Button>
+            </div>
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label={tCommon('openMenu')}
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="flex w-full max-w-sm flex-col gap-0 p-0">
+                <SheetHeader className="border-b border-border/50 px-6 py-4 text-left">
+                  <SheetTitle className="font-serif text-lg tracking-wider">{tCommon('menu')}</SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-1 flex-col gap-0 overflow-y-auto px-2 py-2" aria-label="Main">
+                  {mainNavItems.map((item) => {
+                    const active = activeFor(item.href as (typeof MAIN_NAV_HREFS)[number])
+                    return (
+                      <IntlLink
+                        key={item.href}
+                        href={item.href as (typeof MAIN_NAV_HREFS)[number]}
+                        onClick={() => setMobileNavOpen(false)}
+                        className={cn(
+                          'rounded-lg px-4 py-3.5 text-[15px] font-medium tracking-[-0.015em] transition-colors',
+                          active
+                            ? 'bg-primary/[0.12] text-primary'
+                            : 'text-muted-foreground hover:bg-muted/45 hover:text-foreground',
+                        )}
+                      >
+                        {item.label}
+                      </IntlLink>
+                    )
+                  })}
+                </nav>
+                <div className="mt-auto space-y-2 border-t border-border/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full"
+                    disabled={isTransitioning}
+                    onClick={() => {
+                      setMobileNavOpen(false)
+                      goSignIn()
+                    }}
+                  >
+                    {tCommon('signIn')}
+                  </Button>
+                  <MarketingHeroTrialCta
+                    variant="nav"
+                    className="h-11 w-full justify-center gap-2 rounded-xl text-[15px] font-medium shadow-lg shadow-primary/25"
+                    label={tCommon('getStarted')}
+                    afterPress={() => setMobileNavOpen(false)}
+                  />
+                  <MarketingLocaleSwitcher variant="footer" />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <MarketingHeroTrialCta
+              variant="nav"
+              label={
+                <>
+                  <span className="hidden sm:inline">{tCommon('getStarted')}</span>
+                  <span className="sm:hidden">{tCommon('start')}</span>
+                </>
+              }
+            />
           </div>
         </nav>
       </header>
 
-      {children}
+      <div className="min-w-0 overflow-x-hidden">{children}</div>
 
-      <footer className="relative z-10 border-t border-border/40 bg-card/25 px-4 py-10 backdrop-blur-sm sm:px-6 sm:py-14">
+      <footer className="relative z-10 border-t border-border/35 bg-background/30 pt-12 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(3rem+env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:pt-16 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col items-center justify-between gap-8 sm:flex-row sm:items-start">
-            <div className="flex flex-col items-center gap-3 sm:items-start">
-              <div className="flex items-center gap-3">
-                <ThemedLogo width={36} height={36} className="rounded-full marketing-float" />
-                <span className="font-serif text-lg font-semibold tracking-wider text-primary dark:text-circe-light">
+          <div className="grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:items-start lg:gap-16">
+            <div className="flex flex-col items-center gap-4 text-center sm:items-start sm:text-left">
+              <div className="flex items-center gap-2.5">
+                <MarketingBrandLogo width={36} height={36} className="shrink-0" variant="header" />
+                <span className="font-serif text-[1.0625rem] font-semibold leading-none tracking-[0.12em] text-primary sm:text-lg dark:text-circe-light">
                   CIRCE ET VENUS
                 </span>
               </div>
-              <p className="max-w-xs text-center text-sm text-muted-foreground sm:text-left">
-                Divine AI for creators who want retention, growth, and a voice-first command center.
+              <p className="max-w-[30ch] text-[13px] leading-relaxed text-muted-foreground sm:max-w-[34ch]">
+                {tm('footerTagline')}
               </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
+                  {tm('language')}
+                </p>
+                <MarketingLocaleSwitcher variant="footer" />
+              </div>
             </div>
-            <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">
-                About
-              </Link>
-              <Link href="/privacy" className="text-muted-foreground transition-colors hover:text-primary">
-                Privacy
-              </Link>
-              <Link href="/terms" className="text-muted-foreground transition-colors hover:text-primary">
-                Terms
-              </Link>
-            </nav>
+            <div className="flex flex-col items-center gap-5 sm:items-end">
+              <nav
+                className="flex max-w-full flex-wrap justify-center gap-x-7 gap-y-2.5 sm:justify-end"
+                aria-label={tm('footerNavigationAria')}
+              >
+                {[...mainNavItems, ...footerExtraItems.map((x) => ({ href: x.href, label: x.label }))].map((item) => {
+                  const isLocalized = MAIN_NAV_HREFS.includes(item.href as (typeof MAIN_NAV_HREFS)[number])
+                  const body = (
+                    <span className="text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground">
+                      {item.label}
+                    </span>
+                  )
+                  if (isLocalized) {
+                    return (
+                      <IntlLink key={`m-${item.href}`} href={item.href as (typeof MAIN_NAV_HREFS)[number]}>
+                        {body}
+                      </IntlLink>
+                    )
+                  }
+                  return (
+                    <Link key={`f-${item.href}`} href={item.href}>
+                      {body}
+                    </Link>
+                  )
+                })}
+              </nav>
+              <MarketingFooterThemeIcon />
+            </div>
           </div>
-          <FooterSupportSocial className="mt-8" />
-          <div className="mt-8 border-t border-border/30 pt-8 text-center">
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Circe et Venus Inc. Guided by the stars. Built for creators.
-            </p>
-          </div>
+          <FooterSupportSocial className="mt-10 border-t border-border/25 pt-10 sm:mt-12 sm:pt-12" />
+          <p className="mt-8 text-center text-[11px] leading-relaxed tracking-[0.02em] text-muted-foreground/90 sm:mt-10">
+            {tCommon('copyright', { year: String(new Date().getFullYear()) })}
+          </p>
         </div>
       </footer>
     </div>
+    </MarketingConversionClickListener>
   )
 }

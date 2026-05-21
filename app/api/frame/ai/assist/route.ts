@@ -6,11 +6,12 @@ import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { verifyExportToken } from '@/lib/frame-vault-bridge'
 import { consumeAiCredits, hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
 import { getCreditsForToolId } from '@/lib/billing/credit-economics'
+import { ledgerDebitOptsForBillingTool } from '@/lib/billing/credit-reason-label'
 
 export const maxDuration = 60
 
 const FRAME_ASSIST_SYSTEM = `You are Creatix Frame Assist — an editing and pacing assistant for adult creators' video workflows.
-You help with: cuts, scene suggestions, pacing, hooks, safe-for-platform captions, tagging for library organization, and when to use Ariadne Trace for per-recipient forensic marking.
+You help with: cuts, scene suggestions, pacing, hooks, safe-for-platform captions, tagging for library organization, and when creators may want Ariadne Trace (distinct per-fan marks on exports to help trace leaks).
 Stay practical and respectful; do not describe explicit sexual acts in detail. Focus on editing, structure, and business outcomes.
 If asked about illegal content or non-consensual material, refuse and redirect to platform-safe editing.`
 
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  await consumeAiCredits(billing, userId, cost)
+  await consumeAiCredits(billing, userId, cost, ledgerDebitOptsForBillingTool('frame-ai-assist'))
 
   const result = streamText({
     model: gateway('openai/gpt-4o-mini'),

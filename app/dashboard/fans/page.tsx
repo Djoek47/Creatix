@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { getTranslations } from 'next-intl/server'
 import { createClient } from '@/lib/supabase/server'
 import { FansPageClient } from '@/components/fans/fans-page-client'
 import type { Fan } from '@/lib/types'
@@ -15,6 +16,8 @@ export default async function FansPage() {
 
   if (!user) return null
 
+  const t = await getTranslations('fans')
+
   const [{ data: rows }, { data: connections }, { data: analytics }, { data: insightRows }] = await Promise.all([
     supabase.from('fans').select('*').eq('user_id', user.id).order('total_spent', { ascending: false }),
     supabase
@@ -25,13 +28,13 @@ export default async function FansPage() {
       .in('platform', ['onlyfans', 'fansly']),
     supabase
       .from('analytics_snapshots')
-      .select('platform,total_fans,date')
+      .select('platform,total_fans,total_follows,date')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(30),
     supabase
       .from('fan_thread_insights')
-      .select('platform, platform_fan_id, profile_json, thread_snapshot_text')
+      .select('platform, platform_fan_id, profile_json, thread_snapshot_text, last_seen_fan_message_at')
       .eq('user_id', user.id),
   ])
 
@@ -47,30 +50,35 @@ export default async function FansPage() {
   const hasOnlyFansConnected = connections?.some((c: { platform: string }) => c.platform === 'onlyfans') ?? false
   const hasFanslyConnected = connections?.some((c: { platform: string }) => c.platform === 'fansly') ?? false
 
-  // Mirror dashboard logic: derive total fans from the latest snapshot per platform
-  const latestByPlatform = new Map<string, { platform: string; total_fans?: number | null; date: string }>()
-  ;(analytics || []).forEach((a: any) => {
-    if (!latestByPlatform.has(a.platform) || new Date(a.date) > new Date(latestByPlatform.get(a.platform)!.date)) {
-      latestByPlatform.set(a.platform, a)
-    }
-  })
-  const analyticsTotalFans =
-    Array.from(latestByPlatform.values()).reduce((sum, a) => sum + (a.total_fans || 0), 0) || 0
-  const snapshotFansByPlatform: Record<string, number> = {}
-  latestByPlatform.forEach((a, key) => {
-    snapshotFansByPlatform[key] = a.total_fans ?? 0
-  })
+  // OnlyFans + Fansly only — do not sum TikTok/X/Instagram rows from analytics_snapshots
+  type SnapRow = { total_fans?: number | null; total_follows?: number | null; date: string }
+  const latestOfFl = new Map<string, SnapRow>()
+  for (const a of analytics || []) {
+    const row = a as SnapRow & { platform?: string }
+    const canon = String(row.platform || '').toLowerCase()
+    if (canon !== 'onlyfans' && canon !== 'fansly') continue
+    const prev = latestOfFl.get(canon)
+    if (!prev || new Date(row.date) > new Date(prev.date)) latestOfFl.set(canon, row)
+  }
+  const snapshotFansByPlatform = {
+    onlyfans: latestOfFl.get('onlyfans')?.total_fans ?? 0,
+    fansly: latestOfFl.get('fansly')?.total_fans ?? 0,
+  }
+  const snapshotFollowsByPlatform = {
+    onlyfans: latestOfFl.get('onlyfans')?.total_follows ?? 0,
+    fansly: latestOfFl.get('fansly')?.total_follows ?? 0,
+  }
 
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading fans…</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">{t('page.loading')}</div>}>
       <FansPageClient
         initialFans={fans}
         threadInsightsBrief={(insightRows || []) as ThreadInsightBrief[]}
         hasOnlyFansConnected={hasOnlyFansConnected}
         hasFanslyConnected={hasFanslyConnected}
         hasFanPlatformsConnected={hasFanPlatformsConnected}
-        analyticsTotalFans={analyticsTotalFans}
         snapshotFansByPlatform={snapshotFansByPlatform}
+        snapshotFollowsByPlatform={snapshotFollowsByPlatform}
       />
     </Suspense>
   )

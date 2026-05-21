@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -9,6 +10,7 @@ import { MediaVaultHub } from '@/components/ai/media-vault-hub'
 import { VideoEditorToolbarButton } from '@/components/ai/video-editor-toolbar-button'
 
 export default function AIStudioPage() {
+  const t = useTranslations('ai-tools')
   const searchParams = useSearchParams()
 
   const initialTab = (() => {
@@ -42,7 +44,7 @@ export default function AIStudioPage() {
             >
               <span className="flex items-center justify-center gap-2">
                 <Sparkles className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-                Media &amp; vault
+                {t('studio.mediaVaultTab')}
               </span>
             </TabsTrigger>
             <TabsTrigger
@@ -52,7 +54,7 @@ export default function AIStudioPage() {
             >
               <span className="flex items-center justify-center gap-2">
                 <PenTool className="ai-tools-brand-icon h-4 w-4 shrink-0" aria-hidden />
-                <span className="ai-tools-wordmark text-base font-semibold">Tools</span>
+                <span className="ai-tools-wordmark text-base font-semibold">{t('studio.toolsTab')}</span>
               </span>
             </TabsTrigger>
           </TabsList>
@@ -64,7 +66,7 @@ export default function AIStudioPage() {
         </TabsContent>
 
         <TabsContent value="tools" className="mt-0 focus-visible:outline-none">
-          <AIToolsLibrary />
+          <AIToolsLibrary showBackButton />
         </TabsContent>
       </Tabs>
     </div>

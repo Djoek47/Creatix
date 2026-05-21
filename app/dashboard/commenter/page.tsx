@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Check, Copy, ListTree, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { ArrowLeft, Check, Copy, ListTree, Loader2, RefreshCw, Sparkles, Tags } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { ClassifySyncResultPanel } from '@/components/commenter/classify-sync-result-panel'
 
 type AnalysisJson = {
   sentiment?: string
@@ -22,6 +24,8 @@ type AnalysisJson = {
 
 type CommenterListMeta = {
   onlyfans_connected: boolean
+  fansly_connected: boolean
+  connect_entitlement_ok: boolean
   feed_post_count: number | null
   posts_with_comments: number | null
 }
@@ -50,12 +54,21 @@ const VOICE_RING: Record<string, string> = {
   best: 'border-emerald-500/80 bg-emerald-500/[0.09] ring-1 ring-emerald-500/35',
 }
 
-const VOICE_LABEL: Record<string, string> = {
-  circe: 'Circe',
-  venus: 'Venus',
-  flirt: 'Flirt',
-  professional: 'Professional',
-  best: 'Best',
+function voiceLabel(tc: (key: string) => string, voice: string) {
+  switch (voice) {
+    case 'circe':
+      return tc('voices.circe')
+    case 'venus':
+      return tc('voices.venus')
+    case 'flirt':
+      return tc('voices.flirt')
+    case 'professional':
+      return tc('voices.professional')
+    case 'best':
+      return tc('voices.best')
+    default:
+      return voice
+  }
 }
 
 function EmptyCommenterMessage({
@@ -65,23 +78,56 @@ function EmptyCommenterMessage({
   meta: CommenterListMeta | null
   syncing: boolean
 }) {
+  const tc = useTranslations('commenter')
   if (syncing) {
     return (
       <p className="flex items-center justify-center gap-2 text-foreground">
         <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-        Fetching comments…
+        {tc('empty.fetching')}
       </p>
     )
   }
   if (!meta) {
-    return <p>No comments yet.</p>
+    return <p>{tc('empty.noCommentsYet')}</p>
   }
-  if (!meta.onlyfans_connected) {
+  const noAdultPlatform = !meta.onlyfans_connected && !meta.fansly_connected
+  if (noAdultPlatform) {
+    const entitled = meta.connect_entitlement_ok
     return (
-      <div className="space-y-3">
-        <p>Connect OnlyFans to load comments.</p>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard/settings">Settings</Link>
+      <div className="space-y-4">
+        <p className="text-pretty text-muted-foreground">
+          {entitled ? tc('empty.connectPlatformsEntitled') : tc('empty.connectPlatformsNeedPlan')}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {entitled ? (
+            <>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=billing">{tc('empty.ctaBilling')}</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="default" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=billing">{tc('empty.ctaBilling')}</Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+  if (meta.fansly_connected && !meta.onlyfans_connected) {
+    return (
+      <div className="space-y-4">
+        <p className="text-pretty text-muted-foreground">{tc('empty.fanslyOnlyNeedOf')}</p>
+        <Button variant="default" size="sm" asChild>
+          <Link href="/dashboard/settings?tab=integrations">{tc('empty.ctaIntegrations')}</Link>
         </Button>
       </div>
     )
@@ -89,25 +135,23 @@ function EmptyCommenterMessage({
   if (meta.feed_post_count === null && meta.posts_with_comments === null) {
     return (
       <p>
-        Couldn&apos;t load your OnlyFans feed. Tap <strong>Sync</strong> to try again.
+        {tc('empty.feedLoadErrorBefore')}
+        <strong>{tc('actions.sync')}</strong>
+        {tc('empty.feedLoadErrorAfter')}
       </p>
     )
   }
   if (meta.feed_post_count === 0) {
-    return (
-      <p>
-        You don&apos;t have any posts on OnlyFans yet. Publish a post first—comments will show up here when fans
-        engage.
-      </p>
-    )
+    return <p>{tc('empty.noOnlyfansPosts')}</p>
   }
   if ((meta.posts_with_comments ?? 0) === 0) {
-    return <p>No comments on your posts yet.</p>
+    return <p>{tc('empty.noCommentsOnPosts')}</p>
   }
-  return <p>No comments to show yet.</p>
+  return <p>{tc('empty.noCommentsToShowYet')}</p>
 }
 
 export default function CommenterPage() {
+  const tc = useTranslations('commenter')
   const searchParams = useSearchParams()
   const highlightId = searchParams.get('highlight')
   const housekeepingSection = searchParams.get('section') === 'housekeeping'
@@ -122,6 +166,9 @@ export default function CommenterPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [meta, setMeta] = useState<CommenterListMeta | null>(null)
+  const [classifyRunning, setClassifyRunning] = useState(false)
+  const [classifyDetails, setClassifyDetails] = useState<string[] | null>(null)
+  const [classifyError, setClassifyError] = useState<string | null>(null)
   const autoSyncAttempted = useRef(false)
 
   const load = useCallback(async () => {
@@ -130,14 +177,16 @@ export default function CommenterPage() {
     try {
       const res = await fetch('/api/commenter/list?limit=50')
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to load')
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : tc('errors.loadFailed'))
       let list = Array.isArray(data.comments) ? data.comments : []
-      let m: CommenterListMeta =
-        (data.meta as CommenterListMeta | undefined) ?? {
-          onlyfans_connected: false,
-          feed_post_count: null,
-          posts_with_comments: null,
-        }
+      const rawMeta = data.meta as Partial<CommenterListMeta> | undefined
+      let m: CommenterListMeta = {
+        onlyfans_connected: Boolean(rawMeta?.onlyfans_connected),
+        fansly_connected: Boolean(rawMeta?.fansly_connected),
+        connect_entitlement_ok: Boolean(rawMeta?.connect_entitlement_ok),
+        feed_post_count: rawMeta?.feed_post_count ?? null,
+        posts_with_comments: rawMeta?.posts_with_comments ?? null,
+      }
 
       if (
         list.length === 0 &&
@@ -156,16 +205,24 @@ export default function CommenterPage() {
           const syncData = await syncRes.json().catch(() => ({}))
           if (syncRes.ok) {
             const ins = Number(syncData.commentsInserted ?? 0)
-            setSyncResult(ins > 0 ? `Added ${ins} comment${ins === 1 ? '' : 's'}.` : 'Up to date.')
+            setSyncResult(ins > 0 ? tc('sync.commentsAdded', { count: ins }) : tc('sync.upToDate'))
             const res2 = await fetch('/api/commenter/list?limit=50')
             const data2 = await res2.json().catch(() => ({}))
             if (res2.ok) {
               list = Array.isArray(data2.comments) ? data2.comments : []
-              m =
-                (data2.meta as CommenterListMeta | undefined) ?? m
+              const raw2 = data2.meta as Partial<CommenterListMeta> | undefined
+              m = {
+                onlyfans_connected: Boolean(raw2?.onlyfans_connected),
+                fansly_connected: Boolean(raw2?.fansly_connected),
+                connect_entitlement_ok: Boolean(raw2?.connect_entitlement_ok),
+                feed_post_count: raw2?.feed_post_count ?? null,
+                posts_with_comments: raw2?.posts_with_comments ?? null,
+              }
             }
           } else {
-            setSyncResult(typeof syncData.error === 'string' ? syncData.error : 'Could not load comments')
+            setSyncResult(
+              typeof syncData.error === 'string' ? syncData.error : tc('errors.syncLoadCommentsFailed'),
+            )
           }
         } finally {
           setSyncing(false)
@@ -175,13 +232,13 @@ export default function CommenterPage() {
       setComments(list)
       setMeta(m)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Load failed')
+      setError(e instanceof Error ? e.message : tc('errors.loadFailed'))
       setComments([])
       setMeta(null)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tc])
 
   useEffect(() => {
     load()
@@ -189,21 +246,53 @@ export default function CommenterPage() {
 
   useEffect(() => {
     if (!highlightId || typeof document === 'undefined') return
-    const t = window.setTimeout(() => {
+    const scrollTimer = window.setTimeout(() => {
       const el = document.getElementById(`comment-${highlightId}`)
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 400)
-    return () => window.clearTimeout(t)
+    return () => window.clearTimeout(scrollTimer)
   }, [highlightId, comments.length])
 
   useEffect(() => {
     if (!housekeepingSection || typeof document === 'undefined') return
     if (loading) return
-    const t = window.setTimeout(() => {
+    const scrollTimer = window.setTimeout(() => {
       document.getElementById('commenter-housekeeping')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 120)
-    return () => window.clearTimeout(t)
+    return () => window.clearTimeout(scrollTimer)
   }, [housekeepingSection, loading])
+
+  const onRunClassify = async () => {
+    setClassifyRunning(true)
+    setClassifyDetails(null)
+    setClassifyError(null)
+    try {
+      const res = await fetch('/api/fans/classify/sync-now', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        code?: string
+        message?: string
+        details?: string[]
+      }
+      if (res.status === 422 && data.code === 'CLASSIFY_DISABLED') {
+        setClassifyError(data.message ?? tc('errors.classifyDisabledArrangements'))
+        return
+      }
+      if (!res.ok) {
+        setClassifyError(data.error || data.message || tc('errors.classifyFailed'))
+        return
+      }
+      const details = Array.isArray(data.details) ? data.details.map((x) => String(x).trim()).filter(Boolean) : []
+      setClassifyDetails(details)
+    } catch {
+      setClassifyError(tc('errors.classifyRunFailed'))
+    } finally {
+      setClassifyRunning(false)
+    }
+  }
 
   const onSync = async () => {
     setSyncing(true)
@@ -215,12 +304,12 @@ export default function CommenterPage() {
         body: JSON.stringify({ maxPosts: 8, runAnalysis: true }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Sync failed')
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : tc('errors.syncFailed'))
       const ins = Number(data.commentsInserted ?? 0)
-      setSyncResult(ins > 0 ? `Added ${ins} comment${ins === 1 ? '' : 's'}.` : 'Up to date.')
+      setSyncResult(ins > 0 ? tc('sync.commentsAdded', { count: ins }) : tc('sync.upToDate'))
       await load()
     } catch (e) {
-      setSyncResult(e instanceof Error ? e.message : 'Sync failed')
+      setSyncResult(e instanceof Error ? e.message : tc('errors.syncFailed'))
     } finally {
       setSyncing(false)
     }
@@ -235,10 +324,10 @@ export default function CommenterPage() {
         body: JSON.stringify({ commentId: id, force: true }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Analyze failed')
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : tc('errors.analyzeFailed'))
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Analyze failed')
+      setError(e instanceof Error ? e.message : tc('errors.analyzeFailed'))
     } finally {
       setReanalyzeId(null)
     }
@@ -254,10 +343,10 @@ export default function CommenterPage() {
         body: JSON.stringify({ commentId: id, text }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Save failed')
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : tc('errors.saveFailed'))
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      setError(e instanceof Error ? e.message : tc('errors.saveFailed'))
     } finally {
       setSavingId(null)
     }
@@ -288,58 +377,20 @@ export default function CommenterPage() {
           <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 gap-1 text-muted-foreground">
             <Link href="/dashboard/ai-studio?tab=library">
               <ArrowLeft className="h-4 w-4" />
-              AI Studio
+              {tc('header.backAiStudio')}
             </Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight flex flex-wrap items-center gap-2">
             <Sparkles className="h-7 w-7 text-amber-500" />
-            Housekeeping
-            <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
-              MVP
-            </Badge>
+            {tc('header.title')}
           </h1>
-          <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-            Fan comments on your posts—draft replies here, then paste on OnlyFans.
-          </p>
+          <p className="text-muted-foreground mt-1 max-w-xl text-sm">{tc('header.subtitle')}</p>
         </div>
         <Button className="gap-2 shrink-0" onClick={onSync} disabled={syncing || loading}>
           {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sync
+          {tc('actions.sync')}
         </Button>
       </div>
-
-      <Card
-        id="commenter-housekeeping"
-        className={cn(
-          'border-border/80 bg-muted/15',
-          housekeepingSection && 'ring-2 ring-amber-500/35',
-        )}
-      >
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2 font-semibold">
-            <ListTree className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden />
-            Smart lists
-          </CardTitle>
-          <CardDescription>
-            Smart lists: sync OnlyFans user lists and Fansly CRM tags from your CRM rules (
-            <Link href="/dashboard/fans#arrangements" className="text-primary underline-offset-4 hover:underline">
-              Fans → Arrangements
-            </Link>
-            ). Server cron keeps segments aligned—pair with comment review above so public-comment signals land in the same CRM.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2 pb-4">
-          <Button variant="secondary" size="sm" asChild className="gap-2">
-            <Link href="/dashboard/fans#arrangements">
-              <ListTree className="h-4 w-4" aria-hidden />
-              Open Arrangements
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/settings">Integration settings</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       {syncResult && (
         <p className="text-sm text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/30">{syncResult}</p>
@@ -353,7 +404,7 @@ export default function CommenterPage() {
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
-          Loading…
+          {tc('actions.loading')}
         </div>
       ) : comments.length === 0 ? (
         <Card>
@@ -394,12 +445,13 @@ export default function CommenterPage() {
                       </Badge>
                       {isHi ? (
                         <Badge variant="destructive" className="text-[10px]">
-                          Safety review
+                          {tc('detail.safetyReview')}
                         </Badge>
                       ) : null}
                     </div>
                     <CardDescription className="text-xs">
-                      Post {c.platform_post_id} · {new Date(c.received_at).toLocaleString()}
+                      {tc('detail.postMeta', { postId: c.platform_post_id })} ·{' '}
+                      {new Date(c.received_at).toLocaleString()}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -410,21 +462,33 @@ export default function CommenterPage() {
                     {aj && (
                       <div className="rounded-md bg-muted/40 px-3 py-2 text-xs space-y-1">
                         <div className="flex flex-wrap gap-2">
-                          <span>Sentiment: {aj.sentiment ?? '—'}</span>
+                          <span>
+                            {tc('detail.analysis.sentiment')}: {aj.sentiment ?? '—'}
+                          </span>
                           <span>·</span>
-                          <span>Action: {aj.recommended_action ?? '—'}</span>
+                          <span>
+                            {tc('detail.analysis.action')}: {aj.recommended_action ?? '—'}
+                          </span>
                           <span>·</span>
-                          <span>Safety: {aj.safety_level ?? '—'}</span>
+                          <span>
+                            {tc('detail.analysis.safety')}: {aj.safety_level ?? '—'}
+                          </span>
                         </div>
                         {(aj.connotation_tags?.length ?? 0) > 0 && (
-                          <p>Tags: {aj.connotation_tags?.join(', ')}</p>
+                          <p>
+                            {tc('detail.analysis.tags')}: {aj.connotation_tags?.join(', ')}
+                          </p>
                         )}
                         {(aj.stalking_signals?.length ?? 0) > 0 && (
-                          <p className="text-destructive/90">Signals: {aj.stalking_signals?.join('; ')}</p>
+                          <p className="text-destructive/90">
+                            {tc('detail.analysis.signals')}: {aj.stalking_signals?.join('; ')}
+                          </p>
                         )}
                         {aj.engagement_angle ? <p className="text-muted-foreground">{aj.engagement_angle}</p> : null}
                         {aj.replies?.best_rationale ? (
-                          <p className="text-muted-foreground italic">Best: {aj.replies.best_rationale}</p>
+                          <p className="text-muted-foreground italic">
+                            {tc('detail.analysis.best')}: {aj.replies.best_rationale}
+                          </p>
                         ) : null}
                       </div>
                     )}
@@ -432,7 +496,7 @@ export default function CommenterPage() {
                     {sug.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Suggested replies
+                          {tc('detail.suggestedReplies')}
                         </p>
                         <div className="grid gap-2 sm:grid-cols-1">
                           {sug.map((s) => (
@@ -445,7 +509,7 @@ export default function CommenterPage() {
                             >
                               <div className="flex items-center justify-between gap-2 mb-1">
                                 <span className="text-xs font-semibold uppercase tracking-wide">
-                                  {VOICE_LABEL[s.voice] ?? s.voice}
+                                  {voiceLabel(tc, s.voice)}
                                 </span>
                                 <Button
                                   type="button"
@@ -469,11 +533,11 @@ export default function CommenterPage() {
                     )}
 
                     <div className="space-y-2 border-t border-border pt-3">
-                      <p className="text-xs font-medium text-muted-foreground">Your reply</p>
+                      <p className="text-xs font-medium text-muted-foreground">{tc('detail.yourReply')}</p>
                       <Textarea
                         value={draftVal}
                         onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                        placeholder="What you posted on OnlyFans (optional note)"
+                        placeholder={tc('detail.placeholderReply')}
                         className="min-h-[72px] text-sm"
                       />
                       <div className="flex flex-wrap gap-2">
@@ -485,7 +549,7 @@ export default function CommenterPage() {
                           onClick={() => onSaveCreatorReply(c.id)}
                         >
                           {savingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Save note
+                          {tc('detail.saveNote')}
                         </Button>
                         <Button
                           type="button"
@@ -495,17 +559,17 @@ export default function CommenterPage() {
                           onClick={() => onReanalyze(c.id)}
                         >
                           {reanalyzeId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Refresh
+                          {tc('detail.refresh')}
                         </Button>
                         <Button type="button" size="sm" variant="ghost" asChild>
                           <Link href={`/dashboard/messages?fanId=${encodeURIComponent(c.platform_fan_id)}`}>
-                            Open DMs
+                            {tc('detail.openDms')}
                           </Link>
                         </Button>
                       </div>
                       {c.creator_reply_at ? (
                         <p className="text-[10px] text-muted-foreground">
-                          Last saved: {new Date(c.creator_reply_at).toLocaleString()}
+                          {tc('detail.lastSaved', { time: new Date(c.creator_reply_at).toLocaleString() })}
                         </p>
                       ) : null}
                     </div>
@@ -516,6 +580,83 @@ export default function CommenterPage() {
           })}
         </ul>
       )}
+
+      <Card
+        id="commenter-housekeeping"
+        className={cn(
+          'overflow-hidden border-zinc-200/90 bg-zinc-50/40 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-zinc-800/90 dark:bg-zinc-950/30',
+          housekeepingSection && 'ring-2 ring-amber-500/30 dark:ring-amber-400/25',
+        )}
+      >
+        <CardHeader className="space-y-3 border-b border-zinc-100/90 pb-6 pt-8 dark:border-zinc-800/80 sm:px-8">
+          <CardTitle className="flex flex-wrap items-center gap-3 text-[1.125rem] font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-50">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:ring-zinc-800">
+              <ListTree className="h-[1.125rem] w-[1.125rem] text-zinc-500 dark:text-zinc-400" aria-hidden />
+            </span>
+            {tc('fanAtlas.title')}
+            <Badge
+              variant="outline"
+              className="rounded-full border-zinc-200/90 px-2.5 py-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+            >
+              {tc('fanAtlas.betaBadge')}
+            </Badge>
+          </CardTitle>
+          <CardDescription className="max-w-2xl text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            {tc('fanAtlas.descStart')}{' '}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">{tc('fanAtlas.subscriptionStatus')}</strong>,{' '}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">{tc('fanAtlas.lifetimeSpend')}</strong>{' '}
+            {tc('fanAtlas.descMid')}{' '}
+            <Link
+              href="/dashboard/fans#arrangements"
+              className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 transition-colors hover:decoration-zinc-500 dark:text-zinc-100 dark:decoration-zinc-600 dark:hover:decoration-zinc-400"
+            >
+              {tc('fanAtlas.arrangementsLink')}
+            </Link>{' '}
+            {tc('fanAtlas.descEnd')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6 px-4 pb-8 pt-6 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button
+              type="button"
+              size="default"
+              className="h-11 gap-2 rounded-xl bg-zinc-900 px-5 text-[15px] font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              onClick={() => void onRunClassify()}
+              disabled={classifyRunning}
+            >
+              {classifyRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Tags className="h-4 w-4 opacity-90" aria-hidden />
+              )}
+              {tc('classifyPanel.classifyFansNow')}
+            </Button>
+            <Button
+              variant="outline"
+              size="default"
+              asChild
+              className="h-11 gap-2 rounded-xl border-zinc-200/90 bg-white px-5 text-[15px] font-medium text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <Link href="/dashboard/fans#arrangements">
+                <ListTree className="h-4 w-4 text-zinc-500" aria-hidden />
+                {tc('classifyPanel.editRules')}
+              </Link>
+            </Button>
+            <Button variant="ghost" size="default" asChild className="h-11 rounded-xl text-[15px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+              <Link href="/dashboard/settings?tab=integrations">{tc('classifyPanel.integrations')}</Link>
+            </Button>
+          </div>
+          {classifyDetails != null ? <ClassifySyncResultPanel details={classifyDetails} /> : null}
+          {classifyError ? (
+            <div className="rounded-xl border border-red-200/80 bg-red-50/80 px-5 py-4 text-[14px] leading-relaxed text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+              {classifyError}{' '}
+              <Link href="/dashboard/fans#arrangements" className="font-semibold underline underline-offset-2">
+                {tc('classifyPanel.openArrangements')}
+              </Link>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   )
 }

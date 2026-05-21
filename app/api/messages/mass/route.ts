@@ -8,10 +8,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { createFanslyAPI } from '@/lib/fansly-api'
 import { validateChatMediaIdsForSend } from '@/lib/onlyfans-chat-media'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import { createOnlyFansAPI, isOnlyFansRateLimitError } from '@/lib/onlyfans-api'
 import { adultPlatformBillingGateWhenEitherConnected } from '@/lib/onlyfans-api-route'
 import { logMessageSendEvent } from '@/lib/usage/log-message-send'
 import { bumpSubscriptionMessagesSent } from '@/lib/usage/bump-messages-sent'
+import { toLegacyAudienceProfileType } from '@/lib/fans/profile-types'
+import { denyIfNonApiProtectionTier } from '@/lib/api-non-api-guard'
+import { validateFanslyChatMediaIdsForSend } from '@/lib/fansly/chat-media-validate'
+import {
+  FANSLY_MASS_OTP_COOKIE,
+  isFanslyMassOtpEnforced,
+  verifyFanslyMassOtpCookieValue,
+} from '@/lib/fansly/mass-otp-cookie'
 
 interface MassMessageRequest {
   message: string
@@ -22,6 +30,10 @@ interface MassMessageRequest {
   filter?: 'all' | 'active' | 'expired' | 'renewing'
   /** OnlyFans user list ids (OnlyFansAPI mass messaging). */
   userLists?: string[]
+  /** Optional explicit recipient fan ids for OnlyFans mass targeting. */
+  userIds?: string[]
+  /** Fansly vault / media ids for the Fansly mass leg (do not use OnlyFans upload ids here). */
+  fanslyMediaIds?: (string | number)[]
 }
 
 // POST: Send mass message to all subscribers across platforms
@@ -34,8 +46,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const nonApi = await denyIfNonApiProtectionTier(request)
+    if (nonApi) return nonApi
+
     const body: MassMessageRequest = await request.json()
-    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists } = body
+    const { message, platforms, mediaIds, previews, price, filter = 'all', userLists, userIds, fanslyMediaIds } =
+      body
 
     const trimmed = message?.trim()
     const hasText = typeof trimmed === 'string' && trimmed.length > 0
@@ -53,6 +69,20 @@ export async function POST(request: NextRequest) {
     ) {
       const billingBlock = await adultPlatformBillingGateWhenEitherConnected(supabase)
       if (billingBlock) return billingBlock
+    }
+
+    if (Array.isArray(platforms) && platforms.includes('fansly') && isFanslyMassOtpEnforced()) {
+      const ok = verifyFanslyMassOtpCookieValue(request.cookies.get(FANSLY_MASS_OTP_COOKIE)?.value, user.id)
+      if (!ok) {
+        return NextResponse.json(
+          {
+            error:
+              'Fansly two-factor verification required before mass send. Complete email OTP verification in Fansly settings, then retry.',
+            code: 'FANSLY_MASS_OTP_REQUIRED',
+          },
+          { status: 403 },
+        )
+      }
     }
 
     // Get platform connections
@@ -78,6 +108,7 @@ export async function POST(request: NextRequest) {
 
     let totalSent = 0
     let totalFailed = 0
+    let onlyFansRateLimited = false
 
     // Send to each platform
     for (const platform of platforms) {
@@ -91,11 +122,43 @@ export async function POST(request: NextRequest) {
       try {
         if (platform === 'fansly') {
           const api = createFanslyAPI()
-          const accountId = connection.platform_user_id
+          const accountId =
+            (connection.access_token != null && String(connection.access_token).trim() !== ''
+              ? String(connection.access_token).trim()
+              : null) ??
+            (connection.platform_user_id != null && String(connection.platform_user_id).trim() !== ''
+              ? String(connection.platform_user_id).trim()
+              : null)
+
+          if (!accountId) {
+            results.fansly = { success: false, error: 'Fansly account id missing on connection' }
+            continue
+          }
+
+          const fanslyIds =
+            Array.isArray(fanslyMediaIds) && fanslyMediaIds.length > 0
+              ? fanslyMediaIds
+              : platforms.length === 1 && platforms[0] === 'fansly' && Array.isArray(mediaIds) && mediaIds.length > 0
+                ? mediaIds
+                : []
+          const flMediaErr = validateFanslyChatMediaIdsForSend(fanslyIds)
+          if (flMediaErr) {
+            results.fansly = { success: false, sent: 0, failed: 0, error: flMediaErr }
+            continue
+          }
+          if (typeof price === 'number' && price > 0 && fanslyIds.length === 0) {
+            results.fansly = {
+              success: false,
+              sent: 0,
+              failed: 0,
+              error: 'Paid Fansly mass messages require Fansly media IDs (fanslyMediaIds or mediaIds when Fansly-only).',
+            }
+            continue
+          }
 
           const result = await api.sendMassMessage(accountId, {
             content: trimmed || '',
-            mediaIds: mediaIds?.map((id) => String(id)),
+            mediaIds: fanslyIds.map((id) => String(id)),
             price,
             subscriberFilter: filter,
           })
@@ -153,6 +216,10 @@ export async function POST(request: NextRequest) {
               Array.isArray(userLists) && userLists.length > 0
                 ? userLists.filter((id) => typeof id === 'string' && id.length > 0)
                 : undefined,
+            userIds:
+              Array.isArray(userIds) && userIds.length > 0
+                ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
+                : undefined,
           })
 
           results.onlyfans = {
@@ -164,11 +231,52 @@ export async function POST(request: NextRequest) {
 
           totalSent += result.sent || 0
           totalFailed += result.failed || 0
+
+          const targetUserIds =
+            Array.isArray(userIds) && userIds.length > 0
+              ? userIds.filter((id) => typeof id === 'string' && id.length > 0)
+              : []
+
+          if (typeof price === 'number' && price > 0 && targetUserIds.length > 0) {
+            let updateRes = await supabase
+              .from('fans')
+              .update({
+                audience_profile_override: 'paying_creator',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', user.id)
+              .eq('platform', 'onlyfans')
+              .in('platform_fan_id', targetUserIds)
+              .is('audience_profile_override', null)
+
+            if (updateRes.error && /fans_audience_profile_override_check/i.test(updateRes.error.message ?? '')) {
+              updateRes = await supabase
+                .from('fans')
+                .update({
+                  audience_profile_override: toLegacyAudienceProfileType('paying_creator'),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('platform', 'onlyfans')
+                .in('platform_fan_id', targetUserIds)
+                .is('audience_profile_override', null)
+            }
+          }
         }
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        const rateLimited = isOnlyFansRateLimitError(msg)
         results[platform] = {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to send'
+          error: rateLimited
+            ? 'OnlyFans is temporarily limiting requests. Please retry shortly.'
+            : error instanceof Error
+              ? error.message
+              : 'Failed to send'
+        }
+        if (rateLimited) {
+          onlyFansRateLimited = true
+          results[platform].error += ' [ONLYFANS_RATE_LIMIT]'
         }
       }
     }
@@ -185,15 +293,23 @@ export async function POST(request: NextRequest) {
       bumpSubscriptionMessagesSent(user.id, totalSent)
     }
 
-    return NextResponse.json({
+    const payload = {
       success: allSuccessful,
       totalSent,
       totalFailed,
       message: allSuccessful 
         ? `Successfully sent to ${totalSent} subscribers`
         : `Sent to ${totalSent} subscribers, ${totalFailed} failed`,
-      results
-    })
+      results,
+    }
+    if (totalSent === 0 && onlyFansRateLimited) {
+      return NextResponse.json(
+        { ...payload, code: 'ONLYFANS_RATE_LIMIT' },
+        { status: 429 },
+      )
+    }
+
+    return NextResponse.json(payload)
 
   } catch (error) {
     console.error('Mass message error:', error)

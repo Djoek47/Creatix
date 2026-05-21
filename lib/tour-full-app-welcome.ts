@@ -17,16 +17,16 @@ export const fullAppWelcomeTour: TourConfig = {
     },
     {
       id: 'full-02',
-      title: 'Your CRM mental model',
+      title: 'How the app fits together',
       description:
-        'Think of the app as a creator CRM: fans, revenue, inbox, retention, compliance, and AI helpers. The left sidebar is your map; each section below expands on it.',
+        'Think of it as one workspace for your creator business: fans, revenue, inbox, retention, compliance, and AI helpers. The left sidebar is your map; each section below expands on it.',
       path: '/dashboard/welcome',
     },
     {
       id: 'full-03',
       title: 'Dashboard home',
       description:
-        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start Tour in the header for a shorter refresher on the page you are on.',
+        'Open Dashboard anytime for stats, connected platforms, and shortcuts. After this tour, use Start live tour or Launch live tour in the header to run this same full tour again from any page.',
       path: '/dashboard',
       targetSelector: '[data-tour="/dashboard"]',
     },
@@ -34,7 +34,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-04',
       title: 'Divine Manager',
       description:
-        'The crown in the sidebar: voice and text control of your AI assistant—tasks, Mimic style, notifications, and running tools without leaving the page.',
+        'The crown in the sidebar: voice and text control of your AI assistant—today’s plan, protocol tasks, Mimic, notifications, and tools without leaving the page. First visit runs a short setup wizard; Guide links and `?section=protocol`, `tasks`, or `chat` deep-link straight in.',
       path: '/dashboard/divine-manager',
       targetSelector: '[data-tour="/dashboard/divine-manager"]',
     },
@@ -42,7 +42,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-05',
       title: 'Content',
       description:
-        'Schedule and plan posts and drops. Tie this to Content library for assets and to AI Studio when you need captions or touch-ups.',
+        'Plan posts on the calendar, manage your media vault, and scan every row — Schedule, Vault, and All posts in one quiet workspace.',
       path: '/dashboard/content',
       targetSelector: '[data-tour="/dashboard/content"]',
     },
@@ -79,14 +79,6 @@ export const fullAppWelcomeTour: TourConfig = {
     },
     {
       id: 'full-10',
-      title: 'Content library',
-      description:
-        'Media vault: describe assets for AI, link posts, safe photo touch-ups—distinct from the Content calendar.',
-      path: '/dashboard/content-library',
-      targetSelector: '[data-tour="/dashboard/content-library"]',
-    },
-    {
-      id: 'full-11',
       title: 'AI Studio overview',
       description:
         'Media and Vault plus the tools library: captions, churn, competitor insights, gifts, Cupid onboarding for newest fans, and more. Pro tools show credit costs.',
@@ -94,7 +86,7 @@ export const fullAppWelcomeTour: TourConfig = {
       targetSelector: '[data-tour="/dashboard/ai-studio"]',
     },
     {
-      id: 'full-12',
+      id: 'full-11',
       title: 'AI credits and Pro',
       description:
         'Many runs consume AI credits (see subscription and tool cards). Upgrade or manage limits under Settings and billing when you need more headroom.',
@@ -135,7 +127,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-17',
       title: 'Retention and churn hub',
       description:
-        'Scheduled churn digests, at-risk fans from CRM rules, protocols and tasks—aligns with background jobs and notifications when enabled.',
+        'Scheduled churn scans, at-risk fans from your rules, protocols and tasks—aligns with background jobs and notifications when enabled.',
       path: '/dashboard/retention/churn',
       targetSelector: '[data-tour="/dashboard/retention/churn"]',
     },
@@ -143,7 +135,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-18',
       title: 'Churn Predictor tool',
       description:
-        'In AI Studio: per-fan churn reads with CRM and thread context—different from the batch Retention digest; use both for strategy.',
+        'In AI Studio: per-fan churn reads with fan records and thread context—different from the batch Retention report; use both for strategy.',
       path: '/dashboard/ai-studio?tab=tools',
       targetSelector: '[data-tour="ai-studio-tools-tab"]',
     },
@@ -164,7 +156,7 @@ export const fullAppWelcomeTour: TourConfig = {
     },
     {
       id: 'full-21',
-      title: 'Fans CRM',
+      title: 'Fans',
       description:
         'Search, tags, notes, arrangements—your system of record for subscribers across platforms; sync from integrations.',
       path: '/dashboard/fans',
@@ -174,14 +166,15 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-22',
       title: 'Fan classification',
       description:
-        'Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Housekeeping segments.',
-      path: '/dashboard/fans/classify',
+        'Rules to label fans by behavior or spend; results feed lists and automations—keep aligned with Fan Atlas segments.',
+      path: '/dashboard/fans',
+      targetSelector: '[data-tour="fans-classify"]',
     },
     {
       id: 'full-23',
-      title: 'Housekeeping',
+      title: 'Commenter',
       description:
-        'Post and story comments from OnlyFans: persona drafts (Circe, Venus, Flirt, Pro), safety flags, review-before-post. Smart classify: spend, thread activity, freeloader buckets—sync to OnlyFans lists and Fansly tags from Fans → Arrangements or this page.',
+        'Post and story comments from OnlyFans: persona drafts (Circe, Venus, Flirt, Pro), safety flags, review-before-post. Fan Atlas (smart classify): spend, thread activity, freeloader buckets—sync to OnlyFans lists and Fansly tags from Fans → Arrangements or this page.',
       path: '/dashboard/commenter',
       targetSelector: '[data-tour="/dashboard/commenter"]',
     },
@@ -220,7 +213,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-29',
       title: 'Settings',
       description:
-        'Integrations (OnlyFans, Fansly, billing), preferences, security, housekeeping list rules at a glance—connect accounts early for accurate CRM.',
+        'Integrations (OnlyFans, Fansly, billing), preferences, security, Fan Atlas list rules at a glance—connect accounts early for accurate fan data.',
       path: '/dashboard/settings',
       targetSelector: '[data-tour="/dashboard/settings"]',
     },
@@ -234,9 +227,9 @@ export const fullAppWelcomeTour: TourConfig = {
     },
     {
       id: 'full-31',
-      title: 'Header: Start Tour',
+      title: 'Header: live tour',
       description:
-        'On any page, Start Tour in the header opens a short walkthrough for that screen (on mobile, use the menu button if the header control is tucked away). This full tour lives on Welcome—you can return here from Settings or Guide.',
+        'On any page, Start live tour or Launch live tour in the header opens this full tour again (via Welcome). On small screens, use the menu if the header control is hidden.',
       path: '/dashboard',
       targetSelector: '[data-tour="header-start-tour"]',
       targetSelectorFallback: '[data-tour="header-start-tour-mobile"]',
@@ -245,7 +238,7 @@ export const fullAppWelcomeTour: TourConfig = {
       id: 'full-32',
       title: 'You are oriented',
       description:
-        'Explore the sidebar in any order. When you open a new area, tap Start Tour there for specifics. Open Guide anytime for detail.',
+        'Explore the sidebar in any order. Replay this tour anytime from the header or Guide. Open Guide for depth and troubleshooting.',
       path: '/dashboard/welcome',
       targetSelector: '[data-tour="welcome-card"]',
     },

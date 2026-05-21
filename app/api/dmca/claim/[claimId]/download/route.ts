@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ claimId: string }> },
 ) {
   const { claimId } = await params
-  const supabase = await createRouteHandlerClient(request)
+  const supabase = await createRouteHandlerClient(_req)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

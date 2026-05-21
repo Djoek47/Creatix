@@ -57,13 +57,27 @@ export function DivineTextSheet({
                 panelCtx.chatMessages.map((m, idx) => (
                   <div
                     key={idx}
-                    className={`max-w-[90%] rounded-lg px-2 py-1.5 ${
+                    className={`max-w-[90%] space-y-1.5 rounded-lg px-2 py-1.5 ${
                       m.role === 'user'
                         ? 'ml-auto bg-primary text-primary-foreground'
                         : 'mr-auto bg-muted text-foreground'
                     }`}
                   >
-                    {m.content}
+                    <span className="whitespace-pre-wrap">{m.content}</span>
+                    {m.role === 'assistant' && m.showRetryOffer ? (
+                      <div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={panelCtx.chatLoading}
+                          className="h-8 text-xs"
+                          onClick={() => void panelCtx.retryLastDivineTurn()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}

@@ -1,7 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { VAULT_MEDIA_BUCKET } from '@/lib/frame-vault-media'
 
 const SPOILER_LEVELS = new Set(['none', 'mild', 'explicit'])
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params
+  const supabase = await createRouteHandlerClient(req)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+  }
+
+  const service = createServiceClient(url, key)
+
+  const { data: row, error: fetchErr } = await service
+    .from('content')
+    .select('id,vault_storage_path')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (fetchErr) {
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 })
+  }
+  if (!row) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const storagePath = (row as { vault_storage_path?: string | null }).vault_storage_path?.trim()
+  if (storagePath) {
+    const { error: rmErr } = await service.storage.from(VAULT_MEDIA_BUCKET).remove([storagePath])
+    if (rmErr) {
+      console.warn('[vault DELETE] storage remove failed', rmErr.message)
+    }
+  }
+
+  const { error: delErr } = await service.from('content').delete().eq('id', id).eq('user_id', user.id)
+
+  if (delErr) {
+    return NextResponse.json({ error: delErr.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params

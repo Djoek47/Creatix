@@ -2,21 +2,49 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { runOnlyFansFullChatScan } from '@/lib/fans/onlyfans-chat-scan-client'
+import { postQuickFanPlatformSync } from '@/lib/fans/post-quick-fan-sync'
 import { runAllThreadInsightBatches } from '@/lib/fans/thread-insights-batch-client'
-import { ChevronDown, Loader2, Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
-import Link from 'next/link'
+import { ChevronDown, Loader2, RefreshCw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { cn } from '@/lib/utils'
 import type { FansFilter } from './fans-page-client'
+
+function filterTriggerLabel(t: (key: string) => string, filter: FansFilter): string {
+  switch (filter) {
+    case 'database':
+      return t('header.filterTrigger.database')
+    case 'expiring':
+      return t('header.filterTrigger.expiring')
+    case 'active':
+      return t('header.filterTrigger.active')
+    case 'expired':
+      return t('header.filterTrigger.expired')
+    case 'latest':
+      return t('header.filterTrigger.latest')
+    case 'top':
+      return t('header.filterTrigger.top')
+    default:
+      return t('header.filterTrigger.database')
+  }
+}
+
+function filterDataSourceLine(t: (key: string) => string, filter: FansFilter): string {
+  return filter === 'database' || filter === 'expiring' ? t('header.dataSource.crm') : t('header.dataSource.live')
+}
 
 interface FansHeaderProps {
   filter?: FansFilter
@@ -39,32 +67,25 @@ export function FansHeader({
   loadingLive = false,
   onSyncStatus,
 }: FansHeaderProps = {}) {
+  const t = useTranslations('fans')
   const router = useRouter()
   const [syncBusy, setSyncBusy] = useState(false)
 
-  async function quickPlatformSync(): Promise<void> {
-    const [ofRes, flRes] = await Promise.all([
-      fetch('/api/onlyfans/sync', { method: 'POST' }),
-      fetch('/api/fansly/sync', { method: 'POST' }),
-    ])
-    if (!ofRes.ok && !flRes.ok) {
-      // No connections or both failed — still refresh
-    }
-  }
+  const liveEnabled = hasOnlyFansConnected || hasFanslyConnected
 
   async function handleQuickSync() {
     if (!hasFanPlatformsConnected) {
-      onSyncStatus?.('Connect OnlyFans or Fansly in Settings to sync.')
+      onSyncStatus?.(t('header.statusConnectPlatforms'))
       return
     }
     setSyncBusy(true)
-    onSyncStatus?.('Syncing subscribers and stats from connected platforms…')
+    onSyncStatus?.(t('header.statusSyncingSubscribers'))
     try {
-      await quickPlatformSync()
-      onSyncStatus?.('Quick sync finished.')
+      await postQuickFanPlatformSync()
+      onSyncStatus?.(t('header.statusQuickSyncDone'))
       router.refresh()
     } catch {
-      onSyncStatus?.('Quick sync failed — try again or reconnect the platform.')
+      onSyncStatus?.(t('header.statusQuickSyncFailed'))
     } finally {
       setSyncBusy(false)
     }
@@ -78,13 +99,13 @@ export function FansHeader({
     setSyncBusy(true)
     onSyncStatus?.('Step 1/2: syncing subscribers and stats…')
     try {
-      await quickPlatformSync()
+      await postQuickFanPlatformSync()
       router.refresh()
       if (!hasOnlyFansConnected) {
-        onSyncStatus?.('Quick sync done. Connect OnlyFans to include all DM threads in CRM.')
+        onSyncStatus?.(t('header.statusOfDmHint'))
         return
       }
-      onSyncStatus?.('Step 2/2: walking every OnlyFans DM and saving subscription data to CRM…')
+      onSyncStatus?.(t('header.statusStep2'))
       const chat = await runOnlyFansFullChatScan((m) => onSyncStatus?.(m))
       if (chat.error) {
         onSyncStatus?.(chat.error)
@@ -94,7 +115,10 @@ export function FansHeader({
         return
       }
       onSyncStatus?.(
-        `Full CRM update done: ${chat.totalSynced} profiles from DMs${chat.totalFailed ? ` (${chat.totalFailed} errors)` : ''}.`,
+        t('header.fullCrmDone', {
+          totalSynced: chat.totalSynced,
+          errorPart: chat.totalFailed ? t('header.fullCrmErrors', { count: chat.totalFailed }) : '',
+        }),
       )
       router.refresh()
     } catch {
@@ -106,15 +130,15 @@ export function FansHeader({
 
   async function handleThreadInsightsAll() {
     if (filter !== 'database') {
-      onSyncStatus?.('Switch the fan list to “From database” first, then run this again.')
+      onSyncStatus?.(t('header.statusSwitchAllSynced'))
       return
     }
     if (!hasOnlyFansConnected) {
-      onSyncStatus?.('Connect OnlyFans to refresh thread insights.')
+      onSyncStatus?.(t('header.statusConnectOfInsights'))
       return
     }
     setSyncBusy(true)
-    onSyncStatus?.('Refreshing stored thread insights for all CRM fans (may take a while)…')
+    onSyncStatus?.(t('header.statusThreadInsightsRunning'))
     try {
       const r = await runAllThreadInsightBatches((m) => onSyncStatus?.(m))
       if (r.error) {
@@ -123,7 +147,7 @@ export function FansHeader({
       }
       router.refresh()
     } catch {
-      onSyncStatus?.('Thread insights refresh failed.')
+      onSyncStatus?.(t('header.statusThreadInsightsFailed'))
     } finally {
       setSyncBusy(false)
     }
@@ -132,55 +156,42 @@ export function FansHeader({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end min-w-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap sm:ml-auto">
-        <div className="relative w-full sm:w-auto min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search fans..."
-            className="w-full bg-input pl-9 sm:w-64 min-h-[44px] sm:min-h-0"
-          />
-        </div>
-
         <div className="flex flex-wrap gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="gap-1.5 min-h-[44px] sm:min-h-9"
-                disabled={syncBusy || loadingLive}
-                title="Sync subscribers, all DM threads, or thread insights"
+                className="gap-1.5 rounded-full border-border/40 min-h-[44px] px-4 shadow-none hover:bg-muted/40 sm:min-h-[2.5rem]"
+                disabled={syncBusy}
+                title={t('header.syncMenuAria')}
               >
                 {syncBusy ? (
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4 shrink-0" />
                 )}
-                <span className="hidden sm:inline">Sync</span>
+                <span className="hidden sm:inline">{t('header.syncMenuTitle')}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)]">
               <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                One menu — pick how deep to update the CRM
+                {t('header.syncMenuHelp')}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 disabled={!hasFanPlatformsConnected || syncBusy}
                 onClick={() => void handleQuickSync()}
               >
-                <span className="font-medium">Quick sync</span>
-                <span className="block text-xs text-muted-foreground">
-                  Subscribers list + analytics (OnlyFans & Fansly)
-                </span>
+                <span className="font-medium">{t('header.quickSyncTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.quickSyncDesc')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!hasFanPlatformsConnected || syncBusy}
                 onClick={() => void handleFullCrmUpdate()}
               >
-                <span className="font-medium">Full CRM update</span>
-                <span className="block text-xs text-muted-foreground">
-                  Quick sync, then walk every OnlyFans DM (subs, expiry, spend). Fansly has no full DM walk yet—use
-                  Quick sync for Fansly subscribers.
-                </span>
+                <span className="font-medium">{t('header.fullCrmTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.fullCrmDesc')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -189,77 +200,174 @@ export function FansHeader({
                 }
                 onClick={() => void handleThreadInsightsAll()}
               >
-                <span className="font-medium">Thread insights (full pass)</span>
-                <span className="block text-xs text-muted-foreground">
-                  AI thread snapshots for all fans in CRM — use “From database” view
-                </span>
+                <span className="font-medium">{t('header.threadInsightsTitle')}</span>
+                <span className="block text-xs text-muted-foreground">{t('header.threadInsightsDesc')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 min-h-[44px] sm:min-h-0">
-                <Filter className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline truncate max-w-[140px]">
-                  {filter === 'database'
-                    ? 'From database'
-                    : filter === 'expiring'
-                      ? 'Expiring soon (CRM)'
-                      : filter === 'active'
-                        ? 'Live: Active'
-                        : filter === 'expired'
-                          ? 'Live: Expired'
-                          : filter === 'latest'
-                            ? 'Live: Latest'
-                            : filter === 'top'
-                              ? 'Live: Top'
-                              : 'Filter'}
+              <Button
+                variant="outline"
+                className={cn(
+                  '!flex h-auto min-h-[44px] w-full max-w-[min(100%,18rem)] items-start justify-between gap-3 rounded-full whitespace-normal sm:w-auto',
+                  'border-border/40 bg-background/50 px-4 py-2.5 shadow-none',
+                  'transition-[background-color,border-color,color] duration-200 hover:bg-muted/40 sm:min-h-[2.5rem] sm:min-w-[12.5rem] sm:py-2',
+                )}
+                title={t('header.filterMenuTitle')}
+                aria-label={t('header.filterMenuAria', {
+                  label: filterTriggerLabel(t, filter),
+                  source: filterDataSourceLine(t, filter),
+                })}
+                type="button"
+                disabled={syncBusy}
+              >
+                <span className="flex min-w-0 flex-1 flex-col items-start text-left">
+                  <span
+                    className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                    aria-hidden
+                  >
+                    {t('header.fanListKicker')}
+                  </span>
+                  <span className="mt-0.5 truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
+                    {filterTriggerLabel(t, filter)}
+                  </span>
+                  <span className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
+                    {filterDataSourceLine(t, filter)}
+                  </span>
                 </span>
+                <ChevronDown
+                  className="mt-1 h-4 w-4 shrink-0 opacity-45"
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onFilterChange?.('database')}>
-                From database
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onFilterChange?.('expiring')}>
-                Expiring soon (CRM, 14 days)
-              </DropdownMenuItem>
-              {(hasOnlyFansConnected || hasFanslyConnected) && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onFilterChange?.('active')}>
-                    Live: Active
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('expired')}>
-                    Live: Expired
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('latest')}>
-                    Live: Latest
-                    <span className="block text-xs text-muted-foreground">
-                      OnlyFans: newest subscribers; Fansly: active list (API)
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-[min(calc(100vw-2rem),21rem)] rounded-2xl border-border/50 p-2 shadow-lg"
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              <DropdownMenuLabel className="px-3 pb-2 pt-1.5 text-[11px] font-medium leading-snug text-muted-foreground">
+                {t('header.filterSectionTable')}
+              </DropdownMenuLabel>
+
+              <DropdownMenuRadioGroup
+                value={filter}
+                onValueChange={(value) => onFilterChange?.(value as FansFilter)}
+              >
+                <DropdownMenuGroup className="space-y-0.5">
+                  <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
+                    {t('header.filterSectionCrm')}
+                  </div>
+                  <DropdownMenuRadioItem
+                    value="database"
+                    disabled={syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.allSyncedFansTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.allSyncedFansDesc')}</span>
                     </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFilterChange?.('top')}>
-                    Live: Top spenders
-                    <span className="block text-xs text-muted-foreground">
-                      OnlyFans: by spend; Fansly: active list (API)
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="expiring"
+                    disabled={syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.renewalsTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.renewalsDesc')}</span>
                     </span>
-                  </DropdownMenuItem>
-                </>
-              )}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="my-2 bg-border/60" />
+
+                <DropdownMenuGroup className="space-y-0.5">
+                  <div className="flex items-baseline justify-between gap-2 px-3 pb-1.5 pt-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/90">
+                      {t('header.liveSnapshot')}
+                    </span>
+                    {loadingLive ? (
+                      <span className="text-[10px] font-normal text-muted-foreground">{t('header.liveUpdating')}</span>
+                    ) : null}
+                  </div>
+
+                  {!liveEnabled ? (
+                    <p className="px-3 pb-2 text-[12px] leading-relaxed text-muted-foreground">
+                      {t('header.liveConnectPromptBefore')}{' '}
+                      <Link
+                        href="/dashboard/settings?tab=integrations"
+                        className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+                      >
+                        {t('header.liveConnectLink')}
+                      </Link>{' '}
+                      {t('header.liveConnectPromptAfter')}
+                    </p>
+                  ) : null}
+
+                  <DropdownMenuRadioItem
+                    value="active"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.activeSubsTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.activeSubsDesc')}</span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="expired"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.recentlyExpiredTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.recentlyExpiredDesc')}</span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="latest"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.newestFirstTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.newestFirstDesc')}</span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="top"
+                    disabled={!liveEnabled || syncBusy}
+                    className="cursor-pointer rounded-xl px-3 py-3"
+                  >
+                    <span className="flex flex-col gap-1">
+                      <span className="text-[15px] font-semibold leading-none tracking-tight text-foreground">
+                        {t('header.highestSpendTitle')}
+                      </span>
+                      <span className="text-[12px] leading-snug text-muted-foreground">{t('header.highestSpendDesc')}</span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuGroup>
+              </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator className="my-2 bg-border/60" />
+
+              <p className="px-3 pb-1.5 text-[11px] leading-relaxed text-muted-foreground">{t('header.footerHint')}</p>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0">
-            <Download className="h-4 w-4" />
-          </Button>
-
-          <Link href="/dashboard/fans/new">
-            <Button className="gap-2 min-h-[44px] sm:min-h-0">
-              <Plus className="h-4 w-4" />
-              Add Fan
-            </Button>
-          </Link>
         </div>
       </div>
     </div>

@@ -1,38 +1,13 @@
 import { generateText } from 'ai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { insertDivineAppNotification } from '@/lib/notifications/divine-app-notification'
-import { isPaidSubscription } from '@/lib/billing/access'
-import { consumeAiCredits } from '@/lib/billing/consume-ai-credits'
-import { effectiveMonthlyCreditLimit, type SubscriptionRowForCredits } from '@/lib/billing/credit-economics'
-import {
-  extractChurnFanSignalsFromDigest,
-  normalizeRiskLevel,
-} from '@/lib/circe-churn/parse-digest-json'
+import { canUseCreditGatedProFeature } from '@/lib/billing/access'
+import { hasEnoughAiCredits } from '@/lib/billing/consume-ai-credits'
+import { formatCalendarTeaserNotesForPrompt } from '@/lib/circe-churn/calendar-teaser-notes-format'
+import type { CirceChurnSettingsRow } from '@/lib/circe-churn/circe-churn-types'
+import { persistCirceChurnMarkdownDigest } from '@/lib/circe-churn/churn-finale'
 
-export type CirceChurnSettingsRow = {
-  user_id: string
-  enabled: boolean
-  run_cadence: 'off' | 'daily' | 'weekly'
-  run_hour_utc: number
-  expiring_within_days: number
-  stale_interaction_days: number
-  include_stale_active: boolean
-  max_fans_per_run: number
-  notify_on_run_summary: boolean
-  notify_when_empty: boolean
-  credits_per_run: number
-  link_divine_manager_tasks?: boolean
-  link_protocol_tasks?: boolean
-  /** When true (default), digest includes future-drop / calendar teaser lines for at-risk fans. */
-  tease_future_content?: boolean
-  /** Optional creator notes: upcoming themes, days, or drops for teaser ideas. */
-  calendar_teaser_notes?: string | null
-  last_run_at: string | null
-  last_run_error: string | null
-  last_digest_excerpt: string | null
-  last_digest_markdown?: string | null
-  last_digest_at?: string | null
-}
+export type { CirceChurnSettingsRow }
 
 export function defaultCirceChurnSettings(userId: string): CirceChurnSettingsRow {
   return {
@@ -206,7 +181,7 @@ export type RunCirceChurnForUserResult = {
 export async function runCirceChurnForUser(
   supabase: SupabaseClient,
   settings: CirceChurnSettingsRow,
-  options?: { dryRun?: boolean; now?: Date; force?: boolean },
+  options?: { dryRun?: boolean; now?: Date; force?: boolean; overrideMaxFans?: number },
 ): Promise<RunCirceChurnForUserResult> {
   const now = options?.now ?? new Date()
   const dryRun = options?.dryRun === true || process.env.CHURN_DRY_RUN === 'true'
@@ -226,14 +201,13 @@ export async function runCirceChurnForUser(
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (!isPaidSubscription(sub as { plan_id?: string | null; status?: string | null } | null)) {
-    return { ran: false, skippedReason: 'not_pro' }
+  if (!canUseCreditGatedProFeature(sub as { plan_id?: string | null; status?: string | null } | null)) {
+    return { ran: false, skippedReason: 'not_entitled' }
   }
 
-  const used = (sub as { ai_credits_used?: number } | null)?.ai_credits_used ?? 0
-  const limit = effectiveMonthlyCreditLimit(sub as SubscriptionRowForCredits & { ai_credits_limit?: number | null })
-  const creditsNeeded = settings.credits_per_run ?? 2
-  if (used + creditsNeeded > limit) {
+  const creditsNeeded = Math.min(10, Math.max(1, Math.round(Number(settings.credits_per_run ?? 2))))
+  const creditCheck = await hasEnoughAiCredits(supabase, userId, creditsNeeded)
+  if (!creditCheck.ok) {
     const ts = now.toISOString()
     await supabase
       .from('circe_churn_settings')
@@ -242,14 +216,26 @@ export async function runCirceChurnForUser(
     return { ran: false, skippedReason: 'no_credits' }
   }
 
-  const { data: fanRows, error: fanErr } = await supabase
-    .from('fans')
-    .select(
-      'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing',
-    )
-    .eq('user_id', userId)
-    .in('platform', ['onlyfans', 'fansly'])
-    .limit(400)
+  const maxFansEffective = Math.min(
+    25,
+    Math.max(
+      1,
+      typeof options?.overrideMaxFans === 'number'
+        ? Math.round(options.overrideMaxFans)
+        : Math.round(Number(settings.max_fans_per_run) || 6),
+    ),
+  )
+
+  const fanSelect =
+    'id, platform, platform_fan_id, username, display_name, total_spent, subscription_status, subscription_tier, last_interaction_at, first_subscribed_at, notes, subscription_expires_at, subscription_renews_on, is_renewing'
+
+  const [onlyfansRes, fanslyRes] = await Promise.all([
+    supabase.from('fans').select(fanSelect).eq('user_id', userId).eq('platform', 'onlyfans').limit(2500),
+    supabase.from('fans').select(fanSelect).eq('user_id', userId).eq('platform', 'fansly').limit(2500),
+  ])
+
+  const fanErr = onlyfansRes.error ?? fanslyRes.error
+  const fanRows = [...(onlyfansRes.data || []), ...(fanslyRes.data || [])]
 
   if (fanErr) {
     return { ran: false, skippedReason: 'fan_query', error: fanErr.message }
@@ -259,7 +245,7 @@ export async function runCirceChurnForUser(
     expiringWithinDays: settings.expiring_within_days,
     staleInteractionDays: settings.stale_interaction_days,
     includeStaleActive: settings.include_stale_active,
-    maxFans: settings.max_fans_per_run,
+    maxFans: maxFansEffective,
   })
 
   const ts = now.toISOString()
@@ -341,8 +327,41 @@ export async function runCirceChurnForUser(
       ? `
 
 Creator upcoming content / calendar notes (optional — use only for teaser ideas; if empty, suggest generic angles):
-${(settings.calendar_teaser_notes || '').trim() || '(not provided)'}`
+${formatCalendarTeaserNotesForPrompt(settings.calendar_teaser_notes)}`
       : ''
+
+  const useWebhookChurn = Boolean(process.env.OPENAI_WEBHOOK_SECRET?.trim())
+  if (useWebhookChurn) {
+    try {
+      const { createOpenAiBackgroundJob } = await import('@/lib/openai/background-jobs')
+      const prompt = `Analyze this batch of CRM fans for retention.\n\n${blocks.join('\n\n---\n\n')}${calendarBlock}`
+      const system = `${churnDigestSystemPrompt(settings)}\n\nStay practical, adult-platform appropriate, no illegal or coercive tactics.`
+      const bg = await createOpenAiBackgroundJob({
+        userId,
+        feature: 'churn_run',
+        input: prompt.slice(0, 120_000),
+        instructions: system.slice(0, 20_000),
+        requestMetadata: {
+          creditsNeeded,
+          candidateIds: candidates.map((c) => c.id),
+          ts_iso: ts,
+        },
+      })
+      if (bg.ok) {
+        await supabase
+          .from('circe_churn_settings')
+          .update({
+            last_run_at: ts,
+            last_run_error: null,
+            updated_at: ts,
+          })
+          .eq('user_id', userId)
+        return { ran: true, candidates: candidates.length, skippedReason: 'queued_openai_webhook' }
+      }
+    } catch (e) {
+      console.warn('[circe-churn] openai webhook queue failed; falling back to sync', e)
+    }
+  }
 
   let digest = ''
   try {
@@ -365,99 +384,20 @@ ${blocks.join('\n\n---\n\n')}${calendarBlock}`,
     return { ran: true, candidates: candidates.length, error: msg }
   }
 
-  const excerpt = digest.slice(0, 500)
-
-  const consumed = await consumeAiCredits(supabase, userId, creditsNeeded)
-  if (!consumed.ok) {
-    const tsErr = now.toISOString()
-    await supabase
-      .from('circe_churn_settings')
-      .update({ last_run_at: tsErr, last_run_error: 'Insufficient AI credits', updated_at: tsErr })
-      .eq('user_id', userId)
-    return { ran: true, candidates: candidates.length, error: 'Insufficient AI credits' }
-  }
-
-  await supabase
-    .from('circe_churn_settings')
-    .update({
-      last_run_at: ts,
-      last_run_error: null,
-      last_digest_excerpt: excerpt,
-      last_digest_markdown: digest.slice(0, 24000),
-      last_digest_at: ts,
-      updated_at: ts,
-    })
-    .eq('user_id', userId)
-
-  const allowedIds = new Set(candidates.map((c) => c.id))
-  const signals = extractChurnFanSignalsFromDigest(digest)
-  for (const sig of signals) {
-    if (!allowedIds.has(sig.fanId)) continue
-    const fan = candidates.find((c) => c.id === sig.fanId)
-    const pfid = fan?.platform_fan_id?.trim()
-    if (!fan || !pfid) continue
-    const plat = fan.platform === 'fansly' ? 'fansly' : 'onlyfans'
-    await supabase.from('fan_churn_snapshots').upsert(
-      {
-        user_id: userId,
-        fan_id: fan.id,
-        platform: plat,
-        platform_fan_id: pfid,
-        risk_level: normalizeRiskLevel(sig.risk),
-        one_line: sig.one_line.slice(0, 500),
-        updated_at: ts,
-      },
-      { onConflict: 'user_id,fan_id' },
-    )
-  }
-
-  const linkMgr = settings.link_divine_manager_tasks !== false
-  const linkProto = settings.link_protocol_tasks !== false
-  if (candidates.length > 0 && linkMgr) {
-    await supabase.from('divine_manager_tasks').insert({
-      user_id: userId,
-      type: 'churn_retention_digest',
-      category: 'retention',
-      status: 'suggested',
-      payload: {
-        summary: `Churn digest: ${candidates.length} at-risk fan${candidates.length === 1 ? '' : 's'}`,
-        excerpt: excerpt.slice(0, 400),
-        link: '/dashboard/retention/churn',
-        fan_ids: candidates.map((c) => c.id),
-      },
-      source: 'circe_churn',
-    })
-  }
-  if (candidates.length > 0 && linkProto) {
-    const planDate = new Date().toISOString().slice(0, 10)
-    await supabase.from('creator_protocol_tasks').insert({
-      user_id: userId,
-      title: `Retention: ${candidates.length} fan${candidates.length === 1 ? '' : 's'} flagged by Churn Predictor`,
-      body: excerpt.slice(0, 2000),
-      status: 'pending',
-      source: 'divine',
-      metadata: { kind: 'churn_batch', fan_count: candidates.length },
-      plan_date: planDate,
-      priority_tier: 2,
-      sort_order: 0,
-    })
-  }
-
-  if (settings.notify_on_run_summary) {
-    const first = candidates[0]
-    await insertDivineAppNotification(supabase, userId, {
-      type: 'fan',
-      title: `Churn Predictor: ${candidates.length} subscriber${candidates.length === 1 ? '' : 's'} need attention`,
-      description: excerpt ? `${excerpt}${digest.length > 500 ? '…' : ''}` : digest.slice(0, 400),
-      link: '/dashboard/retention/churn',
-      platform: first.platform === 'fansly' ? 'fansly' : 'onlyfans',
-      platform_fan_id: first.platform_fan_id,
-      metadata: {
-        kind: 'churn_background',
-        fan_count: candidates.length,
-        credits_charged: creditsNeeded,
-      },
-    })
+  const persisted = await persistCirceChurnMarkdownDigest(supabase, {
+    userId,
+    settings,
+    digest,
+    candidates: candidates.map((c) => ({
+      id: c.id,
+      platform: c.platform,
+      platform_fan_id: c.platform_fan_id,
+    })),
+    creditsNeeded,
+    tsISO: ts,
+  })
+  if (!persisted.ok) {
+    return { ran: true, candidates: candidates.length, error: persisted.error }
   }
 
   return { ran: true, candidates: candidates.length, creditsCharged: creditsNeeded }

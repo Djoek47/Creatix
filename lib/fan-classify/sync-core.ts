@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createOnlyFansAPI } from '@/lib/onlyfans-api'
+import {
+  createOnlyFansAPI,
+  ONLYFANS_USER_LIST_PAGE_MAX,
+} from '@/lib/onlyfans-api'
 import type { FanClassifyConfig, FanClassifySegmentRule } from '@/lib/divine-manager'
 import {
   defaultFanClassifyListName,
@@ -7,26 +10,9 @@ import {
 } from '@/lib/divine-manager'
 import type { ClassifyFanRow } from '@/lib/fan-classify/evaluate'
 import { fanMatchesClassifySegment } from '@/lib/fan-classify/evaluate'
+import { formatClassifyOnlyFansError } from '@/lib/fan-classify/onlyfans-classify-errors'
 
 type LegacySegmentKey = 'whale_spend' | 'active_chatter' | 'cold'
-
-function unwrapListPayload(raw: unknown): { id: string; name?: string }[] {
-  if (!raw || typeof raw !== 'object') return []
-  const o = raw as Record<string, unknown>
-  const arr = o.data ?? o.lists ?? o.items ?? raw
-  if (!Array.isArray(arr)) return []
-  const out: { id: string; name?: string }[] = []
-  for (const row of arr) {
-    if (!row || typeof row !== 'object') continue
-    const r = row as Record<string, unknown>
-    const id = r.id ?? r.userListId
-    if (id == null) continue
-    const item: { id: string; name?: string } = { id: String(id) }
-    if (r.name != null) item.name = String(r.name)
-    out.push(item)
-  }
-  return out
-}
 
 function unwrapUserIds(raw: unknown): string[] {
   if (!raw || typeof raw !== 'object') return []
@@ -63,7 +49,12 @@ function rowToClassifyFan(r: Record<string, unknown>): ClassifyFanRow | null {
     subscription_status: r.subscription_status != null ? String(r.subscription_status) : null,
     subscription_account_type: r.subscription_account_type != null ? String(r.subscription_account_type) : null,
     first_subscribed_at: r.first_subscribed_at != null ? String(r.first_subscribed_at) : null,
-    subscription_start: r.subscription_start != null ? String(r.subscription_start) : null,
+    subscription_start:
+      r.subscription_start != null
+        ? String(r.subscription_start)
+        : r.first_subscribed_at != null
+          ? String(r.first_subscribed_at)
+          : null,
     created_at: r.created_at != null ? String(r.created_at) : null,
     last_interaction_at: r.last_interaction_at != null ? String(r.last_interaction_at) : null,
     spend_tips: r.spend_tips != null ? Number(r.spend_tips) : null,
@@ -79,7 +70,7 @@ async function fetchAllListUserIds(
 ): Promise<Set<string>> {
   const ids = new Set<string>()
   let offset = 0
-  const page = 100
+  const page = ONLYFANS_USER_LIST_PAGE_MAX
   for (;;) {
     const res = await api.listUserListUsers(listId, { limit: page, offset })
     const chunk = unwrapUserIds(res)
@@ -207,8 +198,9 @@ async function syncLegacyOnlyFansSegment(
       if (chats.length < page) break
     }
     let off2 = 0
+    const activeFanPage = 20 // partner max per GET /fans/active
     for (let pageIdx = 0; pageIdx < 40; pageIdx++) {
-      const pack = await api.getFansActive({ limit: page, offset: off2 })
+      const pack = await api.getFansActive({ limit: activeFanPage, offset: off2 })
       const raw = pack.data || []
       if (raw.length === 0) break
       for (const row of raw) {
@@ -217,8 +209,8 @@ async function syncLegacyOnlyFansSegment(
         const sp = Number(r.totalSpent ?? 0)
         if (id && !activeIds.has(id) && sp <= coldMax) desired.add(id)
       }
-      off2 += page
-      if (raw.length < page) break
+      off2 += activeFanPage
+      if (raw.length < activeFanPage) break
     }
   }
 
@@ -252,7 +244,8 @@ export async function syncFanClassifyForUser(
   const { data: fanRows, error: fanErr } = await supabase
     .from('fans')
     .select(
-      'id, platform, platform_fan_id, total_spent, subscription_price, subscription_status, subscription_account_type, first_subscribed_at, subscription_start, created_at, last_interaction_at, spend_tips, spend_messages, spend_posts, spend_subscriptions',
+      // Omit subscription_start: many DBs only have first_subscribed_at (001); classify uses both in-memory below.
+      'id, platform, platform_fan_id, total_spent, subscription_price, subscription_status, subscription_account_type, first_subscribed_at, created_at, last_interaction_at, spend_tips, spend_messages, spend_posts, spend_subscriptions',
     )
     .eq('user_id', userId)
 
@@ -271,10 +264,15 @@ export async function syncFanClassifyForUser(
   let existingLists: { id: string; name?: string }[] = []
 
   if (ofToken) {
-    api = createOnlyFansAPI()
-    api.setAccountId(ofToken)
-    const listsPayload = await api.listUserLists({ limit: 100, offset: 0 })
-    existingLists = unwrapListPayload(listsPayload)
+    try {
+      api = createOnlyFansAPI()
+      api.setAccountId(ofToken)
+      existingLists = await api.listUserListsCollectAll()
+    } catch (e) {
+      details.push(`OnlyFans (lists): ${formatClassifyOnlyFansError(e)}`)
+      api = null
+      existingLists = []
+    }
   }
 
   const autoCreate = config.auto_create_lists === true
@@ -320,24 +318,30 @@ export async function syncFanClassifyForUser(
     }
 
     if (ofToken && api) {
-      const listId = await resolveOnlyFansListId(rule)
-      if (!listId) {
-        details.push(`skip ${rule.segment} (onlyfans): no list`)
-      } else if (legacyOf) {
-        await syncLegacyOnlyFansSegment(api, rule, listId, details)
-      } else {
-        const current = await fetchAllListUserIds(api, listId)
-        const toAdd = [...ofDesiredCrm].filter((id) => !current.has(id))
-        const toRemove = [...current].filter((id) => !ofDesiredCrm.has(id))
-        const batch = 40
-        for (let i = 0; i < toAdd.length; i += batch) {
-          await api.addUsersToUserList(listId, toAdd.slice(i, i + batch))
+      try {
+        const listId = await resolveOnlyFansListId(rule)
+        if (!listId) {
+          details.push(`skip ${rule.segment} (onlyfans): no list`)
+        } else if (legacyOf) {
+          await syncLegacyOnlyFansSegment(api, rule, listId, details)
+        } else {
+          const current = await fetchAllListUserIds(api, listId)
+          const toAdd = [...ofDesiredCrm].filter((id) => !current.has(id))
+          const toRemove = [...current].filter((id) => !ofDesiredCrm.has(id))
+          const batch = 40
+          for (let i = 0; i < toAdd.length; i += batch) {
+            await api.addUsersToUserList(listId, toAdd.slice(i, i + batch))
+          }
+          for (let i = 0; i < toRemove.length; i += batch) {
+            const slice = toRemove.slice(i, i + batch)
+            await Promise.all(slice.map((uid) => api.removeUserFromUserList(listId, uid)))
+          }
+          details.push(
+            `${rule.segment} (onlyfans crm): +${toAdd.length} −${toRemove.length} (target ${ofDesiredCrm.size})`,
+          )
         }
-        for (let i = 0; i < toRemove.length; i += batch) {
-          const slice = toRemove.slice(i, i + batch)
-          await Promise.all(slice.map((uid) => api.removeUserFromUserList(listId, uid)))
-        }
-        details.push(`${rule.segment} (onlyfans crm): +${toAdd.length} −${toRemove.length} (target ${ofDesiredCrm.size})`)
+      } catch (e) {
+        details.push(`${rule.segment} (onlyfans): ${formatClassifyOnlyFansError(e)}`)
       }
     }
 
@@ -446,43 +450,46 @@ async function reconcileActiveChat(
   const cutoff = Date.now() - windowMs
 
   if (api && (ac.list_id || ac.list_name || config.auto_create_lists)) {
-    const wantName = ac.list_name || FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME
-    const listId =
-      ac.list_id ||
-      (await (async () => {
-        const listsPayload = await api.listUserLists({ limit: 100, offset: 0 })
-        const lists = unwrapListPayload(listsPayload)
-        const found = lists.find((l) => l.name === wantName)
-        if (found?.id) return found.id
-        if (!config.auto_create_lists) return null
-        const created = await api.createUserList(wantName)
-        let id: unknown
-        if (created && typeof created === 'object') {
-          const o = created as Record<string, unknown>
-          const d = o.data
-          id = typeof d === 'object' && d !== null ? (d as Record<string, unknown>).id : o.id
-        }
-        return id != null ? String(id) : null
-      })())
+    try {
+      const wantName = ac.list_name || FAN_CLASSIFY_ACTIVE_CHAT_DEFAULT_NAME
+      const listId =
+        ac.list_id ||
+        (await (async () => {
+          const lists = await api.listUserListsCollectAll()
+          const found = lists.find((l) => l.name === wantName)
+          if (found?.id) return found.id
+          if (!config.auto_create_lists) return null
+          const created = await api.createUserList(wantName)
+          let id: unknown
+          if (created && typeof created === 'object') {
+            const o = created as Record<string, unknown>
+            const d = o.data
+            id = typeof d === 'object' && d !== null ? (d as Record<string, unknown>).id : o.id
+          }
+          return id != null ? String(id) : null
+        })())
 
-    if (listId) {
-      const latest = await latestOnlyFansInboundMap(supabase, userId)
-      const desired = new Set<string>()
-      for (const [pid, t] of latest) {
-        if (t >= cutoff) desired.add(pid)
+      if (listId) {
+        const latest = await latestOnlyFansInboundMap(supabase, userId)
+        const desired = new Set<string>()
+        for (const [pid, t] of latest) {
+          if (t >= cutoff) desired.add(pid)
+        }
+        const current = await fetchAllListUserIds(api, listId)
+        const toAdd = [...desired].filter((id) => !current.has(id))
+        const toRemove = [...current].filter((id) => !desired.has(id))
+        const batch = 40
+        for (let i = 0; i < toAdd.length; i += batch) {
+          await api.addUsersToUserList(listId, toAdd.slice(i, i + batch))
+        }
+        for (let i = 0; i < toRemove.length; i += batch) {
+          const slice = toRemove.slice(i, i + batch)
+          await Promise.all(slice.map((uid) => api.removeUserFromUserList(listId, uid)))
+        }
+        details.push(`active_chat (onlyfans): +${toAdd.length} −${toRemove.length} (target ${desired.size})`)
       }
-      const current = await fetchAllListUserIds(api, listId)
-      const toAdd = [...desired].filter((id) => !current.has(id))
-      const toRemove = [...current].filter((id) => !desired.has(id))
-      const batch = 40
-      for (let i = 0; i < toAdd.length; i += batch) {
-        await api.addUsersToUserList(listId, toAdd.slice(i, i + batch))
-      }
-      for (let i = 0; i < toRemove.length; i += batch) {
-        const slice = toRemove.slice(i, i + batch)
-        await Promise.all(slice.map((uid) => api.removeUserFromUserList(listId, uid)))
-      }
-      details.push(`active_chat (onlyfans): +${toAdd.length} −${toRemove.length} (target ${desired.size})`)
+    } catch (e) {
+      details.push(`active_chat (onlyfans): ${formatClassifyOnlyFansError(e)}`)
     }
   }
 

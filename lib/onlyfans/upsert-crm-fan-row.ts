@@ -34,7 +34,11 @@ export async function upsertOnlyFansFanToCrm(
   })
   const rawPrice = fan.subscriptionPrice
   const subscription_price =
-    rawPrice != null && rawPrice !== '' && Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null
+    rawPrice != null &&
+    (typeof rawPrice !== 'string' || rawPrice !== '') &&
+    Number.isFinite(Number(rawPrice))
+      ? Number(rawPrice)
+      : null
 
   const usernameRaw = String(fan.username ?? '').trim()
   const username = usernameRaw || `user_${platform_fan_id}`
